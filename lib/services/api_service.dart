@@ -139,16 +139,37 @@ class ApiService {
 
   /// Get the personalized home view for a library.
   /// Returns sections like "continue-listening", "recently-added", "discover", etc.
-  Future<List<dynamic>> getPersonalizedView(String libraryId) async {
+  Future<List<dynamic>> getPersonalizedView(
+    String libraryId, {
+    bool minified = true,
+    List<String> include = const ['rssfeed', 'numEpisodesIncomplete'],
+    List<String>? shelves,
+    int? limit,
+  }) async {
     try {
+      final query = <String, String>{};
+      if (minified) query['minified'] = '1';
+      if (include.isNotEmpty) query['include'] = include.join(',');
+      if (shelves != null && shelves.isNotEmpty) {
+        query['shelves'] = shelves.join(',');
+      }
+      if (limit != null) query['limit'] = '$limit';
+
       final response = await http.get(
-        Uri.parse(
-            '$_cleanBaseUrl/api/libraries/$libraryId/personalized'),
+        Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/personalized')
+            .replace(queryParameters: query.isEmpty ? null : query),
         headers: _headers,
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body) as List<dynamic>;
+        final data = jsonDecode(response.body);
+        if (data is List<dynamic>) return data;
+        if (data is Map<String, dynamic>) {
+          final shelvesData = data['shelves'];
+          if (shelvesData is List<dynamic>) return shelvesData;
+          final results = data['results'];
+          if (results is List<dynamic>) return results;
+        }
       }
     } catch (e) {
       // ignore

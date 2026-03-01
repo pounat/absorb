@@ -65,6 +65,13 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
   // slide to the beginning rather than the list instantly reordering underneath them.
   bool _suppressReorder = false;
 
+  bool? _lastLoggedEffectiveOffline;
+  int? _lastLoggedRawCount;
+  int? _lastLoggedVisibleCount;
+  String? _lastLoggedActiveKey;
+  bool? _lastLoggedHasBook;
+  bool? _lastLoggedIsCasting;
+
   void _rebuild() {
     if (!mounted) return;
     // Detect item or episode change (same show, different episode counts as a change)
@@ -356,6 +363,38 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     return items;
   }
 
+  void _logBuildState({
+    required LibraryProvider lib,
+    required bool effectiveOffline,
+    required int rawCount,
+    required int visibleCount,
+    required String? activeKey,
+  }) {
+    if (_lastLoggedEffectiveOffline == effectiveOffline &&
+        _lastLoggedRawCount == rawCount &&
+        _lastLoggedVisibleCount == visibleCount &&
+        _lastLoggedActiveKey == activeKey &&
+        _lastLoggedHasBook == _player.hasBook &&
+        _lastLoggedIsCasting == _cast.isCasting) {
+      return;
+    }
+    _lastLoggedEffectiveOffline = effectiveOffline;
+    _lastLoggedRawCount = rawCount;
+    _lastLoggedVisibleCount = visibleCount;
+    _lastLoggedActiveKey = activeKey;
+    _lastLoggedHasBook = _player.hasBook;
+    _lastLoggedIsCasting = _cast.isCasting;
+
+    debugPrint(
+      '[Absorbing] build '
+      'effectiveOffline=$effectiveOffline '
+      'manualOffline=${lib.isManualOffline} '
+      'raw=$rawCount visible=$visibleCount '
+      'hasBook=${_player.hasBook} casting=${_cast.isCasting} '
+      'activeKey=${activeKey ?? '-'}',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -363,12 +402,38 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     final lib = context.watch<LibraryProvider>();
     final dl = DownloadService();
     var books = _getAbsorbingBooks(lib);
-    
+    final rawCount = books.length;
+
+    String? activeKey;
+    if (_player.hasBook && _player.currentItemId != null) {
+      activeKey = _player.currentEpisodeId != null
+          ? '${_player.currentItemId!}-${_player.currentEpisodeId!}'
+          : _player.currentItemId!;
+    } else if (_cast.isCasting && _cast.castingItemId != null) {
+      activeKey = _cast.castingEpisodeId != null
+          ? '${_cast.castingItemId!}-${_cast.castingEpisodeId!}'
+          : _cast.castingItemId!;
+    }
+
     // Force offline mode when actually offline
     final effectiveOffline = lib.isOffline;
     if (effectiveOffline) {
-      books = books.where((b) => dl.isDownloaded(b['id'] as String? ?? '')).toList();
+      books = books.where((b) {
+        final key = _absorbingKey(b);
+        if (activeKey != null && key == activeKey) {
+          return true;
+        }
+        return dl.isDownloaded(b['id'] as String? ?? '');
+      }).toList();
     }
+
+    _logBuildState(
+      lib: lib,
+      effectiveOffline: effectiveOffline,
+      rawCount: rawCount,
+      visibleCount: books.length,
+      activeKey: activeKey,
+    );
 
     final muted = cs.onSurfaceVariant;
     final subtleBg = cs.onSurface.withValues(alpha: 0.06);
