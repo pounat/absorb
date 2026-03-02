@@ -305,8 +305,9 @@ class _AuthGateState extends State<AuthGate> {
       await ProgressSyncService().init();
       await EqualizerService().init();
       await SleepTimerService().loadAutoSleepSettings();
-      // Pre-populate Android Auto browse tree
-      AndroidAutoService().refresh();
+      // Pre-populate Android Auto browse tree in background.
+      // Do not block app startup on Android Auto server refresh.
+      Future.microtask(() => AndroidAutoService().refresh());
     } catch (e) {
       debugPrint('Service init failed: $e');
     }

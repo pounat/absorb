@@ -584,8 +584,10 @@ class LibraryProvider extends ChangeNotifier {
       _lastPersonalizedFetchAt = DateTime.now();
       _lastPersonalizedFetchLibraryId = _selectedLibraryId;
       await _refreshProgress();
-      _personalizedSections =
-          await _api!.getPersonalizedView(_selectedLibraryId!);
+      _personalizedSections = await _api!.getPersonalizedView(
+        _selectedLibraryId!,
+        include: const ['numEpisodesIncomplete'],
+      );
       // Cache updatedAt timestamps for cover cache-busting
       for (final section in _personalizedSections) {
         for (final e in (section['entities'] as List<dynamic>? ?? [])) {
@@ -681,6 +683,16 @@ class LibraryProvider extends ChangeNotifier {
     }
     // Clear pending syncs since we just pulled fresh server data
     await ScopedPrefs.setStringList('pending_syncs', []);
+    notifyListeners();
+  }
+
+  /// Lightweight refresh for views that only need up-to-date progress.
+  /// Avoids expensive personalized shelf rebuilds.
+  Future<void> refreshProgressOnly() async {
+    if (isOffline || _api == null) return;
+    await ProgressSyncService().flushPendingSync(api: _api!);
+    await _refreshProgress();
+    _localProgressOverrides.clear();
     notifyListeners();
   }
 
