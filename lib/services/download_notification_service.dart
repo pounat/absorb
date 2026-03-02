@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -178,7 +177,11 @@ class DownloadNotificationService {
       }
       _foregroundActive = false;
     }
-    await _plugin.cancel(_progressNotifId);
+    try {
+      await _plugin.cancel(_progressNotifId);
+    } catch (e) {
+      debugPrint('[DownloadNotif] Cancel progress failed: $e');
+    }
   }
 
   /// Show a heads-up completion notification with sound.
@@ -244,6 +247,10 @@ class DownloadNotificationService {
   /// Dismiss all download notifications and stop the foreground service.
   Future<void> dismiss() async {
     await stopForeground();
-    await _plugin.cancel(_alertNotifId);
+    try {
+      await _plugin.cancel(_alertNotifId);
+    } catch (e) {
+      debugPrint('[DownloadNotif] Cancel alert failed: $e');
+    }
   }
 }
