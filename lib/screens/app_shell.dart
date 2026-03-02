@@ -53,6 +53,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   bool _wasCasting = false;
   Timer? _castDisconnectTimer;
 
+  // Lazily build tabs so startup on Absorbing does not initialize Home/Library
+  // work until the user actually visits those tabs.
+  final List<Widget?> _pages = List<Widget?>.filled(5, null, growable: false);
+
   void _switchToAbsorbing() {
     if (mounted) {
       _navigateTo(2);
@@ -65,23 +69,38 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   void _navigateTo(int index) {
     if (index == _currentIndex) return;
+    _ensurePageBuilt(index);
     setState(() {
       _currentIndex = index;
     });
   }
 
-  late final _pages = [
-    const HomeScreen(),
-    LibraryScreen(key: _libraryKey),
-    AbsorbingScreen(key: AbsorbingScreen.globalKey),
-    const StatsScreen(),
-    const SettingsScreen(),
-  ];
+  void _ensurePageBuilt(int index) {
+    if (_pages[index] != null) return;
+    switch (index) {
+      case 0:
+        _pages[index] = const HomeScreen();
+        break;
+      case 1:
+        _pages[index] = LibraryScreen(key: _libraryKey);
+        break;
+      case 2:
+        _pages[index] = AbsorbingScreen(key: AbsorbingScreen.globalKey);
+        break;
+      case 3:
+        _pages[index] = const StatsScreen();
+        break;
+      case 4:
+        _pages[index] = const SettingsScreen();
+        break;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _instance = this;
+    _ensurePageBuilt(_currentIndex);
     _playerHadBook = _player.hasBook;
     _wasPlaying = _player.isPlaying;
     _lastItemId = _player.currentItemId;
@@ -185,7 +204,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _castDisconnectTimer?.cancel();
       _castDisconnectTimer = null;
-      _refreshData();
+      _refreshDataForTab(_currentIndex);
       // Check auto sleep in case we resumed into the window
       SleepTimerService().checkAutoSleep();
     } else if (state == AppLifecycleState.paused) {
@@ -206,13 +225,19 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   DateTime? _lastRefresh;
   static const _refreshCooldown = Duration(minutes: 1);
 
-  void _refreshData() {
+  void _refreshDataForTab(int tabIndex) {
     final now = DateTime.now();
     final lib = context.read<LibraryProvider>();
-    
+
     // Always sync local progress (cheap, no network)
     lib.refreshLocalProgress();
-    
+
+    // Tabs that do not need full personalized shelf rebuilds.
+    if (tabIndex == 1 || tabIndex == 2 || tabIndex == 3) {
+      unawaited(lib.refreshProgressOnly());
+      return;
+    }
+
     // Only do a full server refresh if enough time has passed
     if (_lastRefresh == null || now.difference(_lastRefresh!) > _refreshCooldown) {
       _lastRefresh = now;
@@ -248,7 +273,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       child: Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _pages,
+        children: List<Widget>.generate(
+          _pages.length,
+          (i) => _pages[i] ?? const SizedBox.shrink(),
+        ),
       ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
@@ -264,7 +292,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               }
               _navigateTo(i);
               // Refresh data on switching to Library, Home, Absorbing, or Stats
-              if (i == 0 || i == 1 || i == 2 || i == 3) _refreshData();
+              if (i == 0 || i == 1 || i == 2 || i == 3) {
+                _refreshDataForTab(i);
+              }
             },
             destinations: _buildDestinations(context),
           ),
