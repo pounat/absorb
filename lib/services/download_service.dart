@@ -402,7 +402,6 @@ class DownloadService extends ChangeNotifier {
     String? author,
     String? coverUrl,
     String? episodeId,
-    bool waitForCompletion = true,
   }) async {
     if (_activeDownloadId == itemId) return null;
     if (isDownloaded(itemId)) return null;
@@ -442,34 +441,17 @@ class DownloadService extends ChangeNotifier {
       return null;
     }
 
-    if (waitForCompletion) {
-      await _executeDownload(
-        api: api,
-        itemId: itemId,
-        title: title,
-        author: author,
-        coverUrl: coverUrl,
-        episodeId: episodeId,
-      );
-      // Process any queued downloads
-      if (_queue.isNotEmpty && !_processingQueue) {
-        unawaited(_processQueue());
-      }
-    } else {
-      unawaited(
-        _executeDownload(
-          api: api,
-          itemId: itemId,
-          title: title,
-          author: author,
-          coverUrl: coverUrl,
-          episodeId: episodeId,
-        ).whenComplete(() {
-          if (_queue.isNotEmpty && !_processingQueue) {
-            unawaited(_processQueue());
-          }
-        }),
-      );
+    await _executeDownload(
+      api: api,
+      itemId: itemId,
+      title: title,
+      author: author,
+      coverUrl: coverUrl,
+      episodeId: episodeId,
+    );
+    // Process any queued downloads
+    if (_queue.isNotEmpty && !_processingQueue) {
+      unawaited(_processQueue());
     }
     return null;
   }
@@ -570,6 +552,23 @@ class DownloadService extends ChangeNotifier {
       int _lastNotifPercent = -1;
       DateTime _lastUIUpdate = DateTime.now();
 
+      Future<void> _showProgressSafe(
+        DownloadNotificationService notif,
+        String title,
+        String? author,
+        double progress,
+      ) async {
+        try {
+          await notif.showProgress(
+            title: title,
+            author: author,
+            progress: progress,
+          );
+        } catch (e) {
+          debugPrint('[Download] showProgress non-fatal error: $e');
+        }
+      }
+
       void _updateProgress() {
         final overall = trackProgress.reduce((a, b) => a + b) / audioTracks.length;
         final now = DateTime.now();
@@ -590,13 +589,7 @@ class DownloadService extends ChangeNotifier {
         final pct = (overall * 50).round();
         if (pct != _lastNotifPercent) {
           _lastNotifPercent = pct;
-          unawaited(
-            notif
-                .showProgress(title: title, author: author, progress: overall)
-                .catchError((Object e) {
-              debugPrint('[Download] showProgress non-fatal error: $e');
-            }),
-          );
+          unawaited(_showProgressSafe(notif, title, author, overall));
         }
       }
 
