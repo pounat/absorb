@@ -196,6 +196,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         title: title,
         author: author,
         coverUrl: api.getCoverUrl(bookId),
+        waitForCompletion: false,
       );
     }
 
@@ -233,6 +234,8 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(widget.seriesName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: tt.titleLarge
                         ?.copyWith(fontWeight: FontWeight.w600)),
               ),
@@ -396,6 +399,10 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                 final progress = lib.getProgress(bookId);
                 final isFinished = lib.getProgressData(bookId)?['isFinished'] == true;
                 final isDownloaded = DownloadService().isDownloaded(bookId);
+                final isDownloading = DownloadService().isDownloading(bookId);
+                final downloadPct = (DownloadService().downloadProgress(bookId) * 100)
+                    .clamp(0, 100)
+                    .round();
 
                 String? coverUrl;
                 if (bookId.isNotEmpty &&
@@ -472,6 +479,27 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                                               color: cs.onPrimary,
                                               fontSize: 10,
                                               fontWeight: FontWeight.w800)),
+                                    ),
+                                  ),
+                                if (!isDownloaded && isDownloading)
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black54,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '$downloadPct%',
+                                        style: TextStyle(
+                                          color: cs.primary,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 // Progress bar at bottom
