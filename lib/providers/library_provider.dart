@@ -344,14 +344,14 @@ class LibraryProvider extends ChangeNotifier {
         _startConnectivityMonitoring();
         _loadManualAbsorbing();
 
-        // Do not trust startup /ping as an absolute offline signal.
-        // Some reverse proxies can block /ping while authenticated APIs still work.
-        _networkOffline = false;
-
-        // If initial reachability probe failed, keep pinging in background,
-        // but continue with normal API loading.
+        // If server was unreachable on startup, force offline mode and ping
         if (!auth.serverReachable) {
+          _networkOffline = true;
+          _buildOfflineSections();
+          _isLoading = false;
+          notifyListeners();
           if (_deviceHasConnectivity) _startServerPingTimer();
+          return;
         }
 
         _buildProgressMap(auth);
