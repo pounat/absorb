@@ -78,6 +78,9 @@ dependencies:
   webview_flutter: ^4.13.1
   flutter_markdown_plus: ^1.0.7
 
+  # eBook reader
+  flutter_epub_viewer: ^1.2.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

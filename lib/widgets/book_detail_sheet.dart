@@ -30,6 +30,7 @@ import 'playlist_picker_sheet.dart';
 import 'collection_picker_sheet.dart';
 import 'absorb_wave_icon.dart';
 import 'edit_metadata_sheet.dart';
+import '../screens/ebook_reader_screen.dart';
 
 // ─── BOOK DETAIL BOTTOM SHEET ───────────────────────────────
 
@@ -288,11 +289,19 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
         const SizedBox(height: 12),
       ],
-      if (isEbookOnly)
+      if (isEbookOnly && ebookFile != null)
+        SizedBox(height: 52, child: FilledButton.icon(
+          onPressed: () => _openEbookReader(context, auth, ebookFile, title),
+          icon: const Icon(Icons.menu_book_rounded, size: 24),
+          label: Text('Read',
+            style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onPrimary)),
+          style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+        ))
+      else if (isEbookOnly)
         SizedBox(height: 52, child: FilledButton.icon(
           onPressed: null,
           icon: const Icon(Icons.menu_book_rounded, size: 24),
-          label: Text('eBook Only — No Audio',
+          label: Text('eBook Only - No Audio',
             style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
           style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
         ))
@@ -522,6 +531,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                     Navigator.pop(ctx);
                     CollectionPickerSheet.show(context, widget.itemId);
                   }),
+              if (ebookFile != null)
+                _moreItem(cs, Icons.menu_book_rounded, 'Read eBook',
+                  onTap: () { Navigator.pop(ctx); _openEbookReader(context, auth, ebookFile, title); }),
               if (ebookFile != null)
                 _moreItem(cs, _ebookSaved ? Icons.download_done_rounded : Icons.save_alt_rounded,
                   _ebookSaved ? 'Download eBook Again' : 'Download eBook',
@@ -786,6 +798,66 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       serverUrl: auth.serverUrl,
       token: auth.token,
       libraryId: itemLibraryId,
+    );
+  }
+
+  void _openEbookReader(BuildContext context, AuthProvider auth, Map<String, dynamic> ebookFile, String title) {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (_) => EbookReaderScreen(
+          itemId: widget.itemId,
+          title: title,
+          ebookFile: ebookFile,
+        ),
+      ),
+    );
+  }
+
+  Widget _ebookOverflowButton(BuildContext context, AuthProvider auth, Map<String, dynamic> ebookFile, String title, bool isEbookOnly) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: cs.surface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                Center(child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: Icon(_ebookSaving
+                      ? Icons.hourglass_top_rounded
+                      : _ebookSaved ? Icons.download_done_rounded : Icons.save_alt_rounded,
+                    color: cs.onSurfaceVariant),
+                  title: Text(_ebookSaving ? 'Saving...' : _ebookSaved ? 'Download eBook Again' : 'Download eBook'),
+                  subtitle: const Text('Save the file to your device'),
+                  onTap: _ebookSaving ? null : () {
+                    Navigator.pop(ctx);
+                    _saveEbook(context, auth, ebookFile, title);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(
+          color: cs.onSurface.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+        ),
+        child: Icon(Icons.more_horiz_rounded, size: 16, color: cs.onSurfaceVariant),
+      ),
     );
   }
 
