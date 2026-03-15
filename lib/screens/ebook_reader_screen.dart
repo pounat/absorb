@@ -2,11 +2,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_epub_viewer/flutter_epub_viewer.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../screens/app_shell.dart';
+import '../services/audio_player_service.dart';
+import '../services/ebook_annotation_service.dart';
 import '../services/scoped_prefs.dart';
 
 class EbookReaderScreen extends StatefulWidget {
@@ -34,7 +38,24 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
   bool _showControls = false;
   List<EpubChapter> _chapters = [];
   double _progress = 0;
+  int _chapterPage = 0;
+  int _chapterPageTotal = 0;
 
+  // Annotations
+  final _annotationService = EbookAnnotationService();
+  List<EbookAnnotation> _annotations = [];
+  bool _hasBookmarkAtCurrent = false;
+  String? _currentCfi;
+
+  // Audiobook sync data
+  Map<String, dynamic>? _itemData;
+  List<dynamic> _audioChapters = [];
+  bool _hasAudiobook = false;
+
+  // Selection state for highlight menu
+  String? _selectionText;
+  String? _selectionCfi;
+  Rect? _selectionRect;
   // Track touch start position to distinguish taps from swipes
   double? _touchDownX;
   double? _touchDownY;
@@ -59,6 +80,7 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
     _epubController = EpubController();
     _loadInitialLocation();
     _loadSettings().then((_) => _downloadAndOpen());
+    _fetchItemData();
     _setFullscreen(true);
   }
 
@@ -70,23 +92,36 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
     if (mounted) setState(() {});
   }
 
-  void _applySettings() {
-    // Font size and line-height are safe to set after load.
-    // Do NOT call setFlow here - it's already set via displaySettings
-    // and re-calling it breaks snap animation on Android.
-    _epubController?.setFontSize(fontSize: _fontSize.toDouble());
-    _epubController?.webViewController?.evaluateJavascript(
-      source: '''
-        (function() {
-          try {
-            if (typeof rendition !== 'undefined') {
-              rendition.themes.override('line-height', '$_lineHeight');
-              rendition.themes.override('margin', '${_margin}px');
-            }
-          } catch(e) {}
-        })();
-      ''',
+  EpubTheme _buildTheme(bool isDark) {
+    return EpubTheme.custom(
+      foregroundColor: isDark ? Colors.white : Colors.black,
+      backgroundDecoration: BoxDecoration(
+        color: isDark ? Colors.black : Colors.white,
+      ),
+      customCss: {
+        'body': {
+          'color': isDark ? '#ffffff' : '#000000',
+          'background': isDark ? '#000000' : '#ffffff',
+          'line-height': '$_lineHeight',
+          'padding': '${_margin}px !important',
+          'margin': '0px !important',
+          'box-sizing': 'border-box !important',
+          'max-width': '100vw !important',
+          'overflow-x': 'hidden !important',
+          '-webkit-overflow-scrolling': 'touch',
+          'will-change': 'scroll-position',
+        },
+        'p, div, span, h1, h2, h3, h4, h5, h6, li, td, th, a, em, strong, blockquote': {
+          'color': 'inherit !important',
+        },
+      },
     );
+  }
+
+  void _applySettings() {
+    _epubController?.setFontSize(fontSize: _fontSize.toDouble());
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    _epubController?.updateTheme(theme: _buildTheme(isDark));
   }
 
   Future<void> _updateFontSize(int size) async {
@@ -97,17 +132,13 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
 
   Future<void> _updateLineHeight(double height) async {
     setState(() => _lineHeight = height);
-    _epubController?.webViewController?.evaluateJavascript(
-      source: "rendition.themes.override('line-height', '$height')",
-    );
+    _applySettings();
     await ScopedPrefs.setDouble(_kLineHeight, height);
   }
 
   Future<void> _updateMargin(int margin) async {
     setState(() => _margin = margin);
-    _epubController?.webViewController?.evaluateJavascript(
-      source: "rendition.themes.override('margin', '${margin}px')",
-    );
+    _applySettings();
     await ScopedPrefs.setInt(_kMargin, margin);
   }
 
@@ -142,7 +173,6 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
 
   void _toggleControls() {
     setState(() => _showControls = !_showControls);
-    _setFullscreen(!_showControls);
   }
 
   void _loadInitialLocation() {
@@ -253,6 +283,418 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
     );
   }
 
+  Future<void> _fetchItemData() async {
+    final auth = context.read<AuthProvider>();
+    final api = auth.apiService;
+    if (api == null) return;
+    try {
+      final item = await api.getLibraryItem(widget.itemId);
+      if (item != null && mounted) {
+        _itemData = item;
+        final media = item['media'] as Map<String, dynamic>? ?? {};
+        _audioChapters = media['chapters'] as List<dynamic>? ?? [];
+        final duration = (media['duration'] as num?)?.toDouble() ?? 0;
+        _hasAudiobook = duration > 0 && _audioChapters.isNotEmpty;
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('[EbookReader] Failed to fetch item data: $e');
+    }
+  }
+
+  /// Match an ebook chapter title to the best audiobook chapter.
+  int _matchAudioChapter(String ebookTitle) {
+    if (_audioChapters.isEmpty) return -1;
+
+    final normalised = _normalise(ebookTitle);
+
+    // Exact match first
+    for (var i = 0; i < _audioChapters.length; i++) {
+      final audioTitle = _audioChapters[i]['title'] as String? ?? '';
+      if (_normalise(audioTitle) == normalised) return i;
+    }
+
+    // Substring match - check if one contains the other
+    for (var i = 0; i < _audioChapters.length; i++) {
+      final audioNorm = _normalise(_audioChapters[i]['title'] as String? ?? '');
+      if (audioNorm.contains(normalised) || normalised.contains(audioNorm)) {
+        return i;
+      }
+    }
+
+    // Number-based match - extract chapter numbers
+    final ebookNum = _extractChapterNumber(normalised);
+    if (ebookNum != null) {
+      for (var i = 0; i < _audioChapters.length; i++) {
+        final audioNum = _extractChapterNumber(
+          _normalise(_audioChapters[i]['title'] as String? ?? ''),
+        );
+        if (audioNum == ebookNum) return i;
+      }
+    }
+
+    return -1;
+  }
+
+  String _normalise(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9 ]'), '').trim();
+
+  int? _extractChapterNumber(String normalised) {
+    final match = RegExp(r'(?:chapter|ch|part)\s*(\d+)').firstMatch(normalised);
+    if (match != null) return int.tryParse(match.group(1)!);
+    // Try just a standalone number
+    final numMatch = RegExp(r'^\d+$').firstMatch(normalised.trim());
+    if (numMatch != null) return int.tryParse(numMatch.group(0)!);
+    return null;
+  }
+
+  Future<void> _listenFromHere() async {
+    if (!_hasAudiobook || _itemData == null) return;
+
+    final media = _itemData!['media'] as Map<String, dynamic>? ?? {};
+    final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
+
+    // Get current ebook chapter title via JS
+    final currentChapterResult = await _epubController?.webViewController
+        ?.evaluateJavascript(source: '''
+      (function() {
+        var loc = rendition.currentLocation();
+        if (loc && loc.start && loc.start.href) {
+          var href = loc.start.href;
+          var toc = book.navigation.toc;
+          function findTitle(items, href) {
+            for (var i = 0; i < items.length; i++) {
+              if (items[i].href && items[i].href.indexOf(href) !== -1) return items[i].label;
+              if (items[i].subitems && items[i].subitems.length > 0) {
+                var found = findTitle(items[i].subitems, href);
+                if (found) return found;
+              }
+            }
+            return null;
+          }
+          return findTitle(toc, href) || href;
+        }
+        return null;
+      })();
+    ''');
+
+    final ebookChapterTitle = currentChapterResult?.toString().trim();
+    if (ebookChapterTitle == null || ebookChapterTitle == 'null' || ebookChapterTitle.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not determine current chapter')),
+        );
+      }
+      return;
+    }
+
+    debugPrint('[EbookReader] Current ebook chapter: $ebookChapterTitle');
+
+    // Match to audio chapter
+    var audioIdx = _matchAudioChapter(ebookChapterTitle);
+
+    // Fallback: try index-based matching using ebook chapter list
+    if (audioIdx == -1 && _chapters.isNotEmpty) {
+      // Find which ebook chapter we're in by matching the title
+      final ebookIdx = _chapters.indexWhere((ch) =>
+          _normalise(ch.title) == _normalise(ebookChapterTitle) ||
+          _normalise(ch.title).contains(_normalise(ebookChapterTitle)) ||
+          _normalise(ebookChapterTitle).contains(_normalise(ch.title)));
+      if (ebookIdx != -1 && ebookIdx < _audioChapters.length) {
+        audioIdx = ebookIdx;
+        debugPrint('[EbookReader] Fallback index match: ebook[$ebookIdx] -> audio[$audioIdx]');
+      }
+    }
+
+    if (audioIdx == -1) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No matching audio chapter for "$ebookChapterTitle"')),
+        );
+      }
+      return;
+    }
+
+    // Calculate position within chapter using page progress
+    final audioChapter = _audioChapters[audioIdx];
+    final chapterStart = (audioChapter['start'] as num).toDouble();
+    final chapterEnd = (audioChapter['end'] as num).toDouble();
+    final chapterDuration = chapterEnd - chapterStart;
+
+    double chapterProgress = 0;
+    if (_chapterPageTotal > 0) {
+      chapterProgress = (_chapterPage / _chapterPageTotal).clamp(0.0, 1.0);
+    }
+
+    final startTime = chapterStart + (chapterDuration * chapterProgress);
+    final audioTitle = audioChapter['title'] as String? ?? 'Chapter ${audioIdx + 1}';
+
+    debugPrint('[EbookReader] Syncing to audio: "$audioTitle" at ${startTime.toStringAsFixed(1)}s '
+        '(${(chapterProgress * 100).toStringAsFixed(0)}% through chapter)');
+
+    // Start audiobook playback
+    final auth = context.read<AuthProvider>();
+    final api = auth.apiService;
+    if (api == null) return;
+
+    final player = AudioPlayerService();
+    final title = metadata['title'] as String? ?? widget.title;
+    final author = metadata['authorName'] as String? ?? '';
+    final coverPath = _itemData!['id'] as String? ?? widget.itemId;
+    final coverUrl = '${api.baseUrl}/api/items/$coverPath/cover';
+    final totalDuration = (media['duration'] as num?)?.toDouble() ?? 0;
+
+    final error = await player.playItem(
+      api: api,
+      itemId: widget.itemId,
+      title: title,
+      author: author,
+      coverUrl: coverUrl,
+      totalDuration: totalDuration,
+      chapters: _audioChapters,
+      startTime: startTime,
+    );
+
+    if (error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
+
+    if (mounted) {
+      context.read<LibraryProvider>()
+        ..addToAbsorbing(widget.itemId)
+        ..refreshLocalProgress()
+        ..refresh();
+    }
+
+    // Navigate to the audio player
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+      Future.delayed(const Duration(milliseconds: 100), () {
+        AppShell.goToAbsorbingGlobal();
+      });
+    }
+  }
+
+  Future<void> _loadAnnotations() async {
+    _annotations = await _annotationService.getAnnotations(widget.itemId);
+    if (mounted) setState(() {});
+  }
+
+  void _restoreHighlights() {
+    for (final a in _annotations) {
+      if (a.type == AnnotationType.highlight && a.color != null) {
+        _epubController?.addHighlight(
+          cfi: a.cfi,
+          color: Color(int.parse('FF${a.color!.hex.substring(1)}', radix: 16)),
+          opacity: 0.35,
+        );
+      }
+    }
+  }
+
+  void _setupPageInfoHandler() {
+    _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'pageInfo',
+      callback: (args) {
+        if (!mounted || args.isEmpty) return;
+        final data = args[0] as Map<String, dynamic>?;
+        if (data == null) return;
+        final page = data['page'] as int? ?? 0;
+        final total = data['total'] as int? ?? 0;
+        if (page != _chapterPage || total != _chapterPageTotal) {
+          setState(() {
+            _chapterPage = page;
+            _chapterPageTotal = total;
+          });
+        }
+      },
+    );
+    _epubController?.webViewController?.evaluateJavascript(
+      source: '''
+        (function() {
+          rendition.on('relocated', function(location) {
+            if (location && location.start && location.start.displayed) {
+              window.flutter_inappwebview.callHandler('pageInfo', {
+                page: location.start.displayed.page,
+                total: location.start.displayed.total
+              });
+            }
+          });
+        })();
+      ''',
+    );
+  }
+
+  Future<void> _addHighlight(HighlightColor color) async {
+    if (_selectionCfi == null || _selectionText == null) return;
+    final annotation = await _annotationService.addHighlight(
+      itemId: widget.itemId,
+      cfi: _selectionCfi!,
+      selectedText: _selectionText!,
+      color: color,
+    );
+    _epubController?.addHighlight(
+      cfi: annotation.cfi,
+      color: Color(int.parse('FF${color.hex.substring(1)}', radix: 16)),
+      opacity: 0.35,
+    );
+    _annotations.insert(0, annotation);
+    _clearSelection();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _removeHighlight(EbookAnnotation annotation) async {
+    _epubController?.removeHighlight(cfi: annotation.cfi);
+    await _annotationService.delete(
+      itemId: widget.itemId,
+      annotationId: annotation.id,
+    );
+    _annotations.removeWhere((a) => a.id == annotation.id);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleBookmark() async {
+    final cfi = _currentCfi;
+    if (cfi == null) return;
+
+    if (_hasBookmarkAtCurrent) {
+      // Remove existing bookmark at this location
+      final existing = _annotations.where(
+        (a) => a.type == AnnotationType.bookmark && a.cfi == cfi,
+      ).toList();
+      for (final bm in existing) {
+        await _annotationService.delete(
+          itemId: widget.itemId,
+          annotationId: bm.id,
+        );
+        _annotations.removeWhere((a) => a.id == bm.id);
+      }
+    } else {
+      final annotation = await _annotationService.addBookmark(
+        itemId: widget.itemId,
+        cfi: cfi,
+      );
+      _annotations.insert(0, annotation);
+    }
+    _updateBookmarkState();
+    if (mounted) setState(() {});
+  }
+
+  void _updateBookmarkState() {
+    final cfi = _currentCfi;
+    _hasBookmarkAtCurrent = cfi != null &&
+        _annotations.any((a) => a.type == AnnotationType.bookmark && a.cfi == cfi);
+  }
+
+  void _clearSelection() {
+    _selectionText = null;
+    _selectionCfi = null;
+    _selectionRect = null;
+  }
+
+  Widget _divider(ColorScheme cs) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 2),
+    child: Container(width: 1, height: 24, color: cs.onSurface.withValues(alpha: 0.15)),
+  );
+
+  void _copySelection() {
+    if (_selectionText == null) return;
+    Clipboard.setData(ClipboardData(text: _selectionText!));
+    setState(() => _clearSelection());
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Copied to clipboard'), duration: Duration(seconds: 1)),
+    );
+  }
+
+  void _searchSelection() {
+    if (_selectionText == null) return;
+    final query = Uri.encodeComponent(_selectionText!.trim());
+    launchUrl(Uri.parse('https://www.google.com/search?q=$query'), mode: LaunchMode.externalApplication);
+    setState(() => _clearSelection());
+  }
+
+  void _defineSelection() {
+    if (_selectionText == null) return;
+    final word = _selectionText!.trim().split(RegExp(r'\s+')).first;
+    final query = Uri.encodeComponent('define $word');
+    launchUrl(Uri.parse('https://www.google.com/search?q=$query'), mode: LaunchMode.externalApplication);
+    setState(() => _clearSelection());
+  }
+
+  void _onSelection(String text, String cfi, Rect selRect, Rect vRect) {
+    if (text.trim().isEmpty) return;
+    setState(() {
+      _selectionText = text;
+      _selectionCfi = cfi;
+      _selectionRect = selRect;
+    });
+  }
+
+  Future<void> _addNoteToAnnotation(EbookAnnotation annotation) async {
+    final controller = TextEditingController(text: annotation.note ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Note'),
+        content: TextField(
+          controller: controller,
+          maxLines: 5,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Add a note...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (result != null) {
+      await _annotationService.updateNote(
+        itemId: widget.itemId,
+        annotationId: annotation.id,
+        note: result.isEmpty ? null : result,
+      );
+      annotation.note = result.isEmpty ? null : result;
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _navigateToChapter(String href) {
+    final escaped = href.replaceAll("'", "\\'");
+    _epubController?.webViewController?.evaluateJavascript(
+      source: '''
+        (function() {
+          rendition.display('$escaped').then(function() {
+            rendition.resize();
+          });
+        })();
+      ''',
+    );
+  }
+
+  List<EpubChapter> _flattenChapters(List<EpubChapter> chapters) {
+    final flat = <EpubChapter>[];
+    for (final ch in chapters) {
+      flat.add(ch);
+      if (ch.subitems.isNotEmpty) {
+        flat.addAll(_flattenChapters(ch.subitems));
+      }
+    }
+    return flat;
+  }
+
   void _showChapterList() {
     final cs = Theme.of(context).colorScheme;
     showModalBottomSheet(
@@ -280,7 +722,7 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
                     dense: true,
                     onTap: () {
                       Navigator.pop(ctx);
-                      _epubController?.display(cfi: ch.href);
+                      _navigateToChapter(ch.href);
                     },
                   );
                 },
@@ -399,7 +841,7 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
                     ],
                     selected: {_isPaginated},
                     onSelectionChanged: (v) {
-                      setSheetState(() {});
+                      Navigator.pop(ctx);
                       _updatePaginated(v.first);
                     },
                     style: ButtonStyle(
@@ -410,6 +852,159 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
                 ]),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAnnotationsSheet() {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final highlights = _annotations.where((a) => a.type == AnnotationType.highlight).toList();
+    final bookmarks = _annotations.where((a) => a.type == AnnotationType.bookmark).toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cs.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        minChildSize: 0.3,
+        builder: (ctx, scrollController) => DefaultTabController(
+          length: 2,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  children: [
+                    Text('Annotations', style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text(
+                      '${_annotations.length}',
+                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              TabBar(
+                tabs: [
+                  Tab(text: 'Highlights (${highlights.length})'),
+                  Tab(text: 'Bookmarks (${bookmarks.length})'),
+                ],
+                labelColor: cs.primary,
+                unselectedLabelColor: cs.onSurfaceVariant,
+                indicatorColor: cs.primary,
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    // Highlights tab
+                    highlights.isEmpty
+                        ? Center(child: Text('No highlights yet', style: TextStyle(color: cs.onSurfaceVariant)))
+                        : ListView.builder(
+                            controller: scrollController,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: highlights.length,
+                            itemBuilder: (ctx, i) {
+                              final h = highlights[i];
+                              return Dismissible(
+                                key: ValueKey(h.id),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 16),
+                                  color: cs.error,
+                                  child: Icon(Icons.delete_rounded, color: cs.onError),
+                                ),
+                                onDismissed: (_) => _removeHighlight(h),
+                                child: ListTile(
+                                  leading: Container(
+                                    width: 4,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Color(int.parse('FF${h.color!.hex.substring(1)}', radix: 16)),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    h.selectedText ?? '',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: tt.bodyMedium,
+                                  ),
+                                  subtitle: h.note != null && h.note!.isNotEmpty
+                                      ? Text(h.note!, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))
+                                      : null,
+                                  dense: true,
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    _epubController?.display(cfi: h.cfi);
+                                  },
+                                  onLongPress: () => _addNoteToAnnotation(h),
+                                ),
+                              );
+                            },
+                          ),
+
+                    // Bookmarks tab
+                    bookmarks.isEmpty
+                        ? Center(child: Text('No bookmarks yet', style: TextStyle(color: cs.onSurfaceVariant)))
+                        : ListView.builder(
+                            controller: scrollController,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: bookmarks.length,
+                            itemBuilder: (ctx, i) {
+                              final bm = bookmarks[i];
+                              final date = '${bm.createdAt.month}/${bm.createdAt.day}/${bm.createdAt.year}';
+                              return Dismissible(
+                                key: ValueKey(bm.id),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 16),
+                                  color: cs.error,
+                                  child: Icon(Icons.delete_rounded, color: cs.onError),
+                                ),
+                                onDismissed: (_) async {
+                                  await _annotationService.delete(
+                                    itemId: widget.itemId,
+                                    annotationId: bm.id,
+                                  );
+                                  _annotations.removeWhere((a) => a.id == bm.id);
+                                  _updateBookmarkState();
+                                  if (mounted) setState(() {});
+                                },
+                                child: ListTile(
+                                  leading: Icon(Icons.bookmark_rounded, color: cs.primary),
+                                  title: Text(
+                                    bm.note ?? 'Bookmark',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: tt.bodyMedium,
+                                  ),
+                                  subtitle: Text(date, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                                  dense: true,
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    _epubController?.display(cfi: bm.cfi);
+                                  },
+                                  onLongPress: () => _addNoteToAnnotation(bm),
+                                ),
+                              );
+                            },
+                          ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -460,39 +1055,34 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
               initialCfi: _initialCfi,
               displaySettings: EpubDisplaySettings(
                 flow: _isPaginated ? EpubFlow.paginated : EpubFlow.scrolled,
-                useSnapAnimationAndroid: true,
-                theme: isDark ? EpubTheme.dark() : EpubTheme.light(),
+                snap: _isPaginated,
+                useSnapAnimationAndroid: !_isPaginated,
+                theme: _buildTheme(isDark),
               ),
               onChaptersLoaded: (chapters) {
-                if (mounted) setState(() => _chapters = chapters);
+                if (mounted) setState(() => _chapters = _flattenChapters(chapters));
+              },
+              suppressNativeContextMenu: true,
+              onSelection: _onSelection,
+              onDeselection: () {
+                if (mounted) setState(() => _clearSelection());
+              },
+              onAnnotationClicked: (cfi, rect) {
+                final match = _annotations.where(
+                  (a) => a.type == AnnotationType.highlight && a.cfi == cfi,
+                ).firstOrNull;
+                if (match != null) _addNoteToAnnotation(match);
               },
               onEpubLoaded: () {
                 debugPrint('[EbookReader] Epub loaded');
                 _applySettings();
-                // Disable epub.js built-in click-to-navigate to prevent double page turns
-                _epubController?.webViewController?.evaluateJavascript(
-                  source: '''
-                    (function() {
-                      try {
-                        if (typeof rendition !== 'undefined' && rendition.manager) {
-                          var views = rendition.manager.views;
-                          if (views && views._views) {
-                            views._views.forEach(function(view) {
-                              if (view.document) {
-                                view.document.addEventListener('click', function(e) {
-                                  e.stopImmediatePropagation();
-                                }, { capture: true });
-                              }
-                            });
-                          }
-                        }
-                      } catch(e) { console.log('disable click nav error:', e); }
-                    })();
-                  ''',
-                );
+                _loadAnnotations().then((_) => _restoreHighlights());
+                _setupPageInfoHandler();
               },
               onRelocated: (value) {
                 if (mounted) {
+                  _currentCfi = value.startCfi;
+                  _updateBookmarkState();
                   setState(() => _progress = value.progress);
                   _syncProgress(value.startCfi, value.progress);
                 }
@@ -507,10 +1097,14 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
                 _touchDownX = null;
                 _touchDownY = null;
                 if (dx > 0.05 || dy > 0.05) return;
-                if (x < 0.2) {
-                  Future.delayed(const Duration(milliseconds: 100), () => _epubController?.prev());
-                } else if (x > 0.8) {
-                  Future.delayed(const Duration(milliseconds: 100), () => _epubController?.next());
+                if (!_isPaginated) {
+                  if (x > 0.2 && x < 0.8) _toggleControls();
+                  return;
+                }
+                if (x < 0.25) {
+                  _epubController?.prev();
+                } else if (x > 0.75) {
+                  _epubController?.next();
                 } else {
                   _toggleControls();
                 }
@@ -553,6 +1147,25 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
                               fontSize: 16,
                             ),
                           ),
+                        ),
+                        if (_hasAudiobook)
+                          IconButton(
+                            icon: Icon(Icons.headphones_rounded, color: cs.onSurface),
+                            tooltip: 'Listen from here',
+                            onPressed: _listenFromHere,
+                          ),
+                        IconButton(
+                          icon: Icon(
+                            _hasBookmarkAtCurrent
+                                ? Icons.bookmark_rounded
+                                : Icons.bookmark_border_rounded,
+                            color: _hasBookmarkAtCurrent ? cs.primary : cs.onSurface,
+                          ),
+                          onPressed: _toggleBookmark,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.sticky_note_2_outlined, color: cs.onSurface),
+                          onPressed: _showAnnotationsSheet,
                         ),
                         IconButton(
                           icon: Icon(Icons.text_fields_rounded, color: cs.onSurface),
@@ -604,9 +1217,21 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            '${(_progress * 100).toStringAsFixed(1)}%',
-                            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              if (_chapterPageTotal > 0)
+                                Text(
+                                  '$_chapterPage / $_chapterPageTotal',
+                                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
+                                )
+                              else
+                                const SizedBox.shrink(),
+                              Text(
+                                '${(_progress * 100).toStringAsFixed(1)}%',
+                                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -616,7 +1241,89 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
               ),
             ),
           ),
+
+          // Selection toolbar - appears when text is selected
+          if (_selectionRect != null && _selectionCfi != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+              child: Center(
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(28),
+                  color: cs.surfaceContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final color in HighlightColor.values)
+                          _HighlightColorButton(
+                            color: Color(int.parse('FF${color.hex.substring(1)}', radix: 16)),
+                            onTap: () => _addHighlight(color),
+                          ),
+                        _divider(cs),
+                        IconButton(
+                          icon: Icon(Icons.copy_rounded, size: 20, color: cs.onSurfaceVariant),
+                          onPressed: _copySelection,
+                          tooltip: 'Copy',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.search_rounded, size: 20, color: cs.onSurfaceVariant),
+                          onPressed: _searchSelection,
+                          tooltip: 'Search',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.menu_book_rounded, size: 20, color: cs.onSurfaceVariant),
+                          onPressed: _defineSelection,
+                          tooltip: 'Define',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        _divider(cs),
+                        IconButton(
+                          icon: Icon(Icons.close_rounded, size: 20, color: cs.onSurfaceVariant),
+                          onPressed: () => setState(() => _clearSelection()),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+class _HighlightColorButton extends StatelessWidget {
+  final Color color;
+  final VoidCallback onTap;
+
+  const _HighlightColorButton({required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.black.withValues(alpha: 0.15),
+              width: 1,
+            ),
+          ),
+        ),
       ),
     );
   }

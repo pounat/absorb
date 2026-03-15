@@ -813,54 +813,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     );
   }
 
-  Widget _ebookOverflowButton(BuildContext context, AuthProvider auth, Map<String, dynamic> ebookFile, String title, bool isEbookOnly) {
-    final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: () {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: cs.surface,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (ctx) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 8),
-                Center(child: Container(width: 40, height: 4,
-                  decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 16),
-                ListTile(
-                  leading: Icon(_ebookSaving
-                      ? Icons.hourglass_top_rounded
-                      : _ebookSaved ? Icons.download_done_rounded : Icons.save_alt_rounded,
-                    color: cs.onSurfaceVariant),
-                  title: Text(_ebookSaving ? 'Saving...' : _ebookSaved ? 'Download eBook Again' : 'Download eBook'),
-                  subtitle: const Text('Save the file to your device'),
-                  onTap: _ebookSaving ? null : () {
-                    Navigator.pop(ctx);
-                    _saveEbook(context, auth, ebookFile, title);
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        );
-      },
-      child: Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
-        ),
-        child: Icon(Icons.more_horiz_rounded, size: 16, color: cs.onSurfaceVariant),
-      ),
-    );
-  }
-
   bool _ebookSaving = false;
 
   Future<void> _saveEbook(BuildContext context, AuthProvider auth, Map<String, dynamic> ebookFile, String bookTitle) async {
