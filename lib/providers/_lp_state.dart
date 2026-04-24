@@ -133,6 +133,71 @@ mixin _StateMixin on ChangeNotifier {
   int get finishedCount =>
       _progressMap.values.where((p) => p['isFinished'] == true).length;
 
+  int get finishedBooksCount => _progressMap.values.where((p) {
+        if (p['isFinished'] != true) return false;
+        final ep = p['episodeId'];
+        return ep == null || (ep is String && ep.isEmpty);
+      }).length;
+
+  int get finishedEpisodesCount => _progressMap.values.where((p) {
+        if (p['isFinished'] != true) return false;
+        final ep = p['episodeId'];
+        return ep is String && ep.isNotEmpty;
+      }).length;
+
+  int get finishedBooksThisYearCount {
+    final year = DateTime.now().year;
+    var count = 0;
+    for (final p in _progressMap.values) {
+      if (p['isFinished'] != true) continue;
+      final ep = p['episodeId'];
+      if (ep is String && ep.isNotEmpty) continue;
+      final raw = p['finishedAt'];
+      if (raw is! num) continue;
+      final dt = DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+      if (dt.year == year) count++;
+    }
+    return count;
+  }
+
+  /// IDs of books finished this year, newest-first (by finishedAt).
+  /// Podcasts are excluded. Used by the stats-screen detail sheet to load
+  /// full item data on demand.
+  List<String> get finishedBooksThisYearIds {
+    final year = DateTime.now().year;
+    final entries = <MapEntry<String, int>>[];
+    for (final p in _progressMap.values) {
+      if (p['isFinished'] != true) continue;
+      final ep = p['episodeId'];
+      if (ep is String && ep.isNotEmpty) continue;
+      final raw = p['finishedAt'];
+      if (raw is! num) continue;
+      final ts = raw.toInt();
+      final dt = DateTime.fromMillisecondsSinceEpoch(ts);
+      if (dt.year != year) continue;
+      final id = p['libraryItemId'] as String?;
+      if (id == null) continue;
+      entries.add(MapEntry(id, ts));
+    }
+    entries.sort((a, b) => b.value.compareTo(a.value));
+    return entries.map((e) => e.key).toList();
+  }
+
+  int get finishedEpisodesThisYearCount {
+    final year = DateTime.now().year;
+    var count = 0;
+    for (final p in _progressMap.values) {
+      if (p['isFinished'] != true) continue;
+      final ep = p['episodeId'];
+      if (ep is! String || ep.isEmpty) continue;
+      final raw = p['finishedAt'];
+      if (raw is! num) continue;
+      final dt = DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+      if (dt.year == year) count++;
+    }
+    return count;
+  }
+
   Map<String, String> get mediaHeaders => _api?.mediaHeaders ?? {};
 
   Map<String, dynamic>? getSeriesBooksCache(String seriesId) =>

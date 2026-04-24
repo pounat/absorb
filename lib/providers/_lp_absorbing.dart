@@ -404,6 +404,9 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     _localProgressOverrides[itemId] = 1.0;
     _lastFinishedItemId = itemId;
     _locallyFinishedItems.add(itemId);
+    // Stats widget shows "books finished this year"; force a refresh so it
+    // reflects the new count without waiting on the 15-min throttle.
+    HomeWidgetService().refreshStats(force: true);
     if (_absorbingBookIds.remove(itemId)) {
       _absorbingBookIds.insert(0, itemId);
     }

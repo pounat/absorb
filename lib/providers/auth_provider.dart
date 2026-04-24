@@ -9,6 +9,7 @@ import '../services/equalizer_service.dart';
 import '../services/session_cache.dart';
 import '../services/socket_service.dart';
 import '../services/user_account_service.dart';
+import '../services/home_widget_service.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show scaffoldMessengerKey, rootNavigatorKey;
 
@@ -316,6 +317,10 @@ class AuthProvider extends ChangeNotifier {
       ));
     } catch (_) {}
 
+    // Wipe any previous user's stats from the widget and pull this user's.
+    await HomeWidgetService().clearStats();
+    HomeWidgetService().refreshStats(force: true);
+
     _isLoading = false;
     notifyListeners();
     return true;
@@ -393,6 +398,10 @@ class AuthProvider extends ChangeNotifier {
         isLegacyToken: _isLegacyToken,
       ));
     } catch (_) {}
+
+    // Wipe any previous user's stats from the widget and pull this user's.
+    await HomeWidgetService().clearStats();
+    HomeWidgetService().refreshStats(force: true);
 
     _isLoading = false;
     notifyListeners();
@@ -496,6 +505,9 @@ class AuthProvider extends ChangeNotifier {
     // Clear Android Auto browse tree cache so it doesn't show stale data
     AndroidAutoService().clearCache();
 
+    // Clear the stats widget so the previous user's numbers don't linger.
+    await HomeWidgetService().clearStats();
+
     // Clear cached session metadata for this user (track URLs would be invalid
     // on next login anyway)
     await SessionCache.clearAll();
@@ -583,6 +595,11 @@ class AuthProvider extends ChangeNotifier {
       if (_username != null) await prefs.setString('username', _username!);
       if (_userId != null) await prefs.setString('user_id', _userId!);
     } catch (_) {}
+
+    // Clear the stats widget so the previous account's numbers don't linger
+    // while the new user's data is fetched, then force a refresh.
+    await HomeWidgetService().clearStats();
+    HomeWidgetService().refreshStats(force: true);
 
     // Restore custom headers for this session
     try {

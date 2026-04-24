@@ -2,4 +2,5 @@
 <resources>
     <string name="widget_description">Shows the currently playing audiobook with playback controls.</string>
     <string name="widget_compact_description">Compact now-playing bar with playback controls.</string>
+    <string name="widget_stats_description">Listening stats: today, this week, streak, and books finished this year.</string>
 </resources>

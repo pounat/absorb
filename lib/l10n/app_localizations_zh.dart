@@ -601,6 +601,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statsFinished => '已完成';
 
   @override
+  String get statsBooksFinished => '书籍';
+
+  @override
+  String get statsEpisodesFinished => '单集';
+
+  @override
+  String get statsBooksThisYear => '今年书籍';
+
+  @override
+  String get statsEpisodesThisYear => '今年单集';
+
+  @override
   String get statsDaysActive => '活跃天数';
 
   @override

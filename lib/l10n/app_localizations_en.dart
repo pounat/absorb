@@ -611,6 +611,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsFinished => 'Finished';
 
   @override
+  String get statsBooksFinished => 'Books';
+
+  @override
+  String get statsEpisodesFinished => 'Episodes';
+
+  @override
+  String get statsBooksThisYear => 'Books this year';
+
+  @override
+  String get statsEpisodesThisYear => 'Episodes this year';
+
+  @override
   String get statsDaysActive => 'Days Active';
 
   @override

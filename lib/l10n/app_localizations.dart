@@ -1208,6 +1208,30 @@ abstract class AppLocalizations {
   /// **'Finished'**
   String get statsFinished;
 
+  /// No description provided for @statsBooksFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Books'**
+  String get statsBooksFinished;
+
+  /// No description provided for @statsEpisodesFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Episodes'**
+  String get statsEpisodesFinished;
+
+  /// No description provided for @statsBooksThisYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Books this year'**
+  String get statsBooksThisYear;
+
+  /// No description provided for @statsEpisodesThisYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Episodes this year'**
+  String get statsEpisodesThisYear;
+
   /// No description provided for @statsDaysActive.
   ///
   /// In en, this message translates to:

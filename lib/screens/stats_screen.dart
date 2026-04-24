@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/finished_books_this_year_sheet.dart';
 import '../widgets/absorb_wave_icon.dart';
 import '../widgets/card_buttons.dart';
 import '../main.dart' show oledNotifier;
@@ -26,6 +27,9 @@ class _StatsScreenState extends State<StatsScreen>
   List<dynamic> _sessions = [];
   bool _isLoading = true;
   int _booksFinished = 0;
+  int _episodesFinished = 0;
+  int _booksFinishedThisYear = 0;
+  int _episodesFinishedThisYear = 0;
   late AnimationController _animController;
   late Animation<double> _animValue;
 
@@ -103,7 +107,10 @@ class _StatsScreenState extends State<StatsScreen>
           setState(() {
             _stats = stats;
             _sessions = sessions;
-            _booksFinished = lib.finishedCount;
+            _booksFinished = lib.finishedBooksCount;
+            _episodesFinished = lib.finishedEpisodesCount;
+            _booksFinishedThisYear = lib.finishedBooksThisYearCount;
+            _episodesFinishedThisYear = lib.finishedEpisodesThisYearCount;
             _isLoading = false;
           });
           _animController.reset();
@@ -119,7 +126,10 @@ class _StatsScreenState extends State<StatsScreen>
 
     // Phase 1: load core stats from network and cache them.
     final stats = await api.getListeningStats();
-    final finished = lib.finishedCount;
+    final finishedBooks = lib.finishedBooksCount;
+    final finishedEpisodes = lib.finishedEpisodesCount;
+    final finishedBooksYear = lib.finishedBooksThisYearCount;
+    final finishedEpisodesYear = lib.finishedEpisodesThisYearCount;
 
     if (stats != null) {
       prefs.setString(_kStats, jsonEncode(stats));
@@ -128,7 +138,10 @@ class _StatsScreenState extends State<StatsScreen>
     if (mounted) {
       setState(() {
         _stats = stats ?? _stats; // keep cached if network failed
-        _booksFinished = finished;
+        _booksFinished = finishedBooks;
+        _episodesFinished = finishedEpisodes;
+        _booksFinishedThisYear = finishedBooksYear;
+        _episodesFinishedThisYear = finishedEpisodesYear;
         _isLoading = false;
       });
       if (_animController.status != AnimationStatus.forward &&
@@ -278,16 +291,41 @@ class _StatsScreenState extends State<StatsScreen>
         const SizedBox(height: 8),
         Row(children: [
           Expanded(
-              child: _accentStatCard(tt, cs, Icons.check_circle_rounded,
-                  Colors.green, '$_booksFinished', l.statsFinished)),
-          const SizedBox(width: 8),
+              child: _accentStatCard(tt, cs, Icons.menu_book_rounded,
+                  Colors.green, '$_booksFinished', l.statsBooksFinished)),
+          if (_episodesFinished > 0) ...[
+            const SizedBox(width: 8),
+            Expanded(
+                child: _accentStatCard(tt, cs, Icons.podcasts_rounded,
+                    Colors.purple, '$_episodesFinished', l.statsEpisodesFinished)),
+          ],
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(
+              child: _accentStatCard(tt, cs, Icons.auto_stories_rounded,
+                  Colors.teal, '$_booksFinishedThisYear', l.statsBooksThisYear,
+                  onTap: _booksFinishedThisYear > 0
+                      ? () => showFinishedBooksThisYearSheet(context)
+                      : null)),
+          if (_episodesFinishedThisYear > 0) ...[
+            const SizedBox(width: 8),
+            Expanded(
+                child: _accentStatCard(tt, cs, Icons.graphic_eq_rounded,
+                    Colors.deepPurple, '$_episodesFinishedThisYear',
+                    l.statsEpisodesThisYear)),
+          ],
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
           Expanded(
               child: _accentStatCard(tt, cs, Icons.calendar_today_rounded,
                   cs.primary, '$activeDays', l.statsDaysActive)),
+          const SizedBox(width: 8),
+          Expanded(
+              child: _accentStatCard(tt, cs, Icons.speed_rounded, cs.tertiary,
+                  _formatDuration(avgDaily), l.statsDailyAverage)),
         ]),
-        const SizedBox(height: 8),
-        _accentStatCard(tt, cs, Icons.speed_rounded, cs.tertiary,
-            _formatDuration(avgDaily), l.statsDailyAverage),
         const SizedBox(height: 28),
 
         // -- Last 7 days chart --
@@ -416,13 +454,20 @@ class _StatsScreenState extends State<StatsScreen>
   // --- ACCENT STAT CARD ---
 
   Widget _accentStatCard(TextTheme tt, ColorScheme cs, IconData icon,
-      Color accent, String value, String label) {
-    return Container(
+      Color accent, String value, String label,
+      {VoidCallback? onTap}) {
+    final isTappable = onTap != null;
+    final card = Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       decoration: BoxDecoration(
-        color: cs.onSurface.withValues(alpha: 0.04),
+        color: isTappable
+            ? accent.withValues(alpha: 0.06)
+            : cs.onSurface.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
+        border: Border.all(
+            color: isTappable
+                ? accent.withValues(alpha: 0.25)
+                : cs.onSurface.withValues(alpha: 0.06)),
       ),
       child: Row(children: [
         Container(
@@ -446,7 +491,20 @@ class _StatsScreenState extends State<StatsScreen>
               style: tt.labelSmall?.copyWith(
                   color: cs.onSurface.withValues(alpha: 0.35), fontSize: 11)),
         ])),
+        if (isTappable)
+          Icon(Icons.chevron_right_rounded,
+              size: 20, color: accent.withValues(alpha: 0.7)),
       ]),
+    );
+    if (!isTappable) return card;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: card,
+      ),
     );
   }
 
