@@ -131,10 +131,24 @@ class CarPlayService {
     if (AudioPlayerService().knownOffline) {
       return [downloadsTab];
     }
-    final continueTab = await _buildContinueTab();
-    final recentlyAddedTab = await _buildRecentlyAddedTab();
-    final libraryTab = await _buildLibraryTab();
-    return [continueTab, recentlyAddedTab, libraryTab, downloadsTab];
+    // Cold start race: knownOffline defaults to false and only flips after
+    // the auth ping fails (~15s). If CarPlay connects before then with no
+    // server data loaded yet, Continue/New/Library would render as empty
+    // tabs and the user lands on a blank Continue tab. Skip any tab that
+    // has nothing to show; onServerDataChanged will rebuild once data
+    // arrives.
+    final tabs = <CPListTemplate>[];
+    if (_autoService.continueListening.isNotEmpty) {
+      tabs.add(await _buildContinueTab());
+    }
+    if (_autoService.recentlyAdded.isNotEmpty) {
+      tabs.add(await _buildRecentlyAddedTab());
+    }
+    if (_autoService.libraries.isNotEmpty) {
+      tabs.add(await _buildLibraryTab());
+    }
+    tabs.add(downloadsTab);
+    return tabs;
   }
 
   Future<void> _setRootTemplate({String label = ''}) async {
