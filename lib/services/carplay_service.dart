@@ -53,11 +53,26 @@ class CarPlayService {
     // full content already cached. Without this, the user's first open would
     // either show empty Continue Listening / Library tabs or wait the full
     // server-fetch time before anything appeared.
-    _autoService.refresh().then((_) {
+    //
+    // After the refresh, also set the root template proactively. On a true
+    // cold start - where iOS launched the app because the user tapped
+    // absorb in CarPlay - the `connected` event can fire before our
+    // connection listener is registered, and we miss it. Result: no
+    // template ever gets set and CarPlay sits blank until the user backs
+    // out and back in (which re-fires connected). Setting eagerly here
+    // means iOS always has a template waiting whenever its scene
+    // presents. The connect-handler still fires its own set; the
+    // in-flight guard in _setRootTemplate coalesces overlapping calls.
+    _autoService.refresh().then((_) async {
       debugPrint('[CarPlay] Init refresh done'
           ' continue=${_autoService.continueListening.length}'
           ' downloads=${_autoService.downloaded.length}'
           ' libraries=${_autoService.libraries.length}');
+      try {
+        await _setRootTemplate(label: 'init-eager');
+      } catch (e) {
+        debugPrint('[CarPlay] Init eager template set failed: $e');
+      }
     }).catchError((e) {
       debugPrint('[CarPlay] Init refresh failed: $e');
     });
