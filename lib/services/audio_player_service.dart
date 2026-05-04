@@ -218,7 +218,9 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> play() async {
     debugPrint('[Handler] play() called - routing to service (state=${_player.processingState.name})');
-    debugPrint('[ClickDebug] play() entry: ${_clickDebugSnapshot()}');
+    final entryBt = await AudioPlayerService._isBluetoothAudioConnected();
+    if (entryBt) AudioPlayerService._lastPlayedOnBtAt = DateTime.now();
+    debugPrint('[ClickDebug] play() entry: ${_clickDebugSnapshot(btNow: entryBt)}');
     // Mirror the click() guard: a raw play() arriving within 5s of a
     // headphone/AA/BT disconnect is almost always the platform echoing a
     // resume command, not the user. Drop it so playback doesn't jump to
@@ -243,7 +245,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> pause() async {
     debugPrint('[Handler] pause() called - routing to service');
-    debugPrint('[ClickDebug] pause() entry: ${_clickDebugSnapshot()}');
+    final pauseEntryBt = await AudioPlayerService._isBluetoothAudioConnected();
+    debugPrint('[ClickDebug] pause() entry: ${_clickDebugSnapshot(btNow: pauseEntryBt)}');
     _lastHandlerPauseAt = DateTime.now();
     // Android Auto disconnect can dispatch both a MediaButton click and a
     // pause() action simultaneously. The click's 400ms debounce timer would
@@ -365,7 +368,11 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   /// [ClickDebug] — one-line snapshot of state around a media-button event.
   /// Helps diagnose phantom clicks after Android Auto disconnect.
-  String _clickDebugSnapshot() {
+  ///
+  /// `btNow` should be pre-fetched async by the caller when available so
+  /// the AA-disconnect heuristic can be evaluated. When null, that flag
+  /// is reported as `unknown`.
+  String _clickDebugSnapshot({bool? btNow}) {
     final now = DateTime.now();
     int sincePrevPauseMs = -1;
     if (_lastHandlerPauseAt != null) {
@@ -391,6 +398,21 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         && sincePrevPlayMs < 5000
         && _player.playing
         && (backgrounded ?? false);
+    // AA-disconnect fingerprint: BT/AA was the audio route within the last
+    // 10 min, isn't anymore, and the click came in while bg + not playing.
+    int sinceBtMs = -1;
+    final lastBt = AudioPlayerService._lastPlayedOnBtAt;
+    if (lastBt != null) sinceBtMs = now.difference(lastBt).inMilliseconds;
+    final String aaDisconnect;
+    if (btNow == null) {
+      aaDisconnect = 'unknown';
+    } else {
+      final fired = lastBt != null
+          && !btNow
+          && sinceBtMs >= 0
+          && sinceBtMs < 600000;
+      aaDisconnect = fired ? 'true' : 'false';
+    }
     return 'bg=$backgrounded, sincePrevPauseMs=$sincePrevPauseMs, '
         'sincePrevPlayMs=$sincePrevPlayMs, '
         'sinceForegroundMs=$sinceForegroundMs, '
@@ -398,13 +420,18 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         'playing=${_player.playing}, '
         'processingState=${_player.processingState.name}, '
         'noisyPause=${AudioPlayerService._noisyPause}, '
-        'phantomSuspect=$phantomSuspect';
+        'phantomSuspect=$phantomSuspect, '
+        'sinceBtMs=$sinceBtMs, btNow=${btNow ?? 'unknown'}, '
+        'aaDisconnectSuspect=$aaDisconnect';
   }
 
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
     debugPrint('[Handler] click(button=$button) count=${_clickCount + 1} playing=${_player.playing}');
-    final snapshot = _clickDebugSnapshot();
+    // Pre-fetch BT-route state so the snapshot can fill in the AA-disconnect
+    // heuristic and the suppression branch below has a value to test against.
+    final btNow = await AudioPlayerService._isBluetoothAudioConnected();
+    final snapshot = _clickDebugSnapshot(btNow: btNow);
     debugPrint('[ClickDebug] click arrival (button=$button): $snapshot');
     _service?._logEvent(PlaybackEventType.clickDebounce, detail: 'button=$button | $snapshot');
 
@@ -442,13 +469,35 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       _noisyPauseAt = null;
     }
 
+    // AA-disconnect phantom: a delayed MediaButton.media event arrives in
+    // background, not playing, after we last played on BT/AA — and BT is
+    // gone now. On devices where AA disconnect doesn't fire becomingNoisy
+    // (Pixel 10 Pro / Android 16 observed), this is the only way to catch
+    // the lingering MediaSession resume that the OS sends minutes later.
+    final lastBt = AudioPlayerService._lastPlayedOnBtAt;
+    final bg = _service?.isBackgrounded ?? false;
+    if (bg && !_player.playing && lastBt != null && !btNow) {
+      final ageMs = DateTime.now().difference(lastBt).inMilliseconds;
+      if (ageMs < 600000) {
+        debugPrint('[Handler] Ignoring phantom click after AA/BT disconnect '
+            '(${ageMs}ms since last BT-on, btNow=false, bg=true, playing=false)');
+        _service?._logEvent(PlaybackEventType.clickDebounce,
+            detail: 'phantom AA/BT click suppressed | sinceBtMs=$ageMs');
+        // Re-arm the 5s noisy guard so a follow-up click in the same
+        // burst is also ignored, matching the BT-disconnect suppression flow.
+        _noisyPauseAt = DateTime.now();
+        return;
+      }
+    }
+
     _clickCount++;
     _clickTimer?.cancel();
     _clickTimer = Timer(const Duration(milliseconds: 400), () async {
       final count = _clickCount;
       _clickCount = 0;
       debugPrint('[Handler] click resolved: count=$count playing=${_player.playing}');
-      debugPrint('[ClickDebug] click resolve (count=$count): ${_clickDebugSnapshot()}');
+      final resolveBt = await AudioPlayerService._isBluetoothAudioConnected();
+      debugPrint('[ClickDebug] click resolve (count=$count): ${_clickDebugSnapshot(btNow: resolveBt)}');
       switch (count) {
         case 1:
           _inClickResolver = true;
@@ -1206,6 +1255,14 @@ class AudioPlayerService extends ChangeNotifier {
   // an app-foreground event — the fingerprint of an Android Auto disconnect
   // handing control back to the phone.
   static DateTime? _lastForegroundAt;
+  // Last time we observed BT/AA to be the audio route while playing/pausing.
+  // Stamped from interruption begin/end and from service.pause(). Used at
+  // click arrival to detect the AA-disconnect phantom: BT was the route
+  // recently, isn't now, click came in while bg + not playing. Some devices
+  // (Pixel 10 Pro on Android 16 with Android Auto observed) never fire
+  // becomingNoisy on AA disconnect, so the 5s _noisyPauseAt guard alone
+  // can't catch the delayed phantom MediaButton.media event.
+  static DateTime? _lastPlayedOnBtAt;
   static const _eqChannel = MethodChannel('com.absorb.equalizer');
 
   /// Check if BT audio (A2DP/SCO) is currently connected via native AudioManager.
@@ -1259,6 +1316,7 @@ class AudioPlayerService extends ChangeNotifier {
           if (service.isPlaying) {
             debugPrint('[AudioSession] Interrupted (${event.type}) — pausing');
             _wasOnBluetooth = await _isBluetoothAudioConnected();
+            if (_wasOnBluetooth) _lastPlayedOnBtAt = DateTime.now();
             debugPrint('[AudioSession] Was on BT: $_wasOnBluetooth');
             // Pause the underlying player directly — NOT service.pause() —
             // to keep the interruption lightweight. service.pause() saves progress,
@@ -1294,9 +1352,10 @@ class AudioPlayerService extends ChangeNotifier {
                 _noisyPause = true;
                 return;
               }
+              _lastPlayedOnBtAt = DateTime.now();
             }
             debugPrint('[AudioSession] Interruption ended — resuming');
-            await service.play();
+            await service.play(logDetail: 'Auto-resumed after interruption');
           }
         }
       } catch (e) {
@@ -3176,7 +3235,7 @@ class AudioPlayerService extends ChangeNotifier {
     return rewind.clamp(minRewind, maxRewind);
   }
 
-  Future<void> play() async {
+  Future<void> play({String? logDetail}) async {
     debugPrint('[Service] play() called — lastPause=${_lastPauseTime != null}');
 
     // Cold-start play guard. If the OS killed absorb during a long pause
@@ -3280,7 +3339,7 @@ class AudioPlayerService extends ChangeNotifier {
     // Start playback immediately — don't wait for server calls
     _player?.play();
     _scheduleAudioDiagnostics('resume');
-    _logEvent(PlaybackEventType.play);
+    _logEvent(PlaybackEventType.play, detail: logDetail);
     _onPlaybackStateChangedCallback?.call(true);
     // Re-create server session and check progress in the background
     // so resume is instant instead of waiting for network round-trips
@@ -3369,6 +3428,11 @@ class AudioPlayerService extends ChangeNotifier {
     _playVerifyTimer?.cancel();
     _wasPlayingBeforeInterrupt = false;
     _lastPauseTime = DateTime.now();
+    // Stamp BT-route observation for AA-disconnect phantom-click detection.
+    // Fire-and-forget: pause shouldn't block on a native call.
+    unawaited(_isBluetoothAudioConnected().then((bt) {
+      if (bt) _lastPlayedOnBtAt = DateTime.now();
+    }));
     // Stop timers to avoid background wakes while paused
     if (_bgSaveTimer != null) {
       _bgSaveTimer!.cancel();

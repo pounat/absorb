@@ -287,9 +287,17 @@ class _LoginScreenState extends State<LoginScreen>
     final oidc = OidcService();
     final callbackUri = await oidc.startLogin(fullUrl);
     if (callbackUri == null) {
-      if (mounted) setState(() {
+      if (!mounted) return;
+      // Quiet path: user just dismissed the popup. Don't surface an error.
+      if (oidc.lastWasUserCancel) {
+        setState(() => _isOidcLoading = false);
+        return;
+      }
+      final base = AppLocalizations.of(context)!.loginSsoFailed;
+      final detail = oidc.lastError;
+      setState(() {
         _isOidcLoading = false;
-        _loginError = AppLocalizations.of(context)!.loginSsoFailed;
+        _loginError = detail != null ? '$base\n\n$detail' : base;
       });
       return;
     }
@@ -312,9 +320,11 @@ class _LoginScreenState extends State<LoginScreen>
         }
       }
     } else if (mounted) {
+      final base = AppLocalizations.of(context)!.loginSsoAuthFailed;
+      final detail = oidc.lastError;
       setState(() {
         _isOidcLoading = false;
-        _loginError = AppLocalizations.of(context)!.loginSsoAuthFailed;
+        _loginError = detail != null ? '$base\n\n$detail' : base;
       });
     }
   }

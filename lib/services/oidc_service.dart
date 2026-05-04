@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:http/http.dart' as http;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'dart:io' show HttpClient, HttpHeaders;
@@ -20,6 +21,19 @@ class OidcService {
 
   /// The raw cookie strings from the /auth/openid response.
   List<String> _rawCookies = [];
+
+  /// Diagnostic message from the most recent failure. Cleared on each
+  /// startLogin() call. Null when the last attempt succeeded or the user
+  /// simply cancelled the popup. Surface to the UI so SSO failures aren't
+  /// silently swallowed.
+  String? _lastError;
+  String? get lastError => _lastError;
+
+  /// True when the most recent failure was the user dismissing the popup
+  /// (vs. a real network/protocol error). Lets the UI suppress the snackbar
+  /// for plain cancellations.
+  bool _lastWasUserCancel = false;
+  bool get lastWasUserCancel => _lastWasUserCancel;
 
   static const _redirectUri = 'audiobookshelf://oauth';
   static const _clientId = 'Audiobookshelf-App';
@@ -41,11 +55,15 @@ class OidcService {
 
   /// Start the OIDC login flow using a Chrome Custom Tab.
   /// Returns the callback [Uri] on success, or null on failure/cancellation.
+  /// On failure, [lastError] holds a diagnostic message and [lastWasUserCancel]
+  /// distinguishes user-dismissed popups from real errors.
   Future<Uri?> startLogin(String serverUrl) async {
     _serverUrl = serverUrl.endsWith('/') ? serverUrl.substring(0, serverUrl.length - 1) : serverUrl;
     _generatePkce();
     _state = _generateRandom(16);
     _rawCookies = [];
+    _lastError = null;
+    _lastWasUserCancel = false;
 
     final authUrl = '$_serverUrl/auth/openid'
         '?code_challenge=$_codeChallenge'
@@ -57,13 +75,13 @@ class OidcService {
 
     debugPrint('[OIDC] Starting auth flow: $authUrl');
 
+    String? providerUrl;
     try {
       // Pre-flight request to capture cookies and get the OIDC provider redirect URL.
       // ABS sets a session cookie that links the PKCE challenge to this flow.
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 15);
 
-      String? providerUrl;
       try {
         final request = await client.getUrl(Uri.parse(authUrl));
         request.followRedirects = false;
@@ -93,34 +111,72 @@ class OidcService {
         } else {
           final body = await response.transform(utf8.decoder).join();
           debugPrint('[OIDC] Unexpected status ${response.statusCode}: $body');
+          // Truncate body to keep the snackbar readable.
+          final preview = body.length > 200 ? '${body.substring(0, 200)}…' : body;
+          _lastError = 'Server returned HTTP ${response.statusCode} from /auth/openid '
+              '(expected 302). Body: $preview';
           _cleanup();
           return null;
         }
       } finally {
         client.close();
       }
+    } on Exception catch (e, st) {
+      // TLS, connection, timeout, DNS — all surface here. Keep the message
+      // verbatim so users can paste it back when reporting issues.
+      debugPrint('[OIDC] Pre-flight error: $e\n$st');
+      _lastError = 'Could not reach $_serverUrl/auth/openid: $e';
+      _cleanup();
+      return null;
+    }
 
-      if (providerUrl == null || providerUrl.isEmpty) {
-        debugPrint('[OIDC] Server did not return a redirect URL');
-        _cleanup();
-        return null;
-      }
+    if (providerUrl == null || providerUrl.isEmpty) {
+      debugPrint('[OIDC] Server did not return a redirect URL');
+      _lastError = 'Server accepted /auth/openid but did not return a Location '
+          'header. Check that the OIDC provider is configured in ABS.';
+      _cleanup();
+      return null;
+    }
 
-      debugPrint('[OIDC] Opening Custom Tab for: $providerUrl');
+    debugPrint('[OIDC] Opening Custom Tab for: $providerUrl');
 
-      // Open the OIDC provider in a Chrome Custom Tab. This blocks until the
-      // provider redirects back to audiobookshelf://oauth, which the Custom Tab
-      // intercepts and returns. Unlike an external browser, Custom Tabs won't
-      // be hijacked by PWAs or other apps registered for the provider's domain.
+    // Open the OIDC provider in an in-app browser tab. On Android this is a
+    // Chrome Custom Tab; on iOS, ASWebAuthenticationSession. Both intercept
+    // the audiobookshelf:// callback and return it to us. Unlike an external
+    // browser, neither can be hijacked by PWAs or other apps registered for
+    // the provider's domain.
+    try {
       final resultUrl = await FlutterWebAuth2.authenticate(
         url: providerUrl,
         callbackUrlScheme: 'audiobookshelf',
       );
-
       debugPrint('[OIDC] Custom Tab returned: $resultUrl');
       return Uri.parse(resultUrl);
-    } catch (e) {
-      debugPrint('[OIDC] Error during login: $e');
+    } on PlatformException catch (e) {
+      // Cancellation arrives as PlatformException. Both plugins use code
+      // CANCELED, but iOS occasionally surfaces the underlying ASWeb error
+      // code (e.g. canceledLogin = 1). Treat the well-known cancel codes
+      // as a quiet cancel and anything else as a real error.
+      final code = e.code.toUpperCase();
+      final msg = (e.message ?? '').toLowerCase();
+      final isCancel = code == 'CANCELED'
+          || code == 'CANCELLED'
+          || code == 'USER_CANCELED'
+          || msg.contains('canceled')
+          || msg.contains('cancelled');
+      if (isCancel) {
+        debugPrint('[OIDC] User cancelled the popup');
+        _lastWasUserCancel = true;
+      } else {
+        debugPrint('[OIDC] Auth session error: ${e.code} ${e.message}');
+        _lastError = 'In-app browser failed: ${e.code}'
+            '${e.message != null ? ' — ${e.message}' : ''}';
+      }
+      _cleanup();
+      return null;
+    } catch (e, st) {
+      debugPrint('[OIDC] Auth session unexpected error: $e\n$st');
+      _lastError = 'In-app browser failed: $e';
       _cleanup();
       return null;
     }
@@ -132,6 +188,8 @@ class OidcService {
   /// Handle the callback URI returned from the Custom Tab.
   /// Returns the user login response (same as /login) or null on failure.
   Future<Map<String, dynamic>?> handleCallback(Uri uri) async {
+    _lastError = null;
+    _lastWasUserCancel = false;
     final code = uri.queryParameters['code'];
     final state = uri.queryParameters['state'];
 
@@ -139,17 +197,23 @@ class OidcService {
 
     if (code == null || code.isEmpty) {
       debugPrint('[OIDC] No code in callback');
+      _lastError = 'OIDC provider returned no authorization code. '
+          'Check the provider logs for an "invalid redirect_uri" or '
+          '"invalid client" error.';
       return null;
     }
 
     // Verify state matches
     if (state != _state) {
       debugPrint('[OIDC] State mismatch: expected=$_state, got=$state');
+      _lastError = 'OIDC state mismatch — possible session expiry or '
+          'cross-tab interference. Try again.';
       return null;
     }
 
     if (_serverUrl == null || _codeVerifier == null) {
       debugPrint('[OIDC] Missing server URL or code verifier');
+      _lastError = 'OIDC flow state was lost between popup and callback.';
       return null;
     }
 
@@ -187,6 +251,9 @@ class OidcService {
           return data;
         } else {
           debugPrint('[OIDC] Callback error: $body');
+          final preview = body.length > 200 ? '${body.substring(0, 200)}…' : body;
+          _lastError = 'ABS callback returned HTTP ${response.statusCode}'
+              '${preview.isNotEmpty ? ': $preview' : ''}';
           return null;
         }
       } finally {
@@ -194,6 +261,7 @@ class OidcService {
       }
     } catch (e) {
       debugPrint('[OIDC] Callback exception: $e');
+      _lastError = 'ABS callback request failed: $e';
       return null;
     }
   }
