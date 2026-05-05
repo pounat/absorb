@@ -28,7 +28,7 @@ This data never leaves your device except when communicating directly with your 
 Absorb communicates only with:
 
 - Your self-hosted Audiobookshelf server (for library data, playback sync, and streaming)
-- Audnexus (optional, for fetching audiobook ratings and metadata)
+- Audnexus (for fetching audiobook ratings and metadata)
 
 No analytics, crash reporting, or tracking services are used.
 
