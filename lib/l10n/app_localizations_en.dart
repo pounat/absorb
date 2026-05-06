@@ -1972,6 +1972,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seriesLabel => 'Series';
 
   @override
+  String get addSeries => 'Add series';
+
+  @override
+  String get removeSeries => 'Remove series';
+
+  @override
   String get descriptionLabel => 'Description';
 
   @override

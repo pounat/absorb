@@ -3632,6 +3632,18 @@ abstract class AppLocalizations {
   /// **'Series'**
   String get seriesLabel;
 
+  /// No description provided for @addSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Add series'**
+  String get addSeries;
+
+  /// No description provided for @removeSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove series'**
+  String get removeSeries;
+
   /// No description provided for @descriptionLabel.
   ///
   /// In en, this message translates to:

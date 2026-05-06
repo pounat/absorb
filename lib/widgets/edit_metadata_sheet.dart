@@ -57,8 +57,7 @@ class _EditMetadataContentState extends State<_EditMetadataContent>
   late final TextEditingController _subtitleCtrl;
   late final TextEditingController _authorCtrl;
   late final TextEditingController _narratorCtrl;
-  late final TextEditingController _seriesCtrl;
-  late final TextEditingController _seriesSeqCtrl;
+  final List<({TextEditingController name, TextEditingController seq})> _seriesRows = [];
   late final TextEditingController _descCtrl;
   late final TextEditingController _publisherCtrl;
   late final TextEditingController _yearCtrl;
@@ -107,13 +106,16 @@ class _EditMetadataContentState extends State<_EditMetadataContent>
     _coverUrlCtrl = TextEditingController();
 
     final series = m['series'] as List<dynamic>? ?? [];
-    if (series.isNotEmpty) {
-      final first = series[0] as Map<String, dynamic>;
-      _seriesCtrl = TextEditingController(text: first['name'] as String? ?? '');
-      _seriesSeqCtrl = TextEditingController(text: first['sequence'] as String? ?? '');
-    } else {
-      _seriesCtrl = TextEditingController();
-      _seriesSeqCtrl = TextEditingController();
+    for (final s in series) {
+      if (s is Map<String, dynamic>) {
+        _seriesRows.add((
+          name: TextEditingController(text: s['name'] as String? ?? ''),
+          seq: TextEditingController(text: s['sequence'] as String? ?? ''),
+        ));
+      }
+    }
+    if (_seriesRows.isEmpty) {
+      _seriesRows.add((name: TextEditingController(), seq: TextEditingController()));
     }
 
     final genres = (m['genres'] as List<dynamic>?)?.cast<String>() ?? [];
@@ -131,8 +133,10 @@ class _EditMetadataContentState extends State<_EditMetadataContent>
     _subtitleCtrl.dispose();
     _authorCtrl.dispose();
     _narratorCtrl.dispose();
-    _seriesCtrl.dispose();
-    _seriesSeqCtrl.dispose();
+    for (final row in _seriesRows) {
+      row.name.dispose();
+      row.seq.dispose();
+    }
     _descCtrl.dispose();
     _publisherCtrl.dispose();
     _yearCtrl.dispose();
@@ -320,10 +324,14 @@ class _EditMetadataContentState extends State<_EditMetadataContent>
         ? genresText.split(',').map((g) => g.trim()).where((g) => g.isNotEmpty).toList()
         : <String>[];
 
-    final seriesName = _seriesCtrl.text.trim();
-    update['series'] = seriesName.isNotEmpty
-        ? [{'name': seriesName, 'sequence': _seriesSeqCtrl.text.trim()}]
-        : <Map<String, dynamic>>[];
+    final seriesList = <Map<String, dynamic>>[];
+    for (final row in _seriesRows) {
+      final name = row.name.text.trim();
+      if (name.isNotEmpty) {
+        seriesList.add({'name': name, 'sequence': row.seq.text.trim()});
+      }
+    }
+    update['series'] = seriesList;
 
     bool ok = await api.updateItemMedia(widget.itemId, update);
 
@@ -654,11 +662,43 @@ class _EditMetadataContentState extends State<_EditMetadataContent>
             _field(l.subtitleLabel, _subtitleCtrl, tt),
             _field(l.authorLabel, _authorCtrl, tt),
             _field(l.narratorLabel, _narratorCtrl, tt),
-            Row(children: [
-              Expanded(child: _field(l.seriesLabel, _seriesCtrl, tt)),
-              const SizedBox(width: 12),
-              SizedBox(width: 80, child: _field('#', _seriesSeqCtrl, tt)),
-            ]),
+            for (int i = 0; i < _seriesRows.length; i++)
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _field(l.seriesLabel, _seriesRows[i].name, tt)),
+                const SizedBox(width: 12),
+                SizedBox(width: 80, child: _field('#', _seriesRows[i].seq, tt)),
+                IconButton(
+                  tooltip: l.removeSeries,
+                  onPressed: _seriesRows.length == 1 && _seriesRows[i].name.text.isEmpty && _seriesRows[i].seq.text.isEmpty
+                      ? null
+                      : () => setState(() {
+                          if (_seriesRows.length == 1) {
+                            _seriesRows[i].name.clear();
+                            _seriesRows[i].seq.clear();
+                          } else {
+                            final removed = _seriesRows.removeAt(i);
+                            removed.name.dispose();
+                            removed.seq.dispose();
+                          }
+                        }),
+                  icon: Icon(Icons.remove_circle_outline_rounded, size: 20, color: cs.onSurfaceVariant),
+                  padding: const EdgeInsets.only(top: 8),
+                  constraints: const BoxConstraints(),
+                ),
+              ]),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() {
+                    _seriesRows.add((name: TextEditingController(), seq: TextEditingController()));
+                  }),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: Text(l.addSeries),
+                ),
+              ),
+            ),
             _field(l.descriptionLabel, _descCtrl, tt, maxLines: 5),
             _field(l.publisherLabel, _publisherCtrl, tt),
             Row(children: [

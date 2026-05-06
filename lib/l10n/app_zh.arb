@@ -679,6 +679,8 @@
   "authorLabel": "作者",
   "narratorLabel": "朗读者",
   "seriesLabel": "系列",
+  "addSeries": "Add series",
+  "removeSeries": "Remove series",
   "descriptionLabel": "描述",
   "publisherLabel": "出版商",
   "yearLabel": "年份",

@@ -1903,6 +1903,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get seriesLabel => '系列';
 
   @override
+  String get addSeries => 'Add series';
+
+  @override
+  String get removeSeries => 'Remove series';
+
+  @override
   String get descriptionLabel => '描述';
 
   @override

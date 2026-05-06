@@ -679,6 +679,8 @@
   "authorLabel": "Author",
   "narratorLabel": "Narrator",
   "seriesLabel": "Series",
+  "addSeries": "Add series",
+  "removeSeries": "Remove series",
   "descriptionLabel": "Description",
   "publisherLabel": "Publisher",
   "yearLabel": "Year",
