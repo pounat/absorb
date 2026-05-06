@@ -59,6 +59,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   List<double> _pBands = [];
   double _pBass = 0.0, _pVirt = 0.0, _pLoud = 0.0;
   bool _pMono = false;
+  bool _pSkipSilence = false;
 
   @override
   void initState() {
@@ -97,6 +98,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       _pVirt = 0.0;
       _pLoud = 0.0;
       _pMono = false;
+      _pSkipSilence = false;
       _loadPreview();
     } else if (!shouldPreview && _previewMode) {
       _previewMode = false;
@@ -116,6 +118,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       _pVirt = snap['virtualizer'] as double;
       _pLoud = snap['loudnessGain'] as double;
       _pMono = snap['mono'] as bool;
+      _pSkipSilence = snap['skipSilence'] as bool? ?? false;
       _pBands = List<double>.from((snap['bands'] as List).cast<double>());
       _previewLoaded = true;
     });
@@ -131,6 +134,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       'virtualizer': _pVirt,
       'loudnessGain': _pLoud,
       'mono': _pMono,
+      'skipSilence': _pSkipSilence,
       'bands': _pBands,
     });
   }
@@ -143,6 +147,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   double get _vVirt => _previewMode ? _pVirt : _eq.virtualizer;
   double get _vLoud => _previewMode ? _pLoud : _eq.loudnessGain;
   bool get _vMono => _previewMode ? _pMono : _eq.mono;
+  bool get _vSkipSilence => _previewMode ? _pSkipSilence : _eq.skipSilence;
 
   void _setEnabled(bool v) {
     if (_previewMode) {
@@ -219,6 +224,15 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
     }
   }
 
+  void _setSkipSilence(bool v) {
+    if (_previewMode) {
+      setState(() => _pSkipSilence = v);
+      _savePreview();
+    } else {
+      _eq.setSkipSilence(v);
+    }
+  }
+
   void _resetAll() {
     if (_previewMode) {
       setState(() {
@@ -228,6 +242,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
         _pVirt = 0.0;
         _pLoud = 0.0;
         _pMono = false;
+        _pSkipSilence = false;
       });
       _savePreview();
     } else {
@@ -514,6 +529,39 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                     ],
                   ),
                 ),
+
+                // Skip silence (Android only - just_audio's setSkipSilenceEnabled
+                // is a no-op on iOS).
+                if (Platform.isAndroid) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.fast_forward_rounded, size: 18,
+                          color: _vSkipSilence ? accent.withValues(alpha: 0.7) : cs.onSurface.withValues(alpha: 0.2)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(l.skipSilence, style: TextStyle(
+                            color: _vSkipSilence ? cs.onSurface.withValues(alpha: 0.7) : cs.onSurface.withValues(alpha: 0.24),
+                            fontSize: 12, fontWeight: FontWeight.w500)),
+                        ),
+                        Transform.scale(
+                          scale: 0.8,
+                          child: Switch(
+                            value: _vSkipSilence,
+                            activeTrackColor: accent,
+                            onChanged: (v) => _setSkipSilence(v),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 20),
 

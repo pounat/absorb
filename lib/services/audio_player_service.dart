@@ -1216,6 +1216,17 @@ class AudioPlayerService extends ChangeNotifier {
       );
       // Bind service so handler routes play/pause through service (for auto-rewind)
       _handler!.bindService(_instance);
+      // Wire the EQ service's skip-silence toggle through to just_audio.
+      // Android-only: just_audio's setSkipSilenceEnabled is a no-op on iOS.
+      if (Platform.isAndroid) {
+        EqualizerService().setSkipSilenceApplier((enabled) {
+          try {
+            _handler?.player.setSkipSilenceEnabled(enabled);
+          } catch (e) {
+            debugPrint('[Player] setSkipSilenceEnabled failed: $e');
+          }
+        });
+      }
       // Initialize cached skip amounts so notification icons show the correct values
       _handler!._cachedForwardSkip = fwdSkip;
       _handler!._cachedBackSkip = backSkip;
