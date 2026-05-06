@@ -2996,6 +2996,96 @@ abstract class AppLocalizations {
   /// **'Cache purged'**
   String get adminCachePurged;
 
+  /// No description provided for @adminRmab.
+  ///
+  /// In en, this message translates to:
+  /// **'ReadMeABook'**
+  String get adminRmab;
+
+  /// No description provided for @adminRmabSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in app'**
+  String get adminRmabSubtitle;
+
+  /// No description provided for @adminRmabAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add ReadMeABook integration'**
+  String get adminRmabAdd;
+
+  /// No description provided for @adminRmabUrlTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'ReadMeABook URL'**
+  String get adminRmabUrlTitle;
+
+  /// No description provided for @adminRmabUrlHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your URL with login token. Generate one in RMAB, Admin, Users.'**
+  String get adminRmabUrlHelp;
+
+  /// No description provided for @adminRmabUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://rmab.example.com/?token=...'**
+  String get adminRmabUrlHint;
+
+  /// No description provided for @adminRmabInvalidUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid http(s) URL'**
+  String get adminRmabInvalidUrl;
+
+  /// No description provided for @adminRmabSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'ReadMeABook saved'**
+  String get adminRmabSaved;
+
+  /// No description provided for @adminRmabRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'ReadMeABook removed'**
+  String get adminRmabRemoved;
+
+  /// No description provided for @adminRmabReload.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get adminRmabReload;
+
+  /// No description provided for @adminRmabLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load ReadMeABook. Check your URL.'**
+  String get adminRmabLoadFailed;
+
+  /// No description provided for @adminRmabConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get adminRmabConnected;
+
+  /// No description provided for @adminRmabAskAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Get a login URL from your server admin'**
+  String get adminRmabAskAdmin;
+
+  /// No description provided for @adminRmabUrlHelpUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Get a login URL from your server admin. They generate one in RMAB > Admin > Users.'**
+  String get adminRmabUrlHelpUser;
+
+  /// No description provided for @adminRmabSettingsInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'ReadMeABook is a self-hosted service for requesting and downloading audiobooks. It must be installed and set up by your server admin.'**
+  String get adminRmabSettingsInfo;
+
   /// No description provided for @narratedBy.
   ///
   /// In en, this message translates to:
@@ -3853,6 +3943,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mono Audio'**
   String get monoAudio;
+
+  /// No description provided for @skipSilence.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip Silence'**
+  String get skipSilence;
 
   /// No description provided for @resetAll.
   ///

@@ -1561,6 +1561,53 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adminCachePurged => '缓存已清除';
 
   @override
+  String get adminRmab => 'ReadMeABook';
+
+  @override
+  String get adminRmabSubtitle => '在应用中打开';
+
+  @override
+  String get adminRmabAdd => '添加 ReadMeABook 集成';
+
+  @override
+  String get adminRmabUrlTitle => 'ReadMeABook URL';
+
+  @override
+  String get adminRmabUrlHelp => '粘贴包含登录令牌的 URL。在 RMAB 的管理 -> 用户中生成。';
+
+  @override
+  String get adminRmabUrlHint => 'https://rmab.example.com/?token=...';
+
+  @override
+  String get adminRmabInvalidUrl => '请输入有效的 http(s) URL';
+
+  @override
+  String get adminRmabSaved => '已保存 ReadMeABook';
+
+  @override
+  String get adminRmabRemoved => '已移除 ReadMeABook';
+
+  @override
+  String get adminRmabReload => '重新加载';
+
+  @override
+  String get adminRmabLoadFailed => '无法加载 ReadMeABook，请检查 URL。';
+
+  @override
+  String get adminRmabConnected => '已连接';
+
+  @override
+  String get adminRmabAskAdmin => '请向您的服务器管理员获取登录 URL';
+
+  @override
+  String get adminRmabUrlHelpUser =>
+      '请向您的服务器管理员获取登录 URL，管理员可在 RMAB 的管理 -> 用户中生成。';
+
+  @override
+  String get adminRmabSettingsInfo =>
+      'ReadMeABook 是一个用于请求和下载有声书的自托管服务，需要由您的服务器管理员安装和设置。';
+
+  @override
   String narratedBy(String narrator) {
     return '朗读者: $narrator';
   }
@@ -2012,6 +2059,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get monoAudio => '单声道音频';
+
+  @override
+  String get skipSilence => 'Skip Silence';
 
   @override
   String get resetAll => '全部重置';

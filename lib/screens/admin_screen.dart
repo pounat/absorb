@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/scoped_prefs.dart';
 import '../widgets/absorb_page_header.dart';
 import '../l10n/app_localizations.dart';
 import 'admin_users_screen.dart';
 import 'admin_podcasts_screen.dart';
+import 'admin_rmab_screen.dart';
+
+const _kRmabUrlKey = 'rmab_url';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -20,6 +24,7 @@ class _AdminScreenState extends State<AdminScreen> {
   List<dynamic> _sessions = [];
   final Map<String, Map<String, dynamic>> _libraryStats = {};
   String? _serverVersion;
+  String? _rmabUrl;
 
   final Set<String> _scanningLibraries = {};
   final Set<String> _matchingLibraries = {};
@@ -51,8 +56,11 @@ class _AdminScreenState extends State<AdminScreen> {
         if (stats != null) _libraryStats[id] = stats;
       }
     }
+    _rmabUrl = await ScopedPrefs.getString(_kRmabUrlKey);
     if (mounted) setState(() => _loading = false);
   }
+
+  bool get _hasRmab => (_rmabUrl ?? '').isNotEmpty;
 
   bool get _hasPodcastLibrary => _libraries.any((l) => l['mediaType'] == 'podcast');
 
@@ -143,6 +151,8 @@ class _AdminScreenState extends State<AdminScreen> {
                               }
                             },
                           ),
+                        if (_hasPodcastLibrary) const SizedBox(height: 10),
+                        if (_hasRmab) _rmabTile(cs, tt) else _rmabAddRow(cs, tt),
                       ]),
                     ),
                     const SizedBox(height: 28),
@@ -201,6 +211,119 @@ class _AdminScreenState extends State<AdminScreen> {
         ])),
         Icon(Icons.chevron_right_rounded, color: cs.onSurface.withValues(alpha: 0.15)),
       ])));
+
+  // ─── ReadMeABook Integration ────────────────────────────────
+
+  Widget _rmabTile(ColorScheme cs, TextTheme tt) {
+    final l = AppLocalizations.of(context)!;
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => AdminRmabScreen(url: _rmabUrl!))),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: _cardDeco(cs),
+        child: Row(children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Icon(Icons.menu_book_rounded, color: cs.primary, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(l.adminRmab, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
+            Text(l.adminRmabSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
+          ])),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert_rounded, color: cs.onSurface.withValues(alpha: 0.4), size: 20),
+            tooltip: '',
+            onSelected: (v) {
+              if (v == 'edit') _showRmabUrlDialog();
+              if (v == 'remove') _clearRmab();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'edit', child: Text(l.edit)),
+              PopupMenuItem(value: 'remove', child: Text(l.remove)),
+            ],
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _rmabAddRow(ColorScheme cs, TextTheme tt) {
+    final l = AppLocalizations.of(context)!;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: _showRmabUrlDialog,
+        style: TextButton.styleFrom(
+          foregroundColor: cs.onSurfaceVariant.withValues(alpha: 0.6),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+          minimumSize: const Size(0, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: const Icon(Icons.add_rounded, size: 16),
+        label: Text(l.adminRmabAdd, style: tt.labelMedium),
+      ),
+    );
+  }
+
+  Future<void> _showRmabUrlDialog() async {
+    final l = AppLocalizations.of(context)!;
+    final controller = TextEditingController(text: _rmabUrl ?? '');
+    String? err;
+
+    final saved = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setLocal) => AlertDialog(
+        title: Text(l.adminRmabUrlTitle),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(l.adminRmabUrlHelp, style: Theme.of(ctx).textTheme.bodySmall),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            decoration: InputDecoration(
+              hintText: l.adminRmabUrlHint,
+              errorText: err,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, null), child: Text(l.cancel)),
+          TextButton(
+            onPressed: () {
+              final v = controller.text.trim();
+              if (v.isEmpty) { setLocal(() => err = l.adminRmabInvalidUrl); return; }
+              final u = Uri.tryParse(v);
+              if (u == null || !(u.scheme == 'http' || u.scheme == 'https') || u.host.isEmpty) {
+                setLocal(() => err = l.adminRmabInvalidUrl);
+                return;
+              }
+              Navigator.pop(ctx, v);
+            },
+            child: Text(l.save),
+          ),
+        ],
+      )),
+    );
+
+    if (saved == null) return;
+    await ScopedPrefs.setString(_kRmabUrlKey, saved);
+    if (!mounted) return;
+    setState(() => _rmabUrl = saved);
+    _msg(l.adminRmabSaved);
+  }
+
+  Future<void> _clearRmab() async {
+    final l = AppLocalizations.of(context)!;
+    await ScopedPrefs.remove(_kRmabUrlKey);
+    if (!mounted) return;
+    setState(() => _rmabUrl = null);
+    _msg(l.adminRmabRemoved);
+  }
 
   // ─── Library Card ───────────────────────────────────────────
 

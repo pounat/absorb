@@ -1620,6 +1620,55 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminCachePurged => 'Cache purged';
 
   @override
+  String get adminRmab => 'ReadMeABook';
+
+  @override
+  String get adminRmabSubtitle => 'Open in app';
+
+  @override
+  String get adminRmabAdd => 'Add ReadMeABook integration';
+
+  @override
+  String get adminRmabUrlTitle => 'ReadMeABook URL';
+
+  @override
+  String get adminRmabUrlHelp =>
+      'Paste your URL with login token. Generate one in RMAB, Admin, Users.';
+
+  @override
+  String get adminRmabUrlHint => 'https://rmab.example.com/?token=...';
+
+  @override
+  String get adminRmabInvalidUrl => 'Enter a valid http(s) URL';
+
+  @override
+  String get adminRmabSaved => 'ReadMeABook saved';
+
+  @override
+  String get adminRmabRemoved => 'ReadMeABook removed';
+
+  @override
+  String get adminRmabReload => 'Reload';
+
+  @override
+  String get adminRmabLoadFailed =>
+      'Couldn\'t load ReadMeABook. Check your URL.';
+
+  @override
+  String get adminRmabConnected => 'Connected';
+
+  @override
+  String get adminRmabAskAdmin => 'Get a login URL from your server admin';
+
+  @override
+  String get adminRmabUrlHelpUser =>
+      'Get a login URL from your server admin. They generate one in RMAB > Admin > Users.';
+
+  @override
+  String get adminRmabSettingsInfo =>
+      'ReadMeABook is a self-hosted service for requesting and downloading audiobooks. It must be installed and set up by your server admin.';
+
+  @override
   String narratedBy(String narrator) {
     return 'Narrated by $narrator';
   }
@@ -2081,6 +2130,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get monoAudio => 'Mono Audio';
+
+  @override
+  String get skipSilence => 'Skip Silence';
 
   @override
   String get resetAll => 'Reset All';
