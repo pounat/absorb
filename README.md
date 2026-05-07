@@ -55,7 +55,7 @@ A modern audiobookshelf client with a card-based player experience.
 
 **GitHub Pre-Releases (Alpha)** - Frequent updates with new features and bug fixes. In Obtainium you can toggle pre-releases on or off.
 
-**GitHub Full Releases (Beta/Stable)** - Once a pre-release is solid, it gets promoted to a full release. These match what's pushed to Google Play and TestFlight.
+**GitHub Full Releases (Beta/Stable)** - Once a pre-release is solid, it gets promoted to a full release. These match what's pushed to Google Play and the App Store.
 
 ### Google Play
 
@@ -65,13 +65,13 @@ Open testing is live - [join the open beta on Google Play](https://play.google.c
 
 Live on the [App Store](https://apps.apple.com/us/app/absorb-for-audiobookshelf/id6760673498). App Store releases match GitHub full releases. Some features are still Android-only or in progress, see iOS section below.
 
-### iOS TestFlight
+### iOS TestFlight (Alpha)
 
-TestFlight tracks GitHub full releases the same as the App Store, useful if you want to test releases before they hit the store. [Join the TestFlight](https://testflight.apple.com/join/GgUbDbve).
+TestFlight is the iOS alpha track, matching GitHub pre-releases. Builds are more frequent and less polished than the App Store version. [Join the TestFlight](https://testflight.apple.com/join/GgUbDbve). If you want stable builds, use the App Store instead.
 
 ### iOS Alpha (Sideload)
 
-Alpha `.ipa` files are included in GitHub pre-releases alongside the Android APK. If you know how to sideload IPAs (via AltStore, Sideloadly, etc.), you can grab the latest alpha build from the [releases page](../../releases). Otherwise, stick with the TestFlight build for automatic updates and easier installation.
+Alpha `.ipa` files are included in GitHub pre-releases alongside the Android APK. If you know how to sideload IPAs (via AltStore, Sideloadly, etc.), you can grab the latest alpha build from the [releases page](../../releases). For most users, TestFlight is easier - automatic updates and no sideloading setup.
 
 ## Android Auto
 
