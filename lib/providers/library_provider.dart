@@ -259,17 +259,22 @@ class LibraryProvider extends ChangeNotifier
   }
 
   Future<void> selectLibrary(String libraryId) async {
-    final wasPlaying = AudioPlayerService().isPlaying;
-    final wasCasting = ChromecastService().isPlaying;
-
-    // Stop playback if something is playing from the old library
-    if (wasPlaying) {
-      debugPrint('[Library] Stopping playback on library switch');
-      await AudioPlayerService().stop();
-    }
-    if (wasCasting) {
-      debugPrint('[Library] Stopping cast on library switch');
-      ChromecastService().stopCasting();
+    // When Merge Libraries is on, the absorbing card stays visible across
+    // libraries so the user can still control playback. Only stop on switch
+    // when merge is off, otherwise the player would be unreachable from the
+    // new library.
+    final merged = await PlayerSettings.getMergeAbsorbingLibraries();
+    if (!merged) {
+      final wasPlaying = AudioPlayerService().isPlaying;
+      final wasCasting = ChromecastService().isPlaying;
+      if (wasPlaying) {
+        debugPrint('[Library] Stopping playback on library switch');
+        await AudioPlayerService().stop();
+      }
+      if (wasCasting) {
+        debugPrint('[Library] Stopping cast on library switch');
+        ChromecastService().stopCasting();
+      }
     }
 
     _selectedLibraryId = libraryId;
