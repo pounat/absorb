@@ -294,9 +294,20 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> stop() async {
-    debugPrint('[Handler] stop()');
-    await _player.stop();
-    return super.stop();
+    // Don't call super.stop() - it deactivates the MediaSession, and on some
+    // devices (Android 16+) the system never re-routes BT media buttons /
+    // notification controls to a reactivated session. Same reasoning as
+    // onTaskRemoved below: keep the session alive so external controls
+    // recover when the user comes back. Just stop the player.
+    //
+    // Alpha: stack trace tells us who is calling stop() so we can decide if
+    // any caller deserves a true teardown. Strip [Handler] stop trace before
+    // beta.
+    debugPrint('[Handler] stop() - keeping MediaSession alive '
+        '(playing=${_player.playing}, processingState=${_player.processingState.name}, '
+        'hasService=${_service != null})');
+    debugPrint('[Handler] stop() trace:\n${StackTrace.current}');
+    try { await _player.stop(); } catch (e) { debugPrint('[Handler] stop() player.stop error: $e'); }
   }
 
   /// Called when the user swipes the app away from recents.
@@ -1434,7 +1445,22 @@ class AudioPlayerService extends ChangeNotifier {
         'sincePrevPlayMs=$sincePrevPlayMs, aaDisconnectSuspect=$aaDisconnectSuspect');
     service._positionSyncFailures = 0; // retry on foreground
     if (!service.hasBook) return;
-    debugPrint('[MediaSession] Foregrounded - refreshing (playing=${service.isPlaying}, session=${service._playbackSessionId != null}, item=${service._currentItemId})');
+    final sessionAlive = service._playbackSessionId != null;
+    debugPrint('[MediaSession] Foregrounded - refreshing (playing=${service.isPlaying}, session=$sessionAlive, item=${service._currentItemId})');
+    // Alpha: when session=false, the playback session was closed (pause
+    // timeout) and likely handler.stop() ran too. Log handler state so we
+    // can see whether the MediaSession is recoverable. Strip before beta.
+    if (!sessionAlive && handler != null) {
+      try {
+        final ps = handler.playbackState.value;
+        debugPrint('[MediaSession] Recovery diagnostic: handlerPlaying=${ps.playing}, '
+            'processingState=${ps.processingState.name}, '
+            'playerPlaying=${handler.player.playing}, '
+            'playerProcessing=${handler.player.processingState.name}');
+      } catch (e) {
+        debugPrint('[MediaSession] Recovery diagnostic error: $e');
+      }
+    }
     // Flush missed UI updates from background
     service.notifyListeners();
     // Flush overdue server sync
