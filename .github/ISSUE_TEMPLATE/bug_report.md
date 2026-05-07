@@ -33,4 +33,4 @@ If applicable, add screenshots or logcat/console output.
 **Additional Context**
 - Connection type (local, reverse proxy, Cloudflare tunnel):
 - Streaming or downloaded:
-- Android Auto related: Yes / No
+- Android Auto/Apple CarPlay related: Yes / No
