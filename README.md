@@ -48,6 +48,7 @@ A modern audiobookshelf client with a card-based player experience.
 [![Get it on GitHub](https://img.shields.io/badge/Get_it_on-GitHub-blue?style=for-the-badge&logo=github)](../../releases)
 [![Get it on Obtainium](https://img.shields.io/badge/Get_it_on-Obtainium-teal?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDJMMiAyMmgyMEwxMiAyeiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=)](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/pounat/absorb)
 [![Get it on Google Play](https://img.shields.io/badge/Google_Play-Open_Beta-414141?style=for-the-badge&logo=google-play&logoColor=white)](https://play.google.com/store/apps/details?id=com.barnabas.absorb)
+[![Download on the App Store](https://img.shields.io/badge/App_Store-iOS-007AFF?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/us/app/absorb-for-audiobookshelf/id6760673498)
 [![Join TestFlight](https://img.shields.io/badge/TestFlight-iOS-007AFF?style=for-the-badge&logo=apple&logoColor=white)](https://testflight.apple.com/join/GgUbDbve)
 
 ### Release Tracks
@@ -60,9 +61,13 @@ A modern audiobookshelf client with a card-based player experience.
 
 Open testing is live - [join the open beta on Google Play](https://play.google.com/store/apps/details?id=com.barnabas.absorb). Open testing and production releases match GitHub full releases. Internal testing (alpha) matches GitHub pre-releases - join the [Discord](https://discord.gg/dW4Y4zCxRp) to request access to the internal track.
 
+### App Store
+
+Live on the [App Store](https://apps.apple.com/us/app/absorb-for-audiobookshelf/id6760673498). App Store releases match GitHub full releases. Some features are still Android-only or in progress, see iOS section below.
+
 ### iOS TestFlight
 
-Public TestFlight matches GitHub full releases. [Join the TestFlight](https://testflight.apple.com/join/GgUbDbve). Core functionality works, but some features are still Android-only or in progress.
+TestFlight tracks GitHub full releases the same as the App Store, useful if you want to test releases before they hit the store. [Join the TestFlight](https://testflight.apple.com/join/GgUbDbve).
 
 ### iOS Alpha (Sideload)
 
