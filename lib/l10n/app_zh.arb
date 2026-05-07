@@ -802,5 +802,8 @@
   "openLibrary": "打开媒体库",
   "showTipsAgain": "再次显示提示",
   "showTipsAgainSubtitle": "恢复你已关闭的功能提示",
-  "tipsRestored": "已恢复提示"
+  "tipsRestored": "已恢复提示",
+  "resetSpeedPresets": "重置速度预设",
+  "resetSpeedPresetsSubtitle": "恢复默认的播放速度选项",
+  "speedPresetsReset": "速度预设已重置"
 }

@@ -4668,4 +4668,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tipsRestored => 'Tips restored';
+
+  @override
+  String get resetSpeedPresets => 'Reset speed presets';
+
+  @override
+  String get resetSpeedPresetsSubtitle =>
+      'Restore the default playback speed chips';
+
+  @override
+  String get speedPresetsReset => 'Speed presets reset';
 }

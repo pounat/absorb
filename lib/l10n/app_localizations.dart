@@ -8061,6 +8061,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tips restored'**
   String get tipsRestored;
+
+  /// No description provided for @resetSpeedPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset speed presets'**
+  String get resetSpeedPresets;
+
+  /// No description provided for @resetSpeedPresetsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore the default playback speed chips'**
+  String get resetSpeedPresetsSubtitle;
+
+  /// No description provided for @speedPresetsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed presets reset'**
+  String get speedPresetsReset;
 }
 
 class _AppLocalizationsDelegate

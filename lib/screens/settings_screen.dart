@@ -915,6 +915,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
+                    ListTile(
+                      leading: Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),
+                      title: Text(l.resetSpeedPresets),
+                      subtitle: Text(l.resetSpeedPresetsSubtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      onTap: () async {
+                        await PlayerSettings.resetSpeedPresets();
+                        if (!mounted) return;
+                        showOverlayToast(context, l.speedPresetsReset,
+                            icon: Icons.refresh_rounded);
+                      },
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     // Skip amounts
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),

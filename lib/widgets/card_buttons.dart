@@ -23,6 +23,7 @@ import 'chromecast_button.dart';
 import 'episode_detail_sheet.dart';
 import 'episode_list_sheet.dart';
 import 'equalizer_sheet.dart';
+import 'feature_hint.dart';
 import 'notes_sheet.dart';
 import 'overlay_toast.dart';
 import 'sleep_timer_sheet.dart';
@@ -605,7 +606,7 @@ class CardSpeedSheet extends StatefulWidget {
 
 class _CardSpeedSheetState extends State<CardSpeedSheet> {
   late double _speed;
-  static const _presets = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5];
+  List<double> _presets = List<double>.from(PlayerSettings.defaultSpeedPresets);
 
   bool get _isCasting {
     final cast = ChromecastService();
@@ -617,6 +618,30 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     final initialSpeed = _isCasting ? ChromecastService().castSpeed : widget.player.speed;
     _speed = (initialSpeed * 20).round() / 20.0;
     if (!widget.player.hasBook && !_isCasting) _loadSavedSpeed();
+    _loadPresets();
+    PlayerSettings.settingsChanged.addListener(_loadPresets);
+  }
+
+  @override void dispose() {
+    PlayerSettings.settingsChanged.removeListener(_loadPresets);
+    super.dispose();
+  }
+
+  Future<void> _loadPresets() async {
+    final presets = await PlayerSettings.getSpeedPresets();
+    if (mounted) setState(() => _presets = presets);
+  }
+
+  Future<void> _addCurrentAsPreset() async {
+    if (_presets.any((p) => (p - _speed).abs() < 0.01)) return;
+    final next = [..._presets, _speed];
+    await PlayerSettings.setSpeedPresets(next);
+  }
+
+  Future<void> _removePreset(double value) async {
+    if (_presets.length <= 1) return;
+    final next = _presets.where((p) => (p - value).abs() >= 0.01).toList();
+    await PlayerSettings.setSpeedPresets(next);
   }
 
   Future<void> _loadSavedSpeed() async {
@@ -654,17 +679,41 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
         Text(l.playbackSpeed, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text('${_speed.toStringAsFixed(2)}x', style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: widget.accent)),
-        const SizedBox(height: 16),
-        Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: _presets.map((s) {
-          final a = (_speed - s).abs() < 0.01;
-          return GestureDetector(onTap: () => _setSpeed(s), child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(color: a ? widget.accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: a ? widget.accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12))),
-            child: Text('${s}x', style: TextStyle(color: a ? Theme.of(context).colorScheme.surface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 13, fontWeight: a ? FontWeight.w700 : FontWeight.w500)),
-          ));
-        }).toList()),
+        const SizedBox(height: 12),
+        const FeatureHint(
+          prefKey: 'hint_speed_presets',
+          message: 'Tap + to save the current speed as a preset. Long-press a chip to remove it.',
+          padding: EdgeInsets.fromLTRB(0, 0, 0, 12),
+        ),
+        Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
+          ..._presets.map((s) {
+            final a = (_speed - s).abs() < 0.01;
+            final canRemove = _presets.length > 1;
+            return GestureDetector(
+              onTap: () => _setSpeed(s),
+              onLongPress: canRemove ? () => _removePreset(s) : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(color: a ? widget.accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: a ? widget.accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12))),
+                child: Text('${s}x', style: TextStyle(color: a ? Theme.of(context).colorScheme.surface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 13, fontWeight: a ? FontWeight.w700 : FontWeight.w500)),
+              ),
+            );
+          }),
+          GestureDetector(
+            onTap: _addCurrentAsPreset,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: widget.accent.withValues(alpha: 0.4), style: BorderStyle.solid),
+              ),
+              child: Icon(Icons.add_rounded, size: 16, color: widget.accent),
+            ),
+          ),
+        ]),
         const SizedBox(height: 16),
         Row(children: [
           GestureDetector(

@@ -1624,5 +1624,8 @@
   "androidAutoCatAuthors": "Authors",
   "showTipsAgain": "Show tips again",
   "showTipsAgainSubtitle": "Bring back feature tips you've dismissed",
-  "tipsRestored": "Tips restored"
+  "tipsRestored": "Tips restored",
+  "resetSpeedPresets": "Reset speed presets",
+  "resetSpeedPresetsSubtitle": "Restore the default playback speed chips",
+  "speedPresetsReset": "Speed presets reset"
 }

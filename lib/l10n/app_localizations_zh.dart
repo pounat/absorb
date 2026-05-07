@@ -4592,4 +4592,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tipsRestored => '已恢复提示';
+
+  @override
+  String get resetSpeedPresets => '重置速度预设';
+
+  @override
+  String get resetSpeedPresetsSubtitle => '恢复默认的播放速度选项';
+
+  @override
+  String get speedPresetsReset => '速度预设已重置';
 }

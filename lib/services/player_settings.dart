@@ -90,6 +90,30 @@ class PlayerSettings {
   static Future<double> getDefaultSpeed() => _get('defaultSpeed', 1.0);
   static Future<void> setDefaultSpeed(double speed) => _set('defaultSpeed', speed);
 
+  static const List<double> defaultSpeedPresets = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5];
+
+  static Future<List<double>> getSpeedPresets() async {
+    final raw = await _get('speedPresets', '');
+    if (raw.isEmpty) return List<double>.from(defaultSpeedPresets);
+    final parsed = <double>[];
+    for (final part in raw.split(',')) {
+      final v = double.tryParse(part);
+      if (v != null) parsed.add(v);
+    }
+    if (parsed.isEmpty) return List<double>.from(defaultSpeedPresets);
+    parsed.sort();
+    return parsed;
+  }
+
+  static Future<void> setSpeedPresets(List<double> presets) async {
+    final sorted = [...presets]..sort();
+    await _set('speedPresets', sorted.map((s) => s.toStringAsFixed(2)).join(','), notify: true);
+  }
+
+  static Future<void> resetSpeedPresets() async {
+    await _set('speedPresets', '', notify: true);
+  }
+
   /// Audible region override for Find Missing Books (e.g. "us", "uk", "de").
   /// Empty string means use device locale.
   static Future<String> getAudibleRegion() => _get('audibleRegion', '');
