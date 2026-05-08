@@ -7236,6 +7236,84 @@ abstract class AppLocalizations {
   /// **'Resets to full duration'**
   String get sleepTimerSheetResetsToFull;
 
+  /// No description provided for @sleepTimerSheetTabSpecificChapter.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter'**
+  String get sleepTimerSheetTabSpecificChapter;
+
+  /// No description provided for @sleepTimerSheetSpecificNoChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'No chapters available'**
+  String get sleepTimerSheetSpecificNoChapters;
+
+  /// No description provided for @sleepTimerSheetSpecificChapterFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter {number}'**
+  String sleepTimerSheetSpecificChapterFallback(int number);
+
+  /// No description provided for @sleepTimerSheetSpecificPassedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'passed'**
+  String get sleepTimerSheetSpecificPassedShort;
+
+  /// No description provided for @sleepTimerSheetSpecificStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter Start'**
+  String get sleepTimerSheetSpecificStart;
+
+  /// No description provided for @sleepTimerSheetSpecificEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter End'**
+  String get sleepTimerSheetSpecificEnd;
+
+  /// No description provided for @sleepTimerSheetSpecificEndsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer will end at'**
+  String get sleepTimerSheetSpecificEndsAt;
+
+  /// No description provided for @sleepTimerSheetSpecificCountdown.
+  ///
+  /// In en, this message translates to:
+  /// **'in {countdown}'**
+  String sleepTimerSheetSpecificCountdown(String countdown);
+
+  /// No description provided for @sleepTimerSheetSpecificAlreadyPassed.
+  ///
+  /// In en, this message translates to:
+  /// **'This point has already passed'**
+  String get sleepTimerSheetSpecificAlreadyPassed;
+
+  /// No description provided for @sleepTimerSheetSpecificStartButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Start timer'**
+  String get sleepTimerSheetSpecificStartButton;
+
+  /// No description provided for @sleepTimerSheetSpecificStartButtonPassed.
+  ///
+  /// In en, this message translates to:
+  /// **'Already passed'**
+  String get sleepTimerSheetSpecificStartButtonPassed;
+
+  /// No description provided for @timeAm.
+  ///
+  /// In en, this message translates to:
+  /// **'AM'**
+  String get timeAm;
+
+  /// No description provided for @timePm.
+  ///
+  /// In en, this message translates to:
+  /// **'PM'**
+  String get timePm;
+
   /// No description provided for @collectionPickerCollectionFallback.
   ///
   /// In en, this message translates to:

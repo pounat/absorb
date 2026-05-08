@@ -4056,6 +4056,49 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sleepTimerSheetResetsToFull => 'Resets to full duration';
 
   @override
+  String get sleepTimerSheetTabSpecificChapter => '章节';
+
+  @override
+  String get sleepTimerSheetSpecificNoChapters => '没有可用的章节';
+
+  @override
+  String sleepTimerSheetSpecificChapterFallback(int number) {
+    return '第 $number 章';
+  }
+
+  @override
+  String get sleepTimerSheetSpecificPassedShort => '已过';
+
+  @override
+  String get sleepTimerSheetSpecificStart => '章节开始';
+
+  @override
+  String get sleepTimerSheetSpecificEnd => '章节结束';
+
+  @override
+  String get sleepTimerSheetSpecificEndsAt => '睡眠定时器将于';
+
+  @override
+  String sleepTimerSheetSpecificCountdown(String countdown) {
+    return '$countdown 后';
+  }
+
+  @override
+  String get sleepTimerSheetSpecificAlreadyPassed => '此时间点已过';
+
+  @override
+  String get sleepTimerSheetSpecificStartButton => '启动定时器';
+
+  @override
+  String get sleepTimerSheetSpecificStartButtonPassed => '已过';
+
+  @override
+  String get timeAm => '上午';
+
+  @override
+  String get timePm => '下午';
+
+  @override
   String get collectionPickerCollectionFallback => 'Collection';
 
   @override

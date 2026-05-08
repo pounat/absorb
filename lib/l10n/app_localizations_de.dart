@@ -4181,6 +4181,50 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sleepTimerSheetResetsToFull => 'Setzt auf volle Dauer zurück';
 
   @override
+  String get sleepTimerSheetTabSpecificChapter => 'Kapitel';
+
+  @override
+  String get sleepTimerSheetSpecificNoChapters => 'Keine Kapitel verfügbar';
+
+  @override
+  String sleepTimerSheetSpecificChapterFallback(int number) {
+    return 'Kapitel $number';
+  }
+
+  @override
+  String get sleepTimerSheetSpecificPassedShort => 'vorbei';
+
+  @override
+  String get sleepTimerSheetSpecificStart => 'Kapitelanfang';
+
+  @override
+  String get sleepTimerSheetSpecificEnd => 'Kapitelende';
+
+  @override
+  String get sleepTimerSheetSpecificEndsAt => 'Sleep-Timer endet um';
+
+  @override
+  String sleepTimerSheetSpecificCountdown(String countdown) {
+    return 'in $countdown';
+  }
+
+  @override
+  String get sleepTimerSheetSpecificAlreadyPassed =>
+      'Dieser Zeitpunkt ist bereits vorbei';
+
+  @override
+  String get sleepTimerSheetSpecificStartButton => 'Timer starten';
+
+  @override
+  String get sleepTimerSheetSpecificStartButtonPassed => 'Bereits vorbei';
+
+  @override
+  String get timeAm => 'AM';
+
+  @override
+  String get timePm => 'PM';
+
+  @override
   String get collectionPickerCollectionFallback => 'Sammlung';
 
   @override
