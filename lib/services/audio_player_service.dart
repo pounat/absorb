@@ -3354,7 +3354,7 @@ class AudioPlayerService extends ChangeNotifier {
     // Reset server sync clock so the first sync after resume doesn't
     // include pause duration as timeListened
     _lastServerSync = DateTime.now();
-    // Re-activate audio session (needed after pause timeout releases it)
+    // Re-activate audio session in case a prior stop released it.
     try { (await AudioSession.instance).setActive(true); } catch (_) {}
     // If the player is idle (source was disposed), we need to fully re-initialize
     // playback instead of just calling play() on an empty player.
@@ -3502,12 +3502,15 @@ class AudioPlayerService extends ChangeNotifier {
       _progressSync.syncToServer(api: _api!, itemId: syncKey);
     }
 
-    // After 10 min paused, close the server session and release audio focus
-    // to save battery/bandwidth. The player stays paused (not stopped) so the
-    // MediaSession remains active and WearOS/notification controls keep working.
+    // After 10 min paused, close the server session so we don't inflate
+    // listening stats with paused time. We deliberately keep the AudioSession
+    // active and the player paused (not stopped) so the foreground service
+    // stays in foreground state and the MediaSession stays alive - this is
+    // what keeps notification / lock screen / Bluetooth / WearOS controls
+    // responsive after a long pause. Same pattern as Spotify and Pocket Casts.
     _pauseStopTimer?.cancel();
     _pauseStopTimer = Timer(_pauseStopTimeout, () async {
-      debugPrint('[Player] Pause timeout - releasing server session and audio focus');
+      debugPrint('[Player] Pause timeout - releasing server session');
       // Close server playback session. timeListened=0 because the user has
       // been paused for the whole pause-timeout window - the wall-clock diff
       // would otherwise inflate server listening stats by up to 300s.
@@ -3520,9 +3523,6 @@ class AudioPlayerService extends ChangeNotifier {
         } catch (_) {}
         _playbackSessionId = null;
       }
-      // Release audio focus so other apps can use it
-      debugPrint('[Battery] AudioSession DEACTIVATED (pause timeout)');
-      try { (await AudioSession.instance).setActive(false); } catch (_) {}
       // Cancel sleep timer
       if (SleepTimerService().isActive) {
         SleepTimerService().cancel();
