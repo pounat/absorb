@@ -259,14 +259,18 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       _clickTimer!.cancel();
       _clickCount = 0;
     }
-    // A pause arriving outside the click resolver is the platform signalling
-    // a disconnect (AA tearing down, BT going away, headphones unplugged).
-    // Stamp _noisyPauseAt so the play() / click() guards drop any spurious
-    // resume commands that follow in the next 5s. becomingNoisy already
-    // stamps for the headphone-unplug case; this covers AA/BT disconnect
-    // where no noisy event fires.
+    // Detect BT/AA disconnect by route change: we were playing on BT recently
+    // and BT is no longer connected at this pause. Arm the 5s phantom guard
+    // so any echoed resume command from the dead route gets dropped. We do
+    // NOT stamp for plain user pauses (notification, lock screen, in-app)
+    // because that would block their immediate follow-up play. becomingNoisy
+    // covers the headphone-unplug path independently.
     if (!_inClickResolver) {
-      _noisyPauseAt = DateTime.now();
+      final lastBt = AudioPlayerService._lastPlayedOnBtAt;
+      final btJustWent = lastBt != null && !pauseEntryBt;
+      if (btJustWent) {
+        _noisyPauseAt = DateTime.now();
+      }
     }
     if (_service != null) {
       await _service!.pause();
