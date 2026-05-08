@@ -362,7 +362,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         width: double.infinity,
         child: SegmentedButton<bool>(
           showSelectedIcon: false,
-          segments: const [
+          segments: [
             ButtonSegment(value: false, label: Text(l.sleepTimerSheetSpecificStart)),
             ButtonSegment(value: true, label: Text(l.sleepTimerSheetSpecificEnd)),
           ],
