@@ -127,7 +127,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                     _tab(
                         l.endOfChapter, Icons.auto_stories_outlined, 1, accent),
                     const SizedBox(width: 4),
-                    _tab('Chapter', Icons.bookmark_outlined, 2, accent),
+                    _tab(l.sleepTimerSheetTabSpecificChapter, Icons.bookmark_outlined, 2, accent),
                   ]),
                 ),
                 const SizedBox(height: 20),
@@ -276,7 +276,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
 
     if (chapters.isEmpty) {
       return Center(
-        child: Text('No chapters available',
+        child: Text(l.sleepTimerSheetSpecificNoChapters,
             style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
       );
     }
@@ -313,7 +313,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             dropdownColor: Theme.of(context).bottomSheetTheme.backgroundColor,
             items: chapters.asMap().entries.map((e) {
               final ch = e.value as Map<String, dynamic>;
-              final title = ch['title'] as String? ?? 'Chapter ${e.key + 1}';
+              final title = ch['title'] as String? ?? l.sleepTimerSheetSpecificChapterFallback(e.key + 1);
               final endSec = (ch['end'] as num?)?.toDouble() ?? 0;
               final currentPosSec = player.position.inMilliseconds / 1000.0;
               final secondsUntil = (endSec - currentPosSec) / player.speed;
@@ -323,7 +323,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
               );
 
               final timeLabel =
-                  secondsUntil > 0 ? _formatWallClock(endTime) : 'passed';
+                  secondsUntil > 0 ? _formatWallClock(endTime) : l.sleepTimerSheetSpecificPassedShort;
 
               return DropdownMenuItem(
                 value: e.key,
@@ -363,8 +363,8 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         child: SegmentedButton<bool>(
           showSelectedIcon: false,
           segments: const [
-            ButtonSegment(value: false, label: Text('Chapter Start')),
-            ButtonSegment(value: true, label: Text('Chapter End')),
+            ButtonSegment(value: false, label: Text(l.sleepTimerSheetSpecificStart)),
+            ButtonSegment(value: true, label: Text(l.sleepTimerSheetSpecificEnd)),
           ],
           selected: {_useChapterEnd},
           style: const ButtonStyle(
@@ -379,7 +379,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
 
       // Estimated end time
       if (!isPast) ...[
-        Text('Sleep timer will end at',
+        Text(l.sleepTimerSheetSpecificEndsAt,
             style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
         const SizedBox(height: 4),
         Text(_formatWallClock(endTime),
@@ -390,10 +390,10 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 fontFeatures: const [FontFeature.tabularFigures()])),
         const SizedBox(height: 4),
         Text(
-            'in ${_formatCountdown(Duration(seconds: realSecondsUntil.round()))}',
+            l.sleepTimerSheetSpecificCountdown(_formatCountdown(Duration(seconds: realSecondsUntil.round()))),
             style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
       ] else
-        Text('This point has already passed',
+        Text(l.sleepTimerSheetSpecificAlreadyPassed,
             style: TextStyle(color: cs.error, fontSize: 13)),
 
       const SizedBox(height: 16),
@@ -419,7 +419,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                     Navigator.pop(context);
                   },
             child: Text(
-              isPast ? 'Already passed' : 'Start timer',
+              isPast ? l.sleepTimerSheetSpecificStartButtonPassed : l.sleepTimerSheetSpecificStartButton,
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
           )),
@@ -427,9 +427,10 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   }
 
   String _formatWallClock(DateTime dt) {
+    final l = AppLocalizations.of(context)!;
     final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
     final m = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final period = dt.hour >= 12 ? l.timePm : l.timeAm;
     return '$h:$m $period';
   }
 

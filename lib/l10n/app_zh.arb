@@ -805,5 +805,21 @@
   "tipsRestored": "已恢复提示",
   "resetSpeedPresets": "重置速度预设",
   "resetSpeedPresetsSubtitle": "恢复默认的播放速度选项",
-  "speedPresetsReset": "速度预设已重置"
+  "speedPresetsReset": "速度预设已重置",
+
+  "sleepTimerSheetTabSpecificChapter": "章节",
+  "sleepTimerSheetSpecificNoChapters": "没有可用的章节",
+  "sleepTimerSheetSpecificChapterFallback": "第 {number} 章",
+  "@sleepTimerSheetSpecificChapterFallback": { "placeholders": { "number": { "type": "int" } } },
+  "sleepTimerSheetSpecificPassedShort": "已过",
+  "sleepTimerSheetSpecificStart": "章节开始",
+  "sleepTimerSheetSpecificEnd": "章节结束",
+  "sleepTimerSheetSpecificEndsAt": "睡眠定时器将于",
+  "sleepTimerSheetSpecificCountdown": "{countdown} 后",
+  "@sleepTimerSheetSpecificCountdown": { "placeholders": { "countdown": { "type": "String" } } },
+  "sleepTimerSheetSpecificAlreadyPassed": "此时间点已过",
+  "sleepTimerSheetSpecificStartButton": "启动定时器",
+  "sleepTimerSheetSpecificStartButtonPassed": "已过",
+  "timeAm": "上午",
+  "timePm": "下午"
 }
