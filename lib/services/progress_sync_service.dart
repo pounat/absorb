@@ -117,6 +117,13 @@ class ProgressSyncService {
     return (data?['timestamp'] as num?)?.toInt() ?? 0;
   }
 
+  /// Whether the given item has unsynced local progress. Callers can use this
+  /// to avoid clobbering offline-listening progress with a stale server snapshot.
+  Future<bool> hasPendingSync(String itemId) async {
+    final pendingList = await ScopedPrefs.getStringList('pending_syncs');
+    return pendingList.contains(itemId);
+  }
+
   /// Delete locally saved progress for an item.
   Future<void> deleteLocal(String itemId) async {
     await ScopedPrefs.remove('progress_$itemId');

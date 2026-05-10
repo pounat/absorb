@@ -1844,8 +1844,11 @@ class AudioPlayerService extends ChangeNotifier {
           } else if (startTime > 0) {
             // Local is ahead — verify via timestamp that this isn't stale data.
             // Fetch the server's lastUpdate to compare with the local save time.
+            // Skip the override if we have a pending local sync: local is the
+            // truth, we just haven't shipped it to the server yet.
             bool useServer = false;
-            if (localTs > 0) {
+            final hasPending = await _progressSync.hasPendingSync(pKey);
+            if (localTs > 0 && !hasPending) {
               try {
                 final serverProgress = await _api!.getItemProgress(pKey);
                 final serverLastUpdate = (serverProgress?['lastUpdate'] as num?)?.toInt() ?? 0;
@@ -1857,7 +1860,11 @@ class AudioPlayerService extends ChangeNotifier {
               } catch (_) {}
             }
             if (!useServer) {
-              debugPrint('[Player] Local position is ahead: local=${startTime}s vs server=${serverPos}s — keeping local');
+              if (hasPending) {
+                debugPrint('[Player] Local position is ahead: local=${startTime}s vs server=${serverPos}s — keeping local (pending sync)');
+              } else {
+                debugPrint('[Player] Local position is ahead: local=${startTime}s vs server=${serverPos}s — keeping local');
+              }
             }
           } else if (serverPos > 0) {
             debugPrint('[Player] No local position, using server: ${serverPos}s');
@@ -2237,8 +2244,13 @@ class AudioPlayerService extends ChangeNotifier {
       debugPrint('[Player] Server position is ahead: server=${serverPos}s vs local=${startTime}s — using server');
       startTime = serverPos;
     } else if (startTime > 0) {
+      // Skip the staleness override if we have a pending local sync: the
+      // server's lastUpdate can be newer than the local timestamp for reasons
+      // unrelated to listening progress, so trusting it would clobber offline
+      // playback we haven't shipped yet.
       bool useServer = false;
-      if (localTs > 0) {
+      final hasPending = await _progressSync.hasPendingSync(pKey);
+      if (localTs > 0 && !hasPending) {
         try {
           final serverProgress = await api.getItemProgress(pKey);
           final serverLastUpdate = (serverProgress?['lastUpdate'] as num?)?.toInt() ?? 0;
@@ -2250,7 +2262,11 @@ class AudioPlayerService extends ChangeNotifier {
         } catch (_) {}
       }
       if (!useServer) {
-        debugPrint('[Player] Local position is ahead: local=${startTime}s vs server=${serverPos}s — keeping local');
+        if (hasPending) {
+          debugPrint('[Player] Local position is ahead: local=${startTime}s vs server=${serverPos}s — keeping local (pending sync)');
+        } else {
+          debugPrint('[Player] Local position is ahead: local=${startTime}s vs server=${serverPos}s — keeping local');
+        }
       }
     } else if (serverPos > 0) {
       debugPrint('[Player] No local position, using server: ${serverPos}s');
