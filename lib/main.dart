@@ -232,6 +232,16 @@ class AbsorbApp extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
+              localeResolutionCallback: (locale, supportedLocales) {
+                if (locale != null) {
+                  for (final supported in supportedLocales) {
+                    if (supported.languageCode == locale.languageCode) {
+                      return supported;
+                    }
+                  }
+                }
+                return const Locale('en');
+              },
               themeMode: currentMode,
               theme: ThemeData(
                 useMaterial3: true,
