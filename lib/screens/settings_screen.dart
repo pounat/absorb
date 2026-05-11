@@ -384,10 +384,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              // TODO: when Crowdin is set up, swap this URL for the Crowdin project link.
               child: InkWell(
                 onTap: () => launchUrl(
-                  Uri.parse('https://github.com/pounat/absorb/issues/188'),
+                  Uri.parse('https://crowdin.com/project/absorb'),
                   mode: LaunchMode.externalApplication,
                 ),
                 child: Text(
