@@ -581,10 +581,10 @@ class _ExpandedCardState extends State<ExpandedCard> {
                   child: LayoutBuilder(
                     builder: (context, outerConstraints) {
                     final compact = outerConstraints.maxHeight < 600;
-                    return Column(
-                    children: [
-                      // ── Stats row ──
-                      Padding(
+                    // Landscape: split into left (cover) + right (controls/info).
+                    final wide = outerConstraints.maxWidth > outerConstraints.maxHeight;
+
+                    final statsRow = Padding(
                         padding: EdgeInsets.fromLTRB(24, compact ? 4 : 12, 24, 0),
                         child: Center(
                           child: Text('${(bookProgress * 100).clamp(0, 100).toStringAsFixed(1)}%',
@@ -595,16 +595,14 @@ class _ExpandedCardState extends State<ExpandedCard> {
                               shadows: [Shadow(color: isDark ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.6), blurRadius: 4)],
                             )),
                         ),
-                      ),
-                      // ── Book progress bar ──
-                      Padding(
+                      );
+
+                    final bookProgressBar = Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: progress, staticDuration: _effectiveDuration, chapters: _chapters, showBookBar: (!_isPodcastEpisode || _chapters.isNotEmpty) && (!lib.isPodcastLibrary || _chapters.isNotEmpty), showChapterBar: false, itemId: _itemId),
-                      ),
-                      SizedBox(height: compact ? 4 : 16),
-                      // ── Cover art (larger — 90% width) ──
-                      Expanded(
-                        child: Padding(
+                      );
+
+                    final coverArea = Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: ListenableBuilder(
                             listenable: ChromecastService(),
@@ -778,16 +776,14 @@ class _ExpandedCardState extends State<ExpandedCard> {
                               },
                             ),
                           ),
-                        ),
-                      ),
-                      SizedBox(height: compact ? 6 : 24),
-                      // ── Chapter scrubber ──
-                      Padding(
+                        );
+
+                    final chapterScrubber = Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : _chapterName(chapterIdx)), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId),
-                      ),
-                      // ── Controls + buttons ──
-                      MediaQuery(
+                      );
+
+                    final controlsAndButtons = MediaQuery(
                         data: MediaQuery.of(context).copyWith(
                           textScaler: TextScaler.noScaling,
                         ),
@@ -808,11 +804,9 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                       playButtonSize: 70,
                                     ),
                                     SizedBox(height: compact ? 8 : 24),
-                                    // ── Button grid ──
                                     ..._buildButtonGrid(accent, tt),
                                     SizedBox(height: compact ? 4 : 14),
                                     if (!_moreInline) ...[
-                                    // More menu / Cast controls
                                     Center(
                                       child: ListenableBuilder(
                                         listenable: ChromecastService(),
@@ -851,9 +845,38 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                   ],
                                 ),
                         ),
-                      ),
-                    ],
-                  );
+                      );
+
+                    if (wide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: coverArea),
+                          Expanded(child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              statsRow,
+                              bookProgressBar,
+                              SizedBox(height: compact ? 4 : 16),
+                              chapterScrubber,
+                              controlsAndButtons,
+                            ],
+                          )),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      children: [
+                        statsRow,
+                        bookProgressBar,
+                        SizedBox(height: compact ? 4 : 16),
+                        Expanded(child: coverArea),
+                        SizedBox(height: compact ? 6 : 24),
+                        chapterScrubber,
+                        controlsAndButtons,
+                      ],
+                    );
                   }),
                 ),
               ],
