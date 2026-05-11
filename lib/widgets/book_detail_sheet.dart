@@ -28,6 +28,7 @@ import '../services/metadata_override_service.dart';
 import '../services/scoped_prefs.dart';
 import '../screens/app_shell.dart';
 import 'author_books_sheet.dart';
+import 'narrator_books_sheet.dart';
 import 'series_books_sheet.dart';
 import 'absorbing_shared.dart';
 import 'html_description.dart';
@@ -70,6 +71,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _showGoodreads = false;
   bool _ebookSaved = false;
   bool _authorsExpanded = false;
+  bool _narratorsExpanded = false;
   bool _squareCovers = false;
   ColorScheme? _coverScheme;
   String? _coverSchemeUrl; // URL the current scheme was derived from
@@ -338,7 +340,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final chapters = media['chapters'] as List<dynamic>? ?? [];
     final title = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
-    final narrator = metadata['narratorName'] as String? ?? '';
     final descRaw = metadata['description'] as String? ?? '';
     final duration = (media['duration'] as num?)?.toDouble() ?? 0;
     final seriesEntries = metadata['series'] as List<dynamic>? ?? [];
@@ -405,8 +406,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       Text(title, textAlign: TextAlign.center, style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
       const SizedBox(height: 4),
       _buildAuthorLinks(context, metadata, cs, tt, accent),
-      if (narrator.isNotEmpty) ...[const SizedBox(height: 2),
-        Text(l.narratedBy(narrator), textAlign: TextAlign.center, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))],
+      _buildNarratorLinks(context, metadata, cs, tt, accent),
       // ─── AUDIBLE RATING (space always reserved) ─────────
       const SizedBox(height: 8),
       if (_rating != null && (_rating!['rating'] as num).toDouble() > 0)
@@ -953,6 +953,71 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             )),
           ),
       ],
+    );
+  }
+
+  Widget _buildNarratorLinks(BuildContext context, Map<String, dynamic> metadata, ColorScheme cs, TextTheme tt, Color accent) {
+    final raw = metadata['narrators'] as List<dynamic>? ?? [];
+    final names = <String>[
+      for (final n in raw)
+        if (n is String && n.trim().isNotEmpty)
+          n.trim()
+        else if (n is Map<String, dynamic>)
+          (n['name'] as String? ?? '').trim()
+    ].where((s) => s.isNotEmpty).toList();
+
+    if (names.isEmpty) {
+      final fallback = (metadata['narratorName'] as String? ?? '').trim();
+      if (fallback.isEmpty) return const SizedBox.shrink();
+      names.addAll(fallback.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
+    }
+    if (names.isEmpty) return const SizedBox.shrink();
+
+    final l = AppLocalizations.of(context)!;
+    // Split the localized "Narrated by {narrator}" template so we can prepend
+    // the prefix (and append any suffix, e.g. Chinese colon) around clickable
+    // narrator links.
+    final parts = l.narratedBy('||X||').split('||X||');
+    final prefix = parts.isNotEmpty ? parts[0] : '';
+    final suffix = parts.length > 1 ? parts[1] : '';
+
+    const int collapsedCount = 3;
+    final showAll = _narratorsExpanded || names.length <= collapsedCount;
+    final visible = showAll ? names : names.sublist(0, collapsedCount);
+    final remaining = names.length - collapsedCount;
+
+    final baseStyle = tt.bodySmall?.copyWith(color: cs.onSurfaceVariant);
+    final linkStyle = tt.bodySmall?.copyWith(
+      color: accent,
+      decoration: TextDecoration.underline,
+      decorationColor: accent.withValues(alpha: 0.4),
+    );
+    final commaStyle = tt.bodySmall?.copyWith(color: accent);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        children: [
+          if (prefix.isNotEmpty) Text(prefix, style: baseStyle),
+          for (int i = 0; i < visible.length; i++) ...[
+            GestureDetector(
+              onTap: () => showNarratorBooksSheet(context, narratorName: visible[i]),
+              child: Text(visible[i], style: linkStyle),
+            ),
+            if (i < visible.length - 1 || (!showAll && remaining > 0))
+              Text(', ', style: commaStyle),
+          ],
+          if (!showAll)
+            GestureDetector(
+              onTap: () => setState(() => _narratorsExpanded = true),
+              child: Text(l.andCountMore(remaining), style: tt.bodySmall?.copyWith(
+                color: accent.withValues(alpha: 0.7),
+              )),
+            ),
+          if (suffix.isNotEmpty) Text(suffix, style: baseStyle),
+        ],
+      ),
     );
   }
 

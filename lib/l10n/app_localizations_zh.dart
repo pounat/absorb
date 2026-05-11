@@ -266,6 +266,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get libraryTabAuthors => '作者';
 
   @override
+  String get libraryTabNarrators => '旁白';
+
+  @override
   String get libraryNoBooks => '未找到书籍';
 
   @override
@@ -298,6 +301,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get libraryNoAuthorsFound => '未找到作者';
 
   @override
+  String get libraryNoNarratorsFound => '未找到旁白';
+
+  @override
   String get libraryNoResults => '未找到结果';
 
   @override
@@ -323,6 +329,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String libraryAuthorsCount(int count) {
     return '$count 位作者';
+  }
+
+  @override
+  String libraryNarratorsCount(int count) {
+    return '$count 位旁白';
   }
 
   @override
@@ -653,6 +664,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appShellSettingsTab => '设置';
 
   @override
+  String get appShellDiscoverTab => '发现';
+
+  @override
+  String get appShellShowsTab => '节目';
+
+  @override
   String get appShellPressBackToExit => '再按一次返回键退出';
 
   @override
@@ -660,6 +677,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sectionAppearance => '外观';
+
+  @override
+  String get languageLabel => '语言';
+
+  @override
+  String get languageSystemDefault => '跟随系统';
+
+  @override
+  String get languageHelpTranslateInvite => '想帮 Absorb 翻译成你的语言吗？';
 
   @override
   String get themeLabel => '主题';
@@ -1963,9 +1989,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get yearLabel => '年份';
-
-  @override
-  String get languageLabel => '语言';
 
   @override
   String get genresLabel => '分类';

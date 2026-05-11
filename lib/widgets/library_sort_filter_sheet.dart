@@ -4,7 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../screens/library_screen.dart';
 
 /// Which library tab the sort/filter sheet is being shown for.
-enum LibraryTab { library, series, authors }
+enum LibraryTab { library, series, authors, narrators }
 
 // ═══════════════════════════════════════════════════════════════
 // Sort & Filter bottom sheet with tabs
@@ -120,6 +120,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
   double _calcHeight() {
     if (widget.libraryTab == LibraryTab.series) return widget.onUpcomingReleases != null ? 330 : 230;
     if (widget.libraryTab == LibraryTab.authors) return 180;
+    if (widget.libraryTab == LibraryTab.narrators) return 130;
     return _genreExpanded ? 420 : (widget.isPodcastLibrary ? 200 : 400);
   }
 
@@ -229,6 +230,10 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
         return [
           (LibrarySort.alphabetical, l.name, Icons.sort_by_alpha_rounded),
           (LibrarySort.totalDuration, l.numberOfBooks, Icons.auto_stories_rounded),
+        ];
+      case LibraryTab.narrators:
+        return [
+          (LibrarySort.alphabetical, l.name, Icons.sort_by_alpha_rounded),
         ];
       case LibraryTab.library:
         if (widget.isPodcastLibrary) {

@@ -21,6 +21,7 @@ import '../widgets/collection_detail_sheet.dart';
 import '../widgets/section_detail_sheet.dart';
 import '../widgets/feature_hint.dart';
 import '../widgets/offline_status_icon.dart';
+import '../widgets/section_labels.dart';
 import 'app_shell.dart';
 import '../l10n/app_localizations.dart';
 
@@ -297,19 +298,6 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _sectionLabel(String id, AppLocalizations l) {
-    switch (id) {
-      case 'continue-listening': return l.continueListening;
-      case 'continue-series': return l.continueSeries;
-      case 'recently-added': return l.recentlyAdded;
-      case 'listen-again': return l.listenAgain;
-      case 'discover': return l.discover;
-      case 'episodes-recently-added': return l.newEpisodes;
-      case 'downloaded-books': return l.downloads;
-    }
-    return _titleCase(id);
-  }
-
   static const _sectionIcons = {
     'continue-listening': Icons.play_circle_outline_rounded,
     'continue-series': Icons.auto_stories_rounded,
@@ -319,14 +307,6 @@ class HomeScreenState extends State<HomeScreen> {
     'episodes-recently-added': Icons.podcasts_rounded,
     'downloaded-books': Icons.download_done_rounded,
   };
-
-  String _titleCase(String s) {
-    return s
-        .replaceAll('-', ' ')
-        .split(' ')
-        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-        .join(' ');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -616,7 +596,7 @@ class HomeScreenState extends State<HomeScreen> {
                       ];
                     }
 
-                    final label = section['label'] ?? _sectionLabel(id, l);
+                    final label = sectionLabel(id, section['label'] as String?, l);
                     final entities = _filterEbookOnly(
                         (section['entities'] as List<dynamic>?) ?? [],
                         sectionType: section['type'] as String?);

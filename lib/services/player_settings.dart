@@ -332,6 +332,12 @@ class PlayerSettings {
   static Future<bool> getAuthorSortAsc() => _get('authorSortAsc', true);
   static Future<void> setAuthorSortAsc(bool value) => _set('authorSortAsc', value);
 
+  static Future<String> getNarratorSort() => _get('narratorSort', 'alphabetical');
+  static Future<void> setNarratorSort(String value) => _set('narratorSort', value);
+
+  static Future<bool> getNarratorSortAsc() => _get('narratorSortAsc', true);
+  static Future<void> setNarratorSortAsc(bool value) => _set('narratorSortAsc', value);
+
   static Future<bool> getShowGoodreadsButton() => _get('showGoodreadsButton', false);
   static Future<void> setShowGoodreadsButton(bool value) => _set('showGoodreadsButton', value);
 
@@ -460,6 +466,19 @@ class PlayerSettings {
 
   static Future<String> getThemeMode() => _get('themeMode', 'dark');
   static Future<void> setThemeMode(String value) => _set('themeMode', value);
+
+  /// Language override. Empty string means follow the system language.
+  /// Otherwise an ISO 639-1 code matching a supported locale (e.g. 'en', 'de', 'zh').
+  /// Stored globally (not per-user) so it persists across cold start before any
+  /// account scope is active — and so all profiles on the device share one UI language.
+  static Future<String> getLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('language') ?? '';
+  }
+  static Future<void> setLanguage(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('language', value);
+  }
 
   static Future<String> getColorSource() => _get('colorSource', 'default');
   static Future<void> setColorSource(String value) => _set('colorSource', value);

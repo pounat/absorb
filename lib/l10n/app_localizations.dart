@@ -598,6 +598,12 @@ abstract class AppLocalizations {
   /// **'Authors'**
   String get libraryTabAuthors;
 
+  /// No description provided for @libraryTabNarrators.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrators'**
+  String get libraryTabNarrators;
+
   /// No description provided for @libraryNoBooks.
   ///
   /// In en, this message translates to:
@@ -658,6 +664,12 @@ abstract class AppLocalizations {
   /// **'No authors found'**
   String get libraryNoAuthorsFound;
 
+  /// No description provided for @libraryNoNarratorsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No narrators found'**
+  String get libraryNoNarratorsFound;
+
   /// No description provided for @libraryNoResults.
   ///
   /// In en, this message translates to:
@@ -705,6 +717,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} authors'**
   String libraryAuthorsCount(int count);
+
+  /// No description provided for @libraryNarratorsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} narrators'**
+  String libraryNarratorsCount(int count);
 
   /// No description provided for @libraryBooksCount.
   ///
@@ -1312,6 +1330,18 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get appShellSettingsTab;
 
+  /// No description provided for @appShellDiscoverTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover'**
+  String get appShellDiscoverTab;
+
+  /// No description provided for @appShellShowsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows'**
+  String get appShellShowsTab;
+
   /// No description provided for @appShellPressBackToExit.
   ///
   /// In en, this message translates to:
@@ -1329,6 +1359,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Appearance'**
   String get sectionAppearance;
+
+  /// No description provided for @languageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get languageLabel;
+
+  /// No description provided for @languageSystemDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get languageSystemDefault;
+
+  /// No description provided for @languageHelpTranslateInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Want to help translate Absorb into your language?'**
+  String get languageHelpTranslateInvite;
 
   /// No description provided for @themeLabel.
   ///
@@ -3753,12 +3801,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Year'**
   String get yearLabel;
-
-  /// No description provided for @languageLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
-  String get languageLabel;
 
   /// No description provided for @genresLabel.
   ///

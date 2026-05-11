@@ -363,8 +363,8 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         child: SegmentedButton<bool>(
           showSelectedIcon: false,
           segments: [
-            ButtonSegment(value: false, label: Text(l.sleepTimerSheetSpecificStart)),
-            ButtonSegment(value: true, label: Text(l.sleepTimerSheetSpecificEnd)),
+            ButtonSegment(value: false, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.sleepTimerSheetSpecificStart, maxLines: 1))),
+            ButtonSegment(value: true, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.sleepTimerSheetSpecificEnd, maxLines: 1))),
           ],
           selected: {_useChapterEnd},
           style: const ButtonStyle(
@@ -725,9 +725,9 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         child: SegmentedButton<String>(
           showSelectedIcon: false,
           segments: [
-            ButtonSegment(value: 'off', label: Text(l.off)),
-            ButtonSegment(value: 'addTime', label: Text(l.shakeAddTime)),
-            ButtonSegment(value: 'resetTimer', label: Text(l.shakeReset)),
+            ButtonSegment(value: 'off', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.off, maxLines: 1))),
+            ButtonSegment(value: 'addTime', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.shakeAddTime, maxLines: 1))),
+            ButtonSegment(value: 'resetTimer', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.shakeReset, maxLines: 1))),
           ],
           selected: {_shakeMode},
           style: ButtonStyle(

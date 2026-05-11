@@ -904,10 +904,10 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: SegmentedButton<String>(
             segments: [
-              ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 16), label: Text(l.queueModeOff)),
-              ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 16), label: Text(l.queueModeManual)),
+              ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 16), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff, maxLines: 1))),
+              ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 16), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual, maxLines: 1))),
               ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 16),
-                label: Text(widget.isMerged ? l.queueModeAuto : widget.isPodcast ? l.queueModeShowLabel : l.queueModeSeriesLabel)),
+                label: FittedBox(fit: BoxFit.scaleDown, child: Text(widget.isMerged ? l.queueModeAuto : widget.isPodcast ? l.queueModeShowLabel : l.queueModeSeriesLabel, maxLines: 1))),
             ],
             selected: {_queueMode},
             onSelectionChanged: (v) {

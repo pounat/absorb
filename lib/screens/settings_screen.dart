@@ -24,7 +24,7 @@ import '../screens/admin_screen.dart';
 import '../screens/admin_rmab_screen.dart';
 import '../screens/downloads_screen.dart';
 import '../screens/bookmarks_screen.dart';
-import '../main.dart' show applyThemeMode, applyTrustAllCerts, oledNotifier, snappyTransitionsNotifier;
+import '../main.dart' show applyThemeMode, applyTrustAllCerts, localeNotifier, oledNotifier, snappyTransitionsNotifier;
 import '../widgets/absorb_page_header.dart';
 import '../widgets/absorb_slider.dart';
 import '../widgets/collapsible_section.dart';
@@ -87,6 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _rectangleCovers = false;
   bool _coverPlayButton = false;
   String _themeMode = 'dark';
+  String _language = '';
   int _startScreen = 2;
   int _streamingCacheSizeMb = 0;
   bool _localServerEnabled = false;
@@ -203,6 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       PlayerSettings.getSleepChime(),                                         // 46
       PlayerSettings.getSleepChimeVolume(),                                   // 47
       PlayerSettings.getShakeSensitivity(),                                   // 48
+      PlayerSettings.getLanguage(),                                           // 49
     ]);
     final s = results[0] as AutoRewindSettings;
     final speed = results[1] as double;
@@ -250,6 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final chime = results[43] as bool;
     final chimeVol = results[44] as double;
     final shakeSens = results[45] as String;
+    final language = results[46] as String;
     final rmabUrl = await ScopedPrefs.getString('rmab_url');
     if (mounted) setState(() {
       _rmabUrl = rmabUrl;
@@ -303,6 +306,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _sleepChime = chime;
       _sleepChimeVolume = chimeVol;
       _shakeSensitivity = shakeSens;
+      _language = language;
       _canPickDownloadLocation = !_isPlayStoreBuild;
 
       _loaded = true;
@@ -328,6 +332,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
       case 'medium':
       default: return l.shakeSensitivityMedium;
     }
+  }
+
+  /// Display name for a language code, in that language's own script.
+  /// Empty string => "System default" in the active locale.
+  String _languageDisplayName(String code, AppLocalizations l) {
+    switch (code) {
+      case 'en': return 'English';
+      case 'de': return 'Deutsch';
+      case 'zh': return '中文';
+      default: return l.languageSystemDefault;
+    }
+  }
+
+  Future<void> _pickLanguage() async {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+    const codes = ['', 'en', 'de', 'zh'];
+
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: cs.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.24),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(l.languageLabel,
+                style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            for (final code in codes)
+              RadioListTile<String>(
+                value: code,
+                groupValue: _language,
+                onChanged: (v) => Navigator.pop(ctx, v),
+                title: Text(_languageDisplayName(code, l)),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              // TODO: when Crowdin is set up, swap this URL for the Crowdin project link.
+              child: InkWell(
+                onTap: () => launchUrl(
+                  Uri.parse('https://github.com/pounat/absorb/issues/188'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: Text(
+                  l.languageHelpTranslateInvite,
+                  style: tt.bodySmall?.copyWith(
+                    color: cs.primary,
+                    decoration: TextDecoration.underline,
+                    decorationColor: cs.primary.withValues(alpha: 0.6),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (picked == null || picked == _language) return;
+    setState(() => _language = picked);
+    await PlayerSettings.setLanguage(picked);
+    localeNotifier.value = picked.isEmpty ? null : Locale(picked);
   }
 
   Widget _infoIcon(String title, String content) {
@@ -532,6 +614,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Appearance',
                   onExpansionChanged: (v) => _onSectionExpanded('Appearance', v),
                   children: [
+                    InkWell(
+                      onTap: _loaded ? () => _pickLanguage() : null,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(l.languageLabel, style: tt.titleSmall)),
+                            Text(
+                              _languageDisplayName(_language, l),
+                              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                            ),
+                            Icon(Icons.chevron_right_rounded,
+                                color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                       child: Column(
@@ -544,10 +644,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: SegmentedButton<String>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 'dark', label: Text(l.themeDark)),
-                                ButtonSegment(value: 'oled', label: Text(l.themeOled)),
-                                ButtonSegment(value: 'light', label: Text(l.themeLight)),
-                                ButtonSegment(value: 'system', label: Text(l.themeAuto)),
+                                ButtonSegment(value: 'dark', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeDark, maxLines: 1))),
+                                ButtonSegment(value: 'oled', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeOled, maxLines: 1))),
+                                ButtonSegment(value: 'light', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeLight, maxLines: 1))),
+                                ButtonSegment(value: 'system', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeAuto, maxLines: 1))),
                               ],
                               selected: {_themeMode},
                               onSelectionChanged: _loaded ? (selected) {
@@ -582,10 +682,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: SegmentedButton<int>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 0, label: Text(l.startScreenHome)),
-                                ButtonSegment(value: 1, label: Text(l.startScreenLibrary)),
-                                ButtonSegment(value: 2, label: Text(l.startScreenAbsorb)),
-                                ButtonSegment(value: 3, label: Text(l.startScreenStats)),
+                                ButtonSegment(value: 0, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenHome, maxLines: 1))),
+                                ButtonSegment(value: 1, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenLibrary, maxLines: 1))),
+                                ButtonSegment(value: 2, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenAbsorb, maxLines: 1))),
+                                ButtonSegment(value: 3, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenStats, maxLines: 1))),
                               ],
                               selected: {_startScreen},
                               onSelectionChanged: _loaded ? (selected) {

@@ -593,12 +593,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver, Ticker
       NavigationDestination(
         icon: Icon(isPodcast ? Icons.explore_outlined : Icons.home_outlined),
         selectedIcon: Icon(isPodcast ? Icons.explore_rounded : Icons.home_rounded),
-        label: isPodcast ? 'Discover' : l.appShellHomeTab,
+        label: isPodcast ? l.appShellDiscoverTab : l.appShellHomeTab,
       ),
       NavigationDestination(
         icon: Icon(isPodcast ? Icons.podcasts_outlined : Icons.library_books_outlined),
         selectedIcon: Icon(isPodcast ? Icons.podcasts_rounded : Icons.library_books_rounded),
-        label: isPodcast ? 'Shows' : l.appShellLibraryTab,
+        label: isPodcast ? l.appShellShowsTab : l.appShellLibraryTab,
       ),
       NavigationDestination(
         icon: const _AnimatedWaveIcon(size: 24, active: false),

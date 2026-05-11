@@ -17,6 +17,7 @@ import '../widgets/library_sort_filter_sheet.dart';
 import '../widgets/library_books_tab.dart';
 import '../widgets/library_series_tab.dart';
 import '../widgets/library_authors_tab.dart';
+import '../widgets/library_narrators_tab.dart';
 import 'admin_podcasts_screen.dart';
 import 'upcoming_releases_screen.dart';
 import '../widgets/audible_series_sheet.dart' show showAudibleRegionPicker;
@@ -29,6 +30,14 @@ int responsiveGridCount(BuildContext context) {
   final width = MediaQuery.of(context).size.width;
   return (width / 130).floor().clamp(3, 10);
 }
+
+/// Bottom padding for the library tab grids/lists so the last row clears the
+/// floating tab bar (`Library/Series/Authors/Narrators`) plus the AppShell
+/// `NavigationBar` once both reappear at the end of a scroll. When the bars
+/// hide-on-scroll then snap back, the viewport shrinks but the scroll offset
+/// stays put, so the bottom items end up closer to the pill than steady-state
+/// math would suggest. This value keeps a comfortable gap even in that case.
+const double libraryGridBottomPadding = 180;
 
 // ─── Sort modes ──────────────────────────────────────────────
 enum LibrarySort { recentlyAdded, alphabetical, authorName, publishedYear, duration, random, totalDuration }
@@ -130,6 +139,14 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
   bool _authorSortAsc = true;
   final _authorsScrollController = ScrollController();
 
+  // ── Narrators tab state ──
+  List<String> _narrators = [];
+  bool _isLoadingNarrators = false;
+  bool _narratorsLoaded = false;
+  LibrarySort _narratorSort = LibrarySort.alphabetical;
+  bool _narratorSortAsc = true;
+  final _narratorsScrollController = ScrollController();
+
   // ── Cover aspect ratio ──
   bool _rectangleCovers = false;
   double get _coverAspectRatio => _rectangleCovers ? 2 / 3 : 1.0;
@@ -199,6 +216,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
     _scrollController.addListener(_onScroll);
     _seriesScrollController.addListener(_onSeriesScroll);
     _authorsScrollController.addListener(_onAuthorsScroll);
+    _narratorsScrollController.addListener(_onNarratorsScroll);
     // Load initial page once the library is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initTabController();
@@ -209,7 +227,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
   void _initTabController() {
     final lib = context.read<LibraryProvider>();
     if (!lib.isPodcastLibrary) {
-      _tabController = TabController(length: 3, vsync: this);
+      _tabController = TabController(length: 4, vsync: this);
       _tabController!.addListener(_onTabChanged);
     }
   }
@@ -228,6 +246,8 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
       _loadSeriesPage();
     } else if (newTab == 2 && !_authorsLoaded && !_isLoadingAuthors) {
       _loadAuthors();
+    } else if (newTab == 3 && !_narratorsLoaded && !_isLoadingNarrators) {
+      _loadNarrators();
     }
   }
 
@@ -245,7 +265,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         _tabController?.removeListener(_onTabChanged);
         _tabController?.dispose();
         if (needsTabs) {
-          _tabController = TabController(length: 3, vsync: this);
+          _tabController = TabController(length: 4, vsync: this);
           _tabController!.addListener(_onTabChanged);
         } else {
           _tabController = null;
@@ -268,10 +288,14 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         _authors.clear();
         _authorsLoaded = false;
         _isLoadingAuthors = false;
+        _narrators.clear();
+        _narratorsLoaded = false;
+        _isLoadingNarrators = false;
       });
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
       if (_seriesScrollController.hasClients) _seriesScrollController.jumpTo(0);
       if (_authorsScrollController.hasClients) _authorsScrollController.jumpTo(0);
+      if (_narratorsScrollController.hasClients) _narratorsScrollController.jumpTo(0);
       _lastScrollOffset = 0;
       _showBars();
       // Restore sort/filter for the new library type, then load
@@ -320,6 +344,8 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
       PlayerSettings.getPodcastSort(),
       PlayerSettings.getPodcastSortAsc(),
       PlayerSettings.getLibraryTab(),
+      PlayerSettings.getNarratorSort(),
+      PlayerSettings.getNarratorSortAsc(),
     ]);
     if (!mounted) return;
     final sortName = results[0] as String;
@@ -333,6 +359,8 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
     final podcastSortName = results[8] as String;
     final podcastSortAsc = results[9] as bool;
     final savedTab = results[10] as int;
+    final narratorSortName = results[11] as String;
+    final narratorSortAsc = results[12] as bool;
     final isPodcast = context.read<LibraryProvider>().isPodcastLibrary;
     setState(() {
       // Book library sort/filter
@@ -357,6 +385,11 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         orElse: () => LibrarySort.alphabetical,
       );
       _authorSortAsc = authorSortAsc;
+      _narratorSort = LibrarySort.values.firstWhere(
+        (s) => s.name == narratorSortName,
+        orElse: () => LibrarySort.alphabetical,
+      );
+      _narratorSortAsc = narratorSortAsc;
       // Podcast sort
       _podcastSort = LibrarySort.values.firstWhere(
         (s) => s.name == podcastSortName,
@@ -371,7 +404,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         _genreFilter = null;
       }
       // Restore last active tab (only for book libraries with tabs)
-      if (!isPodcast && savedTab > 0 && savedTab < 3) {
+      if (!isPodcast && savedTab > 0 && savedTab < 4) {
         _currentTab = savedTab;
         _tabController?.animateTo(savedTab);
       }
@@ -381,6 +414,8 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
       _loadSeriesPage();
     } else if (!isPodcast && savedTab == 2 && !_authorsLoaded && !_isLoadingAuthors) {
       _loadAuthors();
+    } else if (!isPodcast && savedTab == 3 && !_narratorsLoaded && !_isLoadingNarrators) {
+      _loadNarrators();
     }
   }
 
@@ -446,6 +481,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
     _scrollController.dispose();
     _seriesScrollController.dispose();
     _authorsScrollController.dispose();
+    _narratorsScrollController.dispose();
     _headerAnimController.dispose();
     barsVisibleNotifier.dispose();
     _tabController?.removeListener(_onTabChanged);
@@ -479,6 +515,10 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
 
   void _onAuthorsScroll() {
     _onScrollDirection(_authorsScrollController);
+  }
+
+  void _onNarratorsScroll() {
+    _onScrollDirection(_narratorsScrollController);
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -826,10 +866,42 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
     });
   }
 
+  Future<void> _loadNarrators() async {
+    if (_isLoadingNarrators) return;
+    setState(() => _isLoadingNarrators = true);
+
+    final auth = context.read<AuthProvider>();
+    final lib = context.read<LibraryProvider>();
+    final api = auth.apiService;
+    if (api == null || lib.selectedLibraryId == null) {
+      setState(() { _isLoadingNarrators = false; _narratorsLoaded = true; });
+      return;
+    }
+
+    final narrators = await api.getLibraryNarrators(lib.selectedLibraryId!);
+    if (mounted) {
+      setState(() {
+        _narrators = narrators;
+        _sortNarrators();
+        _isLoadingNarrators = false;
+        _narratorsLoaded = true;
+      });
+    }
+  }
+
+  void _sortNarrators() {
+    _narrators.sort((a, b) {
+      final aLower = a.toLowerCase();
+      final bLower = b.toLowerCase();
+      return _narratorSortAsc ? aLower.compareTo(bLower) : bLower.compareTo(aLower);
+    });
+  }
+
   // ── Change sort and reload ──
   void _changeSort(LibrarySort newSort) {
     if (_currentTab == 1) { _changeSeriesSort(newSort); return; }
     if (_currentTab == 2) { _changeAuthorSort(newSort); return; }
+    if (_currentTab == 3) { _changeNarratorSort(newSort); return; }
 
     final isPodcast = context.read<LibraryProvider>().isPodcastLibrary;
     if (newSort == _sort) {
@@ -911,6 +983,21 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
     PlayerSettings.setAuthorSortAsc(_authorSortAsc);
     setState(() => _sortAuthors());
     if (_authorsScrollController.hasClients) _authorsScrollController.jumpTo(0);
+  }
+
+  void _changeNarratorSort(LibrarySort newSort) {
+    if (newSort == _narratorSort) {
+      setState(() { _narratorSortAsc = !_narratorSortAsc; });
+    } else {
+      setState(() {
+        _narratorSort = newSort;
+        _narratorSortAsc = true;
+      });
+    }
+    PlayerSettings.setNarratorSort(_narratorSort.name);
+    PlayerSettings.setNarratorSortAsc(_narratorSortAsc);
+    setState(() => _sortNarrators());
+    if (_narratorsScrollController.hasClients) _narratorsScrollController.jumpTo(0);
   }
 
   // ── Change filter and reload ──
@@ -1127,6 +1214,11 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         currentSort = _authorSort;
         currentSortAsc = _authorSortAsc;
         break;
+      case 3:
+        tab = LibraryTab.narrators;
+        currentSort = _narratorSort;
+        currentSortAsc = _narratorSortAsc;
+        break;
       default:
         tab = LibraryTab.library;
         currentSort = _sort;
@@ -1158,6 +1250,10 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
             setState(() { _authorSortAsc = !_authorSortAsc; _sortAuthors(); });
             PlayerSettings.setAuthorSortAsc(_authorSortAsc);
             if (_authorsScrollController.hasClients) _authorsScrollController.jumpTo(0);
+          } else if (_currentTab == 3) {
+            setState(() { _narratorSortAsc = !_narratorSortAsc; _sortNarrators(); });
+            PlayerSettings.setNarratorSortAsc(_narratorSortAsc);
+            if (_narratorsScrollController.hasClients) _narratorsScrollController.jumpTo(0);
           } else {
             setState(() { _sortAsc = !_sortAsc; _items.clear(); _page = 0; _hasMore = true; _isLoadingPage = false; });
             final isPodcast = context.read<LibraryProvider>().isPodcastLibrary;
@@ -1396,7 +1492,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
 
   Widget _buildFloatingTabBar(ColorScheme cs) {
     final l = AppLocalizations.of(context)!;
-    final labels = [l.libraryTabLibrary, l.libraryTabSeries, l.libraryTabAuthors];
+    final labels = [l.libraryTabLibrary, l.libraryTabSeries, l.libraryTabAuthors, l.libraryTabNarrators];
     return Center(child: ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -1410,7 +1506,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: List.generate(3, (i) {
+            children: List.generate(labels.length, (i) {
               final active = _currentTab == i;
               return GestureDetector(
                 onTap: () {
@@ -1423,7 +1519,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: active ? 14 : 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: active ? cs.primary.withValues(alpha: 0.15) : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
@@ -1540,6 +1636,9 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
       case 2:
         countText = l.libraryAuthorsCount(_authors.length);
         break;
+      case 3:
+        countText = l.libraryNarratorsCount(_narrators.length);
+        break;
       default:
         countText = l.libraryBooksCount(_items.length, _totalItems);
         break;
@@ -1588,6 +1687,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         _buildGrid(),
         _buildSeriesGrid(),
         _buildAuthorsGrid(),
+        _buildNarratorsGrid(),
       ],
     );
   }
@@ -1669,6 +1769,28 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
       authorsLoaded: _authorsLoaded,
       scrollController: _authorsScrollController,
       onRefresh: _refreshAuthors,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // NARRATORS TAB - GRID
+  // ═══════════════════════════════════════════════════════════════
+  Future<void> _refreshNarrators() async {
+    setState(() {
+      _narrators.clear();
+      _narratorsLoaded = false;
+      _isLoadingNarrators = false;
+    });
+    await _loadNarrators();
+  }
+
+  Widget _buildNarratorsGrid() {
+    return LibraryNarratorsTab(
+      narrators: _narrators,
+      isLoading: _isLoadingNarrators,
+      loaded: _narratorsLoaded,
+      scrollController: _narratorsScrollController,
+      onRefresh: _refreshNarrators,
     );
   }
 

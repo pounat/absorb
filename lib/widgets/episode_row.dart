@@ -142,8 +142,11 @@ class _EpisodeRowState extends State<EpisodeRow> {
                       Row(
                         children: [
                           if (dateLabel.isNotEmpty)
-                            Text(dateLabel,
-                              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                            Flexible(
+                              child: Text(dateLabel,
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                              ),
                             ),
                           if (dateLabel.isNotEmpty && durationLabel.isNotEmpty)
                             Padding(
@@ -153,8 +156,11 @@ class _EpisodeRowState extends State<EpisodeRow> {
                               ),
                             ),
                           if (durationLabel.isNotEmpty)
-                            Text(durationLabel,
-                              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                            Flexible(
+                              child: Text(durationLabel,
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                              ),
                             ),
                           ListenableBuilder(
                             listenable: DownloadService(),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import 'section_labels.dart';
 
 class HomeCustomizeSheet extends StatefulWidget {
   final ScrollController? scrollController;
@@ -284,7 +285,7 @@ class _HomeCustomizeSheetState extends State<HomeCustomizeSheet> {
           itemBuilder: (context, index) {
             final section = _sections[index];
             final id = section['id']!;
-            final label = section['label']!;
+            final label = sectionLabel(id, section['label'], l);
             final isHidden = _hiddenIds.contains(id);
             final isPlaylist = id.startsWith('playlist:');
             final isCollection = id.startsWith('collection:');

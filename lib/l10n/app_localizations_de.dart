@@ -274,6 +274,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get libraryTabAuthors => 'Autoren';
 
   @override
+  String get libraryTabNarrators => 'Sprecher';
+
+  @override
   String get libraryNoBooks => 'Keine Bücher gefunden';
 
   @override
@@ -306,6 +309,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get libraryNoAuthorsFound => 'Keine Autoren gefunden';
 
   @override
+  String get libraryNoNarratorsFound => 'Keine Sprecher gefunden';
+
+  @override
   String get libraryNoResults => 'Keine Ergebnisse gefunden';
 
   @override
@@ -331,6 +337,11 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String libraryAuthorsCount(int count) {
     return '$count Autoren';
+  }
+
+  @override
+  String libraryNarratorsCount(int count) {
+    return '$count Sprecher';
   }
 
   @override
@@ -668,6 +679,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get appShellSettingsTab => 'Einstellungen';
 
   @override
+  String get appShellDiscoverTab => 'Entdecken';
+
+  @override
+  String get appShellShowsTab => 'Sendungen';
+
+  @override
   String get appShellPressBackToExit => 'Erneut zurück drücken zum Beenden';
 
   @override
@@ -675,6 +692,16 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get sectionAppearance => 'Darstellung';
+
+  @override
+  String get languageLabel => 'Sprache';
+
+  @override
+  String get languageSystemDefault => 'Systemstandard';
+
+  @override
+  String get languageHelpTranslateInvite =>
+      'Möchtest du Absorb in deine Sprache übersetzen?';
 
   @override
   String get themeLabel => 'Theme';
@@ -2058,9 +2085,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get yearLabel => 'Jahr';
-
-  @override
-  String get languageLabel => 'Sprache';
 
   @override
   String get genresLabel => 'Genres';

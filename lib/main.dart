@@ -39,6 +39,9 @@ final ValueNotifier<bool> oledNotifier = ValueNotifier(false);
 /// Whether to disable the fade animation when switching bottom nav tabs.
 final ValueNotifier<bool> snappyTransitionsNotifier = ValueNotifier(false);
 
+/// User-selected language override. null means follow the system language.
+final ValueNotifier<Locale?> localeNotifier = ValueNotifier(null);
+
 
 /// Cover-art-derived ColorScheme for the currently playing item.
 /// null when nothing is playing or cover hasn't loaded yet.
@@ -117,6 +120,8 @@ void main() async {
   try {
     final savedTheme = await PlayerSettings.getThemeMode();
     applyThemeMode(savedTheme);
+    final savedLang = await PlayerSettings.getLanguage();
+    if (savedLang.isNotEmpty) localeNotifier.value = Locale(savedLang);
     snappyTransitionsNotifier.value = await PlayerSettings.getSnappyTransitions();
     PlayerSettings.showExplicitBadge = await PlayerSettings.getShowExplicitBadge();
     // Restore last cover seed color so the theme doesn't flash on startup
@@ -180,6 +185,9 @@ class AbsorbApp extends StatelessWidget {
         return ValueListenableBuilder<bool>(
           valueListenable: oledNotifier,
           builder: (context, isOled, _) {
+        return ValueListenableBuilder<Locale?>(
+          valueListenable: localeNotifier,
+          builder: (context, overrideLocale, _) {
         return ValueListenableBuilder<ColorScheme?>(
           valueListenable: coverSchemeNotifier,
           builder: (context, coverScheme, _) {
@@ -230,6 +238,7 @@ class AbsorbApp extends StatelessWidget {
               navigatorKey: rootNavigatorKey,
               title: 'Absorb',
               debugShowCheckedModeBanner: false,
+              locale: overrideLocale,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
               localeResolutionCallback: (locale, supportedLocales) {
@@ -355,6 +364,8 @@ class AbsorbApp extends StatelessWidget {
               ),
               home: const AuthGate(),
             );
+        },
+        );
         },
         );
         },

@@ -536,6 +536,48 @@ class ApiService {
     return [];
   }
 
+  /// Get all narrators for a library. ABS exposes narrators only via the
+  /// filterdata endpoint as a list of name strings (no IDs/images/bios).
+  Future<List<String>> getLibraryNarrators(String libraryId) async {
+    try {
+      final data = await getLibraryFilterData(libraryId);
+      if (data == null) return [];
+      final raw = data['narrators'] as List<dynamic>? ?? [];
+      return raw
+          .map((e) => e?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    } catch (e) {
+      debugPrint('[API] getLibraryNarrators error: $e');
+    }
+    return [];
+  }
+
+  /// Get books narrated by a specific person.
+  /// Filter format: narrators.<base64(name)>
+  Future<List<dynamic>> getBooksByNarrator(
+    String libraryId,
+    String narratorName, {
+    int limit = 50,
+  }) async {
+    try {
+      final filterValue = base64Encode(utf8.encode(narratorName));
+      final url = '$_cleanBaseUrl/api/libraries/$libraryId/items'
+          '?filter=narrators.$filterValue&sort=media.metadata.title&limit=$limit';
+      final response = await _authGet(
+        Uri.parse(url),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['results'] as List<dynamic>? ?? [];
+      }
+    } catch (e) {
+      debugPrint('[API] getBooksByNarrator error: $e');
+    }
+    return [];
+  }
+
   /// Get full author details including description/bio.
   Future<Map<String, dynamic>?> getAuthorById(String authorId, {String? libraryId}) async {
     try {

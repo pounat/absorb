@@ -58,7 +58,7 @@ class LibraryAuthorsTab extends StatelessWidget {
       child: GridView.builder(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: responsiveGridCount(context),
           childAspectRatio: 0.68,

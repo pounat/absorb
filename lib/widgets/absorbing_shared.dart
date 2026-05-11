@@ -99,20 +99,25 @@ class CoverPlaceholder extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.auto_stories_rounded, size: 28,
                       color: cs.onPrimaryContainer.withValues(alpha: 0.4)),
                   const SizedBox(height: 8),
-                  Text(title!, textAlign: TextAlign.center, maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                          height: 1.2, color: cs.onPrimaryContainer)),
+                  Flexible(
+                    child: Text(title!, textAlign: TextAlign.center, maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                            height: 1.2, color: cs.onPrimaryContainer)),
+                  ),
                   if (author != null && author!.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(author!, textAlign: TextAlign.center, maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11,
-                            color: cs.onPrimaryContainer.withValues(alpha: 0.7))),
+                    Flexible(
+                      child: Text(author!, textAlign: TextAlign.center, maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11,
+                              color: cs.onPrimaryContainer.withValues(alpha: 0.7))),
+                    ),
                   ],
                 ],
               ),
