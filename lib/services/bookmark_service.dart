@@ -82,10 +82,66 @@ class BookmarkService {
 
   static const int _maxBookmarksPerBook = 100;
   static const _keyPrefix = 'bookmarks_';
-  // Track bookmarks not yet pushed to server (created offline)
+  // Persisted via ScopedPrefs so offline pending state survives app restart.
+  static const _pendingCreatesKey = 'bookmarks_pending_creates';
+  static const _pendingDeletesKey = 'bookmarks_pending_deletes';
+
+  // Track bookmarks not yet pushed to server (created offline).
   final Set<String> _unpushed = {}; // "itemId::position" keys
-  // Track bookmarks deleted offline that need to be deleted on server
+  // Track bookmarks deleted offline that need to be deleted on server.
   final Map<String, Set<double>> _pendingDeletes = {}; // itemId -> positions
+  // Scope key whose pending state is currently hydrated into the two fields above.
+  String? _hydratedScope;
+
+  /// Lazily load pending creates/deletes from prefs, re-hydrating when the
+  /// active account scope changes.
+  Future<void> _ensureHydrated() async {
+    final scope = UserAccountService().activeScopeKey;
+    if (_hydratedScope == scope) return;
+
+    _unpushed.clear();
+    _pendingDeletes.clear();
+
+    final createsJson = await ScopedPrefs.getString(_pendingCreatesKey);
+    if (createsJson != null && createsJson.isNotEmpty) {
+      try {
+        final list = jsonDecode(createsJson) as List<dynamic>;
+        _unpushed.addAll(list.whereType<String>());
+      } catch (e) {
+        debugPrint('[Bookmarks] Failed to parse pending creates: $e');
+      }
+    }
+
+    final deletesJson = await ScopedPrefs.getString(_pendingDeletesKey);
+    if (deletesJson != null && deletesJson.isNotEmpty) {
+      try {
+        final map = jsonDecode(deletesJson) as Map<String, dynamic>;
+        for (final entry in map.entries) {
+          final positions = (entry.value as List<dynamic>)
+              .whereType<num>()
+              .map((n) => n.toDouble())
+              .toSet();
+          if (positions.isNotEmpty) _pendingDeletes[entry.key] = positions;
+        }
+      } catch (e) {
+        debugPrint('[Bookmarks] Failed to parse pending deletes: $e');
+      }
+    }
+
+    _hydratedScope = scope;
+  }
+
+  Future<void> _persistUnpushed() async {
+    await ScopedPrefs.setString(_pendingCreatesKey, jsonEncode(_unpushed.toList()));
+  }
+
+  Future<void> _persistPendingDeletes() async {
+    final out = <String, List<double>>{};
+    for (final entry in _pendingDeletes.entries) {
+      if (entry.value.isNotEmpty) out[entry.key] = entry.value.toList();
+    }
+    await ScopedPrefs.setString(_pendingDeletesKey, jsonEncode(out));
+  }
 
   /// Get all bookmarks for a book.
   Future<List<Bookmark>> getBookmarks(String itemId, {String sort = 'newest'}) async {
@@ -137,14 +193,22 @@ class BookmarkService {
     await ScopedPrefs.setStringList(key, existing);
     debugPrint('[Bookmarks] Added "${bookmark.title}" at ${bookmark.formattedPosition}');
 
+    await _ensureHydrated();
+
     // Push to server
     final unpushedKey = '$itemId::${positionSeconds.toStringAsFixed(1)}';
+    bool needsPersist = false;
     if (api != null) {
       final ok = await api.createBookmark(itemId, time: positionSeconds, title: bookmark.serverTitle);
-      if (!ok) _unpushed.add(unpushedKey);
+      if (!ok) {
+        _unpushed.add(unpushedKey);
+        needsPersist = true;
+      }
     } else {
       _unpushed.add(unpushedKey);
+      needsPersist = true;
     }
+    if (needsPersist) await _persistUnpushed();
 
     return bookmark;
   }
@@ -215,16 +279,32 @@ class BookmarkService {
     await ScopedPrefs.setStringList(key, updated);
     debugPrint('[Bookmarks] Deleted bookmark $bookmarkId');
 
+    await _ensureHydrated();
+
+    // If this bookmark was an unpushed offline create, drop the pending-create
+    // flag - the server never knew about it, so there's nothing to delete.
+    if (time != null) {
+      final unpushedKey = '$itemId::${time.toStringAsFixed(1)}';
+      if (_unpushed.remove(unpushedKey)) {
+        await _persistUnpushed();
+        return;
+      }
+    }
+
     // Delete on server
     if (time != null) {
+      bool needsPersist = false;
       if (api != null) {
         final ok = await api.deleteBookmark(itemId, time: time);
         if (!ok) {
           _pendingDeletes.putIfAbsent(itemId, () => {}).add(time);
+          needsPersist = true;
         }
       } else {
         _pendingDeletes.putIfAbsent(itemId, () => {}).add(time);
+        needsPersist = true;
       }
+      if (needsPersist) await _persistPendingDeletes();
     }
   }
 
@@ -233,13 +313,27 @@ class BookmarkService {
   /// If [preloadedServerBookmarks] is provided, uses that instead of fetching.
   Future<void> syncBookmarks(String itemId, ApiService api, {List<Map<String, dynamic>>? preloadedServerBookmarks}) async {
     try {
-      // Flush any pending deletes first
-      final pendingDels = _pendingDeletes.remove(itemId);
-      if (pendingDels != null) {
+      await _ensureHydrated();
+
+      // Flush any pending deletes first. Keep entries that still failed so we
+      // can retry next sync instead of silently dropping them.
+      final pendingDels = _pendingDeletes[itemId];
+      if (pendingDels != null && pendingDels.isNotEmpty) {
+        final stillPending = <double>{};
         for (final time in pendingDels) {
-          await api.deleteBookmark(itemId, time: time);
-          debugPrint('[Bookmarks] Flushed pending delete at ${time}s');
+          final deleted = await api.deleteBookmark(itemId, time: time);
+          if (deleted) {
+            debugPrint('[Bookmarks] Flushed pending delete at ${time}s');
+          } else {
+            stillPending.add(time);
+          }
         }
+        if (stillPending.isEmpty) {
+          _pendingDeletes.remove(itemId);
+        } else {
+          _pendingDeletes[itemId] = stillPending;
+        }
+        await _persistPendingDeletes();
       }
 
       final serverBookmarks = preloadedServerBookmarks ?? await api.getServerBookmarks(itemId);
@@ -273,29 +367,36 @@ class BookmarkService {
       // but push any that were created offline and haven't been synced yet.
       final refreshedLocal = await getBookmarks(itemId);
       final kept = <Bookmark>[];
-      bool changed = false;
+      bool localChanged = false;
+      bool unpushedChanged = false;
       for (final lb in refreshedLocal) {
         final serverMatch = serverBookmarks.whereType<Map<String, dynamic>>().where((sb) =>
             posMatch((sb['time'] as num?)?.toDouble() ?? 0, lb.positionSeconds)).firstOrNull;
         if (serverMatch != null) {
           kept.add(lb);
-        } else {
-          final unpushedKey = '$itemId::${lb.positionSeconds.toStringAsFixed(1)}';
-          if (_unpushed.contains(unpushedKey)) {
-            // Created offline, push now
-            await api.createBookmark(itemId, time: lb.positionSeconds, title: lb.serverTitle);
+          continue;
+        }
+        final unpushedKey = '$itemId::${lb.positionSeconds.toStringAsFixed(1)}';
+        if (_unpushed.contains(unpushedKey)) {
+          // Created offline, try to push now. Only clear the pending flag if
+          // the push actually succeeded - otherwise we keep retrying on the
+          // next sync instead of silently losing the bookmark.
+          final pushed = await api.createBookmark(itemId, time: lb.positionSeconds, title: lb.serverTitle);
+          if (pushed) {
             _unpushed.remove(unpushedKey);
+            unpushedChanged = true;
             debugPrint('[Bookmarks] Pushed offline bookmark: "${lb.title}" at ${lb.formattedPosition}');
-            kept.add(lb);
           } else {
-            debugPrint('[Bookmarks] Removed locally (deleted on server): "${lb.title}" at ${lb.formattedPosition}');
-            changed = true;
+            debugPrint('[Bookmarks] Push failed, will retry: "${lb.title}" at ${lb.formattedPosition}');
           }
+          kept.add(lb);
+        } else {
+          debugPrint('[Bookmarks] Removed locally (deleted on server): "${lb.title}" at ${lb.formattedPosition}');
+          localChanged = true;
         }
       }
-      if (changed) {
-        await _saveAll(itemId, kept);
-      }
+      if (localChanged) await _saveAll(itemId, kept);
+      if (unpushedChanged) await _persistUnpushed();
     } catch (e) {
       debugPrint('[Bookmarks] Sync error: $e');
     }
@@ -354,5 +455,15 @@ class BookmarkService {
   /// Clear all bookmarks for a book.
   Future<void> clearBookmarks(String itemId) async {
     await ScopedPrefs.remove('$_keyPrefix$itemId');
+    await _ensureHydrated();
+    final prefix = '$itemId::';
+    final dropped = _unpushed.where((k) => k.startsWith(prefix)).toList();
+    if (dropped.isNotEmpty) {
+      _unpushed.removeAll(dropped);
+      await _persistUnpushed();
+    }
+    if (_pendingDeletes.remove(itemId) != null) {
+      await _persistPendingDeletes();
+    }
   }
 }
