@@ -256,7 +256,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libraryTitle => 'Library';
 
   @override
-  String get librarySearchBooksHint => 'Search books, series, and authors...';
+  String get librarySearchBooksHint => 'Search books, series, authors, narrators...';
 
   @override
   String get librarySearchShowsHint => 'Search shows and episodes...';

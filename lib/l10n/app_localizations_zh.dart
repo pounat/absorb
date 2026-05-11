@@ -251,7 +251,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get libraryTitle => '媒体库';
 
   @override
-  String get librarySearchBooksHint => '搜索书籍、系列和作者...';
+  String get librarySearchBooksHint => '搜索书籍、系列、作者、旁白...';
 
   @override
   String get librarySearchShowsHint => '搜索播客和单集...';

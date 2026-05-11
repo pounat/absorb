@@ -8,6 +8,7 @@ import '../services/download_service.dart';
 import 'author_books_sheet.dart';
 import 'book_detail_sheet.dart';
 import 'episode_list_sheet.dart';
+import 'narrator_books_sheet.dart';
 import 'series_books_sheet.dart';
 
 class BookResultTile extends StatelessWidget {
@@ -499,5 +500,62 @@ class AuthorResultTile extends StatelessWidget {
   void _showAuthorBooks(
       BuildContext context, String authorId, String authorName) {
     showAuthorDetailSheet(context, authorId: authorId, authorName: authorName);
+  }
+}
+
+class NarratorResultTile extends StatelessWidget {
+  final String name;
+
+  const NarratorResultTile({super.key, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Card(
+        elevation: 0,
+        color: cs.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => showNarratorBooksSheet(context, narratorName: name),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: cs.tertiaryContainer,
+                  ),
+                  child: Center(
+                    child: Icon(Icons.mic_rounded,
+                        size: 22,
+                        color: cs.onTertiaryContainer.withValues(alpha: 0.7)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: tt.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface)),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    color: cs.onSurfaceVariant, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

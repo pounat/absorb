@@ -89,7 +89,10 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
   List<dynamic> _searchBookResults = [];
   List<dynamic> _searchSeriesResults = [];
   List<dynamic> _searchAuthorResults = [];
+  List<String> _searchNarratorResults = [];
   List<Map<String, dynamic>> _searchEpisodeResults = [];
+  List<String>? _allNarratorsCache;
+  String? _allNarratorsCacheLibraryId;
   bool _isSearching = false;
   bool _hasSearched = false;
   bool get _isInSearchMode => _searchController.text.trim().isNotEmpty;
@@ -291,6 +294,9 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         _narrators.clear();
         _narratorsLoaded = false;
         _isLoadingNarrators = false;
+        _allNarratorsCache = null;
+        _allNarratorsCacheLibraryId = null;
+        _searchNarratorResults = [];
       });
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
       if (_seriesScrollController.hasClients) _seriesScrollController.jumpTo(0);
@@ -1032,6 +1038,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         _searchBookResults = [];
         _searchSeriesResults = [];
         _searchAuthorResults = [];
+        _searchNarratorResults = [];
         _searchEpisodeResults = [];
         _hasSearched = false;
         _isSearching = false;
@@ -1072,6 +1079,11 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         _hasSearched = true;
       });
 
+      // Client-side narrator filter (ABS search endpoint doesn't return narrators)
+      if (!isPodcast) {
+        _searchNarrators(query, lib.selectedLibraryId!, api);
+      }
+
       // For podcast libraries, also search episode titles client-side
       if (isPodcast) {
         _searchEpisodes(query, lib.selectedLibraryId!, api);
@@ -1081,6 +1093,21 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
         _isSearching = false;
         _hasSearched = true;
       });
+    }
+  }
+
+  Future<void> _searchNarrators(String query, String libraryId, dynamic api) async {
+    final lowerQuery = query.toLowerCase();
+    if (_allNarratorsCache == null || _allNarratorsCacheLibraryId != libraryId) {
+      final all = await api.getLibraryNarrators(libraryId);
+      _allNarratorsCache = (all as List).cast<String>();
+      _allNarratorsCacheLibraryId = libraryId;
+    }
+    final matches = _allNarratorsCache!
+        .where((n) => n.toLowerCase().contains(lowerQuery))
+        .toList();
+    if (mounted && _searchController.text.trim().toLowerCase() == lowerQuery) {
+      setState(() => _searchNarratorResults = matches);
     }
   }
 
@@ -1804,7 +1831,7 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
     if (!_hasSearched) {
       return const SizedBox.shrink();
     }
-    if (_searchBookResults.isEmpty && _searchSeriesResults.isEmpty && _searchAuthorResults.isEmpty && _searchEpisodeResults.isEmpty) {
+    if (_searchBookResults.isEmpty && _searchSeriesResults.isEmpty && _searchAuthorResults.isEmpty && _searchNarratorResults.isEmpty && _searchEpisodeResults.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1915,6 +1942,18 @@ class LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMi
               token: auth.token,
             );
           }),
+        ],
+
+        // ─── NARRATORS ───
+        if (_searchNarratorResults.isNotEmpty) ...[
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                4, (_searchBookResults.isNotEmpty || _searchSeriesResults.isNotEmpty || _searchAuthorResults.isNotEmpty) ? 20 : 8, 4, 8),
+            child: Text(l.libraryTabNarrators,
+                style: tt.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600, color: cs.primary)),
+          ),
+          ..._searchNarratorResults.map((name) => NarratorResultTile(name: name)),
         ],
       ],
     );

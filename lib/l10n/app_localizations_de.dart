@@ -259,7 +259,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get libraryTitle => 'Bibliothek';
 
   @override
-  String get librarySearchBooksHint => 'Bücher, Serien und Autoren suchen...';
+  String get librarySearchBooksHint => 'Bücher, Serien, Autoren, Sprecher suchen...';
 
   @override
   String get librarySearchShowsHint => 'Sendungen und Episoden suchen...';
