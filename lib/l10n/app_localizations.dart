@@ -8201,6 +8201,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Speed presets reset'**
   String get speedPresetsReset;
+
+  /// No description provided for @editAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit author'**
+  String get editAuthor;
+
+  /// No description provided for @authorName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get authorName;
+
+  /// No description provided for @authorImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Author image'**
+  String get authorImage;
+
+  /// No description provided for @authorRemoveImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove image'**
+  String get authorRemoveImage;
+
+  /// No description provided for @authorRemoveImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove author image?'**
+  String get authorRemoveImageTitle;
+
+  /// No description provided for @authorRemoveImageConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the image on the server.'**
+  String get authorRemoveImageConfirm;
+
+  /// No description provided for @authorImageRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Image removed'**
+  String get authorImageRemoved;
+
+  /// No description provided for @authorImageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update author image'**
+  String get authorImageFailed;
+
+  /// No description provided for @authorUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Author updated'**
+  String get authorUpdated;
+
+  /// No description provided for @authorUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update author'**
+  String get authorUpdateFailed;
+
+  /// No description provided for @authorMatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Author updated from match'**
+  String get authorMatched;
+
+  /// No description provided for @authorNoMatchFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No match found'**
+  String get authorNoMatchFound;
+
+  /// No description provided for @authorMergedInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged into {name}'**
+  String authorMergedInto(String name);
+
+  /// No description provided for @authorQuickMatchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull name, ASIN, description and image from Audible for the chosen region.'**
+  String get authorQuickMatchHint;
+
+  /// No description provided for @region.
+  ///
+  /// In en, this message translates to:
+  /// **'Region'**
+  String get region;
 }
 
 class _AppLocalizationsDelegate

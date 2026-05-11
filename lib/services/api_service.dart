@@ -596,6 +596,94 @@ class ApiService {
     return null;
   }
 
+  /// Update an author's editable fields (admin/root only).
+  /// Returns one of:
+  ///   { ok: true, author: {...} }         - normal update succeeded
+  ///   { ok: true, merged: { id, name } }  - name matched another author, this one was merged
+  ///   { ok: false }                       - request failed
+  /// PATCH /api/authors/:id
+  Future<Map<String, dynamic>> updateAuthor(
+    String authorId, {
+    String? name,
+    String? description,
+    String? asin,
+    String? imagePath,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      if (description != null) body['description'] = description;
+      if (asin != null) body['asin'] = asin;
+      if (imagePath != null) body['imagePath'] = imagePath;
+      final r = await _authPatch(
+        Uri.parse('$_cleanBaseUrl/api/authors/$authorId'),
+        body: jsonEncode(body),
+      );
+      debugPrint('[API] updateAuthor $authorId -> ${r.statusCode}: ${r.body}');
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        if (data['merged'] != null) {
+          return {'ok': true, 'merged': data['merged']};
+        }
+        return {'ok': true, 'author': data['author'] ?? data};
+      }
+    } catch (e) { debugPrint('updateAuthor error: $e'); }
+    return {'ok': false};
+  }
+
+  /// Quick-match an author against the configured provider (Audible).
+  /// Server fetches name/asin/description/image, updates the author server-side,
+  /// and returns the updated author. Returns null if no match or on error.
+  /// GET /api/authors/:id/match?q=...&region=...
+  Future<Map<String, dynamic>?> matchAuthor(
+    String authorId, {
+    required String q,
+    String region = 'us',
+  }) async {
+    try {
+      final url = '$_cleanBaseUrl/api/authors/$authorId/match'
+          '?q=${Uri.encodeQueryComponent(q)}'
+          '&region=${Uri.encodeQueryComponent(region)}';
+      final r = await _authGet(Uri.parse(url));
+      debugPrint('[API] matchAuthor $authorId -> ${r.statusCode}: ${r.body}');
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        // Server returns the updated author directly, or { author: {...} }
+        if (data['author'] is Map) return data['author'] as Map<String, dynamic>;
+        if (data.containsKey('updated')) return data;
+        return data;
+      }
+    } catch (e) { debugPrint('matchAuthor error: $e'); }
+    return null;
+  }
+
+  /// Set the author image from a remote URL.
+  /// POST /api/authors/:id/image  body: { url }
+  Future<bool> updateAuthorImageFromUrl(String authorId, String url) async {
+    try {
+      final r = await _authPost(
+        Uri.parse('$_cleanBaseUrl/api/authors/$authorId/image'),
+        body: jsonEncode({'url': url}),
+        timeout: const Duration(seconds: 30),
+      );
+      debugPrint('[API] updateAuthorImageFromUrl $authorId -> ${r.statusCode}');
+      return r.statusCode == 200;
+    } catch (e) { debugPrint('updateAuthorImageFromUrl error: $e'); }
+    return false;
+  }
+
+  /// Remove the author's image.
+  /// DELETE /api/authors/:id/image
+  Future<bool> deleteAuthorImage(String authorId) async {
+    try {
+      final r = await _authDelete(
+        Uri.parse('$_cleanBaseUrl/api/authors/$authorId/image'),
+      );
+      return r.statusCode == 200;
+    } catch (e) { debugPrint('deleteAuthorImage error: $e'); }
+    return false;
+  }
+
   /// Get books in a specific series using the filter API.
   /// Filter format: series.<base64(seriesId)>
   Future<List<dynamic>> getBooksBySeries(

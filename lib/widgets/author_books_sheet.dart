@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
+import 'edit_author_sheet.dart';
 import 'library_grid_tiles.dart';
 import 'library_search_results.dart';
 import 'series_books_sheet.dart';
@@ -62,6 +63,8 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
   bool _isLoading = true;
   String? _description;
   String? _imageUrl;
+  String? _asin;
+  late String _displayName;
   bool _descExpanded = false;
   _AuthorLayout _layout = _AuthorLayout.list;
   bool _groupBySeries = true;
@@ -69,6 +72,7 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
   @override
   void initState() {
     super.initState();
+    _displayName = widget.authorName;
     _loadViewSettings();
     _loadAuthorAndBooks();
   }
@@ -96,9 +100,14 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
       setState(() {
         if (authorData != null) {
           _description = authorData['description'] as String?;
+          _asin = authorData['asin'] as String?;
+          final updatedName = authorData['name'] as String?;
+          if (updatedName != null && updatedName.isNotEmpty) _displayName = updatedName;
           if (authorData['imagePath'] != null && (authorData['imagePath'] as String).isNotEmpty) {
             final ts = (authorData['updatedAt'] as num?)?.toInt();
             _imageUrl = api.getAuthorImageUrl(widget.authorId, updatedAt: ts);
+          } else {
+            _imageUrl = null;
           }
           // libraryItems from the author endpoint include full metadata with series info
           final rawItems = authorData['libraryItems'] as List<dynamic>? ?? [];
@@ -126,13 +135,15 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final lib = context.read<LibraryProvider>();
+    final auth = context.watch<AuthProvider>();
     final headers = lib.mediaHeaders;
+    final canEdit = auth.isRoot && !lib.isOffline;
 
     if (_isLoading) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(cs, tt, headers, l),
+          _buildHeader(cs, tt, headers, l, canEdit: canEdit),
           const Expanded(child: Center(child: CircularProgressIndicator())),
         ],
       );
@@ -144,7 +155,7 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
 
     // Header + description are always at the top
     final headerWidgets = <Widget>[
-      _buildHeader(cs, tt, headers, l),
+      _buildHeader(cs, tt, headers, l, canEdit: canEdit),
       if (hasDesc) _buildDescription(cs, tt, l),
       if (_books.isNotEmpty) _buildViewModeBar(cs, l),
     ];
@@ -538,7 +549,7 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
     );
   }
 
-  Widget _buildHeader(ColorScheme cs, TextTheme tt, Map<String, String> headers, AppLocalizations l) {
+  Widget _buildHeader(ColorScheme cs, TextTheme tt, Map<String, String> headers, AppLocalizations l, {bool canEdit = false}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
       child: Row(
@@ -568,7 +579,7 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                Text(widget.authorName,
+                Text(_displayName,
                     style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
                 if (_books.isNotEmpty)
                   Padding(
@@ -581,8 +592,42 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
               ],
             ),
           ),
+          if (canEdit)
+            IconButton(
+              icon: Icon(Icons.edit_rounded, size: 20, color: cs.onSurfaceVariant),
+              tooltip: l.editAuthor,
+              onPressed: _openEditAuthor,
+            ),
         ],
       ),
+    );
+  }
+
+  void _openEditAuthor() {
+    showEditAuthorSheet(
+      context,
+      authorId: widget.authorId,
+      currentName: _displayName,
+      currentDescription: _description,
+      currentAsin: _asin,
+      currentImageUrl: _imageUrl,
+      onUpdated: () {
+        if (mounted) {
+          setState(() => _isLoading = true);
+          _loadAuthorAndBooks();
+        }
+      },
+      onMerged: (mergedIntoId, mergedIntoName) {
+        // The current author was merged into another; close this sheet.
+        if (!mounted) return;
+        final l = AppLocalizations.of(context)!;
+        Navigator.of(context).pop();
+        showOverlayToast(
+          context,
+          l.authorMergedInto(mergedIntoName),
+          icon: Icons.merge_type_rounded,
+        );
+      },
     );
   }
 

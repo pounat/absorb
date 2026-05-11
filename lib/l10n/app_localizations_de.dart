@@ -4805,4 +4805,53 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get speedPresetsReset =>
       'Geschwindigkeits-Voreinstellungen zurückgesetzt';
+
+  @override
+  String get editAuthor => 'Edit author';
+
+  @override
+  String get authorName => 'Name';
+
+  @override
+  String get authorImage => 'Author image';
+
+  @override
+  String get authorRemoveImage => 'Remove image';
+
+  @override
+  String get authorRemoveImageTitle => 'Remove author image?';
+
+  @override
+  String get authorRemoveImageConfirm =>
+      'This deletes the image on the server.';
+
+  @override
+  String get authorImageRemoved => 'Image removed';
+
+  @override
+  String get authorImageFailed => 'Couldn\'t update author image';
+
+  @override
+  String get authorUpdated => 'Author updated';
+
+  @override
+  String get authorUpdateFailed => 'Couldn\'t update author';
+
+  @override
+  String get authorMatched => 'Author updated from match';
+
+  @override
+  String get authorNoMatchFound => 'No match found';
+
+  @override
+  String authorMergedInto(String name) {
+    return 'Merged into $name';
+  }
+
+  @override
+  String get authorQuickMatchHint =>
+      'Pull name, ASIN, description and image from Audible for the chosen region.';
+
+  @override
+  String get region => 'Region';
 }

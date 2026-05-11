@@ -1652,5 +1652,22 @@
   "tipsRestored": "Tips restored",
   "resetSpeedPresets": "Reset speed presets",
   "resetSpeedPresetsSubtitle": "Restore the default playback speed chips",
-  "speedPresetsReset": "Speed presets reset"
+  "speedPresetsReset": "Speed presets reset",
+
+  "editAuthor": "Edit author",
+  "authorName": "Name",
+  "authorImage": "Author image",
+  "authorRemoveImage": "Remove image",
+  "authorRemoveImageTitle": "Remove author image?",
+  "authorRemoveImageConfirm": "This deletes the image on the server.",
+  "authorImageRemoved": "Image removed",
+  "authorImageFailed": "Couldn't update author image",
+  "authorUpdated": "Author updated",
+  "authorUpdateFailed": "Couldn't update author",
+  "authorMatched": "Author updated from match",
+  "authorNoMatchFound": "No match found",
+  "authorMergedInto": "Merged into {name}",
+  "@authorMergedInto": { "placeholders": { "name": { "type": "String" } } },
+  "authorQuickMatchHint": "Pull name, ASIN, description and image from Audible for the chosen region.",
+  "region": "Region"
 }
