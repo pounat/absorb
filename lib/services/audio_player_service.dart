@@ -907,6 +907,18 @@ class AudioPlayerService extends ChangeNotifier {
   int _lastChapterCheckSec = -1;
   StreamSubscription? _indexSub;
 
+  // ── iOS premature-completion guard (GH #219) ──
+  // ConcatenatingAudioSource on iOS sometimes fires ProcessingState.completed
+  // when advancing to the LAST item without actually rendering its audio,
+  // making books appear to "skip" the final chapter. We watch how recently
+  // _currentTrackIndex flipped to the last track; if completion fires within
+  // a few seconds of that advance for a substantial last track, treat it as
+  // spurious and seek-resume into the last track. Capped to prevent loops
+  // if recovery itself can't get the player unstuck.
+  DateTime? _lastIndexAdvanceTime;
+  int _iosLastTrackRecoveryAttempts = 0;
+  static const _maxIosLastTrackRecoveries = 2;
+
   // ── Notification chapter progress mode ──
   bool _notifChapterMode = false;
   double _currentChapterStart = 0;
@@ -1161,7 +1173,12 @@ class AudioPlayerService extends ChangeNotifier {
     if (_player == null || _trackStartOffsets.length <= 1) return;
     _indexSub = _player!.currentIndexStream.listen((index) {
       if (index != null) {
-        _currentTrackIndex = index.clamp(0, _trackStartOffsets.length - 2);
+        final clamped = index.clamp(0, _trackStartOffsets.length - 2);
+        if (clamped != _currentTrackIndex) {
+          _lastIndexAdvanceTime = DateTime.now();
+          debugPrint('[Player] Track index advance: $_currentTrackIndex -> $clamped');
+        }
+        _currentTrackIndex = clamped;
       }
     }, onError: (Object e, StackTrace st) {
       debugPrint('[Player] Index stream error: $e');
@@ -2637,6 +2654,8 @@ class AudioPlayerService extends ChangeNotifier {
     _lastNotifiedChapterIndex = -1;
     _lastSeekTargetSeconds = null;
     _lastSeekTime = null;
+    _lastIndexAdvanceTime = null;
+    _iosLastTrackRecoveryAttempts = 0;
     _indexSub?.cancel();
     _indexSub = null;
     _syncSub?.cancel();
@@ -3074,6 +3093,46 @@ class AudioPlayerService extends ChangeNotifier {
     debugPrint('[Complete] entry: pos=${_lastKnownPositionSec.toStringAsFixed(1)}s totalDur=${_totalDuration.toStringAsFixed(1)}s item=$_currentItemId ep=$_currentEpisodeId reentry=$_isCompletingBook');
     if (_isCompletingBook) return; // prevent re-entry
     _isCompletingBook = true;
+
+    // ── iOS premature last-track completion guard (GH #219) ──
+    // iOS ConcatenatingAudioSource sometimes fires ProcessingState.completed
+    // when advancing to the final item without actually rendering its audio.
+    // Symptoms: _currentTrackIndex just flipped to the last track, completion
+    // fires within seconds (impossible to have played through a multi-minute
+    // last track that fast). Spurious-completion check below can't catch this
+    // because the position-getter math (trackRel + offset[last]) lands at
+    // total duration. Recovery: seek a hair into the last track and resume,
+    // which forces AVPlayer to reload that single item correctly.
+    if (Platform.isIOS && _trackStartOffsets.length > 2) {
+      final lastIdx = _trackStartOffsets.length - 2;
+      final lastTrackStart = _trackStartOffsets[lastIdx];
+      final lastTrackDur = _trackStartOffsets[lastIdx + 1] - lastTrackStart;
+      final advanceTime = _lastIndexAdvanceTime;
+      final msSinceAdvance = advanceTime == null
+          ? -1
+          : DateTime.now().difference(advanceTime).inMilliseconds;
+      if (_currentTrackIndex == lastIdx &&
+          lastTrackDur > 5.0 &&
+          msSinceAdvance >= 0 &&
+          msSinceAdvance < 3000 &&
+          _iosLastTrackRecoveryAttempts < _maxIosLastTrackRecoveries) {
+        _iosLastTrackRecoveryAttempts++;
+        final recoveryTarget = lastTrackStart + 0.5;
+        debugPrint('[Player] iOS premature last-track completion detected '
+            '(idx=$_currentTrackIndex/$lastIdx, lastTrackDur=${lastTrackDur.toStringAsFixed(1)}s, '
+            'advance=${msSinceAdvance}ms ago) — recovery attempt $_iosLastTrackRecoveryAttempts: '
+            'seeking to ${recoveryTarget.toStringAsFixed(1)}s');
+        _logEvent(PlaybackEventType.pause, detail: 'iOS premature completion blocked');
+        _isCompletingBook = false;
+        try {
+          await _seekAbsolute(recoveryTarget);
+          await _player?.play();
+        } catch (e) {
+          debugPrint('[Player] iOS last-track recovery failed: $e');
+        }
+        return;
+      }
+    }
 
     // Sanity check: if we're not near the end of the book, this is a spurious
     // completion signal (iOS AVPlayer can fire completed on audio interruptions,
