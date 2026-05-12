@@ -40,7 +40,10 @@ class AbsorbingScreen extends StatefulWidget {
 
 class _AbsorbingScreenState extends State<AbsorbingScreen> {
   final _player = AudioPlayerService();
-  final _pageController = PageController(viewportFraction: 0.92);
+  // viewportFraction is fixed at construction time, so we swap controllers
+  // when orientation changes (preserving the current page index).
+  PageController _pageController = PageController(viewportFraction: 0.92);
+  Orientation? _lastOrientation;
   final _cardKeys = <String, GlobalKey<AbsorbingCardState>>{};
 
   GlobalKey<AbsorbingCardState> _cardKey(String absorbingKey) {
@@ -458,6 +461,24 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
     final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     final lib = context.watch<LibraryProvider>();
+    final mq = MediaQuery.of(context);
+    final isTablet = mq.size.shortestSide >= 600;
+    final isPhoneLandscape = !isTablet && mq.orientation == Orientation.landscape;
+
+    // Swap the PageController when orientation changes so we can go nearly
+    // edge-to-edge on phone landscape while keeping the side peek in portrait.
+    if (_lastOrientation != null && _lastOrientation != mq.orientation) {
+      final currentPage = _pageController.hasClients
+          ? (_pageController.page ?? _pageController.initialPage.toDouble()).round()
+          : 0;
+      final oldController = _pageController;
+      _pageController = PageController(
+        initialPage: currentPage,
+        viewportFraction: isPhoneLandscape ? 0.95 : 0.92,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => oldController.dispose());
+    }
+    _lastOrientation = mq.orientation;
 
     // Reset carousel to first card when library changes
     if (lib.selectedLibraryId != _lastSeenLibraryId && _lastSeenLibraryId != null) {
@@ -517,110 +538,149 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
           ),
         ),
         child: SafeArea(
-        child: Column(
-          children: [
-            // ── Header ──
-            AbsorbPageHeader(
-              title: l.absorbingTitle,
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              trailing: OfflineStatusIcon(
-                onTapWhenOnline: () {
-                  lib.setManualOffline(true);
-                  final dl = DownloadService();
-                  final itemId = _player.currentItemId;
-                  final epId = _player.currentEpisodeId;
-                  final dlKey = epId != null && itemId != null
-                      ? '$itemId-$epId'
-                      : itemId;
-                  if (dlKey == null || !dl.isDownloaded(dlKey)) {
-                    _stopAndRefresh(lib);
-                  }
-                },
-              ),
-              actions: [
-                // Stop button (visible when playing)
-                if (_player.hasBook)
-                  GestureDetector(
-                    onTap: _isSyncing ? null : () => _stopAndRefresh(lib),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: subtleBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: subtleBorder),
-                      ),
-                      child: SizedBox(
-                        height: 20,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_isSyncing)
-                              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: muted))
-                            else
-                              Icon(Icons.stop_rounded, size: 18, color: muted),
-                            const SizedBox(width: 4),
-                            Text(l.absorbingStop, style: TextStyle(color: muted, fontSize: 13, fontWeight: FontWeight.w500)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                // Refresh button (visible when idle + online)
-                else if (!effectiveOffline)
-                  GestureDetector(
-                    onTap: _isSyncing ? null : () async {
-                      setState(() => _isSyncing = true);
-                      await _pullRefresh();
-                      if (mounted) setState(() => _isSyncing = false);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: subtleBg,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: subtleBorder),
-                      ),
-                      child: _isSyncing
-                          ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: muted))
-                          : Icon(Icons.refresh_rounded, size: 18, color: muted),
-                    ),
+        child: Builder(builder: (context) {
+          final offlineIcon = OfflineStatusIcon(
+            onTapWhenOnline: () {
+              lib.setManualOffline(true);
+              final dl = DownloadService();
+              final itemId = _player.currentItemId;
+              final epId = _player.currentEpisodeId;
+              final dlKey = epId != null && itemId != null
+                  ? '$itemId-$epId'
+                  : itemId;
+              if (dlKey == null || !dl.isDownloaded(dlKey)) {
+                _stopAndRefresh(lib);
+              }
+            },
+          );
+
+          final headerActions = <Widget>[
+            if (_player.hasBook)
+              GestureDetector(
+                onTap: _isSyncing ? null : () => _stopAndRefresh(lib),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: subtleBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: subtleBorder),
                   ),
-              if (books.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _showReorderSheet(context, lib, books),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: subtleBg,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: subtleBorder),
-                    ),
-                    child: SizedBox(
-                      height: 20,
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.reorder_rounded, size: 18, color: muted),
-                        if (_queueMode != 'off') ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            _queueMode == 'auto_next'
-                                ? (_mergeLibraries ? l.queueModeAuto : lib.isPodcastLibrary ? l.queueModeShowLabel : l.queueModeSeriesLabel)
-                                : l.queueModeManual,
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.primary),
-                          ),
-                        ],
-                      ]),
+                  child: SizedBox(
+                    height: 20,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isSyncing)
+                          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: muted))
+                        else
+                          Icon(Icons.stop_rounded, size: 18, color: muted),
+                        const SizedBox(width: 4),
+                        Text(l.absorbingStop, style: TextStyle(color: muted, fontSize: 13, fontWeight: FontWeight.w500)),
+                      ],
                     ),
                   ),
                 ),
-              ],
+              )
+            else if (!effectiveOffline)
+              GestureDetector(
+                onTap: _isSyncing ? null : () async {
+                  setState(() => _isSyncing = true);
+                  await _pullRefresh();
+                  if (mounted) setState(() => _isSyncing = false);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: subtleBg,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: subtleBorder),
+                  ),
+                  child: _isSyncing
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: muted))
+                      : Icon(Icons.refresh_rounded, size: 18, color: muted),
+                ),
+              ),
+            if (books.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _showReorderSheet(context, lib, books),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: subtleBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: subtleBorder),
+                  ),
+                  child: SizedBox(
+                    height: 20,
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.reorder_rounded, size: 18, color: muted),
+                      if (_queueMode != 'off') ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          _queueMode == 'auto_next'
+                              ? (_mergeLibraries ? l.queueModeAuto : lib.isPodcastLibrary ? l.queueModeShowLabel : l.queueModeSeriesLabel)
+                              : l.queueModeManual,
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.primary),
+                        ),
+                      ],
+                    ]),
+                  ),
+                ),
+              ),
+            ],
+          ];
+
+          final pageDots = books.length > 1
+              ? _PageDots(count: books.length, controller: _pageController)
+              : null;
+
+          // Compact landscape header: one row containing the ABSORB branding,
+          // offline icon, page dots, and actions. Skips the large "Absorbing"
+          // title row to give the card more vertical breathing room.
+          final landscapeHeader = Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 2),
+            child: Row(
+              children: [
+                Text(
+                  l.appTitle,
+                  style: tt.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    letterSpacing: 4,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                offlineIcon,
+                if (pageDots != null) ...[
+                  const SizedBox(width: 12),
+                  Expanded(child: pageDots),
+                  const SizedBox(width: 12),
+                ] else
+                  const Spacer(),
+                ...headerActions,
               ],
             ),
-            // ── Page Dots ──
-            if (books.length > 1)
+          );
+
+          final portraitHeader = AbsorbPageHeader(
+            title: l.absorbingTitle,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            trailing: offlineIcon,
+            actions: headerActions,
+          );
+
+        return Column(
+          children: [
+            // ── Header ──
+            // Phone landscape uses the compact single-row header; everything
+            // else (portrait, tablets in any orientation) keeps the full header.
+            if (isPhoneLandscape) landscapeHeader else portraitHeader,
+            // ── Page Dots (compact header inlines them in phone landscape) ──
+            if (!isPhoneLandscape && pageDots != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4, bottom: 2),
-                child: _PageDots(count: books.length, controller: _pageController),
+                child: pageDots,
               ),
             // ── Cards (refreshable) ──
             Expanded(
@@ -631,9 +691,12 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                       : books.length == 1
                           ? LayoutBuilder(
                               builder: (context, constraints) {
-                                final vPad = (constraints.maxHeight * 0.01).clamp(2.0, 16.0);
+                                final vPad = isPhoneLandscape
+                                    ? 0.0
+                                    : (constraints.maxHeight * 0.01).clamp(2.0, 16.0);
+                                final hPad = isPhoneLandscape ? 0.0 : 4.0;
                                 return Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: vPad),
+                                  padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
                                   child: RepaintBoundary(child: AbsorbingCard(key: _cardKey(_absorbingKey(books[0])), item: books[0], player: _player)),
                                 );
                               },
@@ -647,7 +710,10 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                           itemBuilder: (_, i) => LayoutBuilder(
                             builder: (context, constraints) {
                               final cardWidth = constraints.maxWidth;
-                              final vPad = (constraints.maxHeight * 0.01).clamp(2.0, 16.0);
+                              final vPad = isPhoneLandscape
+                                  ? 0.0
+                                  : (constraints.maxHeight * 0.01).clamp(2.0, 16.0);
+                              final hPad = isPhoneLandscape ? 0.0 : 4.0;
                               return AnimatedBuilder(
                                 animation: _pageController,
                                 builder: (context, child) {
@@ -679,7 +745,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                                       ..translate(translateX, 0.0, 0.0)
                                       ..scale(scaleX, 1.0, 1.0),
                                     child: Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: vPad),
+                                      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
                                       child: child,
                                     ),
                                   );
@@ -691,7 +757,8 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                         ),
             ),
           ],
-        ),
+        );
+        }),
       ),
       ),
     );

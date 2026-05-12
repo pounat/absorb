@@ -561,11 +561,20 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver, Ticker
         }
       });
     }
+    // On phone landscape, shrink the nav bar so it doesn't eat ~20% of the
+    // shorter screen height. Tablets keep the full-size bar in any orientation.
+    final mq = MediaQuery.of(context);
+    final isTablet = mq.size.shortestSide >= 600;
+    final isPhoneLandscape = !isTablet && mq.orientation == Orientation.landscape;
     return SizeTransition(
       sizeFactor: _navBarAnimController,
       axisAlignment: 1.0,
       child: NavigationBar(
         selectedIndex: _currentIndex,
+        height: isPhoneLandscape ? 56 : null,
+        labelBehavior: isPhoneLandscape
+            ? NavigationDestinationLabelBehavior.alwaysHide
+            : NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: (i) {
           // If tapping Library while already on Library, clear search
           if (i == 1 && _currentIndex == 1 &&
