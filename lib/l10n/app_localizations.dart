@@ -571,7 +571,7 @@ abstract class AppLocalizations {
   /// No description provided for @librarySearchBooksHint.
   ///
   /// In en, this message translates to:
-  /// **'Search books, series, and authors...'**
+  /// **'Search books, series, authors, narrators...'**
   String get librarySearchBooksHint;
 
   /// No description provided for @librarySearchShowsHint.
