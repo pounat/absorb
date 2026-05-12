@@ -191,6 +191,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   void setNetworkOffline(bool offline) {
     final wasOffline = _networkOffline;
     _networkOffline = offline;
+    // Mirror into AudioPlayerService so playback start can skip server session
+    // creation immediately - otherwise a downloaded book waits ~5s for the
+    // capped startPlaybackSession() timeout before audio kicks in.
+    AudioPlayerService().setKnownOffline(offline);
     if (offline && !wasOffline) {
       _stopHealthCheckTimer();
       _buildOfflineSections();

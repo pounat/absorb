@@ -125,10 +125,14 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       return;
     }
 
-    // Otherwise fetch the full item
+    // Otherwise fetch the full item from the server. Skip when offline so
+    // the sheet doesn't sit on a loading spinner for the full network timeout
+    // (downloaded podcasts populate from the section entity above; everything
+    // else just shows the empty state immediately).
+    final lib = context.read<LibraryProvider>();
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
-    if (api == null) {
+    if (api == null || lib.isOffline) {
       setState(() => _isLoading = false);
       return;
     }
