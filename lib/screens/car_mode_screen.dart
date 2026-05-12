@@ -64,8 +64,11 @@ class _CarModeScreenState extends State<CarModeScreen>
     _displayTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && widget.player.isPlaying) setState(() {});
     });
+    // Allow both portrait and landscape — many in-car mounts are landscape.
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
     ]);
   }
 
@@ -197,6 +200,10 @@ class _CarModeScreenState extends State<CarModeScreen>
         bottom: false,
         child: LayoutBuilder(builder: (context, constraints) {
           final h = constraints.maxHeight;
+          // Landscape: cover on the left, everything else stacked vertically on the right.
+          final wide = constraints.maxWidth > h;
+          // Tier sizing uses the available height of the *column that owns the
+          // text* — in landscape that's the right column, same h as full card.
           // Three tiers: ultra (<380), compact (<520), full
           final ultra = h < 380;
           final compact = h < 520;
@@ -213,10 +220,7 @@ class _CarModeScreenState extends State<CarModeScreen>
           final showChapterProgress = hasChapters && (!ultra || _preferChapterBar);
           final showAuthor = author.isNotEmpty && !ultra;
 
-          return Column(
-            children: [
-              // ── Header ──
-              Padding(
+          final headerSection = Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: compact ? 0 : 4),
                 child: Row(
                   children: [
@@ -231,10 +235,10 @@ class _CarModeScreenState extends State<CarModeScreen>
                     const SizedBox(width: 16),
                   ],
                 ),
-              ),
+              );
 
-              // ── Book progress ──
-              if (showBookProgress) StreamBuilder<Duration>(
+          final bookProgressSection = showBookProgress
+              ? StreamBuilder<Duration>(
                 stream: player.positionStream,
                 builder: (context, _) {
                   final pos = player.position;
@@ -272,38 +276,39 @@ class _CarModeScreenState extends State<CarModeScreen>
                     ]),
                   );
                 },
-              ),
+              )
+              : const SizedBox.shrink();
 
-              SizedBox(height: ultra ? 2 : compact ? 4 : 10),
-
-              // ── Title & Author ──
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: hPad),
-                child: Text(
-                  title,
-                  style: TextStyle(color: Colors.white, fontSize: titleSize, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (showAuthor) ...[
-                SizedBox(height: compact ? 2 : 4),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: hPad),
-                  child: Text(
-                    author,
-                    style: TextStyle(color: Colors.white60, fontSize: authorSize, fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          final titleAuthorSection = Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: hPad),
+                    child: Text(
+                      title,
+                      style: TextStyle(color: Colors.white, fontSize: titleSize, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
+                  if (showAuthor) ...[
+                    SizedBox(height: compact ? 2 : 4),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: hPad),
+                      child: Text(
+                        author,
+                        style: TextStyle(color: Colors.white60, fontSize: authorSize, fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              );
 
-              // ── Cover (play/pause toggle) ──
-              Expanded(
-                child: Padding(
+          final coverArea = Padding(
                   padding: EdgeInsets.symmetric(horizontal: hPad + (ultra ? 4 : 16), vertical: ultra ? 2 : compact ? 6 : 12),
                   child: Center(
                     child: StreamBuilder<PlayerState>(
@@ -378,12 +383,10 @@ class _CarModeScreenState extends State<CarModeScreen>
                       },
                     ),
                   ),
-                ),
-              ),
+              );
 
-              // ── Chapter progress ──
-              if (showChapterProgress)
-                StreamBuilder<Duration>(
+          final chapterProgressSection = showChapterProgress
+              ? StreamBuilder<Duration>(
                   stream: player.positionStream,
                   builder: (context, snapshot) {
                     final (chProgress, chElapsed, chRemaining) = _chapterProgress();
@@ -421,12 +424,10 @@ class _CarModeScreenState extends State<CarModeScreen>
                       ]),
                     );
                   },
-                ),
+                )
+              : const SizedBox.shrink();
 
-              SizedBox(height: ultra ? 2 : compact ? 6 : 14),
-
-              // ── Skip + Chapter controls ──
-              Padding(
+          final skipControls = Padding(
                 padding: EdgeInsets.symmetric(horizontal: hPad),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -457,12 +458,9 @@ class _CarModeScreenState extends State<CarModeScreen>
                     )),
                   ],
                 ),
-              ),
+              );
 
-              SizedBox(height: ultra ? 0 : compact ? 4 : 10),
-
-              // ── Speed & Bookmark ──
-              Row(
+          final speedBookmarkRow = Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
@@ -507,9 +505,48 @@ class _CarModeScreenState extends State<CarModeScreen>
                     } : null,
                   ),
                 ],
-              ),
+              );
 
-              SizedBox(height: (compact ? 4 : 8) + MediaQuery.of(context).viewPadding.bottom),
+          final bottomPad = SizedBox(height: (compact ? 4 : 8) + MediaQuery.of(context).viewPadding.bottom);
+
+          if (wide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: Center(child: coverArea)),
+                Expanded(child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    headerSection,
+                    bookProgressSection,
+                    SizedBox(height: ultra ? 2 : compact ? 4 : 10),
+                    titleAuthorSection,
+                    SizedBox(height: ultra ? 4 : compact ? 6 : 14),
+                    chapterProgressSection,
+                    SizedBox(height: ultra ? 2 : compact ? 6 : 14),
+                    skipControls,
+                    SizedBox(height: ultra ? 0 : compact ? 4 : 10),
+                    speedBookmarkRow,
+                    bottomPad,
+                  ],
+                )),
+              ],
+            );
+          }
+
+          return Column(
+            children: [
+              headerSection,
+              bookProgressSection,
+              SizedBox(height: ultra ? 2 : compact ? 4 : 10),
+              titleAuthorSection,
+              Expanded(child: Center(child: coverArea)),
+              chapterProgressSection,
+              SizedBox(height: ultra ? 2 : compact ? 6 : 14),
+              skipControls,
+              SizedBox(height: ultra ? 0 : compact ? 4 : 10),
+              speedBookmarkRow,
+              bottomPad,
             ],
           );
         }),
