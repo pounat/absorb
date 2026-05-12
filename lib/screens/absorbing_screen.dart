@@ -368,6 +368,29 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         skippedKeys[key] = 'not in section or cache';
       }
     }
+    // Offline-only fallback: surface all downloads that aren't already in the
+    // absorbing list. Online we keep Absorbing focused on started/queued items;
+    // offline the user has no other way to reach unstarted downloads, so we
+    // merge them in. Started ones already appear via the absorbingBookIds path.
+    if (lib.isOffline) {
+      final seenKeys = items.map(_absorbingKey).toSet();
+      for (final section in lib.personalizedSections) {
+        if ((section['id'] as String?) != 'downloaded-books') continue;
+        for (final e in (section['entities'] as List<dynamic>? ?? [])) {
+          if (e is! Map<String, dynamic>) continue;
+          final itemId = e['id'] as String?;
+          if (itemId == null) continue;
+          final re = e['recentEpisode'] as Map<String, dynamic>?;
+          final epId = re?['id'] as String?;
+          final key = epId != null ? '$itemId-$epId' : itemId;
+          if (seenKeys.contains(key)) continue;
+          if (removes.contains(key)) continue;
+          items.add(e);
+          seenKeys.add(key);
+        }
+      }
+    }
+
     // If the currently playing/casting item isn't in the list, add it at the front.
     // For podcast episodes, match by compound key.
     // Skip if the playing item belongs to a different library type.

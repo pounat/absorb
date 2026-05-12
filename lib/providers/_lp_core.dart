@@ -262,6 +262,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           'recentEpisode': {
             'id': episodeId,
             'title': episodeTitle ?? dl.title ?? 'Episode',
+            'duration': duration,
+            'chapters': chapters,
           },
           'media': {
             'metadata': {
@@ -363,6 +365,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           'recentEpisode': {
             'id': episodeId,
             'title': episodeTitle ?? dl.title ?? 'Episode',
+            'duration': duration,
+            'chapters': chapters,
           },
           'media': {
             'metadata': {
