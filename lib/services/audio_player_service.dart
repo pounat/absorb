@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:just_audio/just_audio.dart';
+import '_audio_player.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1000,6 +1000,7 @@ class AudioPlayerService extends ChangeNotifier {
   SharedPreferences? _prefs;
   StreamSubscription? _syncSub;
   StreamSubscription? _completionSub;
+  StreamSubscription? _nativeAutoAdvanceSub;
 
   // ── Pre-buffer next book in queue (iOS background auto-advance fix) ──
   // iOS denies background audio output to freshly-loaded AVPlayerItems.
@@ -1247,6 +1248,25 @@ class AudioPlayerService extends ChangeNotifier {
         return;
       }
 
+      if (Platform.isIOS && PlayerSettings.useNativeIosPlayerSync) {
+        // Native engine owns the cross-book swap. Skip concat.add entirely.
+        final source = nextTrackSources.length == 1
+            ? nextTrackSources.first
+            : ConcatenatingAudioSource(children: nextTrackSources);
+        final ok = await _player!.setNextSource(
+          source,
+          startPositionS: startS,
+          totalDurationS: (next['duration'] as num?)?.toDouble() ?? 0,
+        );
+        if (!ok) {
+          debugPrint('[PreBuffer] Native setNextSource failed');
+          return;
+        }
+        _preloadedNextBook = next;
+        debugPrint('[PreBuffer] Pre-loaded native: ${next['title']} ($nextItemId) start=${startS.toStringAsFixed(1)}s');
+        return;
+      }
+
       final concat = _activeConcatSource;
       if (concat == null) {
         debugPrint('[PreBuffer] Concat source went away mid-preload');
@@ -1259,8 +1279,7 @@ class AudioPlayerService extends ChangeNotifier {
       debugPrint('[PreBuffer] Pre-loaded next item: ${next['title']} ($nextItemId)');
 
       if (Platform.isIOS) {
-        // Also prime the native handover so the background path can take over
-        // without going through just_audio's heavy reload.
+        // Legacy native queue advancer kick (flag-off path).
         unawaited(_primeNativeQueueAdvancer(next, localPaths, audioTracks, audioHeaders));
       }
     } catch (e, st) {
@@ -2076,6 +2095,8 @@ class AudioPlayerService extends ChangeNotifier {
     _syncSub = null;
     _completionSub?.cancel();
     _completionSub = null;
+    _nativeAutoAdvanceSub?.cancel();
+    _nativeAutoAdvanceSub = null;
     _indexSub?.cancel();
     _indexSub = null;
     _lastKnownPositionSec = 0;
@@ -3135,6 +3156,8 @@ class AudioPlayerService extends ChangeNotifier {
     _syncSub = null;
     _completionSub?.cancel();
     _completionSub = null;
+    _nativeAutoAdvanceSub?.cancel();
+    _nativeAutoAdvanceSub = null;
     _lastKnownPositionSec = 0;
 
     _bgSaveTimer?.cancel();
@@ -3253,6 +3276,7 @@ class AudioPlayerService extends ChangeNotifier {
   void _setupSync() {
     _syncSub?.cancel();
     _completionSub?.cancel();
+    _nativeAutoAdvanceSub?.cancel();
     _bgSaveTimer?.cancel();
     _lastSyncSecond = -1;
     _lastBgProcessedSec = -1;
@@ -3280,6 +3304,17 @@ class AudioPlayerService extends ChangeNotifier {
 
     // Attach equalizer to current audio session
     _attachEqualizer();
+
+    // Native iOS engine fires bookAutoAdvancedStream when it has swapped to
+    // the pre-buffered next book. Empty stream on Android / iOS-flag-off, so
+    // this is a no-op everywhere else.
+    _nativeAutoAdvanceSub?.cancel();
+    _nativeAutoAdvanceSub = _player?.bookAutoAdvancedStream.listen((_) {
+      if (_preloadedNextBook != null) {
+        debugPrint('[NativeEngine] bookAutoAdvanced received — firing auto-queue advance');
+        _onAutoQueueAdvanced();
+      }
+    });
 
     // ─── Primary completion detection via processingState ───
     // This fires reliably when ExoPlayer reaches STATE_ENDED, before any
@@ -3417,6 +3452,11 @@ class AudioPlayerService extends ChangeNotifier {
       // ─── Completion detection (fallback) ───────────────────
       // processingStateStream is the primary signal; this is a safety net.
       if (_totalDuration > 0 && posSec >= _totalDuration - 1.0) {
+        if (_preloadedNextBook != null && _isBackgrounded && Platform.isIOS) {
+          debugPrint('[PreBuffer] Position-fallback near end with pre-buffer loaded — firing auto-queue advance');
+          _onAutoQueueAdvanced();
+          return;
+        }
         _onPlaybackComplete();
         return;
       }
@@ -3698,6 +3738,8 @@ class AudioPlayerService extends ChangeNotifier {
     _syncSub = null;
     _completionSub?.cancel();
     _completionSub = null;
+    _nativeAutoAdvanceSub?.cancel();
+    _nativeAutoAdvanceSub = null;
     _bgSaveTimer?.cancel();
     _bgSaveTimer = null;
     // Android: stop() prevents ExoPlayer's phantom seek-to-0 on completion,

@@ -69,6 +69,17 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       }
     }
 
+    AbsorbAudioEngine.logSink = { [weak self] line in
+      DispatchQueue.main.async {
+        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
+      }
+    }
+    AbsorbAudioBridge.logSink = { [weak self] line in
+      DispatchQueue.main.async {
+        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
+      }
+    }
+
     // Register the native player core as an AppIntent dependency. The widget
     // intent declares `@Dependency var core: AbsorbPlayerCoreProtocol` - that
     // signals to iOS to launch this host app process to run the intent's
@@ -236,6 +247,7 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     let messenger = flutterEngine.binaryMessenger
 
     IOSQueueAdvancer.shared.register(with: messenger)
+    AbsorbAudioBridge.shared.register(with: messenger)
 
     // iOS audio output device switching is not implemented yet — iOS routes
     // through the system's MPVolumeView/AVRoutePicker rather than letting apps

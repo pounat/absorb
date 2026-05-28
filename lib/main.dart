@@ -153,6 +153,12 @@ void main() async {
     trustAllCerts = await PlayerSettings.getTrustAllCerts();
   } catch (_) {}
 
+  // Prime native iOS audio engine flag so the AudioPlayer constructor
+  // (called when AudioPlayerHandler initializes) can read it synchronously.
+  try {
+    await PlayerSettings.primeUseNativeIosPlayerCache();
+  } catch (_) {}
+
   // Capture Flutter framework errors (widget build failures, etc.)
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
