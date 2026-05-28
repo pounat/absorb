@@ -126,13 +126,19 @@ final class AbsorbAudioEngine: NSObject {
     }
   }
 
-  func seek(toPositionS positionS: Double, completion: @escaping (Bool) -> Void) {
+  /// Seek to `localS` seconds within track `trackIndex` (nil = current track).
+  /// Matches just_audio's `seek(position, index:)`: the Dart layer converts an
+  /// absolute book position into (track index, local offset) and routes here,
+  /// so we never do global-offset math ourselves.
+  func seek(toLocalS localS: Double, trackIndex: Int?, completion: @escaping (Bool) -> Void) {
     queue.async { [weak self] in
       guard let self = self else { completion(false); return }
-      let targetIndex = self.trackIndexFor(globalSeconds: positionS)
-      let localTarget = max(0, positionS - self.trackOffsets[targetIndex])
+      guard !self.trackUrls.isEmpty else { completion(false); return }
+      let requested = trackIndex ?? self.trackIndex
+      let target = max(0, min(requested, self.trackUrls.count - 1))
+      let localTarget = localS.isFinite ? max(0, localS) : 0
 
-      if targetIndex == self.trackIndex, let _ = self.currentItem {
+      if target == self.trackIndex, self.currentItem != nil {
         let wasPlaying = self.player.rate > 0
         self.player.seek(
           to: CMTime(seconds: localTarget, preferredTimescale: 1000),
@@ -146,10 +152,11 @@ final class AbsorbAudioEngine: NSObject {
         }
       } else {
         let wasPlaying = self.player.rate > 0
-        self.trackIndex = targetIndex
-        self.loadTrack(atIndex: targetIndex, localStart: localTarget, autoPlay: wasPlaying) { _ in
+        self.trackIndex = target
+        self.loadTrack(atIndex: target, localStart: localTarget, autoPlay: wasPlaying) { _ in
           completion(true)
         }
+        self.delegate?.engineDidChangeTrack(trackIndex: target, totalTracks: self.trackUrls.count)
       }
     }
   }
@@ -246,13 +253,15 @@ final class AbsorbAudioEngine: NSObject {
     }
   }
 
+  /// Track-LOCAL position (seconds within the current track). The Dart layer
+  /// (AudioPlayerService) owns the global-position math and adds the track
+  /// start offset, mirroring just_audio's AVQueuePlayer contract. Emitting a
+  /// global position here double-counted the offset and, worse, fed the
+  /// `greatestFiniteMagnitude` offset sentinel into `Int(pos)` in
+  /// maybeEmitPosition, trapping on the first multi-file track boundary.
   func getPositionS() -> Double {
     let local = player.currentItem?.currentTime().seconds ?? 0
-    guard local.isFinite else {
-      return trackOffsets.indices.contains(trackIndex) ? trackOffsets[trackIndex] : 0
-    }
-    let offset = trackOffsets.indices.contains(trackIndex) ? trackOffsets[trackIndex] : 0
-    return offset + local
+    return local.isFinite ? max(0, local) : 0
   }
 
   func getBufferedPositionS() -> Double {
@@ -260,8 +269,7 @@ final class AbsorbAudioEngine: NSObject {
     guard let last = item.loadedTimeRanges.last as? NSValue else { return 0 }
     let range = last.timeRangeValue
     let bufferedLocal = CMTimeGetSeconds(range.start + range.duration)
-    let offset = trackOffsets.indices.contains(trackIndex) ? trackOffsets[trackIndex] : 0
-    return bufferedLocal.isFinite ? offset + bufferedLocal : offset
+    return bufferedLocal.isFinite ? max(0, bufferedLocal) : 0
   }
 
   // MARK: - Track loading
@@ -519,6 +527,7 @@ final class AbsorbAudioEngine: NSObject {
 
   private func maybeEmitPosition() {
     let pos = getPositionS()
+    guard pos.isFinite else { return }
     let posInt = Int(pos)
     let stride = isBackgrounded ? 1 : 0
     if isBackgrounded {
@@ -533,6 +542,7 @@ final class AbsorbAudioEngine: NSObject {
 
   private func emitPositionImmediate() {
     let pos = getPositionS()
+    guard pos.isFinite else { return }
     lastEmittedSecondInt = Int(pos)
     delegate?.engineDidEmitPosition(pos)
   }

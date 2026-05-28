@@ -80,7 +80,8 @@ final class AbsorbAudioBridge: NSObject {
 
     case "seek":
       let pos = (args?["positionS"] as? Double) ?? 0
-      AbsorbAudioEngine.shared.seek(toPositionS: pos) { ok in
+      let index = args?["index"] as? Int
+      AbsorbAudioEngine.shared.seek(toLocalS: pos, trackIndex: index) { ok in
         result(ok)
       }
 

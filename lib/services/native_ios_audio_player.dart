@@ -146,8 +146,15 @@ class NativeIosAudioPlayer {
 
   Future<void> seek(Duration? position, {int? index}) async {
     final s = (position?.inMilliseconds ?? 0) / 1000.0;
-    await _methodChannel.invokeMethod<bool>('seek', {'positionS': s});
+    // `index` is the track within a multi-file book. The engine seeks to the
+    // track-local position `s` inside that track; AudioPlayerService has
+    // already converted the absolute book position into (index, local offset).
+    await _methodChannel.invokeMethod<bool>('seek', {
+      'positionS': s,
+      if (index != null) 'index': index,
+    });
     _position = position ?? Duration.zero;
+    if (index != null) _currentIndex = index;
     _updateTime = DateTime.now();
     _positionController.add(_position);
     _playbackEventController.add(_buildPlaybackEvent());
