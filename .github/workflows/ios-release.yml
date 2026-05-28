@@ -1,0 +1,191 @@
+name: iOS Release
+
+# Mirrors the `ios-release` workflow in codemagic.yaml. Triggered manually via
+# `gh workflow run ios-release.yml` (see scripts/github-ios.sh) or the Actions UI.
+# Uses codemagic-cli-tools to fetch signing files via the App Store Connect API,
+# so the runner never needs a pre-exported .p12 or .mobileprovision.
+
+on:
+  workflow_dispatch:
+    inputs:
+      beta_test_notes:
+        description: "What to Test (TestFlight notes, optional)"
+        required: false
+        type: string
+      beta_group:
+        description: "TestFlight beta group (e.g. Early Absorbers)"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build:
+    name: Build IPA + publish to TestFlight
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    # Allow GITHUB_TOKEN to create/upload to GitHub Releases.
+    permissions:
+      contents: write
+
+    env:
+      BUNDLE_ID: com.barnabas.absorb
+      APPLE_TEAM_ID: 3W9C9PWP64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Apple requires Xcode 26+ / iOS 26 SDK for App Store uploads. Pick the
+      # newest Xcode installed on the runner; if it's still <26 we'll need to
+      # use maxim-lobanov/setup-xcode to install one explicitly.
+      - name: Select latest Xcode
+        run: |
+          LATEST_XCODE=$(ls /Applications/ | grep -E '^Xcode_[0-9]+(\.[0-9]+)?(\.app)?$' | sort -V | tail -1)
+          echo "Available Xcodes:"
+          ls /Applications/ | grep -E '^Xcode' || true
+          echo "Selecting: $LATEST_XCODE"
+          sudo xcode-select -s "/Applications/$LATEST_XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Read pubspec version
+        id: version
+        run: |
+          RAW=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
+          VERSION_NAME="${RAW%%+*}"
+          echo "raw=$RAW" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Discord (build started)
+        if: env.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          VERSION: ${{ steps.version.outputs.raw }}
+          RUN_URL: ${{ format('https://github.com/{0}/actions/runs/{1}', github.repository, github.run_id) }}
+        run: |
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"Build started\",\"description\":\"**iOS Release** v$VERSION\\n[Build log]($RUN_URL)\",\"color\":3447003}]}" \
+            > /dev/null 2>&1 || true
+
+      - name: Install codemagic-cli-tools
+        run: pipx install codemagic-cli-tools
+
+      - name: Initialise temporary keychain
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: keychain initialize
+
+      - name: Fetch signing files via App Store Connect API
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          CERTIFICATE_PRIVATE_KEY: ${{ secrets.CERTIFICATE_PRIVATE_KEY }}
+        run: |
+          # Fetch signing files for every bundle ID this project ships:
+          # main app + NowPlayingWidget extension.
+          for BID in "$BUNDLE_ID" "$BUNDLE_ID.NowPlayingWidget"; do
+            app-store-connect fetch-signing-files "$BID" \
+              --type IOS_APP_STORE \
+              --create
+          done
+          keychain add-certificates
+
+          echo "=== Hunt for .mobileprovision files anywhere on the runner ==="
+          find "$HOME" "$RUNNER_TEMP" "$GITHUB_WORKSPACE" /tmp -name '*.mobileprovision' 2>/dev/null
+          echo "=== xcodebuild version ==="
+          xcodebuild -version
+
+          # Mirror profiles into both possible Xcode lookup paths regardless
+          # of where codemagic-cli-tools dropped them.
+          NEW_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          OLD_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$NEW_DIR" "$OLD_DIR"
+          while IFS= read -r p; do
+            [ -z "$p" ] && continue
+            cp -v "$p" "$NEW_DIR/" || true
+            cp -v "$p" "$OLD_DIR/" || true
+          done < <(find "$HOME" "$RUNNER_TEMP" "$GITHUB_WORKSPACE" /tmp -name '*.mobileprovision' 2>/dev/null)
+
+          xcode-project use-profiles --project ios/Runner.xcodeproj
+
+      - name: Build IPA
+        run: flutter build ipa --release --export-options-plist=$HOME/export_options.plist
+
+      - name: Rename IPA with version
+        run: |
+          IPA_SRC=$(ls build/ios/ipa/*.ipa | head -1)
+          mv "$IPA_SRC" "build/ios/ipa/absorb-${{ steps.version.outputs.raw }}.ipa"
+
+      - name: Upload IPA to GitHub draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$VERSION_TAG" &>/dev/null; then
+            gh release upload "$VERSION_TAG" build/ios/ipa/*.ipa --clobber
+          else
+            gh release create "$VERSION_TAG" build/ios/ipa/*.ipa \
+              --draft \
+              --title "$VERSION_TAG"
+          fi
+
+      - name: Upload to TestFlight
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -1)
+          app-store-connect publish --path "$IPA_PATH" --testflight
+
+      # Notes + beta-group assignment happen after Apple processes the build.
+      # They commonly fail with a timeout even when the upload itself worked,
+      # so we run them in a separate step and mark it allowed-to-fail. The
+      # upload above succeeding is what counts.
+      - name: Add TestFlight notes / beta group (best-effort)
+        if: inputs.beta_test_notes != '' || inputs.beta_group != ''
+        continue-on-error: true
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          BETA_TEST_NOTES: ${{ inputs.beta_test_notes }}
+          BETA_GROUP: ${{ inputs.beta_group }}
+        run: |
+          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -1)
+          ARGS=(--path "$IPA_PATH" --testflight --skip-package-upload)
+          if [ -n "$BETA_TEST_NOTES" ]; then
+            echo "  + TestFlight notes ($(printf '%s' "$BETA_TEST_NOTES" | wc -c) chars)"
+            ARGS+=(--whats-new "$BETA_TEST_NOTES" --locale en-US)
+          fi
+          if [ -n "$BETA_GROUP" ]; then
+            echo "  + Beta group: $BETA_GROUP"
+            ARGS+=(--beta-group "$BETA_GROUP")
+          fi
+          app-store-connect publish "${ARGS[@]}"
+
+      - name: Notify Discord (build finished)
+        if: always() && env.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          VERSION: ${{ steps.version.outputs.raw }}
+          RUN_URL: ${{ format('https://github.com/{0}/actions/runs/{1}', github.repository, github.run_id) }}
+          STATUS: ${{ job.status }}
+        run: |
+          if [ "$STATUS" = "success" ]; then
+            TITLE="Build successful"
+            COLOR=3066993
+          else
+            TITLE="Build failed"
+            COLOR=15158332
+          fi
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"$TITLE\",\"description\":\"**iOS Release** v$VERSION\\n[Build log]($RUN_URL)\",\"color\":$COLOR}]}" \
+            > /dev/null 2>&1 || true
