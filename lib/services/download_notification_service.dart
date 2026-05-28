@@ -46,6 +46,11 @@ class DownloadNotificationService {
 
   int _activeCount = 0;
 
+  // Track last shown percent per slot so we can throttle progress updates. iOS
+  // re-banners each notification update (even with the same ID), so even with
+  // passive interruption we want to keep the update rate low.
+  final Map<int, int> _lastShownPercent = {};
+
   Future<void> init() async {
     if (_initialized) return;
 
@@ -101,6 +106,7 @@ class DownloadNotificationService {
   }) async {
     if (!_initialized) await init();
     _activeCount++;
+    _lastShownPercent.remove(slot);
 
     // Start foreground service if this is the first download
     if (_activeCount == 1) {
@@ -128,6 +134,12 @@ class DownloadNotificationService {
   }) async {
     if (!_initialized) await init();
     final percent = (progress * 100).round().clamp(0, 100);
+
+    // Throttle to 10% increments (plus always emit the 100% completion).
+    final last = _lastShownPercent[slot];
+    if (last != null && percent < 100 && (percent - last) < 10) return;
+    _lastShownPercent[slot] = percent;
+
     await _showSlotProgress(
       slot: slot,
       title: title,
@@ -155,6 +167,7 @@ class DownloadNotificationService {
     }
 
     _activeCount = (_activeCount - 1).clamp(0, 99);
+    _lastShownPercent.remove(slot);
 
     if (_activeCount == 0) {
       await _stopForeground();
@@ -186,6 +199,7 @@ class DownloadNotificationService {
     }
 
     _activeCount = (_activeCount - 1).clamp(0, 99);
+    _lastShownPercent.remove(slot);
 
     if (_activeCount == 0) {
       await _stopForeground();
@@ -198,6 +212,7 @@ class DownloadNotificationService {
   Future<void> dismiss() async {
     await _stopForeground();
     _activeCount = 0;
+    _lastShownPercent.clear();
     // Cancel all possible slot notifications
     for (int i = 0; i < 5; i++) {
       try {
@@ -335,7 +350,14 @@ class DownloadNotificationService {
       subtitle,
       NotificationDetails(
         android: androidDetails,
-        iOS: const DarwinNotificationDetails(),
+        // Passive interruption — iOS updates the notification without showing
+        // a banner or playing sound on each progress tick.
+        iOS: const DarwinNotificationDetails(
+          presentAlert: false,
+          presentBanner: false,
+          presentSound: false,
+          interruptionLevel: InterruptionLevel.passive,
+        ),
       ),
     );
   }
