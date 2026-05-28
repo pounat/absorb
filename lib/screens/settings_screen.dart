@@ -2160,30 +2160,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         },
                       ),
                     ],
-                    if (Platform.isIOS) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
-                        title: const Text('Native iOS audio engine (experimental)'),
-                        subtitle: Text(
-                          _useNativeIosPlayer
-                              ? 'On — restart the app for the change to take effect'
-                              : 'Off — uses just_audio (current default)',
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                        ),
-                        value: _useNativeIosPlayer,
-                        onChanged: _loaded
-                            ? (v) async {
-                                await PlayerSettings.setUseNativeIosPlayer(v);
-                                setState(() => _useNativeIosPlayer = v);
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Restart the app for the change to take effect')),
-                                  );
-                                }
-                              }
-                            : null,
-                      ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -2299,6 +2275,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                       onTap: _openRmabSheetFromSettings,
                     ),
+                    if (Platform.isIOS) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: const Text('Native iOS audio engine (experimental)'),
+                        subtitle: Text(
+                          _useNativeIosPlayer
+                              ? 'On - restart the app for the change to take effect'
+                              : 'Off - uses just_audio (current default)',
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                        value: _useNativeIosPlayer,
+                        onChanged: _loaded
+                            ? (v) async {
+                                await PlayerSettings.setUseNativeIosPlayer(v);
+                                setState(() => _useNativeIosPlayer = v);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Restart the app for the change to take effect')),
+                                  );
+                                }
+                              }
+                            : null,
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
