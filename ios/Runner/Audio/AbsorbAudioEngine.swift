@@ -116,11 +116,13 @@ final class AbsorbAudioEngine: NSObject {
   func stop() {
     queue.async { [weak self] in
       guard let self = self else { return }
-      self.player.pause()
-      self.player.replaceCurrentItem(with: nil)
       self.currentItem = nil
       self.processingState = .idle
       self.emitState()
+      DispatchQueue.main.async {
+        self.player.pause()
+        self.player.replaceCurrentItem(with: nil)
+      }
     }
   }
 
@@ -270,53 +272,48 @@ final class AbsorbAudioEngine: NSObject {
                          completion: @escaping (Double?) -> Void) {
     guard index < trackUrls.count else { completion(nil); return }
     let url = trackUrls[index]
+    let headers = trackHeaders
+    let eqEnabled = self.eqEnabled
 
-    detachCurrentItem()
-
-    let item = makePlayerItem(url: url, headers: trackHeaders)
+    let item = makePlayerItem(url: url, headers: headers)
     currentItem = item
     currentEpoch &+= 1
     let myEpoch = currentEpoch
-
-    observeNewCurrentItem(item)
-    if eqEnabled {
-      AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
-        // Benign race on currentEpoch (Int read from main thread). If the
-        // item is stale by the time the asset finishes loading, skip the
-        // audio mix assignment.
-        return self?.currentEpoch == myEpoch
-      })
-    }
-
-    player.replaceCurrentItem(with: item)
     processingState = .loading
     emitState()
 
-    let seekIfNeeded = { [weak self] in
-      guard let self = self else { return }
-      if localStart > 0 {
-        item.seek(to: CMTime(seconds: localStart, preferredTimescale: 1000),
-                  toleranceBefore: .zero, toleranceAfter: .zero) { _ in
-          self.queue.async {
-            if autoPlay {
-              self.player.play()
-              self.player.rate = self.speed
-            }
-            self.emit("[AudioEngine] loadTrack idx=\(index) localStart=\(localStart) autoPlay=\(autoPlay)")
-            completion(self.totalDurationS > 0 ? self.totalDurationS : nil)
-          }
-        }
-      } else {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { completion(nil); return }
+      self.detachCurrentItem()
+      self.observeNewCurrentItem(item)
+      if eqEnabled {
+        AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
+          // Benign race on currentEpoch (Int read from main thread). If the
+          // item is stale by the time the asset finishes loading, skip the
+          // audio mix assignment.
+          return self?.currentEpoch == myEpoch
+        })
+      }
+      self.player.replaceCurrentItem(with: item)
+
+      let finish: (Bool) -> Void = { _ in
         if autoPlay {
           self.player.play()
           self.player.rate = self.speed
         }
-        self.emit("[AudioEngine] loadTrack idx=\(index) localStart=0 autoPlay=\(autoPlay)")
-        completion(self.totalDurationS > 0 ? self.totalDurationS : nil)
+        self.queue.async {
+          self.emit("[AudioEngine] loadTrack idx=\(index) localStart=\(localStart) autoPlay=\(autoPlay)")
+          completion(self.totalDurationS > 0 ? self.totalDurationS : nil)
+        }
+      }
+
+      if localStart > 0 {
+        item.seek(to: CMTime(seconds: localStart, preferredTimescale: 1000),
+                  toleranceBefore: .zero, toleranceAfter: .zero, completionHandler: finish)
+      } else {
+        finish(true)
       }
     }
-
-    DispatchQueue.main.async { seekIfNeeded() }
   }
 
   private func makePlayerItem(url: URL, headers: [String: String]) -> AVPlayerItem {
