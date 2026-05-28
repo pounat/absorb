@@ -5,9 +5,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Singleton that owns EQ DSP state and attaches MTAudioProcessingTap
 /// to AVPlayerItems for real-time audio equalisation on iOS.
-@interface AudioEQProcessor : NSObject
+@interface AbsorbAudioEQProcessor : NSObject
 
-@property (class, readonly) AudioEQProcessor *shared;
+@property (class, readonly) AbsorbAudioEQProcessor *shared;
 
 /// Attach a processing tap to the given player item. Asset tracks load
 /// asynchronously; `shouldStillAttach` is invoked just before the audio mix

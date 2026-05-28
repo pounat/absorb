@@ -298,13 +298,13 @@ static void tapProcess(MTAudioProcessingTapRef tap,
     }
 }
 
-@implementation AudioEQProcessor
+@implementation AbsorbAudioEQProcessor
 
-+ (AudioEQProcessor *)shared {
-    static AudioEQProcessor *instance = nil;
++ (AbsorbAudioEQProcessor *)shared {
+    static AbsorbAudioEQProcessor *instance = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        instance = [[AudioEQProcessor alloc] init];
+        instance = [[AbsorbAudioEQProcessor alloc] init];
     });
     return instance;
 }

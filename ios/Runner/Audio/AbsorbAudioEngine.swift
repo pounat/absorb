@@ -228,9 +228,9 @@ final class AbsorbAudioEngine: NSObject {
       self.eqEnabled = true
       guard let item = self.currentItem else { return }
       let epoch = self.currentEpoch
-      AudioEQProcessor.shared.attachTap(toPlayerItem: item) { [weak self] in
+      AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
         return self?.currentEpoch == epoch
-      }
+      })
     }
   }
 
@@ -239,7 +239,7 @@ final class AbsorbAudioEngine: NSObject {
       guard let self = self else { return }
       self.eqEnabled = false
       if let item = self.currentItem {
-        AudioEQProcessor.shared.detach(fromPlayerItem: item)
+        AbsorbAudioEQProcessor.shared.detach(from: item)
       }
     }
   }
@@ -280,12 +280,12 @@ final class AbsorbAudioEngine: NSObject {
 
     observeNewCurrentItem(item)
     if eqEnabled {
-      AudioEQProcessor.shared.attachTap(toPlayerItem: item) { [weak self] in
+      AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
         // Benign race on currentEpoch (Int read from main thread). If the
         // item is stale by the time the asset finishes loading, skip the
         // audio mix assignment.
         return self?.currentEpoch == myEpoch
-      }
+      })
     }
 
     player.replaceCurrentItem(with: item)
@@ -332,7 +332,7 @@ final class AbsorbAudioEngine: NSObject {
 
   private func detachCurrentItem() {
     if let item = currentItem, eqEnabled {
-      AudioEQProcessor.shared.detach(fromPlayerItem: item)
+      AbsorbAudioEQProcessor.shared.detach(from: item)
     }
     if let prev = itemEndObserver {
       NotificationCenter.default.removeObserver(prev)
@@ -439,9 +439,9 @@ final class AbsorbAudioEngine: NSObject {
 
     observeNewCurrentItem(item)
     if eqEnabled {
-      AudioEQProcessor.shared.attachTap(toPlayerItem: item) { [weak self] in
+      AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
         return self?.currentEpoch == myEpoch
-      }
+      })
     }
 
     let startS = nextStartS
