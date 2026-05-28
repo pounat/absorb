@@ -390,6 +390,48 @@ static void tapProcess(MTAudioProcessingTapRef tap,
     }];
 }
 
+- (void)attachTapSyncToPlayerItem:(AVPlayerItem *)item {
+    if (!item) return;
+
+    AVAsset *asset = item.asset;
+    NSArray<AVAssetTrack *> *audioTracks = [asset tracksWithMediaType:AVMediaTypeAudio];
+    if (audioTracks.count == 0) {
+        NSLog(@"[AudioEQProcessor] sync attach: no audio tracks (asset not preloaded?)");
+        return;
+    }
+
+    MTAudioProcessingTapCallbacks callbacks;
+    callbacks.version = kMTAudioProcessingTapCallbacksVersion_0;
+    callbacks.clientInfo = (__bridge void *)self;
+    callbacks.init = tapInit;
+    callbacks.finalize = tapFinalize;
+    callbacks.prepare = tapPrepare;
+    callbacks.unprepare = tapUnprepare;
+    callbacks.process = tapProcess;
+
+    MTAudioProcessingTapRef tap = NULL;
+    OSStatus status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks,
+                                                  kMTAudioProcessingTapCreationFlag_PostEffects,
+                                                  &tap);
+    if (status != noErr || !tap) {
+        NSLog(@"[AudioEQProcessor] sync attach: failed to create tap: %d", (int)status);
+        return;
+    }
+
+    NSMutableArray<AVMutableAudioMixInputParameters *> *inputParams = [NSMutableArray array];
+    for (AVAssetTrack *track in audioTracks) {
+        AVMutableAudioMixInputParameters *params =
+            [AVMutableAudioMixInputParameters audioMixInputParametersWithTrack:track];
+        params.audioTapProcessor = tap;
+        [inputParams addObject:params];
+    }
+
+    AVMutableAudioMix *audioMix = [AVMutableAudioMix audioMix];
+    audioMix.inputParameters = inputParams;
+    item.audioMix = audioMix;
+    CFRelease(tap);
+}
+
 - (void)detachFromPlayerItem:(AVPlayerItem *)item {
     if (!item) return;
     dispatch_async(dispatch_get_main_queue(), ^{

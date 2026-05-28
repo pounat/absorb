@@ -126,10 +126,7 @@ final class AbsorbAudioEngine: NSObject {
     }
   }
 
-  /// Seek to `localS` seconds within track `trackIndex` (nil = current track).
-  /// Matches just_audio's `seek(position, index:)`: the Dart layer converts an
-  /// absolute book position into (track index, local offset) and routes here,
-  /// so we never do global-offset math ourselves.
+  /// Seek to `localS` within track `trackIndex` (nil = current track).
   func seek(toLocalS localS: Double, trackIndex: Int?, completion: @escaping (Bool) -> Void) {
     queue.async { [weak self] in
       guard let self = self else { completion(false); return }
@@ -253,12 +250,7 @@ final class AbsorbAudioEngine: NSObject {
     }
   }
 
-  /// Track-LOCAL position (seconds within the current track). The Dart layer
-  /// (AudioPlayerService) owns the global-position math and adds the track
-  /// start offset, mirroring just_audio's AVQueuePlayer contract. Emitting a
-  /// global position here double-counted the offset and, worse, fed the
-  /// `greatestFiniteMagnitude` offset sentinel into `Int(pos)` in
-  /// maybeEmitPosition, trapping on the first multi-file track boundary.
+  /// Track-local position; Dart adds the track offset (just_audio contract).
   func getPositionS() -> Double {
     let local = player.currentItem?.currentTime().seconds ?? 0
     return local.isFinite ? max(0, local) : 0
@@ -284,14 +276,13 @@ final class AbsorbAudioEngine: NSObject {
     let eqEnabled = self.eqEnabled
 
     let item = makePlayerItem(url: url, headers: headers)
-    currentItem = item
     currentEpoch &+= 1
     let myEpoch = currentEpoch
     processingState = .loading
     emitState()
 
-    // replaceCurrentItem with an unloaded AVURLAsset crashes on iOS 26 during
-    // intra-book advance. Pre-load like setNextSource does for cross-book.
+    // Preload tracks so the EQ tap can attach synchronously before playback
+    // (attachTapSync), and so load failures surface early.
     let asset = item.asset
     asset.loadValuesAsynchronously(forKeys: ["tracks", "duration"]) { [weak self] in
       guard let self = self else { completion(nil); return }
@@ -309,12 +300,14 @@ final class AbsorbAudioEngine: NSObject {
           }
           return
         }
+        // Detach the outgoing item before promoting the new one, so its EQ
+        // detach can't wipe the attach below.
         self.detachCurrentItem()
+        self.currentItem = item
         self.observeNewCurrentItem(item)
         if eqEnabled {
-          AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
-            return self?.currentEpoch == myEpoch
-          })
+          // audioMix must be set before playback starts or the tap is ignored.
+          AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
         }
         self.player.replaceCurrentItem(with: item)
 
@@ -456,14 +449,8 @@ final class AbsorbAudioEngine: NSObject {
 
     currentItem = item
     currentEpoch &+= 1
-    let myEpoch = currentEpoch
 
     observeNewCurrentItem(item)
-    if eqEnabled {
-      AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
-        return self?.currentEpoch == myEpoch
-      })
-    }
 
     let startS = nextStartS
     // Inline clear so the next swap can be armed before our async block runs.
@@ -476,6 +463,10 @@ final class AbsorbAudioEngine: NSObject {
 
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
+      if self.eqEnabled {
+        // audioMix must be set before playback starts or the tap is ignored.
+        AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
+      }
       self.player.replaceCurrentItem(with: item)
       if startS > 0 {
         item.seek(to: CMTime(seconds: startS, preferredTimescale: 1000),

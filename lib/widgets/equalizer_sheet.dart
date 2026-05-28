@@ -413,8 +413,14 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                     );
                   }).toList(),
                 ),
-                if (_vPreset == 'custom')
-                  Padding(
+                // Reserve the chip's space always, so it appearing when a band
+                // is first touched doesn't shift the sliders down under the finger.
+                Visibility(
+                  visible: _vPreset == 'custom',
+                  maintainSize: true,
+                  maintainAnimation: true,
+                  maintainState: true,
+                  child: Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: GestureDetector(
                       onTap: _vEnabled ? () => _applyPreset('flat') : null,
@@ -430,6 +436,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                       ),
                     ),
                   ),
+                ),
                 const SizedBox(height: 20),
 
                 // ── EQ Bands ──

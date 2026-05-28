@@ -1051,6 +1051,9 @@ class AudioPlayerService extends ChangeNotifier {
   int _iosLastTrackRecoveryAttempts = 0;
   static const _maxIosLastTrackRecoveries = 2;
 
+  // Force one lock-screen state push after an intra-book track advance.
+  bool _pendingTrackAdvanceRefresh = false;
+
   // ── Notification chapter progress mode ──
   bool _notifChapterMode = false;
   double _currentChapterStart = 0;
@@ -1640,6 +1643,7 @@ class AudioPlayerService extends ChangeNotifier {
         final clamped = index.clamp(0, _trackStartOffsets.length - 2);
         if (clamped != _currentTrackIndex) {
           _lastIndexAdvanceTime = DateTime.now();
+          _pendingTrackAdvanceRefresh = true;
           debugPrint('[Player] Track index advance: $_currentTrackIndex -> $clamped');
         }
         _currentTrackIndex = clamped;
@@ -3345,6 +3349,13 @@ class AudioPlayerService extends ChangeNotifier {
       final absolutePos = position; // uses the getter which adds track offset
       final sec = absolutePos.inSeconds;
       final posSec = absolutePos.inMilliseconds / 1000.0;
+
+      // After a track advance, push once now that the new position has landed
+      // so the background lock screen isn't left stale until foreground.
+      if (_pendingTrackAdvanceRefresh) {
+        _pendingTrackAdvanceRefresh = false;
+        _handler?.refreshPlaybackState();
+      }
 
       // ─── Position-reset guard ────────────────────────────
       // ExoPlayer can seek to 0 on STATE_ENDED. If we were near the end

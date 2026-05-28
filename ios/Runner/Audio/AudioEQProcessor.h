@@ -15,6 +15,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)attachTapToPlayerItem:(AVPlayerItem *)item
             shouldStillAttach:(BOOL (^_Nullable)(void))shouldStillAttach;
 
+/// Attach the tap synchronously (asset tracks must already be loaded). Call
+/// before playback starts - a tap installed after is silently ignored.
+- (void)attachTapSyncToPlayerItem:(AVPlayerItem *)item;
+
 /// Detach the tap by clearing the player item's audioMix.
 - (void)detachFromPlayerItem:(AVPlayerItem *)item;
 
