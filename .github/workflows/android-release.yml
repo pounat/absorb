@@ -1,0 +1,127 @@
+name: Android Release
+
+# Mirrors the `android-release` workflow in codemagic.yaml. Triggered manually
+# via `gh workflow run android-release.yml` or the Actions UI. Builds the
+# github-flavor APK and the playstore-flavor AAB, renames them with the pubspec
+# version, and uploads both to the GitHub draft release for that version.
+#
+# Signing: GitHub Actions can't use Codemagic's managed keystore, so the upload
+# keystore is stored as a base64 secret (ANDROID_KEYSTORE_BASE64) and decoded
+# into a temp file at build time. See repo secrets for the password/alias values.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK + AAB, publish to GitHub
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    # Allow GITHUB_TOKEN to create/upload to GitHub Releases.
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Read pubspec version
+        id: version
+        run: |
+          RAW=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
+          VERSION_NAME="${RAW%%+*}"
+          echo "raw=$RAW" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Discord (build started)
+        if: env.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          VERSION: ${{ steps.version.outputs.raw }}
+          RUN_URL: ${{ format('https://github.com/{0}/actions/runs/{1}', github.repository, github.run_id) }}
+        run: |
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"Build started\",\"description\":\"**Android Release** v$VERSION\\n[Build log]($RUN_URL)\",\"color\":3447003}]}" \
+            > /dev/null 2>&1 || true
+
+      - name: Set up Android signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/absorb-upload-key.jks"
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=$RUNNER_TEMP/absorb-upload-key.jks
+          EOF
+
+      - name: Build GitHub APK
+        run: flutter build apk --release --flavor github --dart-define=GITHUB_BUILD=true
+
+      - name: Build Play Store AAB
+        run: flutter build appbundle --release --flavor playstore --dart-define=PLAYSTORE_BUILD=true
+
+      - name: Rename APK and AAB with version
+        env:
+          RAW: ${{ steps.version.outputs.raw }}
+        run: |
+          # gradle already names the APK absorb-<version>-<code>.apk, so skip
+          # the mv when source and destination are the same file.
+          APK_SRC=$(ls build/app/outputs/apk/github/release/*.apk | head -1)
+          APK_DST="build/app/outputs/apk/github/release/absorb-${RAW//+/-}.apk"
+          [ "$APK_SRC" = "$APK_DST" ] || mv "$APK_SRC" "$APK_DST"
+          AAB_SRC=$(ls build/app/outputs/bundle/playstoreRelease/*.aab | head -1)
+          mv "$AAB_SRC" "build/app/outputs/bundle/playstoreRelease/absorb-${RAW}.aab"
+
+      - name: Upload APK + AAB to GitHub draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$VERSION_TAG" &>/dev/null; then
+            gh release upload "$VERSION_TAG" \
+              build/app/outputs/apk/github/release/*.apk \
+              build/app/outputs/bundle/playstoreRelease/*.aab \
+              --clobber
+          else
+            gh release create "$VERSION_TAG" \
+              build/app/outputs/apk/github/release/*.apk \
+              build/app/outputs/bundle/playstoreRelease/*.aab \
+              --draft \
+              --title "$VERSION_TAG"
+          fi
+
+      - name: Notify Discord (build finished)
+        if: always() && env.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          VERSION: ${{ steps.version.outputs.raw }}
+          RUN_URL: ${{ format('https://github.com/{0}/actions/runs/{1}', github.repository, github.run_id) }}
+          STATUS: ${{ job.status }}
+        run: |
+          if [ "$STATUS" = "success" ]; then
+            TITLE="Build successful"
+            COLOR=3066993
+          else
+            TITLE="Build failed"
+            COLOR=15158332
+          fi
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"title\":\"$TITLE\",\"description\":\"**Android Release** v$VERSION\\n[Build log]($RUN_URL)\",\"color\":$COLOR}]}" \
+            > /dev/null 2>&1 || true
