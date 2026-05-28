@@ -4,7 +4,7 @@ import UIKit
 
 /// Single AVPlayer that owns audio playback for the entire app lifetime.
 /// All transitions (intra-book track boundaries, cross-book swaps) go through
-/// `replaceCurrentItem` on the same player — the player is never destroyed —
+/// `replaceCurrentItem` on the same player. The player is never destroyed,
 /// so iOS keeps granting background audio output across transitions.
 final class AbsorbAudioEngine: NSObject {
   static let shared = AbsorbAudioEngine()
@@ -282,36 +282,51 @@ final class AbsorbAudioEngine: NSObject {
     processingState = .loading
     emitState()
 
-    DispatchQueue.main.async { [weak self] in
+    // replaceCurrentItem with an unloaded AVURLAsset crashes on iOS 26 during
+    // intra-book advance. Pre-load like setNextSource does for cross-book.
+    let asset = item.asset
+    asset.loadValuesAsynchronously(forKeys: ["tracks", "duration"]) { [weak self] in
       guard let self = self else { completion(nil); return }
-      self.detachCurrentItem()
-      self.observeNewCurrentItem(item)
-      if eqEnabled {
-        AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
-          // Benign race on currentEpoch (Int read from main thread). If the
-          // item is stale by the time the asset finishes loading, skip the
-          // audio mix assignment.
-          return self?.currentEpoch == myEpoch
-        })
+      var err: NSError?
+      let status = asset.statusOfValue(forKey: "tracks", error: &err)
+      if status != .loaded {
+        self.emit("[AudioEngine] loadTrack idx=\(index) tracks-load failed status=\(status.rawValue) err=\(err?.localizedDescription ?? "nil")")
       }
-      self.player.replaceCurrentItem(with: item)
-
-      let finish: (Bool) -> Void = { _ in
-        if autoPlay {
-          self.player.play()
-          self.player.rate = self.speed
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { completion(nil); return }
+        guard self.currentEpoch == myEpoch else {
+          self.queue.async {
+            self.emit("[AudioEngine] loadTrack idx=\(index) skipped (stale epoch)")
+            completion(nil)
+          }
+          return
         }
-        self.queue.async {
-          self.emit("[AudioEngine] loadTrack idx=\(index) localStart=\(localStart) autoPlay=\(autoPlay)")
-          completion(self.totalDurationS > 0 ? self.totalDurationS : nil)
+        self.detachCurrentItem()
+        self.observeNewCurrentItem(item)
+        if eqEnabled {
+          AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
+            return self?.currentEpoch == myEpoch
+          })
         }
-      }
+        self.player.replaceCurrentItem(with: item)
 
-      if localStart > 0 {
-        item.seek(to: CMTime(seconds: localStart, preferredTimescale: 1000),
-                  toleranceBefore: .zero, toleranceAfter: .zero, completionHandler: finish)
-      } else {
-        finish(true)
+        let finish: (Bool) -> Void = { _ in
+          if autoPlay {
+            self.player.play()
+            self.player.rate = self.speed
+          }
+          self.queue.async {
+            self.emit("[AudioEngine] loadTrack idx=\(index) localStart=\(localStart) autoPlay=\(autoPlay)")
+            completion(self.totalDurationS > 0 ? self.totalDurationS : nil)
+          }
+        }
+
+        if localStart > 0 {
+          item.seek(to: CMTime(seconds: localStart, preferredTimescale: 1000),
+                    toleranceBefore: .zero, toleranceAfter: .zero, completionHandler: finish)
+        } else {
+          finish(true)
+        }
       }
     }
   }
@@ -403,8 +418,9 @@ final class AbsorbAudioEngine: NSObject {
     let nextTrack = trackIndex + 1
     if nextTrack < trackUrls.count {
       trackIndex = nextTrack
-      let wasPlaying = player.rate > 0 || player.timeControlStatus == .playing
-      loadTrack(atIndex: nextTrack, localStart: 0, autoPlay: wasPlaying) { _ in }
+      // Player is paused now that the item ended; reading player.rate would
+      // wrongly report autoPlay=false. Intra-book advance should keep playing.
+      loadTrack(atIndex: nextTrack, localStart: 0, autoPlay: true) { _ in }
       delegate?.engineDidChangeTrack(trackIndex: nextTrack, totalTracks: trackUrls.count)
       return
     }

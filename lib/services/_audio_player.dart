@@ -81,7 +81,7 @@ class AudioPlayer {
       _isNative ? _native!.currentIndexStream : _ja!.currentIndexStream;
 
   /// Native-only signal that the engine swapped to a pre-buffered next book
-  /// mid-flight. Empty stream on Android — pre-buffer there still uses
+  /// mid-flight. Empty stream on Android - pre-buffer there still uses
   /// ConcatenatingAudioSource.add and is detected via position-jump.
   Stream<void> get bookAutoAdvancedStream =>
       _isNative ? _native!.bookAutoAdvancedStream : const Stream.empty();
@@ -101,7 +101,7 @@ class AudioPlayer {
 
   /// Pre-buffer the next book so cross-book transitions are gapless.
   /// On iOS-native this swaps via replaceCurrentItem when current ends.
-  /// On just_audio this is left as a no-op — caller still appends to its
+  /// On just_audio this is left as a no-op; caller still appends to its
   /// ConcatenatingAudioSource the old way.
   Future<bool> setNextSource(ja.AudioSource? source, {double startPositionS = 0, double totalDurationS = 0}) async {
     if (_isNative) {

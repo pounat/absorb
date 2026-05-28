@@ -67,7 +67,7 @@ class DownloadNotificationService {
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (androidPlugin != null) {
-      // Progress channel — default importance so the foreground service
+      // Progress channel; default importance so the foreground service
       // notification stays visible in the shade without making noise.
       await androidPlugin.createNotificationChannel(
         AndroidNotificationChannel(
@@ -350,7 +350,7 @@ class DownloadNotificationService {
       subtitle,
       NotificationDetails(
         android: androidDetails,
-        // Passive interruption — iOS updates the notification without showing
+        // Passive interruption: iOS updates the notification without showing
         // a banner or playing sound on each progress tick.
         iOS: const DarwinNotificationDetails(
           presentAlert: false,

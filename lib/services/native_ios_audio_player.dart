@@ -34,7 +34,7 @@ class NativeIosAudioPlayer {
   int? _currentIndex;
   DateTime _updateTime = DateTime.now();
 
-  // Stream controllers — broadcast so multiple listeners are allowed.
+  // Stream controllers; broadcast so multiple listeners are allowed.
   final _positionController = StreamController<Duration>.broadcast();
   final _durationController = StreamController<Duration?>.broadcast();
   final _bufferedPositionController = StreamController<Duration>.broadcast();
@@ -69,7 +69,7 @@ class NativeIosAudioPlayer {
   double get volume => _volume;
   int? get currentIndex => _currentIndex;
 
-  /// Android-only — always null on iOS, matches just_audio's iOS behavior.
+  /// Android-only; always null on iOS, matches just_audio's iOS behavior.
   int? get androidAudioSessionId => null;
 
   /// Current playback event snapshot. AudioPlayerHandler reads this in
@@ -164,7 +164,7 @@ class NativeIosAudioPlayer {
     await _methodChannel.invokeMethod('setVolume', {'volume': volume});
   }
 
-  /// No-op on iOS — just_audio's iOS plugin doesn't support skip-silence either.
+  /// No-op on iOS; just_audio's iOS plugin doesn't support skip-silence either.
   Future<void> setSkipSilenceEnabled(bool enabled) async {}
 
   /// Sleep timer chime uses ja.AudioPlayer.setAsset directly; this wrapper
