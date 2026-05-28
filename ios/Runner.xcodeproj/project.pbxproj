@@ -218,13 +218,13 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				BB10010000000000000E0001 /* AbsorbPlayerCore.swift */,
 				BB10010000000000000E0002 /* IOSQueueAdvancer.swift */,
-				BB10010000000000000E0010 /* Audio */,
+				BB10010000000000000E0030 /* Audio */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
 		};
-		BB10010000000000000E0010 /* Audio */ = {
+		BB10010000000000000E0030 /* Audio */ = {
 			isa = PBXGroup;
 			children = (
 				BB10010000000000000E0003 /* AbsorbAudioEngine.swift */,
