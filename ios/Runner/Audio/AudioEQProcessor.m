@@ -203,7 +203,14 @@ static void tapProcess(MTAudioProcessingTapRef tap,
                                                          flagsOut, NULL, numberFramesOut);
     if (status != noErr) return;
 
-    if (!atomic_load_explicit(&sParams.enabled, memory_order_relaxed)) return;
+    int bandsOn = atomic_load_explicit(&sParams.enabled, memory_order_relaxed);
+    int mono = atomic_load_explicit(&sParams.mono, memory_order_relaxed);
+    int loudnessMb = atomic_load_explicit(&sParams.loudnessGainMb, memory_order_relaxed);
+    int hasBass = atomic_load_explicit(&sParams.bassBoostStrength, memory_order_relaxed) > 0;
+
+    // Bass / loudness / mono apply independently of the band-EQ master switch,
+    // so process whenever any of them is active - not only when bands are on.
+    if (!bandsOn && !mono && loudnessMb <= 0 && !hasBass) return;
 
     TapContext *ctx = (TapContext *)MTAudioProcessingTapGetStorage(tap);
     if (!ctx) return;
@@ -213,10 +220,7 @@ static void tapProcess(MTAudioProcessingTapRef tap,
         rebuildCoefficients(ctx);
     }
 
-    int mono = atomic_load_explicit(&sParams.mono, memory_order_relaxed);
-    int loudnessMb = atomic_load_explicit(&sParams.loudnessGainMb, memory_order_relaxed);
     float loudnessGain = (loudnessMb > 0) ? powf(10.0f, (float)loudnessMb / 2000.0f) : 1.0f;
-    int hasBass = atomic_load_explicit(&sParams.bassBoostStrength, memory_order_relaxed) > 0;
 
     UInt32 numBuffers = bufferListInOut->mNumberBuffers;
     CMItemCount frames = *numberFramesOut;
@@ -234,8 +238,10 @@ static void tapProcess(MTAudioProcessingTapRef tap,
             for (CMItemCount f = 0; f < frames; f++) {
                 float sample = data[f];
 
-                for (int band = 0; band < EQ_NUM_BANDS; band++) {
-                    sample = processBiquad(&ctx->coeffs[band], &ctx->delays[band][ch], sample);
+                if (bandsOn) {
+                    for (int band = 0; band < EQ_NUM_BANDS; band++) {
+                        sample = processBiquad(&ctx->coeffs[band], &ctx->delays[band][ch], sample);
+                    }
                 }
 
                 if (hasBass) {
@@ -273,8 +279,10 @@ static void tapProcess(MTAudioProcessingTapRef tap,
                 for (int ch = 0; ch < chansInBuf && ch < MAX_CHANNELS; ch++) {
                     float sample = data[f * chansInBuf + ch];
 
-                    for (int band = 0; band < EQ_NUM_BANDS; band++) {
-                        sample = processBiquad(&ctx->coeffs[band], &ctx->delays[band][ch], sample);
+                    if (bandsOn) {
+                        for (int band = 0; band < EQ_NUM_BANDS; band++) {
+                            sample = processBiquad(&ctx->coeffs[band], &ctx->delays[band][ch], sample);
+                        }
                     }
 
                     if (hasBass) {

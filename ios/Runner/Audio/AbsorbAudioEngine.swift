@@ -43,6 +43,10 @@ final class AbsorbAudioEngine: NSObject {
   private var speed: Float = 1.0
   private var volume: Float = 1.0
   private var eqEnabled: Bool = false
+  // Whether the current item physically has the processing tap installed.
+  // Lets us avoid rebuilding the item to re-apply effects when a tap is
+  // already present (it reads the live DSP params on its own).
+  private var tapAttached: Bool = false
   private var processingState: EngineProcessingState = .idle
 
   // Observers.
@@ -228,25 +232,35 @@ final class AbsorbAudioEngine: NSObject {
     }
   }
 
+  /// Ensure the processing tap is live so EQ/effects apply. A tap can't be
+  /// added to an already-playing item, so if one isn't attached we rebuild the
+  /// current track in place (brief reload). If a tap is already present it
+  /// reads the live DSP params itself - nothing to do.
   func attachEqualizerTap() {
     queue.async { [weak self] in
       guard let self = self else { return }
       self.eqEnabled = true
+      if self.tapAttached { return }
       guard let item = self.currentItem else { return }
-      let epoch = self.currentEpoch
-      AbsorbAudioEQProcessor.shared.attachTap(to: item, shouldStillAttach: { [weak self] in
-        return self?.currentEpoch == epoch
-      })
+      if self.player.rate > 0 {
+        let local = item.currentTime().seconds
+        self.loadTrack(atIndex: self.trackIndex,
+                       localStart: local.isFinite ? max(0, local) : 0,
+                       autoPlay: true) { _ in }
+      } else {
+        AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
+        self.tapAttached = true
+      }
     }
   }
 
+  /// Stop applying effects. Lazy: the DSP params are already zeroed by the
+  /// caller, so the tap (if attached) just passes through. We leave it in place
+  /// to avoid a reload blip; it won't reattach on the next track load.
   func detachEqualizerTap() {
     queue.async { [weak self] in
       guard let self = self else { return }
       self.eqEnabled = false
-      if let item = self.currentItem {
-        AbsorbAudioEQProcessor.shared.detach(from: item)
-      }
     }
   }
 
@@ -308,6 +322,9 @@ final class AbsorbAudioEngine: NSObject {
         if eqEnabled {
           // audioMix must be set before playback starts or the tap is ignored.
           AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
+          self.tapAttached = true
+        } else {
+          self.tapAttached = false
         }
         self.player.replaceCurrentItem(with: item)
 
@@ -466,6 +483,9 @@ final class AbsorbAudioEngine: NSObject {
       if self.eqEnabled {
         // audioMix must be set before playback starts or the tap is ignored.
         AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
+        self.tapAttached = true
+      } else {
+        self.tapAttached = false
       }
       self.player.replaceCurrentItem(with: item)
       if startS > 0 {

@@ -34,6 +34,10 @@ class EqualizerService extends ChangeNotifier {
   /// just_audio.
   void Function(bool enabled)? _skipSilenceApplier;
 
+  /// Invoked when [anyProcessingActive] may have changed so the iOS engine can
+  /// attach/detach its processing tap. Registered by AudioPlayerService.
+  void Function(bool active)? _tapApplier;
+
   // Built-in presets (EQ curve shapes)
   static const Map<String, List<double>> presets = {
     'flat': [0, 0, 0, 0, 0],
@@ -61,6 +65,12 @@ class EqualizerService extends ChangeNotifier {
   bool get skipSilence => _skipSilence;
   bool get perItem => _perItem;
   String? get currentItemId => _currentItemId;
+
+  /// True when any audio processing (band EQ, bass, loudness, or mono) is
+  /// active. iOS uses this to decide whether the processing tap must be live;
+  /// effects work even with the band-EQ master switch off.
+  bool get anyProcessingActive =>
+      _enabled || _bassBoost > 0 || _loudnessGain > 0 || _mono;
 
   /// Initialize — try to connect to platform EQ, fall back to software presets.
   Future<void> init() async {
@@ -91,6 +101,7 @@ class EqualizerService extends ChangeNotifier {
       _setupSoftwareFallback();
     }
     _skipSilenceApplier?.call(_skipSilence);
+    _tapApplier?.call(anyProcessingActive);
     notifyListeners();
   }
 
@@ -112,6 +123,7 @@ class EqualizerService extends ChangeNotifier {
     } else {
       _resetPlatform();
     }
+    _tapApplier?.call(anyProcessingActive);
     await _saveSettings();
     notifyListeners();
   }
@@ -148,11 +160,11 @@ class EqualizerService extends ChangeNotifier {
   /// Set bass boost (0.0–1.0).
   Future<void> setBassBoost(double value) async {
     _bassBoost = value.clamp(0.0, 1.0);
-    if (_enabled) {
-      try {
-        await _channel.invokeMethod('setBassBoost', {'strength': (_bassBoost * 1000).round()});
-      } catch (_) {}
-    }
+    // Effects apply independently of the band-EQ master switch on both platforms.
+    try {
+      await _channel.invokeMethod('setBassBoost', {'strength': (_bassBoost * 1000).round()});
+    } catch (_) {}
+    _tapApplier?.call(anyProcessingActive);
     await _saveSettings();
     notifyListeners();
   }
@@ -175,6 +187,7 @@ class EqualizerService extends ChangeNotifier {
     try {
       await _channel.invokeMethod('setMono', {'enabled': _mono});
     } catch (_) {}
+    _tapApplier?.call(anyProcessingActive);
     await _saveSettings();
     notifyListeners();
   }
@@ -196,14 +209,20 @@ class EqualizerService extends ChangeNotifier {
     fn(_skipSilence);
   }
 
+  /// Register the iOS processing-tap applier. Called once immediately so the
+  /// engine reflects the current state.
+  void setTapApplier(void Function(bool active) fn) {
+    _tapApplier = fn;
+    fn(anyProcessingActive);
+  }
+
   /// Set loudness enhancer gain (0.0–1.0).
   Future<void> setLoudnessGain(double value) async {
     _loudnessGain = value.clamp(0.0, 1.0);
-    if (_enabled) {
-      try {
-        await _channel.invokeMethod('setLoudness', {'gain': (_loudnessGain * 1500).round()});
-      } catch (_) {}
-    }
+    try {
+      await _channel.invokeMethod('setLoudness', {'gain': (_loudnessGain * 1500).round()});
+    } catch (_) {}
+    _tapApplier?.call(anyProcessingActive);
     await _saveSettings();
     notifyListeners();
   }
@@ -220,7 +239,10 @@ class EqualizerService extends ChangeNotifier {
     _skipSilenceApplier?.call(_skipSilence);
     if (_enabled) {
       _applyCurrentSettings();
+    } else {
+      _resetPlatform();
     }
+    _tapApplier?.call(anyProcessingActive);
     await _saveSettings();
     notifyListeners();
   }
@@ -235,8 +257,9 @@ class EqualizerService extends ChangeNotifier {
       if (_enabled) {
         _applyCurrentSettings();
       } else {
-        // Ensure effects stay disabled even though the native side creates them disabled by default
-        _channel.invokeMethod('setEnabled', {'enabled': false});
+        // Bands off, but still push bass/loudness/mono so independent effects
+        // apply on a freshly-attached session.
+        _resetPlatform();
       }
     } catch (e) {
       debugPrint('[EQ] attachSession failed: $e');
@@ -269,8 +292,12 @@ class EqualizerService extends ChangeNotifier {
 
   Future<void> _resetPlatform() async {
     try {
+      // Master switch only gates the band EQ; effects stay applied so bass /
+      // loudness / mono keep working with the equalizer off.
       await _channel.invokeMethod('setEnabled', {'enabled': false});
       await _channel.invokeMethod('setMono', {'enabled': _mono});
+      await _channel.invokeMethod('setBassBoost', {'strength': (_bassBoost * 1000).round()});
+      await _channel.invokeMethod('setLoudness', {'gain': (_loudnessGain * 1500).round()});
     } catch (_) {}
   }
 
@@ -286,6 +313,7 @@ class EqualizerService extends ChangeNotifier {
   Future<void> switchItem(String itemId) async {
     if (!_perItem) {
       _currentItemId = itemId;
+      _tapApplier?.call(anyProcessingActive);
       return;
     }
     if (_currentItemId != null && _currentItemId != itemId) {
@@ -299,6 +327,7 @@ class EqualizerService extends ChangeNotifier {
     } else {
       _resetPlatform();
     }
+    _tapApplier?.call(anyProcessingActive);
     notifyListeners();
   }
 
@@ -423,6 +452,7 @@ class EqualizerService extends ChangeNotifier {
     } else {
       await _resetPlatform();
     }
+    _tapApplier?.call(anyProcessingActive);
     notifyListeners();
   }
 

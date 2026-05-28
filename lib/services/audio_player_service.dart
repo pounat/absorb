@@ -1727,6 +1727,21 @@ class AudioPlayerService extends ChangeNotifier {
           }
         });
       }
+      // iOS native engine: keep the processing tap attached whenever any
+      // EQ/effect is active so effects work with the band EQ off.
+      if (Platform.isIOS) {
+        EqualizerService().setTapApplier((active) {
+          try {
+            if (active) {
+              _handler?.player.attachEqualizerTap();
+            } else {
+              _handler?.player.detachEqualizerTap();
+            }
+          } catch (e) {
+            debugPrint('[Player] tap applier failed: $e');
+          }
+        });
+      }
       // Initialize cached skip amounts so notification icons show the correct values
       _handler!._cachedForwardSkip = fwdSkip;
       _handler!._cachedBackSkip = backSkip;

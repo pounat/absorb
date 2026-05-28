@@ -248,11 +248,11 @@ class MainActivity : AudioServiceActivity() {
 
     private fun handleSetEnabled(enabled: Boolean, result: MethodChannel.Result) {
         try {
+            // Master switch gates only the band EQ. Bass / virtualizer /
+            // loudness are independent and track their own values, so they
+            // keep working with the equalizer off.
             eqEnabled = enabled
             equalizer?.enabled = enabled
-            bassBoost?.enabled = enabled
-            virtualizer?.enabled = enabled
-            loudnessEnhancer?.enabled = enabled && eqLoudnessGainMb > 0
             result.success(true)
         } catch (e: Exception) {
             result.error("EQ_ERROR", e.message, null)
@@ -270,7 +270,10 @@ class MainActivity : AudioServiceActivity() {
 
     private fun handleSetBassBoost(strength: Int, result: MethodChannel.Result) {
         try {
-            bassBoost?.setStrength(strength.toShort().coerceIn(0, 1000))
+            val s = strength.toShort().coerceIn(0, 1000)
+            bassBoost?.setStrength(s)
+            // Independent of the band-EQ master: on when there's something to do.
+            bassBoost?.enabled = s > 0
             result.success(true)
         } catch (e: Exception) {
             result.error("EQ_ERROR", e.message, null)
@@ -279,7 +282,9 @@ class MainActivity : AudioServiceActivity() {
 
     private fun handleSetVirtualizer(strength: Int, result: MethodChannel.Result) {
         try {
-            virtualizer?.setStrength(strength.toShort().coerceIn(0, 1000))
+            val s = strength.toShort().coerceIn(0, 1000)
+            virtualizer?.setStrength(s)
+            virtualizer?.enabled = s > 0
             result.success(true)
         } catch (e: Exception) {
             result.error("EQ_ERROR", e.message, null)
@@ -290,7 +295,7 @@ class MainActivity : AudioServiceActivity() {
         try {
             eqLoudnessGainMb = gain
             loudnessEnhancer?.setTargetGain(gain)
-            loudnessEnhancer?.enabled = eqEnabled && gain > 0
+            loudnessEnhancer?.enabled = gain > 0
             result.success(true)
         } catch (e: Exception) {
             result.error("EQ_ERROR", e.message, null)
