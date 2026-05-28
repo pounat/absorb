@@ -1248,7 +1248,7 @@ class AudioPlayerService extends ChangeNotifier {
         return;
       }
 
-      if (Platform.isIOS && PlayerSettings.useNativeIosPlayerSync) {
+      if (Platform.isIOS) {
         // Native engine owns the cross-book swap. Skip concat.add entirely.
         final source = nextTrackSources.length == 1
             ? nextTrackSources.first

@@ -392,27 +392,6 @@ class PlayerSettings {
     await prefs.setBool('loggingEnabled', value);
   }
 
-  // ── Native iOS audio engine (experimental) ──
-  //
-  // When on, AudioPlayer is backed by AbsorbAudioEngine in Swift instead of
-  // just_audio. Read synchronously after primeUseNativeIosPlayerCache() runs
-  // at app boot so the AudioPlayer constructor can pick a backend without
-  // awaiting prefs.
-  static bool _useNativeIosPlayerCache = false;
-  static bool get useNativeIosPlayerSync => _useNativeIosPlayerCache;
-  static Future<bool> getUseNativeIosPlayer() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('use_native_ios_player') ?? false;
-  }
-  static Future<void> setUseNativeIosPlayer(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('use_native_ios_player', value);
-    _useNativeIosPlayerCache = value;
-  }
-  static Future<void> primeUseNativeIosPlayerCache() async {
-    _useNativeIosPlayerCache = await getUseNativeIosPlayer();
-  }
-
   static Future<bool> getFullScreenPlayer() => _get('fullScreenPlayer', false);
   static Future<void> setFullScreenPlayer(bool value) => _set('fullScreenPlayer', value);
 

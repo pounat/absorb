@@ -90,7 +90,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showGoodreadsButton = false;
   bool _showExplicitBadge = true;
   bool _loggingEnabled = false;
-  bool _useNativeIosPlayer = false;
   bool _fullScreenPlayer = false;
   // card button layout is now managed in the edit sheet (more menu)
   bool _snappyTransitions = false;
@@ -435,11 +434,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _canPickDownloadLocation = !_isPlayStoreBuild;
 
       _loaded = true;
-    });
-    // Native iOS engine flag is its own SharedPreferences key; fetch separately
-    // to keep the bulk-load tuple stable.
-    PlayerSettings.getUseNativeIosPlayer().then((v) {
-      if (mounted) setState(() => _useNativeIosPlayer = v);
     });
   }
 
@@ -2275,30 +2269,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                       onTap: _openRmabSheetFromSettings,
                     ),
-                    if (Platform.isIOS) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
-                        title: const Text('Native iOS audio engine (experimental)'),
-                        subtitle: Text(
-                          _useNativeIosPlayer
-                              ? 'On - restart the app for the change to take effect'
-                              : 'Off - uses just_audio (current default)',
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                        ),
-                        value: _useNativeIosPlayer,
-                        onChanged: _loaded
-                            ? (v) async {
-                                await PlayerSettings.setUseNativeIosPlayer(v);
-                                setState(() => _useNativeIosPlayer = v);
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Restart the app for the change to take effect')),
-                                  );
-                                }
-                              }
-                            : null,
-                      ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
