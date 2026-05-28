@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart' as ja;
+import 'scoped_prefs.dart';
 
 /// Native iOS audio engine wrapper. Mimics enough of just_audio's
 /// `AudioPlayer` surface that AudioPlayerHandler treats it as a drop-in.
@@ -86,6 +87,7 @@ class NativeIosAudioPlayer {
     if (tracks.isEmpty) return null;
 
     final startS = (initialPosition?.inMilliseconds ?? 0) / 1000.0;
+    final eqEnabled = await ScopedPrefs.getBool('eq_enabled') ?? false;
     final result = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('load', {
       'tracks': tracks.map(_trackToMap).toList(),
       'trackOffsets': _buildTrackOffsets(tracks),
@@ -93,7 +95,7 @@ class NativeIosAudioPlayer {
       'totalDurationS': _totalDurationHint,
       'speed': _speed,
       'volume': _volume,
-      'eqEnabled': false,
+      'eqEnabled': eqEnabled,
     });
     final durS = result?['durationS'] as double?;
     if (durS != null) {
