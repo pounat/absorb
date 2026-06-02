@@ -966,6 +966,7 @@
   "mono": "Mono",
   "stereo": "Stereo",
   "encodeStarted": "M4B Encodierung gestartet",
+  "encodeFailed": "Encodieren konnte nicht gestartet werden",
   "currentlyLabel": "Momentan:",
   "aboutSection": "Info",
   "chaptersCount": "Kapitel ({count})",
@@ -3129,6 +3130,7 @@
   "authorImageFailed": "Das Autorenbild konnte nicht aktualisiert werden",
   "authorUpdated": "Autor aktualisiert",
   "authorUpdateFailed": "Der Autor konnte nicht aktualisiert werden",
+  "authorMatched": "Autor von Übereinstimmung aktualisiert",
   "authorNoMatchFound": "Kein Treffer gefunden",
   "authorMergedInto": "Zusammengeführt in {name}",
   "@authorMergedInto": {
@@ -3139,11 +3141,14 @@
     }
   },
   "region": "Region",
+  "editTabCover": "Cover",
   "chapterAddHint": "Kapitel hinzufügen (z.B. \"Kapitel 01\")",
+  "chapterAddTooltip": "Kapitel hinzufügen(n)",
   "chapterRemoveAll": "Alle entfernen",
   "chapterShiftTimes": "Zeiten verschieben",
   "chapterShowSeconds": "Sekunden anzeigen",
   "chapterShiftBySeconds": "Verschieben um (Sekunden)",
   "coverSearchTitle": "Nach einem Cover suchen",
+  "coverSearchRefineHint": "Den Titel/Autor verfeinern, um die Ergebnisse aufzuräumen - das ändert das Buch nicht.",
   "coverEnterTitleFirst": "Gebe zuerst einen Titel ein"
 }
