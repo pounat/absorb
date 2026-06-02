@@ -387,7 +387,6 @@
   "disablePageFadeOnSubtitle": "Pages switch instantly",
   "disablePageFadeOffSubtitle": "Pages fade when switching tabs",
   "rectangleBookCovers": "Rectangle book covers",
-  "progressTextSize": "Progress text size",
   "rectangleBookCoversOnSubtitle": "Covers display in 2:3 book proportion",
   "rectangleBookCoversOffSubtitle": "Covers are square",
   "sectionAbsorbingCards": "Absorbing Cards",
@@ -1007,11 +1006,6 @@
   "addToAbsorbing": "Add to Absorbing",
   "removedFromAbsorbing": "Removed from Absorbing",
   "addedToAbsorbing": "Added to Absorbing",
-  "removeFromContinueListening": "Remove from Continue Listening",
-  "removedFromContinueListening": "Removed from Continue Listening",
-  "removeSeriesFromContinueSeries": "Remove Series from Continue Series",
-  "removedSeriesFromContinueSeries": "Removed from Continue Series",
-  "couldNotUpdate": "Could not update, try again",
   "addToPlaylist": "Add to Playlist",
   "addToCollection": "Add to Collection",
   "downloadEbook": "Download eBook",
@@ -2963,7 +2957,6 @@
   "tipsSheetOfflineModeTitle": "Offline Mode",
   "tipsSheetOfflineModeDesc": "Tap the airplane button on the Absorbing screen to enter offline mode. This stops syncing, saves data, and only shows your downloaded books. Great for flights or low signal areas.",
   "tipsSheetUpcomingReleasesTitle": "Upcoming Releases",
-  "tipsSheetUpcomingReleasesDesc": "On the Series tab, tap the tab again to open its sort and filter sheet, then choose Upcoming Releases to see new and upcoming books across your series, sorted by release date.",
   "tipsSheetPerBookEqTitle": "Per-Book Equalizer",
   "tipsSheetPerBookEqDesc": "Each book remembers its own equalizer settings. Tweak EQ once for a sci-fi epic and the next time you play it, it sounds the same.",
   "tipsSheetPerBookSpeedTitle": "Per-Book Speed",
@@ -2975,7 +2968,6 @@
   "tipsSheetCarModeTitle": "Car Mode",
   "tipsSheetCarModeDesc": "Tap the car icon to switch to giant-button mode designed for safer use while driving.",
   "tipsSheetAudibleSeriesTitle": "Audible Series Discovery",
-  "tipsSheetAudibleSeriesDesc": "Open a series and use the overflow menu (the three dots) to pull the full series list from Audible, including missing entries and books you haven't started.",
   "bookCardUnknownTitle": "Unknown Title",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Done",
@@ -3237,197 +3229,5 @@
     }
   },
   "authorQuickMatchHint": "Pull name, ASIN, description and image from Audible for the chosen region.",
-  "region": "Region",
-
-  "editTabDetails": "Details",
-  "editTabCover": "Cover",
-  "editTabMatch": "Match",
-  "editTabEmbed": "Embed",
-
-  "chapterEditorTitle": "Edit Chapters",
-  "chapterNotConnected": "Not connected to a server",
-  "chapterErrorFirstNotZero": "First chapter must start at 0:00",
-  "chapterErrorStartAfterPrevious": "Start must come after the previous chapter",
-  "chapterErrorStartBeforeEnd": "Start must be before the book ends",
-  "chapterErrorTitleRequired": "Title required",
-  "chapterEditStartTitle": "Edit start time",
-  "chapterTimeHintSeconds": "Seconds",
-  "chapterTimeHintFull": "HH:MM:SS or seconds",
-  "chapterInvalidTime": "Invalid time",
-  "chapterLocked": "Chapter is locked",
-  "chapterAllLocked": "All chapters are locked",
-  "chapterTrackTitle": "Track {number}",
-  "@chapterTrackTitle": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
-  "chapterNoAudioForPosition": "No audio for this position",
-  "chapterCouldNotPlayPreview": "Could not play preview",
-  "chapterStartSetTo": "Start set to {time}",
-  "@chapterStartSetTo": {
-    "placeholders": {
-      "time": {
-        "type": "String"
-      }
-    }
-  },
-  "chapterAddNumberedTitle": "Add numbered chapters",
-  "chapterNextPreview": "Next: \"{first}\", \"{second}\", ...",
-  "@chapterNextPreview": {
-    "placeholders": {
-      "first": {
-        "type": "String"
-      },
-      "second": {
-        "type": "String"
-      }
-    }
-  },
-  "chapterHowMany": "How many chapters",
-  "add": "Add",
-  "chapterCountRange": "Enter a count between 1 and 150",
-  "chapterTitlesUpdated": "Chapter titles updated",
-  "chaptersApplied": "Chapters applied",
-  "chapterDiscardTitle": "Discard changes?",
-  "chapterDiscardMessage": "Revert to the saved chapters.",
-  "chapterRemoveAllTitle": "Remove all chapters?",
-  "chapterRemoveAllMessage": "This removes every chapter from this book.",
-  "chapterAllRemoved": "All chapters removed",
-  "chapterFixHighlighted": "Fix the highlighted chapters first",
-  "chaptersUpdated": "Chapters updated",
-  "ok": "OK",
-  "chapterSaveButton": "Save chapters",
-  "chapterAddHint": "Add chapter (e.g. \"Chapter 01\")",
-  "chapterAddTooltip": "Add chapter(s)",
-  "chapterRemoveAll": "Remove All",
-  "chapterShiftTimes": "Shift Times",
-  "chapterFromTracks": "From Tracks",
-  "chapterLookup": "Lookup",
-  "chapterShowSeconds": "Show seconds",
-  "chapterShiftBySeconds": "Shift by (seconds)",
-  "chapterShiftHint": "Shifts every unlocked chapter. Use a negative value to move them earlier.",
-  "chapterBack1Second": "Back 1 second",
-  "chapterForward1Second": "Forward 1 second",
-  "chapterTitleHint": "Chapter title",
-  "chapterStopPreview": "Stop preview",
-  "chapterPreviewFromHere": "Preview from here",
-  "chapterScrubHint": "Scrub to the exact spot, then set",
-  "chapterStartAt": "Start at {time}",
-  "@chapterStartAt": {
-    "placeholders": {
-      "time": {
-        "type": "String"
-      }
-    }
-  },
-  "chapterSetStartHere": "Set start here",
-  "chapterMore": "More",
-  "chapterUnlock": "Unlock",
-  "chapterLock": "Lock",
-  "chapterInsertBelow": "Insert below",
-  "chapterFindTitle": "Find chapters",
-  "chapterFindSubtitle": "Looks up chapters from Audible/Audnexus by ASIN.",
-  "chapterEnterAsin": "Enter an ASIN",
-  "chapterLookupFailed": "Lookup failed - check the ASIN",
-  "chapterNoChaptersFound": "No chapters found for that ASIN",
-  "chapterRemoveBranding": "Remove Audible branding (intro/outro)",
-  "chapterFoundCount": "{count} chapters found",
-  "@chapterFoundCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "chapterAudibleVsBook": "Audible {audible}  -  Book {book}",
-  "@chapterAudibleVsBook": {
-    "placeholders": {
-      "audible": {
-        "type": "String"
-      },
-      "book": {
-        "type": "String"
-      }
-    }
-  },
-  "chapterAudibleLonger": "The Audible version is longer than your file - later chapters may not line up.",
-  "chapterAudibleShorter": "The Audible version is shorter than your file - chapters may not line up.",
-  "chapterTitlesOnly": "Titles only",
-  "chapterApplyChapters": "Apply chapters",
-
-  "coverSearchTitle": "Search for a cover",
-  "coverSearchRefineHint": "Refine the title/author to clean up results - this does not change the book.",
-  "coverNoneFound": "No covers found",
-  "coverEnterTitleFirst": "Enter a title first",
-  "coverUpdated": "Cover updated",
-  "coverCouldNotUpdate": "Could not update cover",
-  "coverApply": "Apply cover",
-  "coverUnknownResolution": "Unknown resolution",
-
-  "embedIntro": "Embed metadata into audio files including cover image and chapters.",
-  "embedBackupOption": "Back up audio files first",
-  "embedNoteInFolder": "Metadata will be embedded in the audio tracks inside your audiobook folder.",
-  "embedNoteMultiTrack": "Chapters are not embedded in multi-track audiobooks.",
-  "embedNoteNavigateAway": "Once the task is started you can navigate away from this page.",
-  "embedStartButton": "Start Metadata Embed",
-  "embedProgress": "Embedding {percent}%",
-  "@embedProgress": {
-    "placeholders": {
-      "percent": {
-        "type": "String"
-      }
-    }
-  },
-  "embedProgressIndeterminate": "Embedding...",
-  "taskProgressKeepsRunning": "{percent}% - keeps running if you leave this page",
-  "@taskProgressKeepsRunning": {
-    "placeholders": {
-      "percent": {
-        "type": "String"
-      }
-    }
-  },
-  "taskStarting": "Starting...",
-  "embedBackupNoteIntro": "A backup of your original audio files will be stored on the server in ",
-  "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
-  "@embedBackupNotePath": {
-    "placeholders": {
-      "itemId": {
-        "type": "String"
-      }
-    }
-  },
-  "embedBackupNoteOutro": ". Make sure to periodically purge the items cache.",
-  "embedDialogTitle": "Embed metadata",
-  "embedConfirmMessage": "Embed metadata into {count, plural, one{# audio file} other{# audio files}}? Your audio files will be rewritten{backup}.",
-  "@embedConfirmMessage": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "backup": {
-        "type": "String"
-      }
-    }
-  },
-  "embedConfirmBackupClause": " (originals backed up first)",
-  "embedConfirmAction": "Embed",
-  "embedCouldNotStart": "Could not start embed",
-  "embedStarted": "Embed started",
-  "embedComplete": "Embed complete",
-  "embedFailed": "Embed failed",
-  "encodeComplete": "Encode complete",
-  "encodeFailedTask": "Encode failed",
-  "encodeProgress": "Encoding {percent}%",
-  "@encodeProgress": {
-    "placeholders": {
-      "percent": {
-        "type": "String"
-      }
-    }
-  },
-  "encodeProgressIndeterminate": "Encoding..."
+  "region": "Region"
 }
