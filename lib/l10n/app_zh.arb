@@ -1165,6 +1165,24 @@
   "audible": "Audible",
   "iTunes": "iTunes",
   "openLibrary": "打开媒体库",
+  "equalizerLabel": "均衡器",
+  "equalizerPresetFlat": "原声",
+  "equalizerPresetVoiceBoost": "人声增强",
+  "equalizerPresetBassBoost": "低音增强",
+  "equalizerPresetTrebleBoost": "高音增强",
+  "equalizerPresetPodcast": "播客",
+  "equalizerPresetAudiobook": "有声书",
+  "equalizerPresetReduceNoise": "降噪",
+  "sleepTimerSheetStartChapterSleep": "{count, plural, =1{听完 1 章结束} other{听完 {count} 章结束}}",
+  "@sleepTimerSheetStartChapterSleep": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTimerSheetRewindOnSleep": "定时结束自动倒回",
+  "sleepTimerSheetShake": "摇一摇",
   "sleepTimerSheetTabSpecificChapter": "章节",
   "sleepTimerSheetSpecificNoChapters": "没有可用的章节",
   "sleepTimerSheetSpecificChapterFallback": "第 {number} 章",
@@ -1192,6 +1210,7 @@
   "sleepTimerSheetSpecificStartButtonPassed": "已过",
   "timeAm": "上午",
   "timePm": "下午",
+  "tipsSheetQuickBookmarksTitle": "快速书签",
   "showTipsAgain": "再次显示提示",
   "showTipsAgainSubtitle": "恢复你已关闭的功能提示",
   "tipsRestored": "已恢复提示",
