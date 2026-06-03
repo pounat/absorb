@@ -578,13 +578,6 @@
     }
   },
   "sectionDownloadsAndStorage": "Downloads & Speicher",
-  "downloadOverWifiOnly": "Nur über WLAN herunterladen",
-  "downloadOverWifiOnSubtitle": "An - mobile Daten für Downloads blockiert",
-  "downloadOverWifiOffSubtitle": "Aus - Downloads über jede Verbindung",
-  "autoDownloadOnWifi": "Auto-Download im WLAN",
-  "autoDownloadOnWifiInfoTitle": "Auto-Download im WLAN",
-  "autoDownloadOnWifiInfoContent": "Wenn du ein Buch über WLAN streamst, wird das vollständige Buch automatisch im Hintergrund heruntergeladen. So hast du es offline verfügbar, ohne den Download manuell starten zu müssen.",
-  "autoDownloadOnWifiOnSubtitle": "Bücher werden im Hintergrund heruntergeladen, wenn du im WLAN streamst",
   "autoDownloadOnWifiOffSubtitle": "Aus",
   "concurrentDownloads": "Gleichzeitige Downloads",
   "autoDownload": "Auto-Download",
