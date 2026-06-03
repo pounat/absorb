@@ -595,13 +595,6 @@
     }
   },
   "sectionDownloadsAndStorage": "Downloads & Storage",
-  "downloadOverWifiOnly": "Download over Wi-Fi only",
-  "downloadOverWifiOnSubtitle": "On - mobile data blocked for downloads",
-  "downloadOverWifiOffSubtitle": "Off - downloads on any connection",
-  "autoDownloadOnWifi": "Auto download on Wi-Fi",
-  "autoDownloadOnWifiInfoTitle": "Auto Download on Wi-Fi",
-  "autoDownloadOnWifiInfoContent": "When you start streaming a book over Wi-Fi, it will automatically begin downloading the full book in the background. This way you'll have it available offline without having to manually start the download.",
-  "autoDownloadOnWifiOnSubtitle": "Books download in the background when you start streaming on Wi-Fi",
   "autoDownloadOnWifiOffSubtitle": "Off",
   "concurrentDownloads": "Concurrent downloads",
   "autoDownload": "Auto-download",
