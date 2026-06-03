@@ -554,13 +554,6 @@
     }
   },
   "sectionDownloadsAndStorage": "下载与存储",
-  "downloadOverWifiOnly": "仅在 Wi-Fi 下下载",
-  "downloadOverWifiOnSubtitle": "开启 - 禁止使用移动数据下载",
-  "downloadOverWifiOffSubtitle": "关闭 - 任何网络均可下载",
-  "autoDownloadOnWifi": "Wi-Fi 下自动下载",
-  "autoDownloadOnWifiInfoTitle": "Wi-Fi 下自动下载",
-  "autoDownloadOnWifiInfoContent": "当你在 Wi-Fi 下开始流式播放一本书时，它将自动在后台下载整本书。这样你无需手动开始下载即可离线收听。",
-  "autoDownloadOnWifiOnSubtitle": "在 Wi-Fi 下开始流式播放时，书籍将在后台下载",
   "autoDownloadOnWifiOffSubtitle": "关闭",
   "concurrentDownloads": "同时下载数",
   "autoDownload": "自动下载",
