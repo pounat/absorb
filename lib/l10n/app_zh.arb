@@ -1265,7 +1265,7 @@
       }
     }
   },
-  "upcomingReleasesUpcomingCount": " {count} 个即将发布",
+  "upcomingReleasesUpcomingCount": "{count} 个即将发布",
   "@upcomingReleasesUpcomingCount": {
     "placeholders": {
       "count": {
