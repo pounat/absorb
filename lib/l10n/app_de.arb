@@ -120,6 +120,14 @@
       }
     }
   },
+  "libraryNoBooksWithTag": "Keine Bücher mit dem Schlagwort \"{tag}\"",
+  "@libraryNoBooksWithTag": {
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
   "libraryClearFilter": "Filter zurücksetzen",
   "libraryNoAuthorsFound": "Keine Autoren gefunden",
   "libraryNoNarratorsFound": "Keine Sprecher gefunden",
@@ -379,6 +387,7 @@
   "disablePageFadeOnSubtitle": "Seiten wechseln sofort",
   "disablePageFadeOffSubtitle": "Seiten blenden beim Tab-Wechsel über",
   "rectangleBookCovers": "Rechteckige Buchcover",
+  "progressTextSize": "Fortschritts-Textgröße",
   "rectangleBookCoversOnSubtitle": "Cover werden im 2:3-Buchformat angezeigt",
   "rectangleBookCoversOffSubtitle": "Cover sind quadratisch",
   "sectionAbsorbingCards": "Absorbing-Karten",
@@ -889,10 +898,17 @@
   "adminRmabAskAdmin": "Hol dir eine Login-URL von deinem Server-Admin",
   "adminRmabUrlHelpUser": "Hol dir eine Login-URL von deinem Server-Admin. Diese wird in RMAB > Admin > Users generiert.",
   "adminRmabSettingsInfo": "ReadMeABook ist ein selbst gehosteter Dienst zum Anfordern und Herunterladen von Hörbüchern. Es muss von deinem Server-Admin installiert und eingerichtet werden.",
+  "rmabConfigTitle": "ReadMeABook verbinden",
+  "rmabConfigExplainerAdmin": "ReadMeABook ist ein selbst gehosteter Service für das Anfordern von Hörbüchern. Erzeuge in RMAB ein API-Token unter Admin Dashboard > Einstellungen > API, dann füge diesen und die Server-URL unten ein. Absorb speichert oder lädt keine Inhalte herunter, sondern sendet ausschließlich Anfragen an deinen Server.",
+  "rmabConfigExplainerUser": "ReadMeABook ist ein selbst gehosteter Service für das Anfordern von Hörbüchern. Bitte deinen Server Administrator um die RMAB URL und ein API-Token. Absorb speichert oder lädt keine Inhalte herunter, sondern sendet ausschließlich Anfragen an deinen Server.",
   "rmabConfigLearnMore": "Mehr über ReadMeABook erfahren",
+  "rmabConfigBaseUrlLabel": "RMAB Server URL",
   "rmabConfigBaseUrlHint": "https://rmab.example.com",
   "rmabConfigTokenLabel": "API-Token",
+  "rmabConfigTokenHint": "rmab_...",
+  "rmabConfigLegacyUrlLabel": "Web UI Login URL (Optional)",
   "rmabConfigLegacyUrlHint": "https://rmab.example.com/?token=...",
+  "rmabConfigLegacyUrlHelp": "Füge deine Auto-Login-URL ein, sodass dich 'In Browseransicht öffnen' direkt anmeldet. Für einen regulären Login lasse das Feld einfach leer.",
   "rmabConfigConnect": "Verbinden",
   "rmabConfigDisconnect": "Trennen",
   "rmabConfigOpenWebView": "In der Browseransicht öffnen",
@@ -907,12 +923,16 @@
   "rmabConfigErrorInvalidUrl": "Gültige http(s)-URL eingeben",
   "rmabConfigErrorMissingToken": "API-Token eingeben",
   "rmabConfigErrorUnauthorized": "Token vom Server abgelehnt",
+  "rmabConfigErrorForbidden": "Dieses Token ist für diese Aktion nicht erlaubt",
   "rmabConfigErrorNetwork": "RMAB ist nicht erreichbar. Bitte überprüfe die URL.",
   "rmabConfigErrorGeneric": "Verbindung konnte nicht hergestellt werden",
   "rmabConfigSavedSnackbar": "ReadMeABook verbunden",
   "rmabConfigDisconnectedSnackbar": "ReadMeABook getrennt",
   "rmabRequestCta": "Über ReadMeABook anfragen",
+  "rmabSearchHeader": "Über ReadMeABook anfragen",
   "rmabSearchHint": "Nach Titel oder Autor suchen",
+  "rmabSearchEmpty": "Keine Treffer auf Ihrem ReadMeABook-Server",
+  "rmabSearchError": "ReadMeABook konnte nicht durchsucht werden",
   "rmabSearchFooterCta": "Durchsuche ReadMeABook nach \"{query}\"",
   "@rmabSearchFooterCta": {
     "placeholders": {
@@ -921,6 +941,7 @@
       }
     }
   },
+  "rmabBookDetailExplainer": "Die Anfrage wird über deinen ReadMeABook-Server gesendet. Der Administrator wird diese überprüfen und bearbeiten. Unter \"Meine Anfragen\" auf der ReadMeABook Kachel kannst du den Status verfolgen.",
   "rmabBookAlreadyAvailable": "Bereits in deiner Bibliothek",
   "rmabBookAlreadyRequested": "Bereits angefordert",
   "rmabRequestSubmitting": "Wird übermittelt…",
