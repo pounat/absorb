@@ -424,6 +424,7 @@
   "queueModeAuto": "Auto",
   "queueModePlaylist": "Wiedergabeliste",
   "queueModeInfoPlaylist": "Playlist Warteschlange",
+  "queueModeInfoPlaylistDesc": "Spielt von einer Wiedergabeliste alle Einträge der Reihenfolge nach ab und überspringt bereits abgeschlossene Elemente. Die Wiedergabe stoppt am Ende der Liste.",
   "queuePlaylistPickerTitle": "Wähle eine Playlist",
   "queuePlaylistNone": "Keine Wiedergabeliste ausgewählt",
   "queuePlaylistActiveLabel": "Wiedergabeliste: {name}",
@@ -434,6 +435,7 @@
       }
     }
   },
+  "queueModePlaylistHint": "Starte eine Wiedergabeliste-Warteschlange, indem du eine Wiedergabeliste auf der Startseite öffnest.",
   "exit": "Beenden",
   "upNext": "Als Nächstes: {label}",
   "@upNext": {
@@ -443,6 +445,8 @@
       }
     }
   },
+  "nothingUpNext": "\"Als Nächstes\" ist leer",
+  "showUpNextLabel": "\"Als Nächstes\" auf der Absorbing Seite anzeigen",
   "openSeries": "Serie öffnen",
   "openPlaylist": "Playlist öffnen",
   "playlistPlayAction": "Playlist abspielen",
@@ -592,10 +596,12 @@
     }
   },
   "sectionDownloadsAndStorage": "Downloads & Speicher",
+  "downloadOverWifiOnly": "Download Netzwerk",
   "downloadOverWifiOnSubtitle": "Nur über WLAN",
   "downloadOverWifiOffSubtitle": "Beliebige Verbindungsart",
   "autoDownloadOnWifi": "Automatisches Herunterladen von angefangenen Büchern",
   "autoDownloadOnWifiInfoTitle": "Automatisches Herunterladen von angefangenen Büchern",
+  "autoDownloadOnWifiInfoContent": "Wenn du ein Hörbuch streamst, wird im Hintergrund automatisch das gesamte Buch zur Offline Nutzung heruntergeladen. Der Download beachtet deine obigen Einstellungen zum Download Netzwerk. Wähle \"Beliebige Verbindungsart\", wenn Downloads auch über die mobile Datenverbindung erfolgen sollen.",
   "autoDownloadOnWifiOnSubtitle": "Gestreamte Bücher laden im Hintergrund automatisch herunter",
   "autoDownloadOnWifiOffSubtitle": "Aus",
   "concurrentDownloads": "Gleichzeitige Downloads",
@@ -933,6 +939,8 @@
   "rmabSearchHint": "Nach Titel oder Autor suchen",
   "rmabSearchEmpty": "Keine Treffer auf Ihrem ReadMeABook-Server",
   "rmabSearchError": "ReadMeABook konnte nicht durchsucht werden",
+  "rmabSearchPrompt": "Um zu Suchen, gib einen Titel oder Autor ein",
+  "rmabSearchFooterPrompt": "Suchst du etwas anderes?",
   "rmabSearchFooterCta": "Durchsuche ReadMeABook nach \"{query}\"",
   "@rmabSearchFooterCta": {
     "placeholders": {
@@ -999,6 +1007,11 @@
   "addToAbsorbing": "Zu Absorbing hinzufügen",
   "removedFromAbsorbing": "Aus Absorbing entfernt",
   "addedToAbsorbing": "Zu Absorbing hinzugefügt",
+  "removeFromContinueListening": "Aus \"Weiterhören\" entfernen",
+  "removedFromContinueListening": "Aus \"Weiterhören\" entfernt",
+  "removeSeriesFromContinueSeries": "Aus \"Serie fortsetzen\" entfernen",
+  "removedSeriesFromContinueSeries": "Aus \"Serie fortsetzen\" entfernt",
+  "couldNotUpdate": "Konnte nicht aktualisieren werden, versuche es erneut",
   "addToPlaylist": "Zur Playlist hinzufügen",
   "addToCollection": "Zur Sammlung hinzufügen",
   "downloadEbook": "eBook herunterladen",
@@ -1015,9 +1028,29 @@
   "channels": "Kanäle",
   "mono": "Mono",
   "stereo": "Stereo",
+  "startM4bEncode": "M4B-Encodierung starten",
   "encodeStarted": "M4B Encodierung gestartet",
   "encodeFailed": "Encodieren konnte nicht gestartet werden",
+  "encodeFinished": "M4B-Encodierung abgeschlossen",
   "currentlyLabel": "Momentan:",
+  "encodeOutputPathNote": "Fertiggestellte M4B Dateien werden im Hörbuchordner abgelegt unter: {path}/",
+  "@encodeOutputPathNote": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "encodeBackupNote": "Ein Backup der original Audiodateien wird gespeichert unter: /metadata/cache/items/{itemId}/. Achte darauf regelmäßig den Cache zu löschen.",
+  "@encodeBackupNote": {
+    "placeholders": {
+      "itemId": {
+        "type": "String"
+      }
+    }
+  },
+  "encodeTimeNote": "Die Encodierung kann bis zu 30 Minuten dauern.",
+  "encodeRescanNote": "Wenn du den Beobachter deaktiviert hast, musst du dieses Hörbuch später erneut scannen.",
   "aboutSection": "Info",
   "chaptersCount": "Kapitel ({count})",
   "@chaptersCount": {
@@ -1213,6 +1246,8 @@
   "collectionNotFound": "Sammlung nicht gefunden",
   "deleteCollection": "Sammlung löschen",
   "deleteCollectionContent": "Möchtest du diese Sammlung wirklich löschen?",
+  "deleteCollectionFailed": "Sammlung konnte nicht gelöscht werden",
+  "deletePermissionRequired": "Löschberechtigung erforderlich. Bitte wende dich hierzu an den Administrator.",
   "playlistNotFound": "Playlist nicht gefunden",
   "deletePlaylist": "Playlist löschen",
   "deletePlaylistContent": "Möchtest du diese Playlist wirklich löschen?",
@@ -1470,6 +1505,7 @@
   "updateKindVersion": "Version",
   "downloadButton": "Herunterladen",
   "updateDownloading": "Update wird heruntergeladen...",
+  "updateInstallPermissionDenied": "Installationsberechtigung verweigert. Aktiviere für Absorb in den Systemeinstellungen \"Unbekannte Apps installieren\".",
   "updateOpeningInBrowser": "Das In-App-Update ist fehlgeschlagen, Browser wird geöffnet",
   "sendToEreader": "An E-Reader senden",
   "sendingToEreader": "Sende an {device}...",
@@ -2130,6 +2166,14 @@
   "episodeListPlaysOlderToNewer": "Spielt von älteren zu neueren Episoden",
   "episodeListEpisodeCount": "{count, plural, =1{1 Episode} other{{count} Episoden}}",
   "@episodeListEpisodeCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "episodeListUnfinishedCount": "{count, plural, =1{1 Folge} other{{count} Folgen}}",
+  "@episodeListUnfinishedCount": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -2919,6 +2963,7 @@
   "tipsSheetOfflineModeTitle": "Offline-Modus",
   "tipsSheetOfflineModeDesc": "Tippe auf dem Absorbing-Bildschirm auf den Flugzeug-Button, um in den Offline-Modus zu wechseln. Das stoppt die Synchronisierung, spart Daten und zeigt nur deine heruntergeladenen Bücher. Ideal für Flüge oder schlechten Empfang.",
   "tipsSheetUpcomingReleasesTitle": "Kommende Veröffentlichungen",
+  "tipsSheetUpcomingReleasesDesc": "Tippe im Serien-Tab erneut auf Serien, um die Sortierungs- und Filterfunktionen aufzurufen. Tippe dort auf \"Kommende Veröffentlichungen\" und wähle deine Audible Region, um neue Bücher zu deinen Serien zu entdecken, geordnet nach Veröffentlichungsdatum.",
   "tipsSheetPerBookEqTitle": "Equalizer pro Buch",
   "tipsSheetPerBookEqDesc": "Jedes Buch merkt sich seine eigenen EQ-Einstellungen. Stell den EQ einmal für ein Sci-Fi-Epos ein und beim nächsten Mal klingt es genauso.",
   "tipsSheetPerBookSpeedTitle": "Geschwindigkeit pro Buch",
@@ -2930,6 +2975,7 @@
   "tipsSheetCarModeTitle": "Auto-Modus",
   "tipsSheetCarModeDesc": "Tippe auf das Auto-Symbol, um in den Modus mit großen Buttons zu wechseln, der für sicherere Bedienung beim Fahren gedacht ist.",
   "tipsSheetAudibleSeriesTitle": "Audible-Serien-Suche",
+  "tipsSheetAudibleSeriesDesc": "Öffne eine Serie und tippe auf das Drei-Punkte-Symbol, um die komplette Serienliste von Audible zu laden, inklusive fehlender Einträge und noch nicht gestarteter Bücher.",
   "bookCardUnknownTitle": "Unbekannter Titel",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Fertig",
@@ -3190,8 +3236,22 @@
       }
     }
   },
+  "authorQuickMatchHint": "Name, ASIN, Beschreibung und Bild von Audible der gewählten Region abrufen.",
   "region": "Region",
+  "editTabDetails": "Details",
   "editTabCover": "Cover",
+  "editTabMatch": "Treffer",
+  "editTabEmbed": "Einbetten",
+  "chapterEditorTitle": "Kapitel bearbeiten",
+  "chapterNotConnected": "Nicht mit dem Server verbunden",
+  "chapterErrorFirstNotZero": "Das erste Kapitel muss bei 0:00 beginnen",
+  "chapterErrorStartAfterPrevious": "\"Beginn\" muss nach dem vorherigen Kapitel liegen",
+  "chapterErrorStartBeforeEnd": "\"Beginn\" muss vor dem Ende des Buches liegen",
+  "chapterErrorTitleRequired": "Titel erforderlich",
+  "chapterEditStartTitle": "Beginn Zeit ändern",
+  "chapterTimeHintSeconds": "Sekunden",
+  "chapterTimeHintFull": "HH:MM:SS oder Sekunden",
+  "chapterInvalidTime": "Ungültige Zeitangabe",
   "chapterLocked": "Das Kapitel ist gesperrt",
   "chapterAllLocked": "Alle Kapitel sind gesperrt",
   "chapterTrackTitle": "Titel {number}",
@@ -3204,15 +3264,37 @@
   },
   "chapterNoAudioForPosition": "Kein Audio für diese Position",
   "chapterCouldNotPlayPreview": "Vorschau konnte nicht abgespielt werden",
+  "chapterStartSetTo": "Beginne bei {time}",
+  "@chapterStartSetTo": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterAddNumberedTitle": "Nummerierte Kapitel hinzufügen",
+  "chapterNextPreview": "Nächstes: \"{first}\", \"{second}\", ...",
+  "@chapterNextPreview": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
   "chapterHowMany": "Wie viele Kapitel",
   "add": "Hinzufügen",
   "chapterCountRange": "Gib eine Zahl zwischen 1 und 150 ein",
+  "chapterTitlesUpdated": "Kapiteltitel aktualisiert",
   "chaptersApplied": "Kapitel angewendet",
   "chapterDiscardTitle": "Änderungen verwerfen?",
   "chapterDiscardMessage": "Zu den gespeicherten Kapitel zurückkehren.",
   "chapterRemoveAllTitle": "Alle Kapitel entfernen?",
   "chapterRemoveAllMessage": "Dies entfernt alle Kapitel aus diesem Buch.",
   "chapterAllRemoved": "Alle Kapitel wurden entfernt",
+  "chapterFixHighlighted": "Korrigiere zuerst die markierten Kapitel",
   "chaptersUpdated": "Kapitel aktualisiert",
   "ok": "Ok",
   "chapterSaveButton": "Kapitel speichern",
@@ -3220,13 +3302,17 @@
   "chapterAddTooltip": "Kapitel hinzufügen(n)",
   "chapterRemoveAll": "Alle entfernen",
   "chapterShiftTimes": "Zeiten verschieben",
+  "chapterFromTracks": "Aus Titel",
+  "chapterLookup": "Suchen",
   "chapterShowSeconds": "Sekunden anzeigen",
   "chapterShiftBySeconds": "Verschieben um (Sekunden)",
+  "chapterShiftHint": "Verschiebt jedes entsperrte Kapitel. Verwende einen negativen Wert, um sie früher zu verschieben.",
   "chapterBack1Second": "1 Sekunde zurück",
   "chapterForward1Second": "1 Sekunde vorwärts",
   "chapterTitleHint": "Kapitelname",
   "chapterStopPreview": "Vorschau stoppen",
   "chapterPreviewFromHere": "Vorschau ab hier",
+  "chapterScrubHint": "Spule an die exakte Stelle, lege dann fest",
   "chapterStartAt": "Beginne bei {time}",
   "@chapterStartAt": {
     "placeholders": {
@@ -3267,12 +3353,91 @@
   },
   "chapterAudibleLonger": "Die Audible Version ist länger als deine Datei - spätere Kapitel könnten abweichen.",
   "chapterAudibleShorter": "Die Audible Version ist kürzer als deine Datei - spätere Kapitel könnten abweichen.",
+  "chapterTitlesOnly": "Nur Titel",
+  "chapterApplyChapters": "Kapitel übernehmen",
   "coverSearchTitle": "Nach einem Cover suchen",
   "coverSearchRefineHint": "Den Titel/Autor verfeinern, um die Ergebnisse aufzuräumen - das ändert das Buch nicht.",
+  "coverNoneFound": "Keine Cover gefunden",
   "coverEnterTitleFirst": "Gebe zuerst einen Titel ein",
+  "coverUpdated": "Cover aktualisiert",
+  "coverCouldNotUpdate": "Cover konnte nicht aktualisiert werden",
+  "coverApply": "Cover anwenden",
+  "coverUnknownResolution": "Unbekannte Auflösung",
+  "embedIntro": "Bette Metadaten wie Cover und Kapitel in Audiodateien ein.",
+  "embedBackupOption": "Audiodateien zuerst sichern",
+  "embedNoteInFolder": "Metadaten werden in die Audiodateien in deinem Hörbuchordner eingebettet.",
+  "embedNoteMultiTrack": "Kapitel werden nicht in Hörbücher eingebettet, die auf mehrere Dateien aufgeteilt sind.",
+  "embedNoteNavigateAway": "Du kannst diese Seite verlassen, sobald die Aufgabe gestartet wurde.",
+  "embedStartButton": "Metadaten einbetten",
+  "embedProgress": "Einbetten-Fortschritt: {percent}%",
+  "@embedProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "embedProgressIndeterminate": "Einbetten...",
+  "taskProgressKeepsRunning": "{percent}% - läuft auch nach dem Verlassen der Seite weiter",
+  "@taskProgressKeepsRunning": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "taskStarting": "Wird gestartet...",
+  "embedBackupNoteIntro": "Eine Sicherung der ursprünglichen Audiodateien erfolgt auf dem Server unter ",
+  "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
+  "@embedBackupNotePath": {
+    "placeholders": {
+      "itemId": {
+        "type": "String"
+      }
+    }
+  },
+  "embedBackupNoteOutro": ". Stelle sicher, dass du den Item-Cache regelmäßig löschst.",
+  "embedDialogTitle": "Eingebettete Metadaten",
+  "embedConfirmMessage": "Metadaten in {count, plural, one{# Audiodatei} other{# Audiodateien}} einbetten? Deine Audiodateien werden überschrieben{backup}.",
+  "@embedConfirmMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "backup": {
+        "type": "String"
+      }
+    }
+  },
+  "embedConfirmBackupClause": " (Originale werden zuerst gesichert)",
+  "embedConfirmAction": "Eingebettet",
+  "embedCouldNotStart": "Einbetten konnte nicht gestartet werden",
+  "embedStarted": "Einbetten gestartet",
+  "embedComplete": "Einbetten abgeschlossen",
+  "embedFailed": "Einbetten fehlgeschlagen",
+  "encodeComplete": "Encodierung abgeschlossen",
+  "encodeFailedTask": "Encodierung fehlgeschlagen",
+  "encodeProgress": "Encoding-Fortschritt {percent}%",
+  "@encodeProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "encodeProgressIndeterminate": "Encodiere...",
+  "adminApiKeys": "API Keys",
+  "adminApiKeysSubtitle": "Programmatische Zugriffstoken",
+  "adminApiKeysNewTitle": "Neuer API Key",
+  "adminApiKeysName": "Name",
+  "adminApiKeysNameHint": "z.B. Home-Assistent",
+  "adminApiKeysOwner": "Benutzer",
+  "adminApiKeysExpiration": "Ablaufdatum",
   "adminApiKeysActive": "Aktiv",
+  "adminApiKeysActiveSub": "Der Key funktioniert direkt nach dem Erstellen",
   "adminApiKeysInactive": "Inaktiv",
   "adminApiKeysExpired": "Abgelaufen",
+  "adminApiKeysCreate": "Key erstellen",
   "adminApiKeysCreated": "API Key erstellt",
   "adminApiKeysTokenLabel": "Dein neuer API Key",
   "adminApiKeysCopyWarning": "Kopiere jetzt diesen Key. Aus Sicherheitsgründen wird dieser nicht mehr angezeigt.",
@@ -3288,6 +3453,7 @@
   "adminApiKeysFailedDelete": "API Key konnte nicht widerrufen werden",
   "adminApiKeysFailedUpdate": "API Key konnte nicht aktualisiert werden",
   "adminApiKeysEmpty": "Noch keine API Key vorhanden",
+  "adminApiKeysEmptySub": "Erstelle einen Key, damit Apps und Skripte deinen Server erreichen können",
   "adminApiKeysNeverUsed": "Nie benutzt",
   "adminApiKeysNeverExpires": "Kein Ablauf",
   "adminApiKeysNameRequired": "Namen eingeben",
@@ -3321,5 +3487,6 @@
       }
     }
   },
-  "endOfEpisode": "Ende der Folge"
+  "endOfEpisode": "Ende der Folge",
+  "sleepTimerSheetEpisodeSleepStart": "Sleep zum Ende der Folge"
 }
