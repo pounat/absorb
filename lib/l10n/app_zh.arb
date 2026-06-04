@@ -1196,11 +1196,24 @@
   "showExplicitBadge": "显示敏感内容标记",
   "showExplicitBadgeOnSubtitle": "敏感内容会显示 “E” 标记",
   "showExplicitBadgeOffSubtitle": "关闭 - 隐藏敏感内容标记",
-  "equalizerLabel": "均衡器",
+  "cardIconsOnlyChip": "仅图标",
+  "cardMoreInGridChip": "更多",
+  "speed": "速度",
+  "bookDetailsLabel": "书籍详情",
+  "equalizerLabel": "音频增强",
   "episodeListSortNewest": "最新",
+  "expandedCardStreaming": "串流播放",
   "bookmarksScreenSortPosition": "位置",
   "playlistDetailItemCount": "{count} 个项目",
   "@playlistDetailItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collectionDetailBookCount": "{count}本书",
+  "@collectionDetailBookCount": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -1211,9 +1224,18 @@
   "equalizerPresetVoiceBoost": "人声增强",
   "equalizerPresetBassBoost": "低音增强",
   "equalizerPresetTrebleBoost": "高音增强",
-  "equalizerPresetPodcast": "播客",
+  "equalizerPresetPodcast": "播客模式",
   "equalizerPresetAudiobook": "有声书",
-  "equalizerPresetReduceNoise": "降噪",
+  "equalizerPresetReduceNoise": "降噪模式",
+  "equalizerEditingSavedNamed": "正在编辑\"{title}\"",
+  "@equalizerEditingSavedNamed": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "equalizerPerBookEq": "每本书单独配置",
   "sleepTimerSheetStartChapterSleep": "{count, plural, =1{听完 1 章结束} other{听完 {count} 章结束}}",
   "@sleepTimerSheetStartChapterSleep": {
     "placeholders": {
@@ -1257,6 +1279,17 @@
   "tipsSheetQuickBookmarksDesc": "长按任意卡片上的书签按钮即可立即添加书签，无需打开书签页面。",
   "tipsSheetCoverPlayPauseTitle": "点击封面播放/暂停",
   "tipsSheetCoverPlayPauseDesc": "点击任意卡片的封面即可播放或暂停。可在设置的“收听卡片”中切换此功能。播放时会显示淡淡的暂停图标，提示封面可点击。",
+  "tipsSheetFullScreenPlayerTitle": "全屏播放器",
+  "tipsSheetFullScreenPlayerDesc": "在任意沉浸卡片上向上滑动即可打开全屏播放器，向下滑动即可关闭。",
+  "tipsSheetQuickAddAbsorbingTitle": "快速加入收听卡片",
+  "tipsSheetQuickAddAbsorbingDesc": "在列表页（系列、作者、搜索结果）中向右滑动任意书籍，即可将其立即加入收听队列。",
+  "tipsSheetShakeExtendSleepTitle": "摇一摇延长睡眠定时",
+  "tipsSheetShakeExtendSleepDesc": "如果睡眠定时器正在运行，摇动手机即可延长时间。可在设置中的“睡眠定时器”调整延长的分钟数。",
+  "tipsSheetSeriesNavigationTitle": "系列导航",
+  "tipsSheetSeriesNavigationDesc": "在任意书籍的详情弹窗中点击系列名称，即可查看该系列的所有书籍，并按阅读顺序排序，每本书的封面都会显示序号徽章。",
+  "tipsSheetSwipeBetweenBooksTitle": "滑动切换书籍",
+  "tipsSheetSwipeBetweenBooksDesc": "在收听界面左右滑动即可切换你正在收听的书籍。开启手动队列模式后，卡片也会作为你的队列使用，因此当前书籍播放结束时会自动播放下一本。",
+  "tipsSheetTapToSeekTitle": "点击跳转",
   "showTipsAgain": "再次显示提示",
   "showTipsAgainSubtitle": "恢复你已关闭的功能提示",
   "tipsRestored": "已恢复提示",
