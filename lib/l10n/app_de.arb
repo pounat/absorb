@@ -414,6 +414,7 @@
   "queueModeManual": "Manuell",
   "queueModeAuto": "Auto",
   "queueModePlaylist": "Wiedergabeliste",
+  "queueModeInfoPlaylist": "Playlist Warteschlange",
   "queuePlaylistPickerTitle": "Wähle eine Playlist",
   "queuePlaylistNone": "Keine Wiedergabeliste ausgewählt",
   "queuePlaylistActiveLabel": "Wiedergabeliste: {name}",
@@ -433,6 +434,9 @@
       }
     }
   },
+  "openSeries": "Serie öffnen",
+  "openPlaylist": "Playlist öffnen",
+  "playlistPlayAction": "Playlist abspielen",
   "playlistAllFinished": "Alle abgeschlossen",
   "queueModeBooks": "Bücher",
   "queueModePodcasts": "Podcasts",
@@ -579,6 +583,11 @@
     }
   },
   "sectionDownloadsAndStorage": "Downloads & Speicher",
+  "downloadOverWifiOnSubtitle": "Nur über WLAN",
+  "downloadOverWifiOffSubtitle": "Beliebige Verbindungsart",
+  "autoDownloadOnWifi": "Automatisches Herunterladen von angefangenen Büchern",
+  "autoDownloadOnWifiInfoTitle": "Automatisches Herunterladen von angefangenen Büchern",
+  "autoDownloadOnWifiOnSubtitle": "Gestreamte Bücher laden im Hintergrund automatisch herunter",
   "autoDownloadOnWifiOffSubtitle": "Aus",
   "concurrentDownloads": "Gleichzeitige Downloads",
   "autoDownload": "Auto-Download",
@@ -880,7 +889,10 @@
   "adminRmabAskAdmin": "Hol dir eine Login-URL von deinem Server-Admin",
   "adminRmabUrlHelpUser": "Hol dir eine Login-URL von deinem Server-Admin. Diese wird in RMAB > Admin > Users generiert.",
   "adminRmabSettingsInfo": "ReadMeABook ist ein selbst gehosteter Dienst zum Anfordern und Herunterladen von Hörbüchern. Es muss von deinem Server-Admin installiert und eingerichtet werden.",
+  "rmabConfigLearnMore": "Mehr über ReadMeABook erfahren",
+  "rmabConfigBaseUrlHint": "https://rmab.example.com",
   "rmabConfigTokenLabel": "API-Token",
+  "rmabConfigLegacyUrlHint": "https://rmab.example.com/?token=...",
   "rmabConfigConnect": "Verbinden",
   "rmabConfigDisconnect": "Trennen",
   "rmabConfigOpenWebView": "In der Browseransicht öffnen",
@@ -895,18 +907,41 @@
   "rmabConfigErrorInvalidUrl": "Gültige http(s)-URL eingeben",
   "rmabConfigErrorMissingToken": "API-Token eingeben",
   "rmabConfigErrorUnauthorized": "Token vom Server abgelehnt",
+  "rmabConfigErrorNetwork": "RMAB ist nicht erreichbar. Bitte überprüfe die URL.",
   "rmabConfigErrorGeneric": "Verbindung konnte nicht hergestellt werden",
+  "rmabConfigSavedSnackbar": "ReadMeABook verbunden",
+  "rmabConfigDisconnectedSnackbar": "ReadMeABook getrennt",
+  "rmabRequestCta": "Über ReadMeABook anfragen",
   "rmabSearchHint": "Nach Titel oder Autor suchen",
+  "rmabSearchFooterCta": "Durchsuche ReadMeABook nach \"{query}\"",
+  "@rmabSearchFooterCta": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "rmabBookAlreadyAvailable": "Bereits in deiner Bibliothek",
   "rmabBookAlreadyRequested": "Bereits angefordert",
   "rmabRequestSubmitting": "Wird übermittelt…",
   "rmabRequestSent": "Anfrage gesendet",
   "rmabRequestErrorAlreadyAvailable": "Bereits in deiner Bibliothek",
   "rmabRequestErrorBeingProcessed": "Wird bereits bearbeitet",
+  "rmabRequestErrorDuplicate": "Du hast dies bereits angefragt",
+  "rmabRequestErrorValidation": "Anfrage konnte nicht gesendet werden",
+  "rmabRequestErrorUserNotFound": "Der Tokennutzer existiert nicht mehr. Bitte verbinde ReadMeABook erneut.",
+  "rmabRequestErrorIgnored": "Dieses Buch ist auf deiner Ignorieren-Liste",
+  "rmabRequestErrorGeneric": "Anfrage konnte nicht gesendet werden",
+  "rmabRequestErrorTokenRejected": "Token wurde vom Server abgelegt. Bitte verbinde ReadMeABook erneut.",
   "rmabMyRequestsTab": "Meine Anfragen",
   "rmabSetupTab": "Einrichtung",
+  "rmabMyRequestsEmpty": "Du hast bisher keine Bücher angefragt",
+  "rmabMyRequestsError": "Anfragen konnten nicht geladen werden",
   "rmabMyRequestsRefresh": "Aktualisieren",
+  "rmabRequestDetailTitle": "Details anfragen",
   "rmabRequestDetailStatus": "Status",
+  "rmabRequestDetailRequestedOn": "Angefragt am",
+  "rmabRequestDetailCompletedOn": "Erledigt am",
   "rmabRequestDetailProgress": "Fortschritt",
   "rmabStatusActive": "Im Gang",
   "rmabStatusWaiting": "Warten",
@@ -3136,13 +3171,134 @@
   },
   "region": "Region",
   "editTabCover": "Cover",
+  "chapterLocked": "Das Kapitel ist gesperrt",
+  "chapterAllLocked": "Alle Kapitel sind gesperrt",
+  "chapterTrackTitle": "Titel {number}",
+  "@chapterTrackTitle": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterNoAudioForPosition": "Kein Audio für diese Position",
+  "chapterCouldNotPlayPreview": "Vorschau konnte nicht abgespielt werden",
+  "chapterHowMany": "Wie viele Kapitel",
+  "add": "Hinzufügen",
+  "chapterCountRange": "Gib eine Zahl zwischen 1 und 150 ein",
+  "chaptersApplied": "Kapitel angewendet",
+  "chapterDiscardTitle": "Änderungen verwerfen?",
+  "chapterDiscardMessage": "Zu den gespeicherten Kapitel zurückkehren.",
+  "chapterRemoveAllTitle": "Alle Kapitel entfernen?",
+  "chapterRemoveAllMessage": "Dies entfernt alle Kapitel aus diesem Buch.",
+  "chapterAllRemoved": "Alle Kapitel wurden entfernt",
+  "chaptersUpdated": "Kapitel aktualisiert",
+  "ok": "Ok",
+  "chapterSaveButton": "Kapitel speichern",
   "chapterAddHint": "Kapitel hinzufügen (z.B. \"Kapitel 01\")",
   "chapterAddTooltip": "Kapitel hinzufügen(n)",
   "chapterRemoveAll": "Alle entfernen",
   "chapterShiftTimes": "Zeiten verschieben",
   "chapterShowSeconds": "Sekunden anzeigen",
   "chapterShiftBySeconds": "Verschieben um (Sekunden)",
+  "chapterBack1Second": "1 Sekunde zurück",
+  "chapterForward1Second": "1 Sekunde vorwärts",
+  "chapterTitleHint": "Kapitelname",
+  "chapterStopPreview": "Vorschau stoppen",
+  "chapterPreviewFromHere": "Vorschau ab hier",
+  "chapterStartAt": "Beginne bei {time}",
+  "@chapterStartAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterSetStartHere": "Beginn auf hier festlegen",
+  "chapterMore": "Mehr",
+  "chapterUnlock": "Entsperren",
+  "chapterLock": "Sperren",
+  "chapterInsertBelow": "Unten einfügen",
+  "chapterFindTitle": "Finde Kapitel",
+  "chapterFindSubtitle": "Suche nach Kapitel bei Audible/Audnexus mittels ASIN.",
+  "chapterEnterAsin": "ASIN eingeben",
+  "chapterLookupFailed": "Suche fehlgeschlagen - Prüfe die ASIN",
+  "chapterNoChaptersFound": "Keine Kapitel für die ASIN gefunden",
+  "chapterRemoveBranding": "Entferne Audible Branding (Intro/Outro)",
+  "chapterFoundCount": "{count} Kapitel gefunden",
+  "@chapterFoundCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterAudibleVsBook": "Audible {audible}  -  Buch {book}",
+  "@chapterAudibleVsBook": {
+    "placeholders": {
+      "audible": {
+        "type": "String"
+      },
+      "book": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterAudibleLonger": "Die Audible Version ist länger als deine Datei - spätere Kapitel könnten abweichen.",
+  "chapterAudibleShorter": "Die Audible Version ist kürzer als deine Datei - spätere Kapitel könnten abweichen.",
   "coverSearchTitle": "Nach einem Cover suchen",
   "coverSearchRefineHint": "Den Titel/Autor verfeinern, um die Ergebnisse aufzuräumen - das ändert das Buch nicht.",
-  "coverEnterTitleFirst": "Gebe zuerst einen Titel ein"
+  "coverEnterTitleFirst": "Gebe zuerst einen Titel ein",
+  "adminApiKeysActive": "Aktiv",
+  "adminApiKeysInactive": "Inaktiv",
+  "adminApiKeysExpired": "Abgelaufen",
+  "adminApiKeysCreated": "API Key erstellt",
+  "adminApiKeysTokenLabel": "Dein neuer API Key",
+  "adminApiKeysCopyWarning": "Kopiere jetzt diesen Key. Aus Sicherheitsgründen wird dieser nicht mehr angezeigt.",
+  "adminApiKeysCopy": "Kopieren",
+  "adminApiKeysCopied": "In Zwischenablage kopiert",
+  "adminApiKeysDone": "Erledigt",
+  "adminApiKeysDeleteTitle": "API Key widerrufen?",
+  "adminApiKeysDeleted": "Der API Key wurde widerrufen",
+  "adminApiKeysRevoke": "Widerrufen",
+  "adminApiKeysSetActive": "Als aktiv festlegen",
+  "adminApiKeysSetInactive": "Als inaktiv festlegen",
+  "adminApiKeysFailedCreate": "API Key konnte nicht erstellt werden",
+  "adminApiKeysFailedDelete": "API Key konnte nicht widerrufen werden",
+  "adminApiKeysFailedUpdate": "API Key konnte nicht aktualisiert werden",
+  "adminApiKeysEmpty": "Noch keine API Key vorhanden",
+  "adminApiKeysNeverUsed": "Nie benutzt",
+  "adminApiKeysNeverExpires": "Kein Ablauf",
+  "adminApiKeysNameRequired": "Namen eingeben",
+  "adminApiKeysUserRequired": "Wähle einen Nutzer",
+  "adminApiKeysExpNever": "Nie",
+  "adminApiKeysExp7d": "7 Tage",
+  "adminApiKeysExp30d": "30 Tage",
+  "adminApiKeysExp90d": "90 Tage",
+  "adminApiKeysExp1y": "1 Jahr",
+  "adminApiKeysLastUsed": "Zuletzt genutzt {time}",
+  "@adminApiKeysLastUsed": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "adminApiKeysExpiresOn": "Läuft ab am {date}",
+  "@adminApiKeysExpiresOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminApiKeysDeleteContent": "Widerrufe \"{name}\"? Apps die diesen Key verwenden verlieren sofort den Zugriff.",
+  "@adminApiKeysDeleteContent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "endOfEpisode": "Ende der Folge"
 }
