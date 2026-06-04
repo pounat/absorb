@@ -414,6 +414,7 @@
   "queueModeManual": "Manuell",
   "queueModeAuto": "Auto",
   "queueModePlaylist": "Wiedergabeliste",
+  "queuePlaylistPickerTitle": "Wähle eine Playlist",
   "queuePlaylistNone": "Keine Wiedergabeliste ausgewählt",
   "queuePlaylistActiveLabel": "Wiedergabeliste: {name}",
   "@queuePlaylistActiveLabel": {
