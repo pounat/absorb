@@ -557,6 +557,7 @@
     }
   },
   "sectionDownloadsAndStorage": "下载与存储",
+  "autoDownloadOnWifiInfoContent": "当您开始在线播放书籍时，系统会在后台同步下载完整内容，无需手动操作即可实现离线收听。后台下载将严格遵循上方的“下载网络设置”，若您希望在移动网络下也能自动下载，请将其设置为“任意网络”。",
   "autoDownloadOnWifiOffSubtitle": "关闭",
   "concurrentDownloads": "同时下载数",
   "autoDownload": "自动下载",
@@ -1430,6 +1431,14 @@
   "tipsSheetCarModeDesc": "轻点汽车图标，开启车载模式，让行车操作更安全舒适。",
   "tipsSheetAudibleSeriesTitle": "获取 Audible 系列信息",
   "tipsSheetAudibleSeriesDesc": "打开任意系列，点击右上角的“更多”图标（三个点），即可从 Audible 获取完整的系列清单，包含缺失以及您尚未开始阅读的书籍。",
+  "downloadNotifCompleteBody": "《{title}》已经下载好，随时随地开始听吧",
+  "@downloadNotifCompleteBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "upcomingNotifChannelName": "扫描即将发布内容",
   "upcomingNotifChannelDesc": "显示即将发布扫描的进度",
   "upcomingNotifScanTitle": "即将发布内容扫描中",
