@@ -409,7 +409,9 @@
   "queueModeOff": "关闭",
   "queueModeManual": "手动",
   "queueModeAuto": "自动",
+  "queueModePlaylist": "播放列表",
   "queueModeInfoPlaylistDesc": "按所选播放列表的顺序播放，跳过已完成的项目，并在列表结束时停止。",
+  "playlistPlayAction": "播放列表",
   "queueModeBooks": "书籍",
   "queueModePodcasts": "播客",
   "autoDownloadQueue": "自动下载队列",
@@ -1166,8 +1168,45 @@
   "audible": "Audible",
   "iTunes": "iTunes",
   "openLibrary": "打开媒体库",
-  "coverPlayPauseOnSubtitle": "开启 - 点击卡片视图播放/暂停",
+  "coverPlayPause": "点击封面播放/暂停",
+  "coverPlayPauseOnSubtitle": "开启 - 点击封面播放/暂停",
+  "coverPlayPauseOffSubtitle": "关闭 - 使用控制栏中的播放/暂停按钮",
+  "queueModeMergedSubtitle": "可选择停止播放、手动队列，或自动播放下一项",
+  "queueModeSeriesLabel": "系列",
+  "queueModeInfoSeries": "系列",
+  "queueModeInfoSeriesDesc": "自动播放同系列的下一本书，或播客节目的下一集。",
+  "resetButtonGridQuestion": "确认重置按钮布局？",
+  "resetButtonGridContent": "这将恢复默认的按钮布局、顺序和开关设置。",
+  "reset": "重置",
+  "resetButtonGrid": "重置按钮布局",
+  "chimeBeforeSleep": "睡前提示音",
+  "chimeBeforeSleepOnSubtitle": "在定时器即将结束时播放轻柔的提示铃声",
+  "chimeBeforeSleepOffSubtitle": "睡前无提示音",
+  "fadeVolumeOnSubtitleDynamic": "在最后 {seconds} 秒内逐渐降低音量",
+  "@fadeVolumeOnSubtitleDynamic": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "endOfChapterShort": "章节结束",
+  "endOfChapterOnSubtitle": "在当前章节结束时停止播放",
+  "endOfChapterOffSubtitle": "使用睡眠定时器",
+  "showExplicitBadge": "显示敏感内容标记",
+  "showExplicitBadgeOnSubtitle": "敏感内容会显示 “E” 标记",
+  "showExplicitBadgeOffSubtitle": "关闭 - 隐藏敏感内容标记",
   "equalizerLabel": "均衡器",
+  "episodeListSortNewest": "最新",
+  "bookmarksScreenSortPosition": "位置",
+  "playlistDetailItemCount": "{count} 个项目",
+  "@playlistDetailItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "equalizerPresetFlat": "原声",
   "equalizerPresetVoiceBoost": "人声增强",
   "equalizerPresetBassBoost": "低音增强",
@@ -1212,8 +1251,12 @@
   "sleepTimerSheetSpecificStartButtonPassed": "已过",
   "timeAm": "上午",
   "timePm": "下午",
+  "homeCustomizeAddGenreTitle": "新增类型分区",
+  "homeCustomizeAddGenreSubtitle": "选择一个类型显示在你的首页",
   "tipsSheetQuickBookmarksTitle": "快速书签",
   "tipsSheetQuickBookmarksDesc": "长按任意卡片上的书签按钮即可立即添加书签，无需打开书签页面。",
+  "tipsSheetCoverPlayPauseTitle": "点击封面播放/暂停",
+  "tipsSheetCoverPlayPauseDesc": "点击任意卡片的封面即可播放或暂停。可在设置的“收听卡片”中切换此功能。播放时会显示淡淡的暂停图标，提示封面可点击。",
   "showTipsAgain": "再次显示提示",
   "showTipsAgainSubtitle": "恢复你已关闭的功能提示",
   "tipsRestored": "已恢复提示",
