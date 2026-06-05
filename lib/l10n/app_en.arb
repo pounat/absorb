@@ -467,9 +467,6 @@
   "defaultSpeedSubtitle": "New books start at this speed - each book remembers its own",
   "skipBack": "Skip back",
   "skipForward": "Skip forward",
-  "chapterProgressInNotification": "Chapter progress in notification",
-  "chapterProgressOnSubtitle": "On - lockscreen shows chapter progress",
-  "chapterProgressOffSubtitle": "Off - lockscreen shows full book progress",
   "autoRewindOnResume": "Auto-rewind on resume",
   "autoRewindOnSubtitle": "On - {min}s to {max}s based on pause length",
   "@autoRewindOnSubtitle": {
