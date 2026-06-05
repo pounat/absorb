@@ -883,6 +883,8 @@
   "addToAbsorbing": "添加到收听中",
   "removedFromAbsorbing": "已从收听中移除",
   "addedToAbsorbing": "已添加到收听中",
+  "removeFromContinueListening": "移出继续收听",
+  "removedFromContinueListening": "已从“继续收听”中移出",
   "addToPlaylist": "添加到播放列表",
   "addToCollection": "添加到收藏集",
   "downloadEbook": "下载电子书",
