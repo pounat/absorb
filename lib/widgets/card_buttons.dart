@@ -1039,12 +1039,23 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final titleC = TextEditingController(text: defaultTitle);
     final noteC = TextEditingController();
     final result = await showDialog<Map<String, String>>(context: context, builder: (ctx) => AlertDialog(
+      scrollable: true,
       title: Text(l.addBookmark),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: noteC, maxLines: 3, decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true)),
-      ]),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(
+            controller: noteC,
+            minLines: 3,
+            maxLines: 8,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true),
+          ),
+        ]),
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
         FilledButton(onPressed: () => Navigator.pop(ctx, {'title': titleC.text, 'note': noteC.text}), child: Text(l.save)),
@@ -1062,12 +1073,23 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final titleC = TextEditingController(text: bm.title);
     final noteC = TextEditingController(text: bm.note ?? '');
     final result = await showDialog<Map<String, String>>(context: context, builder: (ctx) => AlertDialog(
+      scrollable: true,
       title: Text(l.editBookmark),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: titleC, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: noteC, maxLines: 3, decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true)),
-      ]),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: titleC, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(
+            controller: noteC,
+            minLines: 4,
+            maxLines: 10,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true),
+          ),
+        ]),
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
         FilledButton(onPressed: () => Navigator.pop(ctx, {'title': titleC.text, 'note': noteC.text}), child: Text(l.save)),

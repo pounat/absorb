@@ -15,6 +15,8 @@ import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
 import android.os.Build
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.os.StatFs
 
 import android.util.Log
@@ -161,6 +163,35 @@ class MainActivity : AudioServiceActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "exportClip" -> handleExportClip(call, result)
+                    else -> result.notImplemented()
+                }
+            }
+
+        // On-device bookmark transcription: decode a window of a downloaded
+        // audio file into 16kHz mono WAV for Whisper. Heavy work runs on a
+        // worker thread; the result is posted back on the main thread.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.barnabas.absorb/transcription")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "extractWav" -> {
+                        val sourcePath = call.argument<String>("sourcePath")
+                        val outPath = call.argument<String>("outPath")
+                        val startSeconds = call.argument<Double>("startSeconds") ?: 0.0
+                        val durationSeconds = call.argument<Double>("durationSeconds") ?: 0.0
+                        if (sourcePath == null || outPath == null) {
+                            result.error("ARGS", "sourcePath and outPath are required", null)
+                        } else {
+                            Thread {
+                                val ok = try {
+                                    AudioWindowExtractor.extractWav(sourcePath, startSeconds, durationSeconds, outPath)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "extractWav crashed: ${e.message}")
+                                    false
+                                }
+                                Handler(Looper.getMainLooper()).post { result.success(ok) }
+                            }.start()
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

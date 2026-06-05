@@ -14090,6 +14090,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No matches for \"{query}\".'**
   String readerSearchNoResults(String query);
+
+  /// No description provided for @transcriptionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark transcription'**
+  String get transcriptionTitle;
+
+  /// No description provided for @transcriptionAdvancedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn the audio at a bookmark into text, on your device'**
+  String get transcriptionAdvancedSubtitle;
+
+  /// No description provided for @transcriptionEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable transcription'**
+  String get transcriptionEnable;
+
+  /// No description provided for @transcriptionEnableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds a Transcribe option to your bookmarks'**
+  String get transcriptionEnableSubtitle;
+
+  /// No description provided for @transcriptionDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs entirely on your device, nothing is sent anywhere. It uses extra battery and processing while it works, and only downloaded books can be transcribed.'**
+  String get transcriptionDisclaimer;
+
+  /// No description provided for @transcriptionNeedModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a model below to start transcribing.'**
+  String get transcriptionNeedModelHint;
+
+  /// No description provided for @transcriptionModelSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get transcriptionModelSection;
+
+  /// No description provided for @transcriptionModelTiny.
+  ///
+  /// In en, this message translates to:
+  /// **'Tiny'**
+  String get transcriptionModelTiny;
+
+  /// No description provided for @transcriptionModelTinyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest, less accurate. About 31 MB.'**
+  String get transcriptionModelTinyDesc;
+
+  /// No description provided for @transcriptionModelSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get transcriptionModelSmall;
+
+  /// No description provided for @transcriptionModelSmallDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Slower, more accurate. About 182 MB.'**
+  String get transcriptionModelSmallDesc;
+
+  /// No description provided for @transcriptionDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get transcriptionDownload;
+
+  /// No description provided for @transcriptionDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed. Check your connection and try again.'**
+  String get transcriptionDownloadFailed;
+
+  /// No description provided for @transcribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe'**
+  String get transcribe;
+
+  /// No description provided for @transcribing.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribing...'**
+  String get transcribing;
+
+  /// No description provided for @transcriptionResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript'**
+  String get transcriptionResultTitle;
+
+  /// No description provided for @transcriptionSaveToNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to note'**
+  String get transcriptionSaveToNote;
+
+  /// No description provided for @transcriptionSavedToNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to bookmark note'**
+  String get transcriptionSavedToNote;
+
+  /// No description provided for @transcriptionDisabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on bookmark transcription in Settings, under Advanced.'**
+  String get transcriptionDisabledHint;
+
+  /// No description provided for @transcriptionNoModelDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a transcription model in Settings first.'**
+  String get transcriptionNoModelDownloaded;
+
+  /// No description provided for @transcriptionNotDownloadedBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Download this book first to transcribe its bookmarks.'**
+  String get transcriptionNotDownloadedBook;
+
+  /// No description provided for @transcriptionNoMetadataMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t locate this spot in the download. Try re-downloading the book.'**
+  String get transcriptionNoMetadataMsg;
+
+  /// No description provided for @transcriptionBusyMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Already transcribing something. Give it a moment.'**
+  String get transcriptionBusyMsg;
+
+  /// No description provided for @transcriptionEmptyMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'No speech was found at this spot.'**
+  String get transcriptionEmptyMsg;
+
+  /// No description provided for @transcriptionFailedMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t transcribe this spot. Please try again.'**
+  String get transcriptionFailedMsg;
+
+  /// No description provided for @transcriptionPlaySnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen'**
+  String get transcriptionPlaySnippet;
+
+  /// No description provided for @transcriptionPauseSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get transcriptionPauseSnippet;
 }
 
 class _AppLocalizationsDelegate

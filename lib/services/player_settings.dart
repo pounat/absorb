@@ -194,6 +194,31 @@ class PlayerSettings {
   static Future<String> getBookmarkSort() => _get('bookmarkSort', 'newest');
   static Future<void> setBookmarkSort(String value) => _set('bookmarkSort', value);
 
+  // On-device bookmark transcription (Whisper, opt-in). Stored globally
+  // (raw SharedPreferences, not per-account) because the downloaded Whisper
+  // model is shared across every profile on the device.
+
+  static Future<bool> getTranscriptionEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('transcriptionEnabled') ?? false;
+  }
+  static Future<void> setTranscriptionEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('transcriptionEnabled', value);
+    _notify();
+  }
+
+  /// Which Whisper model the transcriber loads: 'tiny' (default) or 'small'.
+  static Future<String> getTranscriptionModel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('transcriptionModel') ?? 'tiny';
+  }
+  static Future<void> setTranscriptionModel(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('transcriptionModel', value);
+    _notify();
+  }
+
   // The dedicated Podcasts tab implies merged behavior: playback must survive
   // the tab-driven library flips and the Absorbing tab must keep showing the
   // playing item from either tab.

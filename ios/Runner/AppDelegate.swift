@@ -4,6 +4,7 @@ import Flutter
 import UIKit
 import AVFoundation
 import AVKit
+import CoreMedia
 import MediaPlayer
 import just_audio
 
@@ -455,6 +456,32 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       result(true)
     }
 
+    // On-device bookmark transcription: decode a window of a downloaded audio
+    // file into 16kHz mono WAV for Whisper. AVAssetReader does the resample +
+    // downmix for us; no ffmpeg ships in the app.
+    let transcriptionChannel = FlutterMethodChannel(name: "com.barnabas.absorb/transcription",
+                                                    binaryMessenger: messenger)
+    transcriptionChannel.setMethodCallHandler { (call, result) in
+      switch call.method {
+      case "extractWav":
+        let args = call.arguments as? [String: Any]
+        guard let sourcePath = args?["sourcePath"] as? String,
+              let outPath = args?["outPath"] as? String else {
+          result(FlutterError(code: "ARGS", message: "sourcePath and outPath are required", details: nil))
+          return
+        }
+        let start = (args?["startSeconds"] as? Double) ?? 0
+        let dur = (args?["durationSeconds"] as? Double) ?? 0
+        DispatchQueue.global(qos: .userInitiated).async {
+          let ok = AudioWindowExtractor.extractWav(
+            sourcePath: sourcePath, startSeconds: start, durationSeconds: dur, outPath: outPath)
+          DispatchQueue.main.async { result(ok) }
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     let widgetChannel = FlutterMethodChannel(name: "com.absorb.widget",
                                                binaryMessenger: messenger)
     self.widgetChannel = widgetChannel
@@ -750,5 +777,109 @@ private final class VolumeKeyWatcher {
   private func setSystemVolume(_ value: Float) {
     guard let slider = volumeView?.subviews.compactMap({ $0 as? UISlider }).first else { return }
     slider.value = value
+  }
+}
+/// Decodes a time window of a compressed audio file into the 16kHz mono 16-bit
+/// PCM WAV that whisper.cpp requires. AVAssetReader performs the sample-rate
+/// conversion and downmix via its output settings, so no ffmpeg is needed.
+/// Used by the opt-in bookmark transcription feature.
+enum AudioWindowExtractor {
+  static func extractWav(sourcePath: String, startSeconds: Double, durationSeconds: Double, outPath: String) -> Bool {
+    let asset = AVURLAsset(url: URL(fileURLWithPath: sourcePath))
+    guard let track = asset.tracks(withMediaType: .audio).first else {
+      NSLog("[Transcribe] no audio track in %@", sourcePath)
+      return false
+    }
+
+    let reader: AVAssetReader
+    do {
+      reader = try AVAssetReader(asset: asset)
+    } catch {
+      NSLog("[Transcribe] reader init failed: %@", error.localizedDescription)
+      return false
+    }
+
+    let start = CMTime(seconds: max(0, startSeconds), preferredTimescale: 1000)
+    let dur = CMTime(seconds: max(0, durationSeconds), preferredTimescale: 1000)
+    reader.timeRange = CMTimeRange(start: start, duration: dur)
+
+    let settings: [String: Any] = [
+      AVFormatIDKey: kAudioFormatLinearPCM,
+      AVSampleRateKey: 16000,
+      AVNumberOfChannelsKey: 1,
+      AVLinearPCMBitDepthKey: 16,
+      AVLinearPCMIsFloatKey: false,
+      AVLinearPCMIsBigEndianKey: false,
+      AVLinearPCMIsNonInterleaved: false,
+    ]
+    let output = AVAssetReaderTrackOutput(track: track, outputSettings: settings)
+    output.alwaysCopiesSampleData = false
+    guard reader.canAdd(output) else { return false }
+    reader.add(output)
+    guard reader.startReading() else {
+      NSLog("[Transcribe] startReading failed: %@", reader.error?.localizedDescription ?? "nil")
+      return false
+    }
+
+    var pcm = Data()
+    while reader.status == .reading {
+      guard let sample = output.copyNextSampleBuffer() else { break }
+      if let block = CMSampleBufferGetDataBuffer(sample) {
+        let length = CMBlockBufferGetDataLength(block)
+        if length > 0 {
+          var chunk = Data(count: length)
+          chunk.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) in
+            if let base = ptr.baseAddress {
+              _ = CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: length, destination: base)
+            }
+          }
+          pcm.append(chunk)
+        }
+      }
+      CMSampleBufferInvalidate(sample)
+    }
+
+    if reader.status == .failed {
+      NSLog("[Transcribe] reader failed: %@", reader.error?.localizedDescription ?? "nil")
+      return false
+    }
+    if pcm.isEmpty { return false }
+    return writeWav(path: outPath, pcm16le: pcm, sampleRate: 16000)
+  }
+
+  private static func writeWav(path: String, pcm16le: Data, sampleRate: Int) -> Bool {
+    let channels = 1
+    let bitsPerSample = 16
+    let byteRate = sampleRate * channels * bitsPerSample / 8
+    let blockAlign = channels * bitsPerSample / 8
+    let dataSize = pcm16le.count
+
+    var header = Data()
+    func appendU32(_ v: UInt32) { var x = v.littleEndian; header.append(Data(bytes: &x, count: 4)) }
+    func appendU16(_ v: UInt16) { var x = v.littleEndian; header.append(Data(bytes: &x, count: 2)) }
+
+    header.append("RIFF".data(using: .ascii)!)
+    appendU32(UInt32(36 + dataSize))
+    header.append("WAVE".data(using: .ascii)!)
+    header.append("fmt ".data(using: .ascii)!)
+    appendU32(16)                       // PCM fmt chunk size
+    appendU16(1)                        // audio format = PCM
+    appendU16(UInt16(channels))
+    appendU32(UInt32(sampleRate))
+    appendU32(UInt32(byteRate))
+    appendU16(UInt16(blockAlign))
+    appendU16(UInt16(bitsPerSample))
+    header.append("data".data(using: .ascii)!)
+    appendU32(UInt32(dataSize))
+
+    var out = header
+    out.append(pcm16le)
+    do {
+      try out.write(to: URL(fileURLWithPath: path))
+      return true
+    } catch {
+      NSLog("[Transcribe] wav write failed: %@", error.localizedDescription)
+      return false
+    }
   }
 }

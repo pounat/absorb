@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -10,6 +12,7 @@ import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/bookmark_preview_player.dart';
 import '../services/download_service.dart';
+import '../services/transcription_service.dart';
 import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
 
@@ -44,6 +47,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
   late double _seconds;
   late final BookmarkPreviewPlayer _preview;
   bool _saving = false;
+  bool _transcriptionOn = false;
   // Display-only speed division (speed-adjusted-time setting). _seconds stays
   // raw book time throughout - preview, clip export, jump and save all use it.
   double _displaySpeed = 1.0;
@@ -61,6 +65,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       ..clipLength = const Duration(seconds: 60)
       ..addListener(_onPreview);
     _loadDisplaySpeed();
+    PlayerSettings.getTranscriptionEnabled().then((on) {
+      if (mounted && on) setState(() => _transcriptionOn = true);
+    });
   }
 
   Future<void> _loadDisplaySpeed() async {
@@ -190,6 +197,98 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     );
   }
 
+  String _mapTranscriptionError(AppLocalizations l, TranscriptionError kind) {
+    switch (kind) {
+      case TranscriptionError.disabled:
+        return l.transcriptionDisabledHint;
+      case TranscriptionError.modelMissing:
+        return l.transcriptionNoModelDownloaded;
+      case TranscriptionError.notDownloaded:
+        return l.transcriptionNotDownloadedBook;
+      case TranscriptionError.noMetadata:
+        return l.transcriptionNoMetadataMsg;
+      case TranscriptionError.busy:
+        return l.transcriptionBusyMsg;
+      case TranscriptionError.empty:
+        return l.transcriptionEmptyMsg;
+      case TranscriptionError.extractFailed:
+      case TranscriptionError.transcribeFailed:
+        return l.transcriptionFailedMsg;
+    }
+  }
+
+  /// Transcribe the audio around the (possibly nudged) bookmark time, let the
+  /// user review the text alongside the clip, then append it to the note and
+  /// persist. Downloaded books only - the service guards enforce the rest.
+  Future<void> _transcribe() async {
+    final l = AppLocalizations.of(context)!;
+    await _preview.stop();
+    if (!mounted) return;
+    if (!TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
+      showOverlayToast(context, l.transcriptionNotDownloadedBook,
+          icon: Icons.download_rounded);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: Row(children: [
+          const SizedBox(
+              width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+          const SizedBox(width: 16),
+          Expanded(child: Text(l.transcribing)),
+        ]),
+      ),
+    );
+
+    ({String text, String audioPath})? result;
+    String? error;
+    try {
+      result = await TranscriptionService.instance
+          .transcribeAt(itemId: widget.itemId, positionSeconds: _seconds);
+    } on TranscriptionException catch (e) {
+      error = _mapTranscriptionError(l, e.kind);
+    } catch (_) {
+      error = l.transcriptionFailedMsg;
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss the progress dialog
+
+    if (error != null) {
+      showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+      return;
+    }
+
+    final edited = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _TranscriptReviewDialog(
+          initialText: result!.text, audioPath: result.audioPath),
+    );
+
+    // The dialog owned the clip while open; clean it up now.
+    try {
+      final f = File(result!.audioPath);
+      if (f.existsSync()) await f.delete();
+    } catch (_) {}
+
+    if (edited == null || !mounted) return; // closed without saving
+    final trimmed = edited.trim();
+    if (trimmed.isEmpty) return;
+    setState(() {
+      _noteC.text =
+          _noteC.text.trim().isEmpty ? trimmed : '${_noteC.text.trim()}\n\n$trimmed';
+    });
+    await _persist();
+    if (mounted) {
+      setState(() => _saving = false);
+      showOverlayToast(context, l.transcriptionSavedToNote,
+          icon: Icons.note_add_rounded);
+    }
+  }
+
   Future<void> _persist() async {
     setState(() => _saving = true);
     await _preview.stop();
@@ -315,6 +414,17 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                 onPressed: _saving ? null : _openClipEditor,
               ),
             ),
+            if (_transcriptionOn) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.record_voice_over_rounded, size: 18),
+                  label: Text(l.transcribe),
+                  onPressed: _saving ? null : _transcribe,
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -373,6 +483,140 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
         ),
         child: Text(label),
       ),
+    );
+  }
+}
+
+/// Editable transcript plus inline playback of the extracted clip, so the user
+/// can listen to the bookmarked spot while fixing up the text - WITHOUT moving
+/// their real playback position. Uses a separate just_audio player (mirroring
+/// the chapter editor's preview) and pauses the main player while the clip
+/// plays. Returns the edited text on save, or null if closed.
+class _TranscriptReviewDialog extends StatefulWidget {
+  final String initialText;
+  final String audioPath;
+  const _TranscriptReviewDialog({required this.initialText, required this.audioPath});
+
+  @override
+  State<_TranscriptReviewDialog> createState() => _TranscriptReviewDialogState();
+}
+
+class _TranscriptReviewDialogState extends State<_TranscriptReviewDialog> {
+  late final TextEditingController _controller;
+  AudioPlayer? _preview;
+  StreamSubscription<PlayerState>? _stateSub;
+  bool _loading = false;
+  bool _playing = false;
+  bool? _mainWasPlaying;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _stateSub?.cancel();
+    _preview?.dispose();
+    _controller.dispose();
+    // Resume the main player if we paused it to audition the clip.
+    if (_mainWasPlaying == true) AudioPlayerService().play();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    final main = AudioPlayerService();
+
+    // First tap: spin up a separate preview player and load the clip.
+    if (_preview == null) {
+      setState(() => _loading = true);
+      _mainWasPlaying ??= main.isPlaying;
+      if (main.isPlaying) main.pause();
+      final p = AudioPlayer();
+      _preview = p;
+      _stateSub = p.playerStateStream.listen((s) {
+        if (!mounted) return;
+        if (s.processingState == ProcessingState.completed) {
+          p.pause();
+          p.seek(Duration.zero);
+          setState(() => _playing = false);
+        } else {
+          setState(() => _playing = s.playing);
+        }
+      });
+      try {
+        await p.setAudioSource(AudioSource.file(widget.audioPath));
+      } catch (_) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      if (!mounted) return;
+      setState(() => _loading = false);
+      await p.play();
+      return;
+    }
+
+    final p = _preview!;
+    if (p.playing) {
+      await p.pause();
+    } else {
+      _mainWasPlaying ??= main.isPlaying;
+      if (main.isPlaying) main.pause();
+      if (p.processingState == ProcessingState.completed) {
+        await p.seek(Duration.zero);
+      }
+      await p.play();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return AlertDialog(
+      scrollable: true,
+      icon: const Icon(Icons.record_voice_over_rounded),
+      title: Text(l.transcriptionResultTitle),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _controller,
+              minLines: 5,
+              maxLines: 12,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              icon: _loading
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+              label: Text(_playing
+                  ? l.transcriptionPauseSnippet
+                  : l.transcriptionPlaySnippet),
+              onPressed: _loading ? null : _toggle,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l.bookmarksScreenClose),
+        ),
+        FilledButton.icon(
+          icon: const Icon(Icons.note_add_rounded, size: 18),
+          label: Text(l.transcriptionSaveToNote),
+          onPressed: () => Navigator.pop(context, _controller.text),
+        ),
+      ],
     );
   }
 }
