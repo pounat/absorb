@@ -468,9 +468,6 @@
   "defaultSpeedSubtitle": "Neue Bücher starten mit dieser Geschwindigkeit - jedes Buch merkt sich seine eigene",
   "skipBack": "Zurückspulen",
   "skipForward": "Vorspulen",
-  "chapterProgressInNotification": "Kapitelfortschritt in der Benachrichtigung",
-  "chapterProgressOnSubtitle": "An - Sperrbildschirm zeigt Kapitelfortschritt",
-  "chapterProgressOffSubtitle": "Aus - Sperrbildschirm zeigt Fortschritt des gesamten Buchs",
   "autoRewindOnResume": "Auto-Zurückspulen beim Fortsetzen",
   "autoRewindOnSubtitle": "An - {min}s bis {max}s je nach Pausendauer",
   "@autoRewindOnSubtitle": {
