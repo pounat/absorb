@@ -429,9 +429,6 @@
   "defaultSpeedSubtitle": "新书以此速度开始播放 - 每本书会记住自己的速度",
   "skipBack": "快退",
   "skipForward": "快进",
-  "chapterProgressInNotification": "通知中显示章节进度",
-  "chapterProgressOnSubtitle": "开启 - 锁屏显示章节进度",
-  "chapterProgressOffSubtitle": "关闭 - 锁屏显示全书进度",
   "autoRewindOnResume": "恢复播放时自动倒退",
   "autoRewindOnSubtitle": "开启 - 根据暂停时长倒回 {min} 秒至 {max} 秒",
   "@autoRewindOnSubtitle": {
