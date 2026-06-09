@@ -63,15 +63,24 @@ android {
         create("fdroid") {
             dimension = "distribution"
         }
+        // Android Automotive OS build. Runs natively on the car head unit and is
+        // driven by the media browse service, so it has no use for Chromecast or
+        // the Wear bridge. Keeps the Flutter proguard keep so the Play-delivered
+        // build behaves like playstore.
+        create("automotive") {
+            dimension = "distribution"
+            proguardFiles("proguard-flutter-keep.pro")
+        }
     }
 
     // GMS-touching Kotlin (cast + wear) is shared by github + playstore only.
     // fdroid gets src/fdroid/kotlin instead, which has no Google Play Services.
-    // Uses java.srcDir (kotlin-android compiles it too) for broad Gradle/Kotlin
-    // plugin compatibility.
+    // automotive reuses that same no-op PlatformIntegration. Uses java.srcDir
+    // (kotlin-android compiles it too) for broad Gradle/Kotlin plugin compatibility.
     sourceSets {
         getByName("github").java.srcDir("src/gms/kotlin")
         getByName("playstore").java.srcDir("src/gms/kotlin")
+        getByName("automotive").java.srcDir("src/fdroid/kotlin")
     }
 
     buildTypes {

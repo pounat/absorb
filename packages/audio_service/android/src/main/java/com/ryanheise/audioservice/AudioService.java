@@ -500,6 +500,27 @@ public class AudioService extends MediaBrowserServiceCompat {
         return PendingIntent.getBroadcast(this, 0, intent, flags);
     }
 
+    // Activity to launch from the car's error-resolution button. Prefers the
+    // normal launch activity; falls back to the app-preferences action so
+    // launcher-less builds (e.g. Android Automotive media apps) still resolve.
+    private PendingIntent buildErrorResolutionIntent() {
+        Context context = getApplicationContext();
+        Intent intent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        if (intent == null) {
+            intent = new Intent("android.intent.action.APPLICATION_PREFERENCES");
+            intent.setPackage(context.getPackageName());
+        }
+        if (intent.resolveActivity(context.getPackageManager()) == null) {
+            return null;
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= 23) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        return PendingIntent.getActivity(context, 0x5161, intent, flags);
+    }
+
     void setState(List<MediaControl> controls, long actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, Integer errorCode, String errorMessage, int repeatMode, int shuffleMode, boolean captioningEnabled, Long queueIndex) {
         boolean notificationChanged = false;
         if (!Arrays.equals(compactActionIndices, this.compactActionIndices)) {
@@ -529,17 +550,30 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         if (queueIndex != null)
             stateBuilder.setActiveQueueItemId(queueIndex);
-        if (errorCode != null && errorMessage != null)
+
+        Bundle stateExtras = new Bundle();
+        if (errorCode != null && errorMessage != null) {
             stateBuilder.setErrorMessage(errorCode, errorMessage);
-        else if (errorMessage != null)
+            // Give the car's error card a working button that opens the app
+            // (e.g. for sign-in), even on a fresh install where no session
+            // activity has been registered yet. See Google's car media guide:
+            // developer.android.com/training/cars/media#errors
+            PendingIntent resolution = buildErrorResolutionIntent();
+            if (resolution != null) {
+                stateExtras.putString("android.media.extras.ERROR_RESOLUTION_ACTION_LABEL", errorMessage);
+                stateExtras.putParcelable("android.media.extras.ERROR_RESOLUTION_ACTION_INTENT", resolution);
+            }
+        } else if (errorMessage != null) {
             stateBuilder.setErrorMessage(-987654, errorMessage);
+        }
 
         if (mediaMetadata != null) {
             // Update the progress bar in the browse view as content is playing as explained
             // here: https://developer.android.com/training/cars/media#browse-progress-bar
-            Bundle extras = new Bundle();
-            extras.putString(MediaConstants.PLAYBACK_STATE_EXTRAS_KEY_MEDIA_ID, mediaMetadata.getDescription().getMediaId());
-            stateBuilder.setExtras(extras);
+            stateExtras.putString(MediaConstants.PLAYBACK_STATE_EXTRAS_KEY_MEDIA_ID, mediaMetadata.getDescription().getMediaId());
+        }
+        if (!stateExtras.isEmpty()) {
+            stateBuilder.setExtras(stateExtras);
         }
 
         mediaSession.setPlaybackState(stateBuilder.build());

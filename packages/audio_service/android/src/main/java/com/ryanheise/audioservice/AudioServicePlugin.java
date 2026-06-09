@@ -942,9 +942,21 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     break;
                 }
                 case "notifyChildrenChanged": {
+                    if (AudioService.instance == null) {
+                        result.success(null);
+                        break;
+                    }
                     String parentMediaId = (String)args.get("parentMediaId");
                     Map<?, ?> options = (Map<?, ?>)args.get("options");
-                    AudioService.instance.notifyChildrenChanged(parentMediaId, mapToBundle(options));
+                    Bundle optionsBundle = mapToBundle(options);
+                    // MediaBrowserServiceCompat.notifyChildrenChanged(id, options)
+                    // throws on a null Bundle; the deprecated Dart API sends no
+                    // options, so use the single-arg overload in that case.
+                    if (optionsBundle == null) {
+                        AudioService.instance.notifyChildrenChanged(parentMediaId);
+                    } else {
+                        AudioService.instance.notifyChildrenChanged(parentMediaId, optionsBundle);
+                    }
                     result.success(null);
                     break;
                 }

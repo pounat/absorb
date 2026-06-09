@@ -18,6 +18,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'providers/auth_provider.dart';
 import 'providers/library_provider.dart';
 import 'services/audio_player_service.dart';
+import 'services/aaos_service.dart';
 import 'services/api_service.dart';
 import 'services/download_service.dart';
 import 'services/progress_sync_service.dart';
@@ -34,6 +35,7 @@ import 'services/quick_actions_service.dart';
 import 'services/wording.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_shell.dart';
+import 'screens/aaos_parked_screen.dart';
 import 'widgets/absorb_wave_icon.dart';
 
 /// Global notifier so any widget (e.g. settings) can change the theme instantly.
@@ -422,6 +424,10 @@ class _AuthGateState extends State<AuthGate> {
       }
     } catch (_) {}
 
+    // Detect Android Automotive OS and wire the parked-mode bridge so the
+    // car's settings entry point can reach the app.
+    await AaosService.instance.initialize();
+
     // Initialize log service early so all debugPrint calls are captured in the
     // log file. This is critical for diagnosing startup freezes in production.
     try {
@@ -587,6 +593,11 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (auth.isAuthenticated) {
+      // On a car head unit the media browser is the experience; keep the full
+      // touch app off the dashboard and show only a parked launch point.
+      if (AaosService.instance.isAutomotive) {
+        return const AaosParkedScreen();
+      }
       return const AppShell();
     }
 

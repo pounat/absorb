@@ -14,6 +14,8 @@ import '../services/oidc_service.dart';
 import '../services/user_account_service.dart';
 import '../widgets/absorb_wave_icon.dart';
 import '../services/audio_player_service.dart';
+import '../services/aaos_service.dart';
+import '../services/android_auto_service.dart';
 import '../main.dart' show applyTrustAllCerts, oledNotifier;
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
@@ -265,12 +267,23 @@ class _LoginScreenState extends State<LoginScreen>
       } else {
         TextInput.finishAutofillContext();
         FocusManager.instance.primaryFocus?.unfocus();
-        if (Navigator.of(context).canPop()) {
+        if (!_handleAutomotiveLoginSuccess() &&
+            Navigator.of(context).canPop()) {
           // If pushed as a route (e.g. Add Account), pop back
           Navigator.of(context).pop();
         }
       }
     }
+  }
+
+  /// On an Android Automotive head unit, sign-in happens in the parked Flutter
+  /// activity; once it succeeds, hand control straight back to the car's media
+  /// browser and kick the browse tree to re-query. Returns true if handled.
+  bool _handleAutomotiveLoginSuccess() {
+    if (!AaosService.instance.isAutomotive) return false;
+    AndroidAutoService().onSignedIn();
+    AaosService.instance.launchMediaCenter(finishActivity: true);
+    return true;
   }
 
   Future<void> _handleOidcLogin() async {
@@ -316,7 +329,8 @@ class _LoginScreenState extends State<LoginScreen>
         setState(() => _isOidcLoading = false);
         if (!success) {
           setState(() => _loginError = auth.errorMessage ?? AppLocalizations.of(context)!.loginSsoFailed);
-        } else if (Navigator.of(context).canPop()) {
+        } else if (!_handleAutomotiveLoginSuccess() &&
+            Navigator.of(context).canPop()) {
           Navigator.of(context).pop();
         }
       }

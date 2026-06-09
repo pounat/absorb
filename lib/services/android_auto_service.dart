@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:audio_service/audio_service.dart';
 
 import 'package:flutter/foundation.dart';
@@ -314,6 +315,77 @@ class AndroidAutoService {
     return prefs.getString('default_library_id');
   }
 
+  static const signInPromptId = 'auth-required';
+
+  // audio_service's recent-root id (the BrowserRoot returned for EXTRA_RECENT).
+  // The car's home shelf subscribes to this separately from the browsable
+  // root, so a sign-in/refresh has to poke both or the visible view stays stale.
+  static const _audioServiceRecentRoot = 'recent';
+
+  /// Whether a server session exists. The car browse tree is gated behind this
+  /// so an empty tree becomes a sign-in prompt instead of blank tabs.
+  Future<bool> isSignedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    // The car browse service can be reading a prefs snapshot taken before the
+    // user signed in (separate engine, or a cached instance). Reload so a fresh
+    // login is visible without force-stopping the app.
+    try {
+      await prefs.reload();
+    } catch (_) {}
+    return prefs.getString('token') != null &&
+        prefs.getString('server_url') != null;
+  }
+
+  // Whether this device is an Android Automotive OS head unit (vs a phone
+  // running Android Auto). Cached because the root-tab builder is synchronous.
+  bool _automotiveDetected = false;
+  bool _isAutomotiveDevice = false;
+
+  Future<void> _ensureAutomotiveDetected() async {
+    if (_automotiveDetected) return;
+    _automotiveDetected = true;
+    if (!Platform.isAndroid) return;
+    try {
+      final info = await DeviceInfoPlugin().androidInfo;
+      _isAutomotiveDevice =
+          info.systemFeatures.contains('android.hardware.type.automotive');
+    } catch (_) {
+      _isAutomotiveDevice = false;
+    }
+  }
+
+  /// Single row shown in the car browse tree when nobody is signed in. Tapping
+  /// it opens the app's sign-in screen; the settings entry also works.
+  MediaItem get signInPromptItem => const MediaItem(
+        id: signInPromptId,
+        title: 'Sign in to Absorb',
+        artist: 'Tap here, or open settings on the car screen',
+        playable: true,
+      );
+
+  /// Force the car browse client to re-query, e.g. right after a sign-in so the
+  /// now-available tree replaces the sign-in prompt. Pokes BOTH the browsable
+  /// root and the recent root, otherwise the car keeps showing whatever it last
+  /// cached for the view it's on.
+  Future<void> notifyBrowseRootsChanged() async {
+    if (!Platform.isAndroid) return;
+    for (final root in const [AutoMediaIds.root, _audioServiceRecentRoot]) {
+      try {
+        debugPrint('[AAOS] notifyChildrenChanged($root)');
+        // ignore: deprecated_member_use
+        await AudioServiceBackground.notifyChildrenChanged(root);
+      } catch (_) {}
+    }
+  }
+
+  /// Drop the signed-out view and surface the real tree right after sign-in.
+  Future<void> onSignedIn() async {
+    debugPrint('[AAOS] onSignedIn: clearing cache, notifying roots, refreshing');
+    clearCache();
+    await notifyBrowseRootsChanged();
+    refresh(force: true);
+  }
+
   // ── Refresh ──
 
   /// Whether downloads have been populated at least once (synchronous, no server needed).
@@ -381,12 +453,7 @@ class AndroidAutoService {
     } finally {
       _isRefreshing = false;
       _invalidateRefreshSensitiveChildren();
-      if (Platform.isAndroid) {
-        try {
-          // ignore: deprecated_member_use
-          await AudioServiceBackground.notifyChildrenChanged(AutoMediaIds.root);
-        } catch (_) {}
-      }
+      await notifyBrowseRootsChanged();
       try {
         onServerDataChanged?.call();
       } catch (e) {
@@ -790,11 +857,14 @@ class AndroidAutoService {
         title: l?.androidAutoTabLibrary ?? 'Library',
         playable: false,
       ),
-      MediaItem(
-        id: AutoMediaIds.downloads,
-        title: l?.androidAutoTabDownloads ?? 'Downloads',
-        playable: false,
-      ),
+      // Downloads can't be started from the car's browse-only UI, so the tab
+      // would always be empty on Android Automotive. Phone Android Auto keeps it.
+      if (!_isAutomotiveDevice)
+        MediaItem(
+          id: AutoMediaIds.downloads,
+          title: l?.androidAutoTabDownloads ?? 'Downloads',
+          playable: false,
+        ),
     ];
   }
 
@@ -830,6 +900,7 @@ class AndroidAutoService {
 
     final future = () async {
       try {
+        await _ensureAutomotiveDetected();
         final children = await _computeChildren(parentMediaId);
         _childrenCache[parentMediaId] = children;
         return children;

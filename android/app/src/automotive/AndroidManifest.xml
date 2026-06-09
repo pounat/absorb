@@ -1,0 +1,50 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Android Automotive OS overlay. Marks the build as automotive-only so
+         Play filters it to cars, declares the media app to the car launcher,
+         and strips the Google Play Services pieces (cast + wear) that the car
+         build has no compiled classes for. -->
+
+    <uses-feature
+        android:name="android.hardware.type.automotive"
+        android:required="true" />
+
+    <!-- No in-app updater on the car; Play handles updates there. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove"/>
+
+    <application android:appCategory="audio">
+
+        <!-- AAOS media app descriptor + media template version. -->
+        <meta-data
+            android:name="com.android.automotive"
+            android:resource="@xml/automotive_app_desc" />
+        <meta-data
+            android:name="com.google.android.automotive.media.TEMPLATE_VERSION"
+            android:value="2" />
+
+        <!-- Chromecast (GMS): no compiled class in this flavor. -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            tools:node="remove"/>
+        <service android:name=".CastForegroundService" tools:node="remove"/>
+
+        <!-- Wear OS Data Layer (GMS): no compiled class in this flavor. -->
+        <service android:name=".WearAuthListenerService" tools:node="remove"/>
+        <service android:name=".WearPlayerCommandListenerService" tools:node="remove"/>
+
+        <!-- The car launches the app through the media browse service, not a
+             touch launcher icon. Drop the launcher entry and expose the parked
+             settings entry point instead. -->
+        <activity android:name=".MainActivity">
+            <intent-filter tools:node="remove">
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -15,6 +15,7 @@ import 'sync_logic.dart';
 import 'sleep_timer_service.dart';
 import 'equalizer_service.dart';
 import 'android_auto_service.dart';
+import 'aaos_service.dart';
 import 'chromecast_service.dart';
 import 'chapter_lookup.dart';
 import 'cold_start_play_policy.dart';
@@ -138,7 +139,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         final processingChanged = _player.processingState != _lastProcessingState;
         final elapsed = now.difference(_lastPlaybackStateUpdate);
 
-        if (playingChanged || processingChanged || elapsed.inSeconds >= 5) {
+        if (!_carSignInErrorActive &&
+            (playingChanged || processingChanged || elapsed.inSeconds >= 5)) {
           playbackState.add(state);
           _lastPlaybackStateUpdate = now;
           _lastPlaying = _player.playing;
@@ -836,10 +838,45 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
       [Map<String, dynamic>? options]) async {
-    debugPrint('[Handler] getChildren($parentMediaId)');
+    // No session means the tree has nothing to show. Surface the media-session
+    // auth error (so the car shows its sign-in prompt) plus a hint row, instead
+    // of blank tabs.
+    final signedIn = await _autoService.isSignedIn();
+    debugPrint('[AAOS] getChildren($parentMediaId) signedIn=$signedIn');
+    if (!signedIn) {
+      _setCarSignInRequired();
+      return [_autoService.signInPromptItem];
+    }
+    _clearCarSignInRequired();
     // Don't await refresh() here — getChildrenOf() handles it:
     // downloads are populated instantly, server data loads in background.
     return _autoService.getChildrenOf(parentMediaId);
+  }
+
+  // The car shows a "sign in" prompt when the media session reports an
+  // authentication error. errorCode 3 = PlaybackStateCompat.ERROR_CODE_
+  // AUTHENTICATION_EXPIRED. Kept sticky (the event subscription skips pushes
+  // while active) until the next signed-in browse clears it.
+  bool _carSignInErrorActive = false;
+
+  void _setCarSignInRequired() {
+    if (_carSignInErrorActive) return;
+    _carSignInErrorActive = true;
+    playbackState.add(playbackState.value.copyWith(
+      controls: const [],
+      systemActions: const {},
+      androidCompactActionIndices: const [],
+      processingState: AudioProcessingState.error,
+      playing: false,
+      errorCode: 3,
+      errorMessage: 'Sign in to Absorb',
+    ));
+  }
+
+  void _clearCarSignInRequired() {
+    if (!_carSignInErrorActive) return;
+    _carSignInErrorActive = false;
+    refreshPlaybackState();
   }
 
   @override
@@ -866,6 +903,11 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   Future<void> playFromMediaId(String mediaId,
       [Map<String, dynamic>? extras]) async {
     debugPrint('[Handler] playFromMediaId($mediaId)');
+    // The sign-in prompt row isn't real media: open the app's login screen.
+    if (mediaId == AndroidAutoService.signInPromptId) {
+      await AaosService.instance.launchSignIn();
+      return;
+    }
     await _playFromAutoMediaId(mediaId);
   }
 
