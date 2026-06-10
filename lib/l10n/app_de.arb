@@ -464,6 +464,7 @@
   },
   "autoDownloadQueueOffSubtitle": "Aus - nur manuelle Downloads",
   "sectionPlayback": "Wiedergabe",
+  "sectionMediaControls": "Mediensteuerung",
   "defaultSpeed": "Standardgeschwindigkeit",
   "defaultSpeedSubtitle": "Neue Bücher starten mit dieser Geschwindigkeit - jedes Buch merkt sich seine eigene",
   "skipBack": "Zurückspulen",
@@ -476,6 +477,7 @@
   "speedBookmarkInControls": "Geschwindigkeit & Lesezeichen in Mediensteuerung",
   "speedBookmarkOnSubtitle": "An - Benachrichtigung zeigt Geschwindigkeit & Lesezeichen; Kapitel Überspringen bleibt in Android Auto",
   "speedBookmarkOffSubtitle": "Aus - Benachrichtigung zeigt Kapitel-Überspringen; Geschwindigkeit & Lesezeichen bleiben in Android Auto",
+  "lockSeekBar": "Suchleiste sperren",
   "autoRewindOnResume": "Auto-Zurückspulen beim Fortsetzen",
   "autoRewindOnSubtitle": "An - {min}s bis {max}s je nach Pausendauer",
   "@autoRewindOnSubtitle": {
@@ -802,6 +804,12 @@
   "logOutTitle": "Abmelden?",
   "logOutContent": "Du wirst abgemeldet. Deine Downloads bleiben auf diesem Gerät.",
   "signOut": "Abmelden",
+  "editServerAddressTitle": "Serveradresse bearbeiten",
+  "editServerAddressField": "Serveradresse",
+  "editServerAddressUpdated": "Serveradresse aktualisiert",
+  "editServerAddressFailed": "Serveradresse konnte nicht aktualisiert werden",
+  "editServerAddressAction": "Serveradresse bearbeiten",
+  "removeAccountAction": "Konto entfernen",
   "removeAccountTitle": "Konto entfernen?",
   "removeAccountContent": "{username} auf {server} aus den gespeicherten Konten entfernen?\n\nDu kannst es jederzeit wieder hinzufügen, indem du dich erneut anmeldest.",
   "@removeAccountContent": {
@@ -1014,6 +1022,7 @@
   "addedToAbsorbing": "Zu Absorbing hinzugefügt",
   "removeFromContinueListening": "Aus \"Weiterhören\" entfernen",
   "removedFromContinueListening": "Aus \"Weiterhören\" entfernt",
+  "removeSeriesFromContinueSeries": "Aus \"Serie fortsetzen\" entfernen",
   "removedSeriesFromContinueSeries": "Aus \"Serie fortsetzen\" entfernt",
   "couldNotUpdate": "Konnte nicht aktualisieren werden, versuche es erneut",
   "addToPlaylist": "Zur Playlist hinzufügen",
@@ -1335,6 +1344,9 @@
   "coverPlayPause": "Cover Play/Pause",
   "coverPlayPauseOnSubtitle": "An - tippe auf das Cover für Play/Pause",
   "coverPlayPauseOffSubtitle": "Aus - eigener Play/Pause-Button in den Steuerelementen",
+  "cardBackground": "Kartenhintergrund",
+  "cardBackgroundBlurred": "Verschwommen",
+  "cardBackgroundGradient": "Farbverlauf",
   "queueModeMergedSubtitle": "Wiedergabe stoppt, manuelle Warteschlange oder Auto-Absorb des nächsten Elements",
   "queueModeSeriesLabel": "Serie",
   "queueModeShowLabel": "Sendung",
@@ -1847,6 +1859,10 @@
     }
   },
   "adminUsersFailedDelete": "Benutzer konnte nicht gelöscht werden",
+  "adminUsersUnlinkOpenId": "OpenID trennen",
+  "adminUsersUnlinkOpenIdTitle": "OpenID trennen?",
+  "adminUsersOpenIdUnlinked": "OpenID getrennt",
+  "adminUsersFailedUnlinkOpenId": "Konnte OpenID nicht trennen",
   "adminUsersByAuthor": "von {author}",
   "@adminUsersByAuthor": {
     "placeholders": {
@@ -2488,6 +2504,8 @@
   },
   "upcomingReleasesNoReleaseDateFound": "Kein Veröffentlichungstermin gefunden",
   "upcomingReleasesRescanFailed": "Erneuter Scan fehlgeschlagen",
+  "upcomingReleasesRemoveFromList": "Aus Liste entfernen",
+  "upcomingReleasesRemovedFromList": "Aus Liste entfernt",
   "upcomingReleasesDateChip": "Datum",
   "upcomingReleasesCheckingSeries": "Prüfe {name}... ({processed}/{total})",
   "@upcomingReleasesCheckingSeries": {
@@ -2698,6 +2716,8 @@
   "audibleSeriesRegionTitle": "Audible-Region",
   "audibleSeriesOpenOnAudible": "Auf Audible öffnen",
   "audibleSeriesAddToCalendar": "Zum Kalender hinzufügen",
+  "audibleSeriesAddToUpcoming": "Zu kommenden Veröffentlichungen hinzufügen",
+  "audibleSeriesAddedToUpcoming": "Zu kommenden Veröffentlichungen hinzugefügt",
   "audibleSeriesCouldNotOpenAudible": "Audible konnte nicht geöffnet werden",
   "audibleSeriesCouldNotOpenCalendar": "Kalender konnte nicht geöffnet werden",
   "audibleSeriesCalendarDescription": "Neues Hörbuch in der Serie {seriesName}",
@@ -3492,5 +3512,7 @@
     }
   },
   "endOfEpisode": "Ende der Folge",
-  "sleepTimerSheetEpisodeSleepStart": "Sleep zum Ende der Folge"
+  "sleepTimerSheetEpisodeSleepStart": "Sleep zum Ende der Folge",
+  "bookmarkListen": "Anhören",
+  "bookmarkPause": "Pausieren"
 }
