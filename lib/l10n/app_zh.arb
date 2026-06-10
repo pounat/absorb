@@ -429,6 +429,7 @@
   "defaultSpeedSubtitle": "新书以此速度开始播放 - 每本书会记住自己的速度",
   "skipBack": "快退",
   "skipForward": "快进",
+  "lockSeekBar": "锁定搜索栏",
   "autoRewindOnResume": "恢复播放时自动倒退",
   "autoRewindOnSubtitle": "开启 - 根据暂停时长倒回 {min} 秒至 {max} 秒",
   "@autoRewindOnSubtitle": {
