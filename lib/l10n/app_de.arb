@@ -66,7 +66,6 @@
   "loginFailed": "Anmeldung fehlgeschlagen",
   "loginSsoFailed": "SSO-Anmeldung fehlgeschlagen oder abgebrochen",
   "loginSsoAuthFailed": "SSO-Authentifizierung fehlgeschlagen. Bitte versuche es erneut.",
-  "loginRestoreFromBackup": "Aus Backup wiederherstellen",
   "loginInvalidBackupFile": "Ungültige Backup-Datei",
   "loginRestoreBackupTitle": "Backup wiederherstellen?",
   "loginRestoreBackupWithAccounts": "Damit werden alle Einstellungen und {count} gespeicherte Konten wiederhergestellt. Du wirst automatisch angemeldet.",
