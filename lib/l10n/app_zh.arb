@@ -66,7 +66,6 @@
   "loginFailed": "登录失败",
   "loginSsoFailed": "单点登录失败或已取消",
   "loginSsoAuthFailed": "单点登录认证失败，请重试。",
-  "loginRestoreFromBackup": "从备份恢复",
   "loginInvalidBackupFile": "无效的备份文件",
   "loginRestoreBackupTitle": "恢复备份？",
   "loginRestoreBackupWithAccounts": "这将恢复所有设置和 {count} 个已保存的账户。你将自动登录。",
