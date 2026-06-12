@@ -4,6 +4,54 @@
   "noDownloadedBooks": "Нет загруженных книг",
   "yourLibraryIsEmpty": "Ваша библиотека пуста",
   "loginCouldNotReachServer": "Не удалось подключиться к серверу",
+  "librarySearchAuthors": "Авторы",
+  "librarySearchTags": "Теги",
+  "librarySearchGenres": "Жанры",
+  "librarySeriesCount": "{count} серии",
+  "@librarySeriesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryAuthorsCount": "{count} авторы",
+  "@libraryAuthorsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryNarratorsCount": "{count} чтецы",
+  "@libraryNarratorsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryBooksCount": "{loaded}/{total} книги",
+  "@libraryBooksCount": {
+    "placeholders": {
+      "loaded": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "carModeBookmarkDefault": "Закладка",
+  "carModeBookmarkAdded": "Закладка добавлена",
+  "downloadsTitle": "Сохраненные",
+  "downloadsCancelSelection": "Отменить загрузку",
+  "downloadsSelect": "Выберите",
+  "downloadsNoDownloads": "Нет загрузок",
+  "downloadsDownloading": "Идёт загрузка",
+  "downloadsQueued": "Очередь",
+  "downloadsCompleted": "Выполнено",
+  "downloadsWaiting": "Подождите...",
   "bookmarksTitle": "Все закладки",
   "appShellHomeTab": "Главная",
   "appShellLibraryTab": "Библиотека",
