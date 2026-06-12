@@ -52,7 +52,6 @@
   "loginPassword": "Mot de passe",
   "loginSignIn": "Se connecter",
   "loginFailed": "Échec de connexion",
-  "loginRestoreFromBackup": "Restaurer depuis une sauvegarde",
   "loginInvalidBackupFile": "Fichier de sauvegarde invalide",
   "loginRestoreBackupTitle": "Restaurer la sauvegarde ?",
   "loginRestore": "Restaurer",
