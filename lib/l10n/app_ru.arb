@@ -50,9 +50,145 @@
   "downloadsNoDownloads": "Нет загрузок",
   "downloadsDownloading": "Идёт загрузка",
   "downloadsQueued": "Очередь",
-  "downloadsCompleted": "Выполнено",
+  "downloadsCompleted": "Завершено",
   "downloadsWaiting": "Подождите...",
+  "downloadsCancel": "Отменить",
+  "downloadsDelete": "Удалить",
+  "downloadsDeleteCount": "Удалить {count} загрузку(ок)?",
+  "@downloadsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsDeleteContent": "Загруженные файлы будут удалены.",
+  "downloadsDeletedCount": "Удалено {count} загрузка(ок)",
+  "@downloadsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsRemoveTitle": "Удалить из загруженных?",
+  "downloadsRemoveContent": "Удалить \"{title}\" из памяти?",
+  "@downloadsRemoveContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsRemovedTitle": "\"{title}\" удалено",
+  "@downloadsRemovedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsSelectedCount": "{count} выбрано",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "bookmarksTitle": "Все закладки",
+  "bookmarksCancelSelection": "Отменить выбранное",
+  "bookmarksSortedByNewest": "Сортировка по последним",
+  "bookmarksSortedByPosition": "Сортировка по позиции",
+  "bookmarksSelect": "Выберите закладку",
+  "bookmarksNoBookmarks": "Закладок пока нет",
+  "bookmarksDeleteCount": "Удалить {count} закладку(ок)?",
+  "@bookmarksDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksDeleteContent": "Это невозможно отменить.",
+  "bookmarksDeletedCount": "Удалено {count} закладка(ок)",
+  "@bookmarksDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksJumpTitle": "Перейти к закладкам?",
+  "bookmarksJumpContent": "\"{title}\" на {position}\nв {bookTitle}",
+  "@bookmarksJumpContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "position": {
+        "type": "String"
+      },
+      "bookTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "bookmarksJump": "Перейти",
+  "bookmarksNotConnected": "Нет подключения к серверу",
+  "bookmarksCouldNotLoad": "Не удается загрузить книгу",
+  "bookmarksSelectedCount": "{count} выбрано",
+  "@bookmarksSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsTitle": "Ваша Статистика",
+  "statsCouldNotLoad": "Не удается загрузить статистику",
+  "statsTotalListeningTime": "ОБЩЕЕ ВРЕМЯ ПРОСЛУШИВАНИЯ",
+  "statsHoursUnit": "ч",
+  "statsMinutesUnit": "м",
+  "statsDaysOfAudio": "Это {days} дней звучания",
+  "@statsDaysOfAudio": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "statsHoursOfAudio": "Это {hours} часов звучания",
+  "@statsHoursOfAudio": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "statsToday": "Сегодня",
+  "statsThisWeek": "За эту неделю",
+  "statsThisMonth": "За этот месяц",
+  "statsActivity": "Действия",
+  "statsCurrentStreak": "Текущая Серия",
+  "statsBestStreak": "Лучшая Серия",
+  "statsFinished": "Прослушано",
+  "statsBooksFinished": "Книги",
+  "statsEpisodesFinished": "Серии",
+  "statsBooksThisYear": "Книги в этом году",
+  "statsEpisodesThisYear": "Серии в этом году",
+  "statsRemoveFromYearTitle": "Удалить за этот год",
+  "statsRemoveFromYearWithDate": "Завершенная дата {date} останется на сервере. Это только удаляет \"{title}\" из вашего Absorb списка книг за этот год.",
+  "@statsRemoveFromYearWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "appShellHomeTab": "Главная",
   "appShellLibraryTab": "Библиотека",
   "appShellStatsTab": "Статистика",
@@ -70,6 +206,22 @@
   "disablePageFade": "Отключить затухание страницы",
   "disablePageFadeOnSubtitle": "Страницы переключаются мгновенно",
   "disablePageFadeOffSubtitle": "Страницы затухают при смене вкладок",
+  "mergeLibraries": "Единая страница Поглощения",
+  "mergeLibrariesInfoTitle": "Главная Поглощающая Страница",
+  "mergeLibrariesInfoContent": "Если включено, в одном окне отображаются все ваши текущие книги и подкасты из каждой библиотеки. Когда отключено, отображаются только элементы из выбранной вами библиотеки.",
+  "mergeLibrariesOnSubtitle": "Показывать элементы из всех библиотек",
+  "mergeLibrariesOffSubtitle": "Показывать элементы из текущей библиотеки",
+  "queueMode": "Режим очереди",
+  "queueModeInfoTitle": "Режим Очереди",
+  "queueModeInfoOff": "Выкл",
+  "queueModeInfoOffDesc": "Плеер остановится после текущей книги или серии.",
+  "queueModeInfoManual": "Очередь Вручную",
+  "queueModeInfoManualDesc": "Ваши поглощающие карты действуют в качестве плейлиста. По завершении одной следующая незавершённая карта запуститься автоматически. Добавьте элементы нажав на кнопку «Добавить в абсорбцию» на книге или серии и измените порядок с экрана поглощения.",
+  "queueModeOff": "Выкл",
+  "queueModeManual": "Вручную",
+  "queueModeAuto": "Авто",
+  "queueModePlaylist": "Плейлист",
+  "queueModeInfoPlaylist": "Плейлист очереди",
   "sectionPlayback": "Воспроизведение",
   "sectionSleepTimer": "Таймер сна",
   "sectionDownloadsAndStorage": "Загрузки и хранилище",
