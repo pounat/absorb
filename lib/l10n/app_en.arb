@@ -66,7 +66,6 @@
   "loginFailed": "Login failed",
   "loginSsoFailed": "SSO login failed or was cancelled",
   "loginSsoAuthFailed": "SSO authentication failed. Please try again.",
-  "loginRestoreFromBackup": "Restore from backup",
   "loginInvalidBackupFile": "Invalid backup file",
   "loginRestoreBackupTitle": "Restore backup?",
   "loginRestoreBackupWithAccounts": "This will restore all settings and {count} saved account(s). You'll be signed in automatically.",
