@@ -17,6 +17,7 @@
   "clear": "Очистить",
   "off": "Выкл",
   "disabled": "Отключено",
+  "later": "Позже",
   "noDownloadedBooks": "Нет загруженных книг",
   "yourLibraryIsEmpty": "Ваша библиотека пуста",
   "loginCouldNotReachServer": "Не удалось подключиться к серверу",
@@ -305,5 +306,61 @@
   "addAccount": "Добавить аккаунт",
   "signOut": "Выйти",
   "tipsAndHiddenFeatures": "Советы и скрытые возможности",
-  "checkForUpdate": "Проверить наличие обновлений"
+  "checkForUpdate": "Проверить наличие обновлений",
+  "adminApiKeysExpired": "Истек срок",
+  "adminApiKeysCreate": "Создать ключ",
+  "adminApiKeysCreated": "API-ключ создан",
+  "adminApiKeysTokenLabel": "Ваш новый API-ключ",
+  "adminApiKeysCopyWarning": "Скопируйте этот ключ сейчас. Для безопасности он не будет показан снова.",
+  "adminApiKeysCopy": "Копировать",
+  "adminApiKeysCopied": "Скопирован в буфер обмена",
+  "adminApiKeysDone": "Готово",
+  "adminApiKeysDeleteTitle": "Отозвать API-ключ?",
+  "adminApiKeysDeleted": "API-ключ отозван",
+  "adminApiKeysRevoke": "Отозвать",
+  "adminApiKeysSetActive": "Активировать",
+  "adminApiKeysSetInactive": "Деактивировать",
+  "adminApiKeysFailedCreate": "Не удалось создать API-ключ",
+  "adminApiKeysFailedDelete": "Не удалось отозвать API ключ",
+  "adminApiKeysFailedUpdate": "Не удалось обновить API-ключ",
+  "adminApiKeysEmpty": "API-ключей еще нет",
+  "adminApiKeysEmptySub": "Создайте, чтобы приложения и скрипты дошли до вашего сервера",
+  "adminApiKeysNeverUsed": "Не использовался",
+  "adminApiKeysNeverExpires": "Без срока действия",
+  "adminApiKeysNameRequired": "Введите имя",
+  "adminApiKeysUserRequired": "Выберите пользователя",
+  "adminApiKeysExpNever": "Не ограничен",
+  "adminApiKeysExp7d": "7 дней",
+  "adminApiKeysExp30d": "30 дней",
+  "adminApiKeysExp90d": "90 дней",
+  "adminApiKeysExp1y": "1 год",
+  "adminApiKeysLastUsed": "Последнее использование {time}",
+  "@adminApiKeysLastUsed": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "adminApiKeysExpiresOn": "Истекает {date}",
+  "@adminApiKeysExpiresOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminApiKeysDeleteContent": "Отозвать \"{name}\"? Приложения с этим ключом немедленно потеряют доступ.",
+  "@adminApiKeysDeleteContent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "endOfEpisode": "Окончание серии",
+  "sleepTimerSheetEpisodeSleepStart": "Сон в конце серии",
+  "bookmarkListen": "Прослушать",
+  "bookmarkPause": "Пауза",
+  "bookmarkPreviewFailed": "Не удалось воспроизвести это место."
 }
