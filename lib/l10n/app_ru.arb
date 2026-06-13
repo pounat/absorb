@@ -222,6 +222,17 @@
   "queueModeAuto": "Авто",
   "queueModePlaylist": "Плейлист",
   "queueModeInfoPlaylist": "Плейлист очереди",
+  "queueModeInfoPlaylistDesc": "Воспроизведение элементов плейлиста, кроме прослушанных книг или серий. Остановка в конце списка.",
+  "queuePlaylistPickerTitle": "Выберите плейлист",
+  "queuePlaylistNone": "Не выбран плейлист",
+  "queuePlaylistActiveLabel": "Плейлист: {name}",
+  "@queuePlaylistActiveLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "sectionPlayback": "Воспроизведение",
   "sectionSleepTimer": "Таймер сна",
   "sectionDownloadsAndStorage": "Загрузки и хранилище",
