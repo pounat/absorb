@@ -233,6 +233,25 @@
       }
     }
   },
+  "queueModePlaylistHint": "Запустите плейлист очереди, открыв плейлист на главной странице.",
+  "exit": "Выход",
+  "upNext": "Далее: {label}",
+  "@upNext": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "nothingUpNext": "Далее ничего нет",
+  "showUpNextLabel": "Показывать следующую на странице поглощения",
+  "openSeries": "Открыть серию",
+  "openPlaylist": "Открыть плейлист",
+  "playlistPlayAction": "Играть плейлист",
+  "playlistAllFinished": "Все завершено",
+  "queueModeBooks": "Книги",
+  "queueModePodcasts": "Подкасты",
+  "autoDownloadQueue": "Автозагрузка очереди",
   "sectionPlayback": "Воспроизведение",
   "sectionSleepTimer": "Таймер сна",
   "sectionDownloadsAndStorage": "Загрузки и хранилище",
