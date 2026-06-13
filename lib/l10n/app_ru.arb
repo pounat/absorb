@@ -252,7 +252,17 @@
   "queueModeBooks": "Книги",
   "queueModePodcasts": "Подкасты",
   "autoDownloadQueue": "Автозагрузка очереди",
+  "autoDownloadQueueOnSubtitle": "Оставить следующие {count} загруженных элементов",
+  "@autoDownloadQueueOnSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoDownloadQueueOffSubtitle": "Выкл - загрузки вручную",
   "sectionPlayback": "Воспроизведение",
+  "sectionMediaControls": "Управление медиа",
   "sectionSleepTimer": "Таймер сна",
   "sectionDownloadsAndStorage": "Загрузки и хранилище",
   "sectionLibrary": "Библиотека",
