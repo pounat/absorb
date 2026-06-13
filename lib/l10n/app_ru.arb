@@ -263,6 +263,7 @@
   "autoDownloadQueueOffSubtitle": "Выкл - загрузки вручную",
   "sectionPlayback": "Воспроизведение",
   "sectionMediaControls": "Управление медиа",
+  "defaultSpeed": "Стандартная скорость",
   "sectionSleepTimer": "Таймер сна",
   "sectionDownloadsAndStorage": "Загрузки и хранилище",
   "sectionLibrary": "Библиотека",
