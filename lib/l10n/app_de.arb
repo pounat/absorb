@@ -63,9 +63,58 @@
   "loginUsernameRequired": "Bitte gib deinen Benutzernamen ein",
   "loginPassword": "Passwort",
   "loginSignIn": "Anmelden",
+  "loginSignInAs": "Als {username} anmelden?",
+  "@loginSignInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSignInToServer": "Auf diesem Server anmelden?",
+  "loginSignedInAs": "Als {username} angemeldet",
+  "@loginSignedInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminCreateSetupFile": "Setup-Datei erstellen",
+  "adminSetupFileDescription": "Erzeugt eine Anmeldedatei für {username}, die nur in der Absorb App funktioniert. Diese kann zur Anmeldung auf dem Login Bildschirm importiert werden.",
+  "@adminSetupFileDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileServerUrl": "Server-URL, die der neue Benutzer verwenden wird",
+  "adminSetupFileNoteWithHeaders": "Ein API-Key wird für diesen Benutzer erstellt und die benutzerdefinierten Header mit eingeschlossen, um die Anmeldung auf dem Server zu ermöglichen. Behandle die Datei wie ein Passwort.",
+  "adminSetupFileNote": "Ein API-Key wird für diesen Benutzer erstellt. Behandle die Datei wie ein Passwort.",
+  "adminSetupFileCreate": "Erstellen",
+  "adminSetupFileSaveTitle": "Setup Datei speichern",
+  "adminSetupFileKeyError": "Für diesen Benutzer konnte kein API Key erstellt werden",
+  "adminSetupFileSaved": "Setup-Datei für {username} gespeichert",
+  "@adminSetupFileSaved": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileFailed": "Fehler beim Erstellen der Setup-Datei: {error}",
+  "@adminSetupFileFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "loginFailed": "Anmeldung fehlgeschlagen",
   "loginSsoFailed": "SSO-Anmeldung fehlgeschlagen oder abgebrochen",
   "loginSsoAuthFailed": "SSO-Authentifizierung fehlgeschlagen. Bitte versuche es erneut.",
+  "loginRestoreFromBackup": "Importieren",
   "loginInvalidBackupFile": "Ungültige Backup-Datei",
   "loginRestoreBackupTitle": "Backup wiederherstellen?",
   "loginRestoreBackupWithAccounts": "Damit werden alle Einstellungen und {count} gespeicherte Konten wiederhergestellt. Du wirst automatisch angemeldet.",
@@ -348,6 +397,92 @@
   "statsEpisodesFinished": "Episoden",
   "statsBooksThisYear": "Bücher dieses Jahr",
   "statsEpisodesThisYear": "Episoden dieses Jahr",
+  "statsRemoveFromYearTitle": "Aus diesem Jahr entfernen",
+  "statsRemoveFromYearWithDate": "Das Enddatum wird weiterhin als {date} auf dem Server erhalten bleiben. Dies entfernt nur \"{title}\" von deiner Absorb \"Bücher-des-Jahres\" Liste.",
+  "@statsRemoveFromYearWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsRemoveFromYearNoDate": "Das Enddatum wird weiterhin auf dem Server erhalten bleiben. Dies entfernt nur \"{title}\" von deiner Absorb \"Bücher-des-Jahres\" Liste.",
+  "@statsRemoveFromYearNoDate": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsRemovedFromYear": "Aus diesem Jahr entfernt",
+  "statsAddBackToYearTitle": "Diesem Jahr wieder hinzufügen",
+  "statsAddBackToYearBody": "\"{title}\" zurück zu deiner Absorb \"Bücher-des-Jahres\" Liste hinzufügen?",
+  "@statsAddBackToYearBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsAddBack": "Wieder hinzufügen",
+  "statsAddedBackToYear": "Diesem Jahr wieder hinzugefügt",
+  "statsHiddenFromYear": "Aus diesem Jahr ausgeblendet",
+  "statsNothingHidden": "Nichts ausgeblendet",
+  "settingsCustomizeStats": "Statistiken anpassen",
+  "statsGoalTitle": "Hörziel",
+  "statsGoalOff": "Aus",
+  "statsGoalDaily": "Täglich",
+  "statsGoalWeekly": "Wöchentlich",
+  "statsGoalMonthly": "Monatlich",
+  "statsGoalTarget": "Ziel",
+  "statsGoalEnterTitle": "Ziel festlegen",
+  "statsGoalEnterTimeHint": "Minuten oder h:mm",
+  "statsBooksShort": "{count} Bücher",
+  "@statsBooksShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsBookChallengeTitle": "Lese-Challenge",
+  "statsBookChallengeDesc": "Zu beendende Bücher für dieses Jahr",
+  "statsDailyGoal": "Tagesziel",
+  "statsWeeklyGoal": "Wochenziel",
+  "statsMonthlyGoal": "Monatsziel",
+  "statsGoalProgress": "{done} / {target}",
+  "@statsGoalProgress": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "statsBookChallengeProgress": "{done} von {target} Büchern",
+  "@statsBookChallengeProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "statsGoalReached": "Ziel erreicht",
+  "statsChartTitle": "Hörstatistik",
+  "statsChartBar": "Leiste",
+  "statsChartLine": "Linie",
+  "statsChartHeatmap": "Heatmap",
+  "statsChartDays7": "7 Tage",
+  "statsChartDays30": "30 Tage",
+  "statsLast30Days": "Letzten 30 Tage",
   "statsDaysActive": "Aktive Tage",
   "statsDailyAverage": "Täglicher Durchschnitt",
   "statsLast7Days": "Letzte 7 Tage",
