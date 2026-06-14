@@ -307,6 +307,29 @@
   "signOut": "Выйти",
   "tipsAndHiddenFeatures": "Советы и скрытые возможности",
   "checkForUpdate": "Проверить наличие обновлений",
+  "chapterTimeHintFull": "ЧЧ:ММ:СС или секунд",
+  "chapterInvalidTime": "Неверное время",
+  "chapterLocked": "Глава заблокирована",
+  "chapterAllLocked": "Все главы заблокированы",
+  "chapterTrackTitle": "Трек {number}",
+  "@chapterTrackTitle": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterNoAudioForPosition": "Для этой позиции нет аудио",
+  "chapterCouldNotPlayPreview": "Предпросмотр не удался",
+  "chapterStartSetTo": "Начало установлено на {time}",
+  "@chapterStartSetTo": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterAddNumberedTitle": "Добавить нумерацию глав",
   "chapterRemoveBranding": "Удалить брендинг Audible (вступление/заключение)",
   "chapterFoundCount": "{count} Глав найдено",
   "@chapterFoundCount": {
@@ -335,6 +358,82 @@
   "coverSearchRefineHint": "Уточните название/автор для очистки результата - это не меняет книгу.",
   "coverNoneFound": "Обложки не найдены",
   "coverEnterTitleFirst": "Введите сначала название",
+  "coverUpdated": "Обложка обновлена",
+  "coverCouldNotUpdate": "Не удается обновить обложку",
+  "coverApply": "Применить обложку",
+  "coverUnknownResolution": "Неизвестное разрешение",
+  "embedIntro": "Вставить метаданные в аудио файлы, включая обложку и главы.",
+  "embedBackupOption": "Сначала сделайте резервную копию аудио файлов",
+  "embedNoteInFolder": "Метаданные будут встроены в аудиофайлы в папку аудиокниг.",
+  "embedNoteMultiTrack": "Главы не встроить в мульти-трековые аудиокниги.",
+  "embedNoteNavigateAway": "После запуска задачи вы можете уйти с этой страницы.",
+  "embedStartButton": "Запустить вставку метаданных",
+  "embedProgress": "Встраивание {percent}%",
+  "@embedProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "embedProgressIndeterminate": "Встраивание...",
+  "taskProgressKeepsRunning": "{percent}% - продолжит запуск, если вы покинете эту страницу",
+  "@taskProgressKeepsRunning": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "taskStarting": "Запуск...",
+  "embedBackupNoteIntro": "Резервная копия ваших оригинальных аудиофайлов будет сохранена на сервере в ",
+  "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
+  "@embedBackupNotePath": {
+    "placeholders": {
+      "itemId": {
+        "type": "String"
+      }
+    }
+  },
+  "embedBackupNoteOutro": ". Периодически очищайте кэш элементов.",
+  "embedDialogTitle": "Встроенные метаданные",
+  "embedConfirmMessage": "Встроить метаданные в {count, plural, one{# audio file} other{# audio files}}? Аудиофайлы будут перезаписаны{backup}.",
+  "@embedConfirmMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "backup": {
+        "type": "String"
+      }
+    }
+  },
+  "embedConfirmBackupClause": " (оригиналы резервных копий сначала)",
+  "embedConfirmAction": "Встроить",
+  "embedCouldNotStart": "Невозможно начать вставку",
+  "embedStarted": "Встраивание начато",
+  "embedComplete": "Встраивание завершено",
+  "embedFailed": "Не удалось встроить",
+  "encodeComplete": "Кодирование завершено",
+  "encodeFailedTask": "Ошибка кодирования",
+  "encodeProgress": "Кодирование {percent}%",
+  "@encodeProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "encodeProgressIndeterminate": "Кодирование...",
+  "adminApiKeys": "API-ключи",
+  "adminApiKeysSubtitle": "Программные токены доступа",
+  "adminApiKeysNewTitle": "Новый API-ключ",
+  "adminApiKeysName": "Название",
+  "adminApiKeysNameHint": "например Home Assistant",
+  "adminApiKeysOwner": "Пользователь",
+  "adminApiKeysExpiration": "Срок действия",
+  "adminApiKeysActive": "Активный",
+  "adminApiKeysActiveSub": "Ключ работает сразу же после создания",
   "adminApiKeysInactive": "Неактивен",
   "adminApiKeysExpired": "Истек срок",
   "adminApiKeysCreate": "Создать ключ",
