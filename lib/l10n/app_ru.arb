@@ -307,6 +307,7 @@
   "signOut": "Выйти",
   "tipsAndHiddenFeatures": "Советы и скрытые возможности",
   "checkForUpdate": "Проверить наличие обновлений",
+  "adminApiKeysInactive": "Неактивен",
   "adminApiKeysExpired": "Истек срок",
   "adminApiKeysCreate": "Создать ключ",
   "adminApiKeysCreated": "API-ключ создан",
