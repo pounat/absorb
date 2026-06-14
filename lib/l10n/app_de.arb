@@ -483,6 +483,13 @@
   "statsChartDays7": "7 Tage",
   "statsChartDays30": "30 Tage",
   "statsLast30Days": "Letzten 30 Tage",
+  "statsThisYearTitle": "Dieses Jahr",
+  "statsSectionsTitle": "Kategorien",
+  "statsSectionTimePeriods": "Zeiträume",
+  "statsHeatmapLess": "Weniger",
+  "statsHeatmapMore": "Mehr",
+  "statsDayOfWeek": "Durchschnitt nach Wochentag",
+  "statsTimeSavedLabel": "Nach Geschwindigkeit gespeichert",
   "statsDaysActive": "Aktive Tage",
   "statsDailyAverage": "Täglicher Durchschnitt",
   "statsLast7Days": "Letzte 7 Tage",
@@ -939,6 +946,14 @@
   "logOutContent": "Du wirst abgemeldet. Deine Downloads bleiben auf diesem Gerät.",
   "signOut": "Abmelden",
   "editServerAddressTitle": "Serveradresse bearbeiten",
+  "editServerAddressSubtitle": "Aktualisiere die Adresse für {username}. Nutze diese Option, wenn sich lediglich die URL geändert hat - es aber noch immer der gleiche Server ist. Deine Statistiken und Downloads werden beibehalten.",
+  "@editServerAddressSubtitle": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "editServerAddressField": "Serveradresse",
   "editServerAddressUpdated": "Serveradresse aktualisiert",
   "editServerAddressFailed": "Serveradresse konnte nicht aktualisiert werden",
@@ -989,6 +1004,9 @@
   },
   "resetToDefault": "Auf Standard zurücksetzen",
   "resetToDefaultStorage": "Auf Standardspeicher zurücksetzen",
+  "redownload": "Erneut herunterladen",
+  "redownloadStarted": "Wird erneut heruntergeladen",
+  "dismiss": "Verwerfen",
   "tipsAndHiddenFeatures": "Tipps & versteckte Funktionen",
   "tipsSubtitle": "Hol das Beste aus Absorb heraus",
   "adminTitle": "Server-Admin",
@@ -1995,6 +2013,14 @@
   "adminUsersFailedDelete": "Benutzer konnte nicht gelöscht werden",
   "adminUsersUnlinkOpenId": "OpenID trennen",
   "adminUsersUnlinkOpenIdTitle": "OpenID trennen?",
+  "adminUsersUnlinkOpenIdContent": "OpenID-Verbindung für {name} entfernen? Der Benutzer muss sich später erneut mit OpenID anmelden, um wieder Zugriff zu erhalten.",
+  "@adminUsersUnlinkOpenIdContent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersOpenIdUnlinked": "OpenID getrennt",
   "adminUsersFailedUnlinkOpenId": "Konnte OpenID nicht trennen",
   "adminUsersByAuthor": "von {author}",
@@ -3648,5 +3674,6 @@
   "endOfEpisode": "Ende der Folge",
   "sleepTimerSheetEpisodeSleepStart": "Sleep zum Ende der Folge",
   "bookmarkListen": "Anhören",
-  "bookmarkPause": "Pausieren"
+  "bookmarkPause": "Pausieren",
+  "bookmarkPreviewFailed": "Stelle konnte nicht wiedergeben werden."
 }
