@@ -307,6 +307,34 @@
   "signOut": "Выйти",
   "tipsAndHiddenFeatures": "Советы и скрытые возможности",
   "checkForUpdate": "Проверить наличие обновлений",
+  "chapterRemoveBranding": "Удалить брендинг Audible (вступление/заключение)",
+  "chapterFoundCount": "{count} Глав найдено",
+  "@chapterFoundCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterAudibleVsBook": "Audible {audible}  -  Книга {book}",
+  "@chapterAudibleVsBook": {
+    "placeholders": {
+      "audible": {
+        "type": "String"
+      },
+      "book": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterAudibleLonger": "Версия Audible длиннее вашего файла - более поздние главы могут не совпадать.",
+  "chapterAudibleShorter": "Версия Audible короче, чем ваш файл - главы могут не совпадать.",
+  "chapterTitlesOnly": "Только заголовки",
+  "chapterApplyChapters": "Применить главы",
+  "coverSearchTitle": "Поиск обложек",
+  "coverSearchRefineHint": "Уточните название/автор для очистки результата - это не меняет книгу.",
+  "coverNoneFound": "Обложки не найдены",
+  "coverEnterTitleFirst": "Введите сначала название",
   "adminApiKeysInactive": "Неактивен",
   "adminApiKeysExpired": "Истек срок",
   "adminApiKeysCreate": "Создать ключ",
