@@ -490,6 +490,14 @@
   "statsHeatmapMore": "Mehr",
   "statsDayOfWeek": "Durchschnitt nach Wochentag",
   "statsTimeSavedLabel": "Nach Geschwindigkeit gespeichert",
+  "statsOnPaceFor": "Auf Kurs für {count} Bücher",
+  "@statsOnPaceFor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "statsDaysActive": "Aktive Tage",
   "statsDailyAverage": "Täglicher Durchschnitt",
   "statsLast7Days": "Letzte 7 Tage",
@@ -619,6 +627,8 @@
   "speedBookmarkOnSubtitle": "An - Benachrichtigung zeigt Geschwindigkeit & Lesezeichen; Kapitel Überspringen bleibt in Android Auto",
   "speedBookmarkOffSubtitle": "Aus - Benachrichtigung zeigt Kapitel-Überspringen; Geschwindigkeit & Lesezeichen bleiben in Android Auto",
   "lockSeekBar": "Suchleiste sperren",
+  "lockSeekBarOnSubtitle": "An - Der Fortschrittsregler wird in den Benachrichtigungen, Sperrbildschirm und Auto angezeigt, ist aber nicht verschiebbar",
+  "lockSeekBarOffSubtitle": "Aus - Verschiebe den Fortschrittsregler in den Benachrichtigungen, Sperrbildschirm und Auto zum umherspringen",
   "autoRewindOnResume": "Auto-Zurückspulen beim Fortsetzen",
   "autoRewindOnSubtitle": "An - {min}s bis {max}s je nach Pausendauer",
   "@autoRewindOnSubtitle": {
@@ -3716,9 +3726,73 @@
   "srvScannerSection": "Scanner",
   "srvFindCovers": "Cover suchen",
   "srvCoverProvider": "Cover Anbieter",
+  "srvParseSubtitles": "Untertitel aus Dateinamen extrahieren",
   "srvPreferMatched": "Übereinstimmende Metadaten bevorzugen",
   "srvDisableWatcher": "Ordnerbeobachter deaktivieren",
   "srvStorageSection": "Speicher",
+  "srvStoreCover": "Cover in Datei einbetten",
+  "srvStoreMetadata": "Metadaten in Datei einbetten",
+  "srvMetadataFormat": "Metadaten Dateiformat",
+  "srvFormatSection": "Anzeige und Format",
+  "srvDateFormat": "Datumsformat",
+  "srvTimeFormat": "Zeitformat",
+  "srvLanguage": "Serversprache",
+  "srvChromecast": "Chromecast Unterstützung",
+  "srvAllowIframe": "Iframe-Einbettung erlauben",
+  "srvSortingSection": "Sortierung",
+  "srvIgnorePrefixes": "Präfixe beim Sortieren ignorieren",
+  "srvSortingPrefixes": "Präfixe sortieren",
+  "srvAddPrefix": "Präfix hinzufügen",
+  "srvSave": "Einstellungen speichern",
+  "srvSavePrefixes": "Präfixe speichern",
+  "srvSaved": "Einstellungen gespeichert",
+  "srvSaveFailed": "Einstellungen konnten nicht gespeichert werden",
+  "srvPrefixesSaved": "Sortierungspräfixe aktualisiert",
+  "libNoneYet": "Noch keine Bibliotheken vorhanden",
+  "libReorderFailed": "Neue Reihenfolge konnte nicht gespeichert werden",
+  "libDeleteTitle": "Bibliothek löschen?",
+  "libDeleteBody": "Dies entfernt die Bibliothek und alle Elemente dauerhaft vom Server.",
+  "libDeleted": "Bibliothek gelöscht",
+  "libDeleteFailed": "Bibliothek konnte nicht gelöscht werden",
+  "libFolderCount": "{count, plural, one {}=1{1 Ordner} other{{count} Ordner}}",
+  "@libFolderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libNewTitle": "Neue Bibliothek",
+  "libEditTitle": "Bibliothek bearbeiten",
+  "libName": "Name der Bibliothek",
+  "libMediaType": "Medienart",
+  "libMediaBook": "Bücher",
+  "libMediaPodcast": "Podcasts",
+  "libProvider": "Metadaten-Anbieter",
+  "libIcon": "Icon",
+  "libFolders": "Ordner",
+  "libAddFolder": "Ordner hinzufügen",
+  "libNoFolders": "Füge mindestens einen Ordner hinzu",
+  "libAdvanced": "Erweiterte Einstellungen",
+  "libCoverShape": "Form des Covers",
+  "libCoverSquare": "Quadratisch",
+  "libCoverStandard": "Standard",
+  "libDisableWatcher": "Ordnerbeobachter deaktivieren",
+  "libSkipAsin": "Überspringe den Abgleich von Büchern die über eine ASIN verfügen",
+  "libSkipIsbn": "Überspringe den Abgleich von Büchern die über eine ISBN verfügen",
+  "libHideSingleSeries": "Einzelbuchreihe ausblenden",
   "libAudiobooksOnly": "Nur Hörbücher",
-  "libEpubScripted": "Scripted ePub Inhalt zulassen"
+  "libEpubScripted": "Scripted ePub Inhalt zulassen",
+  "libPodcastRegion": "Podcast Suchregion",
+  "libMarkTime": "Beendet mit Sekunden verbleibend",
+  "libAutoScan": "Auto-Scan Zeitplan (cron)",
+  "libCreate": "Neue Bibliothek erstellen",
+  "libUpdate": "Änderungen speichern",
+  "libNameRequired": "Bibliotheksnamen eingeben",
+  "libCreated": "Bibliothek erstellt",
+  "libCreateFailed": "Bibliothek konnte nicht erstellt werden",
+  "libUpdated": "Bibliothek aktualisiert",
+  "libUpdateFailed": "Bibliothek konnte nicht aktualisiert werden",
+  "libRemoveFoldersTitle": "Ordner löschen?",
+  "libRemoveFoldersBody": "Das Löschen eines Ordners entfernt alle seine Einträge aus der Bibliothek. Der Vorgang kann nicht rückgängig gemacht werden."
 }
