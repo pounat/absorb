@@ -127,16 +127,19 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
       _loadingPrefs = false;
     });
 
-    // Backfill the role for users who connected before role caching existed
-    // (configured, but no stored role). Fail closed (non-admin) on error.
-    if (configured && role == null) {
-      _backfillRole();
+    // Re-verify the role on every open so the Approvals tab tracks the
+    // server: a demoted admin loses it and a promoted user gains it without
+    // reconnecting. The cached role above drives the first frame; this also
+    // covers users who connected before role caching existed (role == null).
+    if (configured) {
+      _refreshRole();
     }
   }
 
-  /// Fetch the connected token's role via `me()` and cache it. Reveals the
-  /// admin-only Approvals tab without requiring a reconnect.
-  Future<void> _backfillRole() async {
+  /// Fetch the connected token's current role via `me()` and cache it, so the
+  /// admin-only Approvals tab reflects the server's current role. Fail closed
+  /// (keep the cached/non-admin value) on error.
+  Future<void> _refreshRole() async {
     final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final token = await ScopedPrefs.getString(kRmabApiTokenKey);
     if (base == null || base.isEmpty || token == null || token.isEmpty) return;
@@ -146,7 +149,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
       if (!mounted) return;
       setState(() => _isRmabAdmin = me.isAdmin);
     } catch (e) {
-      debugPrint('[RMAB] role backfill failed: $e');
+      debugPrint('[RMAB] role refresh failed: $e');
     }
   }
 
