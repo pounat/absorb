@@ -526,6 +526,15 @@
   "colorSourceWallpaperDescription": "App-Farben richten sich nach deinem System-Hintergrundbild",
   "colorSourceWallpaper": "Hintergrundbild",
   "colorSourceNowPlaying": "Wiedergabe",
+  "colorSourceDynamic": "Dynamisch",
+  "colorSourceManual": "Manuell",
+  "colorSourceManualDescription": "Wähle unten eine feste App-Farbe",
+  "colorSourceCustom": "Benutzerdefiniert",
+  "useColorEverywhereLabel": "Diese Farbe überall verwenden",
+  "useColorEverywhereSubtitle": "Nutze die benutzerdefinierte Farbe statt der dynamischen für die Buchdetails und die Wiedergabekarten",
+  "flatBackgroundLabel": "Flacher Hintergrund",
+  "flatBackgroundSubtitle": "Hintergrundverlauf entfernen. Schwarz im Dunkelmodus für OLED-Bildschirme.",
+  "backgroundIntensityLabel": "Hintergrundintensität",
   "startScreenLabel": "Startbildschirm",
   "startScreenSubtitle": "Welcher Tab beim Start der App geöffnet wird",
   "startScreenHome": "Start",
@@ -1014,6 +1023,14 @@
   },
   "resetToDefault": "Auf Standard zurücksetzen",
   "resetToDefaultStorage": "Auf Standardspeicher zurücksetzen",
+  "legacyDownloadsNotice": "{count, plural, one {}=1{1 Download liegt in einem alten benutzerdefinierten Ordner, der nicht mehr geöffnet werden kann. Lade ihn erneut herunter oder schließe diese Mitteilung.} other{{count} Downloads liegen in einem alten benutzerdefinierten Ordner, der nicht mehr geöffnet werden kann. Lade die Dateien erneut herunter oder schließe diese Mitteilung.}}",
+  "@legacyDownloadsNotice": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "redownload": "Erneut herunterladen",
   "redownloadStarted": "Wird erneut heruntergeladen",
   "dismiss": "Verwerfen",
@@ -2896,6 +2913,7 @@
   "audibleSeriesAddToCalendar": "Zum Kalender hinzufügen",
   "audibleSeriesAddToUpcoming": "Zu kommenden Veröffentlichungen hinzufügen",
   "audibleSeriesAddedToUpcoming": "Zu kommenden Veröffentlichungen hinzugefügt",
+  "audibleSeriesAlreadyInUpcoming": "Bereits auf der kommenden Seite",
   "audibleSeriesCouldNotOpenAudible": "Audible konnte nicht geöffnet werden",
   "audibleSeriesCouldNotOpenCalendar": "Kalender konnte nicht geöffnet werden",
   "audibleSeriesCalendarDescription": "Neues Hörbuch in der Serie {seriesName}",
@@ -3708,6 +3726,7 @@
   "adminAllSessionsSubtitle": "Alle Hörsitzungen anzeigen und verwalten",
   "adminSessionsAllUsers": "Alle Benutzer",
   "adminSessionsEmpty": "Keine Sitzungen",
+  "statsLibraryTotals": "Gesamtsumme der Bibliothek",
   "statsTotalItems": "Elemente",
   "statsAudioFiles": "Audiodateien",
   "statsTotalSize": "Größe (gesamt)",
@@ -3783,7 +3802,9 @@
   "libHideSingleSeries": "Einzelbuchreihe ausblenden",
   "libAudiobooksOnly": "Nur Hörbücher",
   "libEpubScripted": "Scripted ePub Inhalt zulassen",
+  "libLaterBooksOnly": "Nur aktuellere Bücher in Serie fortsetzen anzeigen",
   "libPodcastRegion": "Podcast Suchregion",
+  "libMarkPercent": "Bei % als beendet markieren",
   "libMarkTime": "Beendet mit Sekunden verbleibend",
   "libAutoScan": "Auto-Scan Zeitplan (cron)",
   "libCreate": "Neue Bibliothek erstellen",
