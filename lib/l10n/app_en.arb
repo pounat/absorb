@@ -1109,6 +1109,31 @@
   "rmabMyRequestsEmpty": "You haven't requested any books yet",
   "rmabMyRequestsError": "Couldn't load requests",
   "rmabMyRequestsRefresh": "Refresh",
+  "rmabApprovalsTab": "Approvals",
+  "rmabApprovalsEmpty": "No requests awaiting approval",
+  "rmabApprovalsError": "Couldn't load approvals",
+  "rmabApprovalForbidden": "This token isn't allowed to review approvals",
+  "rmabApprovalApprove": "Approve",
+  "rmabApprovalDeny": "Deny",
+  "rmabApprovalApproved": "Request approved",
+  "rmabApprovalDenied": "Request denied",
+  "rmabApprovalRequestedBy": "Requested by {name}",
+  "@rmabApprovalRequestedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rmabApprovalDenyConfirmTitle": "Deny this request?",
+  "rmabApprovalDenyConfirmBody": "“{title}” won't be downloaded and the requester will be notified.",
+  "@rmabApprovalDenyConfirmBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "rmabRequestDetailTitle": "Request details",
   "rmabRequestDetailStatus": "Status",
   "rmabRequestDetailRequestedOn": "Requested on",

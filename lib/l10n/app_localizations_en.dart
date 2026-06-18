@@ -2220,6 +2220,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rmabMyRequestsRefresh => 'Refresh';
 
   @override
+  String get rmabApprovalsTab => 'Approvals';
+
+  @override
+  String get rmabApprovalsEmpty => 'No requests awaiting approval';
+
+  @override
+  String get rmabApprovalsError => 'Couldn\'t load approvals';
+
+  @override
+  String get rmabApprovalForbidden =>
+      'This token isn\'t allowed to review approvals';
+
+  @override
+  String get rmabApprovalApprove => 'Approve';
+
+  @override
+  String get rmabApprovalDeny => 'Deny';
+
+  @override
+  String get rmabApprovalApproved => 'Request approved';
+
+  @override
+  String get rmabApprovalDenied => 'Request denied';
+
+  @override
+  String rmabApprovalRequestedBy(String name) {
+    return 'Requested by $name';
+  }
+
+  @override
+  String get rmabApprovalDenyConfirmTitle => 'Deny this request?';
+
+  @override
+  String rmabApprovalDenyConfirmBody(String title) {
+    return '“$title” won\'t be downloaded and the requester will be notified.';
+  }
+
+  @override
   String get rmabRequestDetailTitle => 'Request details';
 
   @override

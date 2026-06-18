@@ -4072,6 +4072,72 @@ abstract class AppLocalizations {
   /// **'Refresh'**
   String get rmabMyRequestsRefresh;
 
+  /// No description provided for @rmabApprovalsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Approvals'**
+  String get rmabApprovalsTab;
+
+  /// No description provided for @rmabApprovalsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No requests awaiting approval'**
+  String get rmabApprovalsEmpty;
+
+  /// No description provided for @rmabApprovalsError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load approvals'**
+  String get rmabApprovalsError;
+
+  /// No description provided for @rmabApprovalForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'This token isn\'t allowed to review approvals'**
+  String get rmabApprovalForbidden;
+
+  /// No description provided for @rmabApprovalApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get rmabApprovalApprove;
+
+  /// No description provided for @rmabApprovalDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get rmabApprovalDeny;
+
+  /// No description provided for @rmabApprovalApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Request approved'**
+  String get rmabApprovalApproved;
+
+  /// No description provided for @rmabApprovalDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Request denied'**
+  String get rmabApprovalDenied;
+
+  /// No description provided for @rmabApprovalRequestedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested by {name}'**
+  String rmabApprovalRequestedBy(String name);
+
+  /// No description provided for @rmabApprovalDenyConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny this request?'**
+  String get rmabApprovalDenyConfirmTitle;
+
+  /// No description provided for @rmabApprovalDenyConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'“{title}” won\'t be downloaded and the requester will be notified.'**
+  String rmabApprovalDenyConfirmBody(String title);
+
   /// No description provided for @rmabRequestDetailTitle.
   ///
   /// In en, this message translates to:
