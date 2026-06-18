@@ -43,6 +43,7 @@ class RmabConfigResult {
 Future<RmabConfigResult?> showRmabConfigSheet(
   BuildContext context, {
   required bool isAdminContext,
+  bool initialApprovals = false,
 }) {
   return showStackableSheet<RmabConfigResult>(
     context: context,
@@ -53,6 +54,7 @@ Future<RmabConfigResult?> showRmabConfigSheet(
     useSafeArea: true,
     builder: (ctx, scrollController) => _RmabConfigSheet(
       isAdminContext: isAdminContext,
+      initialApprovals: initialApprovals,
       scrollController: scrollController,
     ),
   );
@@ -62,9 +64,11 @@ class _RmabConfigSheet extends StatefulWidget {
   const _RmabConfigSheet({
     required this.isAdminContext,
     required this.scrollController,
+    this.initialApprovals = false,
   });
 
   final bool isAdminContext;
+  final bool initialApprovals;
   final ScrollController scrollController;
 
   @override
@@ -333,6 +337,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
       return _ConfiguredView(
         state: this,
         credsVersion: _credsVersion,
+        initialApprovals: widget.initialApprovals,
         scrollController: widget.scrollController,
       );
     }
@@ -385,9 +390,11 @@ class _ConfiguredView extends StatelessWidget {
     required this.state,
     required this.credsVersion,
     required this.scrollController,
+    this.initialApprovals = false,
   });
   final _RmabConfigSheetState state;
   final int credsVersion;
+  final bool initialApprovals;
   final ScrollController scrollController;
 
   @override
@@ -422,6 +429,7 @@ class _ConfiguredView extends StatelessWidget {
     // bubbles up to the sheet for dismissal.
     return DefaultTabController(
       length: tabs.length,
+      initialIndex: (showApprovals && initialApprovals) ? 1 : 0,
       child: Column(
         children: [
           Padding(

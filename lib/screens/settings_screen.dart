@@ -38,6 +38,7 @@ import '../widgets/feature_hint.dart';
 import '../widgets/welcome_sheet.dart';
 import '../widgets/rmab_config_sheet.dart';
 import '../services/rmab_service.dart';
+import '../services/rmab_approvals_notifier.dart';
 import '../l10n/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -146,6 +147,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _rmabBaseUrl;
   String? _rmabApiToken;
   int _rmabPendingApprovals = 0;
+  bool _rmabIsAdmin = false;
+  bool _rmabApprovalNotifs = false;
   bool _loaded = false;
   String _downloadLocationLabel = 'App Internal Storage (Default)';
   bool _canPickDownloadLocation = false;
@@ -781,6 +784,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _loaded = true;
     });
     _refreshRmabApprovalsBadge();
+    RmabApprovalsNotifier.isEnabled().then((v) {
+      if (mounted) setState(() => _rmabApprovalNotifs = v);
+    });
   }
 
   static const _shakeSensitivityKeys = ['veryLow', 'low', 'medium', 'high', 'veryHigh'];
@@ -3030,6 +3036,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                       onTap: _openRmabSheetFromSettings,
                     ),
+                    if (_rmabIsAdmin) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        secondary: Icon(Icons.notifications_active_outlined,
+                            color: cs.primary),
+                        title: Text(l.rmabApprovalNotifsTitle),
+                        subtitle: Text(l.rmabApprovalNotifsSubtitle,
+                            style: tt.bodySmall
+                                ?.copyWith(color: cs.onSurfaceVariant)),
+                        value: _rmabApprovalNotifs,
+                        onChanged:
+                            _loaded ? _toggleRmabApprovalNotifs : null,
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -3885,8 +3905,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final token = await ScopedPrefs.getString(kRmabApiTokenKey);
     if (base == null || base.isEmpty || token == null || token.isEmpty) {
-      if (mounted && _rmabPendingApprovals != 0) {
-        setState(() => _rmabPendingApprovals = 0);
+      if (mounted && (_rmabPendingApprovals != 0 || _rmabIsAdmin)) {
+        setState(() {
+          _rmabPendingApprovals = 0;
+          _rmabIsAdmin = false;
+        });
       }
       return;
     }
@@ -3894,14 +3917,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final pending = await RmabService(baseUrl: base, apiToken: token)
           .listPendingApprovals();
       if (!mounted) return;
-      if (_rmabPendingApprovals != pending.length) {
-        setState(() => _rmabPendingApprovals = pending.length);
+      setState(() {
+        _rmabPendingApprovals = pending.length;
+        _rmabIsAdmin = true;
+      });
+    } on RmabException catch (e) {
+      if (!mounted) return;
+      // A user-scoped token can't see approvals (403) — hide badge + toggle.
+      // Other errors (network, etc.) just clear the count and leave admin as-is.
+      if (e.kind == RmabErrorKind.forbidden) {
+        setState(() {
+          _rmabPendingApprovals = 0;
+          _rmabIsAdmin = false;
+        });
+      } else if (_rmabPendingApprovals != 0) {
+        setState(() => _rmabPendingApprovals = 0);
       }
+      debugPrint('[RMAB] approvals badge refresh skipped: ${e.kind}');
     } catch (e) {
-      debugPrint('[RMAB] approvals badge refresh skipped: $e');
+      debugPrint('[RMAB] approvals badge refresh error: $e');
       if (mounted && _rmabPendingApprovals != 0) {
         setState(() => _rmabPendingApprovals = 0);
       }
+    }
+  }
+
+  Future<void> _toggleRmabApprovalNotifs(bool enable) async {
+    final l = AppLocalizations.of(context)!;
+    if (enable) {
+      final ok = await RmabApprovalsNotifier.enable();
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l.rmabApprovalNotifsDenied),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+        return;
+      }
+      setState(() => _rmabApprovalNotifs = true);
+    } else {
+      await RmabApprovalsNotifier.disable();
+      if (!mounted) return;
+      setState(() => _rmabApprovalNotifs = false);
     }
   }
 

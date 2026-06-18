@@ -27,6 +27,7 @@ import 'services/sleep_timer_service.dart';
 import 'services/scoped_prefs.dart';
 import 'services/user_account_service.dart';
 import 'services/android_auto_service.dart';
+import 'services/rmab_approvals_notifier.dart';
 import 'services/carplay_service.dart';
 import 'services/chromecast_service.dart';
 import 'services/home_widget_service.dart';
@@ -146,6 +147,9 @@ void applyUseColorEverywhere(bool value) => useColorEverywhereNotifier.value = v
 void main() async {
   HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+
+  // Register the RMAB approvals background entry-point early (Android headless).
+  RmabApprovalsNotifier.registerHeadless();
 
   // These calls use platform channels that require an Activity. When Android
   // Auto cold-starts the app for the MediaBrowserService, no Activity exists

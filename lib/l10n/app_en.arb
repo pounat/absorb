@@ -1121,6 +1121,26 @@
   "rmabApprovalsEmpty": "No requests awaiting approval",
   "rmabApprovalsError": "Couldn't load approvals",
   "rmabApprovalForbidden": "This token isn't allowed to review approvals",
+  "rmabApprovalNotifsTitle": "Approval notifications",
+  "rmabApprovalNotifsSubtitle": "Notify me when new requests need approval. Best-effort in the background.",
+  "rmabApprovalNotifsDenied": "Notification permission was denied",
+  "rmabApprovalNotifTitle": "Approvals waiting",
+  "rmabApprovalNotifBodyOne": "“{title}” needs your approval",
+  "@rmabApprovalNotifBodyOne": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "rmabApprovalNotifBodyMany": "{count} requests need your approval",
+  "@rmabApprovalNotifBodyMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "rmabApprovalApprove": "Approve",
   "rmabApprovalDeny": "Deny",
   "rmabApprovalApproved": "Request approved",
