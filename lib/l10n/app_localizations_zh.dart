@@ -1994,6 +1994,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adminRmabAskAdmin => '请向您的服务器管理员获取登录 URL';
 
   @override
+  String adminRmabApprovalsPending(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests awaiting approval',
+      one: '1 request awaiting approval',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get adminRmabUrlHelpUser =>
       '请向您的服务器管理员获取登录 URL，管理员可在 RMAB 的管理 -> 用户中生成。';
 

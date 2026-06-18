@@ -3766,6 +3766,12 @@ abstract class AppLocalizations {
   /// **'Get a login URL from your server admin'**
   String get adminRmabAskAdmin;
 
+  /// No description provided for @adminRmabApprovalsPending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 request awaiting approval} other{{count} requests awaiting approval}}'**
+  String adminRmabApprovalsPending(int count);
+
   /// No description provided for @adminRmabUrlHelpUser.
   ///
   /// In en, this message translates to:

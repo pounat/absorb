@@ -1044,6 +1044,14 @@
   "adminRmabLoadFailed": "Couldn't load ReadMeABook. Check your URL.",
   "adminRmabConnected": "Connected",
   "adminRmabAskAdmin": "Get a login URL from your server admin",
+  "adminRmabApprovalsPending": "{count, plural, =1{1 request awaiting approval} other{{count} requests awaiting approval}}",
+  "@adminRmabApprovalsPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminRmabUrlHelpUser": "Get a login URL from your server admin. They generate one in RMAB > Admin > Users.",
   "adminRmabSettingsInfo": "ReadMeABook is a self-hosted service for requesting and downloading audiobooks. It must be installed and set up by your server admin.",
   "rmabConfigTitle": "Connect ReadMeABook",

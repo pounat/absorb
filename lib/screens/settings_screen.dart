@@ -37,6 +37,7 @@ import '../widgets/tips_sheet.dart';
 import '../widgets/feature_hint.dart';
 import '../widgets/welcome_sheet.dart';
 import '../widgets/rmab_config_sheet.dart';
+import '../services/rmab_service.dart';
 import '../l10n/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -144,6 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _includePreReleases = false;
   String? _rmabBaseUrl;
   String? _rmabApiToken;
+  int _rmabPendingApprovals = 0;
   bool _loaded = false;
   String _downloadLocationLabel = 'App Internal Storage (Default)';
   bool _canPickDownloadLocation = false;
@@ -778,6 +780,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       _loaded = true;
     });
+    _refreshRmabApprovalsBadge();
   }
 
   static const _shakeSensitivityKeys = ['veryLow', 'low', 'medium', 'high', 'veryHigh'];
@@ -3010,12 +3013,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
-                      leading: Icon(Icons.menu_book_rounded, color: cs.primary),
+                      leading: _rmabPendingApprovals > 0
+                          ? Badge.count(
+                              count: _rmabPendingApprovals,
+                              child: Icon(Icons.menu_book_rounded, color: cs.primary),
+                            )
+                          : Icon(Icons.menu_book_rounded, color: cs.primary),
                       title: Text(l.adminRmab),
                       subtitle: Text(
-                        ((_rmabBaseUrl ?? '').isNotEmpty && (_rmabApiToken ?? '').isNotEmpty)
-                            ? l.adminRmabConnected
-                            : l.adminRmabAskAdmin,
+                        _rmabPendingApprovals > 0
+                            ? l.adminRmabApprovalsPending(_rmabPendingApprovals)
+                            : ((_rmabBaseUrl ?? '').isNotEmpty && (_rmabApiToken ?? '').isNotEmpty)
+                                ? l.adminRmabConnected
+                                : l.adminRmabAskAdmin,
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                       trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                       onTap: _openRmabSheetFromSettings,
@@ -3845,7 +3855,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isAdmin = context.read<AuthProvider>().isAdmin;
     final result =
         await showRmabConfigSheet(context, isAdminContext: isAdmin);
-    if (!mounted || result == null) return;
+    if (!mounted) return;
+    // Approvals may have been acted on (or creds changed) while the drawer
+    // was open — re-fetch the badge count regardless of the result.
+    _refreshRmabApprovalsBadge();
+    if (result == null) return;
     if (result.changed || result.disconnected) {
       final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
       final token = await ScopedPrefs.getString(kRmabApiTokenKey);
@@ -3861,6 +3875,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
+    }
+  }
+
+  /// Fetch the pending-approval count for the RMAB tile badge. The endpoint is
+  /// admin-only, so a successful response doubles as the admin check — a
+  /// non-admin token (forbidden) or any error simply clears the badge.
+  Future<void> _refreshRmabApprovalsBadge() async {
+    final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
+    final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+    if (base == null || base.isEmpty || token == null || token.isEmpty) {
+      if (mounted && _rmabPendingApprovals != 0) {
+        setState(() => _rmabPendingApprovals = 0);
+      }
+      return;
+    }
+    try {
+      final pending = await RmabService(baseUrl: base, apiToken: token)
+          .listPendingApprovals();
+      if (!mounted) return;
+      if (_rmabPendingApprovals != pending.length) {
+        setState(() => _rmabPendingApprovals = pending.length);
+      }
+    } catch (e) {
+      debugPrint('[RMAB] approvals badge refresh skipped: $e');
+      if (mounted && _rmabPendingApprovals != 0) {
+        setState(() => _rmabPendingApprovals = 0);
+      }
     }
   }
 

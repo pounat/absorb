@@ -2057,6 +2057,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get adminRmabAskAdmin => 'Get a login URL from your server admin';
 
   @override
+  String adminRmabApprovalsPending(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests awaiting approval',
+      one: '1 request awaiting approval',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get adminRmabUrlHelpUser =>
       'Get a login URL from your server admin. They generate one in RMAB > Admin > Users.';
 
