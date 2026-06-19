@@ -190,6 +190,8 @@
   "absorbingStop": "Stop",
   "absorbingDone": "Fait",
   "absorbingNoDownloadedEpisodes": "Aucun épisode téléchargé",
+  "carModeChapterLabel": "Chapitre",
+  "downloadsTitle": "Téléchargements",
   "downloadsCancel": "Annuler",
   "downloadsDelete": "Supprimer",
   "downloadsDeleteCount": "Supprimer {count} téléchargement(s) ?",
@@ -224,6 +226,11 @@
   "statsThisWeek": "Cette semaine",
   "statsThisMonth": "Ce mois-ci",
   "statsActivity": "Activité",
+  "statsGoalTitle": "Objectif d'écoute",
+  "statsGoalDaily": "Quotidien",
+  "statsGoalWeekly": "Hebdomadaire",
+  "statsGoalMonthly": "Mensuel",
+  "statsGoalTarget": "Objectif",
   "statsGoalEnterTimeHint": "Minutes ou h:mm",
   "statsDailyGoal": "Objectif quotidien",
   "statsWeeklyGoal": "Objectif hebdomadaire",
@@ -240,6 +247,7 @@
   "statsLast7Days": "7 derniers jours",
   "appShellHomeTab": "Accueil",
   "appShellLibraryTab": "Bibliothèque",
+  "appShellStatsTab": "Stats",
   "appShellSettingsTab": "Paramètres",
   "appShellDiscoverTab": "Découvrir",
   "settingsTitle": "Paramètres",
@@ -250,6 +258,7 @@
   "themeOled": "OLED",
   "themeLight": "Clair",
   "themeAuto": "Auto",
+  "colorSourceDynamic": "Dynamique",
   "startScreenLibrary": "Bibliothèque",
   "fullScreenPlayer": "Lecteur plein écran",
   "queueModeManual": "Manuel",
@@ -297,7 +306,7 @@
   "downloadOverWifiOnSubtitle": "Wi-Fi uniquement",
   "deleteAbsorbedDownloads": "Supprimer les téléchargements absorbés",
   "deleteAbsorbedDownloadsInfoTitle": "Supprimer les téléchargements absorbés",
-  "deleteAbsorbedOnSubtitle": "Les éléments terminés sont supprimés pour libérer de l'espace",
+  "deleteAbsorbedOnSubtitle": "Les éléments achevés sont supprimés pour libérer de l'espace",
   "clearCache": "Effacer le cache",
   "sectionLibrary": "Bibliothèque",
   "showGoodreadsButton": "Afficher le bouton Goodreads",
@@ -346,6 +355,58 @@
   "adminRmab": "ReadMeABook",
   "adminRmabConnected": "Connecté",
   "rmabConfigTitle": "Connecter ReadMeABook",
+  "rmabConfigLearnMore": "En savoir plus sur ReadMeABook",
+  "rmabConfigBaseUrlLabel": "URL du serveur RMAB",
+  "rmabConfigBaseUrlHint": "https://rmab.exemple.com",
+  "rmabConfigTokenHint": "rmab_...",
+  "rmabConfigLegacyUrlHint": "https://rmab.exemple.com/?token=...",
+  "rmabConfigConnect": "Connecter",
+  "rmabConfigDisconnect": "Déconnecter",
+  "rmabConfigConnectedAs": "Connecté en tant que {name}",
+  "@rmabConfigConnectedAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rmabConfigSavedSnackbar": "ReadMeABook connecté",
+  "rmabConfigDisconnectedSnackbar": "ReadMeABook déconnecté",
+  "rmabSearchHint": "Rechercher par titre ou auteur",
+  "rmabBookDetailExplainer": "Cette demande sera envoyée via votre serveur ReadMeABook. L'administrateur l'examinera et la traitera. Vous pouvez suivre son évolution dans « Mes demandes » dans la section ReadMeABook.",
+  "rmabBookAlreadyAvailable": "Déjà dans votre bibliothèque",
+  "rmabBookAlreadyRequested": "Déjà demandé",
+  "rmabRequestSent": "Demande envoyée",
+  "rmabRequestErrorAlreadyAvailable": "Déjà dans votre bibliothèque",
+  "rmabMyRequestsTab": "Mes demandes",
+  "clearLocalMetadata": "Effacer les métadonnées locales",
+  "searchOnGoodreads": "Rechercher sur Goodreads",
+  "codec": "Codec",
+  "mono": "Mono",
+  "stereo": "Stéréo",
+  "aboutSection": "À propos",
+  "chaptersCount": "Chapitres ({count})",
+  "@chaptersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chapters": "Chapitres",
+  "finishedDate": "Achevé le {date}",
+  "@finishedDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "clearLocalMetadataQuestion": "Effacer les métadonnées locales ?",
+  "titleLabel": "Titre",
+  "noteOptionalLabel": "Note (facultatif)",
+  "playbackHistory": "Historique de lecture",
+  "clearHistoryTooltip": "Effacer l'historique",
   "libraryFallback": "Bibliothèque",
   "libraryCountOne": "{count} bibliothèque",
   "@libraryCountOne": {
@@ -374,11 +435,107 @@
     }
   },
   "adminPodcastsAddToLibrary": "Ajouter à la bibliothèque",
+  "adminPodcastsDeleteEpisodesContent": "Supprimer {count} épisode(s) du serveur ?",
+  "@adminPodcastsDeleteEpisodesContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "episodeListShowFinishedEpisodes": "Afficher les épisodes achevés",
+  "episodeListHideFinishedEpisodes": "Cacher les épisodes achevés",
   "librarySearchResultsExplicitBadge": "E",
   "libraryGridTilesExplicitBadge": "E",
+  "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
   "androidAutoTabLibrary": "Bibliothèque",
+  "ok": "OK",
+  "chapterShowSeconds": "Afficher les secondes",
+  "chapterShiftBySeconds": "Décaler de (secondes)",
+  "chapterUnlock": "Déverrouiller",
+  "chapterLock": "Verrouiller",
+  "chapterFoundCount": "{count} chapitres trouvés",
+  "@chapterFoundCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
+  "@embedBackupNotePath": {
+    "placeholders": {
+      "itemId": {
+        "type": "String"
+      }
+    }
+  },
+  "adminApiKeys": "Clés API",
+  "adminApiKeysNewTitle": "Nouvelle clé API",
+  "adminApiKeysName": "Nom",
+  "adminApiKeysOwner": "Utilisateur",
+  "adminApiKeysExpiration": "Expiration",
+  "adminApiKeysActive": "Active",
+  "adminApiKeysInactive": "Inactive",
+  "adminApiKeysCreated": "Clé API créée",
+  "adminApiKeysTokenLabel": "Votre nouvelle clé API",
+  "adminApiKeysCopyWarning": "Copiez cette clé maintenant. Par sécurité, elle ne sera pas affichée à nouveau.",
+  "adminApiKeysCopy": "Copier",
+  "adminApiKeysCopied": "Copiée dans le presse-papiers",
+  "adminApiKeysDeleteTitle": "Révoquer la clé API ?",
+  "adminApiKeysDeleted": "Clé API révoquée",
+  "adminApiKeysRevoke": "Révoquer",
+  "adminApiKeysNeverUsed": "Jamais utilisée",
+  "adminApiKeysNeverExpires": "Pas d'expiration",
+  "adminApiKeysExpNever": "Jamais",
+  "adminApiKeysExp7d": "7 jours",
+  "adminApiKeysExp30d": "30 jours",
+  "adminApiKeysExp90d": "90 jours",
+  "adminApiKeysExp1y": "1 an",
+  "adminApiKeysExpiresOn": "Expire le {date}",
+  "@adminApiKeysExpiresOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminApiKeysDeleteContent": "Révoquer \"{name}\" ? Les applications utilisant cette clé perdront accès immédiatement.",
+  "@adminApiKeysDeleteContent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bookmarkListen": "Écouter",
+  "bookmarkPause": "Pause",
+  "clipExportSaved": "{filename} sauvegardé",
+  "@clipExportSaved": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "fsUseThisFolder": "Utiliser ce dossier",
+  "adminLibrariesManage": "Bibliothèques",
+  "adminServerSettings": "Paramètres du serveur",
+  "adminStats": "Statistiques",
+  "statsPodcasts": "Podcasts",
+  "statsSessions": "Sessions",
+  "srvMetadataFormat": "Format de fichier de métadonnées",
+  "srvDateFormat": "Format de date",
+  "srvLanguage": "Langage du serveur",
+  "srvSaved": "Paramètres sauvegardés",
   "libDeleted": "Bibliothèque supprimée",
   "libNewTitle": "Nouvelle bibliothèque",
+  "libMediaBook": "Livres audio",
+  "libMediaPodcast": "Podcasts",
+  "libProvider": "Fournisseur de métadonnées",
+  "libCoverSquare": "Carré",
+  "libCoverStandard": "Standard",
+  "libCreate": "Créer une bibliothèque",
   "libCreated": "Bibliothèque créée",
   "libUpdated": "Bibliothèque mise à jour"
 }
