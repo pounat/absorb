@@ -69,9 +69,28 @@
   },
   "adminSetupFileNote": "Une clé API sera créée pour cet utilisateur. Traitez le fichier tel un mot de passe.",
   "loginFailed": "Échec de connexion",
+  "loginRestoreFromBackup": "Importer",
   "loginInvalidBackupFile": "Fichier de sauvegarde invalide",
   "loginRestoreBackupTitle": "Restaurer la sauvegarde ?",
+  "loginRestoreBackupWithAccounts": "Tous les paramètres ainsi que {count} compte(s) sauvegardé(s) seront restaurés. Vous serez connecté automatiquement.",
+  "@loginRestoreBackupWithAccounts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loginRestoreBackupNoAccounts": "Tous les paramètres seront restaurés. Aucun compte n'était inclus dans cette sauvegarde.",
   "loginRestore": "Restaurer",
+  "loginRestoredAndSignedIn": "Paramètres restaurés, connecté en tant que {username}",
+  "@loginRestoredAndSignedIn": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSessionExpired": "Paramètres restaurés. Session expirée - se connecter pour continuer.",
   "loginSettingsRestored": "Paramètres restaurés",
   "loginRestoreFailed": "Échec de la restauration : {error}",
   "@loginRestoreFailed": {
@@ -170,5 +189,196 @@
   "absorbingTitle": "Lecture",
   "absorbingStop": "Stop",
   "absorbingDone": "Fait",
-  "absorbingNoDownloadedEpisodes": "Aucun épisode téléchargé"
+  "absorbingNoDownloadedEpisodes": "Aucun épisode téléchargé",
+  "downloadsCancel": "Annuler",
+  "downloadsDelete": "Supprimer",
+  "downloadsDeleteCount": "Supprimer {count} téléchargement(s) ?",
+  "@downloadsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsDeletedCount": "{count} téléchargement(s) supprimés",
+  "@downloadsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksCancelSelection": "Annuler la sélection",
+  "statsTitle": "Vos statistiques",
+  "statsHoursUnit": "h",
+  "statsMinutesUnit": "m",
+  "statsHoursOfAudio": "C'est {hours} d'audio",
+  "@statsHoursOfAudio": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "statsToday": "Aujourd'hui",
+  "statsThisWeek": "Cette semaine",
+  "statsThisMonth": "Ce mois-ci",
+  "statsActivity": "Activité",
+  "statsGoalEnterTimeHint": "Minutes ou h:mm",
+  "statsDailyGoal": "Objectif quotidien",
+  "statsWeeklyGoal": "Objectif hebdomadaire",
+  "statsMonthlyGoal": "Objectif mensuel",
+  "statsGoalReached": "Objectif atteint",
+  "statsChartDays7": "7 jours",
+  "statsChartDays30": "30 jours",
+  "statsLast30Days": "30 derniers jours",
+  "statsThisYearTitle": "Cette année",
+  "statsHeatmapLess": "Moins",
+  "statsHeatmapMore": "Plus",
+  "statsDayOfWeek": "Moyenne par jour de la semaine",
+  "statsDailyAverage": "Moyenne quotidienne",
+  "statsLast7Days": "7 derniers jours",
+  "appShellHomeTab": "Accueil",
+  "appShellLibraryTab": "Bibliothèque",
+  "appShellSettingsTab": "Paramètres",
+  "appShellDiscoverTab": "Découvrir",
+  "settingsTitle": "Paramètres",
+  "sectionAppearance": "Apparence",
+  "languageLabel": "Langage",
+  "themeLabel": "Thème",
+  "themeDark": "Sombre",
+  "themeOled": "OLED",
+  "themeLight": "Clair",
+  "themeAuto": "Auto",
+  "startScreenLibrary": "Bibliothèque",
+  "fullScreenPlayer": "Lecteur plein écran",
+  "queueModeManual": "Manuel",
+  "queueModeAuto": "Auto",
+  "queueModePodcasts": "Podcasts",
+  "defaultSpeed": "Vitesse par défaut",
+  "shakeAdds": "Secouer ajoute",
+  "shakeAddsValue": "{minutes} min",
+  "@shakeAddsValue": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "shakeSensitivityVeryLow": "Très basse",
+  "shakeSensitivityLow": "Basse",
+  "shakeSensitivityMedium": "Moyenne",
+  "shakeSensitivityHigh": "Haute",
+  "shakeSensitivityVeryHigh": "Très haute",
+  "autoSleepTimerOnSubtitle": "{start} - {end} - {duration} min",
+  "@autoSleepTimerOnSubtitle": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "int"
+      }
+    }
+  },
+  "endOfChapter": "Fin du chapitre",
+  "chaptersLeftCount": "{count} ch restants",
+  "@chaptersLeftCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sectionDownloadsAndStorage": "Téléchargements et stockage",
+  "downloadOverWifiOnSubtitle": "Wi-Fi uniquement",
+  "deleteAbsorbedDownloads": "Supprimer les téléchargements absorbés",
+  "deleteAbsorbedDownloadsInfoTitle": "Supprimer les téléchargements absorbés",
+  "deleteAbsorbedOnSubtitle": "Les éléments terminés sont supprimés pour libérer de l'espace",
+  "clearCache": "Effacer le cache",
+  "sectionLibrary": "Bibliothèque",
+  "showGoodreadsButton": "Afficher le bouton Goodreads",
+  "sectionPermissions": "Permissions",
+  "notifications": "Notifications",
+  "notificationsAlreadyEnabled": "Notifications déjà activées",
+  "contact": "Contact",
+  "localServer": "Serveur local",
+  "localServerInfoTitle": "Serveur local",
+  "restartRequired": "Redémarrage requis",
+  "appVersionFormat": "Absorb v{version}",
+  "@appVersionFormat": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appVersionWithServerFormat": "Absorb v{version} - Serveur {serverVersion}",
+  "@appVersionWithServerFormat": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "serverVersion": {
+        "type": "String"
+      }
+    }
+  },
+  "backupAndRestore": "Sauvegarder & Restaurer",
+  "backupAndRestoreSubtitle": "Sauvegarder ou restaurer tous vos paramètres dans un fichier",
+  "switchAccount": "Changer de compte",
+  "addAccount": "Ajouter un compte",
+  "logOut": "Se déconnecter",
+  "noSettingsOnly": "Non, paramètres uniquement",
+  "yesIncludeAccounts": "Oui, inclure les comptes",
+  "restoreBackupTitle": "Restaurer la sauvegarde ?",
+  "restoreBackupContent": "Tous vos paramètres actuels seront remplacés par ceux de la sauvegarde.",
+  "adminServer": "Serveur",
+  "adminVersion": "Version",
+  "adminUsers": "Utilisateurs",
+  "adminOnline": "En ligne",
+  "adminPurgeCache": "Purger le cache",
+  "adminPodcasts": "Podcasts",
+  "adminCachePurged": "Cache purgé",
+  "adminRmab": "ReadMeABook",
+  "adminRmabConnected": "Connecté",
+  "rmabConfigTitle": "Connecter ReadMeABook",
+  "libraryFallback": "Bibliothèque",
+  "libraryCountOne": "{count} bibliothèque",
+  "@libraryCountOne": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryCountOther": "{count} bibliothèques",
+  "@libraryCountOther": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminLibraryFolders": "dossiers",
+  "adminLibraryDuration": "durée",
+  "adminPodcastsAddedToLibrary": "{title} ajouté à la bibliothèque",
+  "@adminPodcastsAddedToLibrary": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPodcastsAddToLibrary": "Ajouter à la bibliothèque",
+  "librarySearchResultsExplicitBadge": "E",
+  "libraryGridTilesExplicitBadge": "E",
+  "androidAutoTabLibrary": "Bibliothèque",
+  "libDeleted": "Bibliothèque supprimée",
+  "libNewTitle": "Nouvelle bibliothèque",
+  "libCreated": "Bibliothèque créée",
+  "libUpdated": "Bibliothèque mise à jour"
 }
