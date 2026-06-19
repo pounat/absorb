@@ -51,6 +51,23 @@
   "loginUsernameRequired": "Entrez votre nom d'utilisateur",
   "loginPassword": "Mot de passe",
   "loginSignIn": "Se connecter",
+  "loginSignInAs": "Se connecter en tant que {username} ?",
+  "@loginSignInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSignedInAs": "Connecté en tant que {username}",
+  "@loginSignedInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileNote": "Une clé API sera créée pour cet utilisateur. Traitez le fichier tel un mot de passe.",
   "loginFailed": "Échec de connexion",
   "loginInvalidBackupFile": "Fichier de sauvegarde invalide",
   "loginRestoreBackupTitle": "Restaurer la sauvegarde ?",
@@ -91,6 +108,8 @@
   "librarySearchEpisodes": "Épisodes",
   "librarySearchSeries": "Séries",
   "librarySearchAuthors": "Auteurs",
+  "librarySearchTags": "Tags",
+  "librarySearchGenres": "Genres",
   "librarySeriesCount": "{count} séries",
   "@librarySeriesCount": {
     "placeholders": {
@@ -128,6 +147,7 @@
   },
   "sort": "Trier",
   "filter": "Filtrer",
+  "filterActive": "Filtrer",
   "name": "Nom",
   "title": "Titre",
   "author": "Auteur",
@@ -141,11 +161,14 @@
   "notStarted": "Non commencé",
   "downloaded": "Téléchargé",
   "genre": "Genre",
+  "tag": "Mot-clé",
   "clearFilter": "Supprimer le filtre",
   "noGenresFound": "Aucun genre trouvé",
+  "noTagsFound": "Aucun mot-clé trouvé",
   "asc": "Croissant",
   "desc": "Décroissant",
   "absorbingTitle": "Lecture",
   "absorbingStop": "Stop",
-  "absorbingDone": "Fait"
+  "absorbingDone": "Fait",
+  "absorbingNoDownloadedEpisodes": "Aucun épisode téléchargé"
 }
