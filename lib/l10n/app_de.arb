@@ -3712,6 +3712,25 @@
   "bookmarkListen": "Anhören",
   "bookmarkPause": "Pausieren",
   "bookmarkPreviewFailed": "Stelle konnte nicht wiedergeben werden.",
+  "clipExport": "Clip exportieren",
+  "clipJumpToStart": "Zum Anfang springen",
+  "clipJumpToEnd": "Zum Ende springen",
+  "clipSetStart": "Anfang festlegen",
+  "clipSetEnd": "Ende festlegen",
+  "clipInLabel": "Rein",
+  "clipOutLabel": "Raus",
+  "clipSave": "Clip speichern",
+  "clipExportSaved": "Gespeichert: {filename}",
+  "@clipExportSaved": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "clipExportClamped": "Clip gespeichert, gekürzt bis zum Ende dieses Titels",
+  "clipExportFailed": "Clip konnte nicht exportiert werden.",
+  "clipDownloadToExport": "Lade dieses Buch zuerst herunter, um einen Clip auf das iPhone zu exportieren.",
   "fsPickerTitle": "Ordner auswählen",
   "fsServerRoot": "Server-Root",
   "fsEmptyFolder": "Keine Unterordner vorhanden",
