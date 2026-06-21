@@ -59,6 +59,7 @@
       }
     }
   },
+  "loginSignInToServer": "Se connecter à ce serveur ?",
   "loginSignedInAs": "Connecté en tant que {username}",
   "@loginSignedInAs": {
     "placeholders": {
@@ -190,8 +191,11 @@
   "absorbingStop": "Stop",
   "absorbingDone": "Fait",
   "absorbingNoDownloadedEpisodes": "Aucun épisode téléchargé",
+  "absorbingNoDownloadedBooks": "Aucun livre téléchargé",
+  "carModeTitle": "Mode Auto",
   "carModeChapterLabel": "Chapitre",
   "downloadsTitle": "Téléchargements",
+  "downloadsCancelSelection": "Annuler la sélection",
   "downloadsCancel": "Annuler",
   "downloadsDelete": "Supprimer",
   "downloadsDeleteCount": "Supprimer {count} téléchargement(s) ?",
@@ -210,10 +214,34 @@
       }
     }
   },
+  "downloadsRemoveContent": "Supprimer \"{title}\" de cet appareil ?",
+  "@downloadsRemoveContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsRemovedTitle": "\"{title}\" supprimé",
+  "@downloadsRemovedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "bookmarksCancelSelection": "Annuler la sélection",
   "statsTitle": "Vos statistiques",
   "statsHoursUnit": "h",
   "statsMinutesUnit": "m",
+  "statsDaysOfAudio": "C'est {days} jours d'audio",
+  "@statsDaysOfAudio": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
   "statsHoursOfAudio": "C'est {hours} d'audio",
   "@statsHoursOfAudio": {
     "placeholders": {
@@ -235,6 +263,17 @@
   "statsDailyGoal": "Objectif quotidien",
   "statsWeeklyGoal": "Objectif hebdomadaire",
   "statsMonthlyGoal": "Objectif mensuel",
+  "statsGoalProgress": "{done} / {target}",
+  "@statsGoalProgress": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
   "statsGoalReached": "Objectif atteint",
   "statsChartDays7": "7 jours",
   "statsChartDays30": "30 jours",
@@ -245,6 +284,7 @@
   "statsDayOfWeek": "Moyenne par jour de la semaine",
   "statsDailyAverage": "Moyenne quotidienne",
   "statsLast7Days": "7 derniers jours",
+  "statsRecentSessions": "Sessions récentes",
   "appShellHomeTab": "Accueil",
   "appShellLibraryTab": "Bibliothèque",
   "appShellStatsTab": "Stats",
@@ -253,13 +293,16 @@
   "settingsTitle": "Paramètres",
   "sectionAppearance": "Apparence",
   "languageLabel": "Langage",
+  "languageHelpTranslateInvite": "Vous souhaitez aider à traduire Absorb ?",
   "themeLabel": "Thème",
   "themeDark": "Sombre",
   "themeOled": "OLED",
   "themeLight": "Clair",
   "themeAuto": "Auto",
   "colorSourceDynamic": "Dynamique",
+  "startScreenHome": "Accueil",
   "startScreenLibrary": "Bibliothèque",
+  "startScreenStats": "Stats",
   "fullScreenPlayer": "Lecteur plein écran",
   "queueModeManual": "Manuel",
   "queueModeAuto": "Auto",
@@ -316,6 +359,8 @@
   "contact": "Contact",
   "localServer": "Serveur local",
   "localServerInfoTitle": "Serveur local",
+  "localServerUrlLabel": "URL locale du serveur",
+  "localServerUrlHint": "http://192.168.1.100:13378",
   "restartRequired": "Redémarrage requis",
   "appVersionFormat": "Absorb v{version}",
   "@appVersionFormat": {
@@ -373,12 +418,29 @@
   "rmabConfigSavedSnackbar": "ReadMeABook connecté",
   "rmabConfigDisconnectedSnackbar": "ReadMeABook déconnecté",
   "rmabSearchHint": "Rechercher par titre ou auteur",
+  "rmabSearchFooterCta": "Rechercher \"{query}\" sur ReadMeABook",
+  "@rmabSearchFooterCta": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "rmabBookDetailExplainer": "Cette demande sera envoyée via votre serveur ReadMeABook. L'administrateur l'examinera et la traitera. Vous pouvez suivre son évolution dans « Mes demandes » dans la section ReadMeABook.",
   "rmabBookAlreadyAvailable": "Déjà dans votre bibliothèque",
   "rmabBookAlreadyRequested": "Déjà demandé",
   "rmabRequestSent": "Demande envoyée",
   "rmabRequestErrorAlreadyAvailable": "Déjà dans votre bibliothèque",
   "rmabMyRequestsTab": "Mes demandes",
+  "rmabMyRequestsRefresh": "Actualiser",
+  "rmabRequestDetailStatus": "Statut",
+  "rmabRequestDetailRequestedOn": "Demandé le",
+  "rmabStatusAvailable": "Disponible",
+  "rmabStatusDownloaded": "Téléchargé",
+  "rmabStatusFailed": "Échec",
+  "rmabStatusCancelled": "Annulé",
+  "rmabStatusUnknown": "Inconnu",
+  "onAudible": "sur Audible",
   "clearLocalMetadata": "Effacer les métadonnées locales",
   "searchOnGoodreads": "Rechercher sur Goodreads",
   "codec": "Codec",
@@ -394,6 +456,16 @@
     }
   },
   "chapters": "Chapitres",
+  "noChaptersBook": "Ce livre n'a pas de chapitres",
+  "noChaptersPodcast": "Ce podcast n'a pas de chapitres",
+  "startedDate": "Commencé le {date}",
+  "@startedDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "finishedDate": "Achevé le {date}",
   "@finishedDate": {
     "placeholders": {
@@ -403,11 +475,144 @@
     }
   },
   "clearLocalMetadataQuestion": "Effacer les métadonnées locales ?",
+  "localMetadataCleared": "Métadonnées locales effacées",
+  "playbackSpeed": "Vitesse de lecture",
   "titleLabel": "Titre",
   "noteOptionalLabel": "Note (facultatif)",
   "playbackHistory": "Historique de lecture",
   "clearHistoryTooltip": "Effacer l'historique",
+  "download": "Télécharger",
+  "authorOptionalLabel": "Auteur (facultatif)",
+  "metadataUpdated": "Métadonnées mises à jour",
+  "authorLabel": "Auteur",
+  "narratorLabel": "Narrateur",
+  "descriptionLabel": "Description",
+  "publisherLabel": "Éditeur",
+  "yearLabel": "Année",
+  "genresLabel": "Genres",
+  "tagsLabel": "Tags",
+  "asinLabel": "ASIN",
+  "isbnLabel": "ISBN",
+  "coverUrlHint": "https://...",
+  "localMetadata": "Métadonnées locales",
+  "notes": "Notes",
+  "newNote": "Nouvelle note",
+  "markdownMd": "Markdown (.md)",
+  "plainTextTxt": "Texte brut (.txt)",
+  "addedToName": "Ajouté à \"{name}\"",
+  "@addedToName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "disconnect": "Déconnecter",
+  "welcomeTagline": "Un client Audiobookshelf.",
+  "readMore": "Lire plus",
+  "saved": "Sauvegardé",
+  "userFallback": "Utilisateur",
+  "minutesAgo": "Il y a {count} min",
+  "@minutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursAgo": "Il y a {count} h",
+  "@hoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "daysAgo": "Il y a {count} j",
+  "@daysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "audible": "Audible",
+  "rewindRangeValue": "{min}s – {max}s",
+  "@rewindRangeValue": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "speedValue": "{speed}x",
+  "@speedValue": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "secondsValue": "{seconds} s",
+  "@secondsValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "minutesValue": "{minutes} min",
+  "@minutesValue": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "autoSleepTimerEnabledSubtitle": "{start} – {end} · {duration}",
+  "@autoSleepTimerEnabledSubtitle": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "endOfChapterShort": "Fin de chapitre",
+  "endOfChapterOnSubtitle": "Arrêter à la fin du chapitre en cours",
   "libraryFallback": "Bibliothèque",
+  "updateAvailable": "Mise à jour disponible",
+  "sendingToEreader": "Envoi à {device}...",
+  "@sendingToEreader": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "sendToEreaderSuccess": "Envoyé à {device}",
+  "@sendToEreaderSuccess": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "adminEmail": "Courriel",
+  "smtpSection": "SMTP",
+  "smtpHost": "Hôte",
+  "smtpPort": "Port",
+  "smtpUser": "Utilisateur",
+  "smtpPass": "Mot de passe",
+  "ereaderAvailUserOrUp": "Tous les utilisateurs",
   "libraryCountOne": "{count} bibliothèque",
   "@libraryCountOne": {
     "placeholders": {
@@ -424,8 +629,100 @@
       }
     }
   },
+  "serverVersionLabel": "Serveur {version}",
+  "@serverVersionLabel": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appVersionServerSuffix": "  ·  Serveur {version}",
+  "@appVersionServerSuffix": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "backupDetailsSeparator": " · ",
+  "speed": "Vitesse",
+  "details": "Détails",
+  "chaptersChip": "{count} chapitres",
+  "@chaptersChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterNumber": "Chapitre {number}",
+  "@chapterNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "kbpsValue": "{value} kbps",
+  "@kbpsValue": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "adminLibraries": "Bibliothèques",
   "adminLibraryFolders": "dossiers",
   "adminLibraryDuration": "durée",
+  "adminUsersNever": "Jamais",
+  "adminUsersNewUser": "Nouvel utilisateur",
+  "adminUsersUsername": "Utilisateur",
+  "adminUsersPassword": "Mot de passe",
+  "adminUsersNewPassword": "Nouveau mot de passe",
+  "adminUsersAccountType": "Type de compte",
+  "adminUsersTypeGuest": "Invité",
+  "adminUsersTypeUser": "Utilisateur",
+  "adminUsersTypeAdmin": "Admin",
+  "adminUsersStatus": "Statut",
+  "adminUsersAccountActive": "Compte actif",
+  "adminUsersLocked": "Verrouillé",
+  "adminUsersPermissions": "Permissions",
+  "adminUsersUserDeleted": "{name} supprimé",
+  "@adminUsersUserDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUsersByAuthor": "par {author}",
+  "@adminUsersByAuthor": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUsersListened": "Écouté",
+  "adminUsersTotalDuration": "Durée totale",
+  "adminUsersClient": "Client",
+  "adminUsersDevice": "Appareil",
+  "adminUsersOs": "OS",
+  "adminPodcastsEpisodesCount": "{count} épisodes",
+  "@adminPodcastsEpisodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsRelToday": "Aujourd'hui",
+  "adminPodcastsGenreArts": "Arts",
+  "adminPodcastsGenreComedy": "Comédie",
+  "adminPodcastsGenreEducation": "Éducation",
+  "adminPodcastsGenreTvFilm": "TV & Film",
+  "adminPodcastsGenreMusic": "Musique",
   "adminPodcastsAddedToLibrary": "{title} ajouté à la bibliothèque",
   "@adminPodcastsAddedToLibrary": {
     "placeholders": {
@@ -435,6 +732,15 @@
     }
   },
   "adminPodcastsAddToLibrary": "Ajouter à la bibliothèque",
+  "adminPodcastsDeleteEpisodeContent": "Supprimer \"{title}\" ?",
+  "@adminPodcastsDeleteEpisodeContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPodcastsDeleted": "Supprimé",
   "adminPodcastsDeleteEpisodesContent": "Supprimer {count} épisode(s) du serveur ?",
   "@adminPodcastsDeleteEpisodesContent": {
     "placeholders": {
@@ -443,8 +749,149 @@
       }
     }
   },
+  "adminPodcastsDownloadingDots": "Téléchargement...",
+  "adminPodcastsDeleteEpisodesCount": "Supprimer {count} épisode(s)",
+  "@adminPodcastsDeleteEpisodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsDownloadingCount": "Téléchargement de {count} épisode(s)",
+  "@adminPodcastsDownloadingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsDownloadEpisodesCount": "Télécharger {count} épisode(s)",
+  "@adminPodcastsDownloadEpisodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsFrequency": "Fréquence",
+  "adminPodcastsFreqDaily": "Quotidiennement",
+  "adminPodcastsSeasonChip": "Saison {season}",
+  "@adminPodcastsSeasonChip": {
+    "placeholders": {
+      "season": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPodcastsEpChip": "Ép. {number}",
+  "@adminPodcastsEpChip": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "episodeListEpisodeFallback": "Épisode",
+  "episodeListUnknownPodcast": "Podcast inconnu",
   "episodeListShowFinishedEpisodes": "Afficher les épisodes achevés",
   "episodeListHideFinishedEpisodes": "Cacher les épisodes achevés",
+  "episodeDetailEpisodeFallback": "Épisode",
+  "episodeDetailToday": "Aujourd'hui",
+  "episodeDetailYesterday": "Hier",
+  "episodeDetailDurationHm": "{hours}h {minutes}m",
+  "@episodeDetailDurationHm": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "episodeDetailResume": "Reprendre",
+  "episodeDetailEpisodeNumber": "Épisode {number}",
+  "@episodeDetailEpisodeNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "episodeDetailSeasonNumber": "Saison {number}",
+  "@episodeDetailSeasonNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "bookmarksScreenClose": "Fermer",
+  "statsScreenSessionCountOne": "{count} session",
+  "@statsScreenSessionCountOne": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsScreenSessionCountOther": "{count} sessions",
+  "@statsScreenSessionCountOther": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsScreenDayMon": "Lun",
+  "statsScreenDayTue": "Mar",
+  "statsScreenDayWed": "Mer",
+  "statsScreenDayThu": "Jeu",
+  "statsScreenDayFri": "Ven",
+  "statsScreenDaySat": "Sam",
+  "statsScreenDaySun": "Dim",
+  "statsScreenDurationHm": "{h}h {m}m",
+  "@statsScreenDurationHm": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "statsScreenDurationM": "{m}m",
+  "@statsScreenDurationM": {
+    "placeholders": {
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "statsScreenDurationLessThanMin": "<1m",
+  "statsScreenDurationZero": "0m",
+  "statsScreenDurationShortH": "{h}h",
+  "@statsScreenDurationShortH": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "statsScreenDurationShortM": "{m}m",
+  "@statsScreenDurationShortM": {
+    "placeholders": {
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "statsScreenClient": "Client",
+  "statsScreenDevice": "Appareil",
+  "statsScreenOs": "OS",
+  "statsScreenMonthJan": "Jan",
   "librarySearchResultsExplicitBadge": "E",
   "libraryGridTilesExplicitBadge": "E",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
@@ -477,6 +924,7 @@
   "adminApiKeysExpiration": "Expiration",
   "adminApiKeysActive": "Active",
   "adminApiKeysInactive": "Inactive",
+  "adminApiKeysExpired": "Expirée",
   "adminApiKeysCreated": "Clé API créée",
   "adminApiKeysTokenLabel": "Votre nouvelle clé API",
   "adminApiKeysCopyWarning": "Copiez cette clé maintenant. Par sécurité, elle ne sera pas affichée à nouveau.",
@@ -522,6 +970,7 @@
   "adminLibrariesManage": "Bibliothèques",
   "adminServerSettings": "Paramètres du serveur",
   "adminStats": "Statistiques",
+  "adminSessionsEmpty": "Aucune session",
   "statsPodcasts": "Podcasts",
   "statsSessions": "Sessions",
   "srvMetadataFormat": "Format de fichier de métadonnées",
