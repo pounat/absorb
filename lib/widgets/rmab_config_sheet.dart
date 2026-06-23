@@ -289,6 +289,10 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     setState(() => _obscureToken = !_obscureToken);
   }
 
+  void _demoteFromAdmin() {
+    setState(() => _isRmabAdmin = false);
+  }
+
   Future<void> _disconnect() async {
     debugPrint('[RMAB] disconnect: clearing all rmab_* keys + local cache');
     await ScopedPrefs.remove(kRmabBaseUrlKey);
@@ -419,7 +423,10 @@ class _ConfiguredView extends StatelessWidget {
         scrollController: scrollController,
       ),
       if (showApprovals)
-        _ApprovalsTab(key: ValueKey('approvals-$credsVersion')),
+        _ApprovalsTab(
+          key: ValueKey('approvals-$credsVersion'),
+          onForbidden: state._demoteFromAdmin,
+        ),
       _SetupTab(state: state),
     ];
 
@@ -1171,7 +1178,9 @@ class _RequestDetailSheet extends StatelessWidget {
 // ─── Approvals tab (admin-only) ──────────────────────────────────
 
 class _ApprovalsTab extends StatefulWidget {
-  const _ApprovalsTab({super.key});
+  const _ApprovalsTab({super.key, this.onForbidden});
+
+  final VoidCallback? onForbidden;
 
   @override
   State<_ApprovalsTab> createState() => _ApprovalsTabState();
@@ -1232,6 +1241,11 @@ class _ApprovalsTabState extends State<_ApprovalsTab>
     } on RmabException catch (e) {
       if (!mounted) return;
       debugPrint('[RMAB] approvals error: ${e.kind} ${e.message}');
+      if (e.kind == RmabErrorKind.forbidden) {
+        ScopedPrefs.setString(kRmabRoleKey, 'user');
+        widget.onForbidden?.call();
+        return;
+      }
       setState(() {
         _error = _msgForException(e);
         _loading = false;
