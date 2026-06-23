@@ -18,7 +18,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get offline => 'Offline';
 
   @override
-  String get stillOffline => 'Immer noch offline. Tippe, um es erneut zu versuchen.';
+  String get stillOffline =>
+      'Immer noch offline. Tippe, um es erneut zu versuchen.';
 
   @override
   String get retry => 'Erneut versuchen';
@@ -120,13 +121,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get yourLibraryIsEmpty => 'Deine Bibliothek ist leer';
 
   @override
-  String get downloadBooksWhileOnline => 'Lade Bücher herunter, solange du online bist, um sie offline zu hören';
+  String get downloadBooksWhileOnline =>
+      'Lade Bücher herunter, solange du online bist, um sie offline zu hören';
 
   @override
   String get customizeHome => 'Startseite anpassen';
 
   @override
-  String get dragToReorderTapEye => 'Zum Umsortieren ziehen, Auge antippen zum Ein-/Ausblenden';
+  String get dragToReorderTapEye =>
+      'Zum Umsortieren ziehen, Auge antippen zum Ein-/Ausblenden';
 
   @override
   String get loginTagline => 'Start Absorbing';
@@ -141,7 +144,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get loginServerHint => 'my.server.com';
 
   @override
-  String get loginServerHelper => 'IP:Port funktioniert auch (z. B. 192.168.1.5:13378)';
+  String get loginServerHelper =>
+      'IP:Port funktioniert auch (z. B. 192.168.1.5:13378)';
 
   @override
   String get loginCouldNotReachServer => 'Server nicht erreichbar';
@@ -153,7 +157,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get loginCustomHttpHeaders => 'Eigene HTTP-Header';
 
   @override
-  String get loginCustomHeadersDescription => 'Für Cloudflare-Tunnel oder Reverse-Proxys, die zusätzliche Header benötigen. Header hinzufügen, bevor du die Server-URL eingibst.';
+  String get loginCustomHeadersDescription =>
+      'Für Cloudflare-Tunnel oder Reverse-Proxys, die zusätzliche Header benötigen. Header hinzufügen, bevor du die Server-URL eingibst.';
 
   @override
   String get loginHeaderName => 'Header-Name';
@@ -168,13 +173,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get loginSelfSignedCertificates => 'Selbstsignierte Zertifikate';
 
   @override
-  String get loginTrustAllCertificates => 'Allen Zertifikaten vertrauen (für selbstsignierte / eigene CA-Setups)';
+  String get loginTrustAllCertificates =>
+      'Allen Zertifikaten vertrauen (für selbstsignierte / eigene CA-Setups)';
 
   @override
   String get loginApiKey => 'API-Schlüssel';
 
   @override
-  String get loginApiKeyDescription => 'Verwende einen vom Admin generierten API-Schlüssel statt Benutzername/Passwort. Praktisch, wenn die Token-Erneuerung für dein Konto fehlschlägt.';
+  String get loginApiKeyDescription =>
+      'Verwende einen vom Admin generierten API-Schlüssel statt Benutzername/Passwort. Praktisch, wenn die Token-Erneuerung für dein Konto fehlschlägt.';
 
   @override
   String get loginWaitingForSso => 'Warte auf SSO...';
@@ -222,10 +229,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminSetupFileServerUrl => 'Server URL the new user will use';
 
   @override
-  String get adminSetupFileNoteWithHeaders => 'An API key will be created for this user and your custom headers are included so they can reach the server. Treat the file like a password.';
+  String get adminSetupFileNoteWithHeaders =>
+      'An API key will be created for this user and your custom headers are included so they can reach the server. Treat the file like a password.';
 
   @override
-  String get adminSetupFileNote => 'An API key will be created for this user. Treat the file like a password.';
+  String get adminSetupFileNote =>
+      'An API key will be created for this user. Treat the file like a password.';
 
   @override
   String get adminSetupFileCreate => 'Create';
@@ -234,7 +243,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminSetupFileSaveTitle => 'Save setup file';
 
   @override
-  String get adminSetupFileKeyError => 'Could not create an API key for this user';
+  String get adminSetupFileKeyError =>
+      'Could not create an API key for this user';
 
   @override
   String adminSetupFileSaved(String username) {
@@ -253,7 +263,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get loginSsoFailed => 'SSO-Anmeldung fehlgeschlagen oder abgebrochen';
 
   @override
-  String get loginSsoAuthFailed => 'SSO-Authentifizierung fehlgeschlagen. Bitte versuche es erneut.';
+  String get loginSsoAuthFailed =>
+      'SSO-Authentifizierung fehlgeschlagen. Bitte versuche es erneut.';
 
   @override
   String get loginRestoreFromBackup => 'Aus Backup wiederherstellen';
@@ -270,7 +281,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get loginRestoreBackupNoAccounts => 'Damit werden alle Einstellungen wiederhergestellt. Es waren keine Konten in diesem Backup enthalten.';
+  String get loginRestoreBackupNoAccounts =>
+      'Damit werden alle Einstellungen wiederhergestellt. Es waren keine Konten in diesem Backup enthalten.';
 
   @override
   String get loginRestore => 'Wiederherstellen';
@@ -281,7 +293,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get loginSessionExpired => 'Einstellungen wiederhergestellt. Sitzung abgelaufen - melde dich an, um fortzufahren.';
+  String get loginSessionExpired =>
+      'Einstellungen wiederhergestellt. Sitzung abgelaufen - melde dich an, um fortzufahren.';
 
   @override
   String get loginSettingsRestored => 'Einstellungen wiederhergestellt';
@@ -298,7 +311,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get libraryTitle => 'Bibliothek';
 
   @override
-  String get librarySearchBooksHint => 'Bücher, Serien, Autoren, Sprecher suchen...';
+  String get librarySearchBooksHint =>
+      'Bücher, Serien, Autoren, Sprecher suchen...';
 
   @override
   String get librarySearchShowsHint => 'Sendungen und Episoden suchen...';
@@ -484,7 +498,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get absorbingDone => 'Fertig';
 
   @override
-  String get absorbingNoDownloadedEpisodes => 'Keine heruntergeladenen Episoden';
+  String get absorbingNoDownloadedEpisodes =>
+      'Keine heruntergeladenen Episoden';
 
   @override
   String get absorbingNoDownloadedBooks => 'Keine heruntergeladenen Bücher';
@@ -496,16 +511,20 @@ class AppLocalizationsDe extends AppLocalizations {
   String get absorbingNothingAbsorbingYet => 'Noch nichts am Absorbing';
 
   @override
-  String get absorbingDownloadEpisodesToListen => 'Episoden herunterladen, um offline zu hören';
+  String get absorbingDownloadEpisodesToListen =>
+      'Episoden herunterladen, um offline zu hören';
 
   @override
-  String get absorbingDownloadBooksToListen => 'Bücher herunterladen, um offline zu hören';
+  String get absorbingDownloadBooksToListen =>
+      'Bücher herunterladen, um offline zu hören';
 
   @override
-  String get absorbingStartEpisodeFromShows => 'Starte eine Episode aus dem Sendungen-Tab';
+  String get absorbingStartEpisodeFromShows =>
+      'Starte eine Episode aus dem Sendungen-Tab';
 
   @override
-  String get absorbingStartBookFromLibrary => 'Starte ein Buch aus dem Bibliothek-Tab';
+  String get absorbingStartBookFromLibrary =>
+      'Starte ein Buch aus dem Bibliothek-Tab';
 
   @override
   String get carModeTitle => 'Auto-Modus';
@@ -561,7 +580,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get downloadsDeleteContent => 'Heruntergeladene Dateien werden von diesem Gerät entfernt.';
+  String get downloadsDeleteContent =>
+      'Heruntergeladene Dateien werden von diesem Gerät entfernt.';
 
   @override
   String downloadsDeletedCount(int count) {
@@ -610,7 +630,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get bookmarksDeleteContent => 'Das kann nicht rückgängig gemacht werden.';
+  String get bookmarksDeleteContent =>
+      'Das kann nicht rückgängig gemacht werden.';
 
   @override
   String bookmarksDeletedCount(int count) {
@@ -892,7 +913,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get languageSystemDefault => 'Systemstandard';
 
   @override
-  String get languageHelpTranslateInvite => 'Möchtest du Absorb in deine Sprache übersetzen?';
+  String get languageHelpTranslateInvite =>
+      'Möchtest du Absorb in deine Sprache übersetzen?';
 
   @override
   String get themeLabel => 'Theme';
@@ -913,10 +935,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get colorSourceLabel => 'Farbquelle';
 
   @override
-  String get colorSourceCoverDescription => 'App-Farben richten sich nach dem Cover des aktuell laufenden Buchs';
+  String get colorSourceCoverDescription =>
+      'App-Farben richten sich nach dem Cover des aktuell laufenden Buchs';
 
   @override
-  String get colorSourceWallpaperDescription => 'App-Farben richten sich nach deinem System-Hintergrundbild';
+  String get colorSourceWallpaperDescription =>
+      'App-Farben richten sich nach deinem System-Hintergrundbild';
 
   @override
   String get colorSourceWallpaper => 'Hintergrundbild';
@@ -931,7 +955,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get colorSourceManual => 'Manual';
 
   @override
-  String get colorSourceManualDescription => 'Use a fixed app color you choose below';
+  String get colorSourceManualDescription =>
+      'Use a fixed app color you choose below';
 
   @override
   String get colorSourceCustom => 'Custom';
@@ -940,13 +965,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get useColorEverywhereLabel => 'Use this color everywhere';
 
   @override
-  String get useColorEverywhereSubtitle => 'Also color book detail pages and the player card with your set color instead of each book\'s cover';
+  String get useColorEverywhereSubtitle =>
+      'Also color book detail pages and the player card with your set color instead of each book\'s cover';
 
   @override
   String get flatBackgroundLabel => 'Flat background';
 
   @override
-  String get flatBackgroundSubtitle => 'Remove the background gradient. Pure black in dark mode for OLED screens.';
+  String get flatBackgroundSubtitle =>
+      'Remove the background gradient. Pure black in dark mode for OLED screens.';
 
   @override
   String get backgroundIntensityLabel => 'Background intensity';
@@ -955,7 +982,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get startScreenLabel => 'Startbildschirm';
 
   @override
-  String get startScreenSubtitle => 'Welcher Tab beim Start der App geöffnet wird';
+  String get startScreenSubtitle =>
+      'Welcher Tab beim Start der App geöffnet wird';
 
   @override
   String get startScreenHome => 'Start';
@@ -976,7 +1004,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get disablePageFadeOnSubtitle => 'Seiten wechseln sofort';
 
   @override
-  String get disablePageFadeOffSubtitle => 'Seiten blenden beim Tab-Wechsel über';
+  String get disablePageFadeOffSubtitle =>
+      'Seiten blenden beim Tab-Wechsel über';
 
   @override
   String get rectangleBookCovers => 'Rechteckige Buchcover';
@@ -985,7 +1014,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get progressTextSize => 'Progress text size';
 
   @override
-  String get rectangleBookCoversOnSubtitle => 'Cover werden im 2:3-Buchformat angezeigt';
+  String get rectangleBookCoversOnSubtitle =>
+      'Cover werden im 2:3-Buchformat angezeigt';
 
   @override
   String get rectangleBookCoversOffSubtitle => 'Cover sind quadratisch';
@@ -997,16 +1027,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get fullScreenPlayer => 'Vollbild-Player';
 
   @override
-  String get fullScreenPlayerOnSubtitle => 'An - Bücher öffnen sich beim Abspielen im Vollbild';
+  String get fullScreenPlayerOnSubtitle =>
+      'An - Bücher öffnen sich beim Abspielen im Vollbild';
 
   @override
-  String get fullScreenPlayerOffSubtitle => 'Aus - Wiedergabe in der Kartenansicht';
+  String get fullScreenPlayerOffSubtitle =>
+      'Aus - Wiedergabe in der Kartenansicht';
 
   @override
   String get fullBookScrubber => 'Ganzes-Buch-Scrubber';
 
   @override
-  String get fullBookScrubberOnSubtitle => 'An - durchziehbarer Slider über das gesamte Buch';
+  String get fullBookScrubberOnSubtitle =>
+      'An - durchziehbarer Slider über das gesamte Buch';
 
   @override
   String get fullBookScrubberOffSubtitle => 'Aus - nur Fortschrittsbalken';
@@ -1015,7 +1048,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get speedAdjustedTime => 'Geschwindigkeitsangepasste Zeit';
 
   @override
-  String get speedAdjustedTimeOnSubtitle => 'An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit';
+  String get speedAdjustedTimeOnSubtitle =>
+      'An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit';
 
   @override
   String get speedAdjustedTimeOffSubtitle => 'Aus - zeigt die reine Audiodauer';
@@ -1024,7 +1058,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get buttonLayout => 'Button-Anordnung';
 
   @override
-  String get buttonLayoutSubtitle => 'Wie die Aktions-Buttons auf der Karte angeordnet sind';
+  String get buttonLayoutSubtitle =>
+      'Wie die Aktions-Buttons auf der Karte angeordnet sind';
 
   @override
   String get whenAbsorbed => 'Beim Absorb';
@@ -1033,10 +1068,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get whenAbsorbedInfoTitle => 'Beim Absorb';
 
   @override
-  String get whenAbsorbedInfoContent => 'Steuert, was mit einer Absorbing-Karte passiert, wenn du ein Buch oder eine Episode beendest.\n\nBeendete Karten werden automatisch von deinem Absorbing-Bildschirm entfernt.';
+  String get whenAbsorbedInfoContent =>
+      'Steuert, was mit einer Absorbing-Karte passiert, wenn du ein Buch oder eine Episode beendest.\n\nBeendete Karten werden automatisch von deinem Absorbing-Bildschirm entfernt.';
 
   @override
-  String get whenAbsorbedSubtitle => 'Was mit der Absorbing-Karte passiert, wenn ein Buch oder eine Episode endet';
+  String get whenAbsorbedSubtitle =>
+      'Was mit der Absorbing-Karte passiert, wenn ein Buch oder eine Episode endet';
 
   @override
   String get whenAbsorbedShowOverlay => 'Overlay anzeigen';
@@ -1051,13 +1088,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get mergeLibrariesInfoTitle => 'Bibliotheken zusammenführen';
 
   @override
-  String get mergeLibrariesInfoContent => 'Wenn aktiviert, zeigt der Absorbing-Bildschirm alle deine angefangenen Bücher und Podcasts aus jeder Bibliothek in einer Ansicht. Wenn deaktiviert, werden nur Inhalte aus der aktuell ausgewählten Bibliothek angezeigt.';
+  String get mergeLibrariesInfoContent =>
+      'Wenn aktiviert, zeigt der Absorbing-Bildschirm alle deine angefangenen Bücher und Podcasts aus jeder Bibliothek in einer Ansicht. Wenn deaktiviert, werden nur Inhalte aus der aktuell ausgewählten Bibliothek angezeigt.';
 
   @override
-  String get mergeLibrariesOnSubtitle => 'Absorbing-Seite zeigt Inhalte aus allen Bibliotheken';
+  String get mergeLibrariesOnSubtitle =>
+      'Absorbing-Seite zeigt Inhalte aus allen Bibliotheken';
 
   @override
-  String get mergeLibrariesOffSubtitle => 'Absorbing-Seite zeigt nur die aktuelle Bibliothek';
+  String get mergeLibrariesOffSubtitle =>
+      'Absorbing-Seite zeigt nur die aktuelle Bibliothek';
 
   @override
   String get queueMode => 'Warteschlangenmodus';
@@ -1069,13 +1109,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get queueModeInfoOff => 'Aus';
 
   @override
-  String get queueModeInfoOffDesc => 'Die Wiedergabe stoppt, wenn das aktuelle Buch oder die Episode endet.';
+  String get queueModeInfoOffDesc =>
+      'Die Wiedergabe stoppt, wenn das aktuelle Buch oder die Episode endet.';
 
   @override
   String get queueModeInfoManual => 'Manuelle Warteschlange';
 
   @override
-  String get queueModeInfoManualDesc => 'Deine Absorbing-Karten funktionieren wie eine Playlist. Wenn eine endet, läuft die nächste noch nicht beendete Karte automatisch weiter. Füge Inhalte über den Button \"Zu Absorbing hinzufügen\" bei einem Buch oder einer Episode hinzu und sortiere sie auf dem Absorbing-Bildschirm um.';
+  String get queueModeInfoManualDesc =>
+      'Deine Absorbing-Karten funktionieren wie eine Playlist. Wenn eine endet, läuft die nächste noch nicht beendete Karte automatisch weiter. Füge Inhalte über den Button \"Zu Absorbing hinzufügen\" bei einem Buch oder einer Episode hinzu und sortiere sie auf dem Absorbing-Bildschirm um.';
 
   @override
   String get queueModeOff => 'Aus';
@@ -1093,7 +1135,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get queueModeInfoPlaylist => 'Playlist Queue';
 
   @override
-  String get queueModeInfoPlaylistDesc => 'Plays items in order from a chosen playlist, skipping anything already finished. Stops at the end of the list.';
+  String get queueModeInfoPlaylistDesc =>
+      'Plays items in order from a chosen playlist, skipping anything already finished. Stops at the end of the list.';
 
   @override
   String get queuePlaylistPickerTitle => 'Choose a playlist';
@@ -1107,7 +1150,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get queueModePlaylistHint => 'Start a playlist queue by opening a playlist on the home page.';
+  String get queueModePlaylistHint =>
+      'Start a playlist queue by opening a playlist on the home page.';
 
   @override
   String get exit => 'Beenden';
@@ -1162,7 +1206,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get defaultSpeed => 'Standardgeschwindigkeit';
 
   @override
-  String get defaultSpeedSubtitle => 'Neue Bücher starten mit dieser Geschwindigkeit - jedes Buch merkt sich seine eigene';
+  String get defaultSpeedSubtitle =>
+      'Neue Bücher starten mit dieser Geschwindigkeit - jedes Buch merkt sich seine eigene';
 
   @override
   String get skipBack => 'Zurückspulen';
@@ -1171,37 +1216,46 @@ class AppLocalizationsDe extends AppLocalizations {
   String get skipForward => 'Vorspulen';
 
   @override
-  String get chapterProgressInNotification => 'Kapitelfortschritt in der Benachrichtigung';
+  String get chapterProgressInNotification =>
+      'Kapitelfortschritt in der Benachrichtigung';
 
   @override
-  String get chapterProgressOnSubtitle => 'An - Sperrbildschirm zeigt Kapitelfortschritt';
+  String get chapterProgressOnSubtitle =>
+      'An - Sperrbildschirm zeigt Kapitelfortschritt';
 
   @override
-  String get chapterProgressOffSubtitle => 'Aus - Sperrbildschirm zeigt Fortschritt des gesamten Buchs';
+  String get chapterProgressOffSubtitle =>
+      'Aus - Sperrbildschirm zeigt Fortschritt des gesamten Buchs';
 
   @override
-  String get chapterProgressInNotificationIos => 'Chapter progress on lock screen & CarPlay';
+  String get chapterProgressInNotificationIos =>
+      'Chapter progress on lock screen & CarPlay';
 
   @override
-  String get chapterProgressOnSubtitleIos => 'On - lock screen & CarPlay show chapter progress';
+  String get chapterProgressOnSubtitleIos =>
+      'On - lock screen & CarPlay show chapter progress';
 
   @override
   String get speedBookmarkInControls => 'Speed & bookmark in media controls';
 
   @override
-  String get speedBookmarkOnSubtitle => 'On - notification shows speed & bookmark; chapter skip stays in Android Auto';
+  String get speedBookmarkOnSubtitle =>
+      'On - notification shows speed & bookmark; chapter skip stays in Android Auto';
 
   @override
-  String get speedBookmarkOffSubtitle => 'Off - notification shows chapter skip; speed & bookmark stay in Android Auto';
+  String get speedBookmarkOffSubtitle =>
+      'Off - notification shows chapter skip; speed & bookmark stay in Android Auto';
 
   @override
   String get lockSeekBar => 'Lock the seek bar';
 
   @override
-  String get lockSeekBarOnSubtitle => 'On - the scrubber in the notification, lockscreen and car shows progress but can\'t be dragged';
+  String get lockSeekBarOnSubtitle =>
+      'On - the scrubber in the notification, lockscreen and car shows progress but can\'t be dragged';
 
   @override
-  String get lockSeekBarOffSubtitle => 'Off - drag the scrubber in the notification, lockscreen and car to jump around';
+  String get lockSeekBarOffSubtitle =>
+      'Off - drag the scrubber in the notification, lockscreen and car to jump around';
 
   @override
   String get autoRewindOnResume => 'Auto-Zurückspulen beim Fortsetzen';
@@ -1227,7 +1281,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rewindAlwaysLabel => 'Immer';
 
   @override
-  String get rewindAlwaysDescription => 'Spult jedes Mal beim Fortsetzen zurück, auch nach kurzen Unterbrechungen';
+  String get rewindAlwaysDescription =>
+      'Spult jedes Mal beim Fortsetzen zurück, auch nach kurzen Unterbrechungen';
 
   @override
   String rewindAfterDescription(String seconds) {
@@ -1238,7 +1293,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chapterBarrier => 'Kapitelgrenze';
 
   @override
-  String get chapterBarrierSubtitle => 'Nicht über den Anfang des aktuellen Kapitels hinaus zurückspulen';
+  String get chapterBarrierSubtitle =>
+      'Nicht über den Anfang des aktuellen Kapitels hinaus zurückspulen';
 
   @override
   String get rewindInstant => 'Sofort';
@@ -1307,19 +1363,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get resetTimerOnPause => 'Timer bei Pause zurücksetzen';
 
   @override
-  String get resetTimerOnPauseOnSubtitle => 'Timer startet bei Fortsetzung von der vollen Dauer neu';
+  String get resetTimerOnPauseOnSubtitle =>
+      'Timer startet bei Fortsetzung von der vollen Dauer neu';
 
   @override
-  String get resetTimerOnPauseOffSubtitle => 'Timer läuft dort weiter, wo er aufgehört hat';
+  String get resetTimerOnPauseOffSubtitle =>
+      'Timer läuft dort weiter, wo er aufgehört hat';
 
   @override
   String get fadeVolumeBeforeSleep => 'Lautstärke vor dem Sleep ausblenden';
 
   @override
-  String get fadeVolumeOnSubtitle => 'Senkt die Lautstärke in den letzten 30 Sekunden allmählich ab';
+  String get fadeVolumeOnSubtitle =>
+      'Senkt die Lautstärke in den letzten 30 Sekunden allmählich ab';
 
   @override
-  String get fadeVolumeOffSubtitle => 'Wiedergabe stoppt sofort, wenn der Timer endet';
+  String get fadeVolumeOffSubtitle =>
+      'Wiedergabe stoppt sofort, wenn der Timer endet';
 
   @override
   String get autoSleepTimer => 'Automatischer Sleep-Timer';
@@ -1330,7 +1390,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get autoSleepTimerOffSubtitle => 'Sleep-Timer in einem Zeitfenster automatisch starten';
+  String get autoSleepTimerOffSubtitle =>
+      'Sleep-Timer in einem Zeitfenster automatisch starten';
 
   @override
   String get windowStart => 'Fensterbeginn';
@@ -1375,10 +1436,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get downloadOverWifiOnly => 'Nur über WLAN herunterladen';
 
   @override
-  String get downloadOverWifiOnSubtitle => 'An - mobile Daten für Downloads blockiert';
+  String get downloadOverWifiOnSubtitle =>
+      'An - mobile Daten für Downloads blockiert';
 
   @override
-  String get downloadOverWifiOffSubtitle => 'Aus - Downloads über jede Verbindung';
+  String get downloadOverWifiOffSubtitle =>
+      'Aus - Downloads über jede Verbindung';
 
   @override
   String get autoDownloadOnWifi => 'Auto-Download im WLAN';
@@ -1387,10 +1450,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autoDownloadOnWifiInfoTitle => 'Auto-Download im WLAN';
 
   @override
-  String get autoDownloadOnWifiInfoContent => 'Wenn du ein Buch über WLAN streamst, wird das vollständige Buch automatisch im Hintergrund heruntergeladen. So hast du es offline verfügbar, ohne den Download manuell starten zu müssen.';
+  String get autoDownloadOnWifiInfoContent =>
+      'Wenn du ein Buch über WLAN streamst, wird das vollständige Buch automatisch im Hintergrund heruntergeladen. So hast du es offline verfügbar, ohne den Download manuell starten zu müssen.';
 
   @override
-  String get autoDownloadOnWifiOnSubtitle => 'Bücher werden im Hintergrund heruntergeladen, wenn du im WLAN streamst';
+  String get autoDownloadOnWifiOnSubtitle =>
+      'Bücher werden im Hintergrund heruntergeladen, wenn du im WLAN streamst';
 
   @override
   String get autoDownloadOnWifiOffSubtitle => 'Aus';
@@ -1402,7 +1467,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autoDownload => 'Auto-Download';
 
   @override
-  String get autoDownloadSubtitle => 'Pro Serie oder Podcast über deren Detailseiten aktivieren';
+  String get autoDownloadSubtitle =>
+      'Pro Serie oder Podcast über deren Detailseiten aktivieren';
 
   @override
   String get keepNext => 'Nächste behalten';
@@ -1411,7 +1477,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get keepNextInfoTitle => 'Nächste behalten';
 
   @override
-  String get keepNextInfoContent => 'Die Anzahl der Elemente, die heruntergeladen bleiben sollen, einschließlich des Elements, das du gerade hörst. Beispiel: \"Nächste 3 behalten\" bedeutet, das aktuelle Buch plus die nächsten 2 in der Serie oder im Podcast bleiben heruntergeladen.';
+  String get keepNextInfoContent =>
+      'Die Anzahl der Elemente, die heruntergeladen bleiben sollen, einschließlich des Elements, das du gerade hörst. Beispiel: \"Nächste 3 behalten\" bedeutet, das aktuelle Buch plus die nächsten 2 in der Serie oder im Podcast bleiben heruntergeladen.';
 
   @override
   String get deleteAbsorbedDownloads => 'Absorbed Downloads löschen';
@@ -1420,13 +1487,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get deleteAbsorbedDownloadsInfoTitle => 'Absorbed Downloads löschen';
 
   @override
-  String get deleteAbsorbedDownloadsInfoContent => 'Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von deinem Gerät gelöscht, nachdem du sie zu Ende gehört hast. Das hilft, Speicherplatz freizugeben, während du dich durch deine Bibliothek arbeitest.';
+  String get deleteAbsorbedDownloadsInfoContent =>
+      'Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von deinem Gerät gelöscht, nachdem du sie zu Ende gehört hast. Das hilft, Speicherplatz freizugeben, während du dich durch deine Bibliothek arbeitest.';
 
   @override
-  String get deleteAbsorbedOnSubtitle => 'Beendete Elemente werden entfernt, um Platz zu sparen';
+  String get deleteAbsorbedOnSubtitle =>
+      'Beendete Elemente werden entfernt, um Platz zu sparen';
 
   @override
-  String get deleteAbsorbedOffSubtitle => 'Aus - beendete Downloads werden behalten';
+  String get deleteAbsorbedOffSubtitle =>
+      'Aus - beendete Downloads werden behalten';
 
   @override
   String get downloadLocation => 'Download-Speicherort';
@@ -1454,13 +1524,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get streamingCacheInfoTitle => 'Streaming-Cache';
 
   @override
-  String get streamingCacheInfoContent => 'Cached gestreamtes Audio auf der Festplatte, damit es nicht erneut heruntergeladen werden muss, wenn du zurückspulst oder Abschnitte erneut hörst. Der Cache wird automatisch verwaltet - älteste Dateien werden entfernt, wenn die Größenbegrenzung erreicht ist. Das ist getrennt von vollständig heruntergeladenen Büchern.';
+  String get streamingCacheInfoContent =>
+      'Cached gestreamtes Audio auf der Festplatte, damit es nicht erneut heruntergeladen werden muss, wenn du zurückspulst oder Abschnitte erneut hörst. Der Cache wird automatisch verwaltet - älteste Dateien werden entfernt, wenn die Größenbegrenzung erreicht ist. Das ist getrennt von vollständig heruntergeladenen Büchern.';
 
   @override
   String get streamingCacheOff => 'Aus';
 
   @override
-  String get streamingCacheOffSubtitle => 'Aus - Audio wird ohne Caching gestreamt';
+  String get streamingCacheOffSubtitle =>
+      'Aus - Audio wird ohne Caching gestreamt';
 
   @override
   String streamingCacheOnSubtitle(int size) {
@@ -1480,16 +1552,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get hideEbookOnlyTitles => 'Nur-eBook-Titel ausblenden';
 
   @override
-  String get hideEbookOnlyOnSubtitle => 'Bücher ohne Audiodateien werden ausgeblendet';
+  String get hideEbookOnlyOnSubtitle =>
+      'Bücher ohne Audiodateien werden ausgeblendet';
 
   @override
-  String get hideEbookOnlyOffSubtitle => 'Aus - alle Bibliothekselemente werden angezeigt';
+  String get hideEbookOnlyOffSubtitle =>
+      'Aus - alle Bibliothekselemente werden angezeigt';
 
   @override
   String get showGoodreadsButton => 'Goodreads-Button anzeigen';
 
   @override
-  String get showGoodreadsOnSubtitle => 'Buchdetails zeigen einen Link zu Goodreads';
+  String get showGoodreadsOnSubtitle =>
+      'Buchdetails zeigen einen Link zu Goodreads';
 
   @override
   String get showGoodreadsOffSubtitle => 'Aus - Goodreads-Button ausgeblendet';
@@ -1501,19 +1576,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get notifications => 'Benachrichtigungen';
 
   @override
-  String get notificationsSubtitle => 'Für Download-Fortschritt und Wiedergabesteuerung';
+  String get notificationsSubtitle =>
+      'Für Download-Fortschritt und Wiedergabesteuerung';
 
   @override
-  String get notificationsAlreadyEnabled => 'Benachrichtigungen sind bereits aktiviert';
+  String get notificationsAlreadyEnabled =>
+      'Benachrichtigungen sind bereits aktiviert';
 
   @override
   String get unrestrictedBattery => 'Uneingeschränkte Akkunutzung';
 
   @override
-  String get unrestrictedBatterySubtitle => 'Verhindert, dass Android die Hintergrundwiedergabe beendet';
+  String get unrestrictedBatterySubtitle =>
+      'Verhindert, dass Android die Hintergrundwiedergabe beendet';
 
   @override
-  String get batteryAlreadyUnrestricted => 'Akkunutzung ist bereits uneingeschränkt';
+  String get batteryAlreadyUnrestricted =>
+      'Akkunutzung ist bereits uneingeschränkt';
 
   @override
   String get sectionIssuesAndSupport => 'Probleme & Support';
@@ -1540,16 +1619,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get enableLogging => 'Logging aktivieren';
 
   @override
-  String get enableLoggingOnSubtitle => 'An - Logs werden in Datei gespeichert (Neustart nötig)';
+  String get enableLoggingOnSubtitle =>
+      'An - Logs werden in Datei gespeichert (Neustart nötig)';
 
   @override
   String get enableLoggingOffSubtitle => 'Aus - keine Logs werden erfasst';
 
   @override
-  String get loggingEnabledSnackbar => 'Logging aktiviert - App neu starten, um Aufzeichnung zu beginnen';
+  String get loggingEnabledSnackbar =>
+      'Logging aktiviert - App neu starten, um Aufzeichnung zu beginnen';
 
   @override
-  String get loggingDisabledSnackbar => 'Logging deaktiviert - App neu starten, um Aufzeichnung zu beenden';
+  String get loggingDisabledSnackbar =>
+      'Logging deaktiviert - App neu starten, um Aufzeichnung zu beenden';
 
   @override
   String get sendLogs => 'Logs senden';
@@ -1578,16 +1660,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get localServerInfoTitle => 'Lokaler Server';
 
   @override
-  String get localServerInfoContent => 'Wenn du deinen Audiobookshelf-Server zu Hause betreibst, kannst du hier eine lokale/LAN-URL festlegen. Absorb wechselt automatisch zur schnelleren lokalen Verbindung, wenn erkannt wird, dass du in deinem Heimnetzwerk bist, und greift unterwegs auf deine Remote-URL zurück.';
+  String get localServerInfoContent =>
+      'Wenn du deinen Audiobookshelf-Server zu Hause betreibst, kannst du hier eine lokale/LAN-URL festlegen. Absorb wechselt automatisch zur schnelleren lokalen Verbindung, wenn erkannt wird, dass du in deinem Heimnetzwerk bist, und greift unterwegs auf deine Remote-URL zurück.';
 
   @override
   String get localServerOnConnectedSubtitle => 'Verbunden über lokalen Server';
 
   @override
-  String get localServerOnRemoteSubtitle => 'Aktiviert - Remote-Server wird verwendet';
+  String get localServerOnRemoteSubtitle =>
+      'Aktiviert - Remote-Server wird verwendet';
 
   @override
-  String get localServerOffSubtitle => 'Auto-Wechsel zu LAN-Server in deinem Heim-WLAN';
+  String get localServerOffSubtitle =>
+      'Auto-Wechsel zu LAN-Server in deinem Heim-WLAN';
 
   @override
   String get localServerUrlLabel => 'URL des lokalen Servers';
@@ -1596,7 +1681,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get localServerUrlHint => 'http://192.168.1.100:13378';
 
   @override
-  String get localServerUrlSetSnackbar => 'URL des lokalen Servers gesetzt - verbindet sich automatisch in deinem Heimnetzwerk';
+  String get localServerUrlSetSnackbar =>
+      'URL des lokalen Servers gesetzt - verbindet sich automatisch in deinem Heimnetzwerk';
 
   @override
   String get disableAudioFocus => 'Audiofokus deaktivieren';
@@ -1605,19 +1691,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get disableAudioFocusInfoTitle => 'Audiofokus';
 
   @override
-  String get disableAudioFocusInfoContent => 'Standardmäßig gibt Android jeweils einer App den Audio-\"Fokus\" - wenn Absorb spielt, pausiert anderes Audio (Musik, Videos). Wenn du den Audiofokus deaktivierst, kann Absorb neben anderen Apps wiedergegeben werden. Telefonate pausieren die Wiedergabe unabhängig von dieser Einstellung trotzdem.';
+  String get disableAudioFocusInfoContent =>
+      'Standardmäßig gibt Android jeweils einer App den Audio-\"Fokus\" - wenn Absorb spielt, pausiert anderes Audio (Musik, Videos). Wenn du den Audiofokus deaktivierst, kann Absorb neben anderen Apps wiedergegeben werden. Telefonate pausieren die Wiedergabe unabhängig von dieser Einstellung trotzdem.';
 
   @override
-  String get disableAudioFocusOnSubtitle => 'An - spielt neben anderem Audio (pausiert weiterhin bei Anrufen)';
+  String get disableAudioFocusOnSubtitle =>
+      'An - spielt neben anderem Audio (pausiert weiterhin bei Anrufen)';
 
   @override
-  String get disableAudioFocusOffSubtitle => 'Aus - anderes Audio pausiert, wenn Absorb spielt';
+  String get disableAudioFocusOffSubtitle =>
+      'Aus - anderes Audio pausiert, wenn Absorb spielt';
 
   @override
   String get restartRequired => 'Neustart erforderlich';
 
   @override
-  String get restartRequiredContent => 'Die Änderung des Audiofokus erfordert einen vollständigen Neustart. App jetzt schließen?';
+  String get restartRequiredContent =>
+      'Die Änderung des Audiofokus erfordert einen vollständigen Neustart. App jetzt schließen?';
 
   @override
   String get closeApp => 'App schließen';
@@ -1629,13 +1719,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get trustAllCertificatesInfoTitle => 'Selbstsignierte Zertifikate';
 
   @override
-  String get trustAllCertificatesInfoContent => 'Aktiviere dies, wenn dein Audiobookshelf-Server ein selbstsigniertes Zertifikat oder eine eigene Root-CA verwendet. Wenn aktiviert, überspringt Absorb die TLS-Zertifikatsprüfung für alle Verbindungen. Aktiviere dies nur, wenn du deinem Netzwerk vertraust.';
+  String get trustAllCertificatesInfoContent =>
+      'Aktiviere dies, wenn dein Audiobookshelf-Server ein selbstsigniertes Zertifikat oder eine eigene Root-CA verwendet. Wenn aktiviert, überspringt Absorb die TLS-Zertifikatsprüfung für alle Verbindungen. Aktiviere dies nur, wenn du deinem Netzwerk vertraust.';
 
   @override
-  String get trustAllCertificatesOnSubtitle => 'An - alle Zertifikate werden akzeptiert';
+  String get trustAllCertificatesOnSubtitle =>
+      'An - alle Zertifikate werden akzeptiert';
 
   @override
-  String get trustAllCertificatesOffSubtitle => 'Aus - nur vertrauenswürdige Zertifikate akzeptiert';
+  String get trustAllCertificatesOffSubtitle =>
+      'Aus - nur vertrauenswürdige Zertifikate akzeptiert';
 
   @override
   String get supportTheDev => 'Den Entwickler unterstützen';
@@ -1657,7 +1750,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get backupAndRestore => 'Sichern & Wiederherstellen';
 
   @override
-  String get backupAndRestoreSubtitle => 'Alle Einstellungen in einer Datei speichern oder wiederherstellen';
+  String get backupAndRestoreSubtitle =>
+      'Alle Einstellungen in einer Datei speichern oder wiederherstellen';
 
   @override
   String get backUp => 'Sichern';
@@ -1684,7 +1778,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get includeLoginInfoTitle => 'Login-Daten einschließen?';
 
   @override
-  String get includeLoginInfoContent => 'Möchtest du die Login-Daten aller deiner gespeicherten Konten in die Sicherung einschließen?\n\nDas erleichtert die Wiederherstellung auf einem neuen Gerät, aber die Datei enthält dann deine Auth-Tokens.';
+  String get includeLoginInfoContent =>
+      'Möchtest du die Login-Daten aller deiner gespeicherten Konten in die Sicherung einschließen?\n\nDas erleichtert die Wiederherstellung auf einem neuen Gerät, aber die Datei enthält dann deine Auth-Tokens.';
 
   @override
   String get noSettingsOnly => 'Nein, nur Einstellungen';
@@ -1696,7 +1791,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get backupSavedWithAccounts => 'Sicherung gespeichert (mit Konten)';
 
   @override
-  String get backupSavedSettingsOnly => 'Sicherung gespeichert (nur Einstellungen)';
+  String get backupSavedSettingsOnly =>
+      'Sicherung gespeichert (nur Einstellungen)';
 
   @override
   String backupFailed(String error) {
@@ -1707,7 +1803,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get restoreBackupTitle => 'Sicherung wiederherstellen?';
 
   @override
-  String get restoreBackupContent => 'Dadurch werden alle deine aktuellen Einstellungen durch die Werte aus der Sicherung ersetzt.';
+  String get restoreBackupContent =>
+      'Dadurch werden alle deine aktuellen Einstellungen durch die Werte aus der Sicherung ersetzt.';
 
   @override
   String fromAbsorbVersion(String version) {
@@ -1731,7 +1828,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get invalidBackupFile => 'Ungültige Sicherungsdatei';
 
   @override
-  String get settingsRestoredSuccessfully => 'Einstellungen erfolgreich wiederhergestellt';
+  String get settingsRestoredSuccessfully =>
+      'Einstellungen erfolgreich wiederhergestellt';
 
   @override
   String restoreFailed(String error) {
@@ -1742,7 +1840,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get logOutTitle => 'Abmelden?';
 
   @override
-  String get logOutContent => 'Du wirst abgemeldet. Deine Downloads bleiben auf diesem Gerät.';
+  String get logOutContent =>
+      'Du wirst abgemeldet. Deine Downloads bleiben auf diesem Gerät.';
 
   @override
   String get signOut => 'Abmelden';
@@ -1793,13 +1892,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get downloadLocationSheetTitle => 'Download-Speicherort';
 
   @override
-  String get downloadLocationSheetSubtitle => 'Wähle, wo Hörbücher gespeichert werden';
+  String get downloadLocationSheetSubtitle =>
+      'Wähle, wo Hörbücher gespeichert werden';
 
   @override
   String get currentLocation => 'Aktueller Speicherort';
 
   @override
-  String get existingDownloadsWarning => 'Vorhandene Downloads bleiben an ihrem aktuellen Speicherort. Nur neue Downloads verwenden den neuen Pfad.';
+  String get existingDownloadsWarning =>
+      'Vorhandene Downloads bleiben an ihrem aktuellen Speicherort. Nur neue Downloads verwenden den neuen Pfad.';
 
   @override
   String get chooseFolder => 'Ordner wählen';
@@ -1808,16 +1909,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chooseDownloadFolder => 'Download-Ordner wählen';
 
   @override
-  String get storagePermissionDenied => 'Speicherberechtigung dauerhaft verweigert - aktiviere sie in den App-Einstellungen';
+  String get storagePermissionDenied =>
+      'Speicherberechtigung dauerhaft verweigert - aktiviere sie in den App-Einstellungen';
 
   @override
   String get openSettings => 'Einstellungen öffnen';
 
   @override
-  String get storagePermissionRequired => 'Speicherberechtigung ist für eigene Download-Speicherorte erforderlich';
+  String get storagePermissionRequired =>
+      'Speicherberechtigung ist für eigene Download-Speicherorte erforderlich';
 
   @override
-  String get cannotWriteToFolder => 'Kann nicht in diesen Ordner schreiben - wähle einen anderen Speicherort oder gewähre in den Systemeinstellungen Dateizugriff';
+  String get cannotWriteToFolder =>
+      'Kann nicht in diesen Ordner schreiben - wähle einen anderen Speicherort oder gewähre in den Systemeinstellungen Dateizugriff';
 
   @override
   String downloadLocationSetTo(String label) {
@@ -1835,8 +1939,10 @@ class AppLocalizationsDe extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count downloads are in an old custom folder that can no longer be opened. Re-download them or dismiss this notice.',
-      one: '1 download is in an old custom folder that can no longer be opened. Re-download it or dismiss this notice.',
+      other:
+          '$count downloads are in an old custom folder that can no longer be opened. Re-download them or dismiss this notice.',
+      one:
+          '1 download is in an old custom folder that can no longer be opened. Re-download it or dismiss this notice.',
     );
     return '$_temp0';
   }
@@ -1889,7 +1995,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminPodcasts => 'Podcasts';
 
   @override
-  String get adminPodcastsSubtitle => 'Sendungen suchen, hinzufügen & verwalten';
+  String get adminPodcastsSubtitle =>
+      'Sendungen suchen, hinzufügen & verwalten';
 
   @override
   String get adminScan => 'Scannen';
@@ -1938,7 +2045,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminRmabUrlTitle => 'ReadMeABook-URL';
 
   @override
-  String get adminRmabUrlHelp => 'Füge deine URL mit Login-Token ein. Generiere eine in RMAB, Admin, Users.';
+  String get adminRmabUrlHelp =>
+      'Füge deine URL mit Login-Token ein. Generiere eine in RMAB, Admin, Users.';
 
   @override
   String get adminRmabUrlHint => 'https://rmab.example.com/?token=...';
@@ -1956,13 +2064,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminRmabReload => 'Neu laden';
 
   @override
-  String get adminRmabLoadFailed => 'ReadMeABook konnte nicht geladen werden. Prüfe deine URL.';
+  String get adminRmabLoadFailed =>
+      'ReadMeABook konnte nicht geladen werden. Prüfe deine URL.';
 
   @override
   String get adminRmabConnected => 'Verbunden';
 
   @override
-  String get adminRmabAskAdmin => 'Hol dir eine Login-URL von deinem Server-Admin';
+  String get adminRmabAskAdmin =>
+      'Hol dir eine Login-URL von deinem Server-Admin';
 
   @override
   String adminRmabApprovalsPending(int count) {
@@ -1976,19 +2086,23 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get adminRmabUrlHelpUser => 'Hol dir eine Login-URL von deinem Server-Admin. Diese wird in RMAB > Admin > Users generiert.';
+  String get adminRmabUrlHelpUser =>
+      'Hol dir eine Login-URL von deinem Server-Admin. Diese wird in RMAB > Admin > Users generiert.';
 
   @override
-  String get adminRmabSettingsInfo => 'ReadMeABook ist ein selbst gehosteter Dienst zum Anfordern und Herunterladen von Hörbüchern. Es muss von deinem Server-Admin installiert und eingerichtet werden.';
+  String get adminRmabSettingsInfo =>
+      'ReadMeABook ist ein selbst gehosteter Dienst zum Anfordern und Herunterladen von Hörbüchern. Es muss von deinem Server-Admin installiert und eingerichtet werden.';
 
   @override
   String get rmabConfigTitle => 'Connect ReadMeABook';
 
   @override
-  String get rmabConfigExplainerAdmin => 'ReadMeABook is a self-hosted service for requesting audiobooks. Generate an API token in RMAB under Admin Dashboard > Settings > API, then paste the server URL and token below. Absorb doesn\'t host or download any content, it just sends requests to your server.';
+  String get rmabConfigExplainerAdmin =>
+      'ReadMeABook is a self-hosted service for requesting audiobooks. Generate an API token in RMAB under Admin Dashboard > Settings > API, then paste the server URL and token below. Absorb doesn\'t host or download any content, it just sends requests to your server.';
 
   @override
-  String get rmabConfigExplainerUser => 'ReadMeABook is a self-hosted service for requesting audiobooks. Ask your server admin for the RMAB URL and an API token. Absorb doesn\'t host or download any content, it just sends requests to your server.';
+  String get rmabConfigExplainerUser =>
+      'ReadMeABook is a self-hosted service for requesting audiobooks. Ask your server admin for the RMAB URL and an API token. Absorb doesn\'t host or download any content, it just sends requests to your server.';
 
   @override
   String get rmabConfigLearnMore => 'Learn more about ReadMeABook';
@@ -2012,7 +2126,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rmabConfigLegacyUrlHint => 'https://rmab.example.com/?token=...';
 
   @override
-  String get rmabConfigLegacyUrlHelp => 'Paste your auto-login URL so \'Open in browser view\' lands you signed in. Leave blank to use a regular login.';
+  String get rmabConfigLegacyUrlHelp =>
+      'Paste your auto-login URL so \'Open in browser view\' lands you signed in. Leave blank to use a regular login.';
 
   @override
   String get rmabConfigConnect => 'Verbinden';
@@ -2038,13 +2153,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rmabConfigErrorUnauthorized => 'Token vom Server abgelehnt';
 
   @override
-  String get rmabConfigErrorForbidden => 'This token isn\'t allowed for that action';
+  String get rmabConfigErrorForbidden =>
+      'This token isn\'t allowed for that action';
 
   @override
   String get rmabConfigErrorNetwork => 'Couldn\'t reach RMAB. Check the URL.';
 
   @override
-  String get rmabConfigErrorGeneric => 'Verbindung konnte nicht hergestellt werden';
+  String get rmabConfigErrorGeneric =>
+      'Verbindung konnte nicht hergestellt werden';
 
   @override
   String get rmabConfigSavedSnackbar => 'ReadMeABook connected';
@@ -2079,7 +2196,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get rmabBookDetailExplainer => 'This request will be sent through your ReadMeABook server. The admin will review and process it. You can track it under My Requests on the ReadMeABook tile.';
+  String get rmabBookDetailExplainer =>
+      'This request will be sent through your ReadMeABook server. The admin will review and process it. You can track it under My Requests on the ReadMeABook tile.';
 
   @override
   String get rmabBookAlreadyAvailable => 'Bereits in deiner Bibliothek';
@@ -2106,7 +2224,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rmabRequestErrorValidation => 'Couldn\'t send the request';
 
   @override
-  String get rmabRequestErrorUserNotFound => 'Token user no longer exists. Reconnect ReadMeABook.';
+  String get rmabRequestErrorUserNotFound =>
+      'Token user no longer exists. Reconnect ReadMeABook.';
 
   @override
   String get rmabRequestErrorIgnored => 'This book is on your ignore list';
@@ -2115,7 +2234,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rmabRequestErrorGeneric => 'Couldn\'t send the request';
 
   @override
-  String get rmabRequestErrorTokenRejected => 'Token rejected by server. Reconnect ReadMeABook.';
+  String get rmabRequestErrorTokenRejected =>
+      'Token rejected by server. Reconnect ReadMeABook.';
 
   @override
   String get rmabMyRequestsTab => 'Meine Anfragen';
@@ -2142,13 +2262,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rmabApprovalsError => 'Couldn\'t load approvals';
 
   @override
-  String get rmabApprovalForbidden => 'This token isn\'t allowed to review approvals';
+  String get rmabApprovalForbidden =>
+      'This token isn\'t allowed to review approvals';
 
   @override
   String get rmabApprovalNotifsTitle => 'Approval notifications';
 
   @override
-  String get rmabApprovalNotifsSubtitle => 'Notify me when new requests need approval. Best-effort in the background.';
+  String get rmabApprovalNotifsSubtitle =>
+      'Notify me when new requests need approval. Best-effort in the background.';
 
   @override
   String get rmabApprovalNotifsDenied => 'Notification permission was denied';
@@ -2365,7 +2487,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get encodeTimeNote => 'Encoding can take up to 30 minutes.';
 
   @override
-  String get encodeRescanNote => 'If you have the watcher disabled you will need to re-scan this audiobook afterwards.';
+  String get encodeRescanNote =>
+      'If you have the watcher disabled you will need to re-scan this audiobook afterwards.';
 
   @override
   String get aboutSection => 'Info';
@@ -2397,43 +2520,51 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get markAsFullyAbsorbedQuestion => 'Als vollständig Absorbed markieren?';
+  String get markAsFullyAbsorbedQuestion =>
+      'Als vollständig Absorbed markieren?';
 
   @override
-  String get markAsFullyAbsorbedContent => 'Dadurch wird dein Fortschritt auf 100% gesetzt und die Wiedergabe gestoppt, falls dieses Buch gerade läuft.';
+  String get markAsFullyAbsorbedContent =>
+      'Dadurch wird dein Fortschritt auf 100% gesetzt und die Wiedergabe gestoppt, falls dieses Buch gerade läuft.';
 
   @override
   String get markedAsFinishedNiceWork => 'Als beendet markiert - gut gemacht!';
 
   @override
-  String get failedToUpdateCheckConnection => 'Aktualisieren fehlgeschlagen - prüfe deine Verbindung';
+  String get failedToUpdateCheckConnection =>
+      'Aktualisieren fehlgeschlagen - prüfe deine Verbindung';
 
   @override
   String get markAsNotFinishedQuestion => 'Als nicht beendet markieren?';
 
   @override
-  String get markAsNotFinishedContent => 'Dadurch wird der Beendet-Status entfernt, deine aktuelle Position bleibt aber erhalten.';
+  String get markAsNotFinishedContent =>
+      'Dadurch wird der Beendet-Status entfernt, deine aktuelle Position bleibt aber erhalten.';
 
   @override
   String get unmark => 'Markierung entfernen';
 
   @override
-  String get markedAsNotFinishedBackAtIt => 'Als nicht beendet markiert - weiter geht\'s!';
+  String get markedAsNotFinishedBackAtIt =>
+      'Als nicht beendet markiert - weiter geht\'s!';
 
   @override
   String get resetProgressQuestion => 'Fortschritt zurücksetzen?';
 
   @override
-  String get resetProgressContent => 'Dadurch wird der gesamte Fortschritt für dieses Buch gelöscht und es auf den Anfang zurückgesetzt. Das kann nicht rückgängig gemacht werden.';
+  String get resetProgressContent =>
+      'Dadurch wird der gesamte Fortschritt für dieses Buch gelöscht und es auf den Anfang zurückgesetzt. Das kann nicht rückgängig gemacht werden.';
 
   @override
-  String get progressResetFreshStart => 'Fortschritt zurückgesetzt - frischer Start!';
+  String get progressResetFreshStart =>
+      'Fortschritt zurückgesetzt - frischer Start!';
 
   @override
   String get clearLocalMetadataQuestion => 'Lokale Metadaten löschen?';
 
   @override
-  String get clearLocalMetadataContent => 'Dadurch werden die lokal gespeicherten Metadaten entfernt und auf das zurückgesetzt, was der Server hat.';
+  String get clearLocalMetadataContent =>
+      'Dadurch werden die lokal gespeicherten Metadaten entfernt und auf das zurückgesetzt, was der Server hat.';
 
   @override
   String get localMetadataCleared => 'Lokale Metadaten gelöscht';
@@ -2462,7 +2593,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get noBookmarksYet => 'Noch keine Lesezeichen';
 
   @override
-  String get longPressBookmarkHint => 'Lange auf den Lesezeichen-Button drücken zum schnellen Speichern';
+  String get longPressBookmarkHint =>
+      'Lange auf den Lesezeichen-Button drücken zum schnellen Speichern';
 
   @override
   String get addBookmark => 'Lesezeichen hinzufügen';
@@ -2495,7 +2627,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get clearHistoryTooltip => 'Verlauf löschen';
 
   @override
-  String get tapEventToJump => 'Tippe auf ein Ereignis, um zu dieser Position zu springen';
+  String get tapEventToJump =>
+      'Tippe auf ein Ereignis, um zu dieser Position zu springen';
 
   @override
   String get noHistoryYet => 'Noch kein Verlauf';
@@ -2545,7 +2678,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autoDownloadThisSeries => 'Diese Serie automatisch herunterladen?';
 
   @override
-  String get autoDownloadSeriesContent => 'Lädt die nächsten Bücher beim Hören automatisch herunter.';
+  String get autoDownloadSeriesContent =>
+      'Lädt die nächsten Bücher beim Hören automatisch herunter.';
 
   @override
   String get standalone => 'Eigenständig';
@@ -2580,10 +2714,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get selectAll => 'Alle auswählen';
 
   @override
-  String get autoDownloadThisPodcast => 'Diesen Podcast automatisch herunterladen?';
+  String get autoDownloadThisPodcast =>
+      'Diesen Podcast automatisch herunterladen?';
 
   @override
-  String get autoDownloadPodcastContent => 'Lädt die nächsten Episoden beim Hören automatisch herunter.';
+  String get autoDownloadPodcastContent =>
+      'Lädt die nächsten Episoden beim Hören automatisch herunter.';
 
   @override
   String get download => 'Herunterladen';
@@ -2610,7 +2746,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get authorOptionalLabel => 'Autor (optional)';
 
   @override
-  String get noResultsFound => 'Keine Ergebnisse gefunden.\nPasse deine Suche oder den Anbieter an.';
+  String get noResultsFound =>
+      'Keine Ergebnisse gefunden.\nPasse deine Suche oder den Anbieter an.';
 
   @override
   String get searchForMetadataAbove => 'Oben nach Metadaten suchen';
@@ -2622,7 +2759,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get metadataUpdated => 'Metadaten aktualisiert';
 
   @override
-  String get failedToUpdateMetadata => 'Metadaten konnten nicht aktualisiert werden';
+  String get failedToUpdateMetadata =>
+      'Metadaten konnten nicht aktualisiert werden';
 
   @override
   String get subtitleLabel => 'Untertitel';
@@ -2760,13 +2898,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get deleteCollection => 'Sammlung löschen';
 
   @override
-  String get deleteCollectionContent => 'Möchtest du diese Sammlung wirklich löschen?';
+  String get deleteCollectionContent =>
+      'Möchtest du diese Sammlung wirklich löschen?';
 
   @override
   String get deleteCollectionFailed => 'Couldn\'t delete the collection';
 
   @override
-  String get deletePermissionRequired => 'Delete permission required. Ask the root admin to grant you the delete permission.';
+  String get deletePermissionRequired =>
+      'Delete permission required. Ask the root admin to grant you the delete permission.';
 
   @override
   String get playlistNotFound => 'Playlist nicht gefunden';
@@ -2775,7 +2915,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get deletePlaylist => 'Playlist löschen';
 
   @override
-  String get deletePlaylistContent => 'Möchtest du diese Playlist wirklich löschen?';
+  String get deletePlaylistContent =>
+      'Möchtest du diese Playlist wirklich löschen?';
 
   @override
   String get newPlaylist => 'Neue Playlist';
@@ -2828,7 +2969,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get welcomeAbsorbingTitle => 'Absorbing';
 
   @override
-  String get welcomeAbsorbingIntro => 'Wir verwenden \"Absorb\" anstelle von \"abspielen\" und \"hören\".';
+  String get welcomeAbsorbingIntro =>
+      'Wir verwenden \"Absorb\" anstelle von \"abspielen\" und \"hören\".';
 
   @override
   String get welcomeAbsorbingTabBullet => 'Absorbing-Tab - was du gerade hörst';
@@ -2843,13 +2985,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get welcomeGettingAroundTitle => 'Zurechtfinden';
 
   @override
-  String get welcomeGettingAroundBody => 'Tippe auf ein Cover, um die Details zu öffnen. Weiterhören-Karten sind anders - tippe für sofortige Wiedergabe, lange drücken für Details.';
+  String get welcomeGettingAroundBody =>
+      'Tippe auf ein Cover, um die Details zu öffnen. Weiterhören-Karten sind anders - tippe für sofortige Wiedergabe, lange drücken für Details.';
 
   @override
   String get welcomeMakeItYoursTitle => 'Mach es zu deinem';
 
   @override
-  String get welcomeMakeItYoursBody => 'Stöbere in den Einstellungen und passe Absorb deinem Geschmack an. Der Bereich Tipps & versteckte Funktionen lohnt sich auf jeden Fall.';
+  String get welcomeMakeItYoursBody =>
+      'Stöbere in den Einstellungen und passe Absorb deinem Geschmack an. Der Bereich Tipps & versteckte Funktionen lohnt sich auf jeden Fall.';
 
   @override
   String get getStarted => 'Los geht\'s';
@@ -2900,7 +3044,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get serverAdmin => 'Server-Admin';
 
   @override
-  String get serverAdminSubtitle => 'Benutzer, Bibliotheken & Server-Einstellungen verwalten';
+  String get serverAdminSubtitle =>
+      'Benutzer, Bibliotheken & Server-Einstellungen verwalten';
 
   @override
   String get justNow => 'Gerade eben';
@@ -2936,10 +3081,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get coverPlayPause => 'Cover Play/Pause';
 
   @override
-  String get coverPlayPauseOnSubtitle => 'An - tippe auf das Cover für Play/Pause';
+  String get coverPlayPauseOnSubtitle =>
+      'An - tippe auf das Cover für Play/Pause';
 
   @override
-  String get coverPlayPauseOffSubtitle => 'Aus - eigener Play/Pause-Button in den Steuerelementen';
+  String get coverPlayPauseOffSubtitle =>
+      'Aus - eigener Play/Pause-Button in den Steuerelementen';
 
   @override
   String get cardBackground => 'Card background';
@@ -2951,7 +3098,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cardBackgroundGradient => 'Gradient';
 
   @override
-  String get queueModeMergedSubtitle => 'Wiedergabe stoppt, manuelle Warteschlange oder Auto-Absorb des nächsten Elements';
+  String get queueModeMergedSubtitle =>
+      'Wiedergabe stoppt, manuelle Warteschlange oder Auto-Absorb des nächsten Elements';
 
   @override
   String get queueModeSeriesLabel => 'Serie';
@@ -2963,13 +3111,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get queueModeInfoSeries => 'Serie';
 
   @override
-  String get queueModeInfoSeriesDesc => 'Spielt automatisch das nächste Buch einer Serie oder die nächste Episode einer Podcast-Sendung ab.';
+  String get queueModeInfoSeriesDesc =>
+      'Spielt automatisch das nächste Buch einer Serie oder die nächste Episode einer Podcast-Sendung ab.';
 
   @override
   String get resetButtonGridQuestion => 'Button-Raster zurücksetzen?';
 
   @override
-  String get resetButtonGridContent => 'Dies stellt das Standard-Button-Layout, die Reihenfolge und die Schaltereinstellungen wieder her.';
+  String get resetButtonGridContent =>
+      'Dies stellt das Standard-Button-Layout, die Reihenfolge und die Schaltereinstellungen wieder her.';
 
   @override
   String get reset => 'Zurücksetzen';
@@ -2987,13 +3137,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chapterBarrierInfoTitle => 'Kapitelgrenze';
 
   @override
-  String get chapterBarrierInfoContent => 'Beim Zurückspulen springt die Wiedergabe an den Anfang des aktuellen Kapitels, statt ins vorherige zu wechseln.\n\nTippe innerhalb von 2 Sekunden zweimal auf den Zurückspulen-Button, um die Grenze zu durchbrechen.';
+  String get chapterBarrierInfoContent =>
+      'Beim Zurückspulen springt die Wiedergabe an den Anfang des aktuellen Kapitels, statt ins vorherige zu wechseln.\n\nTippe innerhalb von 2 Sekunden zweimal auf den Zurückspulen-Button, um die Grenze zu durchbrechen.';
 
   @override
-  String get chapterBarrierOnRewindOnSubtitle => 'An - Zurückspulen springt zum Kapitelanfang';
+  String get chapterBarrierOnRewindOnSubtitle =>
+      'An - Zurückspulen springt zum Kapitelanfang';
 
   @override
-  String get chapterBarrierOnRewindOffSubtitle => 'Aus - Zurückspulen überschreitet Kapitelgrenzen';
+  String get chapterBarrierOnRewindOffSubtitle =>
+      'Aus - Zurückspulen überschreitet Kapitelgrenzen';
 
   @override
   String autoRewindOnSubtitleFormat(String min, String max) {
@@ -3004,7 +3157,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rewindOnSessionStart => 'Zurückspulen bei Sitzungsstart';
 
   @override
-  String get rewindOnSessionStartInfoContent => 'Das normale Auto-Zurückspulen wird ausgelöst, wenn du innerhalb einer aktiven Sitzung aus einer Pause fortsetzt. Diese Einstellung fügt ein Zurückspulen beim Start einer komplett neuen Sitzung hinzu - zum Beispiel nach dem Schließen der App, gestoppter Wiedergabe oder beim frischen Öffnen der App.\n\nWenn aktiviert, springt die Wiedergabe zu Beginn jeder neuen Sitzung um den vollen maximalen Zurückspul-Wert zurück, damit du noch einmal hörst, wo du aufgehört hast.';
+  String get rewindOnSessionStartInfoContent =>
+      'Das normale Auto-Zurückspulen wird ausgelöst, wenn du innerhalb einer aktiven Sitzung aus einer Pause fortsetzt. Diese Einstellung fügt ein Zurückspulen beim Start einer komplett neuen Sitzung hinzu - zum Beispiel nach dem Schließen der App, gestoppter Wiedergabe oder beim frischen Öffnen der App.\n\nWenn aktiviert, springt die Wiedergabe zu Beginn jeder neuen Sitzung um den vollen maximalen Zurückspul-Wert zurück, damit du noch einmal hörst, wo du aufgehört hast.';
 
   @override
   String rewindOnSessionStartOnSubtitle(String seconds) {
@@ -3058,7 +3212,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chimeBeforeSleep => 'Glocke vor Sleep';
 
   @override
-  String get chimeBeforeSleepOnSubtitle => 'Spielt eine sanfte Glocke, bevor der Timer endet';
+  String get chimeBeforeSleepOnSubtitle =>
+      'Spielt eine sanfte Glocke, bevor der Timer endet';
 
   @override
   String get chimeBeforeSleepOffSubtitle => 'Keine Tonwarnung vor Sleep';
@@ -3077,7 +3232,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String autoSleepTimerEnabledSubtitle(String start, String end, String duration) {
+  String autoSleepTimerEnabledSubtitle(
+      String start, String end, String duration) {
     return '$start - $end · $duration';
   }
 
@@ -3094,10 +3250,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get showExplicitBadge => 'Explicit-Abzeichen anzeigen';
 
   @override
-  String get showExplicitBadgeOnSubtitle => 'Explicit-Inhalte zeigen ein \"E\"-Abzeichen';
+  String get showExplicitBadgeOnSubtitle =>
+      'Explicit-Inhalte zeigen ein \"E\"-Abzeichen';
 
   @override
-  String get showExplicitBadgeOffSubtitle => 'Aus - Explicit-Abzeichen ausgeblendet';
+  String get showExplicitBadgeOffSubtitle =>
+      'Aus - Explicit-Abzeichen ausgeblendet';
 
   @override
   String get libraryFallback => 'Bibliothek';
@@ -3106,13 +3264,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get preReleaseUpdatesInfoTitle => 'Pre-Release-Updates';
 
   @override
-  String get preReleaseUpdatesInfoContent => 'Wenn aktiviert, informiert dich der Update-Checker auch über Alpha- und Pre-Release-Builds von GitHub. Diese können instabiler sein, enthalten aber die neuesten Funktionen und Korrekturen.';
+  String get preReleaseUpdatesInfoContent =>
+      'Wenn aktiviert, informiert dich der Update-Checker auch über Alpha- und Pre-Release-Builds von GitHub. Diese können instabiler sein, enthalten aber die neuesten Funktionen und Korrekturen.';
 
   @override
   String get includePreReleases => 'Pre-Releases einbeziehen';
 
   @override
-  String get includePreReleasesOnSubtitle => 'An - sucht nach Alpha- & Pre-Release-Builds';
+  String get includePreReleasesOnSubtitle =>
+      'An - sucht nach Alpha- & Pre-Release-Builds';
 
   @override
   String get includePreReleasesOffSubtitle => 'Aus - nur stabile Versionen';
@@ -3153,10 +3313,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get updateDownloading => 'Update wird heruntergeladen...';
 
   @override
-  String get updateInstallPermissionDenied => 'Install permission denied. Enable \"Install unknown apps\" for Absorb in system settings.';
+  String get updateInstallPermissionDenied =>
+      'Install permission denied. Enable \"Install unknown apps\" for Absorb in system settings.';
 
   @override
-  String get updateOpeningInBrowser => 'Das In-App-Update ist fehlgeschlagen, Browser wird geöffnet';
+  String get updateOpeningInBrowser =>
+      'Das In-App-Update ist fehlgeschlagen, Browser wird geöffnet';
 
   @override
   String get sendToEreader => 'An E-Reader senden';
@@ -3223,7 +3385,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get smtpSaved => 'E-Mail-Einstellungen gespeichert';
 
   @override
-  String get smtpSaveFailed => 'Die E-Mail-Einstellungen konnten nicht gespeichert werden';
+  String get smtpSaveFailed =>
+      'Die E-Mail-Einstellungen konnten nicht gespeichert werden';
 
   @override
   String get smtpTestSent => 'Test-E-Mail gesendet';
@@ -3235,7 +3398,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get ereaderDevicesTitle => 'E-Reader-Geräte';
 
   @override
-  String get ereaderDevicesEmpty => 'Noch keine Geräte. Füge unten eines hinzu.';
+  String get ereaderDevicesEmpty =>
+      'Noch keine Geräte. Füge unten eines hinzu.';
 
   @override
   String get addEreaderDevice => 'Gerät hinzufügen';
@@ -3276,7 +3440,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get ereaderDevicesSaved => 'Geräte gespeichert';
 
   @override
-  String get ereaderDevicesSaveFailed => 'Geräte konnten nicht gespeichert werden';
+  String get ereaderDevicesSaveFailed =>
+      'Geräte konnten nicht gespeichert werden';
 
   @override
   String libraryCountOne(int count) {
@@ -3307,7 +3472,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get backupDetailsSeparator => ' · ';
 
   @override
-  String get bookmarksSortedByPositionReversed => 'Nach Position sortiert (umgekehrt)';
+  String get bookmarksSortedByPositionReversed =>
+      'Nach Position sortiert (umgekehrt)';
 
   @override
   String bookmarksJumpShortContent(String title, String position) {
@@ -3386,7 +3552,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get resetMayNotHaveSynced => 'Zurücksetzen wurde möglicherweise nicht synchronisiert - prüfe deinen Server';
+  String get resetMayNotHaveSynced =>
+      'Zurücksetzen wurde möglicherweise nicht synchronisiert - prüfe deinen Server';
 
   @override
   String failedToDownloadEbook(int code) {
@@ -3394,7 +3561,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get serverReturnedErrorPage => 'Der Server hat eine Fehlerseite statt der E-Book-Datei zurückgegeben';
+  String get serverReturnedErrorPage =>
+      'Der Server hat eine Fehlerseite statt der E-Book-Datei zurückgegeben';
 
   @override
   String ebookSaved(String filename) {
@@ -3527,7 +3695,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminUsersEnterPassword => 'Passwort eingeben';
 
   @override
-  String get adminUsersLeaveBlankToKeep => 'Leer lassen, um aktuelles zu behalten';
+  String get adminUsersLeaveBlankToKeep =>
+      'Leer lassen, um aktuelles zu behalten';
 
   @override
   String get adminUsersAccountType => 'Kontotyp';
@@ -3548,7 +3717,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminUsersAccountActive => 'Konto aktiv';
 
   @override
-  String get adminUsersAccountActiveSub => 'Deaktivierte Konten können sich nicht anmelden';
+  String get adminUsersAccountActiveSub =>
+      'Deaktivierte Konten können sich nicht anmelden';
 
   @override
   String get adminUsersLocked => 'Gesperrt';
@@ -3566,7 +3736,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminUsersPermUpdate => 'Aktualisieren';
 
   @override
-  String get adminUsersPermUpdateSub => 'Metadaten und Bibliothekselemente bearbeiten';
+  String get adminUsersPermUpdateSub =>
+      'Metadaten und Bibliothekselemente bearbeiten';
 
   @override
   String get adminUsersPermDelete => 'Löschen';
@@ -3605,7 +3776,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminUsersFailedCreate => 'Benutzer konnte nicht erstellt werden';
 
   @override
-  String get adminUsersFailedUpdate => 'Benutzer konnte nicht aktualisiert werden';
+  String get adminUsersFailedUpdate =>
+      'Benutzer konnte nicht aktualisiert werden';
 
   @override
   String get adminUsersThisUser => 'diesen Benutzer';
@@ -3694,10 +3866,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminPodcastsCheckNewEpisodesTitle => 'Auf neue Episoden prüfen';
 
   @override
-  String get adminPodcastsCheckNewEpisodesContent => 'Dies prüft die RSS-Feeds aller Podcasts und lädt alle gefundenen neuen Episoden herunter (sofern Auto-Download aktiviert ist).';
+  String get adminPodcastsCheckNewEpisodesContent =>
+      'Dies prüft die RSS-Feeds aller Podcasts und lädt alle gefundenen neuen Episoden herunter (sofern Auto-Download aktiviert ist).';
 
   @override
-  String get adminPodcastsCheckNewEpisodesSubtitle => 'RSS-Feed durchsuchen und neue Episoden herunterladen';
+  String get adminPodcastsCheckNewEpisodesSubtitle =>
+      'RSS-Feed durchsuchen und neue Episoden herunterladen';
 
   @override
   String get adminPodcastsCheck => 'Prüfen';
@@ -3709,7 +3883,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminPodcastsCheckingForNewDots => 'Suche nach neuen Episoden...';
 
   @override
-  String get adminPodcastsFailedCheckEpisodes => 'Episoden konnten nicht geprüft werden';
+  String get adminPodcastsFailedCheckEpisodes =>
+      'Episoden konnten nicht geprüft werden';
 
   @override
   String get adminPodcastsCheckFeedsTooltip => 'Feeds auf neue Episoden prüfen';
@@ -3718,7 +3893,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminPodcastsNoPodcastsYet => 'Noch keine Podcasts';
 
   @override
-  String get adminPodcastsTapPlusHint => 'Tippe auf +, um Sendungen zu suchen und hinzuzufügen';
+  String get adminPodcastsTapPlusHint =>
+      'Tippe auf +, um Sendungen zu suchen und hinzuzufügen';
 
   @override
   String adminPodcastsEpisodesCount(int count) {
@@ -3869,7 +4045,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get adminPodcastsFailedRemoveShow => 'Sendung konnte nicht entfernt werden';
+  String get adminPodcastsFailedRemoveShow =>
+      'Sendung konnte nicht entfernt werden';
 
   @override
   String get adminPodcastsRemoveShowTooltip => 'Sendung entfernen';
@@ -3927,7 +4104,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get adminPodcastsBrowseFeedToDownload => 'Feed durchsuchen, um herunterzuladen';
+  String get adminPodcastsBrowseFeedToDownload =>
+      'Feed durchsuchen, um herunterzuladen';
 
   @override
   String get adminPodcastsDownloadingDots => 'Wird heruntergeladen...';
@@ -3967,7 +4145,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get adminPodcastsFailedToCheckNew => 'Suche nach neuen Episoden fehlgeschlagen';
+  String get adminPodcastsFailedToCheckNew =>
+      'Suche nach neuen Episoden fehlgeschlagen';
 
   @override
   String get adminPodcastsCheckAndDownload => 'Prüfen & Herunterladen';
@@ -3976,19 +4155,24 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminPodcastsMatchPodcast => 'Podcast zuordnen';
 
   @override
-  String get adminPodcastsMatchPodcastSubtitle => 'iTunes durchsuchen, um Cover und Metadaten zu aktualisieren';
+  String get adminPodcastsMatchPodcastSubtitle =>
+      'iTunes durchsuchen, um Cover und Metadaten zu aktualisieren';
 
   @override
-  String get adminPodcastsAutoDownloadNewEpisodes => 'Neue Episoden automatisch herunterladen';
+  String get adminPodcastsAutoDownloadNewEpisodes =>
+      'Neue Episoden automatisch herunterladen';
 
   @override
-  String get adminPodcastsAutoDownloadOnSubtitle => 'Server lädt neue Episoden automatisch herunter';
+  String get adminPodcastsAutoDownloadOnSubtitle =>
+      'Server lädt neue Episoden automatisch herunter';
 
   @override
-  String get adminPodcastsAutoDownloadOffSubtitle => 'Neue Episoden werden nicht automatisch heruntergeladen';
+  String get adminPodcastsAutoDownloadOffSubtitle =>
+      'Neue Episoden werden nicht automatisch heruntergeladen';
 
   @override
-  String get adminPodcastsFailedAutoDownloadUpdate => 'Auto-Download-Einstellung konnte nicht aktualisiert werden';
+  String get adminPodcastsFailedAutoDownloadUpdate =>
+      'Auto-Download-Einstellung konnte nicht aktualisiert werden';
 
   @override
   String get adminPodcastsCheckSchedule => 'Prüfplan';
@@ -4064,10 +4248,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminPodcastsNoResults => 'Keine Ergebnisse';
 
   @override
-  String get adminPodcastsPodcastMatched => 'Podcast zugeordnet und aktualisiert';
+  String get adminPodcastsPodcastMatched =>
+      'Podcast zugeordnet und aktualisiert';
 
   @override
-  String get adminPodcastsFailedMatch => 'Podcast konnte nicht zugeordnet werden';
+  String get adminPodcastsFailedMatch =>
+      'Podcast konnte nicht zugeordnet werden';
 
   @override
   String get episodeListEpisodeFallback => 'Episode';
@@ -4098,7 +4284,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get episodeListUnsubscribeFromNewEpisodes => 'Neue Episoden abbestellen';
+  String get episodeListUnsubscribeFromNewEpisodes =>
+      'Neue Episoden abbestellen';
 
   @override
   String get episodeListSubscribeToNewEpisodes => 'Neue Episoden abonnieren';
@@ -4107,7 +4294,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episodeListSubscribeTitle => 'Diesen Podcast abonnieren?';
 
   @override
-  String get episodeListSubscribeContent => 'Neue Episoden werden automatisch heruntergeladen und zu deiner Absorbing-Warteschlange hinzugefügt, sobald sie auf dem Server erscheinen.';
+  String get episodeListSubscribeContent =>
+      'Neue Episoden werden automatisch heruntergeladen und zu deiner Absorbing-Warteschlange hinzugefügt, sobald sie auf dem Server erscheinen.';
 
   @override
   String get episodeListSubscribe => 'Abonnieren';
@@ -4119,10 +4307,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episodeListHideFinishedEpisodes => 'Beendete Episoden ausblenden';
 
   @override
-  String get episodeListPlaysNewerToOlder => 'Spielt von neueren zu älteren Episoden';
+  String get episodeListPlaysNewerToOlder =>
+      'Spielt von neueren zu älteren Episoden';
 
   @override
-  String get episodeListPlaysOlderToNewer => 'Spielt von älteren zu neueren Episoden';
+  String get episodeListPlaysOlderToNewer =>
+      'Spielt von älteren zu neueren Episoden';
 
   @override
   String episodeListEpisodeCount(int count) {
@@ -4176,10 +4366,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episodeDetailMarkedFinishedNice => 'Als beendet markiert - super!';
 
   @override
-  String get episodeDetailMarkAbsorbedContent => 'Dies setzt deinen Fortschritt für diese Episode auf 100 %.';
+  String get episodeDetailMarkAbsorbedContent =>
+      'Dies setzt deinen Fortschritt für diese Episode auf 100 %.';
 
   @override
-  String get episodeDetailResetProgressContent => 'Dies löscht den gesamten Fortschritt für diese Episode und setzt sie auf den Anfang zurück. Das kann nicht rückgängig gemacht werden.';
+  String get episodeDetailResetProgressContent =>
+      'Dies löscht den gesamten Fortschritt für diese Episode und setzt sie auf den Anfang zurück. Das kann nicht rückgängig gemacht werden.';
 
   @override
   String get episodeDetailToday => 'Heute';
@@ -4224,7 +4416,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get editMetadataUpdatedFromMatch => 'Metadaten aus Zuordnung aktualisiert';
+  String get editMetadataUpdatedFromMatch =>
+      'Metadaten aus Zuordnung aktualisiert';
 
   @override
   String editMetadataConfirmMatch(String title) {
@@ -4240,18 +4433,22 @@ class AppLocalizationsDe extends AppLocalizations {
   String get seriesBooksFindMissingTitle => 'Fehlende Bücher finden';
 
   @override
-  String get seriesBooksFindMissingContent => 'Dies durchsucht Audible nach Büchern dieser Serie, die in deiner Bibliothek fehlen könnten.\n\nBücher werden zuerst über die ASIN abgeglichen (sofern dein Server ASINs für seine Bücher hat) und greifen dann auf den Titelabgleich zurück. Die Ergebnisse sind möglicherweise nicht ganz genau.';
+  String get seriesBooksFindMissingContent =>
+      'Dies durchsucht Audible nach Büchern dieser Serie, die in deiner Bibliothek fehlen könnten.\n\nBücher werden zuerst über die ASIN abgeglichen (sofern dein Server ASINs für seine Bücher hat) und greifen dann auf den Titelabgleich zurück. Die Ergebnisse sind möglicherweise nicht ganz genau.';
 
   @override
-  String get seriesBooksCouldNotFindOnAudible => 'Diese Serie konnte auf Audible nicht gefunden werden';
+  String get seriesBooksCouldNotFindOnAudible =>
+      'Diese Serie konnte auf Audible nicht gefunden werden';
 
   @override
   String seriesBooksMarkAllNotFinishedContent(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Damit wird der Beendet-Status für alle $count Bücher dieser Serie zurückgesetzt.',
-      one: 'Damit wird der Beendet-Status für 1 Buch dieser Serie zurückgesetzt.',
+      other:
+          'Damit wird der Beendet-Status für alle $count Bücher dieser Serie zurückgesetzt.',
+      one:
+          'Damit wird der Beendet-Status für 1 Buch dieser Serie zurückgesetzt.',
     );
     return '$_temp0';
   }
@@ -4261,7 +4458,8 @@ class AppLocalizationsDe extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Damit werden alle $count Bücher dieser Serie als beendet markiert.',
+      other:
+          'Damit werden alle $count Bücher dieser Serie als beendet markiert.',
       one: 'Damit wird 1 Buch dieser Serie als beendet markiert.',
     );
     return '$_temp0';
@@ -4379,10 +4577,12 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get statsScreenCouldNotLoadItem => 'Element konnte nicht geladen werden';
+  String get statsScreenCouldNotLoadItem =>
+      'Element konnte nicht geladen werden';
 
   @override
-  String get statsScreenCouldNotFindEpisode => 'Episode konnte nicht gefunden werden';
+  String get statsScreenCouldNotFindEpisode =>
+      'Episode konnte nicht gefunden werden';
 
   @override
   String statsScreenByAuthor(String author) {
@@ -4402,7 +4602,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sessionDeleteConfirmTitle => 'Delete session?';
 
   @override
-  String get sessionDeleteConfirmBody => 'This removes the session and lowers your listening totals by its time. It cannot be undone.';
+  String get sessionDeleteConfirmBody =>
+      'This removes the session and lowers your listening totals by its time. It cannot be undone.';
 
   @override
   String get sessionSaved => 'Session updated';
@@ -4470,7 +4671,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get statsScreenPmLabel => 'PM';
 
   @override
-  String statsScreenDateAtTime(String month, int day, int year, int hour, String minute, String ampm) {
+  String statsScreenDateAtTime(
+      String month, int day, int year, int hour, String minute, String ampm) {
     return '$day. $month $year um $hour:$minute $ampm';
   }
 
@@ -4528,7 +4730,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get upcomingReleasesRescan => 'Erneut scannen';
 
   @override
-  String get upcomingReleasesRescanReleaseDate => 'Veröffentlichungstermin erneut scannen';
+  String get upcomingReleasesRescanReleaseDate =>
+      'Veröffentlichungstermin erneut scannen';
 
   @override
   String get upcomingReleasesRescanning => 'Wird erneut gescannt...';
@@ -4539,7 +4742,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get upcomingReleasesNoReleaseDateFound => 'Kein Veröffentlichungstermin gefunden';
+  String get upcomingReleasesNoReleaseDateFound =>
+      'Kein Veröffentlichungstermin gefunden';
 
   @override
   String get upcomingReleasesRescanFailed => 'Erneuter Scan fehlgeschlagen';
@@ -4583,7 +4787,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get upcomingReleasesNoneFound => 'Keine kommenden oder kürzlichen Veröffentlichungen gefunden';
+  String get upcomingReleasesNoneFound =>
+      'Keine kommenden oder kürzlichen Veröffentlichungen gefunden';
 
   @override
   String upcomingReleasesAcrossSeries(String summary, int count) {
@@ -4677,7 +4882,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get audibleSeriesNoBooksFound => 'Keine Bücher auf Audible gefunden';
 
   @override
-  String get audibleSeriesFailedToLoad => 'Serie konnte nicht von Audible geladen werden';
+  String get audibleSeriesFailedToLoad =>
+      'Serie konnte nicht von Audible geladen werden';
 
   @override
   String audibleSeriesSummary(int total, int missing) {
@@ -4685,7 +4891,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String audibleSeriesSummaryWithUpcoming(int total, int missing, int upcoming) {
+  String audibleSeriesSummaryWithUpcoming(
+      int total, int missing, int upcoming) {
     return '$total auf Audible · $missing fehlen · $upcoming kommend';
   }
 
@@ -4711,7 +4918,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get audibleSeriesCompleteSeries => 'Du hast die komplette Serie!';
 
   @override
-  String get audibleSeriesNoUpcoming => 'Keine kommenden Veröffentlichungen gefunden';
+  String get audibleSeriesNoUpcoming =>
+      'Keine kommenden Veröffentlichungen gefunden';
 
   @override
   String get audibleSeriesUpcomingBadge => 'KOMMEND';
@@ -4738,10 +4946,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get audibleSeriesAlreadyInUpcoming => 'Already on the upcoming page';
 
   @override
-  String get audibleSeriesCouldNotOpenAudible => 'Audible konnte nicht geöffnet werden';
+  String get audibleSeriesCouldNotOpenAudible =>
+      'Audible konnte nicht geöffnet werden';
 
   @override
-  String get audibleSeriesCouldNotOpenCalendar => 'Kalender konnte nicht geöffnet werden';
+  String get audibleSeriesCouldNotOpenCalendar =>
+      'Kalender konnte nicht geöffnet werden';
 
   @override
   String audibleSeriesCalendarDescription(String seriesName) {
@@ -4779,7 +4989,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get metadataLookupOverrideLocalDisplay => 'Lokale Anzeige überschreiben';
+  String get metadataLookupOverrideLocalDisplay =>
+      'Lokale Anzeige überschreiben';
 
   @override
   String get equalizerPresetFlat => 'Flach';
@@ -4834,7 +5045,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get librarySortFilterUpcomingReleases => 'Kommende Veröffentlichungen';
 
   @override
-  String get librarySortFilterUpcomingReleasesSubtitle => 'Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen';
+  String get librarySortFilterUpcomingReleasesSubtitle =>
+      'Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen';
 
   @override
   String sleepTimerSheetChaptersLeft(int count) {
@@ -4945,7 +5157,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get sleepTimerSheetSpecificAlreadyPassed => 'Dieser Zeitpunkt ist bereits vorbei';
+  String get sleepTimerSheetSpecificAlreadyPassed =>
+      'Dieser Zeitpunkt ist bereits vorbei';
 
   @override
   String get sleepTimerSheetSpecificStartButton => 'Timer starten';
@@ -5031,7 +5244,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get homeCustomizeAddGenreTitle => 'Genre-Bereich hinzufügen';
 
   @override
-  String get homeCustomizeAddGenreSubtitle => 'Wähle ein Genre für deinen Startbildschirm';
+  String get homeCustomizeAddGenreSubtitle =>
+      'Wähle ein Genre für deinen Startbildschirm';
 
   @override
   String get homeSectionDoneBadge => 'Fertig';
@@ -5040,121 +5254,143 @@ class AppLocalizationsDe extends AppLocalizations {
   String get tipsSheetQuickBookmarksTitle => 'Schnelle Lesezeichen';
 
   @override
-  String get tipsSheetQuickBookmarksDesc => 'Halte den Lesezeichen-Button auf einer Karte gedrückt, um sofort ein Lesezeichen an der aktuellen Position zu setzen, ohne das Lesezeichen-Menü zu öffnen.';
+  String get tipsSheetQuickBookmarksDesc =>
+      'Halte den Lesezeichen-Button auf einer Karte gedrückt, um sofort ein Lesezeichen an der aktuellen Position zu setzen, ohne das Lesezeichen-Menü zu öffnen.';
 
   @override
   String get tipsSheetCoverPlayPauseTitle => 'Cover zum Pausieren';
 
   @override
-  String get tipsSheetCoverPlayPauseDesc => 'Tippe auf das Cover einer Karte, um abzuspielen oder zu pausieren. Schalte das in den Einstellungen unter Absorbing-Karten um. Ein dezentes Pause-Symbol zeigt sich beim Abspielen, damit du weißt, dass es antippbar ist.';
+  String get tipsSheetCoverPlayPauseDesc =>
+      'Tippe auf das Cover einer Karte, um abzuspielen oder zu pausieren. Schalte das in den Einstellungen unter Absorbing-Karten um. Ein dezentes Pause-Symbol zeigt sich beim Abspielen, damit du weißt, dass es antippbar ist.';
 
   @override
   String get tipsSheetFullScreenPlayerTitle => 'Vollbild-Player';
 
   @override
-  String get tipsSheetFullScreenPlayerDesc => 'Wische auf einer Absorbing-Karte nach oben, um den Vollbild-Player zu öffnen. Wische nach unten, um ihn zu schließen.';
+  String get tipsSheetFullScreenPlayerDesc =>
+      'Wische auf einer Absorbing-Karte nach oben, um den Vollbild-Player zu öffnen. Wische nach unten, um ihn zu schließen.';
 
   @override
-  String get tipsSheetQuickAddAbsorbingTitle => 'Schnell zu Absorbing hinzufügen';
+  String get tipsSheetQuickAddAbsorbingTitle =>
+      'Schnell zu Absorbing hinzufügen';
 
   @override
-  String get tipsSheetQuickAddAbsorbingDesc => 'Wische in einem Listen-Sheet (Serie, Autor, Suchergebnisse) nach rechts auf einem Buch, um es sofort zur Absorbing-Warteschlange hinzuzufügen.';
+  String get tipsSheetQuickAddAbsorbingDesc =>
+      'Wische in einem Listen-Sheet (Serie, Autor, Suchergebnisse) nach rechts auf einem Buch, um es sofort zur Absorbing-Warteschlange hinzuzufügen.';
 
   @override
   String get tipsSheetShakeExtendSleepTitle => 'Schütteln verlängert Sleep';
 
   @override
-  String get tipsSheetShakeExtendSleepDesc => 'Wenn ein Sleep-Timer läuft und du dein Handy schüttelst, werden zusätzliche Minuten draufgepackt. Stelle die Menge in den Einstellungen unter Sleep-Timer ein.';
+  String get tipsSheetShakeExtendSleepDesc =>
+      'Wenn ein Sleep-Timer läuft und du dein Handy schüttelst, werden zusätzliche Minuten draufgepackt. Stelle die Menge in den Einstellungen unter Sleep-Timer ein.';
 
   @override
   String get tipsSheetSeriesNavigationTitle => 'Serien-Navigation';
 
   @override
-  String get tipsSheetSeriesNavigationDesc => 'Tippe in den Buchdetails auf den Seriennamen, um alle Bücher der Serie in Lesereihenfolge zu sehen, mit Reihenfolge-Badges auf jedem Cover.';
+  String get tipsSheetSeriesNavigationDesc =>
+      'Tippe in den Buchdetails auf den Seriennamen, um alle Bücher der Serie in Lesereihenfolge zu sehen, mit Reihenfolge-Badges auf jedem Cover.';
 
   @override
   String get tipsSheetSwipeBetweenBooksTitle => 'Zwischen Büchern wischen';
 
   @override
-  String get tipsSheetSwipeBetweenBooksDesc => 'Wische auf dem Absorbing-Bildschirm nach links und rechts, um zwischen deinen angefangenen Büchern zu wechseln. Im manuellen Warteschlangenmodus dienen die Karten als Warteschlange, sodass das nächste Buch automatisch startet, wenn das aktuelle endet.';
+  String get tipsSheetSwipeBetweenBooksDesc =>
+      'Wische auf dem Absorbing-Bildschirm nach links und rechts, um zwischen deinen angefangenen Büchern zu wechseln. Im manuellen Warteschlangenmodus dienen die Karten als Warteschlange, sodass das nächste Buch automatisch startet, wenn das aktuelle endet.';
 
   @override
   String get tipsSheetTapToSeekTitle => 'Tippen zum Spulen';
 
   @override
-  String get tipsSheetTapToSeekDesc => 'Tippe irgendwo auf den Kapitel- oder Buchfortschrittsbalken, um direkt zu dieser Stelle zu springen. Du kannst die Balken auch ziehen, um feiner zu steuern.';
+  String get tipsSheetTapToSeekDesc =>
+      'Tippe irgendwo auf den Kapitel- oder Buchfortschrittsbalken, um direkt zu dieser Stelle zu springen. Du kannst die Balken auch ziehen, um feiner zu steuern.';
 
   @override
-  String get tipsSheetSpeedAdjustedTimeTitle => 'Geschwindigkeitsangepasste Zeit';
+  String get tipsSheetSpeedAdjustedTimeTitle =>
+      'Geschwindigkeitsangepasste Zeit';
 
   @override
-  String get tipsSheetSpeedAdjustedTimeDesc => 'Restzeit und Kapitelzeiten passen sich automatisch deiner Wiedergabegeschwindigkeit an. Hörst du mit 1,5x? Die angezeigte Zeit zeigt, wie lange es tatsächlich dauert.';
+  String get tipsSheetSpeedAdjustedTimeDesc =>
+      'Restzeit und Kapitelzeiten passen sich automatisch deiner Wiedergabegeschwindigkeit an. Hörst du mit 1,5x? Die angezeigte Zeit zeigt, wie lange es tatsächlich dauert.';
 
   @override
   String get tipsSheetPlaybackHistoryTitle => 'Wiedergabe-Verlauf';
 
   @override
-  String get tipsSheetPlaybackHistoryDesc => 'Tippe auf einer Karte auf den Verlaufs-Button, um eine Zeitleiste mit jeder Wiedergabe, Pause, Sprung und Geschwindigkeitsänderung zu sehen. Tippe auf ein Ereignis, um zu dieser Stelle zurückzuspringen.';
+  String get tipsSheetPlaybackHistoryDesc =>
+      'Tippe auf einer Karte auf den Verlaufs-Button, um eine Zeitleiste mit jeder Wiedergabe, Pause, Sprung und Geschwindigkeitsänderung zu sehen. Tippe auf ein Ereignis, um zu dieser Stelle zurückzuspringen.';
 
   @override
   String get tipsSheetAutoRewindTitle => 'Auto-Zurückspulen';
 
   @override
-  String get tipsSheetAutoRewindDesc => 'Wenn du nach einer Pause weiterhörst, spult Absorb automatisch ein paar Sekunden zurück, damit du den Anschluss nicht verlierst. Wie weit zurückgespult wird, hängt davon ab, wie lange du weg warst. In den Einstellungen anpassbar.';
+  String get tipsSheetAutoRewindDesc =>
+      'Wenn du nach einer Pause weiterhörst, spult Absorb automatisch ein paar Sekunden zurück, damit du den Anschluss nicht verlierst. Wie weit zurückgespult wird, hängt davon ab, wie lange du weg warst. In den Einstellungen anpassbar.';
 
   @override
   String get tipsSheetSeriesQueueModeTitle => 'Serien-Warteschlangenmodus';
 
   @override
-  String get tipsSheetSeriesQueueModeDesc => 'Wenn du ein Buch beendest, das Teil einer Serie ist, kann Absorb automatisch das nächste Buch abspielen. Stelle den Warteschlangenmodus in den Einstellungen auf \"Serie\".';
+  String get tipsSheetSeriesQueueModeDesc =>
+      'Wenn du ein Buch beendest, das Teil einer Serie ist, kann Absorb automatisch das nächste Buch abspielen. Stelle den Warteschlangenmodus in den Einstellungen auf \"Serie\".';
 
   @override
   String get tipsSheetOfflineModeTitle => 'Offline-Modus';
 
   @override
-  String get tipsSheetOfflineModeDesc => 'Tippe auf dem Absorbing-Bildschirm auf den Flugzeug-Button, um in den Offline-Modus zu wechseln. Das stoppt die Synchronisierung, spart Daten und zeigt nur deine heruntergeladenen Bücher. Ideal für Flüge oder schlechten Empfang.';
+  String get tipsSheetOfflineModeDesc =>
+      'Tippe auf dem Absorbing-Bildschirm auf den Flugzeug-Button, um in den Offline-Modus zu wechseln. Das stoppt die Synchronisierung, spart Daten und zeigt nur deine heruntergeladenen Bücher. Ideal für Flüge oder schlechten Empfang.';
 
   @override
   String get tipsSheetUpcomingReleasesTitle => 'Kommende Veröffentlichungen';
 
   @override
-  String get tipsSheetUpcomingReleasesDesc => 'On the Series tab, tap the tab again to open its sort and filter sheet, then choose Upcoming Releases to see new and upcoming books across your series, sorted by release date.';
+  String get tipsSheetUpcomingReleasesDesc =>
+      'On the Series tab, tap the tab again to open its sort and filter sheet, then choose Upcoming Releases to see new and upcoming books across your series, sorted by release date.';
 
   @override
   String get tipsSheetPerBookEqTitle => 'Equalizer pro Buch';
 
   @override
-  String get tipsSheetPerBookEqDesc => 'Jedes Buch merkt sich seine eigenen EQ-Einstellungen. Stell den EQ einmal für ein Sci-Fi-Epos ein und beim nächsten Mal klingt es genauso.';
+  String get tipsSheetPerBookEqDesc =>
+      'Jedes Buch merkt sich seine eigenen EQ-Einstellungen. Stell den EQ einmal für ein Sci-Fi-Epos ein und beim nächsten Mal klingt es genauso.';
 
   @override
   String get tipsSheetPerBookSpeedTitle => 'Geschwindigkeit pro Buch';
 
   @override
-  String get tipsSheetPerBookSpeedDesc => 'Die Wiedergabegeschwindigkeit wird pro Buch gespeichert. Sachbücher mit 1,5x und dramatische Romane mit 1,0x hören - ohne es jedes Mal neu einstellen zu müssen.';
+  String get tipsSheetPerBookSpeedDesc =>
+      'Die Wiedergabegeschwindigkeit wird pro Buch gespeichert. Sachbücher mit 1,5x und dramatische Romane mit 1,0x hören - ohne es jedes Mal neu einstellen zu müssen.';
 
   @override
   String get tipsSheetAutoSleepWindowTitle => 'Auto-Sleep-Zeitfenster';
 
   @override
-  String get tipsSheetAutoSleepWindowDesc => 'Wähle die Stunden, in denen du normalerweise einschläfst, und der Sleep-Timer startet automatisch, wenn du in diesem Fenster zu hören beginnst.';
+  String get tipsSheetAutoSleepWindowDesc =>
+      'Wähle die Stunden, in denen du normalerweise einschläfst, und der Sleep-Timer startet automatisch, wenn du in diesem Fenster zu hören beginnst.';
 
   @override
   String get tipsSheetSleepFadeChimeTitle => 'Sleep-Fade und Klangzeichen';
 
   @override
-  String get tipsSheetSleepFadeChimeDesc => 'Wenn der Sleep-Timer endet, wird das Audio langsam ausgeblendet und ein optionales Klangzeichen ertönt, damit nicht mitten im Satz abgeschnitten wird.';
+  String get tipsSheetSleepFadeChimeDesc =>
+      'Wenn der Sleep-Timer endet, wird das Audio langsam ausgeblendet und ein optionales Klangzeichen ertönt, damit nicht mitten im Satz abgeschnitten wird.';
 
   @override
   String get tipsSheetCarModeTitle => 'Auto-Modus';
 
   @override
-  String get tipsSheetCarModeDesc => 'Tippe auf das Auto-Symbol, um in den Modus mit großen Buttons zu wechseln, der für sicherere Bedienung beim Fahren gedacht ist.';
+  String get tipsSheetCarModeDesc =>
+      'Tippe auf das Auto-Symbol, um in den Modus mit großen Buttons zu wechseln, der für sicherere Bedienung beim Fahren gedacht ist.';
 
   @override
   String get tipsSheetAudibleSeriesTitle => 'Audible-Serien-Suche';
 
   @override
-  String get tipsSheetAudibleSeriesDesc => 'Open a series and use the overflow menu (the three dots) to pull the full series list from Audible, including missing entries and books you haven\'t started.';
+  String get tipsSheetAudibleSeriesDesc =>
+      'Open a series and use the overflow menu (the three dots) to pull the full series list from Audible, including missing entries and books you haven\'t started.';
 
   @override
   String get bookCardUnknownTitle => 'Unbekannter Titel';
@@ -5293,7 +5529,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cardEdgeProgressHalfSpeed => 'Halbe Geschwindigkeit';
 
   @override
-  String get authSessionExpired => 'Sitzung abgelaufen. Bitte melde dich erneut an.';
+  String get authSessionExpired =>
+      'Sitzung abgelaufen. Bitte melde dich erneut an.';
 
   @override
   String authCannotReachServer(String url) {
@@ -5301,19 +5538,22 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get authInvalidUsernameOrPassword => 'Ungültiger Benutzername oder Passwort';
+  String get authInvalidUsernameOrPassword =>
+      'Ungültiger Benutzername oder Passwort';
 
   @override
   String get authInvalidApiKey => 'Ungültiger API-Schlüssel';
 
   @override
-  String get authLoginFailedDetail => 'Anmeldung fehlgeschlagen - prüfe Serveradresse und Zugangsdaten';
+  String get authLoginFailedDetail =>
+      'Anmeldung fehlgeschlagen - prüfe Serveradresse und Zugangsdaten';
 
   @override
   String get authUnexpectedServerResponse => 'Unerwartete Server-Antwort';
 
   @override
-  String get authSsoUnexpectedResponse => 'SSO hat eine unerwartete Antwort zurückgegeben';
+  String get authSsoUnexpectedResponse =>
+      'SSO hat eine unerwartete Antwort zurückgegeben';
 
   @override
   String get authSwitchedToLocalServer => 'Zu lokalem Server gewechselt';
@@ -5372,13 +5612,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get downloadNotifProgressChannelName => 'Download-Fortschritt';
 
   @override
-  String get downloadNotifProgressChannelDesc => 'Zeigt den Fortschritt während Hörbuch-Downloads';
+  String get downloadNotifProgressChannelDesc =>
+      'Zeigt den Fortschritt während Hörbuch-Downloads';
 
   @override
   String get downloadNotifAlertChannelName => 'Download-Benachrichtigungen';
 
   @override
-  String get downloadNotifAlertChannelDesc => 'Benachrichtigungen, wenn Downloads beendet werden oder fehlschlagen';
+  String get downloadNotifAlertChannelDesc =>
+      'Benachrichtigungen, wenn Downloads beendet werden oder fehlschlagen';
 
   @override
   String get downloadNotifDownloadingTitle => 'Wird heruntergeladen…';
@@ -5414,19 +5656,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get downloadNotifFailedTitle => 'Download fehlgeschlagen';
 
   @override
-  String get upcomingNotifChannelName => 'Suche nach kommenden Veröffentlichungen';
+  String get upcomingNotifChannelName =>
+      'Suche nach kommenden Veröffentlichungen';
 
   @override
-  String get upcomingNotifChannelDesc => 'Zeigt den Fortschritt beim Scannen nach kommenden Veröffentlichungen';
+  String get upcomingNotifChannelDesc =>
+      'Zeigt den Fortschritt beim Scannen nach kommenden Veröffentlichungen';
 
   @override
-  String get upcomingNotifScanTitle => 'Suche nach kommenden Veröffentlichungen';
+  String get upcomingNotifScanTitle =>
+      'Suche nach kommenden Veröffentlichungen';
 
   @override
   String get upcomingNotifStartingScan => 'Suche wird gestartet…';
 
   @override
-  String upcomingNotifCheckingSeries(String seriesName, int current, int total) {
+  String upcomingNotifCheckingSeries(
+      String seriesName, int current, int total) {
     return 'Prüfe $seriesName… ($current/$total)';
   }
 
@@ -5466,19 +5712,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get showTipsAgain => 'Tipps wieder anzeigen';
 
   @override
-  String get showTipsAgainSubtitle => 'Bringe ausgeblendete Funktions-Tipps zurück';
+  String get showTipsAgainSubtitle =>
+      'Bringe ausgeblendete Funktions-Tipps zurück';
 
   @override
   String get tipsRestored => 'Tipps wiederhergestellt';
 
   @override
-  String get resetSpeedPresets => 'Geschwindigkeits-Voreinstellungen zurücksetzen';
+  String get resetSpeedPresets =>
+      'Geschwindigkeits-Voreinstellungen zurücksetzen';
 
   @override
-  String get resetSpeedPresetsSubtitle => 'Standard-Wiedergabegeschwindigkeiten wiederherstellen';
+  String get resetSpeedPresetsSubtitle =>
+      'Standard-Wiedergabegeschwindigkeiten wiederherstellen';
 
   @override
-  String get speedPresetsReset => 'Geschwindigkeits-Voreinstellungen zurückgesetzt';
+  String get speedPresetsReset =>
+      'Geschwindigkeits-Voreinstellungen zurückgesetzt';
 
   @override
   String get editAuthor => 'Autor bearbeiten';
@@ -5496,13 +5746,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get authorRemoveImageTitle => 'Autorenbild entfernen?';
 
   @override
-  String get authorRemoveImageConfirm => 'Dadurch wird das Bild auf dem Server gelöscht.';
+  String get authorRemoveImageConfirm =>
+      'Dadurch wird das Bild auf dem Server gelöscht.';
 
   @override
   String get authorImageRemoved => 'Bild entfernt';
 
   @override
-  String get authorImageFailed => 'Das Autorenbild konnte nicht aktualisiert werden';
+  String get authorImageFailed =>
+      'Das Autorenbild konnte nicht aktualisiert werden';
 
   @override
   String get authorUpdated => 'Autor aktualisiert';
@@ -5522,7 +5774,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get authorQuickMatchHint => 'Pull name, ASIN, description and image from Audible for the chosen region.';
+  String get authorQuickMatchHint =>
+      'Pull name, ASIN, description and image from Audible for the chosen region.';
 
   @override
   String get region => 'Region';
@@ -5549,7 +5802,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chapterErrorFirstNotZero => 'First chapter must start at 0:00';
 
   @override
-  String get chapterErrorStartAfterPrevious => 'Start must come after the previous chapter';
+  String get chapterErrorStartAfterPrevious =>
+      'Start must come after the previous chapter';
 
   @override
   String get chapterErrorStartBeforeEnd => 'Start must be before the book ends';
@@ -5624,7 +5878,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chapterRemoveAllTitle => 'Remove all chapters?';
 
   @override
-  String get chapterRemoveAllMessage => 'This removes every chapter from this book.';
+  String get chapterRemoveAllMessage =>
+      'This removes every chapter from this book.';
 
   @override
   String get chapterAllRemoved => 'All chapters removed';
@@ -5666,7 +5921,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chapterShiftBySeconds => 'Verschieben um (Sekunden)';
 
   @override
-  String get chapterShiftHint => 'Shifts every unlocked chapter. Use a negative value to move them earlier.';
+  String get chapterShiftHint =>
+      'Shifts every unlocked chapter. Use a negative value to move them earlier.';
 
   @override
   String get chapterBack1Second => 'Back 1 second';
@@ -5710,7 +5966,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chapterFindTitle => 'Find chapters';
 
   @override
-  String get chapterFindSubtitle => 'Looks up chapters from Audible/Audnexus by ASIN.';
+  String get chapterFindSubtitle =>
+      'Looks up chapters from Audible/Audnexus by ASIN.';
 
   @override
   String get chapterEnterAsin => 'Enter an ASIN';
@@ -5735,10 +5992,12 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get chapterAudibleLonger => 'The Audible version is longer than your file - later chapters may not line up.';
+  String get chapterAudibleLonger =>
+      'The Audible version is longer than your file - later chapters may not line up.';
 
   @override
-  String get chapterAudibleShorter => 'The Audible version is shorter than your file - chapters may not line up.';
+  String get chapterAudibleShorter =>
+      'The Audible version is shorter than your file - chapters may not line up.';
 
   @override
   String get chapterTitlesOnly => 'Titles only';
@@ -5750,7 +6009,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get coverSearchTitle => 'Nach einem Cover suchen';
 
   @override
-  String get coverSearchRefineHint => 'Refine the title/author to clean up results - this does not change the book.';
+  String get coverSearchRefineHint =>
+      'Refine the title/author to clean up results - this does not change the book.';
 
   @override
   String get coverNoneFound => 'No covers found';
@@ -5771,19 +6031,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get coverUnknownResolution => 'Unknown resolution';
 
   @override
-  String get embedIntro => 'Embed metadata into audio files including cover image and chapters.';
+  String get embedIntro =>
+      'Embed metadata into audio files including cover image and chapters.';
 
   @override
   String get embedBackupOption => 'Back up audio files first';
 
   @override
-  String get embedNoteInFolder => 'Metadata will be embedded in the audio tracks inside your audiobook folder.';
+  String get embedNoteInFolder =>
+      'Metadata will be embedded in the audio tracks inside your audiobook folder.';
 
   @override
-  String get embedNoteMultiTrack => 'Chapters are not embedded in multi-track audiobooks.';
+  String get embedNoteMultiTrack =>
+      'Chapters are not embedded in multi-track audiobooks.';
 
   @override
-  String get embedNoteNavigateAway => 'Once the task is started you can navigate away from this page.';
+  String get embedNoteNavigateAway =>
+      'Once the task is started you can navigate away from this page.';
 
   @override
   String get embedStartButton => 'Start Metadata Embed';
@@ -5805,7 +6069,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get taskStarting => 'Starting...';
 
   @override
-  String get embedBackupNoteIntro => 'A backup of your original audio files will be stored on the server in ';
+  String get embedBackupNoteIntro =>
+      'A backup of your original audio files will be stored on the server in ';
 
   @override
   String embedBackupNotePath(String itemId) {
@@ -5813,7 +6078,8 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get embedBackupNoteOutro => '. Make sure to periodically purge the items cache.';
+  String get embedBackupNoteOutro =>
+      '. Make sure to periodically purge the items cache.';
 
   @override
   String get embedDialogTitle => 'Embed metadata';
@@ -5904,7 +6170,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminApiKeysTokenLabel => 'Your new API key';
 
   @override
-  String get adminApiKeysCopyWarning => 'Copy this key now. For security it won\'t be shown again.';
+  String get adminApiKeysCopyWarning =>
+      'Copy this key now. For security it won\'t be shown again.';
 
   @override
   String get adminApiKeysCopy => 'Copy';
@@ -5943,7 +6210,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminApiKeysEmpty => 'No API keys yet';
 
   @override
-  String get adminApiKeysEmptySub => 'Create one to let apps and scripts reach your server';
+  String get adminApiKeysEmptySub =>
+      'Create one to let apps and scripts reach your server';
 
   @override
   String get adminApiKeysNeverUsed => 'Never used';
@@ -6036,7 +6304,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get adminAllSessions => 'All sessions';
 
   @override
-  String get adminAllSessionsSubtitle => 'View and manage all listening sessions';
+  String get adminAllSessionsSubtitle =>
+      'View and manage all listening sessions';
 
   @override
   String get adminSessionsAllUsers => 'All users';
@@ -6177,7 +6446,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get libDeleteTitle => 'Delete library?';
 
   @override
-  String get libDeleteBody => 'This permanently removes the library and all of its items from the server.';
+  String get libDeleteBody =>
+      'This permanently removes the library and all of its items from the server.';
 
   @override
   String get libDeleted => 'Library deleted';
@@ -6299,5 +6569,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get libRemoveFoldersTitle => 'Remove folders?';
 
   @override
-  String get libRemoveFoldersBody => 'Removing a folder deletes its items from the library. This can\'t be undone.';
+  String get libRemoveFoldersBody =>
+      'Removing a folder deletes its items from the library. This can\'t be undone.';
 }
