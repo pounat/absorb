@@ -510,7 +510,6 @@
   "disconnect": "Déconnecter",
   "welcomeTagline": "Un client Audiobookshelf.",
   "readMore": "Lire plus",
-  "saved": "Sauvegardé",
   "userFallback": "Utilisateur",
   "minutesAgo": "Il y a {count} min",
   "@minutesAgo": {
