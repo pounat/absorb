@@ -1344,7 +1344,7 @@ class _ApprovalsTabState extends State<_ApprovalsTab>
           child: Row(children: [
             Expanded(
               child: Text(
-                _items == null ? '' : _countLabel(_items!.length),
+                _items == null ? '' : l.adminRmabApprovalsPending(_items!.length),
                 style:
                     tt.labelMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
@@ -1360,9 +1360,6 @@ class _ApprovalsTabState extends State<_ApprovalsTab>
       ],
     );
   }
-
-  String _countLabel(int n) =>
-      n == 1 ? '1 awaiting approval' : '$n awaiting approval';
 
   Widget _buildBody(ColorScheme cs, TextTheme tt, AppLocalizations l) {
     if (_loading) {

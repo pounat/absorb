@@ -133,7 +133,7 @@ class RmabService {
   /// GET /api/requests/:id — full detail for a single request.
   Future<RmabRequest> getRequest(String id) async {
     debugPrint('[RMAB] getRequest(id=$id)');
-    final uri = Uri.parse('$baseUrl/api/requests/$id');
+    final uri = Uri.parse('$baseUrl/api/requests/${Uri.encodeComponent(id)}');
     final res = await _get(uri, label: 'getRequest');
     final out = _decode(res, (json) {
       final req = json['request'];
@@ -268,7 +268,7 @@ class RmabService {
       {required bool approve}) async {
     final action = approve ? 'approve' : 'deny';
     debugPrint('[RMAB] respondToApproval(id=$id action=$action)');
-    final uri = Uri.parse('$baseUrl/api/admin/requests/$id/approve');
+    final uri = Uri.parse('$baseUrl/api/admin/requests/${Uri.encodeComponent(id)}/approve');
     final http.Response res;
     try {
       res = await http
