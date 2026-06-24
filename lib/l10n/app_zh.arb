@@ -1131,7 +1131,6 @@
   "removeDownloadContent": "这将从你的设备中移除。",
   "downloadRemoved": "下载已移除",
   "finished": "已完成",
-  "saved": "已保存",
   "selectLibrary": "选择媒体库",
   "switchLibraryTooltip": "切换媒体库",
   "noBooksFound": "未找到书籍",
