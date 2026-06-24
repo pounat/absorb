@@ -1273,7 +1273,6 @@
   "removeDownloadContent": "This will be removed from your device.",
   "downloadRemoved": "Download removed",
   "finished": "Finished",
-  "saved": "Saved",
   "selectLibrary": "Select Library",
   "switchLibraryTooltip": "Switch library",
   "noBooksFound": "No books found",
