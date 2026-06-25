@@ -581,6 +581,7 @@
   "queueModeManual": "Manuell",
   "queueModeAuto": "Auto",
   "queueModePlaylist": "Wiedergabeliste",
+  "queueModeCollection": "Sammlung",
   "queueModeInfoPlaylist": "Playlist Warteschlange",
   "queueModeInfoPlaylistDesc": "Spielt von einer Wiedergabeliste alle Einträge der Reihenfolge nach ab und überspringt bereits abgeschlossene Elemente. Die Wiedergabe stoppt am Ende der Liste.",
   "queuePlaylistPickerTitle": "Wähle eine Playlist",
@@ -1253,6 +1254,8 @@
     }
   },
   "chapters": "Kapitel",
+  "noChaptersBook": "Dieses Buch hat keine Kapitel",
+  "noChaptersPodcast": "Dieser Podcast hat keine Kapitel",
   "failedToLoad": "Laden fehlgeschlagen",
   "startedDate": "Begonnen {date}",
   "@startedDate": {
@@ -1482,6 +1485,7 @@
   "removeDownloadContent": "Dies wird von deinem Gerät entfernt.",
   "downloadRemoved": "Download entfernt",
   "finished": "Beendet",
+  "saved": "Heruntergeladen",
   "selectLibrary": "Bibliothek auswählen",
   "switchLibraryTooltip": "Bibliothek wechseln",
   "noBooksFound": "Keine Bücher gefunden",
@@ -3833,5 +3837,22 @@
   "libUpdated": "Bibliothek aktualisiert",
   "libUpdateFailed": "Bibliothek konnte nicht aktualisiert werden",
   "libRemoveFoldersTitle": "Ordner löschen?",
-  "libRemoveFoldersBody": "Das Löschen eines Ordners entfernt alle seine Einträge aus der Bibliothek. Der Vorgang kann nicht rückgängig gemacht werden."
+  "libRemoveFoldersBody": "Das Löschen eines Ordners entfernt alle seine Einträge aus der Bibliothek. Der Vorgang kann nicht rückgängig gemacht werden.",
+  "readEbook": "Lesen",
+  "ebookDownload": "Herunterladen",
+  "ebookDownloaded": "Heruntergeladen",
+  "ebookSavedOffline": "Zum offline Lesen gespeichert",
+  "ebookRemovedOffline": "Offlineinhalt entfernt",
+  "ebookOfflineFailed": "Das eBook konnte nicht heruntergeladen werden",
+  "ebookSaveToDevice": "Auf Gerät speichern",
+  "ebookSaveToDeviceTitle": "Auf Gerät speichern?",
+  "readerSearchEmpty": "Gib ein Wort oder Phrase ein und tippe auf die Suche.",
+  "readerSearchNoResults": "Keine Treffer für \"{query}\".",
+  "@readerSearchNoResults": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  }
 }
