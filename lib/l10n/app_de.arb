@@ -608,6 +608,7 @@
   "showUpNextLabel": "\"Als Nächstes\" auf der Absorbing Seite anzeigen",
   "openSeries": "Serie öffnen",
   "openPlaylist": "Playlist öffnen",
+  "openCollection": "Sammlung öffnen",
   "playlistPlayAction": "Playlist abspielen",
   "playlistAllFinished": "Alle abgeschlossen",
   "queueModeBooks": "Bücher",
@@ -3846,7 +3847,70 @@
   "ebookOfflineFailed": "Das eBook konnte nicht heruntergeladen werden",
   "ebookSaveToDevice": "Auf Gerät speichern",
   "ebookSaveToDeviceTitle": "Auf Gerät speichern?",
-  "readerSearchEmpty": "Gib ein Wort oder Phrase ein und tippe auf die Suche.",
+  "ebookSaveToDeviceBody": "Dies speichert eine Kopie der eBook-Datei auf deinem Gerät (du bestimmst das Verzeichnis). Das Buch wird nicht im offline Reader verfügbar sein - verwende dafür den Download.",
+  "readerFormatUnsupported": "Dieses eBook-Format kann noch nicht im Reader geöffnet werden",
+  "moreActions": "Mehr",
+  "readerChapters": "Kapitel",
+  "readerSettings": "Reader-Einstellungen",
+  "readerFontSize": "Schriftgröße",
+  "readerLineSpacing": "Zeilenabstand",
+  "readerSideMargins": "Seitenrand",
+  "readerTopBottom": "Oben & Unten",
+  "readerPageLayout": "Seitenlayout",
+  "readerLayoutAuto": "Automatisch",
+  "readerLayoutSingle": "Eine Seite",
+  "readerLayoutTwoPage": "Zwei Seiten",
+  "readerTheme": "Thema",
+  "readerFont": "Schriftart",
+  "readerMoreFonts": "Weitere Schriftarten herunterladen",
+  "readerFontRemove": "Download entfernen",
+  "readerFontDownloadFailed": "{font} konnte nicht heruntergeladen werden",
+  "@readerFontDownloadFailed": {
+    "placeholders": {
+      "font": {
+        "type": "String"
+      }
+    }
+  },
+  "readerAnnotations": "Anmerkungen",
+  "readerHighlights": "Hervorhebungen ({count})",
+  "@readerHighlights": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readerBookmarks": "Lesezeichen ({count})",
+  "@readerBookmarks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readerNoHighlights": "Noch keine Hervorhebungen",
+  "readerNoBookmarks": "Noch keine Lesezeichen",
+  "readerBookmarkDefault": "Lesezeichen",
+  "readerNoteTitle": "Notiz",
+  "readerNoteHint": "Notiz hinzufügen...",
+  "readerCopied": "In Zwischenablage kopiert",
+  "readerTooltipCopy": "Kopieren",
+  "readerTooltipSearch": "Suchen",
+  "readerTooltipDefine": "Definieren",
+  "readerSearchHint": "Dieses Buch durchsuchen…",
+  "readerSearchMatches": "{count, plural, one{{count} Treffer für \"{query}\"} other{{count} Treffer für \"{query}\"}}",
+  "@readerSearchMatches": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "readerSearchEmpty": "Gib ein Wort oder Phrase ein und tippe auf Suche.",
   "readerSearchNoResults": "Keine Treffer für \"{query}\".",
   "@readerSearchNoResults": {
     "placeholders": {
