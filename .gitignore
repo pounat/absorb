@@ -61,8 +61,10 @@ android/key.properties
 # Build scripts (local only)
 *.sh
 
-# Tests (local only)
-/test/
+# Tests (local only; allow committed unit tests added intentionally)
+/test/*
+!/test/services/
+!/test/services/smart_skip_speed_tracker_test.dart
 
 # Battery profiling output
 /battery-reports/

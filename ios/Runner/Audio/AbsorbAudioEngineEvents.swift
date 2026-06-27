@@ -23,5 +23,7 @@ protocol AbsorbAudioEngineDelegate: AnyObject {
   func engineDidCompleteBook()
   func engineDidAutoAdvance()
   func engineDidEmitBufferedPosition(_ bufferedPositionS: Double)
+  func engineDidSmartSkipJump(from: Double, to: Double)
+  func engineDidChangeSmartSkipAvailability(_ available: Bool)
   func engineDidError(message: String, code: String?)
 }

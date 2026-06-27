@@ -54,6 +54,7 @@ final class AbsorbAudioBridge: NSObject {
       let speed = (args?["speed"] as? Double).map { Float($0) } ?? 1.0
       let volume = (args?["volume"] as? Double).map { Float($0) } ?? 1.0
       let eq = (args?["eqEnabled"] as? Bool) ?? false
+      let smartSkip = (args?["smartSkipEnabled"] as? Bool) ?? false
       let itemId = args?["itemId"] as? String
       AbsorbAudioEngine.shared.load(
         tracks: trackList,
@@ -63,6 +64,7 @@ final class AbsorbAudioBridge: NSObject {
         speed: speed,
         volume: volume,
         eqEnabled: eq,
+        smartSkipEnabled: smartSkip,
         itemId: itemId
       ) { duration in
         result(["durationS": duration as Any])
@@ -95,6 +97,11 @@ final class AbsorbAudioBridge: NSObject {
     case "setVolume":
       let v = (args?["volume"] as? Double).map { Float($0) } ?? 1.0
       AbsorbAudioEngine.shared.setVolume(v)
+      result(true)
+
+    case "setSmartSkipEnabled":
+      let enabled = (args?["enabled"] as? Bool) ?? false
+      AbsorbAudioEngine.shared.setSmartSkipEnabled(enabled)
       result(true)
 
     case "setNextSource":
@@ -225,6 +232,14 @@ extension AbsorbAudioBridge: AbsorbAudioEngineDelegate {
 
   func engineDidEmitBufferedPosition(_ bufferedPositionS: Double) {
     sendEvent(["type": "bufferedPosition", "bufferedPositionS": bufferedPositionS])
+  }
+
+  func engineDidSmartSkipJump(from: Double, to: Double) {
+    sendEvent(["type": "smartSkipJump", "fromS": from, "toS": to])
+  }
+
+  func engineDidChangeSmartSkipAvailability(_ available: Bool) {
+    sendEvent(["type": "smartSkipAvailable", "available": available])
   }
 
   func engineDidError(message: String, code: String?) {

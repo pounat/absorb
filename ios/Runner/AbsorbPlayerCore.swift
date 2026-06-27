@@ -272,6 +272,7 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
       speed: Float(speed > 0 ? speed : 1.0),
       volume: 1.0,
       eqEnabled: eqEnabled,
+      smartSkipEnabled: false,
       itemId: itemId
     ) { _ in }
 

@@ -7,9 +7,7 @@ import 'sleep_timer_service.dart';
 import 'user_account_service.dart';
 
 class BackupService {
-  static Future<Map<String, dynamic>> exportSettings({
-    required bool includeAccounts,
-  }) async {
+  static Future<Map<String, dynamic>> exportSettings({required bool includeAccounts}) async {
     final prefs = await SharedPreferences.getInstance();
     final pkgInfo = await PackageInfo.fromPlatform();
 
@@ -25,6 +23,7 @@ class BackupService {
       'autoPlayNextPodcast': (await PlayerSettings.getQueueMode()) == 'auto_next',
       'showBookSlider': await PlayerSettings.getShowBookSlider(),
       'speedAdjustedTime': await PlayerSettings.getSpeedAdjustedTime(),
+      'podcastSmartSkip': await PlayerSettings.getPodcastSmartSkip(),
       'forwardSkip': await PlayerSettings.getForwardSkip(),
       'backSkip': await PlayerSettings.getBackSkip(),
       'shakeMode': await PlayerSettings.getShakeMode(),
@@ -227,6 +226,7 @@ class BackupService {
         homeLayouts.putIfAbsent(libId, () => {})[bucket] = list;
       }
     }
+
     collectHome('home_section_order_', 'order');
     collectHome('home_hidden_sections_', 'hidden');
     collectHome('home_genre_sections_', 'genres');
@@ -252,6 +252,7 @@ class BackupService {
         podcastPrefs.putIfAbsent(itemId, () => {})[bucket] = value;
       }
     }
+
     collectPodcast('podcast_sort_newest_', 'sortNewest', (k) => prefs.getBool(k));
     collectPodcast('podcast_hide_finished_', 'hideFinished', (k) => prefs.getBool(k));
     collectPodcast('podcast_advance_dir_', 'advanceDir', (k) => prefs.getString(k));
@@ -263,10 +264,7 @@ class BackupService {
     List<Map<String, dynamic>>? accounts;
     Map<String, String>? customHeaders;
     if (includeAccounts) {
-      accounts = UserAccountService()
-          .accounts
-          .map((a) => a.toJson())
-          .toList();
+      accounts = UserAccountService().accounts.map((a) => a.toJson()).toList();
       final headersJson = prefs.getString('custom_headers');
       if (headersJson != null) {
         try {
@@ -311,13 +309,7 @@ class BackupService {
   /// to reach the server. Importing it from the login screen signs them in.
   /// The token has no refresh counterpart, so it is flagged legacy and used as
   /// a standing bearer key.
-  static Future<Map<String, dynamic>> buildSetupFile({
-    required String serverUrl,
-    required String username,
-    required String token,
-    String? userId,
-    Map<String, String>? customHeaders,
-  }) async {
+  static Future<Map<String, dynamic>> buildSetupFile({required String serverUrl, required String username, required String token, String? userId, Map<String, String>? customHeaders}) async {
     final pkgInfo = await PackageInfo.fromPlatform();
     return {
       'version': 3,
@@ -325,13 +317,7 @@ class BackupService {
       'createdAt': DateTime.now().toIso8601String(),
       'appVersion': pkgInfo.version,
       'accounts': [
-        {
-          'serverUrl': serverUrl,
-          'username': username,
-          'token': token,
-          'userId': userId,
-          'isLegacyToken': true,
-        },
+        {'serverUrl': serverUrl, 'username': username, 'token': token, 'userId': userId, 'isLegacyToken': true},
       ],
       if (customHeaders != null && customHeaders.isNotEmpty) 'customHeaders': customHeaders,
     };
@@ -373,6 +359,7 @@ class BackupService {
     if (s['whenFinished'] != null) PlayerSettings.setWhenFinished(s['whenFinished'] as String);
     if (s['showBookSlider'] != null) PlayerSettings.setShowBookSlider(s['showBookSlider'] as bool);
     if (s['speedAdjustedTime'] != null) PlayerSettings.setSpeedAdjustedTime(s['speedAdjustedTime'] as bool);
+    if (s['podcastSmartSkip'] != null) PlayerSettings.setPodcastSmartSkip(s['podcastSmartSkip'] as bool);
     if (s['forwardSkip'] != null) PlayerSettings.setForwardSkip(s['forwardSkip'] as int);
     if (s['backSkip'] != null) PlayerSettings.setBackSkip(s['backSkip'] as int);
     if (s['shakeMode'] != null) PlayerSettings.setShakeMode(s['shakeMode'] as String);
@@ -400,9 +387,7 @@ class BackupService {
     if (s['fullScreenPlayer'] != null) PlayerSettings.setFullScreenPlayer(s['fullScreenPlayer'] as bool);
     if (s['themeMode'] != null) PlayerSettings.setThemeMode(s['themeMode'] as String);
     if (s['cardButtonOrder'] != null) {
-      PlayerSettings.setCardButtonOrder(
-        (s['cardButtonOrder'] as List<dynamic>).cast<String>(),
-      );
+      PlayerSettings.setCardButtonOrder((s['cardButtonOrder'] as List<dynamic>).cast<String>());
     }
     if (s['rollingDownloadCount'] != null) PlayerSettings.setRollingDownloadCount(s['rollingDownloadCount'] as int);
     if (s['rollingDownloadDeleteFinished'] != null) PlayerSettings.setRollingDownloadDeleteFinished(s['rollingDownloadDeleteFinished'] as bool);
@@ -546,10 +531,7 @@ class BackupService {
     // Rolling download series (scoped)
     final rollingDownloadSeries = data['rollingDownloadSeries'] as List<dynamic>?;
     if (rollingDownloadSeries != null && rollingDownloadSeries.isNotEmpty) {
-      await ScopedPrefs.setStringList(
-        'rolling_download_series',
-        rollingDownloadSeries.cast<String>(),
-      );
+      await ScopedPrefs.setStringList('rolling_download_series', rollingDownloadSeries.cast<String>());
     }
 
     // Podcast subscriptions + Absorbing manual list (scoped)

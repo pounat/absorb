@@ -1089,6 +1089,17 @@
   "loudness": "响度",
   "monoAudio": "单声道音频",
   "skipSilence": "Skip Silence",
+  "smartSkip": "Smart-Skip",
+  "smartSkipBaseSpeed": "Base {speed}x",
+  "@smartSkipBaseSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "smartSkipCastingDisabled": "Unavailable while casting",
+  "smartSkipUnavailable": "Unavailable for this episode",
   "resetAll": "全部重置",
   "collectionNotFound": "未找到收藏集",
   "deleteCollection": "删除收藏集",

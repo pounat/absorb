@@ -5,34 +5,16 @@ import 'native_ios_audio_player.dart';
 
 // Re-export just_audio's data types so consumers don't need a second import.
 export 'package:just_audio/just_audio.dart'
-    show
-        AudioSource,
-        UriAudioSource,
-        ConcatenatingAudioSource,
-        ProgressiveAudioSource,
-        PlayerState,
-        PlaybackEvent,
-        ProcessingState,
-        AudioLoadConfiguration,
-        AndroidLoadControl,
-        DarwinLoadControl;
+    show AudioSource, UriAudioSource, ConcatenatingAudioSource, ProgressiveAudioSource, PlayerState, PlaybackEvent, ProcessingState, AudioLoadConfiguration, AndroidLoadControl, DarwinLoadControl;
 
 /// Platform-aware audio player. Uses the native AVPlayer engine on iOS and
 /// just_audio everywhere else.
 class AudioPlayer {
-  AudioPlayer({
-    bool handleInterruptions = true,
-    bool useProxyForRequestHeaders = true,
-    ja.AudioLoadConfiguration? audioLoadConfiguration,
-  }) {
+  AudioPlayer({bool handleInterruptions = true, bool useProxyForRequestHeaders = true, ja.AudioLoadConfiguration? audioLoadConfiguration}) {
     if (Platform.isIOS) {
       _native = NativeIosAudioPlayer();
     } else {
-      _ja = ja.AudioPlayer(
-        handleInterruptions: handleInterruptions,
-        useProxyForRequestHeaders: useProxyForRequestHeaders,
-        audioLoadConfiguration: audioLoadConfiguration,
-      );
+      _ja = ja.AudioPlayer(handleInterruptions: handleInterruptions, useProxyForRequestHeaders: useProxyForRequestHeaders, audioLoadConfiguration: audioLoadConfiguration);
     }
   }
 
@@ -49,51 +31,37 @@ class AudioPlayer {
 
   Duration get position => _isNative ? _native!.position : _ja!.position;
   Duration? get duration => _isNative ? _native!.duration : _ja!.duration;
-  Duration get bufferedPosition =>
-      _isNative ? _native!.bufferedPosition : _ja!.bufferedPosition;
+  Duration get bufferedPosition => _isNative ? _native!.bufferedPosition : _ja!.bufferedPosition;
   bool get playing => _isNative ? _native!.playing : _ja!.playing;
-  ja.ProcessingState get processingState =>
-      _isNative ? _native!.processingState : _ja!.processingState;
+  ja.ProcessingState get processingState => _isNative ? _native!.processingState : _ja!.processingState;
   double get speed => _isNative ? _native!.speed : _ja!.speed;
   double get volume => _isNative ? _native!.volume : _ja!.volume;
-  int? get currentIndex =>
-      _isNative ? _native!.currentIndex : _ja!.currentIndex;
-  int? get androidAudioSessionId =>
-      _isNative ? null : _ja!.androidAudioSessionId;
-  ja.PlaybackEvent get playbackEvent =>
-      _isNative ? _native!.playbackEvent : _ja!.playbackEvent;
+  int? get currentIndex => _isNative ? _native!.currentIndex : _ja!.currentIndex;
+  int? get androidAudioSessionId => _isNative ? null : _ja!.androidAudioSessionId;
+  ja.PlaybackEvent get playbackEvent => _isNative ? _native!.playbackEvent : _ja!.playbackEvent;
 
   // ─── Streams ───
 
-  Stream<Duration> get positionStream =>
-      _isNative ? _native!.positionStream : _ja!.positionStream;
-  Stream<Duration?> get durationStream =>
-      _isNative ? _native!.durationStream : _ja!.durationStream;
-  Stream<Duration> get bufferedPositionStream =>
-      _isNative ? _native!.bufferedPositionStream : _ja!.bufferedPositionStream;
-  Stream<ja.PlayerState> get playerStateStream =>
-      _isNative ? _native!.playerStateStream : _ja!.playerStateStream;
-  Stream<ja.ProcessingState> get processingStateStream =>
-      _isNative ? _native!.processingStateStream : _ja!.processingStateStream;
-  Stream<ja.PlaybackEvent> get playbackEventStream =>
-      _isNative ? _native!.playbackEventStream : _ja!.playbackEventStream;
-  Stream<int?> get currentIndexStream =>
-      _isNative ? _native!.currentIndexStream : _ja!.currentIndexStream;
+  Stream<Duration> get positionStream => _isNative ? _native!.positionStream : _ja!.positionStream;
+  Stream<Duration?> get durationStream => _isNative ? _native!.durationStream : _ja!.durationStream;
+  Stream<Duration> get bufferedPositionStream => _isNative ? _native!.bufferedPositionStream : _ja!.bufferedPositionStream;
+  Stream<ja.PlayerState> get playerStateStream => _isNative ? _native!.playerStateStream : _ja!.playerStateStream;
+  Stream<ja.ProcessingState> get processingStateStream => _isNative ? _native!.processingStateStream : _ja!.processingStateStream;
+  Stream<ja.PlaybackEvent> get playbackEventStream => _isNative ? _native!.playbackEventStream : _ja!.playbackEventStream;
+  Stream<int?> get currentIndexStream => _isNative ? _native!.currentIndexStream : _ja!.currentIndexStream;
 
   /// Native-only signal that the engine swapped to a pre-buffered next book
   /// mid-flight. Empty stream on Android - pre-buffer there still uses
   /// ConcatenatingAudioSource.add and is detected via position-jump.
-  Stream<void> get bookAutoAdvancedStream =>
-      _isNative ? _native!.bookAutoAdvancedStream : const Stream.empty();
+  Stream<void> get bookAutoAdvancedStream => _isNative ? _native!.bookAutoAdvancedStream : const Stream.empty();
+
+  Stream<void> get smartSkipJumpStream => _isNative ? _native!.smartSkipJumpStream : const Stream.empty();
+
+  Stream<bool> get smartSkipAvailabilityStream => _isNative ? _native!.smartSkipAvailabilityStream : const Stream.empty();
 
   // ─── Source loading ───
 
-  Future<Duration?> setAudioSource(ja.AudioSource source, {
-    Duration? initialPosition,
-    int? initialIndex,
-    bool preload = true,
-    String? itemId,
-  }) async {
+  Future<Duration?> setAudioSource(ja.AudioSource source, {Duration? initialPosition, int? initialIndex, bool preload = true, String? itemId}) async {
     if (_isNative) {
       return _native!.setAudioSource(source, initialPosition: initialPosition, initialIndex: initialIndex, preload: preload, itemId: itemId);
     }
@@ -123,8 +91,7 @@ class AudioPlayer {
 
   /// iOS-only: read the native engine's live state for foreground-resume
   /// reconciliation. Null off iOS or on failure.
-  Future<NativeEngineState?> engineState() async =>
-      _isNative ? _native!.engineState() : null;
+  Future<NativeEngineState?> engineState() async => _isNative ? _native!.engineState() : null;
 
   /// iOS-only: sync the Dart mirror to the engine's actual playing state
   /// without issuing a new play/pause command.
@@ -137,18 +104,13 @@ class AudioPlayer {
   Future<void> play() => _isNative ? _native!.play() : _ja!.play();
   Future<void> pause() => _isNative ? _native!.pause() : _ja!.pause();
   Future<void> stop() => _isNative ? _native!.stop() : _ja!.stop();
-  Future<void> seek(Duration? position, {int? index}) =>
-      _isNative ? _native!.seek(position, index: index) : _ja!.seek(position, index: index);
-  Future<void> setSpeed(double speed) =>
-      _isNative ? _native!.setSpeed(speed) : _ja!.setSpeed(speed);
-  Future<void> setVolume(double volume) =>
-      _isNative ? _native!.setVolume(volume) : _ja!.setVolume(volume);
-  Future<void> setSkipSilenceEnabled(bool enabled) =>
-      _isNative ? _native!.setSkipSilenceEnabled(enabled) : _ja!.setSkipSilenceEnabled(enabled);
-  Future<Duration?> setAsset(String asset) =>
-      _isNative ? _native!.setAsset(asset) : _ja!.setAsset(asset);
-  Future<void> dispose() =>
-      _isNative ? _native!.dispose() : _ja!.dispose();
+  Future<void> seek(Duration? position, {int? index}) => _isNative ? _native!.seek(position, index: index) : _ja!.seek(position, index: index);
+  Future<void> setSpeed(double speed) => _isNative ? _native!.setSpeed(speed) : _ja!.setSpeed(speed);
+  Future<void> setVolume(double volume) => _isNative ? _native!.setVolume(volume) : _ja!.setVolume(volume);
+  Future<void> setSkipSilenceEnabled(bool enabled) => _isNative ? _native!.setSkipSilenceEnabled(enabled) : _ja!.setSkipSilenceEnabled(enabled);
+  Future<void> setSmartSkipEnabled(bool enabled) => _isNative ? _native!.setSmartSkipEnabled(enabled) : _ja!.setSkipSilenceEnabled(enabled);
+  Future<Duration?> setAsset(String asset) => _isNative ? _native!.setAsset(asset) : _ja!.setAsset(asset);
+  Future<void> dispose() => _isNative ? _native!.dispose() : _ja!.dispose();
 
   // ─── just_audio-specific configuration (Android path) ───
 

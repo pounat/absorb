@@ -1388,6 +1388,17 @@
   "loudness": "Loudness",
   "monoAudio": "Mono Audio",
   "skipSilence": "Skip Silence",
+  "smartSkip": "Smart-Skip",
+  "smartSkipBaseSpeed": "Base {speed}x",
+  "@smartSkipBaseSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "smartSkipCastingDisabled": "Unavailable while casting",
+  "smartSkipUnavailable": "Unavailable for this episode",
   "resetAll": "Reset All",
   "collectionNotFound": "Collection not found",
   "deleteCollection": "Delete Collection",

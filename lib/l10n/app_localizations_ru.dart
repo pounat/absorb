@@ -2805,6 +2805,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String get skipSilence => 'Skip Silence';
 
   @override
+  String get smartSkip => 'Smart-Skip';
+
+  @override
+  String smartSkipBaseSpeed(String speed) {
+    return 'Base ${speed}x';
+  }
+
+  @override
+  String get smartSkipCastingDisabled => 'Unavailable while casting';
+
+  @override
+  String get smartSkipUnavailable => 'Unavailable for this episode';
+
+  @override
   String get resetAll => 'Reset All';
 
   @override

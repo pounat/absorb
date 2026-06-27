@@ -2829,6 +2829,20 @@ class AppLocalizationsDe extends AppLocalizations {
   String get skipSilence => 'Stille überspringen';
 
   @override
+  String get smartSkip => 'Smart-Skip';
+
+  @override
+  String smartSkipBaseSpeed(String speed) {
+    return 'Basis ${speed}x';
+  }
+
+  @override
+  String get smartSkipCastingDisabled => 'Beim Casting nicht verfügbar';
+
+  @override
+  String get smartSkipUnavailable => 'Für diese Episode nicht verfügbar';
+
+  @override
   String get resetAll => 'Alles zurücksetzen';
 
   @override

@@ -5158,6 +5158,30 @@ abstract class AppLocalizations {
   /// **'Skip Silence'**
   String get skipSilence;
 
+  /// No description provided for @smartSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart-Skip'**
+  String get smartSkip;
+
+  /// No description provided for @smartSkipBaseSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Base {speed}x'**
+  String smartSkipBaseSpeed(String speed);
+
+  /// No description provided for @smartSkipCastingDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable while casting'**
+  String get smartSkipCastingDisabled;
+
+  /// No description provided for @smartSkipUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable for this episode'**
+  String get smartSkipUnavailable;
+
   /// No description provided for @resetAll.
   ///
   /// In en, this message translates to:
