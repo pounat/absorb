@@ -721,6 +721,11 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     return widget.itemId != null && cast.isCasting && cast.castingItemId == widget.itemId;
   }
 
+  bool get _isCurrentPodcastCasting {
+    final cast = ChromecastService();
+    return cast.isCasting && widget.player.isPodcastEpisode && cast.castingItemId == widget.player.currentItemId && cast.castingEpisodeId == widget.player.currentEpisodeId;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -778,10 +783,9 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
 
   Widget _buildSmartSkipToggle(BuildContext context, TextTheme tt, AppLocalizations l) {
     return ListenableBuilder(
-      listenable: Listenable.merge([widget.player, DownloadService()]),
+      listenable: Listenable.merge([widget.player, DownloadService(), ChromecastService()]),
       builder: (context, _) {
-        final showSmartSkip = widget.player.currentEpisodeId != null && widget.player.currentItemId == widget.itemId;
-        if (!showSmartSkip) return const SizedBox.shrink();
+        if (!widget.player.isPodcastEpisode) return const SizedBox.shrink();
 
         final cs = Theme.of(context).colorScheme;
         final dl = DownloadService();
@@ -789,7 +793,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
         final downloaded = dlKey != null && dl.isDownloaded(dlKey);
         final downloading = dlKey != null && dl.isDownloading(dlKey);
         final unavailableCanDownload = !widget.player.smartSkipAvailable && dlKey != null && !downloaded;
-        final disabledReason = _isCasting ? l.smartSkipCastingDisabled : (!widget.player.smartSkipAvailable && !unavailableCanDownload ? l.smartSkipUnavailable : null);
+        final disabledReason = _isCurrentPodcastCasting ? l.smartSkipCastingDisabled : (!widget.player.smartSkipAvailable && !unavailableCanDownload ? l.smartSkipUnavailable : null);
         final canToggle = disabledReason == null;
         final progress = dlKey != null ? dl.downloadProgress(dlKey) : 0.0;
         final detail = disabledReason ?? (downloading ? '${l.downloadsDownloading} ${(progress * 100).clamp(0, 100).round()}%' : (!downloaded ? l.download : null));
@@ -872,10 +876,9 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
               Text(l.playbackSpeed, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               ListenableBuilder(
-                listenable: widget.player,
+                listenable: Listenable.merge([widget.player, ChromecastService()]),
                 builder: (context, _) {
-                  final showSmartSkip = widget.player.currentEpisodeId != null && widget.player.currentItemId == widget.itemId && !_isCasting;
-                  final smartSkipActive = showSmartSkip && widget.player.isSmartSkipActive;
+                  final smartSkipActive = widget.player.isPodcastEpisode && widget.player.isSmartSkipActive;
                   final speedValue = smartSkipActive ? widget.player.effectivePlaybackSpeed : _speed;
                   return Column(
                     mainAxisSize: MainAxisSize.min,
