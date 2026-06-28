@@ -80,3 +80,7 @@ android/key.properties
 **/macos/Flutter/ephemeral/
 packages/audio_service/pubspec.lock
 packages/audio_service/example/pubspec.lock
+
+## xcode artifacts
+ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/
+ios/Runner.xcworkspace/xcshareddata/
