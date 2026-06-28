@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'scoped_prefs.dart';
+import 'smart_skip_jump.dart';
 
 /// Native iOS audio engine wrapper. Mimics enough of just_audio's
 /// `AudioPlayer` surface that AudioPlayerHandler treats it as a drop-in.
@@ -47,7 +48,7 @@ class NativeIosAudioPlayer {
   // Notified by AudioPlayerHandler-style consumers when the engine auto-advances
   // mid-book to the pre-buffered next book.
   final _bookAutoAdvancedController = StreamController<void>.broadcast();
-  final _smartSkipJumpController = StreamController<void>.broadcast();
+  final _smartSkipJumpController = StreamController<SmartSkipJump>.broadcast();
   final _smartSkipAvailabilityController = StreamController<bool>.broadcast();
 
   Stream<Duration> get positionStream => _positionController.stream;
@@ -62,7 +63,7 @@ class NativeIosAudioPlayer {
   /// AudioPlayerService listens to this instead of inferring from position
   /// jumps + completion races.
   Stream<void> get bookAutoAdvancedStream => _bookAutoAdvancedController.stream;
-  Stream<void> get smartSkipJumpStream => _smartSkipJumpController.stream;
+  Stream<SmartSkipJump> get smartSkipJumpStream => _smartSkipJumpController.stream;
   Stream<bool> get smartSkipAvailabilityStream => _smartSkipAvailabilityController.stream;
 
   Duration get position => _position;
@@ -290,7 +291,11 @@ class NativeIosAudioPlayer {
         _bookAutoAdvancedController.add(null);
         break;
       case 'smartSkipJump':
-        _smartSkipJumpController.add(null);
+        final fromSeconds = (raw['fromS'] as num?)?.toDouble();
+        final toSeconds = (raw['toS'] as num?)?.toDouble();
+        if (fromSeconds != null && toSeconds != null && fromSeconds.isFinite && toSeconds.isFinite && toSeconds > fromSeconds) {
+          _smartSkipJumpController.add(SmartSkipJump(fromSeconds: fromSeconds, toSeconds: toSeconds));
+        }
         break;
       case 'smartSkipAvailable':
         _smartSkipAvailabilityController.add((raw['available'] as bool?) ?? false);

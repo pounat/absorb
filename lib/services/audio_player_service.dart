@@ -1177,6 +1177,9 @@ class AudioPlayerService extends ChangeNotifier {
   bool _smartSkipAvailable = true;
   double _effectivePlaybackSpeed = 1.0;
   double _lastNotifiedSmartSkipSpeed = 1.0;
+  double _lastLoggedSmartSkipSavedSeconds = 0;
+  double _exactSmartSkipSavedSeconds = 0;
+  final List<SmartSkipJump> _pendingSmartSkipJumps = [];
   DateTime? _lastSmartSkipUiNotify;
   final SmartSkipSpeedTracker _smartSkipSpeedTracker = SmartSkipSpeedTracker();
 
@@ -1294,6 +1297,9 @@ class AudioPlayerService extends ChangeNotifier {
     _smartSkipSpeedTracker.reset();
     _effectivePlaybackSpeed = speed;
     _lastNotifiedSmartSkipSpeed = speed;
+    _lastLoggedSmartSkipSavedSeconds = 0;
+    _exactSmartSkipSavedSeconds = 0;
+    _pendingSmartSkipJumps.clear();
     _lastSmartSkipUiNotify = null;
   }
 
@@ -1306,6 +1312,7 @@ class AudioPlayerService extends ChangeNotifier {
 
     final next = _smartSkipSpeedTracker.update(wallTime: DateTime.now(), positionSeconds: positionSeconds, fallbackSpeed: currentSpeed);
     _effectivePlaybackSpeed = next;
+    _logSmartSkipSavings(next, currentSpeed);
     final displayedSpeedChanged = smartSkipDisplaySpeedChanged(_lastNotifiedSmartSkipSpeed, next);
     if (!displayedSpeedChanged) return;
 
@@ -1316,6 +1323,37 @@ class AudioPlayerService extends ChangeNotifier {
       notifyListeners();
       _handler?.refreshPlaybackState();
     }
+  }
+
+  void _logSmartSkipSavings(double effectiveSpeed, double baseSpeed) {
+    if (_pendingSmartSkipJumps.isNotEmpty) {
+      for (final jump in _pendingSmartSkipJumps) {
+        _exactSmartSkipSavedSeconds += jump.skippedSeconds;
+        debugPrint(
+          '[SmartSkip] source=ios '
+          'jumpFrom=${jump.fromSeconds.toStringAsFixed(3)}s '
+          'jumpTo=${jump.toSeconds.toStringAsFixed(3)}s '
+          'skipped=${jump.skippedSeconds.toStringAsFixed(3)}s '
+          'sessionSaved=${_exactSmartSkipSavedSeconds.toStringAsFixed(3)}s '
+          'effective=${effectiveSpeed.toStringAsFixed(6)}x '
+          'base=${baseSpeed.toStringAsFixed(6)}x',
+        );
+      }
+      _pendingSmartSkipJumps.clear();
+    }
+
+    if (!Platform.isAndroid) return;
+    final estimatedTotal = _smartSkipSpeedTracker.estimatedSavedSeconds;
+    final newlyEstimated = estimatedTotal - _lastLoggedSmartSkipSavedSeconds;
+    if (newlyEstimated < 0.1) return;
+    _lastLoggedSmartSkipSavedSeconds = estimatedTotal;
+    debugPrint(
+      '[SmartSkip] source=android-estimated '
+      'skipped=${newlyEstimated.toStringAsFixed(3)}s '
+      'sessionSaved=${estimatedTotal.toStringAsFixed(3)}s '
+      'effective=${effectiveSpeed.toStringAsFixed(6)}x '
+      'base=${baseSpeed.toStringAsFixed(6)}x',
+    );
   }
 
   double get _timeSavedSpeed => isSmartSkipActive ? effectivePlaybackSpeed : (_player?.speed ?? 1.0);
@@ -3660,7 +3698,8 @@ class AudioPlayerService extends ChangeNotifier {
       }
     });
 
-    _smartSkipJumpSub = _player?.smartSkipJumpStream.listen((_) {
+    _smartSkipJumpSub = _player?.smartSkipJumpStream.listen((jump) {
+      if (isSmartSkipActive) _pendingSmartSkipJumps.add(jump);
       _handler?.refreshPlaybackState();
     });
 

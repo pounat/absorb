@@ -1,7 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:absorb/services/smart_skip_jump.dart';
 import 'package:absorb/services/smart_skip_speed_tracker.dart';
 
 void main() {
+  test('smart skip jump reports its skipped duration', () {
+    const jump = SmartSkipJump(fromSeconds: 10.25, toSeconds: 11.875);
+    expect(jump.skippedSeconds, closeTo(1.625, 0.000001));
+  });
+
   test('display change compares against the last notified speed', () {
     expect(smartSkipDisplaySpeedChanged(1.25, 1.251), isFalse);
     expect(smartSkipDisplaySpeedChanged(1.25, 1.256), isTrue);
@@ -34,6 +40,7 @@ void main() {
       final speed = tracker.update(wallTime: t0.add(const Duration(seconds: 10)), positionSeconds: 20, fallbackSpeed: 1.25);
 
       expect(speed, closeTo(2.0, 0.001));
+      expect(tracker.estimatedSavedSeconds, closeTo(7.5, 0.001));
     });
 
     test('averages over the whole active play session', () {
@@ -62,6 +69,7 @@ void main() {
       }
 
       expect(speed, closeTo(1.5, 0.001));
+      expect(tracker.estimatedSavedSeconds, closeTo(15, 0.001));
     });
 
     test('does not report slower than the configured playback speed', () {
@@ -84,6 +92,7 @@ void main() {
 
       expect(speed, 1.25);
       expect(tracker.effectiveSpeed, 1.25);
+      expect(tracker.estimatedSavedSeconds, 0);
     });
 
     test('clamps absurd positive jumps', () {

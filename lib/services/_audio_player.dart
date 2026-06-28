@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'native_ios_audio_player.dart';
+import 'smart_skip_jump.dart';
+export 'smart_skip_jump.dart';
 
 // Re-export just_audio's data types so consumers don't need a second import.
 export 'package:just_audio/just_audio.dart'
@@ -55,7 +57,7 @@ class AudioPlayer {
   /// ConcatenatingAudioSource.add and is detected via position-jump.
   Stream<void> get bookAutoAdvancedStream => _isNative ? _native!.bookAutoAdvancedStream : const Stream.empty();
 
-  Stream<void> get smartSkipJumpStream => _isNative ? _native!.smartSkipJumpStream : const Stream.empty();
+  Stream<SmartSkipJump> get smartSkipJumpStream => _isNative ? _native!.smartSkipJumpStream : const Stream.empty();
 
   Stream<bool> get smartSkipAvailabilityStream => _isNative ? _native!.smartSkipAvailabilityStream : const Stream.empty();
 

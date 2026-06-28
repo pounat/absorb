@@ -25,12 +25,15 @@ class SmartSkipSpeedTracker {
   final List<SmartSkipSpeedSample> _samples = [];
 
   double? _effectiveSpeed;
+  double _estimatedSavedSeconds = 0;
 
   double? get effectiveSpeed => _effectiveSpeed;
+  double get estimatedSavedSeconds => _estimatedSavedSeconds;
 
   void reset() {
     _samples.clear();
     _effectiveSpeed = null;
+    _estimatedSavedSeconds = 0;
   }
 
   double update({required DateTime wallTime, required double positionSeconds, required double fallbackSpeed}) {
@@ -57,18 +60,30 @@ class SmartSkipSpeedTracker {
   }
 
   double _calculate(double fallbackSpeed) {
-    if (_samples.length < 2) return fallbackSpeed;
+    if (_samples.length < 2) {
+      _estimatedSavedSeconds = 0;
+      return fallbackSpeed;
+    }
     final first = _samples.first;
     final last = _samples.last;
     final wallDelta = last.wallTime.difference(first.wallTime).inMilliseconds / 1000.0;
-    if (wallDelta < minSeconds) return fallbackSpeed;
+    if (wallDelta <= 0) {
+      _estimatedSavedSeconds = 0;
+      return fallbackSpeed;
+    }
 
     final positionDelta = last.positionSeconds - first.positionSeconds;
-    if (positionDelta <= 0) return fallbackSpeed;
+    if (positionDelta <= 0) {
+      _estimatedSavedSeconds = 0;
+      return fallbackSpeed;
+    }
+
+    final fallbackFloor = fallbackSpeed.isFinite && fallbackSpeed > 0 ? fallbackSpeed.clamp(minSpeed, maxSpeed).toDouble() : minSpeed;
+    _estimatedSavedSeconds = (positionDelta - wallDelta * fallbackFloor).clamp(0.0, double.infinity).toDouble();
+    if (wallDelta < minSeconds) return fallbackSpeed;
 
     final raw = positionDelta / wallDelta;
     if (!raw.isFinite || raw <= 0) return fallbackSpeed;
-    final fallbackFloor = fallbackSpeed.isFinite && fallbackSpeed > 0 ? fallbackSpeed.clamp(minSpeed, maxSpeed).toDouble() : minSpeed;
     return raw.clamp(fallbackFloor, maxSpeed).toDouble();
   }
 }
