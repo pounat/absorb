@@ -5,6 +5,10 @@ class SmartSkipSpeedSample {
   final double positionSeconds;
 }
 
+bool smartSkipDisplaySpeedChanged(double lastNotifiedSpeed, double nextSpeed) {
+  return lastNotifiedSpeed.toStringAsFixed(2) != nextSpeed.toStringAsFixed(2);
+}
+
 /// Session effective-speed tracker for Smart-Skip.
 ///
 /// The player reports raw content position. When silence is skipped that

@@ -1176,6 +1176,7 @@ class AudioPlayerService extends ChangeNotifier {
   bool _podcastSmartSkipEnabled = false;
   bool _smartSkipAvailable = true;
   double _effectivePlaybackSpeed = 1.0;
+  double _lastNotifiedSmartSkipSpeed = 1.0;
   DateTime? _lastSmartSkipUiNotify;
   final SmartSkipSpeedTracker _smartSkipSpeedTracker = SmartSkipSpeedTracker();
 
@@ -1292,6 +1293,7 @@ class AudioPlayerService extends ChangeNotifier {
   void _resetSmartSkipSpeed() {
     _smartSkipSpeedTracker.reset();
     _effectivePlaybackSpeed = speed;
+    _lastNotifiedSmartSkipSpeed = speed;
     _lastSmartSkipUiNotify = null;
   }
 
@@ -1303,13 +1305,14 @@ class AudioPlayerService extends ChangeNotifier {
     }
 
     final next = _smartSkipSpeedTracker.update(wallTime: DateTime.now(), positionSeconds: positionSeconds, fallbackSpeed: currentSpeed);
-    final changed = (next - _effectivePlaybackSpeed).abs() >= 0.03;
     _effectivePlaybackSpeed = next;
-    if (!changed) return;
+    final displayedSpeedChanged = smartSkipDisplaySpeedChanged(_lastNotifiedSmartSkipSpeed, next);
+    if (!displayedSpeedChanged) return;
 
     final now = DateTime.now();
     if (_lastSmartSkipUiNotify == null || now.difference(_lastSmartSkipUiNotify!).inMilliseconds >= 1000) {
       _lastSmartSkipUiNotify = now;
+      _lastNotifiedSmartSkipSpeed = next;
       notifyListeners();
       _handler?.refreshPlaybackState();
     }

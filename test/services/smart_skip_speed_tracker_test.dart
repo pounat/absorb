@@ -2,6 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:absorb/services/smart_skip_speed_tracker.dart';
 
 void main() {
+  test('display change compares against the last notified speed', () {
+    expect(smartSkipDisplaySpeedChanged(1.25, 1.251), isFalse);
+    expect(smartSkipDisplaySpeedChanged(1.25, 1.256), isTrue);
+  });
+
   group('SmartSkipSpeedTracker', () {
     test('reports fallback speed until the session has enough data', () {
       final tracker = SmartSkipSpeedTracker(minSeconds: 3);
@@ -40,6 +45,23 @@ void main() {
       final speed = tracker.update(wallTime: t0.add(const Duration(seconds: 40)), positionSeconds: 80, fallbackSpeed: 1.0);
 
       expect(speed, closeTo(2.0, 0.001));
+    });
+
+    test('accumulates small savings over the whole session', () {
+      final tracker = SmartSkipSpeedTracker(minSeconds: 3);
+      final t0 = DateTime(2026, 1, 1, 12);
+
+      tracker.update(wallTime: t0, positionSeconds: 0, fallbackSpeed: 1.25);
+      var speed = 1.25;
+      for (var second = 1; second <= 60; second++) {
+        speed = tracker.update(
+          wallTime: t0.add(Duration(seconds: second)),
+          positionSeconds: second * 1.5,
+          fallbackSpeed: 1.25,
+        );
+      }
+
+      expect(speed, closeTo(1.5, 0.001));
     });
 
     test('does not report slower than the configured playback speed', () {
