@@ -111,6 +111,12 @@ class AudioPlayer {
   Future<void> setVolume(double volume) => _isNative ? _native!.setVolume(volume) : _ja!.setVolume(volume);
   Future<void> setSkipSilenceEnabled(bool enabled) => _isNative ? _native!.setSkipSilenceEnabled(enabled) : _ja!.setSkipSilenceEnabled(enabled);
   Future<void> setSmartSkipEnabled(bool enabled) => _isNative ? _native!.setSmartSkipEnabled(enabled) : _ja!.setSkipSilenceEnabled(enabled);
+  Future<void> setSmartSkipConfiguration({required double thresholdDb, required int minimumSilenceMs, required int mergeGapMs, required int guardMs}) async {
+    if (_isNative) {
+      await _native!.setSmartSkipConfiguration(thresholdDb: thresholdDb, minimumSilenceMs: minimumSilenceMs, mergeGapMs: mergeGapMs, guardMs: guardMs);
+    }
+  }
+
   Future<Duration?> setAsset(String asset) => _isNative ? _native!.setAsset(asset) : _ja!.setAsset(asset);
   Future<void> dispose() => _isNative ? _native!.dispose() : _ja!.dispose();
 

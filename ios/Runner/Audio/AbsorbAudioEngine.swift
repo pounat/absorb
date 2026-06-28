@@ -51,6 +51,7 @@ final class AbsorbAudioEngine: NSObject {
   private var volume: Float = 1.0
   private var eqEnabled: Bool = false
   private var smartSkipEnabled: Bool = false
+  private var smartSkipConfiguration = AbsorbSilenceConfiguration.defaultSettings
   private var smartSkipEpoch: UInt = 0
   private var smartSkipRangesByTrack: [Int: [AbsorbSilenceRange]] = [:]
   private var smartSkipSeekInFlight: Bool = false
@@ -89,6 +90,7 @@ final class AbsorbAudioEngine: NSObject {
             volume: Float,
             eqEnabled: Bool,
             smartSkipEnabled: Bool,
+            smartSkipConfiguration: AbsorbSilenceConfiguration = .defaultSettings,
             itemId: String? = nil,
             completion: @escaping (Double?) -> Void) {
     queue.async { [weak self] in
@@ -104,6 +106,7 @@ final class AbsorbAudioEngine: NSObject {
       self.volume = volume
       self.eqEnabled = eqEnabled
       self.smartSkipEnabled = smartSkipEnabled
+      self.smartSkipConfiguration = smartSkipConfiguration
       self.smartSkipSeekInFlight = false
       self.smartSkipRangesByTrack = [:]
       self.smartSkipEpoch &+= 1
@@ -202,6 +205,7 @@ final class AbsorbAudioEngine: NSObject {
   func setSmartSkipEnabled(_ enabled: Bool) {
     queue.async { [weak self] in
       guard let self = self else { return }
+      guard self.smartSkipEnabled != enabled else { return }
       self.smartSkipEnabled = enabled
       self.smartSkipSeekInFlight = false
       self.smartSkipEpoch &+= 1
@@ -211,6 +215,26 @@ final class AbsorbAudioEngine: NSObject {
       } else {
         self.smartSkipRangesByTrack = [:]
         self.delegate?.engineDidChangeSmartSkipAvailability(true)
+      }
+    }
+  }
+
+  func setSmartSkipConfiguration(_ configuration: AbsorbSilenceConfiguration) {
+    queue.async { [weak self] in
+      guard let self = self,
+            self.smartSkipConfiguration != configuration else { return }
+      self.smartSkipConfiguration = configuration
+      self.smartSkipSeekInFlight = false
+      self.smartSkipRangesByTrack = [:]
+      self.smartSkipEpoch &+= 1
+      self.emit(
+        "[SmartSkip] configuration threshold=\(configuration.thresholdDb)dBFS "
+        + "minimum=\(Int(configuration.minimumSilenceS * 1000))ms "
+        + "merge=\(Int(configuration.mergeGapS * 1000))ms "
+        + "guard=\(Int(configuration.guardS * 1000))ms"
+      )
+      if self.smartSkipEnabled {
+        self.startSmartSkipAnalysisForCurrentTrack()
       }
     }
   }
@@ -310,12 +334,18 @@ final class AbsorbAudioEngine: NSObject {
     let index = trackIndex
     let url = trackUrls[index]
     let headers = trackHeaders
+    let configuration = smartSkipConfiguration
     delegate?.engineDidChangeSmartSkipAvailability(true)
-    emit("[SmartSkip] analyze track=\(index) url=\(url.lastPathComponent)")
+    emit(
+      "[SmartSkip] analyze track=\(index) url=\(url.lastPathComponent) "
+      + "threshold=\(configuration.thresholdDb)dBFS "
+      + "minimum=\(Int(configuration.minimumSilenceS * 1000))ms"
+    )
 
     AbsorbSilenceAnalyzer.shared.analyze(
       url: url,
       headers: headers,
+      configuration: configuration,
       epoch: epoch,
       isCurrent: { [weak self] candidate in
         guard let self = self else { return false }
@@ -333,7 +363,11 @@ final class AbsorbAudioEngine: NSObject {
           case .success(let ranges):
             self.smartSkipRangesByTrack[index] = ranges
             self.delegate?.engineDidChangeSmartSkipAvailability(true)
-            self.emit("[SmartSkip] analyzed track=\(index) ranges=\(ranges.count)")
+            let skippableS = ranges.reduce(0) { $0 + max(0, $1.end - $1.start) }
+            self.emit(
+              "[SmartSkip] analyzed track=\(index) ranges=\(ranges.count) "
+              + "skippable=\(String(format: "%.3f", skippableS))s"
+            )
           case .failure(let error):
             self.smartSkipRangesByTrack[index] = []
             self.delegate?.engineDidChangeSmartSkipAvailability(false)

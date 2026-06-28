@@ -1182,6 +1182,7 @@ class AudioPlayerService extends ChangeNotifier {
   final List<SmartSkipJump> _pendingSmartSkipJumps = [];
   DateTime? _lastSmartSkipUiNotify;
   final SmartSkipSpeedTracker _smartSkipSpeedTracker = SmartSkipSpeedTracker();
+  IosSmartSkipSettings _iosSmartSkipSettings = IosSmartSkipSettings.defaults;
 
   bool get isPodcastEpisode => _currentEpisodeId != null;
   bool get podcastSmartSkipEnabled => _podcastSmartSkipEnabled;
@@ -1202,6 +1203,13 @@ class AudioPlayerService extends ChangeNotifier {
       unawaited(_applySmartSkipMode());
       notifyListeners();
     });
+    if (Platform.isIOS) {
+      IosSmartSkipSettings.load().then((settings) {
+        if (settings == _iosSmartSkipSettings) return;
+        _iosSmartSkipSettings = settings;
+        unawaited(_applyIosSmartSkipConfiguration());
+      });
+    }
     PlayerSettings.getNotificationChapterProgress().then((v) {
       if (v == _notifChapterMode) return;
       _notifChapterMode = v;
@@ -1279,6 +1287,9 @@ class AudioPlayerService extends ChangeNotifier {
   Future<void> _applySmartSkipMode({bool notify = true}) async {
     final player = _player;
     if (player == null) return;
+    if (Platform.isIOS) {
+      await _applyIosSmartSkipConfiguration();
+    }
     final active = _currentEpisodeId != null && _podcastSmartSkipEnabled && !_isSmartSkipCasting;
     debugPrint(
       '[SmartSkip] apply active=$active '
@@ -1297,6 +1308,13 @@ class AudioPlayerService extends ChangeNotifier {
       if (active && Platform.isIOS) _smartSkipAvailable = false;
     }
     if (notify) notifyListeners();
+  }
+
+  Future<void> _applyIosSmartSkipConfiguration() async {
+    final player = _player;
+    if (!Platform.isIOS || player == null) return;
+    final settings = _iosSmartSkipSettings;
+    await player.setSmartSkipConfiguration(thresholdDb: settings.thresholdDb, minimumSilenceMs: settings.minimumSilenceMs, mergeGapMs: settings.mergeGapMs, guardMs: settings.guardMs);
   }
 
   void _resetSmartSkipSpeed() {
@@ -2044,6 +2062,9 @@ class AudioPlayerService extends ChangeNotifier {
       // Load notification chapter progress setting and watch for changes
       _instance._notifChapterMode = await PlayerSettings.getNotificationChapterProgress();
       _instance._podcastSmartSkipEnabled = await PlayerSettings.getPodcastSmartSkip();
+      if (Platform.isIOS) {
+        _instance._iosSmartSkipSettings = await IosSmartSkipSettings.load();
+      }
       PlayerSettings.settingsChanged.addListener(_instance._onSettingsChanged);
       // Configure audio session for audiobook playback
       await _configureAudioSession();

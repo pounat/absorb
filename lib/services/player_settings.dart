@@ -44,6 +44,76 @@ class AutoRewindSettings {
   }
 }
 
+class IosSmartSkipSettings {
+  static const defaults = IosSmartSkipSettings(thresholdDb: -38, minimumSilenceMs: 250, mergeGapMs: 120, guardMs: 40);
+
+  const IosSmartSkipSettings({required this.thresholdDb, required this.minimumSilenceMs, required this.mergeGapMs, required this.guardMs});
+
+  final double thresholdDb;
+  final int minimumSilenceMs;
+  final int mergeGapMs;
+  final int guardMs;
+
+  static Future<IosSmartSkipSettings> load() async {
+    return IosSmartSkipSettings(
+      thresholdDb: await ScopedPrefs.getDouble('iosSmartSkipThresholdDb') ?? defaults.thresholdDb,
+      minimumSilenceMs: await ScopedPrefs.getInt('iosSmartSkipMinimumSilenceMs') ?? defaults.minimumSilenceMs,
+      mergeGapMs: await ScopedPrefs.getInt('iosSmartSkipMergeGapMs') ?? defaults.mergeGapMs,
+      guardMs: await ScopedPrefs.getInt('iosSmartSkipGuardMs') ?? defaults.guardMs,
+    ).normalized();
+  }
+
+  factory IosSmartSkipSettings.fromJson(Map<String, dynamic> json) {
+    return IosSmartSkipSettings(
+      thresholdDb: (json['thresholdDb'] as num?)?.toDouble() ?? defaults.thresholdDb,
+      minimumSilenceMs: (json['minimumSilenceMs'] as num?)?.round() ?? defaults.minimumSilenceMs,
+      mergeGapMs: (json['mergeGapMs'] as num?)?.round() ?? defaults.mergeGapMs,
+      guardMs: (json['guardMs'] as num?)?.round() ?? defaults.guardMs,
+    ).normalized();
+  }
+
+  Map<String, dynamic> toJson() => {'thresholdDb': thresholdDb, 'minimumSilenceMs': minimumSilenceMs, 'mergeGapMs': mergeGapMs, 'guardMs': guardMs};
+
+  IosSmartSkipSettings normalized() {
+    final minMs = minimumSilenceMs.clamp(100, 1000).toInt();
+    final maxGuardMs = (minMs ~/ 2 - 10).clamp(0, 200).toInt();
+    return IosSmartSkipSettings(
+      thresholdDb: thresholdDb.clamp(-60.0, -25.0).toDouble(),
+      minimumSilenceMs: minMs,
+      mergeGapMs: mergeGapMs.clamp(0, 300).toInt(),
+      guardMs: guardMs.clamp(0, maxGuardMs).toInt(),
+    );
+  }
+
+  IosSmartSkipSettings copyWith({double? thresholdDb, int? minimumSilenceMs, int? mergeGapMs, int? guardMs}) {
+    return IosSmartSkipSettings(
+      thresholdDb: thresholdDb ?? this.thresholdDb,
+      minimumSilenceMs: minimumSilenceMs ?? this.minimumSilenceMs,
+      mergeGapMs: mergeGapMs ?? this.mergeGapMs,
+      guardMs: guardMs ?? this.guardMs,
+    ).normalized();
+  }
+
+  Future<void> save() async {
+    final value = normalized();
+    await Future.wait([
+      ScopedPrefs.setDouble('iosSmartSkipThresholdDb', value.thresholdDb),
+      ScopedPrefs.setInt('iosSmartSkipMinimumSilenceMs', value.minimumSilenceMs),
+      ScopedPrefs.setInt('iosSmartSkipMergeGapMs', value.mergeGapMs),
+      ScopedPrefs.setInt('iosSmartSkipGuardMs', value.guardMs),
+    ]);
+    PlayerSettings.notifySettingsChanged();
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is IosSmartSkipSettings && other.thresholdDb == thresholdDb && other.minimumSilenceMs == minimumSilenceMs && other.mergeGapMs == mergeGapMs && other.guardMs == guardMs;
+  }
+
+  @override
+  int get hashCode => Object.hash(thresholdDb, minimumSilenceMs, mergeGapMs, guardMs);
+}
+
 class PlayerSettings {
   /// Notifier that fires when any player setting changes.
   /// Widgets can listen to this instead of polling SharedPreferences.

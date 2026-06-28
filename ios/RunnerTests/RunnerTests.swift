@@ -41,8 +41,10 @@ class RunnerTests: XCTestCase {
         switch result {
         case .success(let ranges):
           XCTAssertEqual(ranges.count, 1)
-          XCTAssertEqual(ranges[0].start, 1.06, accuracy: 0.08)
-          XCTAssertEqual(ranges[0].end, 1.94, accuracy: 0.08)
+          // AVAssetReader returns PCM in chunks, so the detected edges can be
+          // displaced by roughly one buffer from the exact tone boundary.
+          XCTAssertEqual(ranges[0].start, 1.04, accuracy: 0.15)
+          XCTAssertEqual(ranges[0].end, 1.96, accuracy: 0.15)
         case .failure(let error):
           XCTFail("Analyzer failed: \(error)")
         }
@@ -50,6 +52,20 @@ class RunnerTests: XCTestCase {
       }
     )
     wait(for: [exp], timeout: 5)
+  }
+
+  func testSilenceConfigurationNormalizesUnsafeValues() {
+    let configuration = AbsorbSilenceConfiguration(
+      thresholdDb: -80,
+      minimumSilenceS: 0.1,
+      mergeGapS: 1,
+      guardS: 1
+    )
+
+    XCTAssertEqual(configuration.thresholdDb, -60)
+    XCTAssertEqual(configuration.minimumSilenceS, 0.1)
+    XCTAssertEqual(configuration.mergeGapS, 0.3)
+    XCTAssertEqual(configuration.guardS, 0.04)
   }
 
 }

@@ -33,6 +33,10 @@ class NativeIosAudioPlayer {
   double _speed = 1.0;
   double _volume = 1.0;
   bool _smartSkipEnabled = false;
+  double _smartSkipThresholdDb = -38;
+  int _smartSkipMinimumSilenceMs = 250;
+  int _smartSkipMergeGapMs = 120;
+  int _smartSkipGuardMs = 40;
   int? _currentIndex;
   DateTime _updateTime = DateTime.now();
 
@@ -99,6 +103,7 @@ class NativeIosAudioPlayer {
       'volume': _volume,
       'eqEnabled': eqEnabled,
       'smartSkipEnabled': _smartSkipEnabled,
+      ..._smartSkipConfigurationMap,
       // Lets AbsorbPlayerCore recognise this book on a widget-driven resume so
       // it adopts the live engine instead of starting a duplicate stream.
       if (itemId != null) 'itemId': itemId,
@@ -180,8 +185,27 @@ class NativeIosAudioPlayer {
   Future<void> setSkipSilenceEnabled(bool enabled) async {}
 
   Future<void> setSmartSkipEnabled(bool enabled) async {
+    if (_smartSkipEnabled == enabled) return;
     _smartSkipEnabled = enabled;
     await _methodChannel.invokeMethod('setSmartSkipEnabled', {'enabled': enabled});
+  }
+
+  Map<String, Object> get _smartSkipConfigurationMap => {
+    'smartSkipThresholdDb': _smartSkipThresholdDb,
+    'smartSkipMinimumSilenceMs': _smartSkipMinimumSilenceMs,
+    'smartSkipMergeGapMs': _smartSkipMergeGapMs,
+    'smartSkipGuardMs': _smartSkipGuardMs,
+  };
+
+  Future<void> setSmartSkipConfiguration({required double thresholdDb, required int minimumSilenceMs, required int mergeGapMs, required int guardMs}) async {
+    if (_smartSkipThresholdDb == thresholdDb && _smartSkipMinimumSilenceMs == minimumSilenceMs && _smartSkipMergeGapMs == mergeGapMs && _smartSkipGuardMs == guardMs) {
+      return;
+    }
+    _smartSkipThresholdDb = thresholdDb;
+    _smartSkipMinimumSilenceMs = minimumSilenceMs;
+    _smartSkipMergeGapMs = mergeGapMs;
+    _smartSkipGuardMs = guardMs;
+    await _methodChannel.invokeMethod('setSmartSkipConfiguration', _smartSkipConfigurationMap);
   }
 
   /// Sleep timer chime uses ja.AudioPlayer.setAsset directly; this wrapper

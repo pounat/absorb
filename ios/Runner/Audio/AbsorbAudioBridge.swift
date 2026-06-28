@@ -55,6 +55,7 @@ final class AbsorbAudioBridge: NSObject {
       let volume = (args?["volume"] as? Double).map { Float($0) } ?? 1.0
       let eq = (args?["eqEnabled"] as? Bool) ?? false
       let smartSkip = (args?["smartSkipEnabled"] as? Bool) ?? false
+      let smartSkipConfiguration = parseSmartSkipConfiguration(args)
       let itemId = args?["itemId"] as? String
       AbsorbAudioEngine.shared.load(
         tracks: trackList,
@@ -65,6 +66,7 @@ final class AbsorbAudioBridge: NSObject {
         volume: volume,
         eqEnabled: eq,
         smartSkipEnabled: smartSkip,
+        smartSkipConfiguration: smartSkipConfiguration,
         itemId: itemId
       ) { duration in
         result(["durationS": duration as Any])
@@ -102,6 +104,12 @@ final class AbsorbAudioBridge: NSObject {
     case "setSmartSkipEnabled":
       let enabled = (args?["enabled"] as? Bool) ?? false
       AbsorbAudioEngine.shared.setSmartSkipEnabled(enabled)
+      result(true)
+
+    case "setSmartSkipConfiguration":
+      AbsorbAudioEngine.shared.setSmartSkipConfiguration(
+        parseSmartSkipConfiguration(args)
+      )
       result(true)
 
     case "setNextSource":
@@ -179,6 +187,26 @@ final class AbsorbAudioBridge: NSObject {
       if let u = url { out.append((u, headers)) }
     }
     return out
+  }
+
+  private func parseSmartSkipConfiguration(
+    _ args: [String: Any]?
+  ) -> AbsorbSilenceConfiguration {
+    let defaults = AbsorbSilenceConfiguration.defaultSettings
+    let thresholdDb = (args?["smartSkipThresholdDb"] as? NSNumber)?.doubleValue
+      ?? defaults.thresholdDb
+    let minimumMs = (args?["smartSkipMinimumSilenceMs"] as? NSNumber)?.doubleValue
+      ?? defaults.minimumSilenceS * 1000
+    let mergeMs = (args?["smartSkipMergeGapMs"] as? NSNumber)?.doubleValue
+      ?? defaults.mergeGapS * 1000
+    let guardMs = (args?["smartSkipGuardMs"] as? NSNumber)?.doubleValue
+      ?? defaults.guardS * 1000
+    return AbsorbSilenceConfiguration(
+      thresholdDb: thresholdDb,
+      minimumSilenceS: minimumMs / 1000,
+      mergeGapS: mergeMs / 1000,
+      guardS: guardMs / 1000
+    )
   }
 
   private func sendEvent(_ payload: [String: Any]) {

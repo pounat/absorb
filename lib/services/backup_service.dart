@@ -24,6 +24,7 @@ class BackupService {
       'showBookSlider': await PlayerSettings.getShowBookSlider(),
       'speedAdjustedTime': await PlayerSettings.getSpeedAdjustedTime(),
       'podcastSmartSkip': await PlayerSettings.getPodcastSmartSkip(),
+      'iosSmartSkip': (await IosSmartSkipSettings.load()).toJson(),
       'forwardSkip': await PlayerSettings.getForwardSkip(),
       'backSkip': await PlayerSettings.getBackSkip(),
       'shakeMode': await PlayerSettings.getShakeMode(),
@@ -360,6 +361,9 @@ class BackupService {
     if (s['showBookSlider'] != null) PlayerSettings.setShowBookSlider(s['showBookSlider'] as bool);
     if (s['speedAdjustedTime'] != null) PlayerSettings.setSpeedAdjustedTime(s['speedAdjustedTime'] as bool);
     if (s['podcastSmartSkip'] != null) PlayerSettings.setPodcastSmartSkip(s['podcastSmartSkip'] as bool);
+    if (s['iosSmartSkip'] is Map) {
+      await IosSmartSkipSettings.fromJson(Map<String, dynamic>.from(s['iosSmartSkip'] as Map)).save();
+    }
     if (s['forwardSkip'] != null) PlayerSettings.setForwardSkip(s['forwardSkip'] as int);
     if (s['backSkip'] != null) PlayerSettings.setBackSkip(s['backSkip'] as int);
     if (s['shakeMode'] != null) PlayerSettings.setShakeMode(s['shakeMode'] as String);

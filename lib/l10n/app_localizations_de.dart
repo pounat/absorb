@@ -2843,6 +2843,31 @@ class AppLocalizationsDe extends AppLocalizations {
   String get smartSkipUnavailable => 'Für diese Episode nicht verfügbar';
 
   @override
+  String get iosSmartSkipSettings => 'Smart-Skip-Erkennung';
+
+  @override
+  String get iosSmartSkipSettingsSubtitle =>
+      'Passe die Erkennung von Stille für Podcasts auf diesem iPhone oder iPad an.';
+
+  @override
+  String get smartSkipSilenceThreshold => 'Stille-Schwellenwert';
+
+  @override
+  String get smartSkipMinimumSilence => 'Mindestdauer der Stille';
+
+  @override
+  String get smartSkipEdgePadding => 'Rand beibehalten';
+
+  @override
+  String get smartSkipMergeGap => 'Kurze Lücken verbinden';
+
+  @override
+  String get resetSmartSkipSettings => 'Smart-Skip zurücksetzen';
+
+  @override
+  String get smartSkipSettingsReset => 'Smart-Skip-Einstellungen zurückgesetzt';
+
+  @override
   String get resetAll => 'Alles zurücksetzen';
 
   @override

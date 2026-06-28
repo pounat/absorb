@@ -6,20 +6,46 @@ struct AbsorbSilenceRange {
   let end: Double
 }
 
+struct AbsorbSilenceConfiguration: Equatable {
+  static let defaultSettings = AbsorbSilenceConfiguration(
+    thresholdDb: -38,
+    minimumSilenceS: 0.25,
+    mergeGapS: 0.12,
+    guardS: 0.04
+  )
+
+  let thresholdDb: Double
+  let minimumSilenceS: Double
+  let mergeGapS: Double
+  let guardS: Double
+
+  init(thresholdDb: Double,
+       minimumSilenceS: Double,
+       mergeGapS: Double,
+       guardS: Double) {
+    let normalizedMinimum = min(max(minimumSilenceS, 0.1), 1.0)
+    let maximumGuard = max(0, normalizedMinimum / 2.0 - 0.01)
+    self.thresholdDb = min(max(thresholdDb, -60), -25)
+    self.minimumSilenceS = normalizedMinimum
+    self.mergeGapS = min(max(mergeGapS, 0), 0.3)
+    self.guardS = min(max(guardS, 0), maximumGuard)
+  }
+
+  var amplitudeThreshold: Float {
+    powf(10.0, Float(thresholdDb) / 20.0)
+  }
+}
+
 final class AbsorbSilenceAnalyzer {
   static let shared = AbsorbSilenceAnalyzer()
 
   private let queue = DispatchQueue(label: "com.barnabas.absorb.silence-analyzer", qos: .utility)
 
-  private let threshold: Float = powf(10.0, -45.0 / 20.0)
-  private let minSilenceS = 0.45
-  private let mergeGapS = 0.15
-  private let guardS = 0.06
-
   private init() {}
 
   func analyze(url: URL,
                headers: [String: String],
+               configuration: AbsorbSilenceConfiguration = .defaultSettings,
                epoch: UInt,
                isCurrent: @escaping (UInt) -> Bool,
                completion: @escaping (UInt, Result<[AbsorbSilenceRange], Error>) -> Void) {
@@ -57,7 +83,7 @@ final class AbsorbSilenceAnalyzer {
       }
 
       do {
-        let ranges = try self.readSilenceRanges(asset: asset, isCurrent: {
+        let ranges = try self.readSilenceRanges(asset: asset, configuration: configuration, isCurrent: {
           isCurrent(epoch)
         })
         guard isCurrent(epoch) else { return }
@@ -70,6 +96,7 @@ final class AbsorbSilenceAnalyzer {
   }
 
   private func readSilenceRanges(asset: AVAsset,
+                                 configuration: AbsorbSilenceConfiguration,
                                  isCurrent: () -> Bool) throws -> [AbsorbSilenceRange] {
     let reader = try AVAssetReader(asset: asset)
     let settings: [String: Any] = [
@@ -122,17 +149,17 @@ final class AbsorbSilenceAnalyzer {
                       userInfo: [NSLocalizedDescriptionKey: "Cannot read PCM sample data"])
       }
 
-      if level <= threshold {
+      if level <= configuration.amplitudeThreshold {
         if silenceStart == nil { silenceStart = sampleStart }
         silenceEnd = sampleEnd
       } else if let start = silenceStart {
-        appendRange(start: start, end: silenceEnd, to: &ranges)
+        appendRange(start: start, end: silenceEnd, minimumSilenceS: configuration.minimumSilenceS, to: &ranges)
         silenceStart = nil
       }
     }
 
     if let start = silenceStart {
-      appendRange(start: start, end: silenceEnd, to: &ranges)
+      appendRange(start: start, end: silenceEnd, minimumSilenceS: configuration.minimumSilenceS, to: &ranges)
     }
 
     if reader.status == .failed {
@@ -140,19 +167,26 @@ final class AbsorbSilenceAnalyzer {
                                     userInfo: [NSLocalizedDescriptionKey: "Reader failed"])
     }
 
-    return guardedRanges(merge(ranges))
+    return guardedRanges(
+      merge(ranges, maximumGapS: configuration.mergeGapS),
+      guardS: configuration.guardS
+    )
   }
 
-  private func appendRange(start: Double, end: Double, to ranges: inout [AbsorbSilenceRange]) {
-    guard end - start >= minSilenceS else { return }
+  private func appendRange(start: Double,
+                           end: Double,
+                           minimumSilenceS: Double,
+                           to ranges: inout [AbsorbSilenceRange]) {
+    guard end - start >= minimumSilenceS else { return }
     ranges.append(AbsorbSilenceRange(start: start, end: end))
   }
 
-  private func merge(_ ranges: [AbsorbSilenceRange]) -> [AbsorbSilenceRange] {
+  private func merge(_ ranges: [AbsorbSilenceRange],
+                     maximumGapS: Double) -> [AbsorbSilenceRange] {
     guard var current = ranges.first else { return [] }
     var out: [AbsorbSilenceRange] = []
     for range in ranges.dropFirst() {
-      if range.start - current.end <= mergeGapS {
+      if range.start - current.end <= maximumGapS {
         current = AbsorbSilenceRange(start: current.start, end: max(current.end, range.end))
       } else {
         out.append(current)
@@ -163,7 +197,8 @@ final class AbsorbSilenceAnalyzer {
     return out
   }
 
-  private func guardedRanges(_ ranges: [AbsorbSilenceRange]) -> [AbsorbSilenceRange] {
+  private func guardedRanges(_ ranges: [AbsorbSilenceRange],
+                             guardS: Double) -> [AbsorbSilenceRange] {
     ranges.compactMap { range in
       let start = range.start + guardS
       let end = range.end - guardS
