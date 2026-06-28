@@ -1280,6 +1280,12 @@ class AudioPlayerService extends ChangeNotifier {
     final player = _player;
     if (player == null) return;
     final active = _currentEpisodeId != null && _podcastSmartSkipEnabled && !_isSmartSkipCasting;
+    debugPrint(
+      '[SmartSkip] apply active=$active '
+      'preference=$_podcastSmartSkipEnabled '
+      'episode=${_currentEpisodeId ?? "none"} '
+      'casting=$_isSmartSkipCasting',
+    );
     if (!active) {
       _smartSkipAvailable = true;
       _resetSmartSkipSpeed();
@@ -2429,7 +2435,9 @@ class AudioPlayerService extends ChangeNotifier {
     _handler?.updateChaptersQueue(chapters);
     _smartSkipAvailable = true;
     _resetSmartSkipSpeed();
-    unawaited(_applySmartSkipMode(notify: false));
+    // Apply the persisted preference before loading the source so the native
+    // iOS load request carries Smart-Skip from its first frame.
+    await _applySmartSkipMode(notify: false);
     // New book = fresh session — clear any auto sleep dismissal
     SleepTimerService().resetDismiss();
 
@@ -2508,6 +2516,22 @@ class AudioPlayerService extends ChangeNotifier {
       } else {
         // No cache - stream from server
         result = await _playFromServer(api, itemId, title, author, coverUrl, totalDuration, chapters, startTime, forceStartTime);
+      }
+    }
+
+    if (result == null) {
+      // Source replacement can recreate/reset platform playback components.
+      // Re-apply after every successful load, then ensure iOS has the local
+      // episode file required by the silence analyzer.
+      await _applySmartSkipMode(notify: false);
+      if (_podcastSmartSkipEnabled && _currentEpisodeId != null) {
+        unawaited(
+          _ensurePodcastSmartSkipDownload().then((error) {
+            if (error != null) {
+              debugPrint('[SmartSkip] Automatic episode download not started: $error');
+            }
+          }),
+        );
       }
     }
 
