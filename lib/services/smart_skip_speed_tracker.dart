@@ -44,10 +44,13 @@ class SmartSkipSpeedTracker {
 
     if (_samples.isNotEmpty) {
       final previous = _samples.last;
-      final wallDelta = wallTime.difference(previous.wallTime).inMilliseconds / 1000.0;
+      final wallDelta = wallTime.difference(previous.wallTime).inMicroseconds / Duration.microsecondsPerSecond;
       final positionDelta = positionSeconds - previous.positionSeconds;
 
-      if (wallDelta <= 0 || positionDelta < -0.25) {
+      // iOS emits the pre-seek position and exact Smart-Skip destination
+      // back-to-back. Equal timestamps are valid and must not reset the
+      // session; the next timed sample will include the skipped distance.
+      if (wallDelta < 0 || positionDelta < -0.25) {
         reset();
       }
     }
@@ -66,7 +69,7 @@ class SmartSkipSpeedTracker {
     }
     final first = _samples.first;
     final last = _samples.last;
-    final wallDelta = last.wallTime.difference(first.wallTime).inMilliseconds / 1000.0;
+    final wallDelta = last.wallTime.difference(first.wallTime).inMicroseconds / Duration.microsecondsPerSecond;
     if (wallDelta <= 0) {
       _estimatedSavedSeconds = 0;
       return fallbackSpeed;

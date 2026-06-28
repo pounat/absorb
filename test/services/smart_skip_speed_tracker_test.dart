@@ -72,6 +72,22 @@ void main() {
       expect(tracker.estimatedSavedSeconds, closeTo(15, 0.001));
     });
 
+    test('does not reset for back-to-back iOS jump events', () {
+      final tracker = SmartSkipSpeedTracker(minSeconds: 3);
+      final t0 = DateTime(2026, 1, 1, 12);
+
+      tracker.update(wallTime: t0, positionSeconds: 0, fallbackSpeed: 1.0);
+      tracker.update(wallTime: t0.add(const Duration(seconds: 10)), positionSeconds: 12, fallbackSpeed: 1.0);
+      final speed = tracker.update(
+        wallTime: t0.add(const Duration(seconds: 10)),
+        positionSeconds: 12.1,
+        fallbackSpeed: 1.0,
+      );
+
+      expect(speed, closeTo(1.21, 0.001));
+      expect(tracker.estimatedSavedSeconds, greaterThan(2));
+    });
+
     test('does not report slower than the configured playback speed', () {
       final tracker = SmartSkipSpeedTracker(minSeconds: 3);
       final t0 = DateTime(2026, 1, 1, 12);
