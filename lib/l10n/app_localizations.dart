@@ -5158,6 +5158,78 @@ abstract class AppLocalizations {
   /// **'Skip Silence'**
   String get skipSilence;
 
+  /// No description provided for @smartSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart-Skip'**
+  String get smartSkip;
+
+  /// No description provided for @smartSkipBaseSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Base {speed}x'**
+  String smartSkipBaseSpeed(String speed);
+
+  /// No description provided for @smartSkipCastingDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable while casting'**
+  String get smartSkipCastingDisabled;
+
+  /// No description provided for @smartSkipUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable for this episode'**
+  String get smartSkipUnavailable;
+
+  /// No description provided for @iosSmartSkipSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart-Skip detection'**
+  String get iosSmartSkipSettings;
+
+  /// No description provided for @iosSmartSkipSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fine-tune silence detection for podcast playback on this iPhone or iPad.'**
+  String get iosSmartSkipSettingsSubtitle;
+
+  /// No description provided for @smartSkipSilenceThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Silence threshold'**
+  String get smartSkipSilenceThreshold;
+
+  /// No description provided for @smartSkipMinimumSilence.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum silence'**
+  String get smartSkipMinimumSilence;
+
+  /// No description provided for @smartSkipEdgePadding.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep at each edge'**
+  String get smartSkipEdgePadding;
+
+  /// No description provided for @smartSkipMergeGap.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge short gaps'**
+  String get smartSkipMergeGap;
+
+  /// No description provided for @resetSmartSkipSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Smart-Skip'**
+  String get resetSmartSkipSettings;
+
+  /// No description provided for @smartSkipSettingsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart-Skip settings reset'**
+  String get smartSkipSettingsReset;
+
   /// No description provided for @resetAll.
   ///
   /// In en, this message translates to:

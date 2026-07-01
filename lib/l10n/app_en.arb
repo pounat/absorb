@@ -1388,6 +1388,25 @@
   "loudness": "Loudness",
   "monoAudio": "Mono Audio",
   "skipSilence": "Skip Silence",
+  "smartSkip": "Smart-Skip",
+  "smartSkipBaseSpeed": "Base {speed}x",
+  "@smartSkipBaseSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "smartSkipCastingDisabled": "Unavailable while casting",
+  "smartSkipUnavailable": "Unavailable for this episode",
+  "iosSmartSkipSettings": "Smart-Skip detection",
+  "iosSmartSkipSettingsSubtitle": "Fine-tune silence detection for podcast playback on this iPhone or iPad.",
+  "smartSkipSilenceThreshold": "Silence threshold",
+  "smartSkipMinimumSilence": "Minimum silence",
+  "smartSkipEdgePadding": "Keep at each edge",
+  "smartSkipMergeGap": "Merge short gaps",
+  "resetSmartSkipSettings": "Reset Smart-Skip",
+  "smartSkipSettingsReset": "Smart-Skip settings reset",
   "resetAll": "Reset All",
   "collectionNotFound": "Collection not found",
   "deleteCollection": "Delete Collection",

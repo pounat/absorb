@@ -44,6 +44,76 @@ class AutoRewindSettings {
   }
 }
 
+class IosSmartSkipSettings {
+  static const defaults = IosSmartSkipSettings(thresholdDb: -38, minimumSilenceMs: 250, mergeGapMs: 120, guardMs: 40);
+
+  const IosSmartSkipSettings({required this.thresholdDb, required this.minimumSilenceMs, required this.mergeGapMs, required this.guardMs});
+
+  final double thresholdDb;
+  final int minimumSilenceMs;
+  final int mergeGapMs;
+  final int guardMs;
+
+  static Future<IosSmartSkipSettings> load() async {
+    return IosSmartSkipSettings(
+      thresholdDb: await ScopedPrefs.getDouble('iosSmartSkipThresholdDb') ?? defaults.thresholdDb,
+      minimumSilenceMs: await ScopedPrefs.getInt('iosSmartSkipMinimumSilenceMs') ?? defaults.minimumSilenceMs,
+      mergeGapMs: await ScopedPrefs.getInt('iosSmartSkipMergeGapMs') ?? defaults.mergeGapMs,
+      guardMs: await ScopedPrefs.getInt('iosSmartSkipGuardMs') ?? defaults.guardMs,
+    ).normalized();
+  }
+
+  factory IosSmartSkipSettings.fromJson(Map<String, dynamic> json) {
+    return IosSmartSkipSettings(
+      thresholdDb: (json['thresholdDb'] as num?)?.toDouble() ?? defaults.thresholdDb,
+      minimumSilenceMs: (json['minimumSilenceMs'] as num?)?.round() ?? defaults.minimumSilenceMs,
+      mergeGapMs: (json['mergeGapMs'] as num?)?.round() ?? defaults.mergeGapMs,
+      guardMs: (json['guardMs'] as num?)?.round() ?? defaults.guardMs,
+    ).normalized();
+  }
+
+  Map<String, dynamic> toJson() => {'thresholdDb': thresholdDb, 'minimumSilenceMs': minimumSilenceMs, 'mergeGapMs': mergeGapMs, 'guardMs': guardMs};
+
+  IosSmartSkipSettings normalized() {
+    final minMs = minimumSilenceMs.clamp(100, 1000).toInt();
+    final maxGuardMs = (minMs ~/ 2 - 10).clamp(0, 200).toInt();
+    return IosSmartSkipSettings(
+      thresholdDb: thresholdDb.clamp(-60.0, -25.0).toDouble(),
+      minimumSilenceMs: minMs,
+      mergeGapMs: mergeGapMs.clamp(0, 300).toInt(),
+      guardMs: guardMs.clamp(0, maxGuardMs).toInt(),
+    );
+  }
+
+  IosSmartSkipSettings copyWith({double? thresholdDb, int? minimumSilenceMs, int? mergeGapMs, int? guardMs}) {
+    return IosSmartSkipSettings(
+      thresholdDb: thresholdDb ?? this.thresholdDb,
+      minimumSilenceMs: minimumSilenceMs ?? this.minimumSilenceMs,
+      mergeGapMs: mergeGapMs ?? this.mergeGapMs,
+      guardMs: guardMs ?? this.guardMs,
+    ).normalized();
+  }
+
+  Future<void> save() async {
+    final value = normalized();
+    await Future.wait([
+      ScopedPrefs.setDouble('iosSmartSkipThresholdDb', value.thresholdDb),
+      ScopedPrefs.setInt('iosSmartSkipMinimumSilenceMs', value.minimumSilenceMs),
+      ScopedPrefs.setInt('iosSmartSkipMergeGapMs', value.mergeGapMs),
+      ScopedPrefs.setInt('iosSmartSkipGuardMs', value.guardMs),
+    ]);
+    PlayerSettings.notifySettingsChanged();
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is IosSmartSkipSettings && other.thresholdDb == thresholdDb && other.minimumSilenceMs == minimumSilenceMs && other.mergeGapMs == mergeGapMs && other.guardMs == guardMs;
+  }
+
+  @override
+  int get hashCode => Object.hash(thresholdDb, minimumSilenceMs, mergeGapMs, guardMs);
+}
+
 class PlayerSettings {
   /// Notifier that fires when any player setting changes.
   /// Widgets can listen to this instead of polling SharedPreferences.
@@ -52,6 +122,7 @@ class PlayerSettings {
     // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
     settingsChanged.notifyListeners();
   }
+
   /// Public trigger for external callers that save settings directly.
   static void notifySettingsChanged() => _notify();
 
@@ -122,8 +193,7 @@ class PlayerSettings {
   /// Font-size multiplier for the elapsed/remaining/percent text on the player
   /// card (GH #230, accessibility). 1.0 = default.
   static Future<double> getProgressTextScale() => _get('progressTextScale', 1.0);
-  static Future<void> setProgressTextScale(double v) =>
-      _set('progressTextScale', v, notify: true);
+  static Future<void> setProgressTextScale(double v) => _set('progressTextScale', v, notify: true);
 
   static Future<bool> getUpcomingReleasesSortByDate() => _get('upcomingReleasesSortByDate', false);
   static Future<void> setUpcomingReleasesSortByDate(bool value) => _set('upcomingReleasesSortByDate', value);
@@ -183,6 +253,7 @@ class PlayerSettings {
     final v = await _get('stats_chart_style', 'bar');
     return v == 'heatmap' ? 'bar' : v;
   }
+
   static Future<void> setStatsChartStyle(String value) => _set('stats_chart_style', value, notify: true);
 
   /// Days covered by the bar/line chart: 7 or 30. The heatmap is always a year.
@@ -211,16 +282,17 @@ class PlayerSettings {
     final value = await ScopedPrefs.getString('bookQueueMode');
     return value ?? await getQueueMode();
   }
+
   static Future<void> setBookQueueMode(String value) => _set('bookQueueMode', value, notify: true);
 
   static Future<bool> getShowUpNextLabel() => _get('showUpNextLabel', true);
-  static Future<void> setShowUpNextLabel(bool value) =>
-      _set('showUpNextLabel', value, notify: true);
+  static Future<void> setShowUpNextLabel(bool value) => _set('showUpNextLabel', value, notify: true);
 
   static Future<String> getPodcastQueueMode() async {
     final value = await ScopedPrefs.getString('podcastQueueMode');
     return value ?? await getQueueMode();
   }
+
   static Future<void> setPodcastQueueMode(String value) => _set('podcastQueueMode', value, notify: true);
 
   /// Per-show podcast auto-advance direction: 'oldest_first' (default) or
@@ -230,6 +302,7 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('podcast_advance_dir_$showId') ?? 'oldest_first';
   }
+
   static Future<void> setPodcastAdvanceDir(String showId, String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('podcast_advance_dir_$showId', value);
@@ -254,6 +327,7 @@ class PlayerSettings {
     final s = await ScopedPrefs.getString('queuePlaylistId');
     return (s == null || s.isEmpty) ? null : s;
   }
+
   static Future<void> setQueuePlaylistId(String? id) async {
     if (id == null || id.isEmpty) {
       await ScopedPrefs.remove('queuePlaylistId');
@@ -291,8 +365,7 @@ class PlayerSettings {
     return (s == null || s.isEmpty) ? null : s;
   }
 
-  static Future<String?> getQueueCollectionName() =>
-      ScopedPrefs.getString('queueCollectionName');
+  static Future<String?> getQueueCollectionName() => ScopedPrefs.getString('queueCollectionName');
 
   static Future<void> setQueueModeCollection(String collectionId, String name) async {
     await ScopedPrefs.setString('bookQueueMode', 'collection');
@@ -347,6 +420,9 @@ class PlayerSettings {
   static Future<bool> getSpeedAdjustedTime() => _get('speedAdjustedTime', true);
   static Future<void> setSpeedAdjustedTime(bool value) => _set('speedAdjustedTime', value, notify: true);
 
+  static Future<bool> getPodcastSmartSkip() => _get('podcastSmartSkip', false);
+  static Future<void> setPodcastSmartSkip(bool value) => _set('podcastSmartSkip', value, notify: true);
+
   static Future<int> getForwardSkip() => _get('forwardSkip', 30);
   static Future<void> setForwardSkip(int seconds) => _set('forwardSkip', seconds, notify: true);
 
@@ -397,12 +473,17 @@ class PlayerSettings {
   /// exceed to be registered. Lower = more sensitive.
   static double shakeThresholdFor(String sensitivity) {
     switch (sensitivity) {
-      case 'veryHigh': return 8.0;
-      case 'high': return 13.0;
-      case 'low': return 23.0;
-      case 'veryLow': return 28.0;
+      case 'veryHigh':
+        return 8.0;
+      case 'high':
+        return 13.0;
+      case 'low':
+        return 23.0;
+      case 'veryLow':
+        return 28.0;
       case 'medium':
-      default: return 18.0;
+      default:
+        return 18.0;
     }
   }
 
@@ -520,6 +601,7 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('loggingEnabled') ?? false;
   }
+
   static Future<void> setLoggingEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('loggingEnabled', value);
@@ -559,6 +641,7 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('trustAllCerts') ?? false;
   }
+
   static Future<void> setTrustAllCerts(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('trustAllCerts', value);
@@ -570,6 +653,7 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('includePreReleases') ?? false;
   }
+
   static Future<void> setIncludePreReleases(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('includePreReleases', value);
@@ -632,23 +716,38 @@ class PlayerSettings {
 
   static int _layoutToCount(String layout) {
     switch (layout) {
-      case 'compact': return 3;
-      case 'standard': return 4;
-      case 'row': return 5;
-      case 'expanded': return 6;
-      case 'full': return 9;
-      default: return 4;
+      case 'compact':
+        return 3;
+      case 'standard':
+        return 4;
+      case 'row':
+        return 5;
+      case 'expanded':
+        return 6;
+      case 'full':
+        return 9;
+      default:
+        return 4;
     }
   }
 
   static Future<bool> getCardIconsOnly() => _get('card_icons_only', false);
-  static Future<void> setCardIconsOnly(bool v) async { await _set('card_icons_only', v); _notify(); }
+  static Future<void> setCardIconsOnly(bool v) async {
+    await _set('card_icons_only', v);
+    _notify();
+  }
 
   static Future<bool> getCardSingleRow() => _get('card_single_row', false);
-  static Future<void> setCardSingleRow(bool v) async { await _set('card_single_row', v); _notify(); }
+  static Future<void> setCardSingleRow(bool v) async {
+    await _set('card_single_row', v);
+    _notify();
+  }
 
   static Future<bool> getCardMoreInline() => _get('card_more_inline', false);
-  static Future<void> setCardMoreInline(bool v) async { await _set('card_more_inline', v); _notify(); }
+  static Future<void> setCardMoreInline(bool v) async {
+    await _set('card_more_inline', v);
+    _notify();
+  }
 
   // ── Appearance ──
 
@@ -663,6 +762,7 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('language') ?? '';
   }
+
   static Future<void> setLanguage(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', value);
@@ -714,27 +814,21 @@ class PlayerSettings {
     final audioFiles = media['audioFiles'] as List<dynamic>?;
     final tracks = media['tracks'] as List<dynamic>?;
     final numAudioFiles = (media['numAudioFiles'] as num?)?.toInt() ?? 0;
-    if ((audioFiles != null && audioFiles.isNotEmpty) ||
-        (tracks != null && tracks.isNotEmpty) ||
-        numAudioFiles > 0) return false;
+    if ((audioFiles != null && audioFiles.isNotEmpty) || (tracks != null && tracks.isNotEmpty) || numAudioFiles > 0) return false;
     return true; // No audio by any measure
   }
 
   // ── Per-book speed persistence ──
 
-  static Future<double?> getBookSpeed(String itemId) =>
-      ScopedPrefs.getDouble('bookSpeed_$itemId');
+  static Future<double?> getBookSpeed(String itemId) => ScopedPrefs.getDouble('bookSpeed_$itemId');
 
-  static Future<void> setBookSpeed(String itemId, double speed) =>
-      _set('bookSpeed_$itemId', speed);
+  static Future<void> setBookSpeed(String itemId, double speed) => _set('bookSpeed_$itemId', speed);
 
   // ── Per-book sleep-rewind override (falls back to the global default) ──
 
-  static Future<int?> getBookSleepRewindSeconds(String itemId) =>
-      ScopedPrefs.getInt('sleepRewind_$itemId');
+  static Future<int?> getBookSleepRewindSeconds(String itemId) => ScopedPrefs.getInt('sleepRewind_$itemId');
 
-  static Future<void> setBookSleepRewindSeconds(String itemId, int seconds) =>
-      _set('sleepRewind_$itemId', seconds);
+  static Future<void> setBookSleepRewindSeconds(String itemId, int seconds) => _set('sleepRewind_$itemId', seconds);
 
   /// Per-book override if one is set for [itemId], otherwise the global default.
   static Future<int> getEffectiveSleepRewindSeconds(String? itemId) async {

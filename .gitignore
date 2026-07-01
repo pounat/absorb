@@ -61,8 +61,10 @@ android/key.properties
 # Build scripts (local only)
 *.sh
 
-# Tests (local only)
-/test/
+# Tests (local only; allow committed unit tests added intentionally)
+/test/*
+!/test/services/
+!/test/services/smart_skip_speed_tracker_test.dart
 
 # Battery profiling output
 /battery-reports/
@@ -78,3 +80,7 @@ android/key.properties
 **/macos/Flutter/ephemeral/
 packages/audio_service/pubspec.lock
 packages/audio_service/example/pubspec.lock
+
+## xcode artifacts
+ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/
+ios/Runner.xcworkspace/xcshareddata/

@@ -37,7 +37,8 @@ class Pressable extends StatefulWidget {
   final HitTestBehavior? behavior;
   final Widget child;
   const Pressable({super.key, this.onTap, this.onLongPress, this.behavior, required this.child});
-  @override State<Pressable> createState() => _PressableState();
+  @override
+  State<Pressable> createState() => _PressableState();
 }
 
 class _PressableState extends State<Pressable> {
@@ -70,11 +71,7 @@ void showInactiveToast(BuildContext context) {
   final l = AppLocalizations.of(context)!;
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
-    ..showSnackBar(SnackBar(
-      content: Text(l.startPlayingSomethingFirst),
-      duration: const Duration(seconds: 2),
-      behavior: SnackBarBehavior.floating,
-    ));
+    ..showSnackBar(SnackBar(content: Text(l.startPlayingSomethingFirst), duration: const Duration(seconds: 2), behavior: SnackBarBehavior.floating));
 }
 
 /// Show an error message to the user.
@@ -99,13 +96,21 @@ class CardWideButton extends StatelessWidget {
 
   const CardWideButton({
     super.key,
-    required this.icon, required this.label,
-    required this.accent, required this.isActive,
-    this.alwaysEnabled = false, this.large = false, this.compact = false,
-    this.iconsOnly = false, this.highlighted = false, this.onTap, this.child,
+    required this.icon,
+    required this.label,
+    required this.accent,
+    required this.isActive,
+    this.alwaysEnabled = false,
+    this.large = false,
+    this.compact = false,
+    this.iconsOnly = false,
+    this.highlighted = false,
+    this.onTap,
+    this.child,
   });
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     if (child != null) return child!;
     final cs = Theme.of(context).colorScheme;
     final enabled = isActive || alwaysEnabled;
@@ -114,9 +119,7 @@ class CardWideButton extends StatelessWidget {
     final vPad = compact ? 8.0 : (large ? 14.0 : 10.0);
     final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
     final showIconOnly = compact || iconsOnly;
-    final fgColor = highlighted
-        ? accent
-        : (enabled ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24));
+    final fgColor = highlighted ? accent : (enabled ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24));
     return Pressable(
       onTap: enabled ? onTap : () => showInactiveToast(context),
       child: Container(
@@ -127,17 +130,23 @@ class CardWideButton extends StatelessWidget {
           border: Border.all(color: highlighted ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
         ),
         child: showIconOnly
-          ? Center(child: Icon(icon, size: iconSize, color: fgColor))
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: iconSize, color: fgColor),
-                const SizedBox(width: 6),
-                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
-                  color: fgColor,
-                  fontSize: fontSize, fontWeight: FontWeight.w500))),
-              ],
-            ),
+            ? Center(
+                child: Icon(icon, size: iconSize, color: fgColor),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: iconSize, color: fgColor),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: fgColor, fontSize: fontSize, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -151,14 +160,10 @@ class MoreMenuItem extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  const MoreMenuItem({
-    super.key,
-    required this.icon, required this.label,
-    required this.accent, required this.onTap,
-    this.enabled = true,
-  });
+  const MoreMenuItem({super.key, required this.icon, required this.label, required this.accent, required this.onTap, this.enabled = true});
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     // Grid pill: centered icon over a short label, fills its (fixed-height)
     // grid cell. Matches the book menu's quick-actions pills. The loose
@@ -172,14 +177,23 @@ class MoreMenuItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
         ),
-        child: Column(mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 22, color: enabled ? accent.withValues(alpha: 0.85) : cs.onSurface.withValues(alpha: 0.24)),
-          const SizedBox(height: 7),
-          Flexible(child: Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: enabled ? cs.onSurface.withValues(alpha: 0.85) : cs.onSurface.withValues(alpha: 0.24),
-              fontSize: 11, fontWeight: FontWeight.w500, height: 1.15))),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 22, color: enabled ? accent.withValues(alpha: 0.85) : cs.onSurface.withValues(alpha: 0.24)),
+            const SizedBox(height: 7),
+            Flexible(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: enabled ? cs.onSurface.withValues(alpha: 0.85) : cs.onSurface.withValues(alpha: 0.24), fontSize: 11, fontWeight: FontWeight.w500, height: 1.15),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -194,7 +208,8 @@ class CardSleepButtonInline extends StatelessWidget {
   final bool iconsOnly;
   const CardSleepButtonInline({super.key, required this.accent, required this.isActive, this.large = false, this.compact = false, this.iconsOnly = false});
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: SleepTimerService(),
       builder: (_, __) {
@@ -223,9 +238,11 @@ class CardSleepButtonInline extends StatelessWidget {
         final radius = compact ? 10.0 : (large ? 16.0 : 14.0);
 
         return Pressable(
-          onTap: isActive ? () {
-            showSleepTimerSheet(context, accent);
-          } : () => showInactiveToast(context),
+          onTap: isActive
+              ? () {
+                  showSleepTimerSheet(context, accent);
+                }
+              : () => showInactiveToast(context),
           child: Container(
             height: h,
             clipBehavior: Clip.antiAlias,
@@ -234,42 +251,46 @@ class CardSleepButtonInline extends StatelessWidget {
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: active ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
             ),
-            child: Stack(children: [
-              if (active && isTime)
-                FractionallySizedBox(
-                  widthFactor: sleep.timeProgress.clamp(0.0, 1.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(radius - 1),
+            child: Stack(
+              children: [
+                if (active && isTime)
+                  FractionallySizedBox(
+                    widthFactor: sleep.timeProgress.clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(color: accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(radius - 1)),
                     ),
                   ),
+                Center(
+                  child: (compact || iconsOnly) && !active
+                      ? Icon(Icons.nightlight_round_outlined, size: iconSz, color: isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))
+                      : iconsOnly && active
+                      ? Text(
+                          label,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: accent, fontSize: fontSize, fontWeight: FontWeight.w700, fontFeatures: isTime ? const [FontFeature.tabularFigures()] : null),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.nightlight_round_outlined, size: iconSz, color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))),
+                            SizedBox(width: compact ? 4 : 8),
+                            Flexible(
+                              child: Text(
+                                label,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24)),
+                                  fontSize: fontSize,
+                                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                  fontFeatures: active && isTime ? const [FontFeature.tabularFigures()] : null,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-              Center(child: (compact || iconsOnly) && !active
-                ? Icon(Icons.nightlight_round_outlined, size: iconSz,
-                    color: isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))
-                : iconsOnly && active
-                  ? Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
-                      color: accent,
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: isTime ? const [FontFeature.tabularFigures()] : null,
-                    ))
-                  : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.nightlight_round_outlined, size: iconSz,
-                        color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))),
-                      SizedBox(width: compact ? 4 : 8),
-                      Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
-                        color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24)),
-                        fontSize: fontSize,
-                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                        fontFeatures: active && isTime ? const [FontFeature.tabularFigures()] : null,
-                      ))),
-                    ],
-                  )),
-            ]),
+              ],
+            ),
           ),
         );
       },
@@ -288,12 +309,24 @@ class CardDownloadButtonInline extends StatelessWidget {
   final bool large;
   final bool compact;
   final bool iconsOnly;
-  const CardDownloadButtonInline({super.key, required this.itemId, this.episodeId, required this.title, this.author, this.coverUrl, required this.accent, this.large = false, this.compact = false, this.iconsOnly = false});
+  const CardDownloadButtonInline({
+    super.key,
+    required this.itemId,
+    this.episodeId,
+    required this.title,
+    this.author,
+    this.coverUrl,
+    required this.accent,
+    this.large = false,
+    this.compact = false,
+    this.iconsOnly = false,
+  });
 
   // Podcast downloads are keyed 'parentId-episodeId'; books use the plain itemId.
   String get _key => episodeId != null ? '$itemId-$episodeId' : itemId;
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: DownloadService(),
       builder: (_, __) {
@@ -339,31 +372,35 @@ class CardDownloadButtonInline extends StatelessWidget {
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: downloaded ? dlGreen.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
             ),
-            child: Stack(children: [
-              if (downloading)
-                FractionallySizedBox(
-                  widthFactor: progress.clamp(0.0, 1.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(radius - 1),
+            child: Stack(
+              children: [
+                if (downloading)
+                  FractionallySizedBox(
+                    widthFactor: progress.clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(color: accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(radius - 1)),
                     ),
                   ),
+                Center(
+                  child: iconsOnly || (compact && !downloaded && !downloading)
+                      ? Icon(icon, size: iconSz, color: color)
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(icon, size: iconSz, color: color),
+                            SizedBox(width: compact ? 4 : 8),
+                            Flexible(
+                              child: Text(
+                                label,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: color, fontSize: fontSize, fontWeight: downloaded || downloading ? FontWeight.w700 : FontWeight.w500),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-              Center(child: iconsOnly || (compact && !downloaded && !downloading)
-                ? Icon(icon, size: iconSz, color: color)
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon, size: iconSz, color: color),
-                      SizedBox(width: compact ? 4 : 8),
-                      Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
-                        color: color, fontSize: fontSize,
-                        fontWeight: downloaded || downloading ? FontWeight.w700 : FontWeight.w500,
-                      ))),
-                    ],
-                  )),
-            ]),
+              ],
+            ),
           ),
         );
       },
@@ -373,18 +410,24 @@ class CardDownloadButtonInline extends StatelessWidget {
   void _handleTap(BuildContext context, DownloadService dl) async {
     final l = AppLocalizations.of(context)!;
     if (dl.isDownloaded(_key)) {
-      showDialog(context: context, builder: (ctx) => AlertDialog(
-        title: Text(l.removeDownloadQuestion),
-        content: Text(l.removeDownloadContent),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
-          TextButton(onPressed: () {
-            dl.deleteDownload(_key);
-            Navigator.pop(ctx);
-            showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
-          }, child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
-        ],
-      ));
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.removeDownloadQuestion),
+          content: Text(l.removeDownloadContent),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
+            TextButton(
+              onPressed: () {
+                dl.deleteDownload(_key);
+                Navigator.pop(ctx);
+                showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
+              },
+              child: Text(l.remove, style: const TextStyle(color: Colors.redAccent)),
+            ),
+          ],
+        ),
+      );
     } else if (dl.isDownloading(_key)) {
       dl.cancelDownload(_key);
     } else {
@@ -409,13 +452,28 @@ class CardBookmarkButtonInline extends StatefulWidget {
   final bool compact;
   final bool short;
   final bool iconsOnly;
-  const CardBookmarkButtonInline({super.key, required this.player, required this.accent, required this.isActive, required this.itemId, this.large = false, this.compact = false, this.short = false, this.iconsOnly = false});
-  @override State<CardBookmarkButtonInline> createState() => _CardBookmarkButtonInlineState();
+  const CardBookmarkButtonInline({
+    super.key,
+    required this.player,
+    required this.accent,
+    required this.isActive,
+    required this.itemId,
+    this.large = false,
+    this.compact = false,
+    this.short = false,
+    this.iconsOnly = false,
+  });
+  @override
+  State<CardBookmarkButtonInline> createState() => _CardBookmarkButtonInlineState();
 }
 
 class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
   int _count = 0;
-  @override void initState() { super.initState(); _syncThenLoadCount(); }
+  @override
+  void initState() {
+    super.initState();
+    _syncThenLoadCount();
+  }
 
   Future<void> _syncThenLoadCount() async {
     // Show local count immediately
@@ -433,7 +491,8 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
     if (mounted) setState(() => _count = c);
   }
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
     final cp = widget.compact;
@@ -444,7 +503,11 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
     final vPad = cp ? 6.0 : (lg ? 12.0 : 8.0);
     final radius = cp ? 10.0 : (lg ? 14.0 : 12.0);
     final sh = widget.short;
-    final label = cp ? (_count > 0 ? '$_count' : l.bookmark) : sh ? l.bookmarks : (_count > 0 ? l.bookmarksWithCount(_count) : l.bookmark);
+    final label = cp
+        ? (_count > 0 ? '$_count' : l.bookmark)
+        : sh
+        ? l.bookmarks
+        : (_count > 0 ? l.bookmarksWithCount(_count) : l.bookmark);
     return Pressable(
       onTap: () => _showBookmarks(context),
       onLongPress: active ? () => _quickAdd(context) : null,
@@ -456,16 +519,23 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
           border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
         ),
         child: cp || widget.iconsOnly
-          ? Center(child: Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant))
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
-                  color: cs.onSurfaceVariant, fontSize: fontSize, fontWeight: FontWeight.w500))),
-              ],
-            ),
+            ? Center(
+                child: Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: fontSize, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -478,30 +548,44 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
   void _quickAdd(BuildContext ctx) async {
     final l = AppLocalizations.of(ctx)!;
     final cast = ChromecastService();
-    final pos = _isCasting
-        ? cast.castPosition.inMilliseconds / 1000.0
-        : widget.player.position.inMilliseconds / 1000.0;
+    final pos = _isCasting ? cast.castPosition.inMilliseconds / 1000.0 : widget.player.position.inMilliseconds / 1000.0;
     final chapters = _isCasting ? cast.castingChapters : widget.player.chapters;
     String? chTitle;
     for (final ch in chapters) {
       final m = ch as Map<String, dynamic>;
       final s = (m['start'] as num?)?.toDouble() ?? 0;
       final e = (m['end'] as num?)?.toDouble() ?? 0;
-      if (pos >= s && pos < e) { chTitle = m['title'] as String?; break; }
+      if (pos >= s && pos < e) {
+        chTitle = m['title'] as String?;
+        break;
+      }
     }
     await BookmarkService().addBookmark(itemId: widget.itemId, positionSeconds: pos, title: chTitle ?? l.bookmark, api: AudioPlayerService().currentApi);
     _loadCount();
     if (ctx.mounted) {
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(duration: const Duration(seconds: 2), content: Text(l.bookmarkAdded), behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text(l.bookmarkAdded),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
     }
   }
 
   void _showBookmarks(BuildContext context) {
     showModalBottomSheet(
-      context: context, backgroundColor: Colors.transparent, isScrollControlled: true, useSafeArea: true,
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.05,
+        snap: true,
+        maxChildSize: 0.9,
+        expand: false,
         builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
       ),
     );
@@ -519,7 +603,8 @@ class CardSpeedButtonInline extends StatefulWidget {
   final String? itemId;
   const CardSpeedButtonInline({super.key, required this.player, required this.accent, required this.isActive, this.large = false, this.compact = false, this.iconsOnly = false, this.itemId});
 
-  @override State<CardSpeedButtonInline> createState() => _CardSpeedButtonInlineState();
+  @override
+  State<CardSpeedButtonInline> createState() => _CardSpeedButtonInlineState();
 }
 
 class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
@@ -545,7 +630,8 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
     if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
   }
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final cast = ChromecastService();
     final h = widget.compact ? 30.0 : (widget.large ? 48.0 : 36.0);
@@ -556,33 +642,49 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
       listenable: Listenable.merge([cast, widget.player]),
       builder: (context, _) {
         final castNow = widget.itemId != null && cast.isCasting && cast.castingItemId == widget.itemId;
-        final speedNow = castNow ? cast.castSpeed : (widget.isActive ? widget.player.speed : _savedSpeed);
+        final speedNow = castNow ? cast.castSpeed : (widget.isActive ? widget.player.effectivePlaybackSpeed : _savedSpeed);
         final isDefaultSpeed = (speedNow - 1.0).abs() < 0.01;
         final Widget content;
         if (widget.compact) {
-          content = Center(child: Text('${speedNow.toStringAsFixed(1)}x', style: TextStyle(
-            color: widget.accent, fontSize: fontSize, fontWeight: FontWeight.w700)));
+          content = Center(
+            child: Text(
+              '${speedNow.toStringAsFixed(1)}x',
+              style: TextStyle(color: widget.accent, fontSize: fontSize, fontWeight: FontWeight.w700),
+            ),
+          );
         } else if (widget.iconsOnly && isDefaultSpeed) {
-          content = Center(child: Icon(Icons.speed_rounded, size: iconSz, color: cs.onSurfaceVariant));
+          content = Center(
+            child: Icon(Icons.speed_rounded, size: iconSz, color: cs.onSurfaceVariant),
+          );
         } else if (widget.iconsOnly) {
-          content = Center(child: Text(speedNow.toStringAsFixed(2), style: TextStyle(
-            color: widget.accent, fontSize: fontSize, fontWeight: FontWeight.w700)));
+          content = Center(
+            child: Text(
+              speedNow.toStringAsFixed(2),
+              style: TextStyle(color: widget.accent, fontSize: fontSize, fontWeight: FontWeight.w700),
+            ),
+          );
         } else {
           content = Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.speed_rounded, size: iconSz, color: widget.accent),
               const SizedBox(width: 8),
-              Text('${speedNow.toStringAsFixed(2)}x', style: TextStyle(
-                color: widget.accent, fontSize: fontSize, fontWeight: FontWeight.w700)),
+              Text(
+                '${speedNow.toStringAsFixed(2)}x',
+                style: TextStyle(color: widget.accent, fontSize: fontSize, fontWeight: FontWeight.w700),
+              ),
             ],
           );
         }
         return Pressable(
           onTap: () {
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent,
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
               useSafeArea: true,
-              builder: (ctx) => CardSpeedSheet(player: widget.player, accent: widget.accent, itemId: widget.itemId));
+              builder: (ctx) => CardSpeedSheet(player: widget.player, accent: widget.accent, itemId: widget.itemId),
+            );
           },
           child: Container(
             height: h,
@@ -602,9 +704,12 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
 // ─── SPEED SHEET ─────────────────────────────────────────────
 
 class CardSpeedSheet extends StatefulWidget {
-  final AudioPlayerService player; final Color accent; final String? itemId;
+  final AudioPlayerService player;
+  final Color accent;
+  final String? itemId;
   const CardSpeedSheet({super.key, required this.player, required this.accent, this.itemId});
-  @override State<CardSpeedSheet> createState() => _CardSpeedSheetState();
+  @override
+  State<CardSpeedSheet> createState() => _CardSpeedSheetState();
 }
 
 class _CardSpeedSheetState extends State<CardSpeedSheet> {
@@ -616,7 +721,13 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     return widget.itemId != null && cast.isCasting && cast.castingItemId == widget.itemId;
   }
 
-  @override void initState() {
+  bool get _isCurrentPodcastCasting {
+    final cast = ChromecastService();
+    return cast.isCasting && widget.player.isPodcastEpisode && cast.castingItemId == widget.player.currentItemId && cast.castingEpisodeId == widget.player.currentEpisodeId;
+  }
+
+  @override
+  void initState() {
     super.initState();
     final initialSpeed = _isCasting ? ChromecastService().castSpeed : widget.player.speed;
     _speed = (initialSpeed * 20).round() / 20.0;
@@ -625,7 +736,8 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     PlayerSettings.settingsChanged.addListener(_loadPresets);
   }
 
-  @override void dispose() {
+  @override
+  void dispose() {
     PlayerSettings.settingsChanged.removeListener(_loadPresets);
     super.dispose();
   }
@@ -653,6 +765,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
     if (mounted) setState(() => _speed = (speed * 20).round() / 20.0);
   }
+
   void _setSpeed(double v) {
     final s = (v * 20).round() / 20.0;
     setState(() => _speed = s.clamp(0.5, 3.0));
@@ -668,83 +781,205 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     }
   }
 
-  @override Widget build(BuildContext context) {
+  Widget _buildSmartSkipToggle(BuildContext context, TextTheme tt, AppLocalizations l) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([widget.player, DownloadService(), ChromecastService()]),
+      builder: (context, _) {
+        if (!widget.player.isPodcastEpisode) return const SizedBox.shrink();
+
+        final cs = Theme.of(context).colorScheme;
+        final dl = DownloadService();
+        final dlKey = widget.player.currentProgressKey;
+        final downloaded = dlKey != null && dl.isDownloaded(dlKey);
+        final downloading = dlKey != null && dl.isDownloading(dlKey);
+        final unavailableCanDownload = !widget.player.smartSkipAvailable && dlKey != null && !downloaded;
+        final disabledReason = _isCurrentPodcastCasting ? l.smartSkipCastingDisabled : (!widget.player.smartSkipAvailable && !unavailableCanDownload ? l.smartSkipUnavailable : null);
+        final canToggle = disabledReason == null;
+        final progress = dlKey != null ? dl.downloadProgress(dlKey) : 0.0;
+        final detail = disabledReason ?? (downloading ? '${l.downloadsDownloading} ${(progress * 100).clamp(0, 100).round()}%' : (!downloaded ? l.download : null));
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.bolt_rounded, size: 19, color: widget.player.podcastSmartSkipEnabled && canToggle ? widget.accent : cs.onSurface.withValues(alpha: 0.28)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l.smartSkip,
+                        style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: canToggle ? cs.onSurface : cs.onSurface.withValues(alpha: 0.36)),
+                      ),
+                      if (detail != null) Text(detail, style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.45))),
+                    ],
+                  ),
+                ),
+                Transform.scale(
+                  scale: 0.85,
+                  child: Switch(
+                    value: widget.player.podcastSmartSkipEnabled && canToggle,
+                    activeTrackColor: widget.accent,
+                    onChanged: canToggle
+                        ? (v) async {
+                            final error = await widget.player.setPodcastSmartSkipEnabled(v);
+                            if (error != null && context.mounted) {
+                              showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+                            }
+                          }
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final navBarPad = MediaQuery.of(context).viewPadding.bottom;
-    return Container(
-      padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + navBarPad),
-      decoration: BoxDecoration(color: Theme.of(context).bottomSheetTheme.backgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1))),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2))),
-        const SizedBox(height: 20),
-        Text(l.playbackSpeed, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text('${_speed.toStringAsFixed(2)}x', style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: widget.accent)),
-        const SizedBox(height: 12),
-        const FeatureHint(
-          prefKey: 'hint_speed_presets',
-          message: 'Tap + to save the current speed as a preset. Long-press a chip to remove it.',
-          padding: EdgeInsets.fromLTRB(0, 0, 0, 12),
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.92;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: Container(
+        padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + navBarPad),
+        decoration: BoxDecoration(
+          color: Theme.of(context).bottomSheetTheme.backgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
         ),
-        Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
-          ..._presets.map((s) {
-            final a = (_speed - s).abs() < 0.01;
-            final canRemove = _presets.length > 1;
-            return GestureDetector(
-              onTap: () => _setSpeed(s),
-              onLongPress: canRemove ? () => _removePreset(s) : null,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(color: a ? widget.accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: a ? widget.accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12))),
-                child: Text('${s}x', style: TextStyle(color: a ? Theme.of(context).colorScheme.surface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 13, fontWeight: a ? FontWeight.w700 : FontWeight.w500)),
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)),
               ),
-            );
-          }),
-          GestureDetector(
-            onTap: _addCurrentAsPreset,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: widget.accent.withValues(alpha: 0.4), style: BorderStyle.solid),
+              const SizedBox(height: 20),
+              Text(l.playbackSpeed, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              ListenableBuilder(
+                listenable: Listenable.merge([widget.player, ChromecastService()]),
+                builder: (context, _) {
+                  final smartSkipActive = widget.player.isPodcastEpisode && widget.player.isSmartSkipActive;
+                  final speedValue = smartSkipActive ? widget.player.effectivePlaybackSpeed : _speed;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${speedValue.toStringAsFixed(2)}x',
+                        style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: widget.accent),
+                      ),
+                      if (smartSkipActive)
+                        Text(l.smartSkipBaseSpeed(_speed.toStringAsFixed(2)), style: tt.labelSmall?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45))),
+                    ],
+                  );
+                },
               ),
-              child: Icon(Icons.add_rounded, size: 16, color: widget.accent),
-            ),
+              _buildSmartSkipToggle(context, tt, l),
+              const SizedBox(height: 12),
+              const FeatureHint(prefKey: 'hint_speed_presets', message: 'Tap + to save the current speed as a preset. Long-press a chip to remove it.', padding: EdgeInsets.fromLTRB(0, 0, 0, 12)),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  ..._presets.map((s) {
+                    final a = (_speed - s).abs() < 0.01;
+                    final canRemove = _presets.length > 1;
+                    return GestureDetector(
+                      onTap: () => _setSpeed(s),
+                      onLongPress: canRemove ? () => _removePreset(s) : null,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: a ? widget.accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: a ? widget.accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)),
+                        ),
+                        child: Text(
+                          '${s}x',
+                          style: TextStyle(
+                            color: a ? Theme.of(context).colorScheme.surface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            fontSize: 13,
+                            fontWeight: a ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  GestureDetector(
+                    onTap: _addCurrentAsPreset,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: widget.accent.withValues(alpha: 0.4), style: BorderStyle.solid),
+                      ),
+                      child: Icon(Icons.add_rounded, size: 16, color: widget.accent),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => _setSpeed(_speed - 0.05),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
+                      child: Icon(Icons.remove_rounded, size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                    ),
+                  ),
+                  Expanded(
+                    child: AbsorbSlider(value: _speed, min: 0.5, max: 3.0, divisions: 50, activeColor: widget.accent, onChanged: _setSpeed),
+                  ),
+                  GestureDetector(
+                    onTap: () => _setSpeed(_speed + 0.05),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
+                      child: Icon(Icons.add_rounded, size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 36),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('0.5x', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 11)),
+                    Text('3.0x', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 11)),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ]),
-        const SizedBox(height: 16),
-        Row(children: [
-          GestureDetector(
-            onTap: () => _setSpeed(_speed - 0.05),
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
-              child: Icon(Icons.remove_rounded, size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-            ),
-          ),
-          Expanded(child: AbsorbSlider(value: _speed, min: 0.5, max: 3.0, divisions: 50, activeColor: widget.accent, onChanged: _setSpeed)),
-          GestureDetector(
-            onTap: () => _setSpeed(_speed + 0.05),
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)),
-              child: Icon(Icons.add_rounded, size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
-            ),
-          ),
-        ]),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('0.5x', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 11)),
-            Text('3.0x', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 11)),
-          ],
-        )),
-      ]),
+        ),
+      ),
     );
   }
 }
@@ -752,15 +987,25 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
 // ─── BOOKMARK SHEET ──────────────────────────────────────────
 
 class SimpleBookmarkSheet extends StatefulWidget {
-  final String itemId; final AudioPlayerService player; final Color accent; final ScrollController scrollController; final VoidCallback onChanged;
+  final String itemId;
+  final AudioPlayerService player;
+  final Color accent;
+  final ScrollController scrollController;
+  final VoidCallback onChanged;
   const SimpleBookmarkSheet({super.key, required this.itemId, required this.player, required this.accent, required this.scrollController, required this.onChanged});
-  @override State<SimpleBookmarkSheet> createState() => _SimpleBookmarkSheetState();
+  @override
+  State<SimpleBookmarkSheet> createState() => _SimpleBookmarkSheetState();
 }
 
 class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
   List<Bookmark>? _bookmarks;
   String _sort = 'newest';
-  @override void initState() { super.initState(); _loadSort(); }
+  @override
+  void initState() {
+    super.initState();
+    _loadSort();
+  }
+
   Future<void> _loadSort() async {
     _sort = await PlayerSettings.getBookmarkSort();
     // Show the local bookmarks first so the sheet never hangs on a slow or
@@ -771,20 +1016,20 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final api = AudioPlayerService().currentApi;
     if (api != null) {
       try {
-        await BookmarkService()
-            .syncBookmarks(widget.itemId, api)
-            .timeout(const Duration(seconds: 12));
+        await BookmarkService().syncBookmarks(widget.itemId, api).timeout(const Duration(seconds: 12));
       } catch (_) {}
       await _load();
     }
   }
+
   Future<void> _load() async {
     final bm = await BookmarkService().getBookmarks(widget.itemId, sort: _sort);
     if (mounted) setState(() => _bookmarks = bm);
     widget.onChanged();
   }
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
@@ -794,57 +1039,89 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
       ),
-      child: Column(children: [
-        Padding(padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Container(width: 40, height: 4, decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(children: [
-          GestureDetector(
-            onTap: () {
-              final next = _sort == 'newest' ? 'position'
-                  : _sort == 'position' ? 'position_desc'
-                  : 'newest';
-              setState(() => _sort = next);
-              PlayerSettings.setBookmarkSort(next);
-              _load();
-            },
-            child: Tooltip(
-              message: _sort == 'newest' ? l.bookmarksSortedByNewest
-                  : _sort == 'position' ? l.bookmarksSortedByPosition
-                  : l.bookmarksSortedByPositionReversed,
-              child: Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
-                child: Icon(
-                  _sort == 'newest' ? Icons.schedule_rounded
-                      : _sort == 'position' ? Icons.arrow_upward_rounded
-                      : Icons.arrow_downward_rounded,
-                  color: cs.onSurfaceVariant, size: 20,
-                ),
-              ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)),
             ),
           ),
-          const Spacer(),
-          Text(l.bookmarks, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-          const Spacer(),
-          GestureDetector(onTap: () => _addBookmark(), child: Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(color: widget.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-            child: Icon(Icons.add_rounded, color: widget.accent, size: 20),
-          )),
-        ])),
-        const SizedBox(height: 8),
-        Expanded(child: _bookmarks == null
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-            : _bookmarks!.isEmpty
-                ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.bookmark_outline_rounded, size: 48, color: cs.onSurface.withValues(alpha: 0.1)),
-                    const SizedBox(height: 12),
-                    Text(l.noBookmarksYet, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
-                    const SizedBox(height: 4),
-                    Text(l.longPressBookmarkHint, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.24), fontSize: 11)),
-                  ]))
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    final next = _sort == 'newest'
+                        ? 'position'
+                        : _sort == 'position'
+                        ? 'position_desc'
+                        : 'newest';
+                    setState(() => _sort = next);
+                    PlayerSettings.setBookmarkSort(next);
+                    _load();
+                  },
+                  child: Tooltip(
+                    message: _sort == 'newest'
+                        ? l.bookmarksSortedByNewest
+                        : _sort == 'position'
+                        ? l.bookmarksSortedByPosition
+                        : l.bookmarksSortedByPositionReversed,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
+                      child: Icon(
+                        _sort == 'newest'
+                            ? Icons.schedule_rounded
+                            : _sort == 'position'
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        color: cs.onSurfaceVariant,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(l.bookmarks, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => _addBookmark(),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: widget.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                    child: Icon(Icons.add_rounded, color: widget.accent, size: 20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _bookmarks == null
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                : _bookmarks!.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.bookmark_outline_rounded, size: 48, color: cs.onSurface.withValues(alpha: 0.1)),
+                        const SizedBox(height: 12),
+                        Text(l.noBookmarksYet, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                        const SizedBox(height: 4),
+                        Text(l.longPressBookmarkHint, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.24), fontSize: 11)),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
-                    controller: widget.scrollController, padding: const EdgeInsets.only(bottom: 24), itemCount: _bookmarks!.length,
+                    controller: widget.scrollController,
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: _bookmarks!.length,
                     itemBuilder: (ctx, i) {
                       final bm = _bookmarks![i];
                       final hasNote = bm.note != null && bm.note!.isNotEmpty;
@@ -854,17 +1131,9 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                             context: ctx,
                             isScrollControlled: true,
                             showDragHandle: true,
-                            backgroundColor:
-                                Theme.of(ctx).bottomSheetTheme.backgroundColor,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.vertical(top: Radius.circular(24)),
-                            ),
-                            builder: (_) => BookmarkDetailSheet(
-                              itemId: widget.itemId,
-                              bookmark: bm,
-                              api: context.read<AuthProvider>().apiService,
-                            ),
+                            backgroundColor: Theme.of(ctx).bottomSheetTheme.backgroundColor,
+                            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+                            builder: (_) => BookmarkDetailSheet(itemId: widget.itemId, bookmark: bm, api: context.read<AuthProvider>().apiService),
                           );
                           if (!ctx.mounted) return;
                           if (result == null || result.action != 'jump') {
@@ -889,56 +1158,78 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                         onLongPress: () => _editBookmark(bm),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Icon(Icons.bookmark_rounded, size: 20, color: widget.accent),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(bm.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: tt.bodyMedium?.copyWith(color: cs.onSurface.withValues(alpha: 0.7))),
-                              const SizedBox(height: 2),
-                              Text(bm.formattedPosition, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
-                              if (hasNote) ...[
-                                const SizedBox(height: 4),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: cs.onSurface.withValues(alpha: 0.04),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(bm.note!, maxLines: 3, overflow: TextOverflow.ellipsis,
-                                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11, height: 1.4)),
-                                ),
-                              ],
-                            ])),
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: () async {
-                                final confirmed = await showDialog<bool>(context: context, builder: (dlg) => AlertDialog(
-                                  title: Text(l.deleteBookmarkQuestion),
-                                  content: Text(l.bookmarksJumpShortContent(bm.title, bm.formattedPosition)),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(dlg, false), child: Text(l.cancel)),
-                                    TextButton(onPressed: () => Navigator.pop(dlg, true), child: Text(l.delete, style: TextStyle(color: Colors.red.shade300))),
-                                  ],
-                                ));
-                                if (confirmed != true) return;
-                                await BookmarkService().deleteBookmark(itemId: widget.itemId, bookmarkId: bm.id, api: AudioPlayerService().currentApi);
-                                _load();
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Icon(Icons.delete_outline_rounded, size: 22, color: cs.onSurface.withValues(alpha: 0.35)),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Icon(Icons.bookmark_rounded, size: 20, color: widget.accent),
                               ),
-                            ),
-                          ]),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      bm.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: tt.bodyMedium?.copyWith(color: cs.onSurface.withValues(alpha: 0.7)),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(bm.formattedPosition, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                                    if (hasNote) ...[
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.04), borderRadius: BorderRadius.circular(8)),
+                                        child: Text(
+                                          bm.note!,
+                                          maxLines: 3,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11, height: 1.4),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (dlg) => AlertDialog(
+                                      title: Text(l.deleteBookmarkQuestion),
+                                      content: Text(l.bookmarksJumpShortContent(bm.title, bm.formattedPosition)),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(dlg, false), child: Text(l.cancel)),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(dlg, true),
+                                          child: Text(l.delete, style: TextStyle(color: Colors.red.shade300)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed != true) return;
+                                  await BookmarkService().deleteBookmark(itemId: widget.itemId, bookmarkId: bm.id, api: AudioPlayerService().currentApi);
+                                  _load();
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Icon(Icons.delete_outline_rounded, size: 22, color: cs.onSurface.withValues(alpha: 0.35)),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
-                    })),
-      ]),
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -962,10 +1253,15 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final duration = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
     final chapters = (media['chapters'] as List<dynamic>?) ?? [];
     await player.playItem(
-      api: api, itemId: widget.itemId,
-      title: title, author: author, coverUrl: coverUrl,
-      totalDuration: duration, chapters: chapters,
-      startTime: positionSeconds, forceStartTime: true,
+      api: api,
+      itemId: widget.itemId,
+      title: title,
+      author: author,
+      coverUrl: coverUrl,
+      totalDuration: duration,
+      chapters: chapters,
+      startTime: positionSeconds,
+      forceStartTime: true,
     );
     AppShell.goToAbsorbingGlobal();
   }
@@ -973,10 +1269,10 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
   Future<void> _addBookmark() async {
     final l = AppLocalizations.of(context)!;
     final cast = ChromecastService();
-    final pos = _isCasting
-        ? cast.castPosition.inMilliseconds / 1000.0
-        : widget.player.position.inMilliseconds / 1000.0;
-    final h = pos ~/ 3600; final m = (pos % 3600) ~/ 60; final s = pos.toInt() % 60;
+    final pos = _isCasting ? cast.castPosition.inMilliseconds / 1000.0 : widget.player.position.inMilliseconds / 1000.0;
+    final h = pos ~/ 3600;
+    final m = (pos % 3600) ~/ 60;
+    final s = pos.toInt() % 60;
     final posStr = h > 0 ? '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}' : '$m:${s.toString().padLeft(2, '0')}';
 
     // Find current chapter name for default title
@@ -986,23 +1282,40 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
       final cm = ch as Map<String, dynamic>;
       final cs = (cm['start'] as num?)?.toDouble() ?? 0;
       final ce = (cm['end'] as num?)?.toDouble() ?? 0;
-      if (pos >= cs && pos < ce) { defaultTitle = cm['title'] as String? ?? defaultTitle; break; }
+      if (pos >= cs && pos < ce) {
+        defaultTitle = cm['title'] as String? ?? defaultTitle;
+        break;
+      }
     }
 
     final titleC = TextEditingController(text: defaultTitle);
     final noteC = TextEditingController();
-    final result = await showDialog<Map<String, String>>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(l.addBookmark),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: noteC, maxLines: 3, decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true)),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
-        FilledButton(onPressed: () => Navigator.pop(ctx, {'title': titleC.text, 'note': noteC.text}), child: Text(l.save)),
-      ],
-    ));
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.addBookmark),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleC,
+              autofocus: true,
+              decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteC,
+              maxLines: 3,
+              decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, {'title': titleC.text, 'note': noteC.text}), child: Text(l.save)),
+        ],
+      ),
+    );
     if (result != null && result['title']!.isNotEmpty) {
       final note = result['note']?.isNotEmpty == true ? result['note'] : null;
       await BookmarkService().addBookmark(itemId: widget.itemId, positionSeconds: pos, title: result['title']!, note: note, api: AudioPlayerService().currentApi);
@@ -1014,22 +1327,37 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final l = AppLocalizations.of(context)!;
     final titleC = TextEditingController(text: bm.title);
     final noteC = TextEditingController(text: bm.note ?? '');
-    final result = await showDialog<Map<String, String>>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(l.editBookmark),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: titleC, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: noteC, maxLines: 3, decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true)),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
-        FilledButton(onPressed: () => Navigator.pop(ctx, {'title': titleC.text, 'note': noteC.text}), child: Text(l.save)),
-      ],
-    ));
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.editBookmark),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleC,
+              decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteC,
+              maxLines: 3,
+              decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, {'title': titleC.text, 'note': noteC.text}), child: Text(l.save)),
+        ],
+      ),
+    );
     if (result != null && result['title']!.isNotEmpty) {
       await BookmarkService().updateBookmark(
-        itemId: widget.itemId, bookmarkId: bm.id,
-        title: result['title']!, note: result['note']?.isNotEmpty == true ? result['note'] : null,
+        itemId: widget.itemId,
+        bookmarkId: bm.id,
+        title: result['title']!,
+        note: result['note']?.isNotEmpty == true ? result['note'] : null,
         api: AudioPlayerService().currentApi,
       );
       _load();
@@ -1047,7 +1375,8 @@ class MoreMenuSheet extends StatefulWidget {
   final Widget Function(String id) buildItem;
   final void Function(List<String>, int) onReorder;
   const MoreMenuSheet({super.key, required this.overflowIds, required this.allIds, this.visibleCount = 4, required this.accent, required this.buildItem, required this.onReorder});
-  @override State<MoreMenuSheet> createState() => _MoreMenuSheetState();
+  @override
+  State<MoreMenuSheet> createState() => _MoreMenuSheetState();
 }
 
 class _MoreMenuSheetState extends State<MoreMenuSheet> {
@@ -1068,14 +1397,16 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
   void _loadToggles() async {
     final io = await PlayerSettings.getCardIconsOnly();
     final mi = await PlayerSettings.getCardMoreInline();
-    if (mounted) setState(() {
-      _iconsOnly = io; _moreInline = mi;
-      if (mi && !_order.contains('_more')) {
-        final insertAt = (_visibleCount >= 9 ? 8 : _visibleCount).clamp(0, _order.length);
-        _order.insert(insertAt, '_more');
-        _visibleCount = (_visibleCount < 9 ? _visibleCount + 1 : 9);
-      }
-    });
+    if (mounted)
+      setState(() {
+        _iconsOnly = io;
+        _moreInline = mi;
+        if (mi && !_order.contains('_more')) {
+          final insertAt = (_visibleCount >= 9 ? 8 : _visibleCount).clamp(0, _order.length);
+          _order.insert(insertAt, '_more');
+          _visibleCount = (_visibleCount < 9 ? _visibleCount + 1 : 9);
+        }
+      });
   }
 
   @override
@@ -1102,7 +1433,11 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
               Stack(
                 alignment: Alignment.center,
                 children: [
-                  Container(width: 40, height: 4, decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2))),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)),
+                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: GestureDetector(
@@ -1119,17 +1454,20 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
               // Overflow actions as a responsive pill grid (matches the book
               // menu): 3 across normally, 2 on a narrow screen or large font
               // scale, with cell height that tracks the text scale.
-              LayoutBuilder(builder: (ctx, constraints) {
-                const gap = 10.0;
-                final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-                final cols = (constraints.maxWidth < 340 || textScale >= 1.3) ? 2 : 3;
-                final cellW = (constraints.maxWidth - gap * (cols - 1)) / cols;
-                final cellH = (cols == 2 ? 72.0 : 80.0) * textScale.clamp(1.0, 1.7) + 8;
-                return Wrap(spacing: gap, runSpacing: gap, children: [
-                  for (final id in widget.overflowIds)
-                    SizedBox(width: cellW, height: cellH, child: widget.buildItem(id)),
-                ]);
-              }),
+              LayoutBuilder(
+                builder: (ctx, constraints) {
+                  const gap = 10.0;
+                  final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                  final cols = (constraints.maxWidth < 340 || textScale >= 1.3) ? 2 : 3;
+                  final cellW = (constraints.maxWidth - gap * (cols - 1)) / cols;
+                  final cellH = (cols == 2 ? 72.0 : 80.0) * textScale.clamp(1.0, 1.7) + 8;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [for (final id in widget.overflowIds) SizedBox(width: cellW, height: cellH, child: widget.buildItem(id))],
+                  );
+                },
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -1153,62 +1491,71 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-              child: Row(children: [
-                Text(l.editLayout, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                const Spacer(),
-                IconButton(
-                  icon: Icon(Icons.check_rounded, color: widget.accent),
-                  onPressed: () {
-                    // Ensure _more stays in visible zone
-                    final moreIdx = _order.indexOf('_more');
-                    if (moreIdx >= 0 && moreIdx >= _visibleCount) {
-                      _order.remove('_more');
-                      final insertAt = (_visibleCount >= 9 ? 8 : _visibleCount - 1).clamp(0, _order.length);
-                      _order.insert(insertAt, '_more');
-                    }
-                    widget.onReorder(List.from(_order), _visibleCount);
-                    Navigator.pop(context);
-                  },
-                ),
-              ]),
+              child: Row(
+                children: [
+                  Text(l.editLayout, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.check_rounded, color: widget.accent),
+                    onPressed: () {
+                      // Ensure _more stays in visible zone
+                      final moreIdx = _order.indexOf('_more');
+                      if (moreIdx >= 0 && moreIdx >= _visibleCount) {
+                        _order.remove('_more');
+                        final insertAt = (_visibleCount >= 9 ? 8 : _visibleCount - 1).clamp(0, _order.length);
+                        _order.insert(insertAt, '_more');
+                      }
+                      widget.onReorder(List.from(_order), _visibleCount);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
             ),
             // Toggles
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-              child: Wrap(spacing: 8, runSpacing: 4, children: [
-                FilterChip(
-                  label: Text(l.cardIconsOnlyChip, style: const TextStyle(fontSize: 12)),
-                  selected: _iconsOnly,
-                  onSelected: (v) { setState(() => _iconsOnly = v); PlayerSettings.setCardIconsOnly(v); },
-                  selectedColor: widget.accent.withValues(alpha: 0.2),
-                  checkmarkColor: widget.accent,
-                  visualDensity: VisualDensity.compact,
-                ),
-                FilterChip(
-                  label: Text(l.cardMoreInGridChip, style: const TextStyle(fontSize: 12)),
-                  selected: _moreInline,
-                  onSelected: (v) {
-                    setState(() {
-                      _moreInline = v;
-                      if (v && !_order.contains('_more')) {
-                        // Insert _more as last visible slot, pushing that button to hidden if at cap
-                        final insertAt = (_visibleCount >= 9 ? 8 : _visibleCount).clamp(0, _order.length);
-                        _order.insert(insertAt, '_more');
-                        _visibleCount = (_visibleCount < 9 ? _visibleCount + 1 : 9);
-                      } else if (!v && _order.contains('_more')) {
-                        final idx = _order.indexOf('_more');
-                        _order.remove('_more');
-                        if (idx < _visibleCount) _visibleCount--;
-                        if (_visibleCount < 1) _visibleCount = 1;
-                      }
-                    });
-                    PlayerSettings.setCardMoreInline(v);
-                  },
-                  selectedColor: widget.accent.withValues(alpha: 0.2),
-                  checkmarkColor: widget.accent,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ]),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  FilterChip(
+                    label: Text(l.cardIconsOnlyChip, style: const TextStyle(fontSize: 12)),
+                    selected: _iconsOnly,
+                    onSelected: (v) {
+                      setState(() => _iconsOnly = v);
+                      PlayerSettings.setCardIconsOnly(v);
+                    },
+                    selectedColor: widget.accent.withValues(alpha: 0.2),
+                    checkmarkColor: widget.accent,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  FilterChip(
+                    label: Text(l.cardMoreInGridChip, style: const TextStyle(fontSize: 12)),
+                    selected: _moreInline,
+                    onSelected: (v) {
+                      setState(() {
+                        _moreInline = v;
+                        if (v && !_order.contains('_more')) {
+                          // Insert _more as last visible slot, pushing that button to hidden if at cap
+                          final insertAt = (_visibleCount >= 9 ? 8 : _visibleCount).clamp(0, _order.length);
+                          _order.insert(insertAt, '_more');
+                          _visibleCount = (_visibleCount < 9 ? _visibleCount + 1 : 9);
+                        } else if (!v && _order.contains('_more')) {
+                          final idx = _order.indexOf('_more');
+                          _order.remove('_more');
+                          if (idx < _visibleCount) _visibleCount--;
+                          if (_visibleCount < 1) _visibleCount = 1;
+                        }
+                      });
+                      PlayerSettings.setCardMoreInline(v);
+                    },
+                    selectedColor: widget.accent.withValues(alpha: 0.2),
+                    checkmarkColor: widget.accent,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 4),
             Flexible(
@@ -1219,12 +1566,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                 proxyDecorator: (child, index, animation) {
                   return AnimatedBuilder(
                     animation: animation,
-                    builder: (context, child) => Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(12),
-                      color: cs.surfaceContainer,
-                      child: child,
-                    ),
+                    builder: (context, child) => Material(elevation: 4, borderRadius: BorderRadius.circular(12), color: cs.surfaceContainer, child: child),
                     child: child,
                   );
                 },
@@ -1275,15 +1617,16 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                     return Padding(
                       key: const ValueKey('__DIV__'),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      child: Row(children: [
-                        Expanded(child: Divider(color: cs.onSurface.withValues(alpha: 0.12))),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(_moreInline ? l.cardLayoutHidden : l.inMenu,
-                            style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4))),
-                        ),
-                        Expanded(child: Divider(color: cs.onSurface.withValues(alpha: 0.12))),
-                      ]),
+                      child: Row(
+                        children: [
+                          Expanded(child: Divider(color: cs.onSurface.withValues(alpha: 0.12))),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(_moreInline ? l.cardLayoutHidden : l.inMenu, style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4))),
+                          ),
+                          Expanded(child: Divider(color: cs.onSurface.withValues(alpha: 0.12))),
+                        ],
+                      ),
                     );
                   }
 
@@ -1300,25 +1643,26 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isOnCard ? widget.accent.withValues(alpha: 0.08) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(children: [
-                        Icon(isMore ? Icons.more_horiz_rounded : def!.icon, size: 20,
-                          color: id == 'remove' ? Colors.red.shade300 : cs.onSurface.withValues(alpha: 0.7)),
-                        const SizedBox(width: 12),
-                        Expanded(child: Text(isMore ? l.more : localizedCardButtonLabel(l, def!), style: tt.bodyMedium)),
-                        if (isOnCard)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Text('${orderIdx + 1}', style: tt.labelSmall?.copyWith(color: widget.accent, fontWeight: FontWeight.w700)),
+                      decoration: BoxDecoration(color: isOnCard ? widget.accent.withValues(alpha: 0.08) : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        children: [
+                          Icon(isMore ? Icons.more_horiz_rounded : def!.icon, size: 20, color: id == 'remove' ? Colors.red.shade300 : cs.onSurface.withValues(alpha: 0.7)),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(isMore ? l.more : localizedCardButtonLabel(l, def!), style: tt.bodyMedium)),
+                          if (isOnCard)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Text(
+                                '${orderIdx + 1}',
+                                style: tt.labelSmall?.copyWith(color: widget.accent, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ReorderableDragStartListener(
+                            index: i,
+                            child: Icon(Icons.drag_handle_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.3)),
                           ),
-                        ReorderableDragStartListener(
-                          index: i,
-                          child: Icon(Icons.drag_handle_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.3)),
-                        ),
-                      ]),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -1404,12 +1748,26 @@ class CardActionDelegate {
   // Predefined row groupings per button count.
   // Labels: max 3 per row. Icons: max 4 per row (5 allowed at count=5).
   static const _labelRows = <int, List<int>>{
-    1: [1], 2: [2], 3: [3], 4: [2, 2], 5: [2, 3],
-    6: [3, 3], 7: [2, 2, 3], 8: [2, 3, 3], 9: [3, 3, 3],
+    1: [1],
+    2: [2],
+    3: [3],
+    4: [2, 2],
+    5: [2, 3],
+    6: [3, 3],
+    7: [2, 2, 3],
+    8: [2, 3, 3],
+    9: [3, 3, 3],
   };
   static const _iconRows = <int, List<int>>{
-    1: [1], 2: [2], 3: [3], 4: [4], 5: [5], 6: [3, 3],
-    7: [3, 4], 8: [4, 4], 9: [3, 3, 3],
+    1: [1],
+    2: [2],
+    3: [3],
+    4: [4],
+    5: [5],
+    6: [3, 3],
+    7: [3, 4],
+    8: [4, 4],
+    9: [3, 3, 3],
   };
 
   List<Widget> buildButtonGrid(Color accent, TextTheme tt) {
@@ -1432,14 +1790,18 @@ class CardActionDelegate {
       final rowSlots = ids.sublist(offset, (offset + rowLen).clamp(0, n));
       offset += rowLen;
 
-      Widget row = Row(children: [
-        for (int c = 0; c < rowSlots.length; c++) ...[
-          if (c > 0) const SizedBox(width: 8),
-          Expanded(child: rowSlots[c] == '_more'
-              ? _buildInlineMoreButton(accent, compact: compact, short: short)
-              : buildCardButton(rowSlots[c], accent, tt, compact: compact, short: short, iconsOnly: iconsOnly)),
+      Widget row = Row(
+        children: [
+          for (int c = 0; c < rowSlots.length; c++) ...[
+            if (c > 0) const SizedBox(width: 8),
+            Expanded(
+              child: rowSlots[c] == '_more'
+                  ? _buildInlineMoreButton(accent, compact: compact, short: short)
+                  : buildCardButton(rowSlots[c], accent, tt, compact: compact, short: short, iconsOnly: iconsOnly),
+            ),
+          ],
         ],
-      ]);
+      );
 
       // Center single-button rows at 1/3 width
       if (rowSlots.length == 1 && n == 1) {
@@ -1463,8 +1825,7 @@ class CardActionDelegate {
     return ListenableBuilder(
       listenable: ChromecastService(),
       builder: (_, __) {
-        final castActive = ChromecastService().isCasting &&
-            !buttonOrder.take(visibleCount).contains('cast');
+        final castActive = ChromecastService().isCasting && !buttonOrder.take(visibleCount).contains('cast');
         final iconColor = castActive ? accent : cs.onSurfaceVariant;
         final moreIcon = castActive ? Icons.cast_connected_rounded : Icons.more_horiz_rounded;
         return Pressable(
@@ -1478,16 +1839,23 @@ class CardActionDelegate {
               border: Border.all(color: castActive ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
             ),
             child: iconsOnly
-              ? Center(child: Icon(moreIcon, size: iconSz, color: iconColor))
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(moreIcon, size: iconSz, color: iconColor),
-                    const SizedBox(width: 6),
-                    Flexible(child: Text(castActive ? l.casting : l.more, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: iconColor, fontSize: fontSize, fontWeight: FontWeight.w500))),
-                  ],
-                ),
+                ? Center(
+                    child: Icon(moreIcon, size: iconSz, color: iconColor),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(moreIcon, size: iconSz, color: iconColor),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          castActive ? l.casting : l.more,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: iconColor, fontSize: fontSize, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         );
       },
@@ -1510,36 +1878,60 @@ class CardActionDelegate {
     switch (id) {
       case 'chapters':
         return CardWideButton(
-          icon: Icons.list_rounded, label: l.chapters,
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          icon: Icons.list_rounded,
+          label: l.chapters,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           onTap: chapters.isNotEmpty ? () => showChapters(context, accent, tt) : _showNoChapters,
         );
       case 'speed':
         return CardWideButton(
-          icon: Icons.speed_rounded, label: l.speed,
-          accent: accent, isActive: isPlaybackActive, large: large, compact: compact, iconsOnly: iconsOnly,
+          icon: Icons.speed_rounded,
+          label: l.speed,
+          accent: accent,
+          isActive: isPlaybackActive,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           child: CardSpeedButtonInline(player: player, accent: accent, isActive: isActive, large: large, compact: compact, iconsOnly: iconsOnly, itemId: itemId),
         );
       case 'sleep':
         return CardWideButton(
-          icon: Icons.nightlight_round_outlined, label: l.timer,
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          icon: Icons.nightlight_round_outlined,
+          label: l.timer,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           child: CardSleepButtonInline(accent: accent, isActive: isPlaybackActive, large: large, compact: compact, iconsOnly: iconsOnly),
         );
       case 'bookmarks':
         return CardWideButton(
-          icon: Icons.bookmark_outline_rounded, label: l.bookmarks,
-          accent: accent, isActive: isPlaybackActive, large: large, compact: compact, iconsOnly: iconsOnly,
-          child: CardBookmarkButtonInline(
-            player: player, accent: accent,
-            isActive: isActive, itemId: itemId, large: large, compact: compact, short: short, iconsOnly: iconsOnly,
-          ),
+          icon: Icons.bookmark_outline_rounded,
+          label: l.bookmarks,
+          accent: accent,
+          isActive: isPlaybackActive,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
+          child: CardBookmarkButtonInline(player: player, accent: accent, isActive: isActive, itemId: itemId, large: large, compact: compact, short: short, iconsOnly: iconsOnly),
         );
       case 'details':
         return CardWideButton(
           icon: (episodeId != null || isPodcastEpisode) ? Icons.podcasts_rounded : Icons.info_outline_rounded,
           label: short ? l.details : ((episodeId != null || isPodcastEpisode) ? l.episodeDetailsLabel : l.bookDetailsLabel),
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           onTap: () => _openDetails(),
         );
       case 'equalizer':
@@ -1552,10 +1944,15 @@ class CardActionDelegate {
               builder: (_, snap) {
                 final highlighted = snap.data ?? false;
                 return CardWideButton(
-                  icon: Icons.equalizer_rounded, label: compact ? l.equalizerShort : l.equalizerLabel,
-                  accent: accent, isActive: true, alwaysEnabled: true,
+                  icon: Icons.equalizer_rounded,
+                  label: compact ? l.equalizerShort : l.equalizerLabel,
+                  accent: accent,
+                  isActive: true,
+                  alwaysEnabled: true,
                   highlighted: highlighted,
-                  large: large, compact: compact, iconsOnly: iconsOnly,
+                  large: large,
+                  compact: compact,
+                  iconsOnly: iconsOnly,
                   onTap: () => showEqualizerSheet(context, accent, itemId: itemId, itemTitle: title),
                 );
               },
@@ -1579,56 +1976,102 @@ class CardActionDelegate {
             }
             return CardWideButton(
               icon: cast.isConnected ? Icons.cast_connected_rounded : Icons.cast_rounded,
-              label: castLabel, accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+              label: castLabel,
+              accent: accent,
+              isActive: true,
+              alwaysEnabled: true,
+              large: large,
+              compact: compact,
+              iconsOnly: iconsOnly,
               onTap: () => handleCastTap(context, accent),
             );
           },
         );
       case 'airplay':
         return CardWideButton(
-          icon: Icons.airplay_rounded, label: 'AirPlay',
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          icon: Icons.airplay_rounded,
+          label: 'AirPlay',
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           onTap: () => handleAirPlayTap(),
         );
       case 'history':
         return CardWideButton(
-          icon: Icons.history_rounded, label: (compact || short) ? l.historyShort : l.playbackHistory,
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          icon: Icons.history_rounded,
+          label: (compact || short) ? l.historyShort : l.playbackHistory,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           onTap: () => showHistory(context, accent, tt),
         );
       case 'remove':
         return CardWideButton(
-          icon: Icons.remove_circle_outline_rounded, label: (compact || short) ? l.remove : Wording.of(context).removeFromAbsorbing,
-          accent: Colors.red.shade300, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
-          onTap: () { removeFromAbsorbing(); onRemoveExtra?.call(); },
+          icon: Icons.remove_circle_outline_rounded,
+          label: (compact || short) ? l.remove : Wording.of(context).removeFromAbsorbing,
+          accent: Colors.red.shade300,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
+          onTap: () {
+            removeFromAbsorbing();
+            onRemoveExtra?.call();
+          },
         );
       case 'car':
         return CardWideButton(
-          icon: Icons.directions_car_rounded, label: l.carModeTitle,
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          icon: Icons.directions_car_rounded,
+          label: l.carModeTitle,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           onTap: () => openCarMode(context),
         );
       case 'notes':
         return CardWideButton(
-          icon: Icons.note_rounded, label: l.notes,
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          icon: Icons.note_rounded,
+          label: l.notes,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           onTap: () => showNotes(context, accent),
         );
       case 'download':
         return CardWideButton(
-          icon: Icons.download_outlined, label: l.download,
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
-          child: CardDownloadButtonInline(
-            itemId: itemId, episodeId: episodeId,
-            title: title, author: author, coverUrl: coverUrl,
-            accent: accent, large: large, compact: compact, iconsOnly: iconsOnly,
-          ),
+          icon: Icons.download_outlined,
+          label: l.download,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
+          child: CardDownloadButtonInline(itemId: itemId, episodeId: episodeId, title: title, author: author, coverUrl: coverUrl, accent: accent, large: large, compact: compact, iconsOnly: iconsOnly),
         );
       case 'ebook':
         return CardWideButton(
           icon: isEbookPdf ? Icons.picture_as_pdf_rounded : Icons.menu_book_rounded,
           label: 'Read',
-          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          large: large,
+          compact: compact,
+          iconsOnly: iconsOnly,
           onTap: () {
             if (hasEbook) {
               onEbookTap?.call();
@@ -1647,27 +2090,41 @@ class CardActionDelegate {
     switch (id) {
       case 'chapters':
         return MoreMenuItem(
-          icon: Icons.list_rounded, label: l.chapters, accent: accent,
+          icon: Icons.list_rounded,
+          label: l.chapters,
+          accent: accent,
           enabled: true,
           onTap: () {
             Navigator.pop(ctx);
-            if (chapters.isEmpty) { _showNoChapters(); return; }
+            if (chapters.isEmpty) {
+              _showNoChapters();
+              return;
+            }
             showChapters(context, accent, tt);
           },
         );
       case 'speed':
         return MoreMenuItem(
-          icon: Icons.speed_rounded, label: l.speed, accent: accent,
+          icon: Icons.speed_rounded,
+          label: l.speed,
+          accent: accent,
           enabled: true,
           onTap: () {
             Navigator.pop(ctx);
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent, useSafeArea: true,
-              builder: (_) => CardSpeedSheet(player: player, accent: accent, itemId: itemId));
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              useSafeArea: true,
+              builder: (_) => CardSpeedSheet(player: player, accent: accent, itemId: itemId),
+            );
           },
         );
       case 'sleep':
         return MoreMenuItem(
-          icon: Icons.nightlight_round_outlined, label: l.timer, accent: accent,
+          icon: Icons.nightlight_round_outlined,
+          label: l.timer,
+          accent: accent,
           enabled: true,
           onTap: () {
             Navigator.pop(ctx);
@@ -1676,13 +2133,23 @@ class CardActionDelegate {
         );
       case 'bookmarks':
         return MoreMenuItem(
-          icon: Icons.bookmark_outline_rounded, label: l.bookmarks, accent: accent,
+          icon: Icons.bookmark_outline_rounded,
+          label: l.bookmarks,
+          accent: accent,
           enabled: isPlaybackActive,
           onTap: () {
             Navigator.pop(ctx);
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, useSafeArea: true,
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              useSafeArea: true,
               builder: (_) => DraggableScrollableSheet(
-                initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
+                initialChildSize: 0.6,
+                minChildSize: 0.05,
+                snap: true,
+                maxChildSize: 0.9,
+                expand: false,
                 builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
               ),
             );
@@ -1693,12 +2160,20 @@ class CardActionDelegate {
           icon: (episodeId != null || isPodcastEpisode) ? Icons.podcasts_rounded : Icons.info_outline_rounded,
           label: (episodeId != null || isPodcastEpisode) ? l.episodeDetailsLabel : l.bookDetailsLabel,
           accent: accent,
-          onTap: () { Navigator.pop(ctx); _openDetails(); },
+          onTap: () {
+            Navigator.pop(ctx);
+            _openDetails();
+          },
         );
       case 'equalizer':
         return MoreMenuItem(
-          icon: Icons.equalizer_rounded, label: l.equalizerLabel, accent: accent,
-          onTap: () { Navigator.pop(ctx); showEqualizerSheet(context, accent, itemId: itemId, itemTitle: title); },
+          icon: Icons.equalizer_rounded,
+          label: l.equalizerLabel,
+          accent: accent,
+          onTap: () {
+            Navigator.pop(ctx);
+            showEqualizerSheet(context, accent, itemId: itemId, itemTitle: title);
+          },
         );
       case 'cast':
         return ListenableBuilder(
@@ -1715,37 +2190,66 @@ class CardActionDelegate {
             }
             return MoreMenuItem(
               icon: cast.isConnected ? Icons.cast_connected_rounded : Icons.cast_rounded,
-              label: castLabel, accent: accent,
-              onTap: () { Navigator.pop(ctx); handleCastTap(context, accent); },
+              label: castLabel,
+              accent: accent,
+              onTap: () {
+                Navigator.pop(ctx);
+                handleCastTap(context, accent);
+              },
             );
           },
         );
       case 'airplay':
         return MoreMenuItem(
-          icon: Icons.airplay_rounded, label: 'AirPlay', accent: accent,
-          onTap: () { Navigator.pop(ctx); handleAirPlayTap(); },
+          icon: Icons.airplay_rounded,
+          label: 'AirPlay',
+          accent: accent,
+          onTap: () {
+            Navigator.pop(ctx);
+            handleAirPlayTap();
+          },
         );
       case 'history':
         return MoreMenuItem(
-          icon: Icons.history_rounded, label: l.playbackHistory, accent: accent,
+          icon: Icons.history_rounded,
+          label: l.playbackHistory,
+          accent: accent,
           enabled: true,
-          onTap: () { Navigator.pop(ctx); showHistory(context, accent, tt); },
+          onTap: () {
+            Navigator.pop(ctx);
+            showHistory(context, accent, tt);
+          },
         );
       case 'remove':
         return MoreMenuItem(
-          icon: Icons.remove_circle_outline_rounded, label: Wording.of(context).removeFromAbsorbing,
+          icon: Icons.remove_circle_outline_rounded,
+          label: Wording.of(context).removeFromAbsorbing,
           accent: Colors.red.shade300,
-          onTap: () { Navigator.pop(ctx); removeFromAbsorbing(); onRemoveExtra?.call(); },
+          onTap: () {
+            Navigator.pop(ctx);
+            removeFromAbsorbing();
+            onRemoveExtra?.call();
+          },
         );
       case 'car':
         return MoreMenuItem(
-          icon: Icons.directions_car_rounded, label: l.carModeTitle, accent: accent,
-          onTap: () { Navigator.pop(ctx); openCarMode(context); },
+          icon: Icons.directions_car_rounded,
+          label: l.carModeTitle,
+          accent: accent,
+          onTap: () {
+            Navigator.pop(ctx);
+            openCarMode(context);
+          },
         );
       case 'notes':
         return MoreMenuItem(
-          icon: Icons.note_rounded, label: l.notes, accent: accent,
-          onTap: () { Navigator.pop(ctx); showNotes(context, accent); },
+          icon: Icons.note_rounded,
+          label: l.notes,
+          accent: accent,
+          onTap: () {
+            Navigator.pop(ctx);
+            showNotes(context, accent);
+          },
         );
       case 'download':
         return ListenableBuilder(
@@ -1762,37 +2266,53 @@ class CardActionDelegate {
             final IconData dlIcon;
             final Color dlAccent;
             if (downloaded) {
-              dlIcon = Icons.download_done_rounded; dlLabel = l.saved; dlAccent = dlGreen;
+              dlIcon = Icons.download_done_rounded;
+              dlLabel = l.saved;
+              dlAccent = dlGreen;
             } else if (downloading) {
-              dlIcon = Icons.downloading_rounded; dlLabel = '${(progress * 100).toStringAsFixed(0)}%'; dlAccent = accent;
+              dlIcon = Icons.downloading_rounded;
+              dlLabel = '${(progress * 100).toStringAsFixed(0)}%';
+              dlAccent = accent;
             } else {
-              dlIcon = Icons.download_outlined; dlLabel = l.download; dlAccent = accent;
+              dlIcon = Icons.download_outlined;
+              dlLabel = l.download;
+              dlAccent = accent;
             }
             return MoreMenuItem(
-              icon: dlIcon, label: dlLabel, accent: dlAccent,
+              icon: dlIcon,
+              label: dlLabel,
+              accent: dlAccent,
               onTap: () {
                 Navigator.pop(ctx);
                 final dl = DownloadService();
                 if (dl.isDownloaded(dlKey)) {
-                  showDialog(context: context, builder: (dCtx) => AlertDialog(
-                    title: Text(l.removeDownloadQuestion),
-                    content: Text(l.removeDownloadContent),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(l.cancel)),
-                      TextButton(onPressed: () {
-                        dl.deleteDownload(dlKey);
-                        Navigator.pop(dCtx);
-                        showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
-                      }, child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
-                    ],
-                  ));
+                  showDialog(
+                    context: context,
+                    builder: (dCtx) => AlertDialog(
+                      title: Text(l.removeDownloadQuestion),
+                      content: Text(l.removeDownloadContent),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(l.cancel)),
+                        TextButton(
+                          onPressed: () {
+                            dl.deleteDownload(dlKey);
+                            Navigator.pop(dCtx);
+                            showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
+                          },
+                          child: Text(l.remove, style: const TextStyle(color: Colors.redAccent)),
+                        ),
+                      ],
+                    ),
+                  );
                 } else if (dl.isDownloading(dlKey)) {
                   dl.cancelDownload(dlKey);
                 } else {
                   final auth = context.read<AuthProvider>();
                   final api = auth.apiService;
                   if (api == null) return;
-                  dl.downloadItem(api: api, itemId: dlKey, episodeId: episodeId, title: title, author: author, coverUrl: coverUrl, libraryId: context.read<LibraryProvider>().selectedLibraryId).then((error) {
+                  dl.downloadItem(api: api, itemId: dlKey, episodeId: episodeId, title: title, author: author, coverUrl: coverUrl, libraryId: context.read<LibraryProvider>().selectedLibraryId).then((
+                    error,
+                  ) {
                     if (error != null && context.mounted) {
                       showOverlayToast(context, error, icon: Icons.error_outline_rounded);
                     }
@@ -1805,7 +2325,8 @@ class CardActionDelegate {
       case 'ebook':
         return MoreMenuItem(
           icon: isEbookPdf ? Icons.picture_as_pdf_rounded : Icons.menu_book_rounded,
-          label: 'Read', accent: accent,
+          label: 'Read',
+          accent: accent,
           onTap: () {
             Navigator.pop(ctx);
             if (hasEbook) {
@@ -1843,25 +2364,26 @@ class CardActionDelegate {
   }
 
   void openCarMode(BuildContext ctx) {
-    Navigator.of(ctx).push(MaterialPageRoute(
-      builder: (_) => CarModeScreen(
-        player: player,
-        itemId: itemId,
-        fallbackTitle: title,
-        fallbackAuthor: author,
-        fallbackCoverUrl: coverUrl,
-        fallbackDuration: effectiveDuration,
-        fallbackChapters: chapters,
-        episodeId: episodeId,
-        episodeTitle: recentEpisode?['title'] as String?,
+    Navigator.of(ctx).push(
+      MaterialPageRoute(
+        builder: (_) => CarModeScreen(
+          player: player,
+          itemId: itemId,
+          fallbackTitle: title,
+          fallbackAuthor: author,
+          fallbackCoverUrl: coverUrl,
+          fallbackDuration: effectiveDuration,
+          fallbackChapters: chapters,
+          episodeId: episodeId,
+          episodeTitle: recentEpisode?['title'] as String?,
+        ),
       ),
-    ));
+    );
   }
 
   /// iOS only: open the system AirPlay route picker. Routed through the native
   /// AVRoutePickerView (see AppDelegate's com.absorb.audio_output channel).
-  static const MethodChannel _audioOutputChannel =
-      MethodChannel('com.absorb.audio_output');
+  static const MethodChannel _audioOutputChannel = MethodChannel('com.absorb.audio_output');
   void handleAirPlayTap() {
     _audioOutputChannel.invokeMethod('showRoutePicker').catchError((_) => null);
   }
@@ -1874,24 +2396,25 @@ class CardActionDelegate {
       showModalBottomSheet(
         context: ctx,
         backgroundColor: Theme.of(ctx).bottomSheetTheme.backgroundColor,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
         builder: (_) => CastControlSheet(),
       );
     } else if (cast.isConnected) {
       if (api != null) {
-        cast.castItem(
-          api: api, itemId: itemId, title: title, author: author ?? '',
-          coverUrl: coverUrl, totalDuration: duration, chapters: chapters,
-          episodeId: episodeId ?? player.currentEpisodeId,
-        );
+        cast.castItem(api: api, itemId: itemId, title: title, author: author ?? '', coverUrl: coverUrl, totalDuration: duration, chapters: chapters, episodeId: episodeId ?? player.currentEpisodeId);
       }
     } else {
-      showCastDevicePicker(ctx,
-        api: api, itemId: itemId, title: title, author: author ?? '',
-        coverUrl: coverUrl, totalDuration: duration, chapters: chapters,
-        episodeId: episodeId ?? player.currentEpisodeId);
+      showCastDevicePicker(
+        ctx,
+        api: api,
+        itemId: itemId,
+        title: title,
+        author: author ?? '',
+        coverUrl: coverUrl,
+        totalDuration: duration,
+        chapters: chapters,
+        episodeId: episodeId ?? player.currentEpisodeId,
+      );
     }
   }
 
@@ -1906,13 +2429,13 @@ class CardActionDelegate {
       pos = player.position.inMilliseconds / 1000.0;
     } else {
       final lib = ctx.read<LibraryProvider>();
-      final pd = episodeId != null
-          ? lib.getEpisodeProgressData(itemId, episodeId!)
-          : lib.getProgressData(itemId);
+      final pd = episodeId != null ? lib.getEpisodeProgressData(itemId, episodeId!) : lib.getProgressData(itemId);
       pos = (pd?['currentTime'] as num?)?.toDouble() ?? 0;
     }
     showChaptersSheet(
-      context: ctx, accent: accent, tt: tt,
+      context: ctx,
+      accent: accent,
+      tt: tt,
       chapters: chaps,
       totalDuration: isCastingThis ? cast.castingDuration : (isActive ? player.totalDuration : duration),
       currentPosition: pos,
@@ -1926,29 +2449,22 @@ class CardActionDelegate {
 
   void _showNoChapters() {
     final l = AppLocalizations.of(context)!;
-    showOverlayToast(
-      context,
-      episodeId != null ? l.noChaptersPodcast : l.noChaptersBook,
-      icon: Icons.list_rounded,
-    );
+    showOverlayToast(context, episodeId != null ? l.noChaptersPodcast : l.noChaptersBook, icon: Icons.list_rounded);
   }
 
   void showHistory(BuildContext ctx, Color accent, TextTheme tt) {
     showModalBottomSheet(
-      context: ctx, isScrollControlled: true, useSafeArea: true,
+      context: ctx,
+      isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) => DraggableScrollableSheet(
-        expand: false, initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9,
-        builder: (_, sc) => _PlaybackHistoryBody(
-          itemId: itemId,
-          accent: accent,
-          tt: tt,
-          isActive: isActive,
-          player: player,
-          parentCtx: ctx,
-          sheetCtx: sheetCtx,
-          scrollController: sc,
-        ),
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.05,
+        snap: true,
+        maxChildSize: 0.9,
+        builder: (_, sc) => _PlaybackHistoryBody(itemId: itemId, accent: accent, tt: tt, isActive: isActive, player: player, parentCtx: ctx, sheetCtx: sheetCtx, scrollController: sc),
       ),
     );
   }
@@ -1980,11 +2496,7 @@ class CardActionDelegate {
       }
     }
     if (recentEpisode != null) return recentEpisode!;
-    return {
-      'id': epId,
-      'title': player.currentEpisodeTitle,
-      'duration': player.totalDuration,
-    };
+    return {'id': epId, 'title': player.currentEpisodeTitle, 'duration': player.totalDuration};
   }
 }
 
@@ -2045,154 +2557,121 @@ class _PlaybackHistoryBodyState extends State<_PlaybackHistoryBody> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
       ),
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.24),
-              borderRadius: BorderRadius.circular(2),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(children: [
-            const Spacer(),
-            Text(
-              l.playbackHistory,
-              style: widget.tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const Spacer(),
-            IconButton(
-              icon: Icon(Icons.delete_outline_rounded, size: 20, color: cs.onSurfaceVariant),
-              onPressed: () async {
-                await PlaybackHistoryService().clearHistory(widget.itemId);
-                if (widget.sheetCtx.mounted) Navigator.pop(widget.sheetCtx);
-              },
-              tooltip: l.clearHistoryTooltip,
-            ),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          child: Row(children: [
-            if (widget.isActive)
-              Expanded(
-                child: Text(
-                  l.tapEventToJump,
-                  style: widget.tt.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                    fontStyle: FontStyle.italic,
-                  ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                const Spacer(),
+                Text(l.playbackHistory, style: widget.tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                IconButton(
+                  icon: Icon(Icons.delete_outline_rounded, size: 20, color: cs.onSurfaceVariant),
+                  onPressed: () async {
+                    await PlaybackHistoryService().clearHistory(widget.itemId);
+                    if (widget.sheetCtx.mounted) Navigator.pop(widget.sheetCtx);
+                  },
+                  tooltip: l.clearHistoryTooltip,
                 ),
-              )
-            else
-              const Spacer(),
-            Text(
-              'Show more',
-              style: widget.tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              ],
             ),
-            const SizedBox(width: 8),
-            Transform.scale(
-              scale: 0.8,
-              child: Switch(
-                value: _advanced,
-                onChanged: (_) => _toggleAdvanced(),
-                activeThumbColor: widget.accent,
-              ),
-            ),
-          ]),
-        ),
-        Expanded(
-          child: FutureBuilder<List<PlaybackEvent>>(
-            future: _future,
-            builder: (futureCtx, snap) {
-              if (!snap.hasData) {
-                return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-              }
-              final all = snap.data!;
-              final events = _advanced
-                  ? all
-                  : all.where((e) => !kAdvancedHistoryEvents.contains(e.type)).toList();
-              if (events.isEmpty) {
-                return Center(
-                  child: Text(
-                    l.noHistoryYet,
-                    style: widget.tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-                  ),
-                );
-              }
-
-              final items = <Widget>[];
-              String? lastDate;
-              for (int i = 0; i < events.length; i++) {
-                final e = events[i];
-                final dl = dateLabel(e.timestamp);
-                if (dl != lastDate) {
-                  lastDate = dl;
-                  items.add(Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                    child: Text(
-                      dl,
-                      style: widget.tt.labelSmall?.copyWith(
-                        color: widget.accent.withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ));
-                }
-                final posLabel = fmtTime(e.positionSeconds);
-                final timeStr = timeOfDay(e.timestamp);
-                final isAdvancedEvent = kAdvancedHistoryEvents.contains(e.type);
-                items.add(ListTile(
-                  dense: true,
-                  visualDensity: const VisualDensity(vertical: -2),
-                  leading: Icon(
-                    historyIcon(e.type),
-                    size: 18,
-                    color: widget.accent.withValues(alpha: isAdvancedEvent ? 0.45 : 0.7),
-                  ),
-                  title: Text(
-                    e.label,
-                    style: widget.tt.bodySmall?.copyWith(
-                      color: cs.onSurface.withValues(alpha: isAdvancedEvent ? 0.55 : 0.7),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    l.atPosition(posLabel),
-                    style: widget.tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
-                  ),
-                  trailing: Text(
-                    timeStr,
-                    style: widget.tt.labelSmall?.copyWith(
-                      color: cs.onSurface.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  onTap: widget.isActive
-                      ? () {
-                          widget.player.seekTo(Duration(seconds: e.positionSeconds.round()));
-                          Navigator.pop(futureCtx);
-                          ScaffoldMessenger.of(widget.parentCtx).showSnackBar(
-                            SnackBar(
-                              duration: const Duration(seconds: 3),
-                              content: Text(l.jumpedToPosition(posLabel)),
-                            ),
-                          );
-                        }
-                      : null,
-                ));
-              }
-
-              return ListView(controller: widget.scrollController, children: items);
-            },
           ),
-        ),
-      ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            child: Row(
+              children: [
+                if (widget.isActive)
+                  Expanded(
+                    child: Text(
+                      l.tapEventToJump,
+                      style: widget.tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6), fontStyle: FontStyle.italic),
+                    ),
+                  )
+                else
+                  const Spacer(),
+                Text('Show more', style: widget.tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                const SizedBox(width: 8),
+                Transform.scale(
+                  scale: 0.8,
+                  child: Switch(value: _advanced, onChanged: (_) => _toggleAdvanced(), activeThumbColor: widget.accent),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<PlaybackEvent>>(
+              future: _future,
+              builder: (futureCtx, snap) {
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                }
+                final all = snap.data!;
+                final events = _advanced ? all : all.where((e) => !kAdvancedHistoryEvents.contains(e.type)).toList();
+                if (events.isEmpty) {
+                  return Center(
+                    child: Text(l.noHistoryYet, style: widget.tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                  );
+                }
+
+                final items = <Widget>[];
+                String? lastDate;
+                for (int i = 0; i < events.length; i++) {
+                  final e = events[i];
+                  final dl = dateLabel(e.timestamp);
+                  if (dl != lastDate) {
+                    lastDate = dl;
+                    items.add(
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(
+                          dl,
+                          style: widget.tt.labelSmall?.copyWith(color: widget.accent.withValues(alpha: 0.6), fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                        ),
+                      ),
+                    );
+                  }
+                  final posLabel = fmtTime(e.positionSeconds);
+                  final timeStr = timeOfDay(e.timestamp);
+                  final isAdvancedEvent = kAdvancedHistoryEvents.contains(e.type);
+                  items.add(
+                    ListTile(
+                      dense: true,
+                      visualDensity: const VisualDensity(vertical: -2),
+                      leading: Icon(historyIcon(e.type), size: 18, color: widget.accent.withValues(alpha: isAdvancedEvent ? 0.45 : 0.7)),
+                      title: Text(
+                        e.label,
+                        style: widget.tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: isAdvancedEvent ? 0.55 : 0.7)),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(l.atPosition(posLabel), style: widget.tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                      trailing: Text(timeStr, style: widget.tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))),
+                      onTap: widget.isActive
+                          ? () {
+                              widget.player.seekTo(Duration(seconds: e.positionSeconds.round()));
+                              Navigator.pop(futureCtx);
+                              ScaffoldMessenger.of(widget.parentCtx).showSnackBar(SnackBar(duration: const Duration(seconds: 3), content: Text(l.jumpedToPosition(posLabel))));
+                            }
+                          : null,
+                    ),
+                  );
+                }
+
+                return ListView(controller: widget.scrollController, children: items);
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

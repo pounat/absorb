@@ -50,6 +50,11 @@ final class AbsorbAudioEngine: NSObject {
   private var speed: Float = 1.0
   private var volume: Float = 1.0
   private var eqEnabled: Bool = false
+  private var smartSkipEnabled: Bool = false
+  private var smartSkipConfiguration = AbsorbSilenceConfiguration.defaultSettings
+  private var smartSkipEpoch: UInt = 0
+  private var smartSkipRangesByTrack: [Int: [AbsorbSilenceRange]] = [:]
+  private var smartSkipSeekInFlight: Bool = false
   // Whether the current item physically has the processing tap installed.
   // Lets us avoid rebuilding the item to re-apply effects when a tap is
   // already present (it reads the live DSP params on its own).
@@ -84,6 +89,8 @@ final class AbsorbAudioEngine: NSObject {
             speed: Float,
             volume: Float,
             eqEnabled: Bool,
+            smartSkipEnabled: Bool,
+            smartSkipConfiguration: AbsorbSilenceConfiguration = .defaultSettings,
             itemId: String? = nil,
             completion: @escaping (Double?) -> Void) {
     queue.async { [weak self] in
@@ -98,6 +105,11 @@ final class AbsorbAudioEngine: NSObject {
       self.speed = speed
       self.volume = volume
       self.eqEnabled = eqEnabled
+      self.smartSkipEnabled = smartSkipEnabled
+      self.smartSkipConfiguration = smartSkipConfiguration
+      self.smartSkipSeekInFlight = false
+      self.smartSkipRangesByTrack = [:]
+      self.smartSkipEpoch &+= 1
       self.player.volume = volume
 
       let targetIndex = self.trackIndexFor(globalSeconds: startPositionS)
@@ -190,6 +202,43 @@ final class AbsorbAudioEngine: NSObject {
     }
   }
 
+  func setSmartSkipEnabled(_ enabled: Bool) {
+    queue.async { [weak self] in
+      guard let self = self else { return }
+      guard self.smartSkipEnabled != enabled else { return }
+      self.smartSkipEnabled = enabled
+      self.smartSkipSeekInFlight = false
+      self.smartSkipEpoch &+= 1
+      if enabled {
+        self.delegate?.engineDidChangeSmartSkipAvailability(true)
+        self.startSmartSkipAnalysisForCurrentTrack()
+      } else {
+        self.smartSkipRangesByTrack = [:]
+        self.delegate?.engineDidChangeSmartSkipAvailability(true)
+      }
+    }
+  }
+
+  func setSmartSkipConfiguration(_ configuration: AbsorbSilenceConfiguration) {
+    queue.async { [weak self] in
+      guard let self = self,
+            self.smartSkipConfiguration != configuration else { return }
+      self.smartSkipConfiguration = configuration
+      self.smartSkipSeekInFlight = false
+      self.smartSkipRangesByTrack = [:]
+      self.smartSkipEpoch &+= 1
+      self.emit(
+        "[SmartSkip] configuration threshold=\(configuration.thresholdDb)dBFS "
+        + "minimum=\(Int(configuration.minimumSilenceS * 1000))ms "
+        + "merge=\(Int(configuration.mergeGapS * 1000))ms "
+        + "guard=\(Int(configuration.guardS * 1000))ms"
+      )
+      if self.smartSkipEnabled {
+        self.startSmartSkipAnalysisForCurrentTrack()
+      }
+    }
+  }
+
   func setNextSource(tracks: [(url: URL, headers: [String: String])],
                      trackOffsets: [Double],
                      startPositionS: Double,
@@ -274,6 +323,89 @@ final class AbsorbAudioEngine: NSObject {
     queue.async { [weak self] in
       guard let self = self else { return }
       self.eqEnabled = false
+    }
+  }
+
+  private func startSmartSkipAnalysisForCurrentTrack() {
+    guard smartSkipEnabled else { return }
+    guard trackUrls.indices.contains(trackIndex) else { return }
+
+    let epoch = smartSkipEpoch
+    let index = trackIndex
+    let url = trackUrls[index]
+    let headers = trackHeaders
+    let configuration = smartSkipConfiguration
+    delegate?.engineDidChangeSmartSkipAvailability(true)
+    emit(
+      "[SmartSkip] analyze track=\(index) url=\(url.lastPathComponent) "
+      + "threshold=\(configuration.thresholdDb)dBFS "
+      + "minimum=\(Int(configuration.minimumSilenceS * 1000))ms"
+    )
+
+    AbsorbSilenceAnalyzer.shared.analyze(
+      url: url,
+      headers: headers,
+      configuration: configuration,
+      epoch: epoch,
+      isCurrent: { [weak self] candidate in
+        guard let self = self else { return false }
+        return self.queue.sync {
+          self.smartSkipEnabled && self.smartSkipEpoch == candidate
+        }
+      },
+      completion: { [weak self] epoch, result in
+        guard let self = self else { return }
+        self.queue.async {
+          guard self.smartSkipEnabled,
+                self.smartSkipEpoch == epoch,
+                self.trackIndex == index else { return }
+          switch result {
+          case .success(let ranges):
+            self.smartSkipRangesByTrack[index] = ranges
+            self.delegate?.engineDidChangeSmartSkipAvailability(true)
+            let skippableS = ranges.reduce(0) { $0 + max(0, $1.end - $1.start) }
+            self.emit(
+              "[SmartSkip] analyzed track=\(index) ranges=\(ranges.count) "
+              + "skippable=\(String(format: "%.3f", skippableS))s"
+            )
+          case .failure(let error):
+            self.smartSkipRangesByTrack[index] = []
+            self.delegate?.engineDidChangeSmartSkipAvailability(false)
+            self.emit("[SmartSkip] analyze failed: \(error.localizedDescription)")
+          }
+        }
+      }
+    )
+  }
+
+  private func maybePerformSmartSkip(at localPosition: Double) {
+    guard smartSkipEnabled,
+          !smartSkipSeekInFlight,
+          player.rate > 0,
+          let ranges = smartSkipRangesByTrack[trackIndex],
+          !ranges.isEmpty else { return }
+
+    guard let range = ranges.first(where: {
+      localPosition >= $0.start && localPosition < $0.end
+    }) else { return }
+
+    let target = range.end
+    guard target - localPosition > 0.05 else { return }
+
+    smartSkipSeekInFlight = true
+    let speedAfterSeek = speed
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      self.player.seek(to: CMTime(seconds: target, preferredTimescale: 1000),
+                       toleranceBefore: .zero,
+                       toleranceAfter: .zero) { _ in
+        self.queue.async {
+          self.player.rate = speedAfterSeek
+          self.smartSkipSeekInFlight = false
+          self.delegate?.engineDidSmartSkipJump(from: localPosition, to: target)
+          self.emitPositionImmediate()
+        }
+      }
     }
   }
 
@@ -390,6 +522,14 @@ final class AbsorbAudioEngine: NSObject {
           self.tapAttached = false
         }
         self.player.replaceCurrentItem(with: item)
+        self.queue.async {
+          self.smartSkipSeekInFlight = false
+          self.smartSkipEpoch &+= 1
+          self.smartSkipRangesByTrack[index] = []
+          if self.smartSkipEnabled {
+            self.startSmartSkipAnalysisForCurrentTrack()
+          }
+        }
 
         let finish: (Bool) -> Void = { _ in
           if autoPlay {
@@ -533,6 +673,9 @@ final class AbsorbAudioEngine: NSObject {
 
     currentItem = item
     currentEpoch &+= 1
+    smartSkipSeekInFlight = false
+    smartSkipEpoch &+= 1
+    smartSkipRangesByTrack = [:]
 
     observeNewCurrentItem(item)
 
@@ -556,6 +699,11 @@ final class AbsorbAudioEngine: NSObject {
         self.tapAttached = false
       }
       self.player.replaceCurrentItem(with: item)
+      self.queue.async {
+        if self.smartSkipEnabled {
+          self.startSmartSkipAnalysisForCurrentTrack()
+        }
+      }
       if startS > 0 {
         item.seek(to: CMTime(seconds: startS, preferredTimescale: 1000),
                   toleranceBefore: .zero, toleranceAfter: .zero) { _ in
@@ -607,6 +755,7 @@ final class AbsorbAudioEngine: NSObject {
   private func maybeEmitPosition() {
     let pos = getPositionS()
     guard pos.isFinite else { return }
+    maybePerformSmartSkip(at: pos)
     let posInt = Int(pos)
     let stride = isBackgrounded ? 1 : 0
     if isBackgrounded {

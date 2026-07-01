@@ -46,17 +46,17 @@ class DownloadInfo {
   });
 
   Map<String, dynamic> toJson() => {
-        'itemId': itemId,
-        'status': status.index,
-        'localPaths': localPaths,
-        'sessionData': sessionData,
-        'title': title,
-        'author': author,
-        'coverUrl': coverUrl,
-        'localCoverPath': localCoverPath,
-        if (localDirPath != null) 'localDirPath': localDirPath,
-        if (libraryId != null) 'libraryId': libraryId,
-      };
+    'itemId': itemId,
+    'status': status.index,
+    'localPaths': localPaths,
+    'sessionData': sessionData,
+    'title': title,
+    'author': author,
+    'coverUrl': coverUrl,
+    'localCoverPath': localCoverPath,
+    if (localDirPath != null) 'localDirPath': localDirPath,
+    if (libraryId != null) 'libraryId': libraryId,
+  };
 
   factory DownloadInfo.fromJson(Map<String, dynamic> json) {
     String? title = json['title'] as String?;
@@ -90,10 +90,7 @@ class DownloadInfo {
     return DownloadInfo(
       itemId: json['itemId'] as String,
       status: DownloadStatus.values[json['status'] as int? ?? 0],
-      localPaths: (json['localPaths'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
+      localPaths: (json['localPaths'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
       sessionData: _stripLibraryItem(json['sessionData'] as String?),
       title: title,
       author: author,
@@ -114,15 +111,7 @@ class _QueuedDownload {
   final String? episodeId;
   final String? libraryId;
 
-  _QueuedDownload({
-    required this.api,
-    required this.itemId,
-    required this.title,
-    this.author,
-    this.coverUrl,
-    this.episodeId,
-    this.libraryId,
-  });
+  _QueuedDownload({required this.api, required this.itemId, required this.title, this.author, this.coverUrl, this.episodeId, this.libraryId});
 }
 
 /// An in-flight multi-file download. The static fields (persisted to
@@ -130,8 +119,8 @@ class _QueuedDownload {
 /// app is killed and relaunched while the OS finishes the transfer. The runtime
 /// maps are rebuilt from the background_downloader task database on relaunch.
 class _PendingBook {
-  final String itemId;        // composite key used in _downloads
-  final String apiItemId;     // real library item id for API calls
+  final String itemId; // composite key used in _downloads
+  final String apiItemId; // real library item id for API calls
   final String? episodeId;
   final String title;
   final String? author;
@@ -142,6 +131,7 @@ class _PendingBook {
   final int trackCount;
   final List<String> expectedPaths; // index-aligned final file paths
   final String? slimSessionJson;
+
   /// When set, this book downloads to internal storage first, then its files
   /// are moved into the user's SAF folder ([safTreeUri]) under [safSubfolder]
   /// (e.g. "Author/Title") on completion. Null for internal / iOS downloads.
@@ -164,6 +154,7 @@ class _PendingBook {
   final Map<int, double> trackProgress = {};
   final Map<int, TaskStatus> trackStatus = {};
   DateTime lastUi = DateTime.fromMillisecondsSinceEpoch(0);
+
   /// Last time any track update arrived, so the slot-leak reconciler can spot a
   /// book whose terminal updates were missed.
   DateTime lastUpdate = DateTime.fromMillisecondsSinceEpoch(0);
@@ -201,41 +192,38 @@ class _PendingBook {
   }
 
   Map<String, dynamic> toJson() => {
-        'itemId': itemId,
-        'apiItemId': apiItemId,
-        'episodeId': episodeId,
-        'title': title,
-        'author': author,
-        'coverUrl': coverUrl,
-        'localCoverPath': localCoverPath,
-        'libraryId': libraryId,
-        'bookDir': bookDir,
-        'trackCount': trackCount,
-        'expectedPaths': expectedPaths,
-        'slimSessionJson': slimSessionJson,
-        if (safTreeUri != null) 'safTreeUri': safTreeUri,
-        if (safSubfolder != null) 'safSubfolder': safSubfolder,
-      };
+    'itemId': itemId,
+    'apiItemId': apiItemId,
+    'episodeId': episodeId,
+    'title': title,
+    'author': author,
+    'coverUrl': coverUrl,
+    'localCoverPath': localCoverPath,
+    'libraryId': libraryId,
+    'bookDir': bookDir,
+    'trackCount': trackCount,
+    'expectedPaths': expectedPaths,
+    'slimSessionJson': slimSessionJson,
+    if (safTreeUri != null) 'safTreeUri': safTreeUri,
+    if (safSubfolder != null) 'safSubfolder': safSubfolder,
+  };
 
   factory _PendingBook.fromJson(Map<String, dynamic> j) => _PendingBook(
-        itemId: j['itemId'] as String,
-        apiItemId: j['apiItemId'] as String,
-        episodeId: j['episodeId'] as String?,
-        title: j['title'] as String? ?? '',
-        author: j['author'] as String?,
-        coverUrl: j['coverUrl'] as String?,
-        localCoverPath: j['localCoverPath'] as String?,
-        libraryId: j['libraryId'] as String?,
-        bookDir: j['bookDir'] as String,
-        trackCount: j['trackCount'] as int? ?? 0,
-        expectedPaths: (j['expectedPaths'] as List<dynamic>?)
-                ?.map((e) => e as String)
-                .toList() ??
-            const [],
-        slimSessionJson: j['slimSessionJson'] as String?,
-        safTreeUri: j['safTreeUri'] as String?,
-        safSubfolder: j['safSubfolder'] as String?,
-      );
+    itemId: j['itemId'] as String,
+    apiItemId: j['apiItemId'] as String,
+    episodeId: j['episodeId'] as String?,
+    title: j['title'] as String? ?? '',
+    author: j['author'] as String?,
+    coverUrl: j['coverUrl'] as String?,
+    localCoverPath: j['localCoverPath'] as String?,
+    libraryId: j['libraryId'] as String?,
+    bookDir: j['bookDir'] as String,
+    trackCount: j['trackCount'] as int? ?? 0,
+    expectedPaths: (j['expectedPaths'] as List<dynamic>?)?.map((e) => e as String).toList() ?? const [],
+    slimSessionJson: j['slimSessionJson'] as String?,
+    safTreeUri: j['safTreeUri'] as String?,
+    safSubfolder: j['safSubfolder'] as String?,
+  );
 }
 
 /// Trim the bulky parts of the persisted `libraryItem` while keeping the bits
@@ -281,10 +269,12 @@ class DownloadService extends ChangeNotifier {
   final Map<String, DownloadInfo> _downloads = {};
   final Set<String> _activeDownloadIds = {};
   final Set<String> _cancelledIds = {};
+
   /// SAF tree URI (content://) for the Android custom download folder, or null
   /// to use internal storage. This is the only custom-location mechanism now;
   /// the old raw-path approach (MANAGE_EXTERNAL_STORAGE) is gone.
   String? _customDownloadUri;
+
   /// Downloaded items still pointing at raw external paths from before the SAF
   /// switch. Unreadable without the dropped storage permission, so they're kept
   /// listed for the user to re-download rather than silently deleted.
@@ -312,8 +302,7 @@ class DownloadService extends ChangeNotifier {
   String? get customDownloadUri => _customDownloadUri;
 
   /// Items left pointing at unreadable raw external paths from before SAF.
-  List<DownloadInfo> get legacyExternalDownloads =>
-      _legacyExternalIds.map((id) => _downloads[id]).whereType<DownloadInfo>().toList();
+  List<DownloadInfo> get legacyExternalDownloads => _legacyExternalIds.map((id) => _downloads[id]).whereType<DownloadInfo>().toList();
 
   /// Get the effective default (non-custom) download base directory.
   ///
@@ -364,8 +353,7 @@ class DownloadService extends ChangeNotifier {
   String _friendlySafLabel(String uriString) {
     try {
       final uri = Uri.parse(uriString);
-      var docId =
-          uri.pathSegments.isNotEmpty ? uri.pathSegments.last : uriString;
+      var docId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : uriString;
       docId = Uri.decodeComponent(docId);
       final colon = docId.indexOf(':');
       final rel = colon >= 0 ? docId.substring(colon + 1) : docId;
@@ -426,10 +414,7 @@ class DownloadService extends ChangeNotifier {
   Future<void> _excludeFromBackup(String path) async {
     if (!Platform.isIOS) return;
     try {
-      await _widgetChannel.invokeMethod<bool>(
-        'excludeFromBackup',
-        {'path': path},
-      );
+      await _widgetChannel.invokeMethod<bool>('excludeFromBackup', {'path': path});
     } catch (e) {
       debugPrint('[Download] excludeFromBackup failed for $path: $e');
     }
@@ -469,10 +454,7 @@ class DownloadService extends ChangeNotifier {
     try {
       final result = await _storageChannel.invokeMethod('getDeviceStorage');
       if (result is Map) {
-        return {
-          'totalBytes': (result['totalBytes'] as num).toInt(),
-          'availableBytes': (result['availableBytes'] as num).toInt(),
-        };
+        return {'totalBytes': (result['totalBytes'] as num).toInt(), 'availableBytes': (result['availableBytes'] as num).toInt()};
       }
     } catch (e) {
       debugPrint('[Download] getDeviceStorage error: $e');
@@ -480,11 +462,9 @@ class DownloadService extends ChangeNotifier {
     return null;
   }
 
-  DownloadInfo getInfo(String itemId) =>
-      _downloads[itemId] ?? DownloadInfo(itemId: itemId);
+  DownloadInfo getInfo(String itemId) => _downloads[itemId] ?? DownloadInfo(itemId: itemId);
 
-  bool isDownloaded(String itemId) =>
-      _downloads[itemId]?.status == DownloadStatus.downloaded;
+  bool isDownloaded(String itemId) => _downloads[itemId]?.status == DownloadStatus.downloaded;
 
   /// Registers an ebook-only book as a completed download so it shows in the
   /// offline library and its detail sheet loads offline. There's no audio, so
@@ -492,12 +472,7 @@ class DownloadService extends ChangeNotifier {
   /// ebook bytes live in the reader's persistent cache (fetchEbookToCache).
   /// Fetches a full copy of the item so the offline sheet has the cover,
   /// description, and ebookFile - not just the title.
-  Future<void> registerEbookDownload({
-    required ApiService api,
-    required String itemId,
-    Map<String, dynamic>? item,
-    String? libraryId,
-  }) async {
+  Future<void> registerEbookDownload({required ApiService api, required String itemId, Map<String, dynamic>? item, String? libraryId}) async {
     Map<String, dynamic>? fullItem;
     try {
       fullItem = await api.getLibraryItem(itemId);
@@ -509,12 +484,7 @@ class DownloadService extends ChangeNotifier {
     final author = metadata?['authorName'] as String?;
 
     final localCoverPath = await _cacheCover(api, itemId, api.getCoverUrl(itemId, width: 800));
-    final sessionJson = jsonEncode({
-      'libraryItem': stored,
-      'mediaMetadata': metadata,
-      'duration': 0,
-      'chapters': const <dynamic>[],
-    });
+    final sessionJson = jsonEncode({'libraryItem': stored, 'mediaMetadata': metadata, 'duration': 0, 'chapters': const <dynamic>[]});
     _downloads[itemId] = DownloadInfo(
       itemId: itemId,
       status: DownloadStatus.downloaded,
@@ -529,27 +499,18 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool isDownloading(String itemId) =>
-      _downloads[itemId]?.status == DownloadStatus.downloading;
+  bool isDownloading(String itemId) => _downloads[itemId]?.status == DownloadStatus.downloading;
 
-  double downloadProgress(String itemId) =>
-      _downloads[itemId]?.progress ?? 0;
+  double downloadProgress(String itemId) => _downloads[itemId]?.progress ?? 0;
 
   /// Get all downloaded items (for home screen display).
-  List<DownloadInfo> get downloadedItems =>
-      _downloads.values
-          .where((d) => d.status == DownloadStatus.downloaded)
-          .toList();
+  List<DownloadInfo> get downloadedItems => _downloads.values.where((d) => d.status == DownloadStatus.downloaded).toList();
 
   /// Get actively downloading items (in progress right now).
-  List<DownloadInfo> get activeDownloads =>
-      _downloads.values
-          .where((d) => d.status == DownloadStatus.downloading && _activeDownloadIds.contains(d.itemId))
-          .toList();
+  List<DownloadInfo> get activeDownloads => _downloads.values.where((d) => d.status == DownloadStatus.downloading && _activeDownloadIds.contains(d.itemId)).toList();
 
   /// Get queued items (waiting for a download slot).
-  List<DownloadInfo> get queuedDownloads =>
-      _queue.map((q) => _downloads[q.itemId]).whereType<DownloadInfo>().toList();
+  List<DownloadInfo> get queuedDownloads => _queue.map((q) => _downloads[q.itemId]).whereType<DownloadInfo>().toList();
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -565,12 +526,13 @@ class DownloadService extends ChangeNotifier {
       try {
         final map = jsonDecode(json) as Map<String, dynamic>;
         for (final entry in map.entries) {
-          final info =
-              DownloadInfo.fromJson(entry.value as Map<String, dynamic>);
-          debugPrint('[Download] Loaded: ${entry.key} '
-              'title="${info.title}" author="${info.author}" '
-              'cover=${info.coverUrl != null ? "yes" : "null"} '
-              'sessionData=${info.sessionData != null ? "${info.sessionData!.length} chars" : "null"}');
+          final info = DownloadInfo.fromJson(entry.value as Map<String, dynamic>);
+          debugPrint(
+            '[Download] Loaded: ${entry.key} '
+            'title="${info.title}" author="${info.author}" '
+            'cover=${info.coverUrl != null ? "yes" : "null"} '
+            'sessionData=${info.sessionData != null ? "${info.sessionData!.length} chars" : "null"}',
+          );
           if (info.status == DownloadStatus.downloaded) {
             _downloads[entry.key] = info;
           } else {
@@ -619,8 +581,7 @@ class DownloadService extends ChangeNotifier {
 
   void _startReconciler() {
     _reconcileTimer?.cancel();
-    _reconcileTimer = Timer.periodic(
-        const Duration(minutes: 2), (_) => unawaited(_reconcilePending()));
+    _reconcileTimer = Timer.periodic(const Duration(minutes: 2), (_) => unawaited(_reconcilePending()));
   }
 
   /// Reconcile in-flight books against the package task DB. Two jobs:
@@ -672,8 +633,7 @@ class DownloadService extends ChangeNotifier {
         }
       }
       // No progress and no updates for a while: a dead/zombie slot. Fail it.
-      if (p.overallProgress == 0 &&
-          DateTime.now().difference(p.lastUpdate) > const Duration(minutes: 3)) {
+      if (p.overallProgress == 0 && DateTime.now().difference(p.lastUpdate) > const Duration(minutes: 3)) {
         debugPrint('[Download] Reconciler failing stale $itemId (no progress)');
         p.finalizing = true;
         await _failBook(itemId, cause: 'Interrupted download');
@@ -692,8 +652,7 @@ class DownloadService extends ChangeNotifier {
     // throttle or kill, leaving downloads stuck.
     if (Platform.isAndroid) {
       try {
-        await FileDownloader()
-            .configure(androidConfig: [(Config.runInForeground, Config.always)]);
+        await FileDownloader().configure(androidConfig: [(Config.runInForeground, Config.always)]);
       } catch (e) {
         debugPrint('[Download] androidConfig failed: $e');
       }
@@ -704,18 +663,9 @@ class DownloadService extends ChangeNotifier {
     // is valid anywhere. We keep it simple: "Downloading" + a progress bar/%.
     FileDownloader().configureNotificationForGroup(
       _dlGroup,
-      running: TaskNotification(
-        l?.downloadNotifDownloadingTitle ?? 'Downloading',
-        '{progress}',
-      ),
-      complete: TaskNotification(
-        l?.downloadNotifCompleteTitle ?? 'Downloads complete',
-        '',
-      ),
-      error: TaskNotification(
-        l?.downloadNotifFailedTitle ?? 'Download failed',
-        '',
-      ),
+      running: TaskNotification(l?.downloadNotifDownloadingTitle ?? 'Downloading', '{progress}'),
+      complete: TaskNotification(l?.downloadNotifCompleteTitle ?? 'Downloads complete', ''),
+      error: TaskNotification(l?.downloadNotifFailedTitle ?? 'Download failed', ''),
       progressBar: true,
     );
     _downloaderConfigured = true;
@@ -750,22 +700,16 @@ class DownloadService extends ChangeNotifier {
       // Documents). Apply both: each is a no-op for paths it doesn't own.
       final newPaths = <String>[];
       for (final path in info.localPaths) {
-        final remapped =
-            _remapAppGroupPath(_remapIOSPath(path, currentPrefix), groupAudioBase);
+        final remapped = _remapAppGroupPath(_remapIOSPath(path, currentPrefix), groupAudioBase);
         newPaths.add(remapped);
         if (remapped != path) needsUpdate = true;
       }
 
       // Covers always live in Documents, so only that prefix can go stale.
-      final newCoverPath = info.localCoverPath != null
-          ? _remapIOSPath(info.localCoverPath!, currentPrefix)
-          : null;
+      final newCoverPath = info.localCoverPath != null ? _remapIOSPath(info.localCoverPath!, currentPrefix) : null;
       if (newCoverPath != info.localCoverPath) needsUpdate = true;
 
-      final newDirPath = info.localDirPath != null
-          ? _remapAppGroupPath(
-              _remapIOSPath(info.localDirPath!, currentPrefix), groupAudioBase)
-          : null;
+      final newDirPath = info.localDirPath != null ? _remapAppGroupPath(_remapIOSPath(info.localDirPath!, currentPrefix), groupAudioBase) : null;
       if (newDirPath != info.localDirPath) needsUpdate = true;
 
       if (needsUpdate) {
@@ -846,7 +790,9 @@ class DownloadService extends ChangeNotifier {
           // If dest exists already (partial prior run), remove it first.
           final newFile = File(newPath);
           if (newFile.existsSync()) {
-            try { newFile.deleteSync(); } catch (_) {}
+            try {
+              newFile.deleteSync();
+            } catch (_) {}
           }
           await oldFile.rename(newPath);
           await _excludeFromBackup(newPath);
@@ -942,15 +888,7 @@ class DownloadService extends ChangeNotifier {
     await _save();
     notifyListeners();
     final episodeId = itemId.length > 36 ? itemId.substring(37) : null;
-    await downloadItem(
-      api: api,
-      itemId: itemId,
-      title: info.title ?? '',
-      author: info.author,
-      coverUrl: info.coverUrl,
-      episodeId: episodeId,
-      libraryId: info.libraryId,
-    );
+    await downloadItem(api: api, itemId: itemId, title: info.title ?? '', author: info.author, coverUrl: info.coverUrl, episodeId: episodeId, libraryId: info.libraryId);
   }
 
   /// Re-download every flagged legacy external item.
@@ -987,8 +925,7 @@ class DownloadService extends ChangeNotifier {
           // let a real playback failure surface a re-download instead.
           if (isContentUri(path)) continue;
           try {
-            final exists = await File(path).exists()
-                .timeout(const Duration(seconds: 3));
+            final exists = await File(path).exists().timeout(const Duration(seconds: 3));
             if (!exists) {
               allExist = false;
               break;
@@ -1044,9 +981,7 @@ class DownloadService extends ChangeNotifier {
 
       // For podcast episodes, the itemId is a composite "showUUID-episodeId".
       // Extract the library item ID (first 36 chars = UUID) for API calls.
-      final apiItemId = info.itemId.length > 36
-          ? info.itemId.substring(0, 36)
-          : info.itemId;
+      final apiItemId = info.itemId.length > 36 ? info.itemId.substring(0, 36) : info.itemId;
 
       // Enrich missing title/author from server
       if (title == null || title.isEmpty) {
@@ -1085,19 +1020,19 @@ class DownloadService extends ChangeNotifier {
             // Download from server into internal storage
             final url = coverUrl ?? api.getCoverUrl(apiItemId);
             try {
-              final resp = await http.get(Uri.parse(url), headers: api.mediaHeaders)
-                  .timeout(const Duration(seconds: 10));
+              final resp = await http.get(Uri.parse(url), headers: api.mediaHeaders).timeout(const Duration(seconds: 10));
               if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
                 final dir = Directory('$internalBase/${info.itemId}');
                 if (!dir.existsSync()) dir.createSync(recursive: true);
                 final coverFile = File('${dir.path}/cover.jpg');
                 await coverFile.writeAsBytes(resp.bodyBytes);
-                final evicted = PaintingBinding.instance.imageCache
-                    .evict(FileImage(coverFile));
+                final evicted = PaintingBinding.instance.imageCache.evict(FileImage(coverFile));
                 localCoverPath = coverFile.path;
                 needsUpdate = true;
-                debugPrint('[Download] Cached cover for ${info.itemId} '
-                    '(${resp.bodyBytes.length} bytes, evict=$evicted)');
+                debugPrint(
+                  '[Download] Cached cover for ${info.itemId} '
+                  '(${resp.bodyBytes.length} bytes, evict=$evicted)',
+                );
               }
             } catch (e) {
               debugPrint('[Download] Cover cache failed for ${info.itemId}: $e');
@@ -1176,15 +1111,7 @@ class DownloadService extends ChangeNotifier {
 
   /// Returns null on success, error message string on failure.
   /// For podcast episodes, pass [episodeId] so the correct API endpoint is used.
-  Future<String?> downloadItem({
-    required ApiService api,
-    required String itemId,
-    required String title,
-    String? author,
-    String? coverUrl,
-    String? episodeId,
-    String? libraryId,
-  }) async {
+  Future<String?> downloadItem({required ApiService api, required String itemId, required String title, String? author, String? coverUrl, String? episodeId, String? libraryId}) async {
     if (_activeDownloadIds.contains(itemId)) return null;
     if (isDownloaded(itemId)) return null;
     // Already queued — don't duplicate
@@ -1204,38 +1131,14 @@ class DownloadService extends ChangeNotifier {
     // If at capacity, queue this one
     if (_activeDownloadIds.length >= maxConcurrent) {
       debugPrint('[Download] Queued "$title" ($itemId); slots ${_activeDownloadIds.length}/$maxConcurrent full, ${_queue.length} waiting');
-      _queue.add(_QueuedDownload(
-        api: api,
-        itemId: itemId,
-        title: title,
-        author: author,
-        coverUrl: coverUrl,
-        episodeId: episodeId,
-        libraryId: libraryId,
-      ));
-      _downloads[itemId] = DownloadInfo(
-        itemId: itemId,
-        status: DownloadStatus.downloading,
-        progress: 0,
-        title: title,
-        author: author,
-        coverUrl: coverUrl,
-        libraryId: libraryId,
-      );
+      _queue.add(_QueuedDownload(api: api, itemId: itemId, title: title, author: author, coverUrl: coverUrl, episodeId: episodeId, libraryId: libraryId));
+      _downloads[itemId] = DownloadInfo(itemId: itemId, status: DownloadStatus.downloading, progress: 0, title: title, author: author, coverUrl: coverUrl, libraryId: libraryId);
       notifyListeners();
       return null;
     }
 
     // Launch immediately (fire-and-forget so caller doesn't block)
-    unawaited(_executeDownload(
-      api: api,
-      itemId: itemId,
-      title: title,
-      author: author,
-      coverUrl: coverUrl,
-      episodeId: episodeId,
-      libraryId: libraryId,
-    ));
+    unawaited(_executeDownload(api: api, itemId: itemId, title: title, author: author, coverUrl: coverUrl, episodeId: episodeId, libraryId: libraryId));
     return null;
   }
 
@@ -1247,28 +1150,18 @@ class DownloadService extends ChangeNotifier {
       // Skip if cancelled/removed while waiting
       if (isDownloaded(next.itemId)) continue;
       if (_activeDownloadIds.contains(next.itemId)) continue;
-      unawaited(_executeDownload(
-        api: next.api, itemId: next.itemId, title: next.title,
-        author: next.author, coverUrl: next.coverUrl, episodeId: next.episodeId,
-        libraryId: next.libraryId,
-      ));
+      unawaited(_executeDownload(api: next.api, itemId: next.itemId, title: next.title, author: next.author, coverUrl: next.coverUrl, episodeId: next.episodeId, libraryId: next.libraryId));
     }
   }
 
   static String _taskId(String itemId, int trackIndex) => '$itemId::$trackIndex';
 
   /// Statuses from which a task will never progress further.
-  static const Set<TaskStatus> _terminal = {
-    TaskStatus.complete,
-    TaskStatus.failed,
-    TaskStatus.notFound,
-    TaskStatus.canceled,
-  };
+  static const Set<TaskStatus> _terminal = {TaskStatus.complete, TaskStatus.failed, TaskStatus.notFound, TaskStatus.canceled};
 
   /// Best-effort download of a book's ebook into the persistent reader cache so
   /// it reads offline. Swallows errors - the audio download is what matters.
-  Future<void> _cacheEbookForOffline(
-      ApiService api, String itemId, Map<String, dynamic> ebookFile, String title) async {
+  Future<void> _cacheEbookForOffline(ApiService api, String itemId, Map<String, dynamic> ebookFile, String title) async {
     try {
       await fetchEbookToCache(api, itemId, ebookFile, title);
       debugPrint('[Download] cached ebook for offline: $itemId');
@@ -1281,50 +1174,28 @@ class DownloadService extends ChangeNotifier {
   /// Returns once the tasks are handed to `background_downloader`; progress and
   /// completion are driven asynchronously by [_onTaskUpdate] / [_finalizeSuccess]
   /// (which also fire after an app relaunch).
-  Future<void> _executeDownload({
-    required ApiService api,
-    required String itemId,
-    required String title,
-    String? author,
-    String? coverUrl,
-    String? episodeId,
-    String? libraryId,
-  }) async {
+  Future<void> _executeDownload({required ApiService api, required String itemId, required String title, String? author, String? coverUrl, String? episodeId, String? libraryId}) async {
     _activeDownloadIds.add(itemId);
     _cancelledIds.remove(itemId);
     debugPrint('[Download] Starting "$title" ($itemId)');
 
-    _downloads[itemId] = DownloadInfo(
-      itemId: itemId,
-      status: DownloadStatus.downloading,
-      progress: 0,
-      title: title,
-      author: author,
-      coverUrl: coverUrl,
-      libraryId: libraryId,
-    );
+    _downloads[itemId] = DownloadInfo(itemId: itemId, status: DownloadStatus.downloading, progress: 0, title: title, author: author, coverUrl: coverUrl, libraryId: libraryId);
     notifyListeners();
 
     // SAF custom folder (Android only): files go to a flat per-book folder
     // under the user-granted tree via content URIs, no storage permission.
-    final useSaf = Platform.isAndroid &&
-        _customDownloadUri != null &&
-        _customDownloadUri!.isNotEmpty;
+    final useSaf = Platform.isAndroid && _customDownloadUri != null && _customDownloadUri!.isNotEmpty;
     String? bookDirRef; // filesystem path or content:// URI, for cleanup
     Directory? bookDir; // filesystem branches only
     try {
       // For episodes, itemId is a composite key like 'podcastId-episodeId'.
       // Extract the real library item ID for the API call.
-      final apiItemId = episodeId != null
-          ? itemId.substring(0, itemId.length - episodeId.length - 1)
-          : itemId;
+      final apiItemId = episodeId != null ? itemId.substring(0, itemId.length - episodeId.length - 1) : itemId;
 
       // The playback session is only for METADATA (durations/chapters) needed by
       // offline seeking. We do NOT download from its session-scoped contentUrls
       // (they die when the session closes); we use durable /file/:ino URLs.
-      final sessionData = episodeId != null
-          ? await api.startEpisodePlaybackSession(apiItemId, episodeId)
-          : await api.startPlaybackSession(apiItemId);
+      final sessionData = episodeId != null ? await api.startEpisodePlaybackSession(apiItemId, episodeId) : await api.startPlaybackSession(apiItemId);
       if (sessionData == null) throw Exception('Failed to start session');
 
       final audioTracks = sessionData['audioTracks'] as List<dynamic>?;
@@ -1337,8 +1208,7 @@ class DownloadService extends ChangeNotifier {
       // Pull the companion ebook into the offline cache too, so a downloaded
       // book is fully readable offline. Fire-and-forget - never blocks or fails
       // the audio download.
-      final ebookFile = ((sessionData['libraryItem'] as Map<String, dynamic>?)?['media']
-          as Map<String, dynamic>?)?['ebookFile'] as Map<String, dynamic>?;
+      final ebookFile = ((sessionData['libraryItem'] as Map<String, dynamic>?)?['media'] as Map<String, dynamic>?)?['ebookFile'] as Map<String, dynamic>?;
       if (ebookFile != null) {
         unawaited(_cacheEbookForOffline(api, apiItemId, ebookFile, title));
       }
@@ -1348,9 +1218,7 @@ class DownloadService extends ChangeNotifier {
       // moved into the user's chosen folder under "Author/Title" on completion
       // (a direct SAF write can't nest subfolders). iOS downloads into the app
       // group container.
-      final nestedName = (author != null && author.isNotEmpty)
-          ? '${_sanitizePath(author)}/${_sanitizePath(title)}'
-          : _sanitizePath(title);
+      final nestedName = (author != null && author.isNotEmpty) ? '${_sanitizePath(author)}/${_sanitizePath(title)}' : _sanitizePath(title);
       String? relDir; // Android: relative to applicationDocuments
       if (Platform.isIOS) {
         final basePath = await downloadBasePath;
@@ -1443,15 +1311,13 @@ class DownloadService extends ChangeNotifier {
       }
       debugPrint('[Download] Enqueued ${files.length} task(s) for "$title"');
     } catch (e) {
-      await _failBook(itemId,
-          cause: e, bookDirRef: bookDirRef, title: title, author: author, coverUrl: coverUrl);
+      await _failBook(itemId, cause: e, bookDirRef: bookDirRef, title: title, author: author, coverUrl: coverUrl);
     }
   }
 
   /// Map each playback track to a durable, session-independent file URL using
   /// the library item's audioFiles[].ino. Index-aligned with [audioTracks].
-  Future<List<({String url, String filename})>> _resolveDurableFiles(
-      ApiService api, String apiItemId, String? episodeId, List<dynamic> audioTracks) async {
+  Future<List<({String url, String filename})>> _resolveDurableFiles(ApiService api, String apiItemId, String? episodeId, List<dynamic> audioTracks) async {
     final item = await api.getLibraryItem(apiItemId);
     if (item == null) throw Exception('Failed to load item details');
     final media = item['media'] as Map<String, dynamic>? ?? {};
@@ -1461,20 +1327,19 @@ class DownloadService extends ChangeNotifier {
       final episodes = (media['episodes'] as List<dynamic>?) ?? const [];
       Map<String, dynamic>? ep;
       for (final e in episodes) {
-        if (e is Map<String, dynamic> && e['id'] == episodeId) { ep = e; break; }
+        if (e is Map<String, dynamic> && e['id'] == episodeId) {
+          ep = e;
+          break;
+        }
       }
       final af = ep?['audioFile'] as Map<String, dynamic>?;
       audioFiles = af != null ? [af] : const [];
     } else {
-      audioFiles = ((media['audioFiles'] as List<dynamic>?) ?? const [])
-          .whereType<Map<String, dynamic>>()
-          .toList()
-        ..sort((a, b) => ((a['index'] as num?) ?? 0).compareTo((b['index'] as num?) ?? 0));
+      audioFiles = ((media['audioFiles'] as List<dynamic>?) ?? const []).whereType<Map<String, dynamic>>().toList()..sort((a, b) => ((a['index'] as num?) ?? 0).compareTo((b['index'] as num?) ?? 0));
     }
 
     if (audioFiles.length < audioTracks.length) {
-      throw Exception(
-          'Audio file mismatch (${audioFiles.length} files vs ${audioTracks.length} tracks)');
+      throw Exception('Audio file mismatch (${audioFiles.length} files vs ${audioTracks.length} tracks)');
     }
 
     final out = <({String url, String filename})>[];
@@ -1501,17 +1366,16 @@ class DownloadService extends ChangeNotifier {
       if (originalName.contains('?')) originalName = originalName.split('?').first;
     }
     if (originalName.isNotEmpty && originalName.contains('.')) {
-      return _sanitizePath(originalName.replaceAll(RegExp(r'\.[^.]+$'), '')) +
-          originalName.substring(originalName.lastIndexOf('.'));
+      return _sanitizePath(originalName.replaceAll(RegExp(r'\.[^.]+$'), '')) + originalName.substring(originalName.lastIndexOf('.'));
     }
     final mimeType = track['mimeType'] as String? ?? 'audio/mpeg';
     final ext = mimeType.contains('mp4')
         ? 'm4a'
         : mimeType.contains('flac')
-            ? 'flac'
-            : mimeType.contains('ogg')
-                ? 'ogg'
-                : 'mp3';
+        ? 'flac'
+        : mimeType.contains('ogg')
+        ? 'ogg'
+        : 'mp3';
     return 'track_${i.toString().padLeft(3, '0')}.$ext';
   }
 
@@ -1520,8 +1384,7 @@ class DownloadService extends ChangeNotifier {
   Future<String?> _cacheCover(ApiService api, String itemId, String? coverUrl) async {
     if (coverUrl == null || coverUrl.isEmpty) return null;
     try {
-      final coverResp = await http.get(Uri.parse(coverUrl), headers: api.mediaHeaders)
-          .timeout(const Duration(seconds: 10));
+      final coverResp = await http.get(Uri.parse(coverUrl), headers: api.mediaHeaders).timeout(const Duration(seconds: 10));
       if (coverResp.statusCode == 200 && coverResp.bodyBytes.isNotEmpty) {
         final internalBase = await _internalBasePath;
         final coverDir = Directory('$internalBase/$itemId');
@@ -1569,15 +1432,16 @@ class DownloadService extends ChangeNotifier {
       }
     } else if (update is TaskStatusUpdate) {
       p.trackStatus[i] = update.status;
-      debugPrint('[Download] task $itemId #$i status=${update.status.name}'
-          '${update.exception != null ? ' ex=${update.exception}' : ''}'
-          '${update.responseStatusCode != null ? ' code=${update.responseStatusCode}' : ''}');
+      debugPrint(
+        '[Download] task $itemId #$i status=${update.status.name}'
+        '${update.exception != null ? ' ex=${update.exception}' : ''}'
+        '${update.responseStatusCode != null ? ' code=${update.responseStatusCode}' : ''}',
+      );
       if (update.status == TaskStatus.complete) p.trackProgress[i] = 1.0;
 
       // A hard failure aborts the whole book: cancel the remaining siblings so
       // it doesn't hang waiting on tracks that will never finish.
-      if ((update.status == TaskStatus.failed || update.status == TaskStatus.notFound) &&
-          !p.cancelled && !p.failing) {
+      if ((update.status == TaskStatus.failed || update.status == TaskStatus.notFound) && !p.cancelled && !p.failing) {
         p.failing = true;
         p.failException = update.exception;
         p.failCode = update.responseStatusCode;
@@ -1591,15 +1455,7 @@ class DownloadService extends ChangeNotifier {
     final now = DateTime.now();
     if (now.difference(p.lastUi).inMilliseconds < 250) return;
     p.lastUi = now;
-    _downloads[itemId] = DownloadInfo(
-      itemId: itemId,
-      status: DownloadStatus.downloading,
-      progress: p.overallProgress,
-      title: p.title,
-      author: p.author,
-      coverUrl: p.coverUrl,
-      libraryId: p.libraryId,
-    );
+    _downloads[itemId] = DownloadInfo(itemId: itemId, status: DownloadStatus.downloading, progress: p.overallProgress, title: p.title, author: p.author, coverUrl: p.coverUrl, libraryId: p.libraryId);
     notifyListeners();
   }
 
@@ -1624,15 +1480,9 @@ class DownloadService extends ChangeNotifier {
   /// [subfolder] (e.g. "Author/Title"), via the native DocumentFile helper.
   /// Returns the created folder URI and the per-file content URIs, or null if
   /// the move failed.
-  Future<({String dirUri, List<String> fileUris})?> _moveBookToSaf(
-      String treeUri, String subfolder, List<String> filenames, List<String> tempPaths) async {
+  Future<({String dirUri, List<String> fileUris})?> _moveBookToSaf(String treeUri, String subfolder, List<String> filenames, List<String> tempPaths) async {
     try {
-      final res = await _storageChannel.invokeMethod<Map>('moveBookToSaf', {
-        'treeUri': treeUri,
-        'subfolder': subfolder,
-        'filenames': filenames,
-        'tempPaths': tempPaths,
-      });
+      final res = await _storageChannel.invokeMethod<Map>('moveBookToSaf', {'treeUri': treeUri, 'subfolder': subfolder, 'filenames': filenames, 'tempPaths': tempPaths});
       final dirUri = res?['dirUri'] as String?;
       final fileUris = (res?['fileUris'] as List?)?.map((e) => e as String).toList();
       if (dirUri == null || fileUris == null || fileUris.length != filenames.length) {
@@ -1652,8 +1502,10 @@ class DownloadService extends ChangeNotifier {
     // Files always land in internal storage first.
     final localPaths = p.expectedPaths.where((path) => File(path).existsSync()).toList();
     if (localPaths.length != p.trackCount) {
-      debugPrint('[Download] Finalize "$itemId": only ${localPaths.length}/${p.trackCount} '
-          'files present, treating as failure');
+      debugPrint(
+        '[Download] Finalize "$itemId": only ${localPaths.length}/${p.trackCount} '
+        'files present, treating as failure',
+      );
       p.finalizing = false; // let _failBook proceed
       await _failBook(itemId, cause: 'Missing files after download');
       return;
@@ -1667,8 +1519,7 @@ class DownloadService extends ChangeNotifier {
     // fails the book stays usable from its internal copy.
     if (p.isSaf) {
       final filenames = [for (final path in localPaths) path.split('/').last];
-      final moved = await _moveBookToSaf(
-          p.safTreeUri!, p.safSubfolder ?? '', filenames, localPaths);
+      final moved = await _moveBookToSaf(p.safTreeUri!, p.safSubfolder ?? '', filenames, localPaths);
       if (moved != null) {
         finalPaths = moved.fileUris;
         finalDirPath = moved.dirUri;
@@ -1705,7 +1556,7 @@ class DownloadService extends ChangeNotifier {
     // live position, so it's safe even when this fires from a background update.
     try {
       final player = AudioPlayerService();
-      if (player.currentItemId == itemId && player.hasBook) {
+      if (player.currentProgressKey == itemId && player.hasBook) {
         await player.switchToLocal(itemId);
       }
     } catch (_) {}
@@ -1714,16 +1565,7 @@ class DownloadService extends ChangeNotifier {
     unawaited(_processQueue());
   }
 
-  Future<void> _failBook(
-    String itemId, {
-    Object? cause,
-    TaskException? taskException,
-    int? responseCode,
-    String? title,
-    String? author,
-    String? coverUrl,
-    String? bookDirRef,
-  }) async {
+  Future<void> _failBook(String itemId, {Object? cause, TaskException? taskException, int? responseCode, String? title, String? author, String? coverUrl, String? bookDirRef}) async {
     final p = _pending[itemId];
     if (p != null) {
       if (p.finalizing) return;
@@ -1738,13 +1580,7 @@ class DownloadService extends ChangeNotifier {
     await _cleanupBookDir(dir);
 
     final msg = _mapError(cause, taskException, responseCode);
-    _downloads[itemId] = DownloadInfo(
-      itemId: itemId,
-      status: DownloadStatus.error,
-      title: t,
-      author: a,
-      coverUrl: c,
-    );
+    _downloads[itemId] = DownloadInfo(itemId: itemId, status: DownloadStatus.error, title: t, author: a, coverUrl: c);
     _activeDownloadIds.remove(itemId);
     _pending.remove(itemId);
     await _persistPending();
@@ -1836,15 +1672,7 @@ class DownloadService extends ChangeNotifier {
         final p = _PendingBook.fromJson(e.value as Map<String, dynamic>);
         _pending[e.key] = p;
         _activeDownloadIds.add(e.key);
-        _downloads[e.key] = DownloadInfo(
-          itemId: e.key,
-          status: DownloadStatus.downloading,
-          progress: 0,
-          title: p.title,
-          author: p.author,
-          coverUrl: p.coverUrl,
-          libraryId: p.libraryId,
-        );
+        _downloads[e.key] = DownloadInfo(itemId: e.key, status: DownloadStatus.downloading, progress: 0, title: p.title, author: p.author, coverUrl: p.coverUrl, libraryId: p.libraryId);
       }
     } catch (e) {
       debugPrint('[Download] loadPending error: $e');
@@ -1872,9 +1700,7 @@ class DownloadService extends ChangeNotifier {
       if (p == null) continue;
       final i = meta.$2;
       p.trackStatus[i] = r.status;
-      p.trackProgress[i] = r.status == TaskStatus.complete
-          ? 1.0
-          : (r.progress >= 0 && r.progress <= 1 ? r.progress : 0.0);
+      p.trackProgress[i] = r.status == TaskStatus.complete ? 1.0 : (r.progress >= 0 && r.progress <= 1 ? r.progress : 0.0);
       (tracked[meta.$1] ??= {}).add(i);
     }
 
@@ -1920,8 +1746,7 @@ class DownloadService extends ChangeNotifier {
     // Stop playback if this item is currently playing to avoid crashes
     if (!skipStopCheck) {
       final player = AudioPlayerService();
-      if (player.currentItemId == itemId ||
-          (itemId.length > 36 && player.currentItemId == itemId.substring(0, 36))) {
+      if (player.currentItemId == itemId || (itemId.length > 36 && player.currentItemId == itemId.substring(0, 36))) {
         await player.stop();
       }
     }
@@ -1966,8 +1791,7 @@ class DownloadService extends ChangeNotifier {
       final coverFile = File('$internalBase/$itemId/cover.jpg');
       // FileImage caches by path; evict so a re-download at the same path renders fresh.
       if (coverFile.existsSync()) {
-        final evicted = PaintingBinding.instance.imageCache
-            .evict(FileImage(coverFile));
+        final evicted = PaintingBinding.instance.imageCache.evict(FileImage(coverFile));
         debugPrint('[Download] evict cover ${coverFile.path} -> $evicted');
       }
       if (coverDir.existsSync()) coverDir.deleteSync(recursive: true);

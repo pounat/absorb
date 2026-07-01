@@ -62,7 +62,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     PlayerSettings.setDefaultSpeed(s);
   }
 
+  Widget _settingsSlider({
+    required String label,
+    required String valueLabel,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required ValueChanged<double> onChanged,
+    required ValueChanged<double> onChangeEnd,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      child: Column(children: [
+        Row(children: [
+          Expanded(child: Text(label, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant))),
+          Text(valueLabel, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+        ]),
+        AbsorbSlider(
+          value: value, min: min, max: max, divisions: divisions,
+          activeColor: cs.primary,
+          onChanged: _loaded ? onChanged : null,
+          onChangeEnd: _loaded ? onChangeEnd : null,
+        ),
+      ]),
+    );
+  }
+
   bool _wifiOnlyDownloads = false;
+  IosSmartSkipSettings _iosSmartSkipSettings = IosSmartSkipSettings.defaults;
   bool _autoDownloadOnStream = false;
   int _rollingDownloadCount = 3;
   bool _rollingDownloadDeleteFinished = false;
@@ -199,11 +229,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final bookMode = await PlayerSettings.getBookQueueMode();
     final podMode = await PlayerSettings.getPodcastQueueMode();
     final qpId = await PlayerSettings.getQueuePlaylistId();
+    final iosSmartSkipSettings = Platform.isIOS ? await IosSmartSkipSettings.load() : IosSmartSkipSettings.defaults;
     if (mounted) {
       setState(() {
         _bookQueueMode = bookMode;
         _podcastQueueMode = podMode;
         _queuePlaylistId = qpId;
+        _iosSmartSkipSettings = iosSmartSkipSettings;
       });
     }
   }
@@ -707,10 +739,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final sleepRewind = await PlayerSettings.getSleepRewindSeconds();
     final lockPortrait = await PlayerSettings.getLockPortrait();
     final autoSeriesDownload = await PlayerSettings.getAutoSeriesDownloadDefault();
+    final iosSmartSkipSettings = Platform.isIOS ? await IosSmartSkipSettings.load() : IosSmartSkipSettings.defaults;
     if (mounted) setState(() {
       _sleepRewindSeconds = sleepRewind;
       _lockPortrait = lockPortrait;
       _autoSeriesDownloadDefault = autoSeriesDownload;
+      _iosSmartSkipSettings = iosSmartSkipSettings;
       _rmabBaseUrl = rmabBaseUrl;
       _rmabApiToken = rmabApiToken;
       _rewindSettings = s;
@@ -1930,6 +1964,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         PlayerSettings.setSkipChapterBarrier(v);
                       } : null,
                     ),
+                    if (Platform.isIOS) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
+                        child: Row(children: [
+                          Icon(Icons.bolt_rounded, size: 19, color: cs.primary),
+                          const SizedBox(width: 10),
+                          Text(l.iosSmartSkipSettings, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Text(l.iosSmartSkipSettingsSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      ),
+                      _settingsSlider(
+                        label: l.smartSkipSilenceThreshold,
+                        valueLabel: '${_iosSmartSkipSettings.thresholdDb.round()} dBFS',
+                        value: _iosSmartSkipSettings.thresholdDb,
+                        min: -60, max: -25, divisions: 35,
+                        onChanged: (v) => setState(() =>
+                          _iosSmartSkipSettings = _iosSmartSkipSettings.copyWith(thresholdDb: v.roundToDouble())),
+                        onChangeEnd: (_) => _iosSmartSkipSettings.save(),
+                      ),
+                      _settingsSlider(
+                        label: l.smartSkipMinimumSilence,
+                        valueLabel: '${_iosSmartSkipSettings.minimumSilenceMs} ms',
+                        value: _iosSmartSkipSettings.minimumSilenceMs.toDouble(),
+                        min: 100, max: 1000, divisions: 18,
+                        onChanged: (v) => setState(() =>
+                          _iosSmartSkipSettings = _iosSmartSkipSettings.copyWith(minimumSilenceMs: v.round())),
+                        onChangeEnd: (_) => _iosSmartSkipSettings.save(),
+                      ),
+                      _settingsSlider(
+                        label: l.smartSkipEdgePadding,
+                        valueLabel: '${_iosSmartSkipSettings.guardMs} ms',
+                        value: _iosSmartSkipSettings.guardMs.toDouble(),
+                        min: 0,
+                        max: (_iosSmartSkipSettings.minimumSilenceMs ~/ 2 - 10).clamp(10, 200).toDouble(),
+                        divisions: (_iosSmartSkipSettings.minimumSilenceMs ~/ 2 - 10).clamp(10, 200) ~/ 10,
+                        onChanged: (v) => setState(() =>
+                          _iosSmartSkipSettings = _iosSmartSkipSettings.copyWith(guardMs: (v / 10).round() * 10)),
+                        onChangeEnd: (_) => _iosSmartSkipSettings.save(),
+                      ),
+                      _settingsSlider(
+                        label: l.smartSkipMergeGap,
+                        valueLabel: '${_iosSmartSkipSettings.mergeGapMs} ms',
+                        value: _iosSmartSkipSettings.mergeGapMs.toDouble(),
+                        min: 0, max: 300, divisions: 15,
+                        onChanged: (v) => setState(() =>
+                          _iosSmartSkipSettings = _iosSmartSkipSettings.copyWith(mergeGapMs: v.round())),
+                        onChangeEnd: (_) => _iosSmartSkipSettings.save(),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: _loaded ? () async {
+                              const defaults = IosSmartSkipSettings.defaults;
+                              setState(() => _iosSmartSkipSettings = defaults);
+                              await defaults.save();
+                              if (mounted) showOverlayToast(context, l.smartSkipSettingsReset, icon: Icons.restart_alt_rounded);
+                            } : null,
+                            icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                            label: Text(l.resetSmartSkipSettings),
+                          ),
+                        ),
+                      ),
+                    ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     // ── Auto-Rewind ──
                     SwitchListTile(

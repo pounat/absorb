@@ -2732,6 +2732,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skipSilence => 'Skip Silence';
 
   @override
+  String get smartSkip => 'Smart-Skip';
+
+  @override
+  String smartSkipBaseSpeed(String speed) {
+    return 'Base ${speed}x';
+  }
+
+  @override
+  String get smartSkipCastingDisabled => 'Unavailable while casting';
+
+  @override
+  String get smartSkipUnavailable => 'Unavailable for this episode';
+
+  @override
+  String get iosSmartSkipSettings => 'Smart-Skip detection';
+
+  @override
+  String get iosSmartSkipSettingsSubtitle =>
+      'Fine-tune silence detection for podcast playback on this iPhone or iPad.';
+
+  @override
+  String get smartSkipSilenceThreshold => 'Silence threshold';
+
+  @override
+  String get smartSkipMinimumSilence => 'Minimum silence';
+
+  @override
+  String get smartSkipEdgePadding => 'Keep at each edge';
+
+  @override
+  String get smartSkipMergeGap => 'Merge short gaps';
+
+  @override
+  String get resetSmartSkipSettings => 'Reset Smart-Skip';
+
+  @override
+  String get smartSkipSettingsReset => 'Smart-Skip settings reset';
+
+  @override
   String get resetAll => '全部重置';
 
   @override

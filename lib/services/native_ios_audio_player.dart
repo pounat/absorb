@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'scoped_prefs.dart';
+import 'smart_skip_jump.dart';
 
 /// Native iOS audio engine wrapper. Mimics enough of just_audio's
 /// `AudioPlayer` surface that AudioPlayerHandler treats it as a drop-in.
@@ -31,6 +32,11 @@ class NativeIosAudioPlayer {
   ja.ProcessingState _processingState = ja.ProcessingState.idle;
   double _speed = 1.0;
   double _volume = 1.0;
+  bool _smartSkipEnabled = false;
+  double _smartSkipThresholdDb = -38;
+  int _smartSkipMinimumSilenceMs = 250;
+  int _smartSkipMergeGapMs = 120;
+  int _smartSkipGuardMs = 40;
   int? _currentIndex;
   DateTime _updateTime = DateTime.now();
 
@@ -46,6 +52,8 @@ class NativeIosAudioPlayer {
   // Notified by AudioPlayerHandler-style consumers when the engine auto-advances
   // mid-book to the pre-buffered next book.
   final _bookAutoAdvancedController = StreamController<void>.broadcast();
+  final _smartSkipJumpController = StreamController<SmartSkipJump>.broadcast();
+  final _smartSkipAvailabilityController = StreamController<bool>.broadcast();
 
   Stream<Duration> get positionStream => _positionController.stream;
   Stream<Duration?> get durationStream => _durationController.stream;
@@ -59,6 +67,8 @@ class NativeIosAudioPlayer {
   /// AudioPlayerService listens to this instead of inferring from position
   /// jumps + completion races.
   Stream<void> get bookAutoAdvancedStream => _bookAutoAdvancedController.stream;
+  Stream<SmartSkipJump> get smartSkipJumpStream => _smartSkipJumpController.stream;
+  Stream<bool> get smartSkipAvailabilityStream => _smartSkipAvailabilityController.stream;
 
   Duration get position => _position;
   Duration? get duration => _duration;
@@ -78,12 +88,7 @@ class NativeIosAudioPlayer {
 
   // ─── Source loading ───
 
-  Future<Duration?> setAudioSource(ja.AudioSource source, {
-    Duration? initialPosition,
-    int? initialIndex,
-    bool preload = true,
-    String? itemId,
-  }) async {
+  Future<Duration?> setAudioSource(ja.AudioSource source, {Duration? initialPosition, int? initialIndex, bool preload = true, String? itemId}) async {
     final tracks = _flattenSource(source);
     if (tracks.isEmpty) return null;
 
@@ -97,6 +102,8 @@ class NativeIosAudioPlayer {
       'speed': _speed,
       'volume': _volume,
       'eqEnabled': eqEnabled,
+      'smartSkipEnabled': _smartSkipEnabled,
+      ..._smartSkipConfigurationMap,
       // Lets AbsorbPlayerCore recognise this book on a widget-driven resume so
       // it adopts the live engine instead of starting a duplicate stream.
       if (itemId != null) 'itemId': itemId,
@@ -155,10 +162,7 @@ class NativeIosAudioPlayer {
     // `index` is the track within a multi-file book. The engine seeks to the
     // track-local position `s` inside that track; AudioPlayerService has
     // already converted the absolute book position into (index, local offset).
-    await _methodChannel.invokeMethod<bool>('seek', {
-      'positionS': s,
-      if (index != null) 'index': index,
-    });
+    await _methodChannel.invokeMethod<bool>('seek', {'positionS': s, if (index != null) 'index': index});
     _position = position ?? Duration.zero;
     if (index != null) _currentIndex = index;
     _updateTime = DateTime.now();
@@ -180,6 +184,30 @@ class NativeIosAudioPlayer {
   /// No-op on iOS; just_audio's iOS plugin doesn't support skip-silence either.
   Future<void> setSkipSilenceEnabled(bool enabled) async {}
 
+  Future<void> setSmartSkipEnabled(bool enabled) async {
+    if (_smartSkipEnabled == enabled) return;
+    _smartSkipEnabled = enabled;
+    await _methodChannel.invokeMethod('setSmartSkipEnabled', {'enabled': enabled});
+  }
+
+  Map<String, Object> get _smartSkipConfigurationMap => {
+    'smartSkipThresholdDb': _smartSkipThresholdDb,
+    'smartSkipMinimumSilenceMs': _smartSkipMinimumSilenceMs,
+    'smartSkipMergeGapMs': _smartSkipMergeGapMs,
+    'smartSkipGuardMs': _smartSkipGuardMs,
+  };
+
+  Future<void> setSmartSkipConfiguration({required double thresholdDb, required int minimumSilenceMs, required int mergeGapMs, required int guardMs}) async {
+    if (_smartSkipThresholdDb == thresholdDb && _smartSkipMinimumSilenceMs == minimumSilenceMs && _smartSkipMergeGapMs == mergeGapMs && _smartSkipGuardMs == guardMs) {
+      return;
+    }
+    _smartSkipThresholdDb = thresholdDb;
+    _smartSkipMinimumSilenceMs = minimumSilenceMs;
+    _smartSkipMergeGapMs = mergeGapMs;
+    _smartSkipGuardMs = guardMs;
+    await _methodChannel.invokeMethod('setSmartSkipConfiguration', _smartSkipConfigurationMap);
+  }
+
   /// Sleep timer chime uses ja.AudioPlayer.setAsset directly; this wrapper
   /// should never be the chime player. Throw to surface misuse early.
   Future<Duration?> setAsset(String asset) async {
@@ -192,8 +220,7 @@ class NativeIosAudioPlayer {
   /// null on failure.
   Future<NativeEngineState?> engineState() async {
     try {
-      final raw = await _methodChannel
-          .invokeMethod<Map<dynamic, dynamic>>('engineState');
+      final raw = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('engineState');
       if (raw == null) return null;
       return NativeEngineState(
         itemId: raw['itemId'] as String?,
@@ -241,6 +268,8 @@ class NativeIosAudioPlayer {
     await _playbackEventController.close();
     await _currentIndexController.close();
     await _bookAutoAdvancedController.close();
+    await _smartSkipJumpController.close();
+    await _smartSkipAvailabilityController.close();
   }
 
   // ─── Event channel handler ───
@@ -285,6 +314,16 @@ class NativeIosAudioPlayer {
       case 'bookAutoAdvanced':
         _bookAutoAdvancedController.add(null);
         break;
+      case 'smartSkipJump':
+        final fromSeconds = (raw['fromS'] as num?)?.toDouble();
+        final toSeconds = (raw['toS'] as num?)?.toDouble();
+        if (fromSeconds != null && toSeconds != null && fromSeconds.isFinite && toSeconds.isFinite && toSeconds > fromSeconds) {
+          _smartSkipJumpController.add(SmartSkipJump(fromSeconds: fromSeconds, toSeconds: toSeconds));
+        }
+        break;
+      case 'smartSkipAvailable':
+        _smartSkipAvailabilityController.add((raw['available'] as bool?) ?? false);
+        break;
       case 'bufferedPosition':
         final s = (raw['bufferedPositionS'] as num?)?.toDouble() ?? 0;
         _bufferedPosition = Duration(milliseconds: (s * 1000).round());
@@ -300,12 +339,18 @@ class NativeIosAudioPlayer {
 
   ja.ProcessingState _mapProcessingState(int raw) {
     switch (raw) {
-      case 0: return ja.ProcessingState.idle;
-      case 1: return ja.ProcessingState.loading;
-      case 2: return ja.ProcessingState.buffering;
-      case 3: return ja.ProcessingState.ready;
-      case 4: return ja.ProcessingState.completed;
-      default: return ja.ProcessingState.idle;
+      case 0:
+        return ja.ProcessingState.idle;
+      case 1:
+        return ja.ProcessingState.loading;
+      case 2:
+        return ja.ProcessingState.buffering;
+      case 3:
+        return ja.ProcessingState.ready;
+      case 4:
+        return ja.ProcessingState.completed;
+      default:
+        return ja.ProcessingState.idle;
     }
   }
 
@@ -348,21 +393,13 @@ class NativeIosAudioPlayer {
       final uri = source.uri;
       final headers = source.headers ?? const <String, String>{};
       final isLocal = uri.scheme == 'file' || uri.scheme.isEmpty;
-      out.add(_NativeTrack(
-        url: isLocal ? uri.toFilePath() : uri.toString(),
-        isLocal: isLocal,
-        headers: headers,
-      ));
+      out.add(_NativeTrack(url: isLocal ? uri.toFilePath() : uri.toString(), isLocal: isLocal, headers: headers));
       return;
     }
     debugPrint('[NativeIosAudioPlayer] Unsupported AudioSource: ${source.runtimeType}');
   }
 
-  Map<String, dynamic> _trackToMap(_NativeTrack t) => {
-        'url': t.url,
-        'isLocal': t.isLocal,
-        'headers': t.headers,
-      };
+  Map<String, dynamic> _trackToMap(_NativeTrack t) => {'url': t.url, 'isLocal': t.isLocal, 'headers': t.headers};
 
   /// Without per-track durations available here, hand the engine an empty
   /// offsets list and let it fall back to single-track behavior. The
@@ -385,13 +422,7 @@ class _NativeTrack {
 /// Snapshot of the native iOS engine's live state, read over the method
 /// channel for foreground-resume reconciliation.
 class NativeEngineState {
-  NativeEngineState({
-    required this.itemId,
-    required this.isLoaded,
-    required this.isPlaying,
-    required this.trackIndex,
-    required this.globalPositionS,
-  });
+  NativeEngineState({required this.itemId, required this.isLoaded, required this.isPlaying, required this.trackIndex, required this.globalPositionS});
   final String? itemId;
   final bool isLoaded;
   final bool isPlaying;
