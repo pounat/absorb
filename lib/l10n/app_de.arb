@@ -3342,7 +3342,7 @@
       }
     }
   },
-  "lpSubscribedEpisodeAddedStart": "{showTitle} an die Spitze deiner Warteschlange hinzugefügt",
+  "lpSubscribedEpisodeAddedStart": "{showTitle} an den Anfang deiner Warteschlange hinzugefügt",
   "@lpSubscribedEpisodeAddedStart": {
     "placeholders": {
       "showTitle": {
@@ -3350,7 +3350,7 @@
       }
     }
   },
-  "lpSubscribedEpisodeAddedSecond": "{showTitle} an Position 2 in deine Warteschlange hinzugefügt",
+  "lpSubscribedEpisodeAddedSecond": "{showTitle} an Position 2 deiner Warteschlange hinzugefügt",
   "@lpSubscribedEpisodeAddedSecond": {
     "placeholders": {
       "showTitle": {
@@ -3358,6 +3358,18 @@
       }
     }
   },
+  "lpSubscribedEpisodeAddedEnd": "{showTitle} an das Ende deiner Warteschlange hinzugefügt",
+  "@lpSubscribedEpisodeAddedEnd": {
+    "placeholders": {
+      "showTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "episodeListNewEpisodePosition": "Position neuer Folgen",
+  "episodeListPositionTop": "Anfang der Warteschlange",
+  "episodeListPositionSecond": "Zweite in der Warteschlange",
+  "episodeListPositionEnd": "Ende der Warteschlange",
   "lpQueueDownloadingItems": "{count, plural, =1{Warteschlange: 1 Eintrag wird heruntergeladen} other{Warteschlange: {count} Einträge werden heruntergeladen}}",
   "@lpQueueDownloadingItems": {
     "placeholders": {
