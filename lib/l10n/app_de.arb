@@ -3342,6 +3342,22 @@
       }
     }
   },
+  "lpSubscribedEpisodeAddedStart": "{showTitle} an die Spitze deiner Warteschlange hinzugefügt",
+  "@lpSubscribedEpisodeAddedStart": {
+    "placeholders": {
+      "showTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "lpSubscribedEpisodeAddedSecond": "{showTitle} an Position 2 in deine Warteschlange hinzugefügt",
+  "@lpSubscribedEpisodeAddedSecond": {
+    "placeholders": {
+      "showTitle": {
+        "type": "String"
+      }
+    }
+  },
   "lpQueueDownloadingItems": "{count, plural, =1{Warteschlange: 1 Eintrag wird heruntergeladen} other{Warteschlange: {count} Einträge werden heruntergeladen}}",
   "@lpQueueDownloadingItems": {
     "placeholders": {
