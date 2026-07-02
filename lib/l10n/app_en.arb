@@ -1046,6 +1046,14 @@
   "adminRmabLoadFailed": "Couldn't load ReadMeABook. Check your URL.",
   "adminRmabConnected": "Connected",
   "adminRmabAskAdmin": "Get a login URL from your server admin",
+  "adminRmabApprovalsPending": "{count, plural, =1{1 request awaiting approval} other{{count} requests awaiting approval}}",
+  "@adminRmabApprovalsPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminRmabUrlHelpUser": "Get a login URL from your server admin. They generate one in RMAB > Admin > Users.",
   "adminRmabSettingsInfo": "ReadMeABook is a self-hosted service for requesting and downloading audiobooks. It must be installed and set up by your server admin.",
   "rmabConfigTitle": "Connect ReadMeABook",
@@ -1111,6 +1119,51 @@
   "rmabMyRequestsEmpty": "You haven't requested any books yet",
   "rmabMyRequestsError": "Couldn't load requests",
   "rmabMyRequestsRefresh": "Refresh",
+  "rmabApprovalsTab": "Approvals",
+  "rmabApprovalsEmpty": "No requests awaiting approval",
+  "rmabApprovalsError": "Couldn't load approvals",
+  "rmabApprovalForbidden": "This token isn't allowed to review approvals",
+  "rmabApprovalNotifsTitle": "Approval notifications",
+  "rmabApprovalNotifsSubtitle": "Notify me when new requests need approval. Best-effort in the background.",
+  "rmabApprovalNotifsDenied": "Notification permission was denied",
+  "rmabApprovalNotifTitle": "Approvals waiting",
+  "rmabApprovalNotifBodyOne": "“{title}” needs your approval",
+  "@rmabApprovalNotifBodyOne": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "rmabApprovalNotifBodyMany": "{count} requests need your approval",
+  "@rmabApprovalNotifBodyMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rmabApprovalApprove": "Approve",
+  "rmabApprovalDeny": "Deny",
+  "rmabApprovalApproved": "Request approved",
+  "rmabApprovalDenied": "Request denied",
+  "rmabApprovalRequestedBy": "Requested by {name}",
+  "@rmabApprovalRequestedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rmabApprovalDenyConfirmTitle": "Deny this request?",
+  "rmabApprovalDenyConfirmBody": "“{title}” won't be downloaded and the requester will be notified.",
+  "@rmabApprovalDenyConfirmBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "rmabRequestDetailTitle": "Request details",
   "rmabRequestDetailStatus": "Status",
   "rmabRequestDetailRequestedOn": "Requested on",

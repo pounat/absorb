@@ -133,7 +133,7 @@ class RmabService {
   /// GET /api/requests/:id — full detail for a single request.
   Future<RmabRequest> getRequest(String id) async {
     debugPrint('[RMAB] getRequest(id=$id)');
-    final uri = Uri.parse('$baseUrl/api/requests/$id');
+    final uri = Uri.parse('$baseUrl/api/requests/${Uri.encodeComponent(id)}');
     final res = await _get(uri, label: 'getRequest');
     final out = _decode(res, (json) {
       final req = json['request'];
@@ -235,6 +235,78 @@ class RmabService {
       default:
         return RmabCreateErrorKind.requestError;
     }
+  }
+
+  // ─── /api/admin/requests/pending-approval ───────────────────────
+
+  /// GET /api/admin/requests/pending-approval — admin-only list of requests
+  /// in `awaiting_approval`. Requires an admin-scoped token; a user token
+  /// gets [RmabErrorKind.forbidden].
+  Future<List<RmabPendingApproval>> listPendingApprovals() async {
+    debugPrint('[RMAB] listPendingApprovals()');
+    final uri = Uri.parse('$baseUrl/api/admin/requests/pending-approval');
+    final res = await _get(uri, label: 'pendingApprovals');
+    final out = _decode(res, (json) {
+      return (json['requests'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(RmabPendingApproval.fromJson)
+          .toList();
+    }, label: 'pendingApprovals');
+    debugPrint('[RMAB] listPendingApprovals() -> ${out.length} pending');
+    return out;
+  }
+
+  // ─── /api/admin/requests/:id/approve ────────────────────────────
+
+  /// POST /api/admin/requests/:id/approve — approve or deny a pending request.
+  /// Admin-only. Returns the updated request on success.
+  ///
+  /// Throws [RmabException]: `forbidden` (not admin / token not allowed),
+  /// `unauthorized`, `network`, or `server` (the latter carries the server's
+  /// message, e.g. the 400 "no longer awaiting approval" stale case).
+  Future<RmabRequest> respondToApproval(String id,
+      {required bool approve}) async {
+    final action = approve ? 'approve' : 'deny';
+    debugPrint('[RMAB] respondToApproval(id=$id action=$action)');
+    final uri = Uri.parse('$baseUrl/api/admin/requests/${Uri.encodeComponent(id)}/approve');
+    final http.Response res;
+    try {
+      res = await http
+          .post(uri,
+              headers: _headers, body: jsonEncode({'action': action}))
+          .timeout(const Duration(seconds: 20));
+      debugPrint('[RMAB] respondToApproval <- ${res.statusCode} '
+          '(${res.body.length} bytes)');
+    } on TimeoutException {
+      throw RmabException(RmabErrorKind.network, 'Request timed out');
+    } on SocketException catch (e) {
+      throw RmabException(RmabErrorKind.network, e.message);
+    } on http.ClientException catch (e) {
+      throw RmabException(RmabErrorKind.network, e.message);
+    } catch (e) {
+      throw RmabException(RmabErrorKind.network, e.toString());
+    }
+
+    if (res.statusCode == 401) {
+      throw RmabException(RmabErrorKind.unauthorized,
+          _safeServerMessage(res) ?? 'Unauthorized');
+    }
+    if (res.statusCode == 403) {
+      throw RmabException(RmabErrorKind.forbidden,
+          _safeServerMessage(res) ?? 'Forbidden');
+    }
+    if (res.statusCode == 200) {
+      return _decode(res, (json) {
+        final req = json['request'];
+        if (req is! Map<String, dynamic>) {
+          throw const FormatException('Response missing "request"');
+        }
+        return RmabRequest.fromJson(req);
+      }, label: 'respondToApproval');
+    }
+    // 400 InvalidStatus/ValidationError, 404 NotFound, 5xx — surface message.
+    throw RmabException(RmabErrorKind.server,
+        _safeServerMessage(res) ?? 'Server returned HTTP ${res.statusCode}');
   }
 
   // ─── Shared helpers ─────────────────────────────────────────────
@@ -621,6 +693,60 @@ class RmabRequestCounts {
   final int completed;
   final int failed;
   final int cancelled;
+}
+
+// ─── pending-approval models ──────────────────────────────────────
+
+/// A request awaiting admin approval, as returned by
+/// GET /api/admin/requests/pending-approval. Unlike [RmabRequest], this
+/// carries the requesting user so an admin can see who asked for it.
+class RmabPendingApproval {
+  RmabPendingApproval({
+    required this.id,
+    required this.createdAt,
+    required this.audiobook,
+    required this.requester,
+  });
+
+  final String id;
+  final DateTime createdAt;
+  final RmabAudiobookSummary audiobook;
+  final RmabApprovalRequester requester;
+
+  factory RmabPendingApproval.fromJson(Map<String, dynamic> json) {
+    final book = json['audiobook'] as Map<String, dynamic>?;
+    final user = json['user'] as Map<String, dynamic>?;
+    return RmabPendingApproval(
+      id: (json['id'] ?? '') as String,
+      createdAt: _asDate(json['createdAt']) ?? DateTime.now(),
+      audiobook: book != null
+          ? RmabAudiobookSummary.fromJson(book)
+          : RmabAudiobookSummary.empty(),
+      requester: RmabApprovalRequester.fromJson(user ?? const {}),
+    );
+  }
+}
+
+/// The user behind a pending request. `username` comes from the server's
+/// `plexUsername`; `avatarUrl` may be null.
+class RmabApprovalRequester {
+  RmabApprovalRequester({
+    required this.id,
+    required this.username,
+    this.avatarUrl,
+  });
+
+  final String id;
+  final String username;
+  final String? avatarUrl;
+
+  factory RmabApprovalRequester.fromJson(Map<String, dynamic> json) =>
+      RmabApprovalRequester(
+        id: (json['id'] ?? '') as String,
+        username:
+            (json['plexUsername'] ?? json['username'] ?? '') as String,
+        avatarUrl: json['avatarUrl'] as String?,
+      );
 }
 
 // ─── createRequest models ─────────────────────────────────────────

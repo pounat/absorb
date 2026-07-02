@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
+import '../services/rmab_approvals_notifier.dart';
 import '../services/home_widget_service.dart';
 import '../services/sleep_timer_service.dart';
 import 'dart:io';
@@ -325,6 +326,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver, Ticker
     context.read<LibraryProvider>().addListener(_onLibraryChanged);
     WelcomeSheet.showIfNeeded(context);
     _checkForUpdate();
+    // Best-effort RMAB approval notifications (opt-in; no-op when disabled).
+    RmabApprovalsNotifier.init();
   }
 
   static const _isGithubBuild = bool.fromEnvironment('GITHUB_BUILD');

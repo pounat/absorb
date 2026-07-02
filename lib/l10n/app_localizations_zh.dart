@@ -2000,6 +2000,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adminRmabAskAdmin => '请向您的服务器管理员获取登录 URL';
 
   @override
+  String adminRmabApprovalsPending(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests awaiting approval',
+      one: '1 request awaiting approval',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get adminRmabUrlHelpUser =>
       '请向您的服务器管理员获取登录 URL，管理员可在 RMAB 的管理 -> 用户中生成。';
 
@@ -2164,6 +2175,67 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get rmabMyRequestsRefresh => 'Refresh';
+
+  @override
+  String get rmabApprovalsTab => 'Approvals';
+
+  @override
+  String get rmabApprovalsEmpty => 'No requests awaiting approval';
+
+  @override
+  String get rmabApprovalsError => 'Couldn\'t load approvals';
+
+  @override
+  String get rmabApprovalForbidden =>
+      'This token isn\'t allowed to review approvals';
+
+  @override
+  String get rmabApprovalNotifsTitle => 'Approval notifications';
+
+  @override
+  String get rmabApprovalNotifsSubtitle =>
+      'Notify me when new requests need approval. Best-effort in the background.';
+
+  @override
+  String get rmabApprovalNotifsDenied => 'Notification permission was denied';
+
+  @override
+  String get rmabApprovalNotifTitle => 'Approvals waiting';
+
+  @override
+  String rmabApprovalNotifBodyOne(String title) {
+    return '“$title” needs your approval';
+  }
+
+  @override
+  String rmabApprovalNotifBodyMany(int count) {
+    return '$count requests need your approval';
+  }
+
+  @override
+  String get rmabApprovalApprove => 'Approve';
+
+  @override
+  String get rmabApprovalDeny => 'Deny';
+
+  @override
+  String get rmabApprovalApproved => 'Request approved';
+
+  @override
+  String get rmabApprovalDenied => 'Request denied';
+
+  @override
+  String rmabApprovalRequestedBy(String name) {
+    return 'Requested by $name';
+  }
+
+  @override
+  String get rmabApprovalDenyConfirmTitle => 'Deny this request?';
+
+  @override
+  String rmabApprovalDenyConfirmBody(String title) {
+    return '“$title” won\'t be downloaded and the requester will be notified.';
+  }
 
   @override
   String get rmabRequestDetailTitle => 'Request details';

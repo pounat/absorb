@@ -14,6 +14,10 @@ import 'stackable_sheet.dart';
 const String kRmabBaseUrlKey = 'rmab_base_url';
 const String kRmabApiTokenKey = 'rmab_api_token';
 
+/// Cached RMAB role ('admin' | 'user') of the connected token, captured at
+/// connect time. Drives whether the admin-only Approvals tab is shown.
+const String kRmabRoleKey = 'rmab_role';
+
 /// Legacy single-URL key. Still read so existing WebView-only users keep
 /// working, and so the "Open in browser view" action prefers their
 /// embedded-token URL when present.
@@ -39,6 +43,7 @@ class RmabConfigResult {
 Future<RmabConfigResult?> showRmabConfigSheet(
   BuildContext context, {
   required bool isAdminContext,
+  bool initialApprovals = false,
 }) {
   return showStackableSheet<RmabConfigResult>(
     context: context,
@@ -49,6 +54,7 @@ Future<RmabConfigResult?> showRmabConfigSheet(
     useSafeArea: true,
     builder: (ctx, scrollController) => _RmabConfigSheet(
       isAdminContext: isAdminContext,
+      initialApprovals: initialApprovals,
       scrollController: scrollController,
     ),
   );
@@ -58,9 +64,11 @@ class _RmabConfigSheet extends StatefulWidget {
   const _RmabConfigSheet({
     required this.isAdminContext,
     required this.scrollController,
+    this.initialApprovals = false,
   });
 
   final bool isAdminContext;
+  final bool initialApprovals;
   final ScrollController scrollController;
 
   @override
@@ -79,6 +87,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
   bool _connecting = false;
   bool _obscureToken = true;
   bool _wasConfigured = false;
+  bool _isRmabAdmin = false;
   String? _legacyUrl;
   String? _errorText;
   String? _connectedAsName;
@@ -97,6 +106,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final token = await ScopedPrefs.getString(kRmabApiTokenKey);
     final legacy = await ScopedPrefs.getString(kRmabLegacyUrlKey);
+    final role = await ScopedPrefs.getString(kRmabRoleKey);
 
     // Migration: if the new base URL isn't set but a legacy URL is, try to
     // extract just the origin so the user only needs to paste a token.
@@ -110,15 +120,41 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     }
 
     if (!mounted) return;
+    final configured = (base ?? '').isNotEmpty && (token ?? '').isNotEmpty;
     setState(() {
       _urlController.text = prefilledBase;
       _tokenController.text = token ?? '';
       _legacyUrlController.text = legacy ?? '';
       _legacyUrl = legacy;
-      _wasConfigured =
-          (base ?? '').isNotEmpty && (token ?? '').isNotEmpty;
+      _wasConfigured = configured;
+      _isRmabAdmin = role == 'admin';
       _loadingPrefs = false;
     });
+
+    // Re-verify the role on every open so the Approvals tab tracks the
+    // server: a demoted admin loses it and a promoted user gains it without
+    // reconnecting. The cached role above drives the first frame; this also
+    // covers users who connected before role caching existed (role == null).
+    if (configured) {
+      _refreshRole();
+    }
+  }
+
+  /// Fetch the connected token's current role via `me()` and cache it, so the
+  /// admin-only Approvals tab reflects the server's current role. Fail closed
+  /// (keep the cached/non-admin value) on error.
+  Future<void> _refreshRole() async {
+    final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
+    final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+    if (base == null || base.isEmpty || token == null || token.isEmpty) return;
+    try {
+      final me = await RmabService(baseUrl: base, apiToken: token).me();
+      await ScopedPrefs.setString(kRmabRoleKey, me.role);
+      if (!mounted) return;
+      setState(() => _isRmabAdmin = me.isAdmin);
+    } catch (e) {
+      debugPrint('[RMAB] role refresh failed: $e');
+    }
   }
 
   @override
@@ -177,6 +213,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
 
       await ScopedPrefs.setString(kRmabBaseUrlKey, cleanBase);
       await ScopedPrefs.setString(kRmabApiTokenKey, token);
+      await ScopedPrefs.setString(kRmabRoleKey, me.role);
       // Legacy URL handling depends on context:
       //   Admin: respect whatever they typed in the legacy URL field.
       //     Non-empty → save it. Empty → clear it. Gives admins explicit
@@ -212,6 +249,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
         _connecting = false;
         _connectedAsName = me.username;
         _wasConfigured = true;
+        _isRmabAdmin = me.isAdmin;
         _credsVersion++;
         _legacyUrl = refreshedLegacy;
       });
@@ -251,11 +289,16 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     setState(() => _obscureToken = !_obscureToken);
   }
 
+  void _demoteFromAdmin() {
+    setState(() => _isRmabAdmin = false);
+  }
+
   Future<void> _disconnect() async {
     debugPrint('[RMAB] disconnect: clearing all rmab_* keys + local cache');
     await ScopedPrefs.remove(kRmabBaseUrlKey);
     await ScopedPrefs.remove(kRmabApiTokenKey);
     await ScopedPrefs.remove(kRmabLegacyUrlKey);
+    await ScopedPrefs.remove(kRmabRoleKey);
     RmabLocalRequestCache.clear();
     if (!mounted) return;
     Navigator.of(context).pop(const RmabConfigResult(disconnected: true));
@@ -298,6 +341,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
       return _ConfiguredView(
         state: this,
         credsVersion: _credsVersion,
+        initialApprovals: widget.initialApprovals,
         scrollController: widget.scrollController,
       );
     }
@@ -350,9 +394,11 @@ class _ConfiguredView extends StatelessWidget {
     required this.state,
     required this.credsVersion,
     required this.scrollController,
+    this.initialApprovals = false,
   });
   final _RmabConfigSheetState state;
   final int credsVersion;
+  final bool initialApprovals;
   final ScrollController scrollController;
 
   @override
@@ -360,12 +406,37 @@ class _ConfiguredView extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
 
+    // Approvals is admin-only. The sheet's [scrollController] can attach to a
+    // single scroll view at a time, and My Requests already owns it, so the
+    // Approvals tab uses its own internal controller.
+    final showApprovals = state._isRmabAdmin;
+
+    final tabs = <Tab>[
+      Tab(text: l.rmabMyRequestsTab),
+      if (showApprovals) Tab(text: l.rmabApprovalsTab),
+      Tab(text: l.rmabSetupTab),
+    ];
+    final views = <Widget>[
+      _MyRequestsTab(
+        key: ValueKey('myrequests-$credsVersion'),
+        state: state,
+        scrollController: scrollController,
+      ),
+      if (showApprovals)
+        _ApprovalsTab(
+          key: ValueKey('approvals-$credsVersion'),
+          onForbidden: state._demoteFromAdmin,
+        ),
+      _SetupTab(state: state),
+    ];
+
     // No fixed SizedBox height here — the parent DraggableScrollableSheet
     // (via showStackableSheet) supplies the bounded space. The My Requests
     // tab's ListView uses [scrollController] so drag-down-when-at-top
     // bubbles up to the sheet for dismissal.
     return DefaultTabController(
-      length: 2,
+      length: tabs.length,
+      initialIndex: (showApprovals && initialApprovals) ? 1 : 0,
       child: Column(
         children: [
           Padding(
@@ -377,23 +448,9 @@ class _ConfiguredView extends StatelessWidget {
             labelColor: cs.primary,
             unselectedLabelColor: cs.onSurfaceVariant,
             indicatorColor: cs.primary,
-            tabs: [
-              Tab(text: l.rmabMyRequestsTab),
-              Tab(text: l.rmabSetupTab),
-            ],
+            tabs: tabs,
           ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _MyRequestsTab(
-                  key: ValueKey('myrequests-$credsVersion'),
-                  state: state,
-                  scrollController: scrollController,
-                ),
-                _SetupTab(state: state),
-              ],
-            ),
-          ),
+          Expanded(child: TabBarView(children: views)),
         ],
       ),
     );
@@ -1115,5 +1172,444 @@ class _RequestDetailSheet extends StatelessWidget {
     final l = dt.toLocal();
     return '${l.year}-${two(l.month)}-${two(l.day)} '
         '${two(l.hour)}:${two(l.minute)}';
+  }
+}
+
+// ─── Approvals tab (admin-only) ──────────────────────────────────
+
+class _ApprovalsTab extends StatefulWidget {
+  const _ApprovalsTab({super.key, this.onForbidden});
+
+  final VoidCallback? onForbidden;
+
+  @override
+  State<_ApprovalsTab> createState() => _ApprovalsTabState();
+}
+
+class _ApprovalsTabState extends State<_ApprovalsTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  // Own controller (not the sheet's shared one) — see _ConfiguredView.
+  final _scrollController = ScrollController();
+
+  bool _loading = true;
+  String? _error;
+  List<RmabPendingApproval>? _items;
+
+  /// Ids currently being approved/denied — drives per-row spinners and guards
+  /// against double taps.
+  final Set<String> _acting = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetch() async {
+    debugPrint('[RMAB] approvals tab fetching');
+    final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
+    final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+    if (!mounted) return;
+    if (base == null || base.isEmpty || token == null || token.isEmpty) {
+      setState(() {
+        _loading = false;
+        _error = AppLocalizations.of(context)!.rmabConfigErrorUnauthorized;
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final items = await RmabService(baseUrl: base, apiToken: token)
+          .listPendingApprovals();
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+    } on RmabException catch (e) {
+      if (!mounted) return;
+      debugPrint('[RMAB] approvals error: ${e.kind} ${e.message}');
+      if (e.kind == RmabErrorKind.forbidden) {
+        ScopedPrefs.setString(kRmabRoleKey, 'user');
+        widget.onForbidden?.call();
+        return;
+      }
+      setState(() {
+        _error = _msgForException(e);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('[RMAB] approvals unexpected: $e');
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  String _msgForException(RmabException e) {
+    final l = AppLocalizations.of(context)!;
+    switch (e.kind) {
+      case RmabErrorKind.forbidden:
+        return l.rmabApprovalForbidden;
+      case RmabErrorKind.unauthorized:
+        return l.rmabRequestErrorTokenRejected;
+      case RmabErrorKind.network:
+        return l.rmabConfigErrorNetwork;
+      default:
+        return '${l.rmabApprovalsError}: ${e.message}';
+    }
+  }
+
+  Future<void> _act(RmabPendingApproval item, {required bool approve}) async {
+    if (_acting.contains(item.id)) return;
+    final l = AppLocalizations.of(context)!;
+    final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
+    final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+    if (!mounted) return;
+    if (base == null || base.isEmpty || token == null || token.isEmpty) return;
+    setState(() => _acting.add(item.id));
+    try {
+      await RmabService(baseUrl: base, apiToken: token)
+          .respondToApproval(item.id, approve: approve);
+      if (!mounted) return;
+      setState(() {
+        _items?.removeWhere((e) => e.id == item.id);
+        _acting.remove(item.id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(approve ? l.rmabApprovalApproved : l.rmabApprovalDenied),
+      ));
+    } on RmabException catch (e) {
+      if (!mounted) return;
+      setState(() => _acting.remove(item.id));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_msgForException(e))));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _acting.remove(item.id));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  Future<void> _confirmDeny(RmabPendingApproval item) async {
+    final l = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.rmabApprovalDenyConfirmTitle),
+        content: Text(l.rmabApprovalDenyConfirmBody(item.audiobook.title)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: cs.error),
+            child: Text(l.rmabApprovalDeny),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _act(item, approve: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 8, 4),
+          child: Row(children: [
+            Expanded(
+              child: Text(
+                _items == null ? '' : l.adminRmabApprovalsPending(_items!.length),
+                style:
+                    tt.labelMedium?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: l.rmabMyRequestsRefresh,
+              onPressed: _loading ? null : _fetch,
+            ),
+          ]),
+        ),
+        Expanded(child: _buildBody(cs, tt, l)),
+      ],
+    );
+  }
+
+  Widget _buildBody(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    if (_loading) {
+      return ListView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
+        children: const [
+          Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ],
+      );
+    }
+    if (_error != null) {
+      return ListView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+        children: [
+          Icon(Icons.error_outline_rounded, size: 40, color: cs.error),
+          const SizedBox(height: 12),
+          Center(
+            child: Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: tt.bodyMedium?.copyWith(color: cs.error),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton.icon(
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(l.rmabMyRequestsRefresh),
+              onPressed: _fetch,
+            ),
+          ),
+        ],
+      );
+    }
+    final items = _items ?? const <RmabPendingApproval>[];
+    if (items.isEmpty) {
+      return ListView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+        children: [
+          Icon(Icons.inbox_rounded,
+              size: 40, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+          const SizedBox(height: 12),
+          Center(
+            child: Text(
+              l.rmabApprovalsEmpty,
+              textAlign: TextAlign.center,
+              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ),
+        ],
+      );
+    }
+    return ListView.builder(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(
+          16, 4, 16, 16 + MediaQuery.of(context).viewPadding.bottom),
+      itemCount: items.length,
+      itemBuilder: (_, i) => _ApprovalRow(
+        item: items[i],
+        acting: _acting.contains(items[i].id),
+        onApprove: () => _act(items[i], approve: true),
+        onDeny: () => _confirmDeny(items[i]),
+      ),
+    );
+  }
+}
+
+class _ApprovalRow extends StatelessWidget {
+  const _ApprovalRow({
+    required this.item,
+    required this.acting,
+    required this.onApprove,
+    required this.onDeny,
+  });
+
+  final RmabPendingApproval item;
+  final bool acting;
+  final VoidCallback onApprove;
+  final VoidCallback onDeny;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+    final book = item.audiobook;
+    final username =
+        item.requester.username.isEmpty ? '—' : item.requester.username;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: (book.coverArtUrl == null ||
+                              book.coverArtUrl!.isEmpty)
+                          ? Container(
+                              color: cs.surfaceContainerHighest,
+                              child: Icon(Icons.menu_book_rounded,
+                                  color: cs.onSurfaceVariant, size: 20),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: book.coverArtUrl!,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                  color: cs.surfaceContainerHighest),
+                              errorWidget: (_, __, ___) => Container(
+                                color: cs.surfaceContainerHighest,
+                                child: Icon(Icons.broken_image_rounded,
+                                    color: cs.onSurfaceVariant, size: 20),
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          book.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: tt.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        if (book.author.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            book.author,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: tt.bodySmall
+                                ?.copyWith(color: cs.onSurfaceVariant),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Row(children: [
+                          _RequesterAvatar(
+                              url: item.requester.avatarUrl, size: 18),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              l.rmabApprovalRequestedBy(username),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: tt.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant
+                                      .withValues(alpha: 0.8)),
+                            ),
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 36,
+                child: acting
+                    ? const Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: EdgeInsets.only(right: 12),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton.icon(
+                            onPressed: onDeny,
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                            label: Text(l.rmabApprovalDeny),
+                            style: TextButton.styleFrom(
+                                foregroundColor: cs.error),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            onPressed: onApprove,
+                            icon: const Icon(Icons.check_rounded, size: 18),
+                            label: Text(l.rmabApprovalApprove),
+                          ),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RequesterAvatar extends StatelessWidget {
+  const _RequesterAvatar({required this.url, required this.size});
+  final String? url;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    Widget fallback() => Container(
+          width: size,
+          height: size,
+          color: cs.surfaceContainerHighest,
+          child: Icon(Icons.person_rounded,
+              size: size * 0.62, color: cs.onSurfaceVariant),
+        );
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: (url == null || url!.isEmpty)
+            ? fallback()
+            : CachedNetworkImage(
+                imageUrl: url!,
+                fit: BoxFit.cover,
+                placeholder: (_, __) =>
+                    Container(color: cs.surfaceContainerHighest),
+                errorWidget: (_, __, ___) => fallback(),
+              ),
+      ),
+    );
   }
 }
