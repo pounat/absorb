@@ -26,6 +26,7 @@
   "unknown": "Inconnu",
   "untitled": "Sans titre",
   "noThanks": "Non merci",
+  "stay": "Rester",
   "homeTitle": "Accueil",
   "continueListening": "Continuer l'écoute",
   "continueSeries": "Continuer les séries",
@@ -36,7 +37,9 @@
   "downloads": "Téléchargements",
   "noDownloadedBooks": "Aucun livre téléchargé",
   "yourLibraryIsEmpty": "Votre bibliothèque est vide",
+  "downloadBooksWhileOnline": "Télécharger des livres en ligne pour écouter hors ligne",
   "customizeHome": "Personnaliser l'accueil",
+  "dragToReorderTapEye": "Faites glisser pour réorganiser, appuyez sur l'œil pour afficher/masquer",
   "loginConnectToServer": "Se connecter au serveur",
   "loginServerAddress": "Adresse du serveur",
   "loginServerHint": "mon.serveur.fr",
@@ -69,7 +72,27 @@
     }
   },
   "adminSetupFileNote": "Une clé API sera créée pour cet utilisateur. Traitez le fichier tel un mot de passe.",
+  "adminSetupFileCreate": "Créer",
+  "adminSetupFileKeyError": "Impossible de créer une clé API pour cet utilisateur",
+  "adminSetupFileSaved": "Fichier d'installation pour {username} enregistré",
+  "@adminSetupFileSaved": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileFailed": "Impossible de créer le fichier de configuration : {error}",
+  "@adminSetupFileFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "loginFailed": "Échec de connexion",
+  "loginSsoFailed": "La connexion SSO a échoué ou a été annulée",
+  "loginSsoAuthFailed": "Échec de l'authentification SSO. Veuillez réessayer.",
   "loginRestoreFromBackup": "Importer",
   "loginInvalidBackupFile": "Fichier de sauvegarde invalide",
   "loginRestoreBackupTitle": "Restaurer la sauvegarde ?",
@@ -101,8 +124,10 @@
       }
     }
   },
+  "loginSavedAccounts": "comptes enregistrés",
   "libraryTitle": "Bibliothèque",
   "librarySearchBooksHint": "Rechercher par livres, séries, auteurs, narrateurs ...",
+  "librarySearchShowsHint": "Rechercher des séries et des épisodes...",
   "libraryTabLibrary": "Bibliothèque",
   "libraryTabSeries": "Séries",
   "libraryTabAuthors": "Auteurs",
@@ -110,6 +135,7 @@
   "libraryNoBooks": "Aucun livre trouvé",
   "libraryNoBooksInProgress": "Aucun livre en cours de lecture",
   "libraryNoFinishedBooks": "Aucun livre achevé",
+  "libraryAllBooksStarted": "Tous les livres ont été commencés",
   "libraryNoDownloadedBooks": "Aucun livre téléchargé",
   "libraryNoSeriesFound": "Aucune série trouvée",
   "libraryNoBooksInGenre": "Aucun livre du genre \"{genre}\"",
@@ -196,6 +222,11 @@
   "carModeChapterLabel": "Chapitre",
   "downloadsTitle": "Téléchargements",
   "downloadsCancelSelection": "Annuler la sélection",
+  "downloadsNoDownloads": "Aucun téléchargement",
+  "downloadsDownloading": "Téléchargement",
+  "downloadsQueued": "En file d'attente",
+  "downloadsCompleted": "Terminé",
+  "downloadsWaiting": "En attente...",
   "downloadsCancel": "Annuler",
   "downloadsDelete": "Supprimer",
   "downloadsDeleteCount": "Supprimer {count} téléchargement(s) ?",
@@ -206,6 +237,7 @@
       }
     }
   },
+  "downloadsDeleteContent": "Les fichiers téléchargés seront supprimés de cet appareil.",
   "downloadsDeletedCount": "{count} téléchargement(s) supprimés",
   "@downloadsDeletedCount": {
     "placeholders": {
@@ -214,6 +246,7 @@
       }
     }
   },
+  "downloadsRemoveTitle": "Retirer le téléchargement ?",
   "downloadsRemoveContent": "Supprimer \"{title}\" de cet appareil ?",
   "@downloadsRemoveContent": {
     "placeholders": {
@@ -230,8 +263,20 @@
       }
     }
   },
+  "downloadsSelectedCount": "{count} sélectionné(s)",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "bookmarksCancelSelection": "Annuler la sélection",
+  "bookmarksSelect": "Sélectionner",
+  "bookmarksNotConnected": "Non connecté au serveur",
   "statsTitle": "Vos statistiques",
+  "statsCouldNotLoad": "Échec du chargement des statistiques",
+  "statsTotalListeningTime": "TEMPS TOTAL D'ÉCOUTE",
   "statsHoursUnit": "h",
   "statsMinutesUnit": "m",
   "statsDaysOfAudio": "C'est {days} jours d'audio",
@@ -254,6 +299,12 @@
   "statsThisWeek": "Cette semaine",
   "statsThisMonth": "Ce mois-ci",
   "statsActivity": "Activité",
+  "statsFinished": "Terminé",
+  "statsBooksFinished": "Livres",
+  "statsEpisodesFinished": "Épisodes",
+  "statsBooksThisYear": "Livres cette année",
+  "statsEpisodesThisYear": "Épisodes cette année",
+  "statsRemoveFromYearTitle": "Retirer de cette année",
   "statsGoalTitle": "Objectif d'écoute",
   "statsGoalDaily": "Quotidien",
   "statsGoalWeekly": "Hebdomadaire",
@@ -293,6 +344,7 @@
   "settingsTitle": "Paramètres",
   "sectionAppearance": "Apparence",
   "languageLabel": "Langage",
+  "languageSystemDefault": "Valeurs par défaut du système",
   "languageHelpTranslateInvite": "Vous souhaitez aider à traduire Absorb ?",
   "themeLabel": "Thème",
   "themeDark": "Sombre",
@@ -390,6 +442,9 @@
   "yesIncludeAccounts": "Oui, inclure les comptes",
   "restoreBackupTitle": "Restaurer la sauvegarde ?",
   "restoreBackupContent": "Tous vos paramètres actuels seront remplacés par ceux de la sauvegarde.",
+  "logOutTitle": "Se déconnecter ?",
+  "logOutContent": "Cela vous déconnectera. Vos téléchargements resteront sur cet appareil.",
+  "signOut": "Se déconnecter",
   "adminServer": "Serveur",
   "adminVersion": "Version",
   "adminUsers": "Utilisateurs",
@@ -509,6 +564,8 @@
   },
   "disconnect": "Déconnecter",
   "welcomeTagline": "Un client Audiobookshelf.",
+  "showMore": "Afficher plus",
+  "showLess": "Afficher moins",
   "readMore": "Lire plus",
   "userFallback": "Utilisateur",
   "minutesAgo": "Il y a {count} min",
@@ -894,6 +951,7 @@
   "librarySearchResultsExplicitBadge": "E",
   "libraryGridTilesExplicitBadge": "E",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
+  "downloadNotifProgressChannelDesc": "Affiche la progression pendant les téléchargements de livres audio",
   "androidAutoTabLibrary": "Bibliothèque",
   "ok": "OK",
   "chapterShowSeconds": "Afficher les secondes",
