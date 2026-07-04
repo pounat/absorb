@@ -490,6 +490,17 @@
   "statsHeatmapMore": "Mehr",
   "statsDayOfWeek": "Durchschnitt nach Wochentag",
   "statsTimeSavedLabel": "Nach Geschwindigkeit gespeichert",
+  "statsTimeSavedSince": "seit {date}",
+  "@statsTimeSavedSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "statsTimeSavedReset": "Gesparte Zeit zurücksetzen",
+  "statsTimeSavedResetConfirm": "Die gesparte Zeit beginnt ab heute wieder zu zählen.",
+  "statsTimeSavedResetDone": "Gesparte Zeit zurückgesetzt",
   "statsOnPaceFor": "Auf Kurs für {count} Bücher",
   "@statsOnPaceFor": {
     "placeholders": {
