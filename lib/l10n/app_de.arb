@@ -640,6 +640,28 @@
   "defaultSpeedSubtitle": "Neue Bücher starten mit dieser Geschwindigkeit - jedes Buch merkt sich seine eigene",
   "skipBack": "Zurückspulen",
   "skipForward": "Vorspulen",
+  "longSkipButtons": "Lange Überspringen Tasten",
+  "longSkipButtonsOnSubtitle": "An - Der Player zeigt ein zweites, größeres Überspringen Paar",
+  "longSkipButtonsOffSubtitle": "Aus - nur die regulären Überspringen Schaltflächen",
+  "longSkipBack": "Langes Zurückspringen",
+  "longSkipForward": "Langes Vorwärtsspringen",
+  "coverShapeDefault": "Standard",
+  "coverShapeSquare": "Quadratisch",
+  "coverShapeRectangle": "Rechteck",
+  "coverShapeLabel": "Cover Format",
+  "currentLibrarySettingsTitle": "Aktuelle Bibliothek: {name}",
+  "@currentLibrarySettingsTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "currentLibrarySkipOverride": "Eigene Überspringen Länge",
+  "currentLibrarySkipOverrideOnSubtitle": "An - diese Bibliothek verwendet eigene Überspringen-längen",
+  "currentLibrarySkipOverrideOffSubtitle": "Aus - diese Bibliothek verwendet die globalen Überspringen-längen",
+  "currentLibrarySkipBack": "Zurückspringen",
+  "currentLibrarySkipForward": "Vorwärts springen",
   "chapterProgressInNotification": "Kapitelfortschritt in Benachrichtigung & Android Auto",
   "chapterProgressOnSubtitle": "An - Benachrichtigung & Android Auto zeigen Kapitel Fortschritt",
   "chapterProgressOffSubtitle": "Aus - Gesamtfortschritt des Buches wird angezeigt",
@@ -3901,6 +3923,11 @@
   "readerLayoutTwoPage": "Zwei Seiten",
   "readerTheme": "Thema",
   "readerFont": "Schriftart",
+  "readerVolumeNav": "Lautstärketasten blättern Seiten um",
+  "readerVolumeNavOff": "Aus",
+  "readerVolumeNavNormal": "Normal",
+  "readerVolumeNavMirrored": "Gespiegelt",
+  "readerVolumeNavWhilePlaying": "Selbst während Audio abgespielt wird",
   "readerMoreFonts": "Weitere Schriftarten herunterladen",
   "readerFontRemove": "Download entfernen",
   "readerFontDownloadFailed": "{font} konnte nicht heruntergeladen werden",
