@@ -1057,5 +1057,27 @@
   "libCoverStandard": "Standard",
   "libCreate": "Créer une bibliothèque",
   "libCreated": "Bibliothèque créée",
-  "libUpdated": "Bibliothèque mise à jour"
+  "libUpdated": "Bibliothèque mise à jour",
+  "readerLineSpacing": "Interligne",
+  "readerSideMargins": "Marges latérales",
+  "readerTopBottom": "Haut et bas",
+  "readerPageLayout": "Mise en page",
+  "readerLayoutAuto": "Auto",
+  "readerTheme": "Thème",
+  "readerFont": "Police",
+  "readerVolumeNav": "Les boutons de volume tournent les pages",
+  "readerVolumeNavOff": "Désactivé",
+  "readerVolumeNavNormal": "Normal",
+  "readerVolumeNavWhilePlaying": "Même lorsque l'audio est en cours de lecture",
+  "readerMoreFonts": "Télécharger plus de polices",
+  "readerFontRemove": "Retirer le téléchargement",
+  "readerFontDownloadFailed": "Échec du téléchargement de {font}",
+  "@readerFontDownloadFailed": {
+    "placeholders": {
+      "font": {
+        "type": "String"
+      }
+    }
+  },
+  "readerAnnotations": "Notes"
 }
