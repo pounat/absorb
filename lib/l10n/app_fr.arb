@@ -47,9 +47,15 @@
   "loginCouldNotReachServer": "Impossible de se connecter au serveur",
   "loginAdvanced": "Avancé",
   "loginCustomHttpHeaders": "Entêtes HTTP personnalisés",
+  "loginCustomHeadersDescription": "Pour les tunnels Cloudflare ou les reverse proxies qui nécessitent des en‑têtes supplémentaires. Ajoutez les en‑têtes avant d’entrer l’URL de votre serveur.",
   "loginHeaderValue": "Valeur",
   "loginSelfSignedCertificates": "Certificat auto-signé",
+  "loginTrustAllCertificates": "Faire confiance à tous les certificats (pour les configurations auto‑signées ou avec CA personnalisée)",
   "loginApiKey": "Clé API",
+  "loginApiKeyDescription": "Utiliser une clé API générée par l’administrateur plutôt qu’un nom d’utilisateur et un mot de passe. Utile lorsque le rafraîchissement du jeton échoue pour votre compte.",
+  "loginWaitingForSso": "En attente du SSO...",
+  "loginRedirectUri": "URI de redirection : audiobookshelf://oauth",
+  "loginOrSignInManually": "ou se connecter manuellement",
   "loginUsername": "Utilisateur",
   "loginUsernameRequired": "Entrez votre nom d'utilisateur",
   "loginPassword": "Mot de passe",
@@ -71,6 +77,16 @@
       }
     }
   },
+  "adminSetupFileDescription": "Crée un fichier de connexion pour {username} qui fonctionne uniquement dans l’app Absorb. Ils l’importent depuis l’écran de connexion pour se connecter.",
+  "@adminSetupFileDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileServerUrl": "URL du serveur que le nouvel utilisateur va utiliser",
+  "adminSetupFileNoteWithHeaders": "Une clé API sera créée pour cet utilisateur et vos en‑têtes personnalisés seront inclus afin qu’ils puissent atteindre le serveur. Traitez ce fichier comme un mot de passe.",
   "adminSetupFileNote": "Une clé API sera créée pour cet utilisateur. Traitez le fichier tel un mot de passe.",
   "adminSetupFileCreate": "Créer",
   "adminSetupFileKeyError": "Impossible de créer une clé API pour cet utilisateur",
@@ -305,6 +321,25 @@
   "statsBooksThisYear": "Livres cette année",
   "statsEpisodesThisYear": "Épisodes cette année",
   "statsRemoveFromYearTitle": "Retirer de cette année",
+  "statsRemoveFromYearWithDate": "La date de fin sera toujours {date} sur le serveur. Cela ne supprime que \"{title}\" de votre liste des livres Absorb cette année.",
+  "@statsRemoveFromYearWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsRemoveFromYearNoDate": "La date de fin reste sur le serveur. Cela retire seulement « {title} » de votre liste Absorb des livres lus cette année.",
+  "@statsRemoveFromYearNoDate": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "statsGoalTitle": "Objectif d'écoute",
   "statsGoalDaily": "Quotidien",
   "statsGoalWeekly": "Hebdomadaire",
@@ -351,7 +386,12 @@
   "themeOled": "OLED",
   "themeLight": "Clair",
   "themeAuto": "Auto",
+  "colorSourceWallpaper": "Fond d'écran",
+  "colorSourceNowPlaying": "Lecture en cours",
   "colorSourceDynamic": "Dynamique",
+  "colorSourceManual": "Manuel",
+  "useColorEverywhereSubtitle": "Colorer aussi les pages de détail des livres et la carte du lecteur avec ta couleur définie plutôt qu’avec la couverture de chaque livre",
+  "flatBackgroundSubtitle": "Supprime le dégradé d’arrière‑plan. Noir pur en mode sombre pour les écrans OLED.",
   "startScreenLabel": "Écran d'accueil",
   "startScreenSubtitle": "Quel onglet ouvrir au lancement de l'application",
   "startScreenHome": "Accueil",
@@ -366,10 +406,23 @@
   "fullScreenPlayer": "Lecteur plein écran",
   "speedAdjustedTimeOnSubtitle": "Activé - le temps restant reflète la vitesse de lecture",
   "speedAdjustedTimeOffSubtitle": "Désactivé - affichage de la durée audio brute",
+  "whenAbsorbedInfoContent": "Contrôle ce qu’il arrive à une carte « en cours d’absorption » quand tu termines un livre ou un épisode.\n\nLes cartes terminées sont automatiquement retirées de ton écran Absorbing.",
+  "whenAbsorbedSubtitle": "Ce qui arrive à la carte d’absorption quand un livre ou un épisode se termine",
+  "mergeLibrariesInfoContent": "Quand activé, l’écran Absorbing affiche tous vos livres et podcasts en cours, provenant de toutes vos bibliothèques, dans une seule vue. Quand désactivé, il n’affiche que les éléments de la bibliothèque que vous avez actuellement sélectionnée.",
   "queueModeManual": "Manuel",
   "queueModeAuto": "Auto",
+  "queueModePlaylist": "Liste de lecture",
+  "queueModeCollection": "Collection",
+  "queueModeInfoPlaylistDesc": "Lit les éléments dans l’ordre depuis une playlist choisie, en sautant tout ce qui est déjà terminé. S’arrête à la fin de la liste.",
+  "queueModePlaylistHint": "Démarrez une file de lecture en ouvrant une playlist depuis la page d’accueil.",
+  "exit": "Quitter",
   "queueModePodcasts": "Podcasts",
   "defaultSpeed": "Vitesse par défaut",
+  "defaultSpeedSubtitle": "Les nouveaux livres commencent à cette vitesse — chacun mémorise ensuite sa propre vitesse",
+  "skipBack": "Reculer",
+  "skipForward": "Avancer",
+  "currentLibrarySkipBack": "Reculer",
+  "currentLibrarySkipForward": "Avancer",
   "shakeAdds": "Secouer ajoute",
   "shakeAddsValue": "{minutes} min",
   "@shakeAddsValue": {
@@ -412,9 +465,15 @@
   },
   "sectionDownloadsAndStorage": "Téléchargements et stockage",
   "downloadOverWifiOnSubtitle": "Wi-Fi uniquement",
+  "autoDownloadOnWifiInfoContent": "Lorsque vous commencez à lire un livre, ce dernier se télécharge en arrière‑plan afin que vous l’ayez hors ligne sans lancer le téléchargement vous‑même. Ces téléchargements suivent votre réglage Réseau de téléchargement ci‑dessous, donc réglez‑le sur Toute connexion si vous voulez qu’ils s’exécutent aussi en données mobiles.",
+  "autoDownload": "Téléchargement automatique",
+  "keepNextInfoContent": "Le nombre d’éléments à conserver téléchargés, y compris celui que vous écoutez actuellement. Par exemple, « Garder les 3 suivants » signifie que le livre en cours plus les 2 suivants dans la série ou le podcast resteront téléchargés.",
   "deleteAbsorbedDownloads": "Supprimer les téléchargements absorbés",
   "deleteAbsorbedDownloadsInfoTitle": "Supprimer les téléchargements absorbés",
+  "deleteAbsorbedDownloadsInfoContent": "Lorsque cette option est activée, les livres ou épisodes téléchargés sont automatiquement supprimés de votre appareil après que vous avez fini de les écouter. Cela permet de libérer de l’espace de stockage au fur et à mesure que vous avancez dans votre bibliothèque.",
   "deleteAbsorbedOnSubtitle": "Les éléments achevés sont supprimés pour libérer de l'espace",
+  "deleteAbsorbedOffSubtitle": "Désactivé - les téléchargements terminés sont conservés",
+  "downloadLocation": "Emplacement de téléchargement",
   "clearCache": "Effacer le cache",
   "sectionLibrary": "Bibliothèque",
   "showGoodreadsButton": "Afficher le bouton Goodreads",
@@ -1079,5 +1138,6 @@
       }
     }
   },
-  "readerAnnotations": "Notes"
+  "readerAnnotations": "Notes",
+  "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez."
 }
