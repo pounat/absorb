@@ -250,6 +250,7 @@
   "absorbingNoDownloadedEpisodes": "Aucun épisode téléchargé",
   "absorbingNoDownloadedBooks": "Aucun livre téléchargé",
   "absorbingNothingPlayingYet": "Rien en cours de lecture",
+  "absorbingNothingAbsorbingYet": "Rien d'absorbé pour le moment",
   "absorbingDownloadEpisodesToListen": "Télécharger les épisodes pour les écouter hors ligne",
   "absorbingDownloadBooksToListen": "Télécharger les livres pour les écouter hors ligne",
   "absorbingStartEpisodeFromShows": "Démarrer un épisode depuis l'onglet Séries",
@@ -313,6 +314,15 @@
   "bookmarksCancelSelection": "Annuler la sélection",
   "bookmarksSelect": "Sélectionner",
   "bookmarksNotConnected": "Non connecté au serveur",
+  "bookmarksCouldNotLoad": "Impossible de charger le livre",
+  "bookmarksSelectedCount": "{count} sélectionné(s)",
+  "@bookmarksSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "statsTitle": "Vos statistiques",
   "statsCouldNotLoad": "Échec du chargement des statistiques",
   "statsTotalListeningTime": "TEMPS TOTAL D'ÉCOUTE",
@@ -364,11 +374,23 @@
     }
   },
   "statsGoalTitle": "Objectif d'écoute",
+  "statsGoalOff": "Désactivé",
   "statsGoalDaily": "Quotidien",
   "statsGoalWeekly": "Hebdomadaire",
   "statsGoalMonthly": "Mensuel",
   "statsGoalTarget": "Objectif",
+  "statsGoalEnterTitle": "Définir l'objectif",
   "statsGoalEnterTimeHint": "Minutes ou h:mm",
+  "statsBooksShort": "{count} livres",
+  "@statsBooksShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsBookChallengeTitle": "Défi de lecture",
+  "statsBookChallengeDesc": "Livres à terminer cette année",
   "statsDailyGoal": "Objectif quotidien",
   "statsWeeklyGoal": "Objectif hebdomadaire",
   "statsMonthlyGoal": "Objectif mensuel",
@@ -391,6 +413,14 @@
   "statsHeatmapLess": "Moins",
   "statsHeatmapMore": "Plus",
   "statsDayOfWeek": "Moyenne par jour de la semaine",
+  "statsTimeSavedSince": "depuis le {date}",
+  "@statsTimeSavedSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "statsDailyAverage": "Moyenne quotidienne",
   "statsLast7Days": "7 derniers jours",
   "statsRecentSessions": "Sessions récentes",
@@ -399,6 +429,28 @@
   "appShellStatsTab": "Stats",
   "appShellSettingsTab": "Paramètres",
   "appShellDiscoverTab": "Découvrir",
+  "appShellShowsTab": "Séries",
+  "notifIntervalOff": "Désactivé",
+  "notifIntervalMinutes": "Toutes les {n} minutes",
+  "@notifIntervalMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "notifIntervalHour": "Toutes les heures",
+  "notifIntervalHours": "Toutes les {n} heures",
+  "@notifIntervalHours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsBatteryUnrestricted": "Autoriser l'utilisation sans restriction de la batterie",
+  "settingsBatteryUnrestrictedDesc": "Empêche le système de mettre en pause les vérifications d'arrière-plan sur certains téléphones",
+  "appShellPressBackToExit": "Appuyez à nouveau pour quitter",
   "settingsTitle": "Paramètres",
   "sectionAppearance": "Apparence",
   "languageLabel": "Langage",
@@ -409,12 +461,19 @@
   "themeOled": "OLED",
   "themeLight": "Clair",
   "themeAuto": "Auto",
+  "colorSourceLabel": "Source de couleur",
+  "colorSourceCoverDescription": "Les couleurs de l'application suivent la couverture du livre en cours de lecture",
+  "colorSourceWallpaperDescription": "Les couleurs de l'application suivent votre fond d'écran système",
   "colorSourceWallpaper": "Fond d'écran",
   "colorSourceNowPlaying": "Lecture en cours",
   "colorSourceDynamic": "Dynamique",
   "colorSourceManual": "Manuel",
+  "colorSourceManualDescription": "Utilisez une couleur fixe de l'application que vous choisissez ci-dessous",
+  "colorSourceCustom": "Personnalisée",
+  "useColorEverywhereLabel": "Utiliser cette couleur partout",
   "useColorEverywhereSubtitle": "Colorer aussi les pages de détail des livres et la carte du lecteur avec ta couleur définie plutôt qu’avec la couverture de chaque livre",
   "flatBackgroundSubtitle": "Supprime le dégradé d’arrière‑plan. Noir pur en mode sombre pour les écrans OLED.",
+  "backgroundIntensityLabel": "Intensité de l'arrière-plan",
   "startScreenLabel": "Écran d'accueil",
   "startScreenSubtitle": "Quel onglet ouvrir au lancement de l'application",
   "startScreenHome": "Accueil",
@@ -427,18 +486,50 @@
   "progressTextSize": "Taille du texte de la progression",
   "rectangleBookCoversOnSubtitle": "Les couvertures s'affichent au format 2:3",
   "fullScreenPlayer": "Lecteur plein écran",
+  "fullScreenPlayerOnSubtitle": "Activé - livres ouverts en plein écran lors de la lecture",
+  "fullBookScrubberOnSubtitle": "Activé - curseur de recherche sur tout le livre",
+  "fullBookScrubberOffSubtitle": "Désactivé - barre de progression uniquement",
   "speedAdjustedTimeOnSubtitle": "Activé - le temps restant reflète la vitesse de lecture",
   "speedAdjustedTimeOffSubtitle": "Désactivé - affichage de la durée audio brute",
   "whenAbsorbedInfoContent": "Contrôle ce qu’il arrive à une carte « en cours d’absorption » quand tu termines un livre ou un épisode.\n\nLes cartes terminées sont automatiquement retirées de ton écran Absorbing.",
   "whenAbsorbedSubtitle": "Ce qui arrive à la carte d’absorption quand un livre ou un épisode se termine",
+  "mergeLibraries": "Page d'Absorption unifiée",
+  "mergeLibrariesInfoTitle": "Page d'Absorption unifiée",
   "mergeLibrariesInfoContent": "Quand activé, l’écran Absorbing affiche tous vos livres et podcasts en cours, provenant de toutes vos bibliothèques, dans une seule vue. Quand désactivé, il n’affiche que les éléments de la bibliothèque que vous avez actuellement sélectionnée.",
+  "mergeLibrariesOffSubtitle": "La page d'Absorption ne montre que la bibliothèque actuelle",
+  "queueMode": "Mode file d'attente",
+  "queueModeInfoTitle": "Mode file d'attente",
+  "queueModeInfoOff": "Désactivé",
+  "queueModeInfoManual": "File d'attente manuelle",
+  "queueModeOff": "Désactivé",
   "queueModeManual": "Manuel",
   "queueModeAuto": "Auto",
   "queueModePlaylist": "Liste de lecture",
   "queueModeCollection": "Collection",
+  "queueModeInfoPlaylist": "File d'attente de la playlist",
   "queueModeInfoPlaylistDesc": "Lit les éléments dans l’ordre depuis une playlist choisie, en sautant tout ce qui est déjà terminé. S’arrête à la fin de la liste.",
+  "queuePlaylistPickerTitle": "Choisir une playlist",
+  "queuePlaylistNone": "Aucune playlist sélectionnée",
+  "queuePlaylistActiveLabel": "Playlist : {name}",
+  "@queuePlaylistActiveLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "queueModePlaylistHint": "Démarrez une file de lecture en ouvrant une playlist depuis la page d’accueil.",
   "exit": "Quitter",
+  "upNext": "Suivant : {label}",
+  "@upNext": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "nothingUpNext": "Rien à venir",
+  "showUpNextLabel": "Afficher le suivant sur la page d'absorption",
   "queueModePodcasts": "Podcasts",
   "defaultSpeed": "Vitesse par défaut",
   "defaultSpeedSubtitle": "Les nouveaux livres commencent à cette vitesse — chacun mémorise ensuite sa propre vitesse",
@@ -446,6 +537,59 @@
   "skipForward": "Avancer",
   "currentLibrarySkipBack": "Reculer",
   "currentLibrarySkipForward": "Avancer",
+  "autoRewindOnResume": "Rembobiner lors de la reprise",
+  "autoRewindOnSubtitle": "Activé - {min}s à {max}s en fonction de la longueur de la pause",
+  "@autoRewindOnSubtitle": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "autoRewindOffSubtitle": "Désactivé",
+  "rewindRange": "Plage de rembobinage",
+  "rewindAfterPausedFor": "Rembobiner après une pause de",
+  "rewindAnyPause": "N'importe quelle durée",
+  "rewindAlwaysLabel": "Toujours",
+  "rewindAlwaysDescription": "Rembobine chaque fois que vous reprenez la lecture, même après de courtes interruptions",
+  "rewindAfterDescription": "Rembobiner seulement après une pause de plus de {seconds} seconde(s)",
+  "@rewindAfterDescription": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterBarrier": "Barrière de chapitre",
+  "chapterBarrierSubtitle": "Ne pas rembobiner automatiquement après le début du chapitre en cours",
+  "rewindInstant": "Instantané",
+  "rewindPause": "Pause de {duration}",
+  "@rewindPause": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "rewindNoRewind": "aucun rembobinage",
+  "rewindSeconds": "Rembobinage de {seconds}s",
+  "@rewindSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "sectionSleepTimer": "Minuteur de veille",
+  "sleep": "Veille",
+  "sleepTimer": "Minuteur de veille",
+  "shakeDuringSleepTimer": "Secouer pendant la mise en veille",
+  "shakeOff": "Désactivé",
+  "shakeAddTime": "Ajouter du temps",
+  "shakeReset": "Réinitialiser",
   "shakeAdds": "Secouer ajoute",
   "shakeAddsValue": "{minutes} min",
   "@shakeAddsValue": {
@@ -455,11 +599,19 @@
       }
     }
   },
+  "shakeSensitivity": "Intensité des vibrations",
   "shakeSensitivityVeryLow": "Très basse",
   "shakeSensitivityLow": "Basse",
   "shakeSensitivityMedium": "Moyenne",
   "shakeSensitivityHigh": "Haute",
   "shakeSensitivityVeryHigh": "Très haute",
+  "resetTimerOnPause": "Réinitialiser le minuteur en cas de pause",
+  "resetTimerOnPauseOnSubtitle": "Le minuteur redémarre à partir de la durée complète lorsque vous reprenez",
+  "resetTimerOnPauseOffSubtitle": "Le minuteur se poursuit à partir de l'endroit où il s'est arrêté",
+  "fadeVolumeBeforeSleep": "Fondu du volume avant la mise en veille",
+  "fadeVolumeOnSubtitle": "Diminue progressivement le volume au cours des 30 dernières secondes",
+  "fadeVolumeOffSubtitle": "La lecture s'arrête immédiatement à la fin du minuteur",
+  "autoSleepTimer": "Minuteur de mise en veille automatique",
   "autoSleepTimerOnSubtitle": "{start} - {end} - {duration} min",
   "@autoSleepTimerOnSubtitle": {
     "placeholders": {
@@ -474,9 +626,32 @@
       }
     }
   },
+  "autoSleepTimerOffSubtitle": "Démarrer automatiquement un minuteur de veille pendant une fenêtre de temps",
+  "windowStart": "Début de la fenêtre",
+  "windowEnd": "Fin de la fenêtre",
   "timerDuration": "Durée du minuteur",
   "timer": "Minuteur",
   "endOfChapter": "Fin du chapitre",
+  "startMinTimer": "Démarrer le minuteur de {minutes} min",
+  "@startMinTimer": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepAfterChapters": "Mise en veille après {count} {label}",
+  "@sleepAfterChapters": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "addMoreTime": "Ajouter plus de temps",
   "cancelTimer": "Annuler le minuteur",
   "chaptersLeftCount": "{count} ch restants",
   "@chaptersLeftCount": {
