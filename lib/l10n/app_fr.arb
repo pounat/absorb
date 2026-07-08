@@ -40,6 +40,7 @@
   "downloadBooksWhileOnline": "Télécharger des livres en ligne pour écouter hors ligne",
   "customizeHome": "Personnaliser l'accueil",
   "dragToReorderTapEye": "Faites glisser pour réorganiser, appuyez sur l'œil pour afficher/masquer",
+  "loginTagline": "Commencer à Absorber",
   "loginConnectToServer": "Se connecter au serveur",
   "loginServerAddress": "Adresse du serveur",
   "loginServerHint": "mon.serveur.fr",
@@ -48,7 +49,9 @@
   "loginAdvanced": "Avancé",
   "loginCustomHttpHeaders": "Entêtes HTTP personnalisés",
   "loginCustomHeadersDescription": "Pour les tunnels Cloudflare ou les reverse proxies qui nécessitent des en‑têtes supplémentaires. Ajoutez les en‑têtes avant d’entrer l’URL de votre serveur.",
+  "loginHeaderName": "Nom de l'en-tête",
   "loginHeaderValue": "Valeur",
+  "loginAddHeader": "Ajouter une en-tête",
   "loginSelfSignedCertificates": "Certificat auto-signé",
   "loginTrustAllCertificates": "Faire confiance à tous les certificats (pour les configurations auto‑signées ou avec CA personnalisée)",
   "loginApiKey": "Clé API",
@@ -77,6 +80,7 @@
       }
     }
   },
+  "adminCreateSetupFile": "Créer un fichier de configuration",
   "adminSetupFileDescription": "Crée un fichier de connexion pour {username} qui fonctionne uniquement dans l’app Absorb. Ils l’importent depuis l’écran de connexion pour se connecter.",
   "@adminSetupFileDescription": {
     "placeholders": {
@@ -89,6 +93,7 @@
   "adminSetupFileNoteWithHeaders": "Une clé API sera créée pour cet utilisateur et vos en‑têtes personnalisés seront inclus afin qu’ils puissent atteindre le serveur. Traitez ce fichier comme un mot de passe.",
   "adminSetupFileNote": "Une clé API sera créée pour cet utilisateur. Traitez le fichier tel un mot de passe.",
   "adminSetupFileCreate": "Créer",
+  "adminSetupFileSaveTitle": "Enregistrer le fichier de configuration",
   "adminSetupFileKeyError": "Impossible de créer une clé API pour cet utilisateur",
   "adminSetupFileSaved": "Fichier d'installation pour {username} enregistré",
   "@adminSetupFileSaved": {
@@ -162,11 +167,20 @@
       }
     }
   },
+  "libraryNoBooksWithTag": "Aucun livre étiqueté « {tag} »",
+  "@libraryNoBooksWithTag": {
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
   "libraryClearFilter": "Effacer le filtre",
   "libraryNoAuthorsFound": "Aucun auteur trouvé",
   "libraryNoNarratorsFound": "Aucun narrateur trouvé",
   "libraryNoResults": "Aucun résultat",
   "librarySearchBooks": "Livres",
+  "librarySearchShows": "Séries",
   "librarySearchEpisodes": "Épisodes",
   "librarySearchSeries": "Séries",
   "librarySearchAuthors": "Auteurs",
@@ -231,13 +245,22 @@
   "desc": "Décroissant",
   "absorbingTitle": "Lecture",
   "absorbingStop": "Stop",
+  "absorbingManageQueue": "Gérer la file d'attente",
   "absorbingDone": "Fait",
   "absorbingNoDownloadedEpisodes": "Aucun épisode téléchargé",
   "absorbingNoDownloadedBooks": "Aucun livre téléchargé",
+  "absorbingNothingPlayingYet": "Rien en cours de lecture",
+  "absorbingDownloadEpisodesToListen": "Télécharger les épisodes pour les écouter hors ligne",
+  "absorbingDownloadBooksToListen": "Télécharger les livres pour les écouter hors ligne",
+  "absorbingStartEpisodeFromShows": "Démarrer un épisode depuis l'onglet Séries",
+  "absorbingStartBookFromLibrary": "Démarrer un livre depuis l'onglet Bibliothèque",
   "carModeTitle": "Mode Auto",
+  "carModeNoBookLoaded": "Aucun livre chargé",
+  "carModeBookLabel": "Livre",
   "carModeChapterLabel": "Chapitre",
   "downloadsTitle": "Téléchargements",
   "downloadsCancelSelection": "Annuler la sélection",
+  "downloadsSelect": "Sélectionner",
   "downloadsNoDownloads": "Aucun téléchargement",
   "downloadsDownloading": "Téléchargement",
   "downloadsQueued": "En file d'attente",
