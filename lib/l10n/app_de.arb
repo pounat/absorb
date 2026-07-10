@@ -521,6 +521,37 @@
   "appShellSettingsTab": "Einstellungen",
   "appShellDiscoverTab": "Entdecken",
   "appShellShowsTab": "Sendungen",
+  "appShellPodcastsTab": "Podcasts",
+  "libraryTabEpisodes": "Folgen",
+  "filterAllEpisodes": "Alle",
+  "filterUnplayed": "Ungespielt",
+  "episodeFeedEmpty": "Keine Folgen entsprechen diesem Filter",
+  "settingsPodcastTab": "Podcast-Tab",
+  "settingsPodcastTabDesc": "Gib einer Podcast-Bibliothek einen eigenen Tab in der unteren Leiste",
+  "settingsPodcastTabLibrary": "Podcasts Registerkarte",
+  "settingsMergeImpliedByPodcastTab": "Immer eingeschaltet, während der Podcasts-Tab aktiviert ist",
+  "settingsEpisodeNotifs": "Benachrichtigung für neue Folgen",
+  "settingsEpisodeNotifsDesc": "Abonnierte Podcasts im Hintergrund prüfen",
+  "notifIntervalOff": "Aus",
+  "notifIntervalMinutes": "Alle {n} Minuten",
+  "@notifIntervalMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "notifIntervalHour": "Jede Stunde",
+  "notifIntervalHours": "Alle {n} Stunden",
+  "@notifIntervalHours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsBatteryUnrestricted": "Unbeschränkten Akkuverbrauch zulassen",
+  "settingsBatteryUnrestrictedDesc": "Hindert das System daran, Hintergrundüberprüfungen auf einigen Telefonen anzuhalten",
   "appShellPressBackToExit": "Erneut zurück drücken zum Beenden",
   "settingsTitle": "Einstellungen",
   "sectionAppearance": "Darstellung",
@@ -1967,6 +1998,69 @@
   "adminLibraryFolders": "Ordner",
   "adminLibrarySize": "Größe",
   "adminLibraryDuration": "Dauer",
+  "adminLibraryIssues": "{count, plural, one {}=1{1 fehlendes oder ungültiges Element} other{{count} fehlende oder ungültige Elemente}}",
+  "@adminLibraryIssues": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminLibraryReview": "Überprüfung",
+  "adminMissingTitle": "Fehlende Elemente",
+  "adminMissingSubtitle": "Einträge in {library}, deren Dateien fehlen oder nicht lesbar sind",
+  "@adminMissingSubtitle": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingNone": "Keine fehlenden oder ungültigen Elemente",
+  "adminMissingBadge": "Fehlend",
+  "adminInvalidBadge": "Ungültig",
+  "adminMissingDeleteTitle": "Eintrag entfernen",
+  "adminMissingDeleteOneContent": "\"{title}\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.",
+  "@adminMissingDeleteOneContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingDeleteManyContent": "\"{count}\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.",
+  "@adminMissingDeleteManyContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminMissingDeleteCount": "\"{count}\" löschen?",
+  "@adminMissingDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminMissingRemovedOne": "\"{title}\" entfernt",
+  "@adminMissingRemovedOne": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingRemovedMany": "{count, plural, one {}=1{1 Eintrag entfernt} other{{count} Einträge entfernt}}",
+  "@adminMissingRemovedMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminMissingDeleteFailed": "Fehler beim Löschen des Eintrags",
   "adminMatchAction": "Abgleichen",
   "adminMatchingStarted": "Abgleich für {name} gestartet",
   "@adminMatchingStarted": {
@@ -2381,6 +2475,16 @@
   "adminPodcastsNoResults": "Keine Ergebnisse",
   "adminPodcastsPodcastMatched": "Podcast zugeordnet und aktualisiert",
   "adminPodcastsFailedMatch": "Podcast konnte nicht zugeordnet werden",
+  "adminPodcastsSelectAll": "Alles auswählen",
+  "adminPodcastsSelectAllNew": "Nur neue",
+  "adminPodcastsSortNewestFirst": "Neueste zuerst",
+  "adminPodcastsSortOldestFirst": "Älteste zuerst",
+  "adminPodcastsEditInfo": "Info bearbeiten",
+  "adminPodcastsEditInfoSubtitle": "Titel, Beschreibung, Cover und mehr ändern",
+  "adminPodcastsEditTitle": "Podcast bearbeiten",
+  "adminPodcastsReleaseDate": "Erscheinungsdatum",
+  "adminPodcastsExplicit": "Explizit",
+  "adminPodcastsExplicitSubtitle": "Diesen Podcast als explizit markieren",
   "episodeListEpisodeFallback": "Episode",
   "episodeListUnknownPodcast": "Unbekannter Podcast",
   "episodeListMarkedFinished": "{count, plural, =1{1 Episode als beendet markiert} other{{count} Episoden als beendet markiert}}",
