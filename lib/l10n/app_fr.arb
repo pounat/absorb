@@ -430,6 +430,12 @@
   "appShellSettingsTab": "Paramètres",
   "appShellDiscoverTab": "Découvrir",
   "appShellShowsTab": "Séries",
+  "appShellPodcastsTab": "Podcasts",
+  "libraryTabEpisodes": "Épisodes",
+  "filterAllEpisodes": "Tous",
+  "filterUnplayed": "Non lus",
+  "episodeFeedEmpty": "Aucun épisode ne correspond à ce filtre",
+  "settingsPodcastTab": "Onglet Podcasts",
   "notifIntervalOff": "Désactivé",
   "notifIntervalMinutes": "Toutes les {n} minutes",
   "@notifIntervalMinutes": {
