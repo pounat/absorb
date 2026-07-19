@@ -1,3 +1,15 @@
 {
-  "@@locale": "es-ES"
+  "@@locale": "es-ES",
+  "appTitle": "A B O R B",
+  "online": "En línea",
+  "offline": "Sin conexión",
+  "stillOffline": "Aún sin conexión. Toca para intentarlo de nuevo.",
+  "retry": "Reintentar",
+  "cancel": "Cancelar",
+  "delete": "Borrar",
+  "remove": "Eliminar",
+  "save": "Guardar",
+  "or": "o",
+  "file": "Archivo",
+  "more": "Más"
 }
