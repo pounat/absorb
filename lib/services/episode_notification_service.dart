@@ -27,6 +27,25 @@ class EpisodeNotificationService {
   static const _uniqueName = 'com.barnabas.absorb.episodeNotifCheck';
   static const channelId = 'new_episodes';
 
+  @visibleForTesting
+  static Future<void> prepareBackgroundPreferences({
+    Future<void> Function()? reloadPreferences,
+    Future<void> Function()? initializeAccount,
+  }) async {
+    if (reloadPreferences != null) {
+      await reloadPreferences();
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+    }
+
+    if (initializeAccount != null) {
+      await initializeAccount();
+    } else {
+      await UserAccountService().init();
+    }
+  }
+
   /// Register/cancel the periodic job to match the setting. Called on app
   /// start (self-healing after OEM kills) and when the setting changes.
   static Future<void> syncRegistration() async {
@@ -110,8 +129,9 @@ void episodeNotifDispatcher() {
 }
 
 Future<void> _checkAndNotify() async {
-  // Resolve the active account scope so ScopedPrefs reads hit the right user.
-  await UserAccountService().init();
+  // WorkManager uses a separate Flutter engine whose SharedPreferences cache
+  // can lag behind writes from earlier workers or the foreground app.
+  await EpisodeNotificationService.prepareBackgroundPreferences();
 
   final subscribed = await ScopedPrefs.getStringList('subscribed_podcasts');
   if (subscribed.isEmpty) return;

@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/auth_tokens.dart';
 import '../services/android_auto_service.dart';
 import '../services/book_search_index.dart';
 import '../services/carplay_service.dart';
@@ -489,15 +490,19 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _serverUrl = url;
-    // Prefer new JWT accessToken, fall back to legacy user.token for old servers
-    final newAccessToken = result['accessToken'] as String?;
-    final newRefreshToken = result['refreshToken'] as String?;
-    _isLegacyToken = newAccessToken == null;
-    _accessToken = newAccessToken ?? user['token'] as String?;
-    _refreshToken = newRefreshToken;
+    // Prefer the JWTs returned inside user by current servers, while accepting
+    // the top-level shape and legacy token used by older servers.
+    final tokens = AuthTokens.fromResponse(result);
+    if (tokens.token == null) {
+      _errorMessage = l?.authUnexpectedServerResponse ?? 'Unexpected server response';
+      return false;
+    }
+    _isLegacyToken = tokens.isLegacy;
+    _accessToken = tokens.token;
+    _refreshToken = tokens.refreshToken;
     debugPrint('[Auth] Login response keys: ${result.keys.toList()}');
     debugPrint('[Auth] Login user keys: ${user.keys.toList()}');
-    debugPrint('[Auth] accessToken=${newAccessToken != null}, refreshToken=${newRefreshToken != null}, legacyToken=${user['token'] != null}, isLegacy=$_isLegacyToken');
+    debugPrint('[Auth] accessToken=${tokens.accessToken != null}, refreshToken=${tokens.refreshToken != null}, legacyToken=${tokens.legacyToken != null}, isLegacy=$_isLegacyToken');
     debugPrint('[Auth] Token being used: ${_accessToken != null ? '${_accessToken!.substring(0, _accessToken!.length.clamp(0, 20))}... (${_accessToken!.length} chars)' : 'null'}');
     _username = user['username'] as String?;
     _userId = user['id'] as String?;
@@ -672,14 +677,18 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _serverUrl = url;
-    final newAccessToken = result['accessToken'] as String?;
-    final newRefreshToken = result['refreshToken'] as String?;
-    _isLegacyToken = newAccessToken == null;
-    _accessToken = newAccessToken ?? user['token'] as String?;
-    _refreshToken = newRefreshToken;
+    final tokens = AuthTokens.fromResponse(result);
+    if (tokens.token == null) {
+      _errorMessage = l?.authSsoUnexpectedResponse ?? 'SSO returned an unexpected response';
+      notifyListeners();
+      return false;
+    }
+    _isLegacyToken = tokens.isLegacy;
+    _accessToken = tokens.token;
+    _refreshToken = tokens.refreshToken;
     debugPrint('[Auth] OIDC response keys: ${result.keys.toList()}');
     debugPrint('[Auth] OIDC user keys: ${user.keys.toList()}');
-    debugPrint('[Auth] accessToken=${newAccessToken != null}, refreshToken=${newRefreshToken != null}, legacyToken=${user['token'] != null}, isLegacy=$_isLegacyToken');
+    debugPrint('[Auth] accessToken=${tokens.accessToken != null}, refreshToken=${tokens.refreshToken != null}, legacyToken=${tokens.legacyToken != null}, isLegacy=$_isLegacyToken');
     debugPrint('[Auth] Token being used: ${_accessToken != null ? '${_accessToken!.substring(0, _accessToken!.length.clamp(0, 20))}... (${_accessToken!.length} chars)' : 'null'}');
     _username = user['username'] as String?;
     _userId = user['id'] as String?;

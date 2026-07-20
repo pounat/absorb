@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'auth_tokens.dart';
 
 /// Outcome of a local-session upsert. [serverTooOld] flags a 404/501 (the
 /// server predates /api/session/local) so the caller can fall back to the
@@ -115,6 +116,7 @@ class ApiService {
   String? _refreshToken;
   final bool _isLegacyToken;
   final Map<String, String> customHeaders;
+  final http.Client? _httpClient;
 
   /// Called after a successful token refresh so the auth layer can persist.
   void Function(String newAccessToken, String? newRefreshToken)? onTokensRefreshed;
@@ -150,9 +152,11 @@ class ApiService {
     this.customHeaders = const {},
     this.onTokensRefreshed,
     this.onAuthExpired,
+    http.Client? httpClient,
   })  : _accessToken = token,
         _refreshToken = refreshToken,
-        _isLegacyToken = isLegacyToken;
+        _isLegacyToken = isLegacyToken,
+        _httpClient = httpClient;
 
   /// Current access token (for external use like cover URLs, socket auth).
   String get token => _accessToken;
@@ -172,6 +176,24 @@ class ApiService {
   String get _cleanBaseUrl =>
       baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
 
+  Future<http.Response> _get(Uri url, {Map<String, String>? headers}) {
+    return _httpClient?.get(url, headers: headers) ?? http.get(url, headers: headers);
+  }
+
+  Future<http.Response> _post(Uri url, {Map<String, String>? headers, Object? body}) {
+    return _httpClient?.post(url, headers: headers, body: body) ??
+        http.post(url, headers: headers, body: body);
+  }
+
+  Future<http.Response> _patch(Uri url, {Map<String, String>? headers, Object? body}) {
+    return _httpClient?.patch(url, headers: headers, body: body) ??
+        http.patch(url, headers: headers, body: body);
+  }
+
+  Future<http.Response> _delete(Uri url, {Map<String, String>? headers}) {
+    return _httpClient?.delete(url, headers: headers) ?? http.delete(url, headers: headers);
+  }
+
   /// Attempt to refresh the access token using the refresh token.
   /// Returns true if successful. Uses a lock so concurrent 401s only
   /// trigger one refresh.
@@ -189,19 +211,19 @@ class ApiService {
       // Timeout is load-bearing: this is awaited from tryRestoreSession via
       // the 401-retry path, and a stalled response here would otherwise hold
       // the splash screen forever.
-      final response = await http.post(
-        Uri.parse('$_cleanBaseUrl/api/authorize'),
+      final response = await _post(
+        Uri.parse('$_cleanBaseUrl/auth/refresh'),
         headers: {
           ...customHeaders,
-          'Authorization': 'Bearer $_refreshToken',
-          'x-return-tokens': 'true',
+          'x-refresh-token': _refreshToken!,
         },
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final newAccess = data['accessToken'] as String?;
-        final newRefresh = data['refreshToken'] as String?;
+        final tokens = AuthTokens.fromResponse(data);
+        final newAccess = tokens.accessToken;
+        final newRefresh = tokens.refreshToken;
         if (newAccess != null) {
           _accessToken = newAccess;
           if (newRefresh != null) _refreshToken = newRefresh;
@@ -227,7 +249,7 @@ class ApiService {
   Future<http.Response> _authGet(Uri url, {Map<String, String>? headers, Duration timeout = const Duration(seconds: 15)}) async {
 
     final h = headers ?? _headers;
-    var response = await http.get(url, headers: h).timeout(timeout);
+    var response = await _get(url, headers: h).timeout(timeout);
     if (response.statusCode == 401) {
       debugPrint('[API] 401 on GET ${url.path} - isLegacy=$_isLegacyToken, hasRefresh=${_refreshToken != null}, tokenLen=${_accessToken.length}');
     }
@@ -235,7 +257,7 @@ class ApiService {
       if (await _refreshAccessToken()) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
-        response = await http.get(url, headers: refreshedHeaders).timeout(timeout);
+        response = await _get(url, headers: refreshedHeaders).timeout(timeout);
       }
       if (response.statusCode == 401) onAuthExpired?.call();
     }
@@ -246,12 +268,12 @@ class ApiService {
   Future<http.Response> _authPost(Uri url, {Map<String, String>? headers, Object? body, Duration timeout = const Duration(seconds: 15)}) async {
 
     final h = headers ?? _headers;
-    var response = await http.post(url, headers: h, body: body).timeout(timeout);
+    var response = await _post(url, headers: h, body: body).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
       if (await _refreshAccessToken()) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
-        response = await http.post(url, headers: refreshedHeaders, body: body).timeout(timeout);
+        response = await _post(url, headers: refreshedHeaders, body: body).timeout(timeout);
       }
       if (response.statusCode == 401) onAuthExpired?.call();
     }
@@ -261,12 +283,12 @@ class ApiService {
   /// Make an authenticated PATCH request, retrying once on 401 with a refreshed token.
   Future<http.Response> _authPatch(Uri url, {Map<String, String>? headers, Object? body, Duration timeout = const Duration(seconds: 15)}) async {
     final h = headers ?? _headers;
-    var response = await http.patch(url, headers: h, body: body).timeout(timeout);
+    var response = await _patch(url, headers: h, body: body).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
       if (await _refreshAccessToken()) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
-        response = await http.patch(url, headers: refreshedHeaders, body: body).timeout(timeout);
+        response = await _patch(url, headers: refreshedHeaders, body: body).timeout(timeout);
       }
       if (response.statusCode == 401) onAuthExpired?.call();
     }
@@ -276,12 +298,12 @@ class ApiService {
   /// Make an authenticated DELETE request, retrying once on 401 with a refreshed token.
   Future<http.Response> _authDelete(Uri url, {Map<String, String>? headers, Duration timeout = const Duration(seconds: 15)}) async {
     final h = headers ?? _headers;
-    var response = await http.delete(url, headers: h).timeout(timeout);
+    var response = await _delete(url, headers: h).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
       if (await _refreshAccessToken()) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
-        response = await http.delete(url, headers: refreshedHeaders).timeout(timeout);
+        response = await _delete(url, headers: refreshedHeaders).timeout(timeout);
       }
       if (response.statusCode == 401) onAuthExpired?.call();
     }
