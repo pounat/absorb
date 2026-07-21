@@ -1591,8 +1591,11 @@ class DownloadService extends ChangeNotifier {
   }
 
   /// Derive the on-disk filename for a track, preferring its original name so
-  /// the layout matches what older (http-based) downloads produced.
+  /// the layout matches what older (http-based) downloads produced, but prefix
+  /// with index anyway, because some tracks have the same original name
+  /// (e.g. multiple discs with "Track 1").
   String _trackFileName(Map<String, dynamic> track, int i) {
+    final prefix = i.toString().padLeft(3, '0');
     final contentUrl = track['contentUrl'] as String? ?? '';
     final trackMeta = track['metadata'] as Map<String, dynamic>?;
     var originalName = trackMeta?['filename'] as String? ?? '';
@@ -1602,8 +1605,9 @@ class DownloadService extends ChangeNotifier {
       if (originalName.contains('?')) originalName = originalName.split('?').first;
     }
     if (originalName.isNotEmpty && originalName.contains('.')) {
-      return _sanitizePath(originalName.replaceAll(RegExp(r'\.[^.]+$'), '')) +
-          originalName.substring(originalName.lastIndexOf('.'));
+      final stem = _sanitizePath(originalName.replaceAll(RegExp(r'\.[^.]+$'), ''));
+      final ext = originalName.substring(originalName.lastIndexOf('.'));
+      return '${prefix}_$stem$ext';
     }
     final mimeType = track['mimeType'] as String? ?? 'audio/mpeg';
     final ext = mimeType.contains('mp4')
@@ -1613,7 +1617,7 @@ class DownloadService extends ChangeNotifier {
             : mimeType.contains('ogg')
                 ? 'ogg'
                 : 'mp3';
-    return 'track_${i.toString().padLeft(3, '0')}.$ext';
+    return 'track_$prefix.$ext';
   }
 
   /// Cache the cover into INTERNAL storage (lockscreen / Android Auto / offline).
