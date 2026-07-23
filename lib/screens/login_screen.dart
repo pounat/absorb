@@ -11,9 +11,11 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/backup_service.dart';
 import '../services/oidc_service.dart';
+import '../services/setup_link_service.dart';
 import '../services/user_account_service.dart';
 import '../widgets/absorb_wave_icon.dart';
 import '../widgets/overlay_toast.dart';
+import '../widgets/setup_link_login.dart';
 import '../services/audio_player_service.dart';
 import '../main.dart' show applyTrustAllCerts, flatNotifier;
 import '../l10n/app_localizations.dart';
@@ -25,7 +27,6 @@ class LoginScreen extends StatefulWidget {
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
-
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
@@ -743,20 +744,42 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                         const SizedBox(height: 12),
-                        ActionChip(
-                          avatar: Icon(Icons.restore_rounded, size: 16,
-                            color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
-                          label: Text(l.loginRestoreFromBackup,
-                            style: tt.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                            )),
-                          backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-                          side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.15)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          onPressed: _restoreFromBackup,
-                        ),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ActionChip(
+                              avatar: Icon(Icons.restore_rounded, size: 16,
+                                color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                              label: Text(l.loginRestoreFromBackup,
+                                style: tt.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                                )),
+                              backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                              side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.15)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              onPressed: _restoreFromBackup,
+                            ),
+                            ActionChip(
+                              key: const Key('paste-login-link'),
+                              avatar: Icon(Icons.content_paste_rounded, size: 16,
+                                color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                              label: Text(l.loginPasteLink,
+                                style: tt.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                                )),
+                              backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                              side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.15)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              onPressed: _pasteLoginLink,
+                            ),
+                          ],
+                        )
                       ],
                     ),
                   ),
@@ -946,6 +969,78 @@ class _LoginScreenState extends State<LoginScreen>
         showOverlayToast(context, l4.loginRestoreFailed(e.toString()), icon: Icons.error_outline_rounded);
       }
     }
+  }
+
+  Future<void> _pasteLoginLink() async {
+    final l = AppLocalizations.of(context)!;
+    final controller = TextEditingController();
+    String? errorText;
+    final link = await showDialog<Uri>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void submit() {
+            final uri = Uri.tryParse(controller.text.trim());
+            try {
+              if (uri == null) throw const SetupLinkException('Invalid link');
+              SetupLinkService.parseLink(uri);
+              Navigator.pop(dialogContext, uri);
+            } on SetupLinkException {
+              setDialogState(() => errorText = l.setupLinkInvalid);
+            }
+          }
+
+          return AlertDialog(
+            title: Text(l.loginPasteLink),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.loginPasteLinkHelp),
+                const SizedBox(height: 16),
+                TextField(
+                  key: const Key('login-link-field'),
+                  controller: controller,
+                  autofocus: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  keyboardType: TextInputType.url,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'absorb://setup/...',
+                    errorText: errorText,
+                    suffixIcon: IconButton(
+                      tooltip: l.loginPasteLink,
+                      icon: const Icon(Icons.content_paste_rounded),
+                      onPressed: () async {
+                        final data = await Clipboard.getData('text/plain');
+                        controller.text = data?.text ?? '';
+                        setDialogState(() => errorText = null);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(l.cancel),
+              ),
+              FilledButton(
+                key: const Key('submit-login-link'),
+                onPressed: submit,
+                child: Text(l.loginSignIn),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+    if (link == null || !mounted) return;
+    await handleSetupLinkLogin(context, link, askForConfirmation: false);
   }
 
   Future<void> _quickSwitch(SavedAccount account) async {

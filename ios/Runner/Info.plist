@@ -24,6 +24,8 @@
 		<string>????</string>
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>UIApplicationSceneManifest</key>
@@ -95,6 +97,16 @@
 				<key>CFBundleURLSchemes</key>
 				<array>
 					<string>audiobookshelf</string>
+				</array>
+			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Viewer</string>
+				<key>CFBundleURLName</key>
+				<string>com.barnabas.absorb.setup</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>absorb</string>
 				</array>
 			</dict>
 		</array>

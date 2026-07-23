@@ -215,11 +215,11 @@ class AppLocalizationsIt extends AppLocalizations {
   }
 
   @override
-  String get adminCreateSetupFile => 'Create setup file';
+  String get adminCreateSetupFile => 'Share sign-in';
 
   @override
   String adminSetupFileDescription(String username) {
-    return 'Creates a sign-in file for $username that only works in the Absorb app. They import it from the login screen to sign in.';
+    return 'Creates a private sign-in link for $username that only works in the Absorb app.';
   }
 
   @override
@@ -227,14 +227,14 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get adminSetupFileNoteWithHeaders =>
-      'An API key will be created for this user and your custom headers are included so they can reach the server. Treat the file like a password.';
+      'A dedicated API key and your custom headers will be included so they can reach the server. Treat the link like a password.';
 
   @override
   String get adminSetupFileNote =>
-      'An API key will be created for this user. Treat the file like a password.';
+      'A dedicated API key will be included. Treat the link like a password.';
 
   @override
-  String get adminSetupFileCreate => 'Create';
+  String get adminSetupFileCreate => 'Create link';
 
   @override
   String get adminSetupFileSaveTitle => 'Save setup file';
@@ -250,8 +250,63 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String adminSetupFileFailed(String error) {
-    return 'Failed to create setup file: $error';
+    return 'Failed to create sign-in: $error';
   }
+
+  @override
+  String get setupLinkShareTitle => 'Share sign-in';
+
+  @override
+  String setupLinkShareDescription(String username) {
+    return 'Send this private link or have them scan the QR code to sign in as $username.';
+  }
+
+  @override
+  String setupLinkPrivateWarning(String username) {
+    return 'Anyone with this link can sign in as $username. Treat it like a password.';
+  }
+
+  @override
+  String get setupLinkShare => 'Share link';
+
+  @override
+  String get setupLinkCopy => 'Copy link';
+
+  @override
+  String get setupLinkCopied => 'Sign-in link copied';
+
+  @override
+  String get setupLinkSaveFile => 'Save setup file';
+
+  @override
+  String get setupLinkQrError =>
+      'This setup link is too large for a QR code. Share the link instead.';
+
+  @override
+  String setupLinkShareSubject(String username) {
+    return 'Absorb sign-in for $username';
+  }
+
+  @override
+  String get setupLinkConfirmTitle => 'Sign in with this link?';
+
+  @override
+  String setupLinkConfirmBody(String server, String username) {
+    return 'Sign in to $server as $username? Only continue if you trust who sent this link.';
+  }
+
+  @override
+  String get setupLinkInvalid => 'This sign-in link is invalid or incomplete';
+
+  @override
+  String get setupLinkSigningIn => 'Checking sign-in link...';
+
+  @override
+  String get loginPasteLink => 'Paste login link';
+
+  @override
+  String get loginPasteLinkHelp =>
+      'Paste the complete sign-in link you received. Treat it like a password.';
 
   @override
   String get loginFailed => 'Login failed';

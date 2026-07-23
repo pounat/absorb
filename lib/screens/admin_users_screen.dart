@@ -1,16 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/backup_service.dart';
+import '../services/setup_link_service.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/absorb_wave_icon.dart';
 import '../widgets/overlay_toast.dart';
+import '../widgets/setup_link_share_sheet.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/duration_format.dart';
 
@@ -783,9 +786,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
       }));
   }
 
-  /// Mint an API key for this user and write a one-account .absorb setup file.
-  /// The new user imports it from the login screen and is signed straight in.
-  /// The file carries a working credential, so it must be handed over privately.
+  /// Mint an API key for this user and package it into a private sign-in link.
   Future<void> _exportSetupFile() async {
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
@@ -850,31 +851,66 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
         userId: userId,
         customHeaders: auth.customHeaders,
       );
-      final jsonStr = const JsonEncoder.withIndent('  ').convert(payload);
-      final safeName = username.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
-      final bytes = Uint8List.fromList(utf8.encode(jsonStr));
+      final setupLink = SetupLinkService.createLink(payload);
+      if (!mounted) return;
 
-      final result = await FilePicker.platform.saveFile(
-        dialogTitle: l.adminSetupFileSaveTitle,
-        fileName: 'absorb_setup_$safeName.absorb',
-        type: FileType.any,
-        bytes: bytes,
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        showDragHandle: false,
+        builder: (sheetContext) => SetupLinkShareSheet(
+          username: username,
+          setupLink: setupLink,
+          onShare: () async {
+            final box = sheetContext.findRenderObject() as RenderBox?;
+            final origin = box == null
+                ? null
+                : box.localToGlobal(Offset.zero) & box.size;
+            await Share.share(
+              setupLink.toString(),
+              subject: l.setupLinkShareSubject(username),
+              sharePositionOrigin: origin,
+            );
+          },
+          onCopy: () async {
+            await Clipboard.setData(ClipboardData(text: setupLink.toString()));
+            if (sheetContext.mounted) {
+              showOverlayToast(sheetContext, l.setupLinkCopied,
+                  icon: Icons.content_copy_rounded);
+            }
+          },
+          onSaveFile: () => _saveSetupFile(payload, username),
+        ),
       );
-
-      if (result != null) {
-        if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-          await File(result).writeAsString(jsonStr);
-        }
-        if (mounted) {
-          showOverlayToast(context, l.adminSetupFileSaved(username),
-              icon: Icons.check_circle_outline_rounded);
-        }
-      }
     } catch (e) {
       if (mounted) {
         showOverlayToast(context, l.adminSetupFileFailed(e.toString()),
             icon: Icons.error_outline_rounded);
       }
+    }
+  }
+
+  Future<void> _saveSetupFile(Map<String, dynamic> payload, String username) async {
+    final l = AppLocalizations.of(context)!;
+    final jsonStr = const JsonEncoder.withIndent('  ').convert(payload);
+    final safeName = username.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+    final bytes = Uint8List.fromList(utf8.encode(jsonStr));
+
+    final result = await FilePicker.platform.saveFile(
+      dialogTitle: l.adminSetupFileSaveTitle,
+      fileName: 'absorb_setup_$safeName.absorb',
+      type: FileType.any,
+      bytes: bytes,
+    );
+
+    if (result == null) return;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      await File(result).writeAsString(jsonStr);
+    }
+    if (mounted) {
+      showOverlayToast(context, l.adminSetupFileSaved(username),
+          icon: Icons.check_circle_outline_rounded);
     }
   }
 

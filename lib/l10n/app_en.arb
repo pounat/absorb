@@ -72,25 +72,55 @@
   "@loginSignedInAs": {
     "placeholders": { "username": { "type": "String" } }
   },
-  "adminCreateSetupFile": "Create setup file",
-  "adminSetupFileDescription": "Creates a sign-in file for {username} that only works in the Absorb app. They import it from the login screen to sign in.",
+  "adminCreateSetupFile": "Share sign-in",
+  "adminSetupFileDescription": "Creates a private sign-in link for {username} that only works in the Absorb app.",
   "@adminSetupFileDescription": {
     "placeholders": { "username": { "type": "String" } }
   },
   "adminSetupFileServerUrl": "Server URL the new user will use",
-  "adminSetupFileNoteWithHeaders": "An API key will be created for this user and your custom headers are included so they can reach the server. Treat the file like a password.",
-  "adminSetupFileNote": "An API key will be created for this user. Treat the file like a password.",
-  "adminSetupFileCreate": "Create",
+  "adminSetupFileNoteWithHeaders": "A dedicated API key and your custom headers will be included so they can reach the server. Treat the link like a password.",
+  "adminSetupFileNote": "A dedicated API key will be included. Treat the link like a password.",
+  "adminSetupFileCreate": "Create link",
   "adminSetupFileSaveTitle": "Save setup file",
   "adminSetupFileKeyError": "Could not create an API key for this user",
   "adminSetupFileSaved": "Setup file for {username} saved",
   "@adminSetupFileSaved": {
     "placeholders": { "username": { "type": "String" } }
   },
-  "adminSetupFileFailed": "Failed to create setup file: {error}",
+  "adminSetupFileFailed": "Failed to create sign-in: {error}",
   "@adminSetupFileFailed": {
     "placeholders": { "error": { "type": "String" } }
   },
+  "setupLinkShareTitle": "Share sign-in",
+  "setupLinkShareDescription": "Send this private link or have them scan the QR code to sign in as {username}.",
+  "@setupLinkShareDescription": {
+    "placeholders": { "username": { "type": "String" } }
+  },
+  "setupLinkPrivateWarning": "Anyone with this link can sign in as {username}. Treat it like a password.",
+  "@setupLinkPrivateWarning": {
+    "placeholders": { "username": { "type": "String" } }
+  },
+  "setupLinkShare": "Share link",
+  "setupLinkCopy": "Copy link",
+  "setupLinkCopied": "Sign-in link copied",
+  "setupLinkSaveFile": "Save setup file",
+  "setupLinkQrError": "This setup link is too large for a QR code. Share the link instead.",
+  "setupLinkShareSubject": "Absorb sign-in for {username}",
+  "@setupLinkShareSubject": {
+    "placeholders": { "username": { "type": "String" } }
+  },
+  "setupLinkConfirmTitle": "Sign in with this link?",
+  "setupLinkConfirmBody": "Sign in to {server} as {username}? Only continue if you trust who sent this link.",
+  "@setupLinkConfirmBody": {
+    "placeholders": {
+      "server": { "type": "String" },
+      "username": { "type": "String" }
+    }
+  },
+  "setupLinkInvalid": "This sign-in link is invalid or incomplete",
+  "setupLinkSigningIn": "Checking sign-in link...",
+  "loginPasteLink": "Paste login link",
+  "loginPasteLinkHelp": "Paste the complete sign-in link you received. Treat it like a password.",
   "loginFailed": "Login failed",
   "loginSsoFailed": "SSO login failed or was cancelled",
   "loginSsoAuthFailed": "SSO authentication failed. Please try again.",

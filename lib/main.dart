@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 // Flutter 3.44 moved CupertinoPageTransitionsBuilder from material.dart to
@@ -8,6 +9,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:app_links/app_links.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -33,10 +35,12 @@ import 'services/episode_notification_service.dart';
 import 'services/home_widget_service.dart';
 import 'services/log_service.dart';
 import 'services/quick_actions_service.dart';
+import 'services/setup_link_service.dart';
 import 'services/wording.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_shell.dart';
 import 'widgets/absorb_wave_icon.dart';
+import 'widgets/setup_link_login.dart';
 
 /// Global notifier so any widget (e.g. settings) can change the theme instantly.
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
@@ -75,7 +79,6 @@ ColorScheme manualColorScheme(Color seed, Brightness brightness) {
       : Colors.black;
   return base.copyWith(primary: seed, onPrimary: onSeed);
 }
-
 /// Whether to disable the fade animation when switching bottom nav tabs.
 final ValueNotifier<bool> snappyTransitionsNotifier = ValueNotifier(false);
 
@@ -158,6 +161,7 @@ Future<void> applyOrientationLock() async {
 void main() async {
   HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  final appLinks = AppLinks();
 
   // These calls use platform channels that require an Activity. When Android
   // Auto cold-starts the app for the MediaBrowserService, no Activity exists
@@ -236,13 +240,15 @@ void main() async {
           update: (_, auth, lib) => lib!..updateAuth(auth),
         ),
       ],
-      child: const AbsorbApp(),
+      child: AbsorbApp(setupLinkStream: appLinks.uriLinkStream),
     ),
   );
 }
 
 class AbsorbApp extends StatelessWidget {
-  const AbsorbApp({super.key});
+  final Stream<Uri>? setupLinkStream;
+
+  const AbsorbApp({super.key, this.setupLinkStream});
 
   @override
   Widget build(BuildContext context) {
@@ -478,7 +484,7 @@ class AbsorbApp extends StatelessWidget {
                 ),
                 pageTransitionsTheme: pageTransition,
               ),
-              home: const AuthGate(),
+              home: AuthGate(setupLinkStream: setupLinkStream),
             );
       },
     );
@@ -486,17 +492,68 @@ class AbsorbApp extends StatelessWidget {
 }
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+  final Stream<Uri>? setupLinkStream;
+
+  const AuthGate({super.key, this.setupLinkStream});
 
   @override
   State<AuthGate> createState() => _AuthGateState();
 }
 
 class _AuthGateState extends State<AuthGate> {
+  StreamSubscription<Uri>? _setupLinkSubscription;
+  Uri? _pendingSetupLink;
+  Uri? _activeSetupLink;
+  bool _servicesReady = false;
+  bool _handlingSetupLink = false;
+
   @override
   void initState() {
     super.initState();
+    _setupLinkSubscription = widget.setupLinkStream?.listen(
+      _queueSetupLink,
+      onError: (_) {},
+    );
     _initServices();
+  }
+
+  @override
+  void dispose() {
+    _setupLinkSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _queueSetupLink(Uri uri) {
+    if (!SetupLinkService.isSetupLink(uri)) return;
+    if (_pendingSetupLink == uri || _activeSetupLink == uri) return;
+    _pendingSetupLink = uri;
+    _tryHandleSetupLink();
+  }
+
+  void _tryHandleSetupLink() {
+    final link = _pendingSetupLink;
+    if (!_servicesReady ||
+        _handlingSetupLink ||
+        link == null ||
+        !mounted ||
+        context.read<AuthProvider>().isLoading) {
+      return;
+    }
+
+    _pendingSetupLink = null;
+    _activeSetupLink = link;
+    _handlingSetupLink = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await _handleSetupLink(link);
+      _activeSetupLink = null;
+      _handlingSetupLink = false;
+      _tryHandleSetupLink();
+    });
+  }
+
+  Future<void> _handleSetupLink(Uri link) async {
+    await handleSetupLinkLogin(context, link);
   }
 
   Future<void> _initServices() async {
@@ -665,11 +722,16 @@ class _AuthGateState extends State<AuthGate> {
       debugPrint('[Init] Service init failed: $e');
     }
     debugPrint('[Init] _initServices complete (${sw.elapsedMilliseconds}ms)');
+    _servicesReady = true;
+    _tryHandleSetupLink();
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    if (!auth.isLoading && _pendingSetupLink != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryHandleSetupLink());
+    }
 
     if (auth.isLoading) {
       return Scaffold(

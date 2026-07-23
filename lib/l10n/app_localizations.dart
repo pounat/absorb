@@ -517,13 +517,13 @@ abstract class AppLocalizations {
   /// No description provided for @adminCreateSetupFile.
   ///
   /// In en, this message translates to:
-  /// **'Create setup file'**
+  /// **'Share sign-in'**
   String get adminCreateSetupFile;
 
   /// No description provided for @adminSetupFileDescription.
   ///
   /// In en, this message translates to:
-  /// **'Creates a sign-in file for {username} that only works in the Absorb app. They import it from the login screen to sign in.'**
+  /// **'Creates a private sign-in link for {username} that only works in the Absorb app.'**
   String adminSetupFileDescription(String username);
 
   /// No description provided for @adminSetupFileServerUrl.
@@ -535,19 +535,19 @@ abstract class AppLocalizations {
   /// No description provided for @adminSetupFileNoteWithHeaders.
   ///
   /// In en, this message translates to:
-  /// **'An API key will be created for this user and your custom headers are included so they can reach the server. Treat the file like a password.'**
+  /// **'A dedicated API key and your custom headers will be included so they can reach the server. Treat the link like a password.'**
   String get adminSetupFileNoteWithHeaders;
 
   /// No description provided for @adminSetupFileNote.
   ///
   /// In en, this message translates to:
-  /// **'An API key will be created for this user. Treat the file like a password.'**
+  /// **'A dedicated API key will be included. Treat the link like a password.'**
   String get adminSetupFileNote;
 
   /// No description provided for @adminSetupFileCreate.
   ///
   /// In en, this message translates to:
-  /// **'Create'**
+  /// **'Create link'**
   String get adminSetupFileCreate;
 
   /// No description provided for @adminSetupFileSaveTitle.
@@ -571,8 +571,98 @@ abstract class AppLocalizations {
   /// No description provided for @adminSetupFileFailed.
   ///
   /// In en, this message translates to:
-  /// **'Failed to create setup file: {error}'**
+  /// **'Failed to create sign-in: {error}'**
   String adminSetupFileFailed(String error);
+
+  /// No description provided for @setupLinkShareTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share sign-in'**
+  String get setupLinkShareTitle;
+
+  /// No description provided for @setupLinkShareDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Send this private link or have them scan the QR code to sign in as {username}.'**
+  String setupLinkShareDescription(String username);
+
+  /// No description provided for @setupLinkPrivateWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with this link can sign in as {username}. Treat it like a password.'**
+  String setupLinkPrivateWarning(String username);
+
+  /// No description provided for @setupLinkShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share link'**
+  String get setupLinkShare;
+
+  /// No description provided for @setupLinkCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get setupLinkCopy;
+
+  /// No description provided for @setupLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in link copied'**
+  String get setupLinkCopied;
+
+  /// No description provided for @setupLinkSaveFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Save setup file'**
+  String get setupLinkSaveFile;
+
+  /// No description provided for @setupLinkQrError.
+  ///
+  /// In en, this message translates to:
+  /// **'This setup link is too large for a QR code. Share the link instead.'**
+  String get setupLinkQrError;
+
+  /// No description provided for @setupLinkShareSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'Absorb sign-in for {username}'**
+  String setupLinkShareSubject(String username);
+
+  /// No description provided for @setupLinkConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with this link?'**
+  String get setupLinkConfirmTitle;
+
+  /// No description provided for @setupLinkConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to {server} as {username}? Only continue if you trust who sent this link.'**
+  String setupLinkConfirmBody(String server, String username);
+
+  /// No description provided for @setupLinkInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This sign-in link is invalid or incomplete'**
+  String get setupLinkInvalid;
+
+  /// No description provided for @setupLinkSigningIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking sign-in link...'**
+  String get setupLinkSigningIn;
+
+  /// No description provided for @loginPasteLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste login link'**
+  String get loginPasteLink;
+
+  /// No description provided for @loginPasteLinkHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the complete sign-in link you received. Treat it like a password.'**
+  String get loginPasteLinkHelp;
 
   /// No description provided for @loginFailed.
   ///
