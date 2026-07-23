@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../widgets/overlay_toast.dart';
 
 /// Full-screen editor for a podcast show's info (title, author, description,
 /// genres, tags, language, release date, explicit flag and cover art).
@@ -79,13 +80,7 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
     super.dispose();
   }
 
-  void _msg(String s) => ScaffoldMessenger.of(context)
-    ..clearSnackBars()
-    ..showSnackBar(SnackBar(
-      content: Text(s),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+  void _msg(String s) => showOverlayToast(context, s);
 
   List<String> _splitList(String text) => text.trim().isEmpty
       ? <String>[]

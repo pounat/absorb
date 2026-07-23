@@ -2901,16 +2901,26 @@ class ApiService {
     return null;
   }
 
-  /// Match a library item with external metadata
+  /// Match a library item with external metadata.
   /// POST /api/items/:id/match
-  Future<Map<String, dynamic>?> matchLibraryItem(String itemId, {String? title, String? author, String? provider}) async {
+  ///
+  /// When the override flags are omitted, the server applies its configured
+  /// "Prefer matched metadata" setting.
+  Future<Map<String, dynamic>?> matchLibraryItem(
+    String itemId, {
+    String? title,
+    String? author,
+    String? provider,
+    bool? overrideCover,
+    bool? overrideDetails,
+  }) async {
     try {
       final body = <String, dynamic>{};
       if (title != null) body['title'] = title;
       if (author != null) body['author'] = author;
       if (provider != null) body['provider'] = provider;
-      body['overrideCover'] = true;
-      body['overrideDetails'] = true;
+      if (overrideCover != null) body['overrideCover'] = overrideCover;
+      if (overrideDetails != null) body['overrideDetails'] = overrideDetails;
       final r = await _authPost(
         Uri.parse('$_cleanBaseUrl/api/items/$itemId/match'),
         body: jsonEncode(body),

@@ -21,7 +21,7 @@ import '../services/socket_service.dart';
 import '../services/book_search_index.dart';
 import '../services/home_widget_service.dart';
 import '../l10n/app_localizations.dart';
-import '../main.dart' show scaffoldMessengerKey, rootNavigatorKey;
+import '../main.dart' show rootNavigatorKey;
 import '../widgets/overlay_toast.dart';
 
 part '_lp_state.dart';

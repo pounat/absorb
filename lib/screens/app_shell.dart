@@ -30,6 +30,7 @@ import '../widgets/welcome_sheet.dart';
 import '../services/review_service.dart';
 import '../services/update_checker_service.dart';
 import '../widgets/update_dialog.dart';
+import '../widgets/overlay_toast.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -708,18 +709,10 @@ class _AppShellState extends State<AppShell>
             return;
           }
           _lastBackPress = now;
-          ScaffoldMessenger.of(context).clearSnackBars();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                AppLocalizations.of(context)!.appShellPressBackToExit,
-              ),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          showOverlayToast(
+            context,
+            AppLocalizations.of(context)!.appShellPressBackToExit,
+            icon: Icons.exit_to_app_rounded,
           );
           return;
         }

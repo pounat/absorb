@@ -14,6 +14,7 @@ import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
 import 'add_books_search_sheet.dart';
 import 'book_detail_sheet.dart';
+import 'editable_sheet_item.dart';
 import 'stackable_sheet.dart';
 import '../screens/app_shell.dart';
 
@@ -45,9 +46,11 @@ class CollectionDetailSheet extends StatefulWidget {
 }
 
 class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
-  bool _reordering = false;
+  bool _editing = false;
   bool _gridView = false;
-  List<Map<String, dynamic>>? _reorderItems;
+  List<Map<String, dynamic>>? _editItems;
+  final Set<String> _selectedItemIds = {};
+  bool _isRemovingSelected = false;
 
   Future<void> _removeItem(LibraryProvider lib, String libraryItemId) async {
     await lib.removeFromCollection(widget.collectionId, libraryItemId);
@@ -89,7 +92,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     );
   }
 
-  Widget _headerTextButton(ColorScheme cs, String label, VoidCallback onTap,
+  Widget _headerTextButton(ColorScheme cs, String label, VoidCallback? onTap,
       {required Color color}) {
     return TextButton(
       onPressed: onTap,
@@ -137,17 +140,18 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     }
   }
 
-  void _startReorder(List<dynamic> books) {
+  void _startEdit(List<dynamic> books) {
     setState(() {
-      _reordering = true;
-      _reorderItems = books
+      _editing = true;
+      _editItems = books
           .map((b) => Map<String, dynamic>.from(b as Map))
           .toList();
+      _selectedItemIds.clear();
     });
   }
 
-  void _saveReorder(LibraryProvider lib) {
-    final items = _reorderItems;
+  void _saveEdit(LibraryProvider lib) {
+    final items = _editItems;
     if (items != null) {
       final bookIds = items
           .map((b) => b['id'] as String? ?? '')
@@ -160,11 +164,38 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     Navigator.pop(context);
   }
 
-  void _cancelReorder() {
+  void _cancelEdit() {
     setState(() {
-      _reordering = false;
-      _reorderItems = null;
+      _editing = false;
+      _editItems = null;
+      _selectedItemIds.clear();
     });
+  }
+
+  Future<void> _removeSelected(LibraryProvider lib) async {
+    if (_selectedItemIds.isEmpty) return;
+    setState(() => _isRemovingSelected = true);
+
+    final removedIds = <String>{};
+    for (final itemId in List<String>.from(_selectedItemIds)) {
+      if (await lib.removeFromCollection(widget.collectionId, itemId)) {
+        removedIds.add(itemId);
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _editItems?.removeWhere((item) => removedIds.contains(item['id']));
+      _selectedItemIds.removeAll(removedIds);
+      _isRemovingSelected = false;
+    });
+    if (removedIds.isNotEmpty) {
+      showOverlayToast(
+        context,
+        AppLocalizations.of(context)!.playlistDetailItemsRemoved(removedIds.length),
+        icon: Icons.playlist_remove_rounded,
+      );
+    }
   }
 
   @override
@@ -196,21 +227,26 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(children: [
-          if (_reordering) ...[
-            _headerTextButton(cs, l.cancel, _cancelReorder, color: cs.onSurfaceVariant),
+          if (_editing) ...[
+            _headerTextButton(cs, l.cancel, _cancelEdit, color: cs.onSurfaceVariant),
             const Spacer(),
             Flexible(
-              child: Text(name,
+              child: Text(
+                _selectedItemIds.isEmpty
+                    ? name
+                    : l.selectedCount(_selectedItemIds.length),
                 maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: tt.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600, color: cs.onSurface)),
             ),
             const Spacer(),
-            _headerTextButton(cs, l.done, () => _saveReorder(lib), color: cs.primary),
+            _headerTextButton(
+              cs,
+              l.done,
+              _isRemovingSelected ? null : () => _saveEdit(lib),
+              color: cs.primary,
+            ),
           ] else ...[
-            if (canDeleteCollection)
-              _headerIconButton(cs, Icons.delete_outline_rounded,
-                () => _deleteCollection(context, lib), tooltip: l.delete),
             Icon(Icons.collections_bookmark_rounded, size: 20, color: cs.primary),
             const SizedBox(width: 8),
             Expanded(
@@ -227,12 +263,13 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
             _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
               () => setState(() => _gridView = !_gridView)),
-            if (canEditCollection && books.length > 1)
-              _headerIconButton(cs, Icons.tune_rounded, () => _startReorder(books)),
+            if (canEditCollection)
+              _headerIconButton(cs, Icons.edit_rounded, () => _startEdit(books),
+                tooltip: l.edit),
           ],
         ]),
       ),
-      if (!_reordering && description.isNotEmpty) ...[
+      if (!_editing && description.isNotEmpty) ...[
         const SizedBox(height: 4),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -245,16 +282,43 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
       const SizedBox(height: 12),
       Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.3),
         indent: 20, endIndent: 20),
-      if (!_reordering)
+      if (!_editing)
         _buildPlayButton(cs, lib, books, name, l),
       // Content
       Expanded(
-        child: _reordering
-            ? _buildReorderList(cs, tt, lib, l)
+        child: _editing
+            ? _buildEditList(cs, tt, lib, l)
             : _gridView
                 ? _buildGrid(cs, tt, lib, books, l)
                 : _buildItemList(cs, tt, lib, books, l, canEditCollection: canEditCollection),
       ),
+      if (_editing && canDeleteCollection)
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(16, 8, 16,
+            8 + MediaQuery.of(context).viewPadding.bottom),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainer,
+            border: Border(top: BorderSide(
+              color: cs.outlineVariant.withValues(alpha: 0.3))),
+          ),
+          child: _isRemovingSelected
+              ? Center(child: SizedBox(width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary)))
+              : _selectedItemIds.isNotEmpty
+                  ? FilledButton.tonalIcon(
+                      onPressed: () => _removeSelected(lib),
+                      icon: const Icon(Icons.playlist_remove_rounded),
+                      label: Text('${l.remove} (${_selectedItemIds.length})'),
+                      style: FilledButton.styleFrom(foregroundColor: cs.error),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: () => _deleteCollection(context, lib),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: Text(l.deleteCollection),
+                      style: OutlinedButton.styleFrom(foregroundColor: cs.error),
+                    ),
+        ),
     ]);
   }
 
@@ -293,10 +357,10 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     );
   }
 
-  Widget _buildReorderList(ColorScheme cs, TextTheme tt, LibraryProvider lib, AppLocalizations l) {
-    final items = _reorderItems!;
+  Widget _buildEditList(ColorScheme cs, TextTheme tt, LibraryProvider lib, AppLocalizations l) {
+    final items = _editItems!;
     return ReorderableListView.builder(
-      padding: EdgeInsets.only(top: 8, bottom: 8 + MediaQuery.of(context).viewPadding.bottom),
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
       onReorderStart: (_) => HapticFeedback.mediumImpact(),
       onReorder: (oldIndex, newIndex) {
         setState(() {
@@ -312,46 +376,32 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
         final media = book['media'] as Map<String, dynamic>? ?? {};
         final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
         final title = metadata['title'] as String? ?? l.unknown;
+        final author = metadata['authorName'] as String? ?? '';
         final coverUrl = lib.getCoverUrl(itemId);
 
-        return Container(
+        return EditableSheetItem(
           key: ValueKey(itemId),
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-          decoration: BoxDecoration(
-            color: cs.onSurface.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
-          ),
-          child: ListTile(
-            dense: true,
-            leading: SizedBox(
-              width: 36, height: 36,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: coverUrl != null
-                    ? (coverUrl.startsWith('/')
-                        ? Image.file(File(coverUrl), fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholder(cs))
-                        : Image.network(coverUrl, fit: BoxFit.cover,
-                            headers: lib.mediaHeaders,
-                            errorBuilder: (_, __, ___) => _placeholder(cs)))
-                    : _placeholder(cs),
-              ),
-            ),
-            title: Text(
-              title,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
-                color: cs.onSurface),
-            ),
-            trailing: ReorderableDragStartListener(
-              index: index,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Icon(Icons.drag_handle_rounded, size: 18,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
-              ),
-            ),
+          index: index,
+          selected: _selectedItemIds.contains(itemId),
+          onSelectedChanged: (selected) => setState(() {
+            if (selected) {
+              _selectedItemIds.add(itemId);
+            } else {
+              _selectedItemIds.remove(itemId);
+            }
+          }),
+          title: title,
+          subtitle: author.isEmpty ? null : author,
+          leading: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: coverUrl != null
+                ? (coverUrl.startsWith('/')
+                    ? Image.file(File(coverUrl), fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _placeholder(cs))
+                    : Image.network(coverUrl, fit: BoxFit.cover,
+                        headers: lib.mediaHeaders,
+                        errorBuilder: (_, __, ___) => _placeholder(cs)))
+                : _placeholder(cs),
           ),
         );
       },

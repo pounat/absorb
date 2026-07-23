@@ -71,17 +71,12 @@ class _PressableState extends State<Pressable> {
 /// Show a toast when the user taps a button that requires active playback.
 void showInactiveToast(BuildContext context) {
   final l = AppLocalizations.of(context)!;
-  ScaffoldMessenger.of(context)
-    ..clearSnackBars()
-    ..showSnackBar(SnackBar(
-      content: Text(l.startPlayingSomethingFirst),
-      duration: const Duration(seconds: 2),
-      behavior: SnackBarBehavior.floating,
-    ));
+  showOverlayToast(context, l.startPlayingSomethingFirst,
+      icon: Icons.play_disabled_rounded);
 }
 
 /// Show an error message to the user.
-void showErrorSnackBar(BuildContext context, String message) {
+void showErrorToast(BuildContext context, String message) {
   showOverlayToast(context, message, icon: Icons.error_outline_rounded);
 }
 
@@ -495,8 +490,8 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
     await BookmarkService().addBookmark(itemId: widget.itemId, positionSeconds: pos, title: chTitle ?? l.bookmark, api: AudioPlayerService().currentApi);
     _loadCount();
     if (ctx.mounted) {
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(duration: const Duration(seconds: 2), content: Text(l.bookmarkAdded), behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+      showOverlayToast(ctx, l.bookmarkAdded,
+          icon: Icons.bookmark_added_rounded);
     }
   }
 
@@ -2345,11 +2340,10 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
                       Duration(seconds: event.positionSeconds.round()),
                     );
                     Navigator.pop(futureContext);
-                    ScaffoldMessenger.of(widget.parentCtx).showSnackBar(
-                      SnackBar(
-                        duration: const Duration(seconds: 3),
-                        content: Text(l.jumpedToPosition(positionLabel)),
-                      ),
+                    showOverlayToast(
+                      widget.parentCtx,
+                      l.jumpedToPosition(positionLabel),
+                      icon: Icons.my_location_rounded,
                     );
                   }
                 : null,

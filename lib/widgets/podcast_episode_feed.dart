@@ -10,7 +10,7 @@ import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
 import '../services/scoped_prefs.dart';
-import 'card_buttons.dart' show showErrorSnackBar;
+import 'card_buttons.dart' show showErrorToast;
 import 'episode_list_sheet.dart';
 import 'episode_row.dart';
 import 'overlay_toast.dart';
@@ -229,7 +229,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       libraryId: (ep['podcast'] as Map<String, dynamic>?)?['libraryId'] as String? ??
           widget.libraryId,
     );
-    if (error != null && mounted) showErrorSnackBar(context, error);
+    if (error != null && mounted) showErrorToast(context, error);
   }
 
   Future<void> _downloadEpisode(Map<String, dynamic> ep) async {

@@ -11,6 +11,7 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../widgets/card_buttons.dart';
+import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 
 class CarModeScreen extends StatefulWidget {
@@ -505,13 +506,8 @@ class _CarModeScreenState extends State<CarModeScreen>
                         positionSeconds: pos,
                         title: chTitle.isNotEmpty ? chTitle : l.carModeBookmarkDefault,
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l.carModeBookmarkAdded),
-                          duration: const Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+                      showOverlayToast(context, l.carModeBookmarkAdded,
+                          icon: Icons.bookmark_added_rounded);
                     } : null,
                   ),
                 ],

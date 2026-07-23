@@ -1159,13 +1159,14 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   void _onEncodeFinished(Map<String, dynamic> data) {
-    final messenger = scaffoldMessengerKey.currentState;
-    if (messenger == null) return;
-    final ctx = messenger.context;
-    final l = AppLocalizations.of(ctx);
-    messenger
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(content: Text(l?.encodeFinished ?? 'M4B encode finished')));
+    final navigator = rootNavigatorKey.currentState;
+    if (navigator == null) return;
+    final l = AppLocalizations.of(navigator.context);
+    showNavigatorOverlayToast(
+      navigator,
+      l?.encodeFinished ?? 'M4B encode finished',
+      icon: Icons.check_circle_outline_rounded,
+    );
   }
 
   void _goOffline() {
@@ -2307,7 +2308,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
     if (newDownloads > 0) {
       final l = _l();
-      _showRollingSnackBar(
+      _showRollingToast(
           l?.lpQueueDownloadingItems(newDownloads)
           ?? 'Queue: downloading $newDownloads item${newDownloads == 1 ? '' : 's'}',
           icon: Icons.download_rounded);
@@ -2438,7 +2439,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
     if (newDownloads > 0) {
       final l = _l();
-      _showRollingSnackBar(
+      _showRollingToast(
           l?.lpDownloadingBooks(newDownloads)
           ?? 'Downloading $newDownloads book${newDownloads == 1 ? '' : 's'}',
           icon: Icons.download_rounded);
@@ -2517,7 +2518,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
     if (newDownloads > 0) {
       final l = _l();
-      _showRollingSnackBar(
+      _showRollingToast(
           l?.lpDownloadingEpisodes(newDownloads)
           ?? 'Downloading $newDownloads episode${newDownloads == 1 ? '' : 's'}',
           icon: Icons.download_rounded);

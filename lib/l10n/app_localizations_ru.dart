@@ -2819,6 +2819,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get quickMatch => 'Quick Match';
 
   @override
+  String get quickMatchNoUpdates => 'No updates necessary';
+
+  @override
   String get custom => 'Custom';
 
   @override

@@ -8,6 +8,7 @@ import '../services/socket_service.dart';
 import '../widgets/admin_task_indicator.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/rmab_config_sheet.dart';
+import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 import 'admin_users_screen.dart';
 import 'admin_upload_screen.dart';
@@ -442,9 +443,14 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     if (result.changed || result.disconnected) {
       await _loadAll();
       if (!mounted) return;
-      _msg(result.disconnected
-          ? l.rmabConfigDisconnectedSnackbar
-          : l.rmabConfigSavedSnackbar);
+      _msg(
+        result.disconnected
+            ? l.rmabConfigDisconnectedSnackbar
+            : l.rmabConfigSavedSnackbar,
+        icon: result.disconnected
+            ? Icons.link_off_rounded
+            : Icons.check_circle_outline_rounded,
+      );
     }
   }
 
@@ -604,7 +610,8 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     if (mounted) {
       final l = AppLocalizations.of(context)!;
       setState(() => _scanningLibraries.remove(id));
-      _msg(ok ? l.adminScanStarted(name) : l.adminScanFailed(name));
+      _msg(ok ? l.adminScanStarted(name) : l.adminScanFailed(name),
+          icon: ok ? Icons.refresh_rounded : Icons.error_outline_rounded);
     }
   }
 
@@ -624,7 +631,8 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     if (mounted) {
       final l2 = AppLocalizations.of(context)!;
       setState(() => _matchingLibraries.remove(id));
-      _msg(ok ? l2.adminMatchingStarted(name) : l2.adminMatchFailed);
+      _msg(ok ? l2.adminMatchingStarted(name) : l2.adminMatchFailed,
+          icon: ok ? Icons.manage_search_rounded : Icons.error_outline_rounded);
     }
   }
 
@@ -635,7 +643,8 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     if (mounted) {
       final l = AppLocalizations.of(context)!;
       setState(() => _creatingBackup = false);
-      _msg(ok ? l.adminBackupCreated : l.adminBackupFailed);
+      _msg(ok ? l.adminBackupCreated : l.adminBackupFailed,
+          icon: ok ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded);
       if (ok) _loadAll();
     }
   }
@@ -647,12 +656,13 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     if (mounted) {
       final l = AppLocalizations.of(context)!;
       setState(() => _purgingCache = false);
-      _msg(ok ? l.adminCachePurged : l.adminPurgeCacheFailed);
+      _msg(ok ? l.adminCachePurged : l.adminPurgeCacheFailed,
+          icon: ok ? Icons.cleaning_services_rounded : Icons.error_outline_rounded);
     }
   }
 
-  void _msg(String s) => ScaffoldMessenger.of(context)..clearSnackBars()..showSnackBar(
-    SnackBar(content: Text(s), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+  void _msg(String s, {IconData? icon}) =>
+      showOverlayToast(context, s, icon: icon);
 
   String _fmtB(int b) { if (b < 1024) return '$b B'; if (b < 1048576) return '${(b / 1024).toStringAsFixed(0)} KB';
     if (b < 1073741824) return '${(b / 1048576).toStringAsFixed(1)} MB'; return '${(b / 1073741824).toStringAsFixed(1)} GB'; }

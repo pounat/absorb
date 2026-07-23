@@ -284,14 +284,13 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
         _selectedEpisodeIds.clear();
       });
       final l = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(finished
+      showOverlayToast(
+        context,
+        finished
             ? l.episodeListMarkedFinished(ids.length)
-            : l.episodeListMarkedUnfinished(ids.length)),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+            : l.episodeListMarkedUnfinished(ids.length),
+        icon: finished ? Icons.check_circle_rounded : Icons.replay_rounded,
+      );
     }
   }
 
@@ -343,7 +342,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       libraryId: _podcastItem['libraryId'] as String?,
     );
     if (mounted) {
-      if (error != null) showErrorSnackBar(context, error);
+      if (error != null) showErrorToast(context, error);
       Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
     }
   }

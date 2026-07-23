@@ -985,7 +985,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
         libraryId: widget.item['libraryId'] as String?,
       );
       if (mounted) {
-        if (error != null) showErrorSnackBar(context, error);
+        if (error != null) showErrorToast(context, error);
         setState(() => _isLoading = false);
       }
       return;
@@ -1019,7 +1019,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
       chapters: chapters,
       libraryId: fullItem['libraryId'] as String?,
     );
-    if (error != null && mounted) showErrorSnackBar(context, error);
+    if (error != null && mounted) showErrorToast(context, error);
 
     // Ensure this book is on the absorbing list (clear any manual remove)
     if (context.mounted) {

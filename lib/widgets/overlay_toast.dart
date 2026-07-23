@@ -7,12 +7,29 @@ OverlayEntry? _currentToast;
 ///
 /// Pass [icon] for a leading icon (e.g. Icons.check_circle_rounded).
 void showOverlayToast(BuildContext context, String message, {IconData? icon}) {
+  _insertOverlayToast(Overlay.maybeOf(context), message, icon: icon);
+}
+
+/// Show the same toast from provider/service code that owns a navigator but
+/// does not have a context beneath its overlay.
+void showNavigatorOverlayToast(
+  NavigatorState? navigator,
+  String message, {
+  IconData? icon,
+}) {
+  _insertOverlayToast(navigator?.overlay, message, icon: icon);
+}
+
+void _insertOverlayToast(
+  OverlayState? overlay,
+  String message, {
+  IconData? icon,
+}) {
   _currentToast?.remove();
   _currentToast = null;
 
   // No overlay (startup, account switch, background-triggered callers): drop
   // the toast instead of throwing into whatever async flow asked for it.
-  final overlay = Overlay.maybeOf(context);
   if (overlay == null) return;
   late OverlayEntry entry;
   entry = OverlayEntry(

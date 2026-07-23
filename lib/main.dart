@@ -114,10 +114,6 @@ void applyTrustAllCerts(bool enabled) {
   trustAllCerts = enabled;
 }
 
-/// Global key so non-widget code (e.g. providers) can show snackbars.
-final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
-
 /// Global navigator key so non-widget code (e.g. app-icon shortcut handlers)
 /// can push routes without needing a BuildContext.
 final GlobalKey<NavigatorState> rootNavigatorKey =
@@ -353,7 +349,6 @@ class AbsorbApp extends StatelessWidget {
             );
 
             return MaterialApp(
-              scaffoldMessengerKey: scaffoldMessengerKey,
               navigatorKey: rootNavigatorKey,
               title: 'Absorb',
               debugShowCheckedModeBanner: false,

@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import 'html_description.dart';
+import 'overlay_toast.dart';
 import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey;
 import 'rmab_request_status_chip.dart';
 import 'stackable_sheet.dart';
@@ -144,14 +145,7 @@ class _RmabBookDetailContentState extends State<_RmabBookDetailContent> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+    showOverlayToast(context, msg);
   }
 
   @override

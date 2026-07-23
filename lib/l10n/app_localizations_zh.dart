@@ -2747,6 +2747,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quickMatch => '快速匹配';
 
   @override
+  String get quickMatchNoUpdates => 'No updates necessary';
+
+  @override
   String get custom => '自定义';
 
   @override

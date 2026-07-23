@@ -10,6 +10,7 @@ import '../providers/library_provider.dart';
 import '../services/backup_service.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/absorb_wave_icon.dart';
+import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/duration_format.dart';
 
@@ -835,9 +836,8 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
     final token = key?['apiKey'] as String?;
     if (token == null || token.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.adminSetupFileKeyError)),
-        );
+        showOverlayToast(context, l.adminSetupFileKeyError,
+            icon: Icons.error_outline_rounded);
       }
       return;
     }
@@ -866,16 +866,14 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
           await File(result).writeAsString(jsonStr);
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.adminSetupFileSaved(username))),
-          );
+          showOverlayToast(context, l.adminSetupFileSaved(username),
+              icon: Icons.check_circle_outline_rounded);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.adminSetupFileFailed(e.toString()))),
-        );
+        showOverlayToast(context, l.adminSetupFileFailed(e.toString()),
+            icon: Icons.error_outline_rounded);
       }
     }
   }
@@ -1071,8 +1069,8 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     final api = context.read<AuthProvider>().apiService; if (api == null) return;
     final l = AppLocalizations.of(context)!;
     final username = _usernameCtrl.text.trim();
-    if (username.isEmpty) { _snk(l.adminUsersUsernameRequired); return; }
-    if (_isNew && _passwordCtrl.text.isEmpty) { _snk(l.adminUsersPasswordRequired); return; }
+    if (username.isEmpty) { _snk(l.adminUsersUsernameRequired, icon: Icons.error_outline_rounded); return; }
+    if (_isNew && _passwordCtrl.text.isEmpty) { _snk(l.adminUsersPasswordRequired, icon: Icons.error_outline_rounded); return; }
     setState(() => _saving = true);
     final perms = {'download': _canDownload, 'update': _canUpdate, 'delete': _canDelete, 'upload': _canUpload,
       'accessExplicitContent': _accessExplicit, 'accessAllLibraries': _accessAllLibraries, 'accessAllTags': true};
@@ -1091,8 +1089,8 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     if (mounted) {
       final l2 = AppLocalizations.of(context)!;
       setState(() => _saving = false);
-      if (ok) { widget.onSaved(); Navigator.pop(context); _snk(_isNew ? l2.adminUsersUserCreated : l2.adminUsersUserUpdated); }
-      else { _snk(_isNew ? l2.adminUsersFailedCreate : l2.adminUsersFailedUpdate); }
+      if (ok) { widget.onSaved(); _snk(_isNew ? l2.adminUsersUserCreated : l2.adminUsersUserUpdated, icon: Icons.check_circle_outline_rounded); Navigator.pop(context); }
+      else { _snk(_isNew ? l2.adminUsersFailedCreate : l2.adminUsersFailedUpdate, icon: Icons.error_outline_rounded); }
     }
   }
 
@@ -1112,8 +1110,8 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     if (mounted) {
       final l2 = AppLocalizations.of(context)!;
       setState(() => _deleting = false);
-      if (ok) { widget.onSaved(); Navigator.pop(context); _snk(l2.adminUsersUserDeleted(name)); }
-      else { _snk(l2.adminUsersFailedDelete); }
+      if (ok) { widget.onSaved(); _snk(l2.adminUsersUserDeleted(name), icon: Icons.delete_outline_rounded); Navigator.pop(context); }
+      else { _snk(l2.adminUsersFailedDelete, icon: Icons.error_outline_rounded); }
     }
   }
 
@@ -1133,13 +1131,13 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     if (mounted) {
       final l2 = AppLocalizations.of(context)!;
       setState(() { _unlinking = false; if (ok) _hasOpenIDLink = false; });
-      if (ok) { widget.onSaved(); _snk(l2.adminUsersOpenIdUnlinked); }
-      else { _snk(l2.adminUsersFailedUnlinkOpenId); }
+      if (ok) { widget.onSaved(); _snk(l2.adminUsersOpenIdUnlinked, icon: Icons.link_off_rounded); }
+      else { _snk(l2.adminUsersFailedUnlinkOpenId, icon: Icons.error_outline_rounded); }
     }
   }
 
-  void _snk(String s) => ScaffoldMessenger.of(context)..clearSnackBars()..showSnackBar(
-    SnackBar(content: Text(s), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+  void _snk(String s, {IconData? icon}) =>
+      showOverlayToast(context, s, icon: icon);
 }
 
 // ═══════════════════════════════════════════════════════════════

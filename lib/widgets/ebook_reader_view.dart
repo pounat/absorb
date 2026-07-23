@@ -774,9 +774,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     if (_selectionText == null) return;
     Clipboard.setData(ClipboardData(text: _selectionText!));
     _dismissSelection();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.readerCopied), duration: const Duration(seconds: 1)),
-    );
+    showOverlayToast(context, AppLocalizations.of(context)!.readerCopied,
+        icon: Icons.content_copy_rounded);
   }
 
   void _searchSelection() {

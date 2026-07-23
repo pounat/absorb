@@ -5134,6 +5134,12 @@ abstract class AppLocalizations {
   /// **'Quick Match'**
   String get quickMatch;
 
+  /// No description provided for @quickMatchNoUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'No updates necessary'**
+  String get quickMatchNoUpdates;
+
   /// No description provided for @custom.
   ///
   /// In en, this message translates to:

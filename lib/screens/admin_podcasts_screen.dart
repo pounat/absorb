@@ -8,6 +8,7 @@ import '../services/socket_service.dart';
 import 'podcast_edit_screen.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/html_description.dart';
+import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/duration_format.dart';
 
@@ -110,10 +111,13 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
     if (mounted) {
       final l = AppLocalizations.of(context)!;
       setState(() => _checkingEpisodes = false);
-      ScaffoldMessenger.of(context)..clearSnackBars()..showSnackBar(SnackBar(
-        content: Text(ok ? l.adminPodcastsCheckingForNew : l.adminPodcastsFailedCheckEpisodes),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+      showOverlayToast(
+        context,
+        ok
+            ? l.adminPodcastsCheckingForNew
+            : l.adminPodcastsFailedCheckEpisodes,
+        icon: ok ? Icons.refresh_rounded : Icons.error_outline_rounded,
+      );
       if (ok) Future.delayed(const Duration(seconds: 3), _loadShows);
     }
   }
@@ -367,10 +371,11 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
           return;
         }
       }
-      ScaffoldMessenger.of(context)..clearSnackBars()..showSnackBar(SnackBar(
-        content: Text(AppLocalizations.of(context)!.adminPodcastsCouldNotFindFeed),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+      showOverlayToast(
+        context,
+        AppLocalizations.of(context)!.adminPodcastsCouldNotFindFeed,
+        icon: Icons.search_off_rounded,
+      );
     } catch (_) {
       if (mounted) setState(() => _lookingUp.remove(itunesId));
     }
@@ -780,10 +785,12 @@ class _PodcastPreviewScreenState extends State<_PodcastPreviewScreen> {
       setState(() => _adding = false);
       if (result != null) {
         widget.onAdded();
+        _msg(l2.adminPodcastsAddedToLibrary(_title),
+            icon: Icons.check_circle_outline_rounded);
         Navigator.pop(context);
-        _msg(l2.adminPodcastsAddedToLibrary(_title));
       } else {
-        _msg(l2.adminPodcastsFailedToAdd(_title));
+        _msg(l2.adminPodcastsFailedToAdd(_title),
+            icon: Icons.error_outline_rounded);
       }
     }
   }
@@ -965,8 +972,8 @@ class _PodcastPreviewScreenState extends State<_PodcastPreviewScreen> {
     child: Icon(Icons.podcasts_rounded, color: cs.primary.withValues(alpha: 0.3), size: 48),
   );
 
-  void _msg(String s) => ScaffoldMessenger.of(context)..clearSnackBars()..showSnackBar(
-    SnackBar(content: Text(s), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+  void _msg(String s, {IconData? icon}) =>
+      showOverlayToast(context, s, icon: icon);
 }
 
 
@@ -2179,8 +2186,8 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
   // are date format primitives consistent with how _fmtDate is used in
   // similar admin/users context. Could be moved to ARB later if needed.
 
-  void _msg(String s) => ScaffoldMessenger.of(context)..clearSnackBars()..showSnackBar(
-    SnackBar(content: Text(s), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+  void _msg(String s, {IconData? icon}) =>
+      showOverlayToast(context, s, icon: icon);
 }
 
 
@@ -2506,22 +2513,30 @@ class _PodcastMatchSheetState extends State<_PodcastMatchSheet> {
     setState(() => _applying = true);
     final title = pod['title'] as String? ?? pod['trackName'] as String? ?? pod['collectionName'] as String?;
     final author = pod['artistName'] as String? ?? pod['author'] as String?;
-    final result = await api.matchLibraryItem(widget.podcastId, title: title, author: author);
+    final result = await api.matchLibraryItem(
+      widget.podcastId,
+      title: title,
+      author: author,
+      overrideCover: true,
+      overrideDetails: true,
+    );
     if (mounted) {
       final l = AppLocalizations.of(context)!;
       setState(() => _applying = false);
       if (result != null) {
         widget.onMatched();
+        showOverlayToast(
+          context,
+          l.adminPodcastsPodcastMatched,
+          icon: Icons.check_circle_outline_rounded,
+        );
         Navigator.pop(context);
-        ScaffoldMessenger.of(context)..clearSnackBars()..showSnackBar(SnackBar(
-          content: Text(l.adminPodcastsPodcastMatched),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
       } else {
-        ScaffoldMessenger.of(context)..clearSnackBars()..showSnackBar(SnackBar(
-          content: Text(l.adminPodcastsFailedMatch),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+        showOverlayToast(
+          context,
+          l.adminPodcastsFailedMatch,
+          icon: Icons.error_outline_rounded,
+        );
       }
     }
   }

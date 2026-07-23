@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/clip_editor_controller.dart';
 import '../services/clip_export_service.dart';
+import 'overlay_toast.dart';
 
 /// Play-and-mark clip editor. Opened from the bookmark sheet's "Export clip".
 /// Plays a navigable window around the bookmark; the user marks in/out by ear
@@ -80,7 +81,6 @@ class _ClipEditorSheetState extends State<ClipEditorSheet> {
 
   Future<void> _save() async {
     final l = AppLocalizations.of(context)!;
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     setState(() => _saving = true);
     try {
@@ -105,11 +105,14 @@ class _ClipEditorSheetState extends State<ClipEditorSheet> {
         setState(() => _saving = false);
         return; // user cancelled the save dialog
       }
+      // Insert into the root overlay while this sheet's context is still
+      // mounted, then close the sheet. The overlay entry survives the pop.
+      showOverlayToast(
+        context,
+        res.clamped ? l.clipExportClamped : l.clipExportSaved(name),
+        icon: Icons.content_cut_rounded,
+      );
       navigator.pop();
-      messenger.showSnackBar(SnackBar(
-        content: Text(res.clamped ? l.clipExportClamped : l.clipExportSaved(name)),
-        behavior: SnackBarBehavior.floating,
-      ));
     } catch (e) {
       debugPrint('[ClipEditor] save failed: $e');
       if (!mounted) return;

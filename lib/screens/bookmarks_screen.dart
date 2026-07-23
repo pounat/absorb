@@ -14,6 +14,7 @@ import '../widgets/bookmark_detail_dialog.dart';
 import '../widgets/card_buttons.dart';
 import '../services/download_service.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 
 class BookmarksScreen extends StatefulWidget {
@@ -234,11 +235,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     await _load();
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l.bookmarksDeletedCount(count)),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      showOverlayToast(context, l.bookmarksDeletedCount(count),
+          icon: Icons.delete_outline_rounded);
     }
   }
 
@@ -312,10 +310,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 
     if (api == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.bookmarksNotConnected),
-          behavior: SnackBarBehavior.floating,
-        ));
+        showOverlayToast(context, l.bookmarksNotConnected,
+            icon: Icons.cloud_off_rounded);
       }
       return;
     }
@@ -323,10 +319,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     final fullItem = await api.getLibraryItem(itemId);
     if (fullItem == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.bookmarksCouldNotLoad),
-          behavior: SnackBarBehavior.floating,
-        ));
+        showOverlayToast(context, l.bookmarksCouldNotLoad,
+            icon: Icons.error_outline_rounded);
       }
       return;
     }
@@ -352,7 +346,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       forceStartTime: true,
       libraryId: fullItem['libraryId'] as String?,
     );
-    if (error != null && mounted) showErrorSnackBar(context, error);
+    if (error != null && mounted) showErrorToast(context, error);
 
     if (mounted) Navigator.pop(context);
     AppShell.goToAbsorbingGlobal();

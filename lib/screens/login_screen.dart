@@ -870,9 +870,8 @@ class _LoginScreenState extends State<LoginScreen>
       if (!data.containsKey('version')) {
         if (mounted) {
           final l = AppLocalizations.of(context)!;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.loginInvalidBackupFile)),
-          );
+          showOverlayToast(context, l.loginInvalidBackupFile,
+              icon: Icons.error_outline_rounded);
         }
         return;
       }

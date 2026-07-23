@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../services/socket_service.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/overlay_toast.dart';
 
 /// Admin cleanup screen: lists the items a library has flagged as "issues" -
 /// missing (files removed from disk) or invalid (present but unparseable) - and
@@ -70,13 +71,8 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
     });
   }
 
-  void _msg(String s) => ScaffoldMessenger.of(context)
-    ..clearSnackBars()
-    ..showSnackBar(SnackBar(
-      content: Text(s),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+  void _msg(String s, {IconData? icon}) =>
+      showOverlayToast(context, s, icon: icon);
 
   String _titleOf(Map<String, dynamic> item) =>
       ((item['media'] as Map?)?['metadata'] as Map?)?['title'] as String? ??
@@ -121,11 +117,11 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
         _items.removeWhere((it) => (it as Map)['id'] == id);
         _selected.remove(id);
       });
-      _msg(l.adminMissingRemovedOne(title));
+      _msg(l.adminMissingRemovedOne(title), icon: Icons.delete_outline_rounded);
     } else if (status == 403) {
-      _msg(l.deletePermissionRequired);
+      _msg(l.deletePermissionRequired, icon: Icons.lock_outline_rounded);
     } else {
-      _msg(l.adminMissingDeleteFailed);
+      _msg(l.adminMissingDeleteFailed, icon: Icons.error_outline_rounded);
     }
   }
 
@@ -157,9 +153,10 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
     if (!mounted) return;
     setState(() => _deleting.removeAll(ids));
     if (forbidden && deleted == 0) {
-      _msg(l.deletePermissionRequired);
+      _msg(l.deletePermissionRequired, icon: Icons.lock_outline_rounded);
     } else {
-      _msg(l.adminMissingRemovedMany(deleted));
+      _msg(l.adminMissingRemovedMany(deleted),
+          icon: Icons.delete_outline_rounded);
     }
   }
 

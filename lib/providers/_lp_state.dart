@@ -335,9 +335,12 @@ mixin _StateMixin on ChangeNotifier {
     return cached;
   }
 
-  void _showRollingSnackBar(String message, {IconData? icon}) {
-    final ctx = rootNavigatorKey.currentContext;
-    if (ctx != null) showOverlayToast(ctx, message, icon: icon);
+  void _showRollingToast(String message, {IconData? icon}) {
+    showNavigatorOverlayToast(
+      rootNavigatorKey.currentState,
+      message,
+      icon: icon,
+    );
   }
 
   /// Look up [AppLocalizations] via the root navigator. Returns null if no

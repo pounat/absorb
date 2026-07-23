@@ -1140,11 +1140,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await auth.setLocalServerConfig(enabled: _localServerEnabled, url: _localServerUrl);
     if (!mounted) return;
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(l.localServerUrlSetSnackbar),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    showOverlayToast(context, l.localServerUrlSetSnackbar,
+        icon: Icons.check_circle_outline_rounded);
     await auth.checkLocalServer();
     if (mounted) setState(() {});
   }
@@ -2978,8 +2975,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   await AudioPlayer.clearStreamingCache();
                                 } catch (_) {}
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(l.streamingCacheCleared)));
+                                  showOverlayToast(context, l.streamingCacheCleared,
+                                      icon: Icons.delete_outline_rounded);
                                 }
                               },
                             ),
@@ -3227,12 +3224,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         final status = await Permission.notification.status;
                         if (status.isGranted) {
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              duration: const Duration(seconds: 2),
-                              content: Text(l.notificationsAlreadyEnabled),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ));
+                            showOverlayToast(context, l.notificationsAlreadyEnabled,
+                                icon: Icons.notifications_active_outlined);
                           }
                         } else {
                           final result = await Permission.notification.request();
@@ -3252,12 +3245,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         final status = await Permission.ignoreBatteryOptimizations.status;
                         if (status.isGranted) {
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              duration: const Duration(seconds: 2),
-                              content: Text(l.batteryAlreadyUnrestricted),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ));
+                            showOverlayToast(context, l.batteryAlreadyUnrestricted,
+                                icon: Icons.battery_saver_outlined);
                           }
                         } else {
                           final result = await Permission.ignoreBatteryOptimizations.request();
@@ -3344,11 +3333,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onChanged: _loaded ? (v) {
                         setState(() => _loggingEnabled = v);
                         PlayerSettings.setLoggingEnabled(v);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(v
+                        showOverlayToast(
+                          context,
+                          v
                               ? l.loggingEnabledSnackbar
-                              : l.loggingDisabledSnackbar),
-                        ));
+                              : l.loggingDisabledSnackbar,
+                          icon: Icons.article_outlined,
+                        );
                       } : null,
                     ),
                     if (_loggingEnabled && LogService().enabled) ...[
@@ -3371,8 +3362,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             );
                           } catch (e) {
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(l.failedToShare(e.toString()))),
+                              showOverlayToast(
+                                context,
+                                l.failedToShare(e.toString()),
+                                icon: Icons.error_outline_rounded,
                               );
                             }
                           }
@@ -3385,9 +3378,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onTap: () async {
                           await LogService().clearLogs();
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(l.logsCleared)),
-                            );
+                            showOverlayToast(context, l.logsCleared,
+                                icon: Icons.delete_outline_rounded);
                           }
                         },
                       ),
@@ -3640,9 +3632,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       final info = await UpdateCheckerService.check(force: true, includePreReleases: _includePreReleases);
                       if (!mounted) return;
                       if (info == null || !info.hasUpdate) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l.onLatestVersion)),
-                        );
+                        showOverlayToast(context, l.onLatestVersion,
+                            icon: Icons.check_circle_outline_rounded);
                         return;
                       }
                       await UpdateDialog.show(context, info);
@@ -3837,12 +3828,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   Navigator.pop(ctx);
                                   await dl.redownloadAllLegacy(api);
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                      content: Text(l.redownloadStarted),
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12)),
-                                    ));
+                                    showOverlayToast(context, l.redownloadStarted,
+                                        icon: Icons.download_rounded);
                                   }
                                 },
                           child: Text(l.redownload),
@@ -3898,12 +3885,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(l.cannotWriteToFolder),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      ));
+                      showOverlayToast(context, l.cannotWriteToFolder,
+                          icon: Icons.error_outline_rounded);
                     }
                     return;
                   }
@@ -3916,12 +3899,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     await FileDownloader().uri.deleteFile(probe);
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(l.cannotWriteToFolder),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      ));
+                      showOverlayToast(context, l.cannotWriteToFolder,
+                          icon: Icons.error_outline_rounded);
                     }
                     return;
                   }
@@ -3929,12 +3908,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   final label = await dl.downloadLocationLabel;
                   if (mounted) {
                     setState(() => _downloadLocationLabel = label);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(l.downloadLocationSetTo(label)),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    ));
+                    showOverlayToast(context, l.downloadLocationSetTo(label),
+                        icon: Icons.folder_outlined);
                   }
                 },
               ),
@@ -3954,12 +3929,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final label = await dl.downloadLocationLabel;
                     if (mounted) {
                       setState(() => _downloadLocationLabel = label);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(l.resetToDefaultStorage),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      ));
+                      showOverlayToast(context, l.resetToDefaultStorage,
+                          icon: Icons.restart_alt_rounded);
                     }
                   },
                 ),
@@ -4022,20 +3993,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           await File(result).writeAsString(jsonStr);
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(includeAccounts
+          showOverlayToast(
+            context,
+            includeAccounts
                 ? l.backupSavedWithAccounts
-                : l.backupSavedSettingsOnly),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ));
+                : l.backupSavedSettingsOnly,
+            icon: Icons.check_circle_outline_rounded,
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.backupFailed(e.toString()))),
-        );
+        showOverlayToast(context, l.backupFailed(e.toString()),
+            icon: Icons.error_outline_rounded);
       }
     }
   }
@@ -4052,9 +4022,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (data['version'] == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.invalidBackupFile)),
-          );
+          showOverlayToast(context, l.invalidBackupFile,
+              icon: Icons.error_outline_rounded);
         }
         return;
       }
@@ -4140,17 +4109,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _loadSettings();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.settingsRestoredSuccessfully),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
+        showOverlayToast(context, l.settingsRestoredSuccessfully,
+            icon: Icons.check_circle_outline_rounded);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.restoreFailed(e.toString()))),
-        );
+        showOverlayToast(context, l.restoreFailed(e.toString()),
+            icon: Icons.error_outline_rounded);
       }
     }
   }
@@ -4338,13 +4303,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _rmabBaseUrl = base;
         _rmabApiToken = token;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(result.disconnected
+      showOverlayToast(
+        context,
+        result.disconnected
             ? l.rmabConfigDisconnectedSnackbar
-            : l.rmabConfigSavedSnackbar),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+            : l.rmabConfigSavedSnackbar,
+        icon: result.disconnected
+            ? Icons.link_off_rounded
+            : Icons.check_circle_outline_rounded,
+      );
     }
   }
 
@@ -4463,12 +4430,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Re-pull the active library from the new address.
                 if (ok && wasActive) context.read<LibraryProvider>().refresh();
                 if (context.mounted) setState(() {});
-                ScaffoldMessenger.of(context)
-                  ..clearSnackBars()
-                  ..showSnackBar(SnackBar(
-                    content: Text(ok ? l.editServerAddressUpdated : l.editServerAddressFailed),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+                showOverlayToast(
+                  context,
+                  ok ? l.editServerAddressUpdated : l.editServerAddressFailed,
+                  icon: ok
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.error_outline_rounded,
+                );
               },
               child: Text(l.save)),
           ],

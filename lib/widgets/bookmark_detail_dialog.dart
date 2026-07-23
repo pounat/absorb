@@ -10,6 +10,7 @@ import '../services/bookmark_service.dart';
 import '../services/bookmark_preview_player.dart';
 import '../services/download_service.dart';
 import 'clip_editor_sheet.dart';
+import 'overlay_toast.dart';
 
 /// Result of [BookmarkDetailSheet]. [action] is 'jump' (caller should seek
 /// there) or 'saved' (stay put, refresh). [position] is the possibly-nudged
@@ -91,10 +92,8 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       debugPrint('[BookmarkPreview] toggle failed: $e');
       if (!mounted) return;
       final l = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l.bookmarkPreviewFailed),
-        behavior: SnackBarBehavior.floating,
-      ));
+      showOverlayToast(context, l.bookmarkPreviewFailed,
+          icon: Icons.error_outline_rounded);
     }
   }
 

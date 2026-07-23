@@ -6,6 +6,7 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 
 class DownloadsScreen extends StatefulWidget {
@@ -104,11 +105,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     await _load();
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l.downloadsDeletedCount(count)),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      showOverlayToast(context, l.downloadsDeletedCount(count),
+          icon: Icons.delete_outline_rounded);
     }
   }
 
@@ -136,11 +134,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     await DownloadService().deleteDownload(info.itemId);
     await _load();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l.downloadsRemovedTitle(info.title ?? '')),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      showOverlayToast(context, l.downloadsRemovedTitle(info.title ?? ''),
+          icon: Icons.delete_outline_rounded);
     }
   }
 

@@ -1112,7 +1112,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
       libraryId: _resolveLibraryId(),
     );
     if (mounted) {
-      if (error != null) showErrorSnackBar(context, error);
+      if (error != null) showErrorToast(context, error);
       setState(() => _isStarting = false);
     }
   }

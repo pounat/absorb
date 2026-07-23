@@ -2842,6 +2842,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get quickMatch => 'Schnellabgleich';
 
   @override
+  String get quickMatchNoUpdates => 'No updates necessary';
+
+  @override
   String get custom => 'Benutzerdefiniert';
 
   @override

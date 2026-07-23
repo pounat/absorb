@@ -147,7 +147,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
     );
     debugPrint('[PodcastPlay] playItem returned in ${DateTime.now().difference(t0).inMilliseconds}ms (error=${error ?? 'none'})');
     if (error != null && rootContext.mounted) {
-      showErrorSnackBar(rootContext, error);
+      showErrorToast(rootContext, error);
     }
   }
 
@@ -205,12 +205,11 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
         );
         await lib.refresh();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(l.episodeDetailMarkedNotFinished),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ));
+          showOverlayToast(
+            context,
+            l.episodeDetailMarkedNotFinished,
+            icon: Icons.replay_rounded,
+          );
         }
       } else {
         // Confirm before marking finished
@@ -235,18 +234,20 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
         );
         lib.markFinishedLocally(key, skipAutoAdvance: true);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(l.episodeDetailMarkedFinishedNice),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ));
+          showOverlayToast(
+            context,
+            l.episodeDetailMarkedFinishedNice,
+            icon: Icons.check_circle_outline_rounded,
+          );
         }
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.failedToUpdateCheckConnection)));
+        showOverlayToast(
+          context,
+          l.failedToUpdateCheckConnection,
+          icon: Icons.error_outline_rounded,
+        );
       }
     }
   }
@@ -261,13 +262,11 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
         TextButton(onPressed: () {
           DownloadService().deleteDownload(dlKey);
           Navigator.pop(ctx);
-          ScaffoldMessenger.of(context)
-            ..clearSnackBars()
-            ..showSnackBar(SnackBar(
-              content: Text(l.downloadRemoved),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ));
+          showOverlayToast(
+            context,
+            l.downloadRemoved,
+            icon: Icons.delete_outline_rounded,
+          );
         },
           child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
       ],
@@ -640,11 +639,11 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
           if (lib.isOnAbsorbingList(dlKey)) {
             await lib.removeFromAbsorbing(dlKey);
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                duration: const Duration(seconds: 3),
-                content: Text(Wording.of(context).removedFromAbsorbing),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+              showOverlayToast(
+                context,
+                Wording.of(context).removedFromAbsorbing,
+                icon: Icons.remove_circle_outline_rounded,
+              );
             }
           } else {
             await lib.addToAbsorbingQueue(dlKey);
@@ -653,11 +652,11 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
             cached['_absorbingKey'] = dlKey;
             lib.absorbingItemCache[dlKey] = cached;
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                duration: const Duration(seconds: 3),
-                content: Text(Wording.of(context).addedToAbsorbing),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+              showOverlayToast(
+                context,
+                Wording.of(context).addedToAbsorbing,
+                icon: Icons.add_circle_outline_rounded,
+              );
             }
           }
         }),
@@ -760,11 +759,13 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
 
     if (context.mounted) {
       context.read<LibraryProvider>().resetProgressFor(compoundKey);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        duration: const Duration(seconds: 3),
-        content: Text(ok ? l.progressResetFreshStart : l.resetMayNotHaveSynced),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+      showOverlayToast(
+        context,
+        ok ? l.progressResetFreshStart : l.resetMayNotHaveSynced,
+        icon: ok
+            ? Icons.restart_alt_rounded
+            : Icons.warning_amber_rounded,
+      );
     }
   }
 

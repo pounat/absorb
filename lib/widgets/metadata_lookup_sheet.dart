@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/metadata_override_service.dart';
+import 'overlay_toast.dart';
 
 /// Bottom sheet that lets users search for book metadata via the ABS server
 /// and pick a result to store as a local override, or manually edit fields.
@@ -247,6 +248,12 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
     );
   }
 
+  void _showSavedToastAndClose(String message) {
+    showOverlayToast(context, message,
+        icon: Icons.check_circle_outline_rounded);
+    Navigator.pop(context);
+  }
+
   Future<void> _applySelectedFields(Map<String, dynamic> result, Set<String> selected) async {
     final book = result['book'] as Map<String, dynamic>? ?? result;
     final override = <String, dynamic>{};
@@ -296,13 +303,8 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
     if (mounted) {
       final l = AppLocalizations.of(context)!;
       widget.onApplied();
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l.metadataLookupFieldsSavedLocally(selected.length)),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      _showSavedToastAndClose(
+          l.metadataLookupFieldsSavedLocally(selected.length));
     }
   }
 
@@ -344,13 +346,7 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
     if (mounted) {
       final l = AppLocalizations.of(context)!;
       widget.onApplied();
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l.metadataSavedLocally),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      _showSavedToastAndClose(l.metadataSavedLocally);
     }
   }
 

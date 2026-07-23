@@ -1630,8 +1630,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       final ino = ebookFile['ino'] as String?;
       if (ino == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.noEbookFileFound)));
+          showOverlayToast(
+            context,
+            l.noEbookFileFound,
+            icon: Icons.error_outline_rounded,
+          );
         }
         return;
       }
@@ -1673,8 +1676,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
           if (response.statusCode != 200) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l.failedToDownloadEbook(response.statusCode))));
+              showOverlayToast(
+                context,
+                l.failedToDownloadEbook(response.statusCode),
+                icon: Icons.error_outline_rounded,
+              );
             }
             return;
           }
@@ -1685,8 +1691,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           if (ct.contains('text/html')) {
             debugPrint('[Ebook] Server returned HTML instead of ebook file (content-type: $ct)');
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l.serverReturnedErrorPage)));
+              showOverlayToast(
+                context,
+                l.serverReturnedErrorPage,
+                icon: Icons.error_outline_rounded,
+              );
             }
             return;
           }
@@ -1722,17 +1731,20 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       if (mounted) setState(() => _ebookSaved = true);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.ebookSaved('$safeTitle$ext')),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            duration: const Duration(seconds: 3)));
+        showOverlayToast(
+          context,
+          l.ebookSaved('$safeTitle$ext'),
+          icon: Icons.download_done_rounded,
+        );
       }
     } catch (e) {
       debugPrint('[Ebook] Save error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.errorSavingEbook(e.toString()))));
+        showOverlayToast(
+          context,
+          l.errorSavingEbook(e.toString()),
+          icon: Icons.error_outline_rounded,
+        );
       }
     } finally {
       if (mounted) setState(() => _ebookSaving = false);
@@ -1852,7 +1864,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final error = await player.playItem(api: api, itemId: widget.itemId, title: title, author: author, coverUrl: coverUrl, totalDuration: duration, chapters: chapters, libraryId: _item?['libraryId'] as String?);
     if (error != null) {
       final ctx = rootNavigatorKey.currentContext;
-      if (ctx != null) showErrorSnackBar(ctx, error);
+      if (ctx != null) showErrorToast(ctx, error);
     }
     lib?.refreshLocalProgress();
     lib?.refresh();
@@ -2052,12 +2064,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       if (context.mounted) {
         // Repaint the library so the grid/card drop the override cover too.
         context.read<LibraryProvider>().notifyCoverOverridesChanged();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.localMetadataCleared),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
+        showOverlayToast(
+          context,
+          l.localMetadataCleared,
+          icon: Icons.delete_outline_rounded,
+        );
       }
     }
   }
@@ -2103,11 +2114,11 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
     } catch (e) {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.failedToSaveError(e.toString())),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
+        showOverlayToast(
+          context,
+          l.failedToSaveError(e.toString()),
+          icon: Icons.error_outline_rounded,
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);

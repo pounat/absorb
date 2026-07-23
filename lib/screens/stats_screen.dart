@@ -1907,10 +1907,8 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
         setState(() => _jumping = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.bookmarksNotConnected),
-          behavior: SnackBarBehavior.floating,
-        ));
+        showOverlayToast(context, l.bookmarksNotConnected,
+            icon: Icons.error_outline_rounded);
       }
       return;
     }
@@ -1928,10 +1926,8 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
         setState(() => _jumping = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.statsScreenCouldNotLoadItem),
-          behavior: SnackBarBehavior.floating,
-        ));
+        showOverlayToast(context, l.statsScreenCouldNotLoadItem,
+            icon: Icons.error_outline_rounded);
       }
       return;
     }
@@ -1956,10 +1952,8 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
         if (mounted) {
           final l = AppLocalizations.of(context)!;
           setState(() => _jumping = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(l.statsScreenCouldNotFindEpisode),
-            behavior: SnackBarBehavior.floating,
-          ));
+          showOverlayToast(context, l.statsScreenCouldNotFindEpisode,
+              icon: Icons.error_outline_rounded);
         }
         return;
       }

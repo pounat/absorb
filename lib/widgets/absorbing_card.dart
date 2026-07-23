@@ -21,6 +21,7 @@ import 'card_buttons.dart';
 import '../services/chromecast_service.dart';
 import 'expanded_card.dart';
 import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme;
+import 'stable_cached_network_image.dart';
 
 class AbsorbingCard extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -43,6 +44,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     return _rawCoverScheme;
   }
   ImageProvider? _coverProvider; // cached for re-deriving on theme change
+  String? _coverProviderIdentity;
   bool _isStarting = false;
   List<dynamic>? _fetchedChapters;
   Map<String, dynamic>? _fetchedEbookFile;
@@ -54,7 +56,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   StreamSubscription<Duration>? _chapterTrackSub;
   int _lastChapterIdx = -1;
   ui.Image? _blurredCover; // Precached blurred background
-  String? _blurredCoverUrl; // URL the blur was built from
+  String? _blurredCoverIdentity;
+  String? _pendingBlurIdentity;
   List<String> _buttonOrder = PlayerSettings.defaultButtonOrder;
   int _buttonVisibleCount = PlayerSettings.defaultButtonVisibleCount;
   bool _iconsOnly = false;
@@ -145,7 +148,42 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     return lib.getCoverUrl(_itemId, width: 800);
   }
 
-  bool get _isLocalCover => _coverUrl != null && _coverUrl!.startsWith('/');
+  int? _coverUpdatedAt(LibraryProvider lib) {
+    final key = widget.item['_absorbingKey'] as String? ?? _itemId;
+    final cached = lib.absorbingItemCache[key];
+    final candidates = <Object?>[
+      widget.item['updatedAt'],
+      cached?['updatedAt'],
+      lib.itemUpdatedAt(_itemId),
+    ];
+
+    int? newest;
+    for (final candidate in candidates) {
+      final timestamp = switch (candidate) {
+        num value => value.toInt(),
+        String value => int.tryParse(value),
+        _ => null,
+      };
+      if (timestamp != null && (newest == null || timestamp > newest)) {
+        newest = timestamp;
+      }
+    }
+    return newest;
+  }
+
+  String? _coverIdentity(String? coverUrl, LibraryProvider lib) {
+    if (coverUrl == null) return null;
+    if (coverUrl.startsWith('/')) return coverUrl;
+    return stableCoverCacheKey(
+      coverUrl,
+      updatedAt: _coverUpdatedAt(lib),
+    );
+  }
+
+  String? _currentCoverIdentity() {
+    final lib = context.read<LibraryProvider>();
+    return _coverIdentity(lib.getCoverUrl(_itemId, width: 800), lib);
+  }
 
   @override
   void initState() {
@@ -386,8 +424,11 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       _rawCoverScheme = null;
       _coverBrightness = null;
       _coverProvider = null;
+      _coverProviderIdentity = null;
       _blurredCover?.dispose();
       _blurredCover = null;
+      _blurredCoverIdentity = null;
+      _pendingBlurIdentity = null;
       _fetchedChapters = null;
       _fetchedEbookFile = null;
       _lastChapterIdx = -1;
@@ -415,42 +456,68 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     super.dispose();
   }
 
-  void _onCoverLoaded(ImageProvider provider) {
+  void _onCoverLoaded(ImageProvider provider, String coverIdentity) {
+    if (_currentCoverIdentity() != coverIdentity) return;
+    if (_coverProviderIdentity != coverIdentity) {
+      _rawCoverScheme = null;
+      _coverBrightness = null;
+    }
     _coverProvider = provider;
+    _coverProviderIdentity = coverIdentity;
     _rederiveCoverScheme();
     // Precache the blurred version of the cover, but only when the blurred
     // background is actually in use (skip the work for gradient / off modes).
-    if (_cardBackground == 'blurred' && _blurredCover == null) {
-      _blurredCoverUrl = _coverUrl;
-      _precacheBlur(provider);
+    if (_cardBackground == 'blurred' &&
+        _blurredCoverIdentity != coverIdentity &&
+        _pendingBlurIdentity != coverIdentity) {
+      _pendingBlurIdentity = coverIdentity;
+      _precacheBlur(provider, coverIdentity);
     }
   }
 
   /// In gradient/off mode the cover image isn't painted, so resolve it directly
   /// to keep the extracted [_coverScheme] (accent + gradient colors) available.
-  void _ensureCoverScheme() {
-    if (_coverProvider != null || _coverUrl == null) return;
-    final headers = context.read<LibraryProvider>().mediaHeaders;
-    final ImageProvider provider;
-    if (_isLocalCover) {
-      provider = FileImage(File(_coverUrl!));
-    } else {
-      provider = CachedNetworkImageProvider(_coverUrl!, headers: headers);
+  void _ensureCoverScheme(
+    String? coverUrl,
+    String? coverIdentity,
+    LibraryProvider lib,
+  ) {
+    if (coverUrl == null || coverIdentity == null) return;
+    if (_coverProvider != null && _coverProviderIdentity == coverIdentity) {
+      return;
     }
-    _onCoverLoaded(provider);
+    final headers = lib.mediaHeaders;
+    final ImageProvider provider;
+    if (coverUrl.startsWith('/')) {
+      provider = FileImage(File(coverUrl));
+    } else {
+      provider = CachedNetworkImageProvider(
+        coverUrl,
+        headers: headers,
+        cacheKey: coverIdentity,
+      );
+    }
+    _onCoverLoaded(provider, coverIdentity);
   }
 
   void _rederiveCoverScheme() {
     final provider = _coverProvider;
-    if (provider == null) return;
+    final coverIdentity = _coverProviderIdentity;
+    if (provider == null || coverIdentity == null) return;
     final brightness = Theme.of(context).brightness;
     if (_rawCoverScheme != null && _coverBrightness == brightness) return;
     _coverBrightness = brightness;
     ColorScheme.fromImageProvider(provider: provider, brightness: brightness)
         .then((s) {
-          if (mounted) {
+          if (mounted &&
+              _coverProviderIdentity == coverIdentity &&
+              _coverBrightness == brightness) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) setState(() => _rawCoverScheme = s);
+              if (mounted &&
+                  _coverProviderIdentity == coverIdentity &&
+                  _coverBrightness == brightness) {
+                setState(() => _rawCoverScheme = s);
+              }
             });
           }
         })
@@ -458,7 +525,10 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   }
 
   /// Resolve the image, render it blurred to an offscreen canvas, cache the result.
-  Future<void> _precacheBlur(ImageProvider provider) async {
+  Future<void> _precacheBlur(
+    ImageProvider provider,
+    String coverIdentity,
+  ) async {
     try {
       final completer = Completer<ui.Image>();
       final stream = provider.resolve(ImageConfiguration.empty);
@@ -492,13 +562,22 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       final blurred = await picture.toImage(targetWidth, targetHeight);
       picture.dispose();
 
-      if (mounted) {
-        setState(() => _blurredCover = blurred);
+      if (mounted && _currentCoverIdentity() == coverIdentity) {
+        final previous = _blurredCover;
+        setState(() {
+          _blurredCover = blurred;
+          _blurredCoverIdentity = coverIdentity;
+        });
+        previous?.dispose();
       } else {
         blurred.dispose();
       }
     } catch (_) {
       // Fallback: card will show without blurred background, which is fine
+    } finally {
+      if (_pendingBlurIdentity == coverIdentity) {
+        _pendingBlurIdentity = null;
+      }
     }
   }
 
@@ -511,6 +590,9 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     final l = AppLocalizations.of(context)!;
 
     final lib = context.watch<LibraryProvider>();
+    final coverUrl = lib.getCoverUrl(_itemId, width: 800);
+    final coverIdentity = _coverIdentity(coverUrl, lib);
+    final isLocalCover = coverUrl?.startsWith('/') ?? false;
     _maybeRefetchOnServerChange(lib);
     // For podcast episodes, look up progress by compound key (itemId-episodeId)
     final progress = (_episodeId != null)
@@ -548,13 +630,10 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       debugPrint('[Card] $sig');
     }
 
-    // Invalidate blurred background when cover URL changes (e.g. after server update)
-    if (_blurredCover != null && _blurredCoverUrl != _coverUrl) {
-      _blurredCover?.dispose();
-      _blurredCover = null;
-    }
     // In gradient/off mode the cover image isn't painted, so derive its scheme separately.
-    if (_cardBackground != 'blurred') _ensureCoverScheme();
+    if (_cardBackground != 'blurred') {
+      _ensureCoverScheme(coverUrl, coverIdentity, lib);
+    }
 
     final tt = Theme.of(context).textTheme;
     final mediaHeaders = lib.mediaHeaders;
@@ -599,25 +678,27 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                 height: double.infinity,
               ),
             )
-          else if (_coverUrl != null)
+          else if (coverUrl != null && coverIdentity != null)
             // Fallback while blur is being computed: show unblurred cover dimmed
             RepaintBoundary(
-              child: _isLocalCover
+              child: isLocalCover
                   ? Builder(builder: (_) {
-                      final provider = FileImage(File(_coverUrl!));
-                      _onCoverLoaded(provider);
+                      final provider = FileImage(File(coverUrl));
+                      _onCoverLoaded(provider, coverIdentity);
                       return Opacity(
                         opacity: 0.3,
-                        child: Image.file(File(_coverUrl!), fit: BoxFit.cover,
+                        child: Image.file(File(coverUrl), fit: BoxFit.cover,
+                          gaplessPlayback: true,
                           errorBuilder: (_, __, ___) => Container(color: isDark ? Colors.black : Colors.white)),
                       );
                     })
-                  : CachedNetworkImage(
-                      imageUrl: _coverUrl!,
+                  : StableCachedNetworkImage(
+                      imageUrl: coverUrl,
+                      cacheKey: coverIdentity,
                       fit: BoxFit.cover,
                       httpHeaders: mediaHeaders,
                       imageBuilder: (_, provider) {
-                        _onCoverLoaded(provider);
+                        _onCoverLoaded(provider, coverIdentity);
                         return Opacity(
                           opacity: 0.3,
                           child: Image(image: provider, fit: BoxFit.cover),
@@ -814,17 +895,24 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                               fit: StackFit.expand,
                               children: [
                                 // Cover image
-                                _coverUrl != null
-                                    ? _isLocalCover
-                                        ? BlurPaddedCover(blurChild: Image.file(File(_coverUrl!), fit: BoxFit.cover,
+                                coverUrl != null && coverIdentity != null
+                                    ? isLocalCover
+                                        ? BlurPaddedCover(blurChild: Image.file(File(coverUrl), fit: BoxFit.cover,
+                                            gaplessPlayback: true,
                                             errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-                                            enabled: !_rectangleCovers, child: Image.file(File(_coverUrl!), fit: _rectangleCovers ? BoxFit.cover : BoxFit.contain,
+                                            enabled: !_rectangleCovers, child: Image.file(File(coverUrl), fit: _rectangleCovers ? BoxFit.cover : BoxFit.contain,
+                                            gaplessPlayback: true,
                                             errorBuilder: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
-                                        : BlurPaddedCover(blurChild: CachedNetworkImage(imageUrl: _coverUrl!, fit: BoxFit.cover,
+                                        : BlurPaddedCover(blurChild: StableCachedNetworkImage(imageUrl: coverUrl, cacheKey: coverIdentity, fit: BoxFit.cover,
                                               httpHeaders: mediaHeaders,
                                               errorWidget: (_, __, ___) => const SizedBox.shrink()),
-                                            enabled: !_rectangleCovers, child: CachedNetworkImage(imageUrl: _coverUrl!, fit: _rectangleCovers ? BoxFit.cover : BoxFit.contain,
+                                            enabled: !_rectangleCovers, child: StableCachedNetworkImage(imageUrl: coverUrl, cacheKey: coverIdentity,
+                                              fit: _rectangleCovers ? BoxFit.cover : BoxFit.contain,
                                               httpHeaders: mediaHeaders,
+                                              imageBuilder: (_, provider) {
+                                                _onCoverLoaded(provider, coverIdentity);
+                                                return Image(image: provider, fit: _rectangleCovers ? BoxFit.cover : BoxFit.contain);
+                                              },
                                               placeholder: (_, __) => CoverPlaceholder(title: _title, author: _author),
                                               errorWidget: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
                                     : CoverPlaceholder(title: _title, author: _author),
@@ -1146,7 +1234,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       libraryId: _resolveLibraryId(),
     );
     if (mounted) {
-      if (error != null) showErrorSnackBar(context, error);
+      if (error != null) showErrorToast(context, error);
       setState(() => _isStarting = false);
     }
   }
@@ -1206,4 +1294,3 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   void _showMoreMenu(BuildContext context, Color accent, TextTheme tt) => _makeActions().showMoreMenu(accent, tt);
 
 }
-
