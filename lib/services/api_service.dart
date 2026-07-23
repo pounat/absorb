@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'auth_tokens.dart';
+import '../utils/server_url.dart';
 
 /// Outcome of a local-session upsert. [serverTooOld] flags a 404/501 (the
 /// server predates /api/session/local) so the caller can fall back to the
@@ -173,8 +174,7 @@ class ApiService {
         'Authorization': 'Bearer $_accessToken',
       };
 
-  String get _cleanBaseUrl =>
-      baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+  String get _cleanBaseUrl => normalizeServerUrl(baseUrl);
 
   Future<http.Response> _get(Uri url, {Map<String, String>? headers}) {
     return _httpClient?.get(url, headers: headers) ?? http.get(url, headers: headers);

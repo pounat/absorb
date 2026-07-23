@@ -142,6 +142,15 @@ class FlutterCarplay {
     return _connectionStatus;
   }
 
+  /// Whether CarPlay currently has an active interface controller.
+  static Future<bool> get isConnected async {
+    return await _carPlayController.flutterToNativeModule(
+          FCPChannelTypes.isConnected,
+          null,
+        ) ??
+        false;
+  }
+
   /// Sets the root template of the navigation hierarchy. If a navigation
   /// hierarchy already exists, CarPlay replaces the entire hierarchy.
   ///

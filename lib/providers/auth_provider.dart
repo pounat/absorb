@@ -18,6 +18,7 @@ import '../services/wear_auth_service.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../widgets/overlay_toast.dart';
+import '../utils/server_url.dart';
 
 class AuthProvider extends ChangeNotifier {
   String? _accessToken;
@@ -269,7 +270,15 @@ class AuthProvider extends ChangeNotifier {
 
       if (savedUrl != null && savedToken != null) {
         // Always restore credentials so we can at least go offline
-        _serverUrl = savedUrl;
+        final restoredUrl = normalizeServerUrl(savedUrl);
+        if (restoredUrl != savedUrl) {
+          await prefs.setString('server_url', restoredUrl);
+          if (savedUsername != null) {
+            await UserAccountService()
+                .updateAccountUrl(savedUrl, savedUsername, restoredUrl);
+          }
+        }
+        _serverUrl = restoredUrl;
         _accessToken = savedToken;
         _refreshToken = savedRefreshToken;
         _isLegacyToken = savedRefreshToken == null;
@@ -312,7 +321,7 @@ class AuthProvider extends ChangeNotifier {
           // path doesn't hold up app launch. The health-check timer will
           // re-probe every 60s once we're past startup, so a transient
           // false-offline self-corrects quickly.
-          reachable = await ApiService.pingServer(savedUrl, customHeaders: _customHeaders)
+          reachable = await ApiService.pingServer(restoredUrl, customHeaders: _customHeaders)
               .timeout(const Duration(seconds: 5), onTimeout: () => false);
           debugPrint('[Auth] remote ping result: reachable=$reachable (${sw.elapsedMilliseconds}ms)');
         }
@@ -451,14 +460,7 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _errorMessage = null;
 
-    // Normalize server URL
-    String url = serverUrl.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'http://$url';
-    }
-    if (url.endsWith('/')) {
-      url = url.substring(0, url.length - 1);
-    }
+    final url = normalizeServerUrl(serverUrl);
 
     // Check server reachability
     final reachable = await ApiService.pingServer(url, customHeaders: customHeaders);
@@ -577,13 +579,7 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _errorMessage = null;
 
-    String url = serverUrl.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'http://$url';
-    }
-    if (url.endsWith('/')) {
-      url = url.substring(0, url.length - 1);
-    }
+    final url = normalizeServerUrl(serverUrl);
 
     final reachable = await ApiService.pingServer(url, customHeaders: customHeaders);
     if (!reachable) {
@@ -666,8 +662,7 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _errorMessage = null;
 
-    String url = serverUrl.trim();
-    if (url.endsWith('/')) url = url.substring(0, url.length - 1);
+    final url = normalizeServerUrl(serverUrl);
 
     final user = result['user'] as Map<String, dynamic>?;
     if (user == null) {
@@ -755,7 +750,11 @@ class AuthProvider extends ChangeNotifier {
   /// Load local server settings from PlayerSettings.
   Future<void> _loadLocalServerSettings() async {
     _localServerEnabled = await PlayerSettings.getLocalServerEnabled();
-    _localServerUrl = await PlayerSettings.getLocalServerUrl();
+    final savedUrl = await PlayerSettings.getLocalServerUrl();
+    _localServerUrl = normalizeServerUrl(savedUrl);
+    if (_localServerUrl != savedUrl) {
+      await PlayerSettings.setLocalServerUrl(_localServerUrl);
+    }
     if (_localServerEnabled) {
       debugPrint('[Auth] Local server config loaded: enabled=$_localServerEnabled, url=${_localServerUrl.isNotEmpty ? "(set)" : "(empty)"}');
     }
@@ -835,10 +834,11 @@ class AuthProvider extends ChangeNotifier {
 
   /// Update local server settings from the UI.
   Future<void> setLocalServerConfig({required bool enabled, required String url}) async {
+    final normalizedUrl = normalizeServerUrl(url);
     _localServerEnabled = enabled;
-    _localServerUrl = url;
+    _localServerUrl = normalizedUrl;
     await PlayerSettings.setLocalServerEnabled(enabled);
-    await PlayerSettings.setLocalServerUrl(url);
+    await PlayerSettings.setLocalServerUrl(normalizedUrl);
     if (!enabled) clearLocalOverride();
   }
 
@@ -1051,15 +1051,8 @@ class AuthProvider extends ChangeNotifier {
   /// next API call (and the [apiService] getter) uses the new address.
   /// Returns true if the account was found and updated.
   Future<bool> editServerUrl(SavedAccount account, String newServerUrl) async {
-    // Normalize the same way login() does.
-    String url = newServerUrl.trim();
+    final url = normalizeServerUrl(newServerUrl);
     if (url.isEmpty) return false;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'http://$url';
-    }
-    if (url.endsWith('/')) {
-      url = url.substring(0, url.length - 1);
-    }
     if (url == account.serverUrl) return true; // nothing to change
 
     final ok = await UserAccountService()

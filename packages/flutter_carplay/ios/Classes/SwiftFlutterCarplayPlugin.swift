@@ -43,6 +43,9 @@ public class SwiftFlutterCarplayPlugin: NSObject, FlutterPlugin {
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+    case FCPChannelTypes.isConnected:
+      result(FlutterCarPlaySceneDelegate.isConnected)
+      break
     case FCPChannelTypes.setRootTemplate:
       guard let args = call.arguments as? [String : Any] else {
         result(false)

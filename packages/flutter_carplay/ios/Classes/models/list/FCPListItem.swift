@@ -51,9 +51,8 @@ class FCPListItem {
   var get: CPListItem {
     let listItem = CPListItem.init(text: text, detailText: detailText)
     listItem.handler = self.handler
-    if image != nil {
+    if let imageSource = image?.toImageSource() {
       listItem.setImage(makeSafeUIPlaceholder())
-      let imageSource = self.image!.toImageSource()
       loadUIImageAsync(from: imageSource) { uiImage in
         if let uiImage = uiImage {
           listItem.setImage(uiImage)
@@ -95,12 +94,15 @@ class FCPListItem {
     }
 
     if let image = image, image != self.image {
-      self._super?.setImage(makeSafeUIPlaceholder())
-      let imageSource = image.toImageSource()
-      loadUIImageAsync(from: imageSource) { uiImage in
-        if let uiImage = uiImage {
-          self._super?.setImage(uiImage)
+      if let imageSource = image.toImageSource() {
+        self._super?.setImage(makeSafeUIPlaceholder())
+        loadUIImageAsync(from: imageSource) { uiImage in
+          if let uiImage = uiImage {
+            self._super?.setImage(uiImage)
+          }
         }
+      } else {
+        self._super?.setImage(nil)
       }
       self.image = image
     } else if image == nil {

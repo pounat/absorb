@@ -27,8 +27,10 @@ class FCPGridButton {
 
     if #available(iOS 26.0, *) {
       image = makeSafeUIPlaceholder()
-    } else {
+    } else if let imageSource = imageSource {
       image = makeUIImage(from: imageSource)
+    } else {
+      image = makeSafeUIPlaceholder()
     }
 
     gridButton = CPGridButton(
@@ -44,7 +46,7 @@ class FCPGridButton {
       }
     )
 
-    if #available(iOS 26.0, *) {
+    if #available(iOS 26.0, *), let imageSource = imageSource {
       loadUIImageAsync(from: imageSource) { uiImage in
         if let uiImage = uiImage {
           gridButton.perform(Selector("updateImage:"), with: uiImage)

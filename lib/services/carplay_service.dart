@@ -6,6 +6,7 @@ import 'package:flutter_carplay/flutter_carplay.dart';
 import 'android_auto_service.dart';
 import 'api_service.dart';
 import 'audio_player_service.dart';
+import 'carplay_image_url.dart';
 
 /// Manages Apple CarPlay browse tree and playback integration.
 /// Mirrors the Android Auto layout: 3 tabs (Continue, Library, Downloads)
@@ -27,7 +28,7 @@ class CarPlayService {
   Timer? _bannerDismissTimer;
 
   bool _initialized = false;
-  bool _buildingRoot = false;
+  bool _connected = false;
   DateTime? _lastRootBuilt;
   CPTabBarTemplate? _rootTemplate;
   Future<void>? _inFlightBuild;
@@ -47,7 +48,7 @@ class CarPlayService {
     // this hook is how we know to swap the downloads-only tree for the
     // full one (or the other way for offline → online recovery).
     AndroidAutoService.onServerDataChanged = () {
-      if (!_initialized || _rootTemplate == null) return;
+      if (!_initialized || !_connected || _rootTemplate == null) return;
       // _connectAndRender awaits its own refresh() which fires this callback
       // mid-flight; without this guard both paths call setRootTemplate within
       // ~0ms and CarPlay renders the tabs blank until the user backgrounds
@@ -64,36 +65,21 @@ class CarPlayService {
       debugPrint('[CarPlay] onServerDataChanged - rebuilding root template');
       refreshTemplates();
     };
-    // Eagerly load auto browse data so the first CarPlay connect lands with
-    // full content already cached. Without this, the user's first open would
-    // either show empty Continue Listening / Library tabs or wait the full
-    // server-fetch time before anything appeared.
-    //
-    // After the refresh, also set the root template proactively. On a true
-    // cold start - where iOS launched the app because the user tapped
-    // absorb in CarPlay - the `connected` event can fire before our
-    // connection listener is registered, and we miss it. Result: no
-    // template ever gets set and CarPlay sits blank until the user backs
-    // out and back in (which re-fires connected). Setting eagerly here
-    // means iOS always has a template waiting whenever its scene
-    // presents. The connect-handler still fires its own set; the
-    // in-flight guard in _setRootTemplate coalesces overlapping calls.
-    _autoService.refresh().then((_) async {
-      debugPrint('[CarPlay] Init refresh done'
-          ' continue=${_autoService.continueListening.length}'
-          ' downloads=${_autoService.downloaded.length}'
-          ' libraries=${_autoService.libraries.length}');
-      try {
-        await _setRootTemplate(label: 'init-eager');
-      } catch (e) {
-        debugPrint('[CarPlay] Init eager template set failed: $e');
+    unawaited(_restoreConnectionState());
+  }
+
+  Future<void> _restoreConnectionState() async {
+    try {
+      if (await FlutterCarplay.isConnected && _initialized && !_connected) {
+        _onConnectionChange(ConnectionStatusTypes.connected);
       }
-    }).catchError((e) {
-      debugPrint('[CarPlay] Init refresh failed: $e');
-    });
+    } catch (e) {
+      debugPrint('[CarPlay] Connection state check failed: $e');
+    }
   }
 
   void dispose() {
+    _connected = false;
     _flutterCarplay.removeListenerOnConnectionChange();
     AudioPlayerService().removeListener(_onPlayerChanged);
     _bannerDismissTimer?.cancel();
@@ -102,27 +88,22 @@ class CarPlayService {
   void _onConnectionChange(ConnectionStatusTypes status) {
     debugPrint('[CarPlay] Connection status: $status');
     if (status == ConnectionStatusTypes.disconnected) {
+      _connected = false;
       _rootTemplate = null;
       _lastRootBuilt = null;
+      _bannerDismissTimer?.cancel();
+      _bannerShowing = false;
       return;
     }
     if (status != ConnectionStatusTypes.connected) return;
-
-    // Guard duplicate `connected` events that iOS fires in quick succession.
-    final now = DateTime.now();
-    if (_buildingRoot) return;
-    if (_lastRootBuilt != null &&
-        now.difference(_lastRootBuilt!) < const Duration(seconds: 1)) {
-      return;
-    }
-
+    if (_connected) return;
+    _connected = true;
     _connectAndRender();
   }
 
   Future<void> _connectAndRender() async {
-    // Make sure data is loaded before rendering. Init kicked off a refresh at
-    // app start, so this usually returns instantly. On a cold connect right
-    // after app launch we wait the full ~1s so the very first template the
+    if (!_connected) return;
+    // Make sure data is loaded before rendering so the first template the
     // user sees has real content.
     //
     // We avoid calling setRootTemplate twice (once empty, once full) because
@@ -136,19 +117,21 @@ class CarPlayService {
     } catch (e) {
       debugPrint('[CarPlay] Pre-render refresh failed: $e');
     }
+    if (!_connected) return;
     await _setRootTemplate(label: 'on-connect');
   }
 
   /// Clear cache and rebuild templates (e.g. on account switch).
   Future<void> clearAndRefresh() async {
-    if (!_initialized) return;
+    if (!_initialized || !_connected) return;
     await _autoService.refresh(force: true);
+    if (!_connected) return;
     await _setRootTemplate(label: 'clear-and-refresh');
   }
 
   /// Refresh CarPlay templates (e.g. after download completes).
   Future<void> refreshTemplates() async {
-    if (!_initialized) return;
+    if (!_initialized || !_connected) return;
     await _setRootTemplate(label: 'refresh-templates');
   }
 
@@ -184,6 +167,7 @@ class CarPlayService {
   }
 
   Future<void> _setRootTemplate({String label = ''}) async {
+    if (!_connected) return;
     // Coalesce concurrent calls. If a build is already in flight, await it
     // instead of starting a second one - two setRootTemplate invocations
     // racing within the same microtask leave CarPlay rendering blank tabs.
@@ -201,36 +185,30 @@ class CarPlayService {
   }
 
   Future<void> _doSetRootTemplate({required String label}) async {
-    _buildingRoot = true;
-    try {
-      final tabs = await _buildTabs();
-      final root = CPTabBarTemplate(templates: tabs);
-      _rootTemplate = root;
-      await FlutterCarplay.setRootTemplate(rootTemplate: root, animated: false);
-      // Without this the native side may not register onPress callbacks on
-      // the new list items, leaving taps stuck on an infinite spinner.
-      await _flutterCarplay.forceUpdateRootTemplate();
-      _lastRootBuilt = DateTime.now();
-      debugPrint('[CarPlay] Root template set ($label)'
-          ' continue=${_autoService.continueListening.length}'
-          ' downloads=${_autoService.downloaded.length}'
-          ' libraries=${_autoService.libraries.length}');
-      // Configure the Now Playing buttons here too: on a cold CarPlay launch
-      // the `connected` event can fire before our listener registers (see the
-      // eager-init note above), but the root template always gets built, so
-      // this is the reliable hook. Re-running it is idempotent.
-      await _configureNowPlayingButtons();
-    } finally {
-      _buildingRoot = false;
-    }
+    final tabs = await _buildTabs();
+    if (!_connected) return;
+    final root = CPTabBarTemplate(templates: tabs);
+    _rootTemplate = root;
+    await FlutterCarplay.setRootTemplate(rootTemplate: root, animated: false);
+    if (!_connected) return;
+    // Without this the native side may not register onPress callbacks on
+    // the new list items, leaving taps stuck on an infinite spinner.
+    await _flutterCarplay.forceUpdateRootTemplate();
+    _lastRootBuilt = DateTime.now();
+    debugPrint('[CarPlay] Root template set ($label)'
+        ' continue=${_autoService.continueListening.length}'
+        ' downloads=${_autoService.downloaded.length}'
+        ' libraries=${_autoService.libraries.length}');
+    // Configure the Now Playing buttons after the root template is built.
+    await _configureNowPlayingButtons();
   }
 
   // ─── Now Playing custom buttons ─────────────────────────────────────
 
   /// Ask the native side to (re)attach the custom buttons to
-  /// CPNowPlayingTemplate.shared. Safe to call when not connected — it just
-  /// primes the shared template for the next time CarPlay presents it.
+  /// CPNowPlayingTemplate.shared.
   Future<void> _configureNowPlayingButtons() async {
+    if (!_connected) return;
     try {
       final speed = AudioPlayerService().speed;
       _lastPushedSpeed = speed;
@@ -241,13 +219,9 @@ class CarPlayService {
     }
   }
 
-  /// Refresh the CarPlay speed button when the rate changes anywhere. No
-  /// "connected" gate on purpose: on a cold CarPlay launch the connected event
-  /// fires before our listener registers and is missed, so that flag can stay
-  /// false the whole session and would freeze the badge at its initial value.
-  /// The speed-diff check keeps this cheap; re-pushing while disconnected just
-  /// primes the shared Now Playing template, which is harmless.
+  /// Refresh the CarPlay speed button when the rate changes anywhere.
   void _onPlayerChanged() {
+    if (!_connected) return;
     final speed = AudioPlayerService().speed;
     if ((speed - _lastPushedSpeed).abs() < 0.001) return;
     _configureNowPlayingButtons();
@@ -257,12 +231,14 @@ class CarPlayService {
   /// auto-dismissing modal alert (the closest thing to a banner it offers). The
   /// OK action lets the driver dismiss early; otherwise it clears itself.
   Future<void> _showBookmarkBanner() async {
+    if (!_connected) return;
     try {
       _bannerDismissTimer?.cancel();
       if (_bannerShowing) {
         await FlutterCarplay.popModal();
         _bannerShowing = false;
       }
+      if (!_connected) return;
       await FlutterCarplay.showAlert(
         template: CPAlertTemplate(
           titleVariants: const ['Bookmark added'],
@@ -272,7 +248,7 @@ class CarPlayService {
               onPress: () {
                 _bannerDismissTimer?.cancel();
                 _bannerShowing = false;
-                FlutterCarplay.popModal();
+                if (_connected) FlutterCarplay.popModal();
               },
             ),
           ],
@@ -280,7 +256,7 @@ class CarPlayService {
       );
       _bannerShowing = true;
       _bannerDismissTimer = Timer(const Duration(milliseconds: 1800), () {
-        if (!_bannerShowing) return;
+        if (!_connected || !_bannerShowing) return;
         _bannerShowing = false;
         FlutterCarplay.popModal();
       });
@@ -292,7 +268,7 @@ class CarPlayService {
   /// Route a Now Playing button tap from native into the audio handler's
   /// customAction, which owns the chapter/speed/bookmark logic.
   Future<dynamic> _handleNativeCall(MethodCall call) async {
-    if (call.method != 'carPlayButton') return null;
+    if (!_connected || call.method != 'carPlayButton') return null;
     final action = (call.arguments as Map?)?['action'] as String?;
     if (action == null) return null;
     debugPrint('[CarPlay] Now Playing button: $action');
@@ -351,10 +327,10 @@ class CarPlayService {
         onPress: (complete, self) async {
           if (lib.isPodcast) {
             final template = await _buildPodcastShowsList(lib.id, lib.name);
-            FlutterCarplay.push(template: template);
+            _pushTemplate(template);
           } else {
             final template = await _buildBookSubCategories(lib.id, lib.name);
-            FlutterCarplay.push(template: template);
+            _pushTemplate(template);
           }
           complete();
         },
@@ -390,7 +366,7 @@ class CarPlayService {
         accessoryType: CPListItemAccessoryTypes.disclosureIndicator,
         onPress: (complete, self) async {
           final template = await _buildBooksList(libraryId);
-          FlutterCarplay.push(template: template);
+          _pushTemplate(template);
           complete();
         },
       ),
@@ -399,7 +375,7 @@ class CarPlayService {
         accessoryType: CPListItemAccessoryTypes.disclosureIndicator,
         onPress: (complete, self) async {
           final template = await _buildSeriesList(libraryId);
-          FlutterCarplay.push(template: template);
+          _pushTemplate(template);
           complete();
         },
       ),
@@ -408,7 +384,7 @@ class CarPlayService {
         accessoryType: CPListItemAccessoryTypes.disclosureIndicator,
         onPress: (complete, self) async {
           final template = await _buildAuthorsList(libraryId);
-          FlutterCarplay.push(template: template);
+          _pushTemplate(template);
           complete();
         },
       ),
@@ -450,7 +426,7 @@ class CarPlayService {
         accessoryType: CPListItemAccessoryTypes.disclosureIndicator,
         onPress: (complete, self) async {
           final template = await _buildBooksLeaf(libraryId, b.prefix);
-          FlutterCarplay.push(template: template);
+          _pushTemplate(template);
           complete();
         },
       );
@@ -485,7 +461,7 @@ class CarPlayService {
         accessoryType: CPListItemAccessoryTypes.disclosureIndicator,
         onPress: (complete, self) async {
           final template = await _buildSeriesBooks(s.id, libraryId, s.name);
-          FlutterCarplay.push(template: template);
+          _pushTemplate(template);
           complete();
         },
       );
@@ -519,7 +495,7 @@ class CarPlayService {
         accessoryType: CPListItemAccessoryTypes.disclosureIndicator,
         onPress: (complete, self) async {
           final template = await _buildAuthorBooks(a.id, libraryId, a.name);
-          FlutterCarplay.push(template: template);
+          _pushTemplate(template);
           complete();
         },
       );
@@ -550,11 +526,11 @@ class CarPlayService {
     final items = showsData.map((s) {
       return CPListItem(
         text: s.title,
-        image: s.coverUrl,
+        image: safeCarPlayImageUrl(s.coverUrl),
         accessoryType: CPListItemAccessoryTypes.disclosureIndicator,
         onPress: (complete, self) async {
           final template = await _buildShowEpisodes(s.id, libraryId, s.title);
-          FlutterCarplay.push(template: template);
+          _pushTemplate(template);
           complete();
         },
       );
@@ -589,9 +565,10 @@ class CarPlayService {
     // Streaming: ?ts= the server updatedAt so iOS refetches after a cover change.
     final entryUrl = entry.coverUrl;
     final ts = AndroidAutoService.coverTsFor(coverItemId);
-    final coverUrl = (entryUrl != null && entryUrl.startsWith('file://'))
+    final rawCoverUrl = (entryUrl != null && entryUrl.startsWith('file://'))
         ? entryUrl
         : api?.getCoverUrl(coverItemId, updatedAt: ts);
+    final coverUrl = safeCarPlayImageUrl(rawCoverUrl);
 
     final isPodcastShow = entry.mediaType == 'podcast' &&
         entry.episodeId == null &&
@@ -607,7 +584,7 @@ class CarPlayService {
         onPress: (complete, self) async {
           final template = await _buildShowEpisodes(
               entry.id, entry.libraryId!, entry.title);
-          FlutterCarplay.push(template: template);
+          _pushTemplate(template);
           complete();
         },
       );
@@ -634,6 +611,11 @@ class CarPlayService {
     return (entry.currentTime! / entry.duration).clamp(0.0, 1.0);
   }
 
+  void _pushTemplate(CPListTemplate template) {
+    if (!_connected) return;
+    FlutterCarplay.push(template: template);
+  }
+
   void _playItem(String mediaId) {
     debugPrint('[CarPlay] Playing: $mediaId');
     // Call the handler directly. The static AudioService.playFromMediaId is a
@@ -643,6 +625,6 @@ class CarPlayService {
     // Jump straight to Now Playing on tap, like the native apps, instead of
     // making the user find the Now Playing button. pushIfNotExist on the native
     // side means it's a no-op if Now Playing is already on screen.
-    FlutterCarplay.showSharedNowPlaying();
+    if (_connected) FlutterCarplay.showSharedNowPlaying();
   }
 }

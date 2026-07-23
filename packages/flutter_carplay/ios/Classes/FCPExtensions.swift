@@ -17,11 +17,28 @@ enum ImageSource {
 
 // String → ImageSource
 extension String {
-    func toImageSource() -> ImageSource {
-        if self.starts(with: "http") {
-            return .url(URL(string: self)!)
-        } else if self.starts(with: "file://") {
-            return .file(self.replacingOccurrences(of: "file://", with: ""))
+    func toImageSource() -> ImageSource? {
+        guard !self.isEmpty,
+              self.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
+            return nil
+        }
+        let lowercased = self.lowercased()
+        if lowercased.starts(with: "http") {
+            guard let url = URL(string: self),
+                  let scheme = url.scheme?.lowercased(),
+                  (scheme == "http" || scheme == "https"),
+                  let host = url.host,
+                  !host.isEmpty else {
+                return nil
+            }
+            return .url(url)
+        } else if lowercased.starts(with: "file://") {
+            guard let url = URL(string: self), url.isFileURL, !url.path.isEmpty else {
+                return nil
+            }
+            return .file(url.path)
+        } else if self.contains("://") {
+            return nil
         } else {
             return .flutterAsset(self)
         }
