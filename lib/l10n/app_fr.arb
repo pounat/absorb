@@ -80,33 +80,13 @@
       }
     }
   },
-  "adminCreateSetupFile": "Créer un fichier de configuration",
-  "adminSetupFileDescription": "Crée un fichier de connexion pour {username} qui fonctionne uniquement dans l’app Absorb. Ils l’importent depuis l’écran de connexion pour se connecter.",
-  "@adminSetupFileDescription": {
-    "placeholders": {
-      "username": {
-        "type": "String"
-      }
-    }
-  },
   "adminSetupFileServerUrl": "URL du serveur que le nouvel utilisateur va utiliser",
-  "adminSetupFileNoteWithHeaders": "Une clé API sera créée pour cet utilisateur et vos en‑têtes personnalisés seront inclus afin qu’ils puissent atteindre le serveur. Traitez ce fichier comme un mot de passe.",
-  "adminSetupFileNote": "Une clé API sera créée pour cet utilisateur. Traitez le fichier tel un mot de passe.",
-  "adminSetupFileCreate": "Créer",
   "adminSetupFileSaveTitle": "Enregistrer le fichier de configuration",
   "adminSetupFileKeyError": "Impossible de créer une clé API pour cet utilisateur",
   "adminSetupFileSaved": "Fichier d'installation pour {username} enregistré",
   "@adminSetupFileSaved": {
     "placeholders": {
       "username": {
-        "type": "String"
-      }
-    }
-  },
-  "adminSetupFileFailed": "Impossible de créer le fichier de configuration : {error}",
-  "@adminSetupFileFailed": {
-    "placeholders": {
-      "error": {
         "type": "String"
       }
     }
