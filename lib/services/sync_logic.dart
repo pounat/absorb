@@ -32,6 +32,31 @@ class SyncLogic {
   /// real unsynced listening progress that must not be discarded.
   static const double localAheadSafetySeconds = 30.0;
 
+  /// Minimum forward correction worth applying after cached playback has
+  /// already started. Smaller differences are normal request/playback drift.
+  static const double cachedStartSeekThresholdSeconds = 5.0;
+
+  /// Whether a server position fetched alongside a cached playback start
+  /// should replace the position that was on this device before playback.
+  ///
+  /// [localTimestampAtStart] must be the timestamp captured before playback
+  /// begins. A normal local save can happen while the server request is in
+  /// flight; using that later timestamp would make the stale starting position
+  /// incorrectly win the comparison.
+  static bool shouldAdoptServerAtCachedStart({
+    required int serverTimestamp,
+    required double serverTime,
+    required int localTimestampAtStart,
+    required double localTimeAtStart,
+    required double currentPlaybackTime,
+  }) {
+    if (serverTimestamp <= localTimestampAtStart) return false;
+    if (serverTime <= localTimeAtStart + cachedStartSeekThresholdSeconds) {
+      return false;
+    }
+    return serverTime > currentPlaybackTime + cachedStartSeekThresholdSeconds;
+  }
+
   /// Decide whether to pull server progress or push local progress when
   /// flushing a pending sync.
   ///

@@ -2463,6 +2463,8 @@ class AudioPlayerService extends ChangeNotifier {
       return null;
     }
 
+    final playbackGeneration = ++_playbackGeneration;
+
     // Stop old audio immediately so it doesn't keep playing while the new
     // source is loading (avoids briefly hearing the previous book).
     await _player?.pause();
@@ -2514,7 +2516,11 @@ class AudioPlayerService extends ChangeNotifier {
     // Always prefer the local position when it's further ahead - the
     // caller's startTime may be stale (e.g. Android Auto browse tree
     // entry cached before the user listened further).
-    final localPos = await _progressSync.getSavedPosition(progressKey);
+    final localProgressAtStart = await _progressSync.getLocal(progressKey);
+    final localPos =
+        (localProgressAtStart?['currentTime'] as num?)?.toDouble() ?? 0;
+    var localTimestampAtStart =
+        (localProgressAtStart?['timestamp'] as num?)?.toInt() ?? 0;
     if (localPos > 0 && !forceStartTime) {
       if (startTime == 0 || localPos > startTime + 1.0) {
         debugPrint('[Player] Resuming from local position: ${localPos}s (caller startTime was ${startTime}s)');
@@ -2531,6 +2537,7 @@ class AudioPlayerService extends ChangeNotifier {
       if (nativePos != null && nativePos > startTime + 1.0) {
         debugPrint('[Player] Resuming from native widget position: ${nativePos}s (was ${startTime}s)');
         startTime = nativePos;
+        localTimestampAtStart = DateTime.now().millisecondsSinceEpoch;
       }
     }
 
@@ -2578,7 +2585,7 @@ class AudioPlayerService extends ChangeNotifier {
       if (cachedSession != null) {
         result = await _playFromSessionCache(api, itemId, title, author,
             coverUrl, totalDuration, chapters, startTime, cachedSession,
-            forceStartTime);
+            localTimestampAtStart, playbackGeneration, forceStartTime);
         // Fall through to normal server path if cache was stale/invalid
         if (result == 'cache-miss') {
           result = await _playFromServer(api, itemId, title, author, coverUrl,
@@ -2946,7 +2953,9 @@ class AudioPlayerService extends ChangeNotifier {
     double totalDuration,
     List<dynamic> chapters,
     double startTime,
-    Map<String, dynamic> cached, [
+    Map<String, dynamic> cached,
+    int localTimestampAtStart,
+    int playbackGeneration, [
     bool forceStartTime = false,
   ]) async {
     debugPrint('[Player] Playing from session cache: $title');
@@ -3024,6 +3033,7 @@ class AudioPlayerService extends ChangeNotifier {
       _handler?.refreshPlaybackState();
       await Future.delayed(const Duration(milliseconds: 200));
       try { (await AudioSession.instance).setActive(true); } catch (_) {}
+      _cachedStartReconcileGeneration = playbackGeneration;
       _player!.play();
       _scheduleAudioDiagnostics('cached-session');
       notifyListeners();
@@ -3036,10 +3046,25 @@ class AudioPlayerService extends ChangeNotifier {
       sleepTimer.checkAutoSleep();
       // Refresh server session in background - gets fresh session ID and
       // handles cross-client progress sync without blocking playback start
-      _refreshServerSession(api, itemId);
+      final episodeIdAtStart = _currentEpisodeId;
+      final progressKey = episodeIdAtStart != null
+          ? '$itemId-$episodeIdAtStart'
+          : itemId;
+      _refreshServerSession(
+        api,
+        itemId,
+        episodeIdAtStart: episodeIdAtStart,
+        progressKey: progressKey,
+        localTimestampAtStart: localTimestampAtStart,
+        localTimeAtStart: startTime,
+        playbackGeneration: playbackGeneration,
+      );
       return null;
     } catch (e, stack) {
       debugPrint('[Player] Cached session play error: $e\n$stack');
+      if (_cachedStartReconcileGeneration == playbackGeneration) {
+        _cachedStartReconcileGeneration = null;
+      }
       // Cache was stale or invalid - clear it and signal fallback
       SessionCache.clear(itemId: itemId, episodeId: _currentEpisodeId);
       return 'cache-miss';
@@ -3049,14 +3074,30 @@ class AudioPlayerService extends ChangeNotifier {
   /// Re-create the server playback session in the background after starting
   /// playback from cache. Gets a fresh session ID so progress syncing works,
   /// and handles cross-client progress (seek to server position if ahead).
-  void _refreshServerSession(ApiService api, String itemId) async {
-    if (_isOfflineMode) return;
+  void _refreshServerSession(
+    ApiService api,
+    String itemId, {
+    required String? episodeIdAtStart,
+    required String progressKey,
+    required int localTimestampAtStart,
+    required double localTimeAtStart,
+    required int playbackGeneration,
+  }) async {
     try {
-      final sessionData = _currentEpisodeId != null
-          ? await api.startEpisodePlaybackSession(itemId, _currentEpisodeId!)
+      if (_isOfflineMode) return;
+      final progressRequest = api.getItemProgress(progressKey);
+      final sessionData = episodeIdAtStart != null
+          ? await api.startEpisodePlaybackSession(itemId, episodeIdAtStart)
           : await api.startPlaybackSession(itemId);
       if (sessionData == null) {
         debugPrint('[Player] Background session refresh returned null');
+        return;
+      }
+      final serverProgress = await progressRequest;
+      if (_playbackGeneration != playbackGeneration ||
+          _currentItemId != itemId ||
+          _currentEpisodeId != episodeIdAtStart) {
+        debugPrint('[Player] Ignoring stale background session refresh for $progressKey');
         return;
       }
       _playbackSessionId = sessionData['id'] as String?;
@@ -3081,17 +3122,38 @@ class AudioPlayerService extends ChangeNotifier {
       // Check if server position is ahead (another client advanced). Gate on a
       // newer server timestamp, not position alone, so a stale pre-rewind
       // position left on the server can't yank us forward (see _resumeServerSync).
-      final serverPos = (sessionData['currentTime'] as num?)?.toDouble() ?? 0;
-      final serverTs = (sessionData['updatedAt'] as num?)?.toInt() ?? 0;
+      final serverPos =
+          (serverProgress?['currentTime'] as num?)?.toDouble() ??
+          (sessionData['currentTime'] as num?)?.toDouble() ??
+          0;
+      final serverTs =
+          (serverProgress?['lastUpdate'] as num?)?.toInt() ??
+          (localTimestampAtStart == 0
+              ? (sessionData['updatedAt'] as num?)?.toInt() ?? 0
+              : 0);
       final localPos = position.inMilliseconds / 1000.0;
-      final pKey = _currentEpisodeId != null ? '$itemId-$_currentEpisodeId' : itemId;
-      final localTs = await _progressSync.getSavedTimestamp(pKey);
-      if (serverTs > localTs && serverPos > localPos + 5.0) {
+      if (SyncLogic.shouldAdoptServerAtCachedStart(
+        serverTimestamp: serverTs,
+        serverTime: serverPos,
+        localTimestampAtStart: localTimestampAtStart,
+        localTimeAtStart: localTimeAtStart,
+        currentPlaybackTime: localPos,
+      )) {
         debugPrint('[Player] Server is ahead on cache-start: server=${serverPos}s vs local=${localPos}s - seeking');
         await _seekAbsolute(serverPos);
+        await _progressSync.saveLocal(
+          itemId: progressKey,
+          currentTime: serverPos,
+          duration: _totalDuration,
+          speed: speed,
+        );
       }
     } catch (e) {
       debugPrint('[Player] Background session refresh failed: $e');
+    } finally {
+      if (_cachedStartReconcileGeneration == playbackGeneration) {
+        _cachedStartReconcileGeneration = null;
+      }
     }
   }
 
@@ -3994,6 +4056,7 @@ class AudioPlayerService extends ChangeNotifier {
         // Bank listening to durable storage every tick, decoupled from the
         // server push below, so an abrupt kill loses at most one tick.
         await _accrueListening(absolutePos);
+        if (_isCachedStartReconcilePending) return;
 
         // Push to server: 15s foreground, 60s background. Accuracy rides on the
         // accrual above, not this cadence — this is just server freshness.
@@ -4377,6 +4440,7 @@ class AudioPlayerService extends ChangeNotifier {
 
   Future<void> _saveProgressLocal(Duration pos) async {
     if (_currentItemId == null) return;
+    if (_isCachedStartReconcilePending) return;
     final ct = pos.inMilliseconds / 1000.0;
     // Use compound key for podcast episodes
     final progressKey = _currentEpisodeId != null
@@ -4412,6 +4476,11 @@ class AudioPlayerService extends ChangeNotifier {
   bool _positionSyncInProgress = false;
   int _positionSyncFailures = 0;
   bool _recreatingSession = false;
+  int _playbackGeneration = 0;
+  int? _cachedStartReconcileGeneration;
+
+  bool get _isCachedStartReconcilePending =>
+      _cachedStartReconcileGeneration == _playbackGeneration;
 
   /// Bank listening time to the durable store for the active play mode. Called
   /// every ~5s while playing (decoupled from the server POST) so the recorded
@@ -4443,6 +4512,7 @@ class AudioPlayerService extends ChangeNotifier {
 
   Future<void> _syncToServer(Duration pos, {int? timeListenedOverride}) async {
     if (_api == null || _playbackSessionId == null) return;
+    if (_isCachedStartReconcilePending) return;
     final ct = pos.inMilliseconds / 1000.0;
     // Incomplete download: stuck at the truncated file's end. Don't push that
     // clamped position to the server (it would move real progress backward) or
