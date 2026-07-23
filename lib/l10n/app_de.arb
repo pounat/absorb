@@ -80,33 +80,13 @@
       }
     }
   },
-  "adminCreateSetupFile": "Setup-Datei erstellen",
-  "adminSetupFileDescription": "Erzeugt eine Anmeldedatei für {username}, die nur in der Absorb App funktioniert. Diese kann zur Anmeldung auf dem Login Bildschirm importiert werden.",
-  "@adminSetupFileDescription": {
-    "placeholders": {
-      "username": {
-        "type": "String"
-      }
-    }
-  },
   "adminSetupFileServerUrl": "Server-URL, die der neue Benutzer verwenden wird",
-  "adminSetupFileNoteWithHeaders": "Ein API-Key wird für diesen Benutzer erstellt und die benutzerdefinierten Header mit eingeschlossen, um die Anmeldung auf dem Server zu ermöglichen. Behandle die Datei wie ein Passwort.",
-  "adminSetupFileNote": "Ein API-Key wird für diesen Benutzer erstellt. Behandle die Datei wie ein Passwort.",
-  "adminSetupFileCreate": "Erstellen",
   "adminSetupFileSaveTitle": "Setup Datei speichern",
   "adminSetupFileKeyError": "Für diesen Benutzer konnte kein API Key erstellt werden",
   "adminSetupFileSaved": "Setup-Datei für {username} gespeichert",
   "@adminSetupFileSaved": {
     "placeholders": {
       "username": {
-        "type": "String"
-      }
-    }
-  },
-  "adminSetupFileFailed": "Fehler beim Erstellen der Setup-Datei: {error}",
-  "@adminSetupFileFailed": {
-    "placeholders": {
-      "error": {
         "type": "String"
       }
     }
