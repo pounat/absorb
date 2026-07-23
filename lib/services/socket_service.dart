@@ -16,19 +16,45 @@ class SocketService {
 
   Map<String, String> _customHeaders = {};
 
+  @visibleForTesting
+  static ({String origin, String path}) socketTargetForServerUrl(
+    String serverUrl,
+  ) {
+    final uri = Uri.parse(serverUrl.trim());
+    final basePath = uri.path.replaceFirst(RegExp(r'/+$'), '');
+    return (
+      origin: '${uri.scheme}://${uri.authority}',
+      path: '$basePath/socket.io',
+    );
+  }
+
   /// Build socket.io options with capped reconnection to avoid
   /// hammering an unreachable server (and draining battery).
-  Map<String, dynamic> _buildOptions() {
+  @visibleForTesting
+  static Map<String, dynamic> buildSocketOptions(
+    String socketPath, {
+    Map<String, String> customHeaders = const {},
+  }) {
     final builder = io.OptionBuilder()
         .setTransports(['websocket'])
+        .setPath(socketPath)
+        .enableForceNew()
         .enableReconnection()
         .setReconnectionDelay(1000)
         .setReconnectionDelayMax(30000)
         .setReconnectionAttempts(5);
-    if (_customHeaders.isNotEmpty) {
-      builder.setExtraHeaders(_customHeaders);
+    if (customHeaders.isNotEmpty) {
+      builder.setExtraHeaders(customHeaders);
     }
     return builder.build();
+  }
+
+  io.Socket _createSocket(String serverUrl) {
+    final target = socketTargetForServerUrl(serverUrl);
+    return io.io(
+      target.origin,
+      buildSocketOptions(target.path, customHeaders: _customHeaders),
+    );
   }
 
   /// Called when the server pushes a progress update (cross-device sync).
@@ -227,7 +253,7 @@ class SocketService {
     _customHeaders = customHeaders;
 
     try {
-      _socket = io.io(serverUrl, _buildOptions());
+      _socket = _createSocket(serverUrl);
 
       // onConnect fires on initial connect AND every reconnect
       _socket!.onConnect((_) {
@@ -432,7 +458,7 @@ class SocketService {
     debugPrint('[Battery] Socket RECONNECTED (soft)');
 
     try {
-      _socket = io.io(url, _buildOptions());
+      _socket = _createSocket(url);
 
       _socket!.onConnect((_) {
         _connectedAt = DateTime.now();
