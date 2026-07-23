@@ -1314,7 +1314,10 @@ class _MetadataEditViewState extends State<MetadataEditView>
                   ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary))
                   : const Icon(Icons.auto_fix_high_rounded, size: 18),
               label: Text(l.quickMatch),
-              style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           const Spacer(),
           FilledButton.icon(
@@ -1327,11 +1330,10 @@ class _MetadataEditViewState extends State<MetadataEditView>
           ),
         ]),
       ),
-      const SizedBox(height: 8),
       Expanded(
         child: ListView(
           controller: _detailsScroll,
-          padding: EdgeInsets.fromLTRB(20, 0, 20, 32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
+          padding: EdgeInsets.fromLTRB(20, 8, 20, 32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
           children: [
             _field(l.titleLabel, _titleCtrl, tt),
             _field(l.subtitleLabel, _subtitleCtrl, tt),
