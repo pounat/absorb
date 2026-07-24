@@ -34,6 +34,7 @@ import '../widgets/absorb_page_header.dart';
 import '../widgets/theme_presets.dart';
 import '../widgets/color_wheel_picker.dart';
 import '../widgets/absorb_slider.dart';
+import '../widgets/card_scrubber_mode_selector.dart';
 import '../widgets/collapsible_section.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/tips_sheet.dart';
@@ -69,7 +70,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _autoDownloadOnStream = false;
   int _rollingDownloadCount = 3;
   bool _rollingDownloadDeleteFinished = false;
-  bool _showBookSlider = false;
+  CardScrubberMode _cardScrubberMode = CardScrubberMode.chapter;
   bool _notifChapterProgress = false;
   bool _notifSpeedBookmark = false;
   bool _lockSeekBar = false;
@@ -701,7 +702,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       PlayerSettings.getWifiOnlyDownloads(),                  // 2
       PlayerSettings.getRollingDownloadCount(),                // 3
       PlayerSettings.getRollingDownloadDeleteFinished(),       // 4
-      PlayerSettings.getShowBookSlider(),                     // 5
+      PlayerSettings.getCardScrubberMode(),                   // 5
       PlayerSettings.getNotificationChapterProgress(),        // 6
       PlayerSettings.getSpeedAdjustedTime(),                  // 7
       PlayerSettings.getForwardSkip(),                        // 8
@@ -768,7 +769,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final wifiOnly = results[2] as bool;
     final rollingCount = results[3] as int;
     final rollingDelete = results[4] as bool;
-    final bookSlider = results[5] as bool;
+    final cardScrubberMode = results[5] as CardScrubberMode;
     final notifChapter = results[6] as bool;
     final speedAdj = results[7] as bool;
     final fwd = results[8] as int;
@@ -841,7 +842,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _autoDownloadOnStream = autoDlStream;
       _rollingDownloadCount = rollingCount;
       _rollingDownloadDeleteFinished = rollingDelete;
-      _showBookSlider = bookSlider;
+      _cardScrubberMode = cardScrubberMode;
       _notifChapterProgress = notifChapter;
       _notifSpeedBookmark = notifSpeedBookmark;
       _lockSeekBar = lockSeek;
@@ -1809,16 +1810,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ]),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
-                      title: Text(l.fullBookScrubber),
-                      subtitle: Text(
-                        _showBookSlider ? l.fullBookScrubberOnSubtitle : l.fullBookScrubberOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                      value: _showBookSlider,
-                      onChanged: _loaded ? (v) {
-                        setState(() => _showBookSlider = v);
-                        PlayerSettings.setShowBookSlider(v);
-                      } : null,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l.cardScrubbers,
+                            style: tt.bodyMedium?.copyWith(
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            switch (_cardScrubberMode) {
+                              CardScrubberMode.both =>
+                                l.cardScrubbersBothSubtitle,
+                              CardScrubberMode.chapter =>
+                                l.cardScrubbersChapterSubtitle,
+                              CardScrubberMode.locked =>
+                                l.cardScrubbersLockedSubtitle,
+                            },
+                            style: tt.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          CardScrubberModeSelector(
+                            mode: _cardScrubberMode,
+                            enabled: _loaded,
+                            onChanged: (mode) {
+                              setState(() => _cardScrubberMode = mode);
+                              PlayerSettings.setCardScrubberMode(mode);
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     SwitchListTile(

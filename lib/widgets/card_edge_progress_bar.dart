@@ -56,7 +56,7 @@ class _CardEdgeProgressBarState extends State<CardEdgeProgressBar>
   double _dragStartDy = 0;
   double _lastLongPressDx = 0;
   double _edgeScrubSpeed = 1.0;
-  bool _showBookSlider = false;
+  CardScrubberMode _scrubberMode = CardScrubberMode.chapter;
 
   static const _thinHeight = 3.5;
   static const _expandedHeight = 50.0;
@@ -83,9 +83,9 @@ class _CardEdgeProgressBarState extends State<CardEdgeProgressBar>
     PlayerSettings.getSpeedAdjustedTime().then((v) {
       if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
     });
-    PlayerSettings.getShowBookSlider().then((v) {
-      if (mounted && v != _showBookSlider) {
-        setState(() => _showBookSlider = v);
+    PlayerSettings.getCardScrubberMode().then((mode) {
+      if (mounted && mode != _scrubberMode) {
+        setState(() => _scrubberMode = mode);
       }
     });
   }
@@ -284,7 +284,7 @@ class _CardEdgeProgressBarState extends State<CardEdgeProgressBar>
         final barHeight = lerpDouble(_thinHeight, 8.0, expandT)!;
         final displayProgress = _dragValue ?? bookProgress;
 
-        final interactive = active && _showBookSlider;
+        final interactive = active && _scrubberMode.allowsBookSeeking;
         return GestureDetector(
           behavior: HitTestBehavior.translucent,
           onHorizontalDragStart: interactive ? (d) {

@@ -33,7 +33,7 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
   double _chapterDragStartDy = 0;
   double _bookScrubSpeed = 1.0;
   double _chapterScrubSpeed = 1.0;
-  bool _showBookSlider = false;
+  CardScrubberMode _scrubberMode = CardScrubberMode.chapter;
   bool _speedAdjustedTime = true;
   Timer? _smoothTicker;
   final _tickNotifier = ChangeNotifier(); // drives ListenableBuilder rebuilds
@@ -62,7 +62,11 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
   }
 
   void _loadSettings() {
-    PlayerSettings.getShowBookSlider().then((v) { if (mounted && v != _showBookSlider) setState(() => _showBookSlider = v); });
+    PlayerSettings.getCardScrubberMode().then((mode) {
+      if (mounted && mode != _scrubberMode) {
+        setState(() => _scrubberMode = mode);
+      }
+    });
     PlayerSettings.getSpeedAdjustedTime().then((v) { if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v); });
     PlayerSettings.getProgressTextScale().then((v) { if (mounted && v != _progressTextScale) setState(() => _progressTextScale = v); });
     _loadSavedSpeed();
@@ -327,7 +331,7 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
           child: Column(children: [
             // Book bar
             if (widget.showBookBar) ...[
-            if (_showBookSlider) ...[
+            if (_scrubberMode.allowsBookSeeking) ...[
               SizedBox(height: 32, child: LayoutBuilder(builder: (_, cons) {
                 final w = cons.maxWidth;
                 final p = _bookDragValue ?? bookProgress;
@@ -375,13 +379,15 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
               final chName = rawName != null
                   ? _smartChapterName(l, rawName, chIdx, widget.totalChapters)
                   : null;
+              final chapterInteractive =
+                  active && _scrubberMode.allowsChapterSeeking;
 
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onHorizontalDragStart: active ? (d) { _chapterDragStartDy = d.localPosition.dy; _chapterScrubSpeed = 1.0; setState(() => _chapterDragValue = (d.localPosition.dx / w).clamp(0.0, 1.0)); } : null,
-                onHorizontalDragUpdate: active ? (d) { _chapterScrubSpeed = _scrubScale((d.localPosition.dy - _chapterDragStartDy).abs()); setState(() => _chapterDragValue = ((_chapterDragValue ?? chapterProgress) + d.delta.dx / w * _chapterScrubSpeed).clamp(0.0, 1.0)); } : null,
-                onHorizontalDragEnd: active ? (_) { if (_chapterDragValue != null) { final seekMs = ((chapterStart + _chapterDragValue! * chapterDur) * 1000).round(); _doSeek(seekMs); } setState(() => _chapterDragValue = null); } : null,
-                onTapUp: active ? (d) { final v = (d.localPosition.dx / w).clamp(0.0, 1.0); final seekMs = ((chapterStart + v * chapterDur) * 1000).round(); _doSeek(seekMs); } : null,
+                onHorizontalDragStart: chapterInteractive ? (d) { _chapterDragStartDy = d.localPosition.dy; _chapterScrubSpeed = 1.0; setState(() => _chapterDragValue = (d.localPosition.dx / w).clamp(0.0, 1.0)); } : null,
+                onHorizontalDragUpdate: chapterInteractive ? (d) { _chapterScrubSpeed = _scrubScale((d.localPosition.dy - _chapterDragStartDy).abs()); setState(() => _chapterDragValue = ((_chapterDragValue ?? chapterProgress) + d.delta.dx / w * _chapterScrubSpeed).clamp(0.0, 1.0)); } : null,
+                onHorizontalDragEnd: chapterInteractive ? (_) { if (_chapterDragValue != null) { final seekMs = ((chapterStart + _chapterDragValue! * chapterDur) * 1000).round(); _doSeek(seekMs); } setState(() => _chapterDragValue = null); } : null,
+                onTapUp: chapterInteractive ? (d) { final v = (d.localPosition.dx / w).clamp(0.0, 1.0); final seekMs = ((chapterStart + v * chapterDur) * 1000).round(); _doSeek(seekMs); } : null,
                 child: CustomPaint(
                   size: Size(w, 30),
                   painter: ChapterPillPainter(

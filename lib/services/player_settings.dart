@@ -44,6 +44,13 @@ class AutoRewindSettings {
   }
 }
 
+enum CardScrubberMode { both, chapter, locked }
+
+extension CardScrubberModeBehavior on CardScrubberMode {
+  bool get allowsBookSeeking => this == CardScrubberMode.both;
+  bool get allowsChapterSeeking => this != CardScrubberMode.locked;
+}
+
 class PlayerSettings {
   /// Notifier that fires when any player setting changes.
   /// Widgets can listen to this instead of polling SharedPreferences.
@@ -375,8 +382,28 @@ class PlayerSettings {
 
   // ── Player UI settings (notify listeners on change) ──
 
-  static Future<bool> getShowBookSlider() => _get('showBookSlider', false);
-  static Future<void> setShowBookSlider(bool value) => _set('showBookSlider', value, notify: true);
+  static Future<CardScrubberMode> getCardScrubberMode() async {
+    final stored = await _get('cardScrubberMode', '');
+    for (final mode in CardScrubberMode.values) {
+      if (mode.name == stored) return mode;
+    }
+    final legacyBookSlider = await _get('showBookSlider', false);
+    return legacyBookSlider
+        ? CardScrubberMode.both
+        : CardScrubberMode.chapter;
+  }
+
+  static Future<void> setCardScrubberMode(CardScrubberMode mode) async {
+    await _set('cardScrubberMode', mode.name);
+    await _set('showBookSlider', mode == CardScrubberMode.both);
+    _notify();
+  }
+
+  static Future<bool> getShowBookSlider() async =>
+      await getCardScrubberMode() == CardScrubberMode.both;
+  static Future<void> setShowBookSlider(bool value) => setCardScrubberMode(
+        value ? CardScrubberMode.both : CardScrubberMode.chapter,
+      );
 
   static Future<bool> getSpeedAdjustedTime() => _get('speedAdjustedTime', true);
   static Future<void> setSpeedAdjustedTime(bool value) => _set('speedAdjustedTime', value, notify: true);

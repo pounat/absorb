@@ -2392,6 +2392,48 @@ abstract class AppLocalizations {
   /// **'Off - progress bar only'**
   String get fullBookScrubberOffSubtitle;
 
+  /// No description provided for @cardScrubbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Card scrubbers'**
+  String get cardScrubbers;
+
+  /// No description provided for @cardScrubbersBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Both'**
+  String get cardScrubbersBoth;
+
+  /// No description provided for @cardScrubbersChapter.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter'**
+  String get cardScrubbersChapter;
+
+  /// No description provided for @cardScrubbersLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get cardScrubbersLocked;
+
+  /// No description provided for @cardScrubbersBothSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full book and chapter bars can seek'**
+  String get cardScrubbersBothSubtitle;
+
+  /// No description provided for @cardScrubbersChapterSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the chapter bar can seek'**
+  String get cardScrubbersChapterSubtitle;
+
+  /// No description provided for @cardScrubbersLockedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress is shown without seeking'**
+  String get cardScrubbersLockedSubtitle;
+
   /// No description provided for @speedAdjustedTime.
   ///
   /// In en, this message translates to:

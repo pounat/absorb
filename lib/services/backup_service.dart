@@ -24,6 +24,7 @@ class BackupService {
       // Legacy keys for backward compat with older app versions
       'autoPlayNextBook': (await PlayerSettings.getQueueMode()) == 'auto_next',
       'autoPlayNextPodcast': (await PlayerSettings.getQueueMode()) == 'auto_next',
+      'cardScrubberMode': (await PlayerSettings.getCardScrubberMode()).name,
       'showBookSlider': await PlayerSettings.getShowBookSlider(),
       'speedAdjustedTime': await PlayerSettings.getSpeedAdjustedTime(),
       'forwardSkip': await PlayerSettings.getForwardSkip(),
@@ -407,7 +408,16 @@ class BackupService {
     if (s['bookQueueMode'] != null) PlayerSettings.setBookQueueMode(s['bookQueueMode'] as String);
     if (s['podcastQueueMode'] != null) PlayerSettings.setPodcastQueueMode(s['podcastQueueMode'] as String);
     if (s['whenFinished'] != null) PlayerSettings.setWhenFinished(s['whenFinished'] as String);
-    if (s['showBookSlider'] != null) PlayerSettings.setShowBookSlider(s['showBookSlider'] as bool);
+    final cardScrubberMode = s['cardScrubberMode'] as String?;
+    if (cardScrubberMode != null) {
+      final mode = CardScrubberMode.values.firstWhere(
+        (value) => value.name == cardScrubberMode,
+        orElse: () => CardScrubberMode.chapter,
+      );
+      await PlayerSettings.setCardScrubberMode(mode);
+    } else if (s['showBookSlider'] != null) {
+      await PlayerSettings.setShowBookSlider(s['showBookSlider'] as bool);
+    }
     if (s['speedAdjustedTime'] != null) PlayerSettings.setSpeedAdjustedTime(s['speedAdjustedTime'] as bool);
     if (s['forwardSkip'] != null) PlayerSettings.setForwardSkip(s['forwardSkip'] as int);
     if (s['backSkip'] != null) PlayerSettings.setBackSkip(s['backSkip'] as int);

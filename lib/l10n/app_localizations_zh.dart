@@ -1240,6 +1240,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fullBookScrubberOffSubtitle => '关闭 - 仅显示进度条';
 
   @override
+  String get cardScrubbers => 'Card scrubbers';
+
+  @override
+  String get cardScrubbersBoth => 'Both';
+
+  @override
+  String get cardScrubbersChapter => 'Chapter';
+
+  @override
+  String get cardScrubbersLocked => 'Locked';
+
+  @override
+  String get cardScrubbersBothSubtitle => 'Full book and chapter bars can seek';
+
+  @override
+  String get cardScrubbersChapterSubtitle => 'Only the chapter bar can seek';
+
+  @override
+  String get cardScrubbersLockedSubtitle => 'Progress is shown without seeking';
+
+  @override
   String get speedAdjustedTime => '变速后时间';
 
   @override

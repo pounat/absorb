@@ -1257,6 +1257,27 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fullBookScrubberOffSubtitle => 'Off - progress bar only';
 
   @override
+  String get cardScrubbers => 'Card scrubbers';
+
+  @override
+  String get cardScrubbersBoth => 'Both';
+
+  @override
+  String get cardScrubbersChapter => 'Chapter';
+
+  @override
+  String get cardScrubbersLocked => 'Locked';
+
+  @override
+  String get cardScrubbersBothSubtitle => 'Full book and chapter bars can seek';
+
+  @override
+  String get cardScrubbersChapterSubtitle => 'Only the chapter bar can seek';
+
+  @override
+  String get cardScrubbersLockedSubtitle => 'Progress is shown without seeking';
+
+  @override
   String get speedAdjustedTime => 'Speed-adjusted time';
 
   @override
