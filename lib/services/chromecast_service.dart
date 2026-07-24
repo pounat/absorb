@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
 import 'api_service.dart';
 import 'audio_player_service.dart';
+import 'chapter_lookup.dart';
 import 'progress_sync_service.dart';
 
 enum CastConnectionState { disconnected, connecting, connected }
@@ -1036,10 +1037,19 @@ class ChromecastService extends ChangeNotifier {
   Future<void> skipToNextChapter() async {
     if (_castingChapters.isEmpty) return;
     final p = _castPosition.inMilliseconds / 1000.0;
-    for (final ch in _castingChapters) {
-      final s = ((ch as Map)['start'] as num?)?.toDouble() ?? 0;
-      if (s > p + 1.0) { await seekTo(Duration(milliseconds: (s * 1000).round())); return; }
+    final target = ChapterLookup.nextSkipTarget(
+      _castingChapters,
+      p,
+      _castingDuration,
+    );
+    if (target == null) return;
+    if (target.finishesItem) {
+      final itemId = _castingItemId;
+      await seekTo(Duration(milliseconds: (target.seconds * 1000).round()));
+      if (_castingItemId == itemId) await _onCastPlaybackComplete();
+      return;
     }
+    await seekTo(Duration(milliseconds: (target.seconds * 1000).round()));
   }
 
   Future<void> skipToPreviousChapter() async {

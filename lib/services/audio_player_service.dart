@@ -4256,7 +4256,7 @@ class AudioPlayerService extends ChangeNotifier {
 
   bool _isCompletingBook = false;
 
-  Future<void> _onPlaybackComplete() async {
+  Future<void> _onPlaybackComplete({bool userRequested = false}) async {
     // Alpha: captures completion path choice for GH #186 (book restart bug).
     // Re-entry attempts are logged too so we can see if completion fires
     // multiple times from different signals (processingState, position-jump,
@@ -4274,7 +4274,7 @@ class AudioPlayerService extends ChangeNotifier {
     // because the position-getter math (trackRel + offset[last]) lands at
     // total duration. Recovery: seek a hair into the last track and resume,
     // which forces AVPlayer to reload that single item correctly.
-    if (Platform.isIOS && _trackStartOffsets.length > 2) {
+    if (!userRequested && Platform.isIOS && _trackStartOffsets.length > 2) {
       final lastIdx = _trackStartOffsets.length - 2;
       final lastTrackStart = _trackStartOffsets[lastIdx];
       final lastTrackDur = _trackStartOffsets[lastIdx + 1] - lastTrackStart;
@@ -4309,7 +4309,9 @@ class AudioPlayerService extends ChangeNotifier {
     // completion signal (iOS AVPlayer can fire completed on audio interruptions,
     // buffer errors, etc.). Save current position and stop - don't mark finished
     // or advance the queue.
-    if (_totalDuration > 0 && _lastKnownPositionSec > 0 &&
+    if (!userRequested &&
+        _totalDuration > 0 &&
+        _lastKnownPositionSec > 0 &&
         _lastKnownPositionSec < _totalDuration * 0.9 &&
         _lastKnownPositionSec < _totalDuration - 30) {
       debugPrint('[Player] Spurious completion at ${_lastKnownPositionSec.toStringAsFixed(1)}s / ${_totalDuration.toStringAsFixed(1)}s — saving position instead of marking finished');
@@ -5048,16 +5050,25 @@ class AudioPlayerService extends ChangeNotifier {
     _resetStuckDetection();
     if (!_player!.playing) _seekedWhilePaused = true;
     final posS = position.inMilliseconds / 1000.0;
-    for (int i = 0; i < _chapters.length; i++) {
-      final start = (_chapters[i]['start'] as num?)?.toDouble() ?? 0;
-      if (start > posS + 1.0) {
-        debugPrint('[Service] skipToNextChapter → chapter $i at ${start}s');
-        await _seekAbsolute(start);
-        _logEvent(PlaybackEventType.seek, detail: 'next chapter');
-        notifyListeners();
-        return;
-      }
+    final target = ChapterLookup.nextSkipTarget(
+      _chapters,
+      posS,
+      _totalDuration,
+    );
+    if (target == null) return;
+    if (target.finishesItem) {
+      debugPrint('[Service] skipToNextChapter → end at ${target.seconds}s');
+      _lastKnownPositionSec = target.seconds;
+      _logEvent(PlaybackEventType.seek, detail: 'next chapter to end');
+      await _onPlaybackComplete(userRequested: true);
+      return;
     }
+    debugPrint(
+      '[Service] skipToNextChapter → ${target.seconds}s',
+    );
+    await _seekAbsolute(target.seconds);
+    _logEvent(PlaybackEventType.seek, detail: 'next chapter');
+    notifyListeners();
   }
 
   Future<void> skipToPreviousChapter() async {

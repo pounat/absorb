@@ -32,4 +32,25 @@ class ChapterLookup {
     }
     return null;
   }
+
+  static ({double seconds, bool finishesItem})? nextSkipTarget(
+    List<dynamic> chapters,
+    double positionSeconds,
+    double totalDuration,
+  ) {
+    if (chapters.isEmpty) return null;
+    for (final chapter in chapters) {
+      final map = chapter as Map<String, dynamic>;
+      final start = (map['start'] as num?)?.toDouble() ?? 0;
+      if (start > positionSeconds + 1.0) {
+        return (seconds: start, finishesItem: false);
+      }
+    }
+
+    final lastChapter = chapters.last as Map<String, dynamic>;
+    final lastEnd = (lastChapter['end'] as num?)?.toDouble() ?? 0;
+    final end = totalDuration > 0 ? totalDuration : lastEnd;
+    if (end <= 0) return null;
+    return (seconds: end, finishesItem: true);
+  }
 }
