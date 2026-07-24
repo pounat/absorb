@@ -15,6 +15,22 @@ import 'episode_list_sheet.dart';
 import 'episode_row.dart';
 import 'overlay_toast.dart';
 
+bool podcastEpisodeMatchesFilter(
+  String filter, {
+  required double progress,
+  required bool finished,
+  required bool downloaded,
+  required bool subscribed,
+}) => switch (filter) {
+  'downloaded' => downloaded,
+  'subscribed' => subscribed,
+  'notfinished' => !finished,
+  'unplayed' => progress <= 0 && !finished,
+  'inprogress' => progress > 0 && !finished,
+  'finished' => finished,
+  _ => true,
+};
+
 /// Recent-episodes feed for podcast libraries (the "Episodes" pill): the
 /// library's newest episodes across all shows, with quick filters and swipe
 /// actions (mark played / download).
@@ -50,7 +66,10 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   void initState() {
     super.initState();
     ScopedPrefs.getString('episode_feed_filter_${widget.libraryId}').then((v) {
-      if (mounted && v != null && v.isNotEmpty) setState(() => _filter = v);
+      if (mounted && v != null && v.isNotEmpty) {
+        setState(() => _filter = v);
+        _fillFilteredResults();
+      }
     });
     _scroll.addListener(_onScroll);
     _loadPage();
@@ -92,6 +111,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       _loading = false;
       _loadingMore = false;
     });
+    _fillFilteredResults();
   }
 
   Future<void> _refresh() async {
@@ -105,6 +125,22 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     if (f == _filter) return;
     setState(() => _filter = f);
     ScopedPrefs.setString('episode_feed_filter_${widget.libraryId}', f);
+    _fillFilteredResults();
+  }
+
+  void _fillFilteredResults() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _filter == 'all' ||
+          !_hasMore ||
+          _loading ||
+          _loadingMore) {
+        return;
+      }
+      final lib = context.read<LibraryProvider>();
+      final matchCount = _episodes.where((ep) => _matchesFilter(lib, ep)).length;
+      if (matchCount < 20) _loadPage();
+    });
   }
 
   String _showIdOf(Map<String, dynamic> ep) =>
@@ -175,18 +211,18 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   }
 
   bool _matchesFilter(LibraryProvider lib, Map<String, dynamic> ep) {
-    if (_filter == 'all') return true;
     final showId = _showIdOf(ep);
     final epId = ep['id'] as String? ?? '';
-    if (_filter == 'downloaded') {
-      return DownloadService().isDownloaded('$showId-$epId');
-    }
     final progress = lib.getEpisodeProgress(showId, epId);
     final finished =
         lib.getEpisodeProgressData(showId, epId)?['isFinished'] == true;
-    if (_filter == 'unplayed') return progress <= 0 && !finished;
-    if (_filter == 'inprogress') return progress > 0 && !finished;
-    return true;
+    return podcastEpisodeMatchesFilter(
+      _filter,
+      progress: progress,
+      finished: finished,
+      downloaded: DownloadService().isDownloaded('$showId-$epId'),
+      subscribed: lib.isPodcastSubscribed(showId),
+    );
   }
 
   Future<void> _playEpisode(Map<String, dynamic> ep) async {
@@ -325,8 +361,11 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                     children: [
                       for (final (key, label) in [
                         ('all', l.filterAllEpisodes),
+                        ('subscribed', l.episodeListSubscribedChip),
+                        ('notfinished', l.notFinished),
                         ('unplayed', l.filterUnplayed),
                         ('inprogress', l.inProgress),
+                        ('finished', l.filterFinished),
                         ('downloaded', l.downloaded),
                       ]) ...[
                         ChoiceChip(

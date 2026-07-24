@@ -796,6 +796,12 @@ abstract class AppLocalizations {
   /// **'No books found'**
   String get libraryNoBooks;
 
+  /// No description provided for @libraryNoUnfinishedBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'No unfinished books'**
+  String get libraryNoUnfinishedBooks;
+
   /// No description provided for @libraryNoBooksInProgress.
   ///
   /// In en, this message translates to:
@@ -831,6 +837,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No books with eBooks'**
   String get libraryNoBooksWithEbooks;
+
+  /// No description provided for @libraryNoBooksMissingMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'No books are missing this metadata'**
+  String get libraryNoBooksMissingMetadata;
+
+  /// No description provided for @libraryNoItemsMatchingFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'No items match this filter'**
+  String get libraryNoItemsMatchingFilter;
 
   /// No description provided for @libraryNoBooksInGenre.
   ///
@@ -1006,6 +1024,12 @@ abstract class AppLocalizations {
   /// **'Collapse Series'**
   String get collapseSeries;
 
+  /// No description provided for @notFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Finished'**
+  String get notFinished;
+
   /// No description provided for @inProgress.
   ///
   /// In en, this message translates to:
@@ -1035,6 +1059,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Has eBook'**
   String get hasEbook;
+
+  /// No description provided for @noEbook.
+  ///
+  /// In en, this message translates to:
+  /// **'No eBook'**
+  String get noEbook;
+
+  /// No description provided for @hasSupplementaryEbook.
+  ///
+  /// In en, this message translates to:
+  /// **'Has Supplementary eBook'**
+  String get hasSupplementaryEbook;
+
+  /// No description provided for @noSupplementaryEbook.
+  ///
+  /// In en, this message translates to:
+  /// **'No Supplementary eBook'**
+  String get noSupplementaryEbook;
+
+  /// No description provided for @noSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'No Series'**
+  String get noSeries;
+
+  /// No description provided for @publishedDecade.
+  ///
+  /// In en, this message translates to:
+  /// **'Published Decade'**
+  String get publishedDecade;
+
+  /// No description provided for @tracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracks'**
+  String get tracks;
+
+  /// No description provided for @noTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'No Tracks'**
+  String get noTracks;
+
+  /// No description provided for @singleTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Single Track'**
+  String get singleTrack;
+
+  /// No description provided for @multipleTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple Tracks'**
+  String get multipleTracks;
+
+  /// No description provided for @abridged.
+  ///
+  /// In en, this message translates to:
+  /// **'Abridged'**
+  String get abridged;
+
+  /// No description provided for @issues.
+  ///
+  /// In en, this message translates to:
+  /// **'Issues'**
+  String get issues;
+
+  /// No description provided for @rssFeedOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'RSS Feed Open'**
+  String get rssFeedOpen;
+
+  /// No description provided for @explicitContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Explicit'**
+  String get explicitContent;
+
+  /// No description provided for @missingMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing Metadata'**
+  String get missingMetadata;
 
   /// No description provided for @genre.
   ///
@@ -1077,6 +1185,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'DESC'**
   String get desc;
+
+  /// No description provided for @fileSize.
+  ///
+  /// In en, this message translates to:
+  /// **'File Size'**
+  String get fileSize;
+
+  /// No description provided for @lastUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Updated'**
+  String get lastUpdated;
+
+  /// No description provided for @fileCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'File Created'**
+  String get fileCreated;
+
+  /// No description provided for @lastModified.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Modified'**
+  String get lastModified;
+
+  /// No description provided for @authorFirstLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Author (First Last)'**
+  String get authorFirstLast;
+
+  /// No description provided for @authorLastFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Author (Last, First)'**
+  String get authorLastFirst;
+
+  /// No description provided for @progressSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress'**
+  String get progressSort;
+
+  /// No description provided for @dateStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Date Started'**
+  String get dateStarted;
+
+  /// No description provided for @dateFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Date Finished'**
+  String get dateFinished;
+
+  /// No description provided for @episodeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode Count'**
+  String get episodeCount;
+
+  /// No description provided for @sequence.
+  ///
+  /// In en, this message translates to:
+  /// **'Series Sequence'**
+  String get sequence;
 
   /// No description provided for @absorbingTitle.
   ///
@@ -1407,6 +1581,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'m'**
   String get statsMinutesUnit;
+
+  /// No description provided for @statsSecondsUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'s'**
+  String get statsSecondsUnit;
 
   /// No description provided for @statsDaysOfAudio.
   ///
@@ -8515,6 +8695,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Day'**
   String get sessionDayLabel;
+
+  /// No description provided for @sessionEndPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Ending position'**
+  String get sessionEndPosition;
+
+  /// No description provided for @sessionEndPositionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing this may also update your current progress.'**
+  String get sessionEndPositionHint;
+
+  /// No description provided for @statsViewSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'View sessions'**
+  String get statsViewSessions;
+
+  /// No description provided for @statsSessionsForDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions for {date}'**
+  String statsSessionsForDate(String date);
+
+  /// No description provided for @statsNoSessionsForDate.
+  ///
+  /// In en, this message translates to:
+  /// **'No listening sessions found for this day'**
+  String get statsNoSessionsForDate;
+
+  /// No description provided for @statsSearchSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Search sessions'**
+  String get statsSearchSessions;
+
+  /// No description provided for @statsNoSessionSearchResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No sessions match your search'**
+  String get statsNoSessionSearchResults;
+
+  /// No description provided for @statsSessionsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load sessions for this day'**
+  String get statsSessionsLoadFailed;
 
   /// No description provided for @sessionDeleteConfirmTitle.
   ///

@@ -385,6 +385,9 @@ class AppLocalizationsRo extends AppLocalizations {
   String get libraryNoBooks => 'No books found';
 
   @override
+  String get libraryNoUnfinishedBooks => 'No unfinished books';
+
+  @override
   String get libraryNoBooksInProgress => 'No books in progress';
 
   @override
@@ -401,6 +404,13 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get libraryNoBooksWithEbooks => 'No books with eBooks';
+
+  @override
+  String get libraryNoBooksMissingMetadata =>
+      'No books are missing this metadata';
+
+  @override
+  String get libraryNoItemsMatchingFilter => 'No items match this filter';
 
   @override
   String libraryNoBooksInGenre(String genre) {
@@ -502,6 +512,9 @@ class AppLocalizationsRo extends AppLocalizations {
   String get collapseSeries => 'Collapse Series';
 
   @override
+  String get notFinished => 'Not Finished';
+
+  @override
   String get inProgress => 'In Progress';
 
   @override
@@ -515,6 +528,48 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get hasEbook => 'Has eBook';
+
+  @override
+  String get noEbook => 'No eBook';
+
+  @override
+  String get hasSupplementaryEbook => 'Has Supplementary eBook';
+
+  @override
+  String get noSupplementaryEbook => 'No Supplementary eBook';
+
+  @override
+  String get noSeries => 'No Series';
+
+  @override
+  String get publishedDecade => 'Published Decade';
+
+  @override
+  String get tracks => 'Tracks';
+
+  @override
+  String get noTracks => 'No Tracks';
+
+  @override
+  String get singleTrack => 'Single Track';
+
+  @override
+  String get multipleTracks => 'Multiple Tracks';
+
+  @override
+  String get abridged => 'Abridged';
+
+  @override
+  String get issues => 'Issues';
+
+  @override
+  String get rssFeedOpen => 'RSS Feed Open';
+
+  @override
+  String get explicitContent => 'Explicit';
+
+  @override
+  String get missingMetadata => 'Missing Metadata';
 
   @override
   String get genre => 'Genre';
@@ -536,6 +591,39 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get desc => 'DESC';
+
+  @override
+  String get fileSize => 'File Size';
+
+  @override
+  String get lastUpdated => 'Last Updated';
+
+  @override
+  String get fileCreated => 'File Created';
+
+  @override
+  String get lastModified => 'Last Modified';
+
+  @override
+  String get authorFirstLast => 'Author (First Last)';
+
+  @override
+  String get authorLastFirst => 'Author (Last, First)';
+
+  @override
+  String get progressSort => 'Progress';
+
+  @override
+  String get dateStarted => 'Date Started';
+
+  @override
+  String get dateFinished => 'Date Finished';
+
+  @override
+  String get episodeCount => 'Episode Count';
+
+  @override
+  String get sequence => 'Series Sequence';
 
   @override
   String get absorbingTitle => 'Absorbing';
@@ -724,6 +812,9 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get statsMinutesUnit => 'm';
+
+  @override
+  String get statsSecondsUnit => 's';
 
   @override
   String statsDaysOfAudio(String days) {
@@ -4817,6 +4908,34 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get sessionDayLabel => 'Day';
+
+  @override
+  String get sessionEndPosition => 'Ending position';
+
+  @override
+  String get sessionEndPositionHint =>
+      'Changing this may also update your current progress.';
+
+  @override
+  String get statsViewSessions => 'View sessions';
+
+  @override
+  String statsSessionsForDate(String date) {
+    return 'Sessions for $date';
+  }
+
+  @override
+  String get statsNoSessionsForDate =>
+      'No listening sessions found for this day';
+
+  @override
+  String get statsSearchSessions => 'Search sessions';
+
+  @override
+  String get statsNoSessionSearchResults => 'No sessions match your search';
+
+  @override
+  String get statsSessionsLoadFailed => 'Could not load sessions for this day';
 
   @override
   String get sessionDeleteConfirmTitle => 'Delete session?';

@@ -10,6 +10,7 @@ class LibraryBooksTab extends StatelessWidget {
   final LibraryFilter filter;
   final String? genreFilter;
   final String? tagFilter;
+  final bool isPodcastLibrary;
   final bool rectangleCovers;
   final double coverAspectRatio;
   final Future<void> Function() onRefresh;
@@ -38,6 +39,7 @@ class LibraryBooksTab extends StatelessWidget {
     required this.filter,
     this.genreFilter,
     this.tagFilter,
+    this.isPodcastLibrary = false,
     required this.rectangleCovers,
     required this.coverAspectRatio,
     required this.onRefresh,
@@ -69,13 +71,34 @@ class LibraryBooksTab extends StatelessWidget {
         ],
       );
     } else if (items.isEmpty && !isLoadingPage) {
-      final filterMsg = switch (filter) {
+      final filterMsg = isPodcastLibrary && filter != LibraryFilter.none
+          ? l.libraryNoItemsMatchingFilter
+          : switch (filter) {
+        LibraryFilter.notFinished => l.libraryNoUnfinishedBooks,
         LibraryFilter.inProgress => l.libraryNoBooksInProgress,
         LibraryFilter.finished => l.libraryNoFinishedBooks,
         LibraryFilter.notStarted => l.libraryAllBooksStarted,
         LibraryFilter.downloaded => l.libraryNoDownloadedBooks,
+        LibraryFilter.subscribed => l.libraryNoItemsMatchingFilter,
         LibraryFilter.inASeries => l.libraryNoSeriesFound,
         LibraryFilter.hasEbook => l.libraryNoBooksWithEbooks,
+        LibraryFilter.noEbook ||
+        LibraryFilter.hasSupplementaryEbook ||
+        LibraryFilter.noSupplementaryEbook ||
+        LibraryFilter.series ||
+        LibraryFilter.author ||
+        LibraryFilter.narrator ||
+        LibraryFilter.language ||
+        LibraryFilter.publisher ||
+        LibraryFilter.publishedDecade ||
+        LibraryFilter.noTracks ||
+        LibraryFilter.singleTrack ||
+        LibraryFilter.multipleTracks ||
+        LibraryFilter.abridged ||
+        LibraryFilter.issues ||
+        LibraryFilter.feedOpen ||
+        LibraryFilter.explicit => l.libraryNoItemsMatchingFilter,
+        LibraryFilter.missingMetadata => l.libraryNoBooksMissingMetadata,
         LibraryFilter.genre => l.libraryNoBooksInGenre(genreFilter ?? l.genre.toLowerCase()),
         LibraryFilter.tag => l.libraryNoBooksWithTag(tagFilter ?? l.tag.toLowerCase()),
         LibraryFilter.none => l.libraryNoBooks,

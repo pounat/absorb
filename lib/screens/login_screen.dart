@@ -709,16 +709,6 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
                                   ],
 
-                                  // SSO / OIDC button — only shown when server supports it
-                                  AnimatedSize(
-                                    duration: const Duration(milliseconds: 350),
-                                    curve: Curves.easeOutCubic,
-                                    alignment: Alignment.topCenter,
-                                    child: _serverValid && _oidcConfig != null && _oidcConfig!.enabled
-                                        ? _buildOidcButton(cs, tt)
-                                        : const SizedBox.shrink(),
-                                  ),
-
                                   // Credentials — always visible
                                   _buildCredentialFields(cs, tt),
                                 ],
@@ -1123,10 +1113,10 @@ class _LoginScreenState extends State<LoginScreen>
     final l = AppLocalizations.of(context)!;
     return Column(
       children: [
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
-          height: 52,
+          height: 44,
           child: OutlinedButton.icon(
             onPressed: _isConnecting || _isOidcLoading ? null : _handleOidcLogin,
             icon: _isOidcLoading
@@ -1145,29 +1135,18 @@ class _LoginScreenState extends State<LoginScreen>
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: cs.primary.withValues(alpha: 0.3)),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           l.loginRedirectUri,
           style: tt.labelSmall?.copyWith(
             color: cs.onSurfaceVariant.withValues(alpha: 0.4),
             letterSpacing: 0.3,
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child: Divider(color: cs.outlineVariant.withValues(alpha: 0.2))),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Text(l.loginOrSignInManually, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5))),
-            ),
-            Expanded(child: Divider(color: cs.outlineVariant.withValues(alpha: 0.2))),
-          ],
         ),
       ],
     );
@@ -1292,6 +1271,14 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
             ),
           ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: _serverValid && _oidcConfig != null && _oidcConfig!.enabled
+              ? _buildOidcButton(cs, tt)
+              : const SizedBox.shrink(),
         ),
 
 

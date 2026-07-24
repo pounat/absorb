@@ -555,6 +555,20 @@ class PlayerSettings {
   static Future<String> getLibraryTagFilter() => _get('libraryTagFilter', '');
   static Future<void> setLibraryTagFilter(String? value) => _set('libraryTagFilter', value ?? '');
 
+  static Future<String> getLibraryMissingMetadataFilter() =>
+      _get('libraryMissingMetadataFilter', '');
+  static Future<void> setLibraryMissingMetadataFilter(String? value) =>
+      _set('libraryMissingMetadataFilter', value ?? '');
+
+  static Future<String> getLibraryFilterValue() =>
+      _get('libraryFilterValue', '');
+  static Future<void> setLibraryFilterValue(String? value) =>
+      _set('libraryFilterValue', value ?? '');
+  static Future<String> getLibraryFilterValueLabel() =>
+      _get('libraryFilterValueLabel', '');
+  static Future<void> setLibraryFilterValueLabel(String? value) =>
+      _set('libraryFilterValueLabel', value ?? '');
+
   static Future<String> getLibrarySeriesFilter() => _get('librarySeriesFilter', 'none');
   static Future<void> setLibrarySeriesFilter(String value) => _set('librarySeriesFilter', value);
 
@@ -568,6 +582,26 @@ class PlayerSettings {
 
   static Future<bool> getPodcastSortAsc() => _get('podcastSortAsc', false);
   static Future<void> setPodcastSortAsc(bool value) => _set('podcastSortAsc', value);
+
+  static Future<String> getPodcastFilter() => _get('podcastFilter', 'none');
+  static Future<void> setPodcastFilter(String value) =>
+      _set('podcastFilter', value);
+  static Future<String> getPodcastGenreFilter() =>
+      _get('podcastGenreFilter', '');
+  static Future<void> setPodcastGenreFilter(String? value) =>
+      _set('podcastGenreFilter', value ?? '');
+  static Future<String> getPodcastTagFilter() =>
+      _get('podcastTagFilter', '');
+  static Future<void> setPodcastTagFilter(String? value) =>
+      _set('podcastTagFilter', value ?? '');
+  static Future<String> getPodcastFilterValue() =>
+      _get('podcastFilterValue', '');
+  static Future<void> setPodcastFilterValue(String? value) =>
+      _set('podcastFilterValue', value ?? '');
+  static Future<String> getPodcastFilterValueLabel() =>
+      _get('podcastFilterValueLabel', '');
+  static Future<void> setPodcastFilterValueLabel(String? value) =>
+      _set('podcastFilterValueLabel', value ?? '');
 
   static Future<String> getSeriesSort() => _get('seriesSort', 'alphabetical');
   static Future<void> setSeriesSort(String value) => _set('seriesSort', value);

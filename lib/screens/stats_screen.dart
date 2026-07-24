@@ -10,6 +10,7 @@ import '../services/audio_player_service.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/finished_books_this_year_sheet.dart';
 import '../widgets/stats_charts.dart';
+import '../widgets/day_sessions_sheet.dart';
 import '../widgets/listening_session_card.dart';
 import '../widgets/overlay_toast.dart';
 import '../main.dart' show flatNotifier, gradientIntensityNotifier;
@@ -211,29 +212,57 @@ class _StatsScreenState extends State<StatsScreen>
         border: Border.all(color: cs.primary.withValues(alpha: 0.18)),
       ),
       child: Row(children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(Icons.calendar_today_rounded, size: 16, color: cs.primary),
-        ),
-        const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(dateLabel,
-                  style: tt.bodyMedium?.copyWith(
-                      color: cs.onSurface, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(_formatDuration(_selectedDaySeconds),
-                  style: tt.bodySmall?.copyWith(
-                      color: cs.primary, fontWeight: FontWeight.w600)),
-            ],
+          child: InkWell(
+            onTap: () => _showDaySessions(date),
+            borderRadius: BorderRadius.circular(10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.calendar_today_rounded,
+                    size: 16,
+                    color: cs.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(dateLabel,
+                          style: tt.bodyMedium?.copyWith(
+                              color: cs.onSurface,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(_formatDuration(_selectedDaySeconds),
+                          style: tt.bodySmall?.copyWith(
+                              color: cs.primary,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        l.statsViewSessions,
+                        style: tt.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+                ),
+              ],
+            ),
           ),
         ),
+        const SizedBox(width: 6),
         InkWell(
           onTap: () => setState(() {
             _selectedSection = null;
@@ -1465,17 +1494,91 @@ class _StatsScreenState extends State<StatsScreen>
     }).toList();
   }
 
-  Future<void> _showSessionDetails(Map<String, dynamic> s) async {
+  Future<List<Map<String, dynamic>>> _loadSessionsForDay(DateTime day) async {
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return const [];
+
+    const pageSize = 100;
+    final target = DateTime(day.year, day.month, day.day);
+    final sessions = <Map<String, dynamic>>[];
+    var page = 0;
+
+    while (page < 200) {
+      final data = await api.getListeningSessions(
+        page: page,
+        itemsPerPage: pageSize,
+      );
+      if (data == null) throw StateError('Could not load listening sessions');
+      final batch = (data['sessions'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (batch.isEmpty) break;
+
+      sessions.addAll(
+        batch.where((session) => listeningSessionMatchesDate(session, target)),
+      );
+
+      final oldestDay = listeningSessionDateOf(batch.last);
+      if (oldestDay != null) {
+        final oldest = DateTime(
+          oldestDay.year,
+          oldestDay.month,
+          oldestDay.day,
+        );
+        if (oldest.isBefore(target)) break;
+      }
+
+      final total = (data['total'] as num?)?.toInt();
+      if (batch.length < pageSize ||
+          (total != null && (page + 1) * pageSize >= total)) {
+        break;
+      }
+      page++;
+    }
+
+    sessions.sort((a, b) {
+      final aTime = (a['updatedAt'] as num?)?.toInt() ?? 0;
+      final bTime = (b['updatedAt'] as num?)?.toInt() ?? 0;
+      return bTime.compareTo(aTime);
+    });
+    return sessions;
+  }
+
+  Future<void> _showDaySessions(DateTime day) async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DaySessionsSheet(
+        initialDate: day,
+        loadSessions: _loadSessionsForDay,
+        onSessionTap: (session) => _showSessionDetails(
+          session,
+          refreshStats: false,
+        ),
+      ),
+    );
+    if (changed == true && mounted) {
+      setState(() => _isLoading = true);
+      await _loadStats();
+    }
+  }
+
+  Future<bool> _showSessionDetails(
+    Map<String, dynamic> s, {
+    bool refreshStats = true,
+  }) async {
     final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SessionDetailsSheet(session: s),
     );
-    if (changed == true && mounted) {
+    if (changed == true && mounted && refreshStats) {
       setState(() => _isLoading = true);
       await _loadStats();
     }
+    return changed == true;
   }
 
   // --- HELPERS ---
@@ -1680,13 +1783,12 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
 
   static String _two(int v) => v.toString().padLeft(2, '0');
 
-  /// Edit how much listening this session counts for and which day it lands on.
-  /// The server only honors timeListening and the day (re-derived from
-  /// updatedAt) on an existing session, so those are all we expose.
+  /// Edit the fields the server supports for an existing session.
   Future<void> _editSession() async {
     final l = AppLocalizations.of(context)!;
     final s = widget.session;
     final origListening = _n(s['timeListening']).round();
+    final origCurrent = _n(s['currentTime']).round();
     final origUpdatedMs = s['updatedAt'] is num
         ? (s['updatedAt'] as num).toInt()
         : DateTime.now().millisecondsSinceEpoch;
@@ -1696,6 +1798,11 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
         TextEditingController(text: '${origListening ~/ 3600}');
     final minutesCtrl =
         TextEditingController(text: '${(origListening % 3600) ~/ 60}');
+    final endHoursCtrl = TextEditingController(text: '${origCurrent ~/ 3600}');
+    final endMinutesCtrl = TextEditingController(
+      text: '${(origCurrent % 3600) ~/ 60}',
+    );
+    final endSecondsCtrl = TextEditingController(text: '${origCurrent % 60}');
     var day = DateTime(origUpdated.year, origUpdated.month, origUpdated.day);
 
     final saved = await showDialog<bool>(
@@ -1703,8 +1810,17 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
       builder: (dialogCtx) {
         return StatefulBuilder(builder: (dialogCtx, setDialog) {
           return AlertDialog(
+            scrollable: true,
             title: Text(l.sessionEditTitle),
             content: Column(mainAxisSize: MainAxisSize.min, children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l.statsScreenListened,
+                  style: Theme.of(dialogCtx).textTheme.labelLarge,
+                ),
+              ),
+              const SizedBox(height: 8),
               Row(children: [
                 Expanded(
                     child: TextField(
@@ -1724,6 +1840,56 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
                       border: const OutlineInputBorder()),
                 )),
               ]),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l.sessionEndPosition,
+                  style: Theme.of(dialogCtx).textTheme.labelLarge,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: endHoursCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: l.statsHoursUnit,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: endMinutesCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: l.statsMinutesUnit,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: endSecondsCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: l.statsSecondsUnit,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 6),
+              Text(
+                l.sessionEndPositionHint,
+                style: Theme.of(dialogCtx).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(dialogCtx).colorScheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 12),
               Row(children: [
                 Text(l.sessionDayLabel,
@@ -1759,11 +1925,34 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
         });
       },
     );
-    if (saved != true || !mounted) return;
+    if (saved != true || !mounted) {
+      hoursCtrl.dispose();
+      minutesCtrl.dispose();
+      endHoursCtrl.dispose();
+      endMinutesCtrl.dispose();
+      endSecondsCtrl.dispose();
+      return;
+    }
 
     final h = int.tryParse(hoursCtrl.text.trim()) ?? 0;
     final m = int.tryParse(minutesCtrl.text.trim()) ?? 0;
     final newListening = (h < 0 ? 0 : h) * 3600 + (m < 0 ? 0 : m) * 60;
+    final endH = int.tryParse(endHoursCtrl.text.trim()) ?? 0;
+    final endM = int.tryParse(endMinutesCtrl.text.trim()) ?? 0;
+    final endS = int.tryParse(endSecondsCtrl.text.trim()) ?? 0;
+    var newCurrent =
+        (endH < 0 ? 0 : endH) * 3600 +
+        (endM < 0 ? 0 : endM) * 60 +
+        (endS < 0 ? 0 : endS);
+    final duration = _n(s['duration']);
+    if (duration > 0 && newCurrent > duration) {
+      newCurrent = duration.round();
+    }
+    hoursCtrl.dispose();
+    minutesCtrl.dispose();
+    endHoursCtrl.dispose();
+    endMinutesCtrl.dispose();
+    endSecondsCtrl.dispose();
     // Keep the original time-of-day so only the date moves.
     final newUpdated = DateTime(day.year, day.month, day.day, origUpdated.hour,
             origUpdated.minute, origUpdated.second)
@@ -1778,6 +1967,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
     setState(() => _saving = true);
     final edited = Map<String, dynamic>.from(s)
       ..['timeListening'] = newListening
+      ..['currentTime'] = newCurrent
       ..['updatedAt'] = newUpdated;
     final ok = await api.updateListeningSession(edited);
     if (!mounted) return;

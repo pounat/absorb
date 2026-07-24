@@ -59,8 +59,18 @@ enum LibrarySort {
   recentlyAdded,
   alphabetical,
   authorName,
+  authorFirstLast,
   publishedYear,
   duration,
+  fileSize,
+  lastUpdated,
+  fileCreated,
+  lastModified,
+  progress,
+  dateStarted,
+  dateFinished,
+  episodeCount,
+  sequence,
   random,
   totalDuration,
 }
@@ -68,21 +78,196 @@ enum LibrarySort {
 // ─── Filter modes ────────────────────────────────────────────
 enum LibraryFilter {
   none,
+  notFinished,
   inProgress,
   finished,
   notStarted,
   downloaded,
+  subscribed,
   inASeries,
   hasEbook,
+  noEbook,
+  hasSupplementaryEbook,
+  noSupplementaryEbook,
+  series,
+  author,
+  narrator,
+  language,
+  publisher,
+  publishedDecade,
+  noTracks,
+  singleTrack,
+  multipleTracks,
+  abridged,
+  issues,
+  feedOpen,
+  explicit,
+  missingMetadata,
   genre,
   tag,
 }
+
+extension LibraryFilterProgressValue on LibraryFilter {
+  String? get progressValue => switch (this) {
+    LibraryFilter.notFinished => 'not-finished',
+    LibraryFilter.inProgress => 'in-progress',
+    LibraryFilter.finished => 'finished',
+    LibraryFilter.notStarted => 'not-started',
+    _ => null,
+  };
+}
+
+enum MissingMetadataField {
+  asin,
+  isbn,
+  subtitle,
+  authors,
+  publishedYear,
+  series,
+  description,
+  genres,
+  tags,
+  narrators,
+  publisher,
+  language,
+  cover,
+  chapters,
+}
+
+extension MissingMetadataFieldValue on MissingMetadataField {
+  String get filterValue => switch (this) {
+    MissingMetadataField.asin => 'asin',
+    MissingMetadataField.isbn => 'isbn',
+    MissingMetadataField.subtitle => 'subtitle',
+    MissingMetadataField.authors => 'authors',
+    MissingMetadataField.publishedYear => 'publishedYear',
+    MissingMetadataField.series => 'series',
+    MissingMetadataField.description => 'description',
+    MissingMetadataField.genres => 'genres',
+    MissingMetadataField.tags => 'tags',
+    MissingMetadataField.narrators => 'narrators',
+    MissingMetadataField.publisher => 'publisher',
+    MissingMetadataField.language => 'language',
+    MissingMetadataField.cover => 'cover',
+    MissingMetadataField.chapters => 'chapters',
+  };
+}
+
+String missingMetadataFieldLabel(
+  AppLocalizations l,
+  MissingMetadataField field,
+) => switch (field) {
+  MissingMetadataField.asin => l.asinLabel,
+  MissingMetadataField.isbn => l.isbnLabel,
+  MissingMetadataField.subtitle => l.subtitleLabel,
+  MissingMetadataField.authors => l.libraryTabAuthors,
+  MissingMetadataField.publishedYear => l.publishedYear,
+  MissingMetadataField.series => l.libraryTabSeries,
+  MissingMetadataField.description => l.descriptionLabel,
+  MissingMetadataField.genres => l.genresLabel,
+  MissingMetadataField.tags => l.tagsLabel,
+  MissingMetadataField.narrators => l.libraryTabNarrators,
+  MissingMetadataField.publisher => l.publisherLabel,
+  MissingMetadataField.language => l.languageLabel,
+  MissingMetadataField.cover => l.editTabCover,
+  MissingMetadataField.chapters => l.chapters,
+};
+
+String _encodedLibraryFilter(String group, String value) =>
+    '$group.${base64Encode(utf8.encode(value))}';
+
+String? buildLibraryFilterQuery(
+  LibraryFilter filter, {
+  String? genre,
+  String? tag,
+  String? filterValue,
+  MissingMetadataField? missingMetadata,
+}) {
+  final progressValue = filter.progressValue;
+  if (progressValue != null) {
+    return _encodedLibraryFilter('progress', progressValue);
+  }
+  return switch (filter) {
+    LibraryFilter.hasEbook => _encodedLibraryFilter('ebooks', 'ebook'),
+    LibraryFilter.noEbook => _encodedLibraryFilter('ebooks', 'no-ebook'),
+    LibraryFilter.hasSupplementaryEbook =>
+      _encodedLibraryFilter('ebooks', 'supplementary'),
+    LibraryFilter.noSupplementaryEbook =>
+      _encodedLibraryFilter('ebooks', 'no-supplementary'),
+    LibraryFilter.series when filterValue != null =>
+      _encodedLibraryFilter('series', filterValue),
+    LibraryFilter.author when filterValue != null =>
+      _encodedLibraryFilter('authors', filterValue),
+    LibraryFilter.narrator when filterValue != null =>
+      _encodedLibraryFilter('narrators', filterValue),
+    LibraryFilter.language when filterValue != null =>
+      _encodedLibraryFilter('languages', filterValue),
+    LibraryFilter.publisher when filterValue != null =>
+      _encodedLibraryFilter('publishers', filterValue),
+    LibraryFilter.publishedDecade when filterValue != null =>
+      _encodedLibraryFilter('publishedDecades', filterValue),
+    LibraryFilter.noTracks => _encodedLibraryFilter('tracks', 'none'),
+    LibraryFilter.singleTrack => _encodedLibraryFilter('tracks', 'single'),
+    LibraryFilter.multipleTracks => _encodedLibraryFilter('tracks', 'multi'),
+    LibraryFilter.abridged => 'abridged',
+    LibraryFilter.issues => 'issues',
+    LibraryFilter.feedOpen => 'feed-open',
+    LibraryFilter.explicit => 'explicit',
+    LibraryFilter.genre when genre != null =>
+      _encodedLibraryFilter('genres', genre),
+    LibraryFilter.tag when tag != null => _encodedLibraryFilter('tags', tag),
+    LibraryFilter.missingMetadata when missingMetadata != null =>
+      _encodedLibraryFilter('missing', missingMetadata.filterValue),
+    _ => null,
+  };
+}
+
+bool libraryFilterSupportsMediaType(
+  LibraryFilter filter, {
+  required bool isPodcast,
+}) {
+  if (!isPodcast) return filter != LibraryFilter.subscribed;
+  return switch (filter) {
+    LibraryFilter.none ||
+    LibraryFilter.subscribed ||
+    LibraryFilter.genre ||
+    LibraryFilter.tag ||
+    LibraryFilter.language ||
+    LibraryFilter.issues ||
+    LibraryFilter.feedOpen ||
+    LibraryFilter.explicit => true,
+    _ => false,
+  };
+}
+
+bool libraryFilterRequiresValue(LibraryFilter filter) => switch (filter) {
+  LibraryFilter.series ||
+  LibraryFilter.author ||
+  LibraryFilter.narrator ||
+  LibraryFilter.language ||
+  LibraryFilter.publisher ||
+  LibraryFilter.publishedDecade => true,
+  _ => false,
+};
 
 /// Series-tab progress filter. Computed client-side from per-book progress
 /// because the ABS server's `?filter=` param doesn't support series-level
 /// progress queries (only book-level). When a filter is active the series
 /// tab fetches all pages upfront so the client-side join is correct.
-enum SeriesFilter { none, inProgress, finished, notStarted }
+enum SeriesFilter { none, notFinished, inProgress, finished, notStarted }
+
+bool seriesProgressMatchesFilter(
+  SeriesFilter filter, {
+  required int bookCount,
+  required int startedCount,
+  required int finishedCount,
+}) => switch (filter) {
+  SeriesFilter.notFinished => finishedCount < bookCount,
+  SeriesFilter.finished => finishedCount == bookCount,
+  SeriesFilter.notStarted => startedCount == 0,
+  SeriesFilter.inProgress => startedCount > 0 && finishedCount < bookCount,
+  SeriesFilter.none => true,
+};
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -160,6 +345,9 @@ class LibraryScreenState extends State<LibraryScreen>
   LibraryFilter _filter = LibraryFilter.none;
   String? _genreFilter;
   String? _tagFilter;
+  String? _filterValue;
+  String? _filterValueLabel;
+  MissingMetadataField? _missingMetadataFilter;
 
   /// Set to true the first time the user (or a chip tap via
   /// AppShell.openLibraryWith*FilterGlobal) explicitly changes the filter.
@@ -170,6 +358,12 @@ class LibraryScreenState extends State<LibraryScreen>
   bool _filterOverriddenByUser = false;
   List<String> _availableGenres = [];
   List<String> _availableTags = [];
+  List<Map<String, String>> _availableSeriesFilters = [];
+  List<Map<String, String>> _availableAuthorFilters = [];
+  List<String> _availableNarrators = [];
+  List<String> _availableLanguages = [];
+  List<String> _availablePublishers = [];
+  List<String> _availablePublishedDecades = [];
   bool _hideEbookOnly = false;
   final List<Map<String, dynamic>> _items = [];
 
@@ -385,6 +579,12 @@ class LibraryScreenState extends State<LibraryScreen>
         _isLoadingPage = false;
         _availableGenres = [];
         _availableTags = [];
+        _availableSeriesFilters = [];
+        _availableAuthorFilters = [];
+        _availableNarrators = [];
+        _availableLanguages = [];
+        _availablePublishers = [];
+        _availablePublishedDecades = [];
         // Clear series and author data
         _seriesItems.clear();
         _seriesPage = 0;
@@ -462,6 +662,14 @@ class LibraryScreenState extends State<LibraryScreen>
       PlayerSettings.getLibrarySeriesFilter(),
       PlayerSettings.getListsSort(),
       PlayerSettings.getListsSortAsc(),
+      PlayerSettings.getLibraryMissingMetadataFilter(),
+      PlayerSettings.getLibraryFilterValue(),
+      PlayerSettings.getLibraryFilterValueLabel(),
+      PlayerSettings.getPodcastFilter(),
+      PlayerSettings.getPodcastGenreFilter(),
+      PlayerSettings.getPodcastTagFilter(),
+      PlayerSettings.getPodcastFilterValue(),
+      PlayerSettings.getPodcastFilterValueLabel(),
     ]);
     if (!mounted) return;
     final sortName = results[0] as String;
@@ -481,6 +689,14 @@ class LibraryScreenState extends State<LibraryScreen>
     final seriesFilterName = results[14] as String;
     final listsSortName = results[15] as String;
     final listsSortAsc = results[16] as bool;
+    final missingMetadataFilterName = results[17] as String;
+    final libraryFilterValue = results[18] as String;
+    final libraryFilterValueLabel = results[19] as String;
+    final podcastFilterName = results[20] as String;
+    final podcastGenreFilter = results[21] as String;
+    final podcastTagFilter = results[22] as String;
+    final podcastFilterValue = results[23] as String;
+    final podcastFilterValueLabel = results[24] as String;
     final lib = context.read<LibraryProvider>();
     final isPodcast = lib.isPodcastLibrary;
     // Read the remembered "has lists" flag so the Lists tab (and its pill) can
@@ -503,12 +719,60 @@ class LibraryScreenState extends State<LibraryScreen>
       // session — that race would otherwise undo their selection on cold
       // start when the library widget is mounting for the first time.
       if (!_filterOverriddenByUser) {
+        final restoredFilterName = isPodcast ? podcastFilterName : filterName;
         _filter = LibraryFilter.values.firstWhere(
-          (f) => f.name == filterName,
+          (f) => f.name == restoredFilterName,
           orElse: () => LibraryFilter.none,
         );
-        _genreFilter = genreFilter.isNotEmpty ? genreFilter : null;
-        _tagFilter = tagFilter.isNotEmpty ? tagFilter : null;
+        if (!libraryFilterSupportsMediaType(
+          _filter,
+          isPodcast: isPodcast,
+        )) {
+          _filter = LibraryFilter.none;
+        }
+        final restoredGenre = isPodcast ? podcastGenreFilter : genreFilter;
+        final restoredTag = isPodcast ? podcastTagFilter : tagFilter;
+        final restoredValue = isPodcast
+            ? podcastFilterValue
+            : libraryFilterValue;
+        final restoredValueLabel = isPodcast
+            ? podcastFilterValueLabel
+            : libraryFilterValueLabel;
+        _genreFilter = _filter == LibraryFilter.genre && restoredGenre.isNotEmpty
+            ? restoredGenre
+            : null;
+        _tagFilter = _filter == LibraryFilter.tag && restoredTag.isNotEmpty
+            ? restoredTag
+            : null;
+        _filterValue = libraryFilterRequiresValue(_filter) &&
+                restoredValue.isNotEmpty
+            ? restoredValue
+            : null;
+        _filterValueLabel = _filterValue == null
+            ? null
+            : (restoredValueLabel.isNotEmpty
+                  ? restoredValueLabel
+                  : _filterValue);
+        _missingMetadataFilter = isPodcast
+            ? null
+            : MissingMetadataField.values
+                  .where((field) => field.name == missingMetadataFilterName)
+                  .firstOrNull;
+        if (_filter == LibraryFilter.missingMetadata &&
+            _missingMetadataFilter == null) {
+          _filter = LibraryFilter.none;
+        }
+        if (libraryFilterRequiresValue(_filter) && _filterValue == null) {
+          _filter = LibraryFilter.none;
+        }
+        if (!isPodcast &&
+            _sort == LibrarySort.sequence &&
+            !(_filter == LibraryFilter.series &&
+                _filterValue != null &&
+                _filterValue != 'no-series')) {
+          _sort = LibrarySort.alphabetical;
+          _sortAsc = true;
+        }
       }
       _seriesSort = LibrarySort.values.firstWhere(
         (s) => s.name == seriesSortName,
@@ -544,9 +808,6 @@ class LibraryScreenState extends State<LibraryScreen>
       if (isPodcast) {
         _sort = _podcastSort;
         _sortAsc = _podcastSortAsc;
-        _filter = LibraryFilter.none;
-        _genreFilter = null;
-        _tagFilter = null;
       }
       // Seed the Lists pill from the remembered flag so it (and the restored
       // Lists tab) show right away, before the lists load.
@@ -629,6 +890,13 @@ class LibraryScreenState extends State<LibraryScreen>
     if (filterData != null && mounted) {
       final genres = filterData['genres'] as List<dynamic>? ?? [];
       final tags = filterData['tags'] as List<dynamic>? ?? [];
+      final series = filterData['series'] as List<dynamic>? ?? [];
+      final authors = filterData['authors'] as List<dynamic>? ?? [];
+      final narrators = filterData['narrators'] as List<dynamic>? ?? [];
+      final languages = filterData['languages'] as List<dynamic>? ?? [];
+      final publishers = filterData['publishers'] as List<dynamic>? ?? [];
+      final publishedDecades =
+          filterData['publishedDecades'] as List<dynamic>? ?? [];
       String unwrap(dynamic v) =>
           v is Map ? (v['name'] as String? ?? '') : v.toString();
       setState(() {
@@ -637,6 +905,62 @@ class LibraryScreenState extends State<LibraryScreen>
               ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         _availableTags = tags.map(unwrap).where((t) => t.isNotEmpty).toList()
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availableSeriesFilters = series
+            .whereType<Map>()
+            .map(
+              (value) => {
+                'id': value['id']?.toString() ?? '',
+                'name': value['name']?.toString() ?? '',
+              },
+            )
+            .where(
+              (value) =>
+                  value['id']!.isNotEmpty && value['name']!.isNotEmpty,
+            )
+            .toList()
+          ..sort(
+            (a, b) => a['name']!.toLowerCase().compareTo(
+              b['name']!.toLowerCase(),
+            ),
+          );
+        _availableAuthorFilters = authors
+            .whereType<Map>()
+            .map(
+              (value) => {
+                'id': value['id']?.toString() ?? '',
+                'name': value['name']?.toString() ?? '',
+              },
+            )
+            .where(
+              (value) =>
+                  value['id']!.isNotEmpty && value['name']!.isNotEmpty,
+            )
+            .toList()
+          ..sort(
+            (a, b) => a['name']!.toLowerCase().compareTo(
+              b['name']!.toLowerCase(),
+            ),
+          );
+        _availableNarrators = narrators
+            .map(unwrap)
+            .where((value) => value.isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availableLanguages = languages
+            .map(unwrap)
+            .where((value) => value.isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availablePublishers = publishers
+            .map(unwrap)
+            .where((value) => value.isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availablePublishedDecades = publishedDecades
+            .map(unwrap)
+            .where((value) => value.isNotEmpty)
+            .toList()
+          ..sort();
       });
     }
   }
@@ -668,11 +992,6 @@ class LibraryScreenState extends State<LibraryScreen>
   // Pagination is now triggered by the NotificationListener inside each tab
   // widget, which calls back into _loadPage / _loadSeriesPage when the user
   // approaches the bottom of the visible scroll view.
-
-  // ABS filter format: <group>.<base64(value)>. Same encoding ApiService
-  // uses for getBooksByAuthor.
-  String _absFilter(String group, String value) =>
-      '$group.${base64Encode(utf8.encode(value))}';
 
   // ══════════════════════════════════════════════════════════════
   // LIBRARY TAB - Load a page of items
@@ -708,7 +1027,13 @@ class LibraryScreenState extends State<LibraryScreen>
         desc = _sortAsc ? 0 : 1;
         break;
       case LibrarySort.authorName:
-        sort = 'media.metadata.authorNameLF';
+        sort = lib.isPodcastLibrary
+            ? 'media.metadata.author'
+            : 'media.metadata.authorNameLF';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.authorFirstLast:
+        sort = 'media.metadata.authorName';
         desc = _sortAsc ? 0 : 1;
         break;
       case LibrarySort.publishedYear:
@@ -720,29 +1045,60 @@ class LibraryScreenState extends State<LibraryScreen>
         sort = 'media.duration';
         desc = _sortAsc ? 0 : 1;
         break;
+      case LibrarySort.fileSize:
+        sort = 'size';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.lastUpdated:
+        sort = 'updatedAt';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.fileCreated:
+        sort = 'birthtimeMs';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.lastModified:
+        sort = 'mtimeMs';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.progress:
+        sort = 'progress';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.dateStarted:
+        sort = 'progress.createdAt';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.dateFinished:
+        sort = 'progress.finishedAt';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.episodeCount:
+        sort = 'media.numTracks';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.sequence:
+        sort = 'sequence';
+        desc = _sortAsc ? 0 : 1;
+        break;
       case LibrarySort.random:
         sort = 'addedAt';
         desc = 1;
         break;
     }
 
-    String? filter;
-    if (_filter == LibraryFilter.inProgress) {
-      filter = _absFilter('progress', 'in-progress');
-    } else if (_filter == LibraryFilter.finished) {
-      filter = _absFilter('progress', 'finished');
-    } else if (_filter == LibraryFilter.notStarted) {
-      filter = _absFilter('progress', 'not-started');
-    } else if (_filter == LibraryFilter.hasEbook) {
-      filter = _absFilter('ebooks', 'ebook');
-    } else if (_filter == LibraryFilter.genre && _genreFilter != null) {
-      filter = _absFilter('genres', _genreFilter!);
-    } else if (_filter == LibraryFilter.tag && _tagFilter != null) {
-      filter = _absFilter('tags', _tagFilter!);
-    }
+    final filter = buildLibraryFilterQuery(
+      _filter,
+      genre: _genreFilter,
+      tag: _tagFilter,
+      filterValue: _filterValue,
+      missingMetadata: _missingMetadataFilter,
+    );
     // Downloaded filter is client-side — handled after loading
 
-    final useClientFilter = _filter == LibraryFilter.downloaded;
+    final filterDownloaded = _filter == LibraryFilter.downloaded;
+    final filterSubscribed = _filter == LibraryFilter.subscribed;
+    final useClientFilter = filterDownloaded || filterSubscribed;
     final fetchAll = _sort == LibrarySort.random || useClientFilter;
 
     if (fetchAll) {
@@ -778,7 +1134,9 @@ class LibraryScreenState extends State<LibraryScreen>
                 coverPath != null && coverPath.isNotEmpty,
               );
             }
-            if (useClientFilter && !DownloadService().isDownloaded(id ?? ''))
+            if (filterDownloaded && !DownloadService().isDownloaded(id ?? ''))
+              continue;
+            if (filterSubscribed && !lib.isPodcastSubscribed(id ?? ''))
               continue;
             if (_hideEbookOnly && PlayerSettings.isEbookOnly(r)) continue;
             _items.add(r);
@@ -789,7 +1147,7 @@ class LibraryScreenState extends State<LibraryScreen>
       }
       if (mounted && gen == _loadGeneration) {
         setState(() {
-          _totalItems = total;
+          _totalItems = useClientFilter ? _items.length : total;
           if (_sort == LibrarySort.random) _items.shuffle(Random(_randomSeed));
           _hasMore = false;
           _isLoadingPage = false;
@@ -926,13 +1284,12 @@ class LibraryScreenState extends State<LibraryScreen>
       }
     }
 
-    return switch (filter) {
-      SeriesFilter.finished => finishedCount == books.length,
-      SeriesFilter.notStarted => startedCount == 0,
-      SeriesFilter.inProgress =>
-        startedCount > 0 && finishedCount < books.length,
-      SeriesFilter.none => true,
-    };
+    return seriesProgressMatchesFilter(
+      filter,
+      bookCount: books.length,
+      startedCount: startedCount,
+      finishedCount: finishedCount,
+    );
   }
 
   Future<void> _loadSeriesPage() async {
@@ -1234,7 +1591,9 @@ class LibraryScreenState extends State<LibraryScreen>
       _sortAsc =
           newSort == LibrarySort.alphabetical ||
           newSort == LibrarySort.authorName ||
-          newSort == LibrarySort.duration;
+          newSort == LibrarySort.authorFirstLast ||
+          newSort == LibrarySort.duration ||
+          newSort == LibrarySort.sequence;
       _items.clear();
       _page = 0;
       _hasMore = true;
@@ -1396,28 +1755,78 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   // ── Change filter and reload ──
-  void _changeFilter(LibraryFilter newFilter, {String? genre, String? tag}) {
+  void _changeFilter(
+    LibraryFilter newFilter, {
+    String? genre,
+    String? tag,
+    String? filterValue,
+    String? filterValueLabel,
+    MissingMetadataField? missingMetadata,
+  }) {
     final sameAsCurrent =
-        newFilter == _filter && genre == _genreFilter && tag == _tagFilter;
+        newFilter == _filter &&
+        genre == _genreFilter &&
+        tag == _tagFilter &&
+        filterValue == _filterValue &&
+        missingMetadata == _missingMetadataFilter;
     final effective = sameAsCurrent ? LibraryFilter.none : newFilter;
-    if (effective == _filter && genre == _genreFilter && tag == _tagFilter)
+    if (effective == _filter &&
+        genre == _genreFilter &&
+        tag == _tagFilter &&
+        filterValue == _filterValue &&
+        missingMetadata == _missingMetadataFilter) {
       return;
+    }
     final isPodcast = context.read<LibraryProvider>().isPodcastLibrary;
+    final resetSequenceSort =
+        !isPodcast &&
+        _sort == LibrarySort.sequence &&
+        !(effective == LibraryFilter.series &&
+            filterValue != null &&
+            filterValue != 'no-series');
     _loadGeneration++;
     setState(() {
       _filter = effective;
       _genreFilter = effective == LibraryFilter.genre ? genre : null;
       _tagFilter = effective == LibraryFilter.tag ? tag : null;
+      _filterValue = libraryFilterRequiresValue(effective)
+          ? filterValue
+          : null;
+      _filterValueLabel = _filterValue == null
+          ? null
+          : (filterValueLabel ?? filterValue);
+      _missingMetadataFilter = effective == LibraryFilter.missingMetadata
+          ? missingMetadata
+          : null;
+      if (resetSequenceSort) {
+        _sort = LibrarySort.alphabetical;
+        _sortAsc = true;
+      }
       _items.clear();
       _page = 0;
       _hasMore = true;
       _isLoadingPage = false;
       _filterOverriddenByUser = true;
     });
-    if (!isPodcast) {
+    if (isPodcast) {
+      PlayerSettings.setPodcastFilter(_filter.name);
+      PlayerSettings.setPodcastGenreFilter(_genreFilter);
+      PlayerSettings.setPodcastTagFilter(_tagFilter);
+      PlayerSettings.setPodcastFilterValue(_filterValue);
+      PlayerSettings.setPodcastFilterValueLabel(_filterValueLabel);
+    } else {
+      if (resetSequenceSort) {
+        PlayerSettings.setLibrarySort(_sort.name);
+        PlayerSettings.setLibrarySortAsc(_sortAsc);
+      }
       PlayerSettings.setLibraryFilter(_filter.name);
       PlayerSettings.setLibraryGenreFilter(_genreFilter);
       PlayerSettings.setLibraryTagFilter(_tagFilter);
+      PlayerSettings.setLibraryFilterValue(_filterValue);
+      PlayerSettings.setLibraryFilterValueLabel(_filterValueLabel);
+      PlayerSettings.setLibraryMissingMetadataFilter(
+        _missingMetadataFilter?.name,
+      );
     }
     if (_scrollController.hasClients) _scrollController.jumpTo(0);
     _loadPage();
@@ -1721,6 +2130,7 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   String _seriesFilterLabelOf(AppLocalizations l) => switch (_seriesFilter) {
+    SeriesFilter.notFinished => l.notFinished,
     SeriesFilter.inProgress => l.inProgress,
     SeriesFilter.finished => l.filterFinished,
     SeriesFilter.notStarted => l.notStarted,
@@ -1728,12 +2138,34 @@ class LibraryScreenState extends State<LibraryScreen>
   };
 
   String _filterLabelOf(AppLocalizations l) => switch (_filter) {
+    LibraryFilter.notFinished => l.notFinished,
     LibraryFilter.inProgress => l.inProgress,
     LibraryFilter.finished => l.filterFinished,
     LibraryFilter.notStarted => l.notStarted,
     LibraryFilter.downloaded => l.downloaded,
+    LibraryFilter.subscribed => l.episodeListSubscribedChip,
     LibraryFilter.inASeries => l.libraryTabSeries,
     LibraryFilter.hasEbook => l.hasEbook,
+    LibraryFilter.noEbook => l.noEbook,
+    LibraryFilter.hasSupplementaryEbook => l.hasSupplementaryEbook,
+    LibraryFilter.noSupplementaryEbook => l.noSupplementaryEbook,
+    LibraryFilter.series => _filterValueLabel ?? l.libraryTabSeries,
+    LibraryFilter.author => _filterValueLabel ?? l.author,
+    LibraryFilter.narrator => _filterValueLabel ?? l.libraryTabNarrators,
+    LibraryFilter.language => _filterValueLabel ?? l.languageLabel,
+    LibraryFilter.publisher => _filterValueLabel ?? l.publisherLabel,
+    LibraryFilter.publishedDecade =>
+      _filterValueLabel ?? l.publishedDecade,
+    LibraryFilter.noTracks => l.noTracks,
+    LibraryFilter.singleTrack => l.singleTrack,
+    LibraryFilter.multipleTracks => l.multipleTracks,
+    LibraryFilter.abridged => l.abridged,
+    LibraryFilter.issues => l.issues,
+    LibraryFilter.feedOpen => l.rssFeedOpen,
+    LibraryFilter.explicit => l.explicitContent,
+    LibraryFilter.missingMetadata => _missingMetadataFilter == null
+        ? l.missingMetadata
+        : missingMetadataFieldLabel(l, _missingMetadataFilter!),
     LibraryFilter.genre => _genreFilter ?? l.genre,
     LibraryFilter.tag => _tagFilter ?? l.tag,
     LibraryFilter.none => '',
@@ -1786,8 +2218,16 @@ class LibraryScreenState extends State<LibraryScreen>
         currentFilter: _filter,
         genreFilter: _genreFilter,
         tagFilter: _tagFilter,
+        filterValue: _filterValue,
+        missingMetadataFilter: _missingMetadataFilter,
         availableGenres: _availableGenres,
         availableTags: _availableTags,
+        availableSeries: _availableSeriesFilters,
+        availableAuthors: _availableAuthorFilters,
+        availableNarrators: _availableNarrators,
+        availableLanguages: _availableLanguages,
+        availablePublishers: _availablePublishers,
+        availablePublishedDecades: _availablePublishedDecades,
         initialTab: initialTab,
         cs: cs,
         tt: tt,
@@ -1850,9 +2290,23 @@ class LibraryScreenState extends State<LibraryScreen>
           }
           Navigator.pop(ctx);
         },
-        onFilterChanged: (filter, {String? genre, String? tag}) {
+        onFilterChanged: (
+          filter, {
+          String? genre,
+          String? tag,
+          String? filterValue,
+          String? filterValueLabel,
+          MissingMetadataField? missingMetadata,
+        }) {
           Navigator.pop(ctx);
-          _changeFilter(filter, genre: genre, tag: tag);
+          _changeFilter(
+            filter,
+            genre: genre,
+            tag: tag,
+            filterValue: filterValue,
+            filterValueLabel: filterValueLabel,
+            missingMetadata: missingMetadata,
+          );
         },
         onClearFilter: () {
           Navigator.pop(ctx);
@@ -1873,6 +2327,8 @@ class LibraryScreenState extends State<LibraryScreen>
           _loadPage();
         },
         isPodcastLibrary: context.read<LibraryProvider>().isPodcastLibrary,
+        canAccessExplicitContent:
+            context.read<AuthProvider>().canAccessExplicitContent,
         onUpcomingReleases: tab == LibraryTab.series
             ? () {
                 Navigator.pop(ctx);
@@ -2510,7 +2966,12 @@ class LibraryScreenState extends State<LibraryScreen>
             : (pCount > 0 ? '$pCount playlists' : '$cCount collections');
         break;
       default:
-        countText = l.libraryBooksCount(_items.length, _totalItems);
+        final lib = context.read<LibraryProvider>();
+        final visibleCount = _visibleLibraryItems(lib).length;
+        countText = l.libraryBooksCount(
+          visibleCount,
+          _filter == LibraryFilter.subscribed ? visibleCount : _totalItems,
+        );
         break;
     }
 
@@ -2690,13 +3151,15 @@ class LibraryScreenState extends State<LibraryScreen>
   // LIBRARY TAB - BROWSE GRID
   // ═══════════════════════════════════════════════════════════════
   Widget _buildGrid(Widget headerSliver) {
+    final lib = context.watch<LibraryProvider>();
     return LibraryBooksTab(
-      items: _items,
+      items: _visibleLibraryItems(lib),
       isLoadingPage: _isLoadingPage,
       hasMore: _hasMore,
       filter: _filter,
       genreFilter: _genreFilter,
       tagFilter: _tagFilter,
+      isPodcastLibrary: context.read<LibraryProvider>().isPodcastLibrary,
       rectangleCovers: _rectangleCovers,
       coverAspectRatio: _coverAspectRatio,
       onRefresh: _refreshAll,
@@ -2705,6 +3168,14 @@ class LibraryScreenState extends State<LibraryScreen>
       scrollController: _scrollController,
       onLoadMore: _loadPage,
     );
+  }
+
+  List<Map<String, dynamic>> _visibleLibraryItems(LibraryProvider lib) {
+    if (_filter != LibraryFilter.subscribed) return _items;
+    return _items.where((item) {
+      final id = item['id'] as String?;
+      return id != null && lib.isPodcastSubscribed(id);
+    }).toList();
   }
 
   // ═══════════════════════════════════════════════════════════════

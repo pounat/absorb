@@ -87,6 +87,11 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isRoot => _userJson?['type'] == 'root';
 
+  bool get canAccessExplicitContent {
+    final perms = _userJson?['permissions'] as Map<String, dynamic>?;
+    return perms?['accessExplicitContent'] == true;
+  }
+
   /// True when this user is allowed to edit library item metadata on the
   /// server. Admins/root always can; regular users need the `update`
   /// permission flag (set per-user in the ABS admin UI).
