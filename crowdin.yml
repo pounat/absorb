@@ -1,3 +1,10 @@
 files:
   - source: /lib/l10n/app_en.arb
     translation: /lib/l10n/app_%two_letters_code%.arb
+    excluded_target_languages:
+      - en
+    languages_mapping:
+      locale:
+        es-ES: es
+        pt-PT: pt
+        zh-CN: zh
