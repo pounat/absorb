@@ -1339,7 +1339,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queueModeAuto => '自动';
 
   @override
-  String get queueModePlaylist => 'Playlist';
+  String get queueModePlaylist => '播放列表';
 
   @override
   String get queueModeCollection => 'Collection';
@@ -1348,8 +1348,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queueModeInfoPlaylist => 'Playlist Queue';
 
   @override
-  String get queueModeInfoPlaylistDesc =>
-      'Plays items in order from a chosen playlist, skipping anything already finished. Stops at the end of the list.';
+  String get queueModeInfoPlaylistDesc => '按所选播放列表的顺序播放，跳过已完成的项目，并在列表结束时停止。';
 
   @override
   String get queuePlaylistPickerTitle => 'Choose a playlist';
@@ -1390,7 +1389,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openCollection => 'Open collection';
 
   @override
-  String get playlistPlayAction => 'Play playlist';
+  String get playlistPlayAction => '播放列表';
 
   @override
   String get playlistAllFinished => 'All finished';
@@ -1510,7 +1509,7 @@ class AppLocalizationsZh extends AppLocalizations {
       'Off - notification shows chapter skip; speed & bookmark stay in Android Auto';
 
   @override
-  String get lockSeekBar => 'Lock the seek bar';
+  String get lockSeekBar => '锁定搜索栏';
 
   @override
   String get lockSeekBarOnSubtitle =>
@@ -1705,7 +1704,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autoDownloadOnWifiInfoContent =>
-      '当你在 Wi-Fi 下开始流式播放一本书时，它将自动在后台下载整本书。这样你无需手动开始下载即可离线收听。';
+      '当您开始在线播放书籍时，系统会在后台同步下载完整内容，无需手动操作即可实现离线收听。后台下载将严格遵循上方的“下载网络设置”，若您希望在移动网络下也能自动下载，请将其设置为“任意网络”。';
 
   @override
   String get autoDownloadOnWifiOnSubtitle => '在 Wi-Fi 下开始流式播放时，书籍将在后台下载';
@@ -2569,10 +2568,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addedToAbsorbing => '已添加到收听中';
 
   @override
-  String get removeFromContinueListening => 'Remove from Continue Listening';
+  String get removeFromContinueListening => '移出继续收听';
 
   @override
-  String get removedFromContinueListening => 'Removed from Continue Listening';
+  String get removedFromContinueListening => '已从“继续收听”中移出';
 
   @override
   String get removeSeriesFromContinueSeries => 'Remove from Continue Series';
@@ -3253,14 +3252,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get root => 'Root';
 
   @override
-  String get coverPlayPause => 'Cover play/pause';
+  String get coverPlayPause => '点击封面播放/暂停';
 
   @override
-  String get coverPlayPauseOnSubtitle => 'On - tap cover art to play/pause';
+  String get coverPlayPauseOnSubtitle => '开启 - 点击封面播放/暂停';
 
   @override
-  String get coverPlayPauseOffSubtitle =>
-      'Off - dedicated play/pause button in controls';
+  String get coverPlayPauseOffSubtitle => '关闭 - 使用控制栏中的播放/暂停按钮';
 
   @override
   String get cardBackground => 'Card background';
@@ -3272,37 +3270,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cardBackgroundGradient => 'Gradient';
 
   @override
-  String get queueModeMergedSubtitle =>
-      'Playback stops, manual queue, or auto-plays next item';
+  String get queueModeMergedSubtitle => '可选择停止播放、手动队列，或自动播放下一项';
 
   @override
-  String get queueModeSeriesLabel => 'Series';
+  String get queueModeSeriesLabel => '系列';
 
   @override
   String get queueModeShowLabel => 'Show';
 
   @override
-  String get queueModeInfoSeries => 'Series';
+  String get queueModeInfoSeries => '系列';
 
   @override
-  String get queueModeInfoSeriesDesc =>
-      'Automatically plays the next book in a series or the next episode in a podcast show.';
+  String get queueModeInfoSeriesDesc => '自动播放同系列的下一本书，或播客节目的下一集。';
 
   @override
-  String get resetButtonGridQuestion => 'Reset button grid?';
+  String get resetButtonGridQuestion => '确认重置按钮布局？';
 
   @override
-  String get resetButtonGridContent =>
-      'This will restore the default button layout, order, and toggle settings.';
+  String get resetButtonGridContent => '这将恢复默认的按钮布局、顺序和开关设置。';
 
   @override
-  String get reset => 'Reset';
+  String get reset => '重置';
 
   @override
   String get buttonGridReset => 'Button grid reset';
 
   @override
-  String get resetButtonGrid => 'Reset button grid';
+  String get resetButtonGrid => '重置按钮布局';
 
   @override
   String get chapterBarrierOnRewind => 'Chapter barrier on rewind';
@@ -3383,26 +3378,25 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get chimeBeforeSleep => 'Chime before sleep';
+  String get chimeBeforeSleep => '睡前提示音';
 
   @override
-  String get chimeBeforeSleepOnSubtitle =>
-      'Plays a gentle bell when the timer is about to end';
+  String get chimeBeforeSleepOnSubtitle => '在定时器即将结束时播放轻柔的提示铃声';
 
   @override
-  String get chimeBeforeSleepOffSubtitle => 'No sound warning before sleep';
+  String get chimeBeforeSleepOffSubtitle => '睡前无提示音';
 
   @override
   String get windDownDuration => 'Wind-down duration';
 
   @override
   String windDownDurationSubtitle(int seconds) {
-    return 'Fade and chime start ${seconds}s before sleep';
+    return '定时结束$seconds 秒前开始淡出并提示';
   }
 
   @override
   String fadeVolumeOnSubtitleDynamic(int seconds) {
-    return 'Gradually lowers volume over the last ${seconds}s';
+    return '在最后 $seconds 秒内逐渐降低音量';
   }
 
   @override
@@ -3415,23 +3409,22 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get endOfChapterShort => 'End of chapter';
+  String get endOfChapterShort => '章节结束';
 
   @override
-  String get endOfChapterOnSubtitle => 'Stop at the end of the current chapter';
+  String get endOfChapterOnSubtitle => '在当前章节结束时停止播放';
 
   @override
-  String get endOfChapterOffSubtitle => 'Use a timed sleep timer';
+  String get endOfChapterOffSubtitle => '使用睡眠定时器';
 
   @override
-  String get showExplicitBadge => 'Show explicit badge';
+  String get showExplicitBadge => '显示敏感内容标记';
 
   @override
-  String get showExplicitBadgeOnSubtitle =>
-      'Explicit items show an \"E\" badge';
+  String get showExplicitBadgeOnSubtitle => '敏感内容会显示 “E” 标记';
 
   @override
-  String get showExplicitBadgeOffSubtitle => 'Off - explicit badge hidden';
+  String get showExplicitBadgeOffSubtitle => '关闭 - 隐藏敏感内容标记';
 
   @override
   String get libraryFallback => 'Library';
@@ -3661,16 +3654,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get cardIconsOnlyChip => 'Icons only';
+  String get cardIconsOnlyChip => '仅图标';
 
   @override
-  String get cardMoreInGridChip => '\"More\" in grid';
+  String get cardMoreInGridChip => '更多';
 
   @override
   String get cardLayoutHidden => 'Hidden';
 
   @override
-  String get speed => 'Speed';
+  String get speed => '速度';
 
   @override
   String get details => 'Details';
@@ -3679,13 +3672,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get episodeDetailsLabel => 'Episode Details';
 
   @override
-  String get bookDetailsLabel => 'Book Details';
+  String get bookDetailsLabel => '书籍详情';
 
   @override
   String get equalizerShort => 'EQ';
 
   @override
-  String get equalizerLabel => 'Equalizer';
+  String get equalizerLabel => '音频增强';
 
   @override
   String get cast => 'Cast';
@@ -4613,7 +4606,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get episodeListExplicitChip => 'Explicit';
 
   @override
-  String get episodeListSortNewest => 'Newest';
+  String get episodeListSortNewest => '最新';
 
   @override
   String get episodeListSortOldest => 'Oldest';
@@ -4696,11 +4689,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get seriesBooksFindMissingTitle => 'Find Missing Books';
+  String get seriesBooksFindMissingTitle => '扫描缺失书籍';
 
   @override
   String get seriesBooksFindMissingContent =>
-      'This searches Audible to find books in this series that may be missing from your library.\n\nBooks are matched by ASIN first (depending on whether your server has ASINs for its books), then falls back to title matching. Results may not be perfectly accurate.';
+      '此功能将检索 Audible以查找该系列中你的媒体库可能缺失的书籍。\n\n系统会优先通过 ASIN 进行匹配（取决于你的服务器中书籍是否包含 ASIN），若无则通过书名进行匹配。搜索结果可能不会完全准确。';
 
   @override
   String get seriesBooksCouldNotFindOnAudible =>
@@ -4759,7 +4752,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get seriesBooksExplicitBadge => 'E';
 
   @override
-  String get expandedCardStreaming => 'Streaming';
+  String get expandedCardStreaming => '串流播放';
 
   @override
   String get expandedCardDeviceFallback => 'Device';
@@ -4776,7 +4769,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bookmarksScreenSortNewest => 'Newest';
 
   @override
-  String get bookmarksScreenSortPosition => 'Position';
+  String get bookmarksScreenSortPosition => '位置';
 
   @override
   String statsScreenStreakDays(int count) {
@@ -5009,38 +5002,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statsScreenMonthDec => 'Dec';
 
   @override
-  String get upcomingReleasesTitle => 'Upcoming Releases';
+  String get upcomingReleasesTitle => '即将上架';
 
   @override
-  String get upcomingReleasesRescanTitle => 'Rescan?';
+  String get upcomingReleasesRescanTitle => '重新扫描？';
 
   @override
   String upcomingReleasesRescanContent(int days) {
-    return 'These results are $days days old. Release dates may have changed - would you like to rescan?';
+    return '这些结果是 $days 天前获取的。发布日期可能已发生变更——是否需要重新扫描？';
   }
 
   @override
-  String get upcomingReleasesNotNow => 'Not now';
+  String get upcomingReleasesNotNow => '稍后再说';
 
   @override
-  String get upcomingReleasesRescan => 'Rescan';
+  String get upcomingReleasesRescan => '重新扫描';
 
   @override
-  String get upcomingReleasesRescanReleaseDate => 'Rescan Release Date';
+  String get upcomingReleasesRescanReleaseDate => '重新扫描发布日期';
 
   @override
-  String get upcomingReleasesRescanning => 'Rescanning...';
+  String get upcomingReleasesRescanning => '正在重新扫描...';
 
   @override
   String upcomingReleasesUpdatedWithDate(String date) {
-    return 'Updated - $date';
+    return '更新于 $date';
   }
 
   @override
-  String get upcomingReleasesNoReleaseDateFound => 'No release date found';
+  String get upcomingReleasesNoReleaseDateFound => '未找到发布日期';
 
   @override
-  String get upcomingReleasesRescanFailed => 'Rescan failed';
+  String get upcomingReleasesRescanFailed => '重新扫描失败';
 
   @override
   String get upcomingReleasesRemoveFromList => 'Remove from list';
@@ -5049,54 +5042,53 @@ class AppLocalizationsZh extends AppLocalizations {
   String get upcomingReleasesRemovedFromList => 'Removed from list';
 
   @override
-  String get upcomingReleasesDateChip => 'Date';
+  String get upcomingReleasesDateChip => '发布日期';
 
   @override
   String upcomingReleasesCheckingSeries(String name, int processed, int total) {
-    return 'Checking $name... ($processed/$total)';
+    return '正在获取 $name... ($processed/$total)';
   }
 
   @override
-  String get upcomingReleasesLoadingSeries => 'Loading series...';
+  String get upcomingReleasesLoadingSeries => '系列加载中...';
 
   @override
-  String get upcomingReleasesScannedToday => '(scanned today)';
+  String get upcomingReleasesScannedToday => '(今天已扫描)';
 
   @override
-  String get upcomingReleasesScannedYesterday => '(scanned yesterday)';
+  String get upcomingReleasesScannedYesterday => '(昨天已扫描)';
 
   @override
   String upcomingReleasesScannedDaysAgo(int days) {
-    return '(scanned $days days ago)';
+    return '(扫描于 $days 天前)';
   }
 
   @override
   String upcomingReleasesUpcomingCount(int count) {
-    return '$count upcoming';
+    return '$count 个即将发布';
   }
 
   @override
   String upcomingReleasesRecentCount(int count) {
-    return '$count recent';
+    return '$count 个最近更新';
   }
 
   @override
-  String get upcomingReleasesNoneFound =>
-      'No upcoming or recent releases found';
+  String get upcomingReleasesNoneFound => '未找到即将推出或最近更新的内容';
 
   @override
   String upcomingReleasesAcrossSeries(String summary, int count) {
-    return '$summary across $count series';
+    return '$summary共 $count 个系列';
   }
 
   @override
   String upcomingReleasesCheckedSeries(int count) {
-    return 'Checked $count series on Audible';
+    return '已扫描 Audible 上的 $count 个系列';
   }
 
   @override
   String upcomingReleasesDateFormat(String month, int day, int year) {
-    return '$month $day, $year';
+    return '$year-$month-$day';
   }
 
   @override
@@ -5105,13 +5097,13 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get upcomingReleasesBadgeUpcoming => 'UPCOMING';
+  String get upcomingReleasesBadgeUpcoming => '即将发布';
 
   @override
-  String get upcomingReleasesBadgeAdded => 'ADDED';
+  String get upcomingReleasesBadgeAdded => '已添加';
 
   @override
-  String get upcomingReleasesBadgeMissing => 'MISSING';
+  String get upcomingReleasesBadgeMissing => '缺失';
 
   @override
   String get homeScreenEpisodeFallback => 'Episode';
@@ -5124,7 +5116,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String playlistDetailItemCount(int count) {
-    return '$count items';
+    return '$count 个项目';
   }
 
   @override
@@ -5161,7 +5153,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String collectionDetailBookCount(int count) {
-    return '$count books';
+    return '$count本书';
   }
 
   @override
@@ -5214,7 +5206,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get audibleSeriesCompleteSeries => 'You have the complete series!';
 
   @override
-  String get audibleSeriesNoUpcoming => 'No upcoming releases found';
+  String get audibleSeriesNoUpcoming => '未找到即将上架的内容';
 
   @override
   String get audibleSeriesUpcomingBadge => 'UPCOMING';
@@ -5285,39 +5277,39 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataLookupOverrideLocalDisplay => 'Override local display';
 
   @override
-  String get equalizerPresetFlat => 'Flat';
+  String get equalizerPresetFlat => '原声';
 
   @override
-  String get equalizerPresetVoiceBoost => 'Voice Boost';
+  String get equalizerPresetVoiceBoost => '人声增强';
 
   @override
-  String get equalizerPresetBassBoost => 'Bass Boost';
+  String get equalizerPresetBassBoost => '低音增强';
 
   @override
-  String get equalizerPresetTrebleBoost => 'Treble Boost';
+  String get equalizerPresetTrebleBoost => '高音增强';
 
   @override
-  String get equalizerPresetPodcast => 'Podcast';
+  String get equalizerPresetPodcast => '播客模式';
 
   @override
-  String get equalizerPresetAudiobook => 'Audiobook';
+  String get equalizerPresetAudiobook => '有声书';
 
   @override
-  String get equalizerPresetReduceNoise => 'Reduce Noise';
+  String get equalizerPresetReduceNoise => '降噪模式';
 
   @override
   String get equalizerPresetLoudness => 'Loudness';
 
   @override
   String equalizerEditingSavedNamed(String title) {
-    return 'Editing saved EQ for \"$title\"';
+    return '正在编辑\"$title\"';
   }
 
   @override
   String get equalizerEditingSavedGeneric => 'Editing saved EQ';
 
   @override
-  String get equalizerPerBookEq => 'Per-book EQ';
+  String get equalizerPerBookEq => '每本书单独配置';
 
   @override
   String get notesDeleteNoteQuestion => 'Delete note?';
@@ -5334,11 +5326,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get notesNewNote => 'New note';
 
   @override
-  String get librarySortFilterUpcomingReleases => 'Upcoming Releases';
+  String get librarySortFilterUpcomingReleases => '即将发布';
 
   @override
-  String get librarySortFilterUpcomingReleasesSubtitle =>
-      'Scan Audible for new releases in your series';
+  String get librarySortFilterUpcomingReleasesSubtitle => 'Audible 中检查系列新书';
 
   @override
   String sleepTimerSheetChaptersLeft(int count) {
@@ -5397,17 +5388,17 @@ class AppLocalizationsZh extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Sleep after $count chapters',
-      one: 'Sleep after 1 chapter',
+      other: '听完 $count 章结束',
+      one: '听完 1 章结束',
     );
     return '$_temp0';
   }
 
   @override
-  String get sleepTimerSheetRewindOnSleep => 'Rewind on sleep';
+  String get sleepTimerSheetRewindOnSleep => '定时结束自动倒回';
 
   @override
-  String get sleepTimerSheetShake => 'Shake';
+  String get sleepTimerSheetShake => '摇一摇';
 
   @override
   String sleepTimerSheetAddsMinutes(int minutes) {
@@ -5532,154 +5523,149 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sectionDetailDoneBadge => 'Done';
 
   @override
-  String get homeCustomizeAddGenreTitle => 'Add Genre Section';
+  String get homeCustomizeAddGenreTitle => '新增类型分区';
 
   @override
-  String get homeCustomizeAddGenreSubtitle =>
-      'Pick a genre to show on your home screen';
+  String get homeCustomizeAddGenreSubtitle => '选择一个类型显示在你的首页';
 
   @override
   String get homeSectionDoneBadge => 'Done';
 
   @override
-  String get tipsSheetQuickBookmarksTitle => 'Quick Bookmarks';
+  String get tipsSheetQuickBookmarksTitle => '快速书签';
 
   @override
-  String get tipsSheetQuickBookmarksDesc =>
-      'Long-press the bookmark button on any card to instantly drop a bookmark at your current position without opening the bookmark sheet.';
+  String get tipsSheetQuickBookmarksDesc => '长按任意卡片上的书签按钮即可立即添加书签，无需打开书签页面。';
 
   @override
-  String get tipsSheetCoverPlayPauseTitle => 'Cover Play/Pause';
+  String get tipsSheetCoverPlayPauseTitle => '点击封面播放/暂停';
 
   @override
   String get tipsSheetCoverPlayPauseDesc =>
-      'Tap the cover art on any card to play or pause. Toggle this in Settings under Absorbing Cards. A faint pause icon shows when playing so you know it\'s tappable.';
+      '点击任意卡片的封面即可播放或暂停。可在设置的“收听卡片”中切换此功能。播放时会显示淡淡的暂停图标，提示封面可点击。';
 
   @override
-  String get tipsSheetFullScreenPlayerTitle => 'Full Screen Player';
+  String get tipsSheetFullScreenPlayerTitle => '全屏播放器';
 
   @override
-  String get tipsSheetFullScreenPlayerDesc =>
-      'Swipe up on any absorbing card to open the full screen player. Swipe down to dismiss it.';
+  String get tipsSheetFullScreenPlayerDesc => '在任意沉浸卡片上向上滑动即可打开全屏播放器，向下滑动即可关闭。';
 
   @override
-  String get tipsSheetQuickAddAbsorbingTitle => 'Quick Add to Absorbing';
+  String get tipsSheetQuickAddAbsorbingTitle => '快速加入收听卡片';
 
   @override
   String get tipsSheetQuickAddAbsorbingDesc =>
-      'Swipe right on any book in a list sheet (series, author, search results) to instantly add it to your absorbing queue.';
+      '在列表页（系列、作者、搜索结果）中向右滑动任意书籍，即可将其立即加入收听队列。';
 
   @override
-  String get tipsSheetShakeExtendSleepTitle => 'Shake to Extend Sleep';
+  String get tipsSheetShakeExtendSleepTitle => '摇一摇延长睡眠定时';
 
   @override
   String get tipsSheetShakeExtendSleepDesc =>
-      'If you have a sleep timer running and shake your phone, it\'ll add extra minutes. Configure the amount in Settings under Sleep Timer.';
+      '如果睡眠定时器正在运行，摇动手机即可延长时间。可在设置中的“睡眠定时器”调整延长的分钟数。';
 
   @override
-  String get tipsSheetSeriesNavigationTitle => 'Series Navigation';
+  String get tipsSheetSeriesNavigationTitle => '系列导航';
 
   @override
   String get tipsSheetSeriesNavigationDesc =>
-      'Tap the series name in any book\'s detail popup to see all books in the series, sorted in reading order with sequence badges on each cover.';
+      '在任意书籍的详情弹窗中点击系列名称，即可查看该系列的所有书籍，并按阅读顺序排序，每本书的封面都会显示序号徽章。';
 
   @override
-  String get tipsSheetSwipeBetweenBooksTitle => 'Swipe Between Books';
+  String get tipsSheetSwipeBetweenBooksTitle => '滑动切换书籍';
 
   @override
   String get tipsSheetSwipeBetweenBooksDesc =>
-      'Swipe left and right on the Absorbing screen to switch between your in-progress books. With Manual queue mode on, the cards also act as your queue, so the next one auto-plays when the current one finishes.';
+      '在收听界面左右滑动即可切换你正在收听的书籍。开启手动队列模式后，卡片也会作为你的队列使用，因此当前书籍播放结束时会自动播放下一本。';
 
   @override
-  String get tipsSheetTapToSeekTitle => 'Tap to Seek';
+  String get tipsSheetTapToSeekTitle => '点击跳转';
 
   @override
   String get tipsSheetTapToSeekDesc =>
-      'Tap anywhere on the chapter or book progress bar to jump directly to that position. You can also drag the bars for fine-grained control.';
+      '点击章节或书籍进度条的任意位置即可直接跳转到对应进度。你也可以拖动进度条以进行更精细的控制。';
 
   @override
-  String get tipsSheetSpeedAdjustedTimeTitle => 'Speed-Adjusted Time';
+  String get tipsSheetSpeedAdjustedTimeTitle => '实际播放时长';
 
   @override
   String get tipsSheetSpeedAdjustedTimeDesc =>
-      'Time remaining and chapter times automatically adjust based on your playback speed. Listening at 1.5x? The time shown reflects how long it\'ll actually take you.';
+      '剩余时间和章节时长会根据你的播放速度自动调整。用 1.5×倍播放？界面显示的时间就是你实际需要的时长。';
 
   @override
-  String get tipsSheetPlaybackHistoryTitle => 'Playback History';
+  String get tipsSheetPlaybackHistoryTitle => '播放历史';
 
   @override
   String get tipsSheetPlaybackHistoryDesc =>
-      'Tap the History button on any card to see a timeline of every play, pause, seek, and speed change. Tap any event to jump back to that position.';
+      '点击任意卡片上的历史按钮即可查看所有播放、暂停、跳转和倍速调整的时间线。点击任意事件即可跳回对应位置。';
 
   @override
-  String get tipsSheetAutoRewindTitle => 'Auto-Rewind';
+  String get tipsSheetAutoRewindTitle => '自动回退';
 
   @override
   String get tipsSheetAutoRewindDesc =>
-      'When you resume after a pause, Absorb automatically rewinds a few seconds so you don\'t lose your place. The rewind amount scales with how long you were away. Configure it in Settings.';
+      '暂停后恢复播放时，Absorb 会自动回退几秒，确保你不会错过内容。回退时长会根据你离开的时间自动调整。你可以在设置中进行修改。';
 
   @override
-  String get tipsSheetSeriesQueueModeTitle => 'Series Queue Mode';
+  String get tipsSheetSeriesQueueModeTitle => '系列连播模式';
 
   @override
   String get tipsSheetSeriesQueueModeDesc =>
-      'When you finish a book that\'s part of a series, Absorb can automatically play the next book. Set queue mode to \"Series\" in Settings.';
+      '当你听完某个系列中的一本书时，Absorb 可以自动播放下一本书。请在“设置”中将队列模式更改为“系列”。';
 
   @override
-  String get tipsSheetOfflineModeTitle => 'Offline Mode';
+  String get tipsSheetOfflineModeTitle => '离线模式';
 
   @override
   String get tipsSheetOfflineModeDesc =>
-      'Tap the airplane button on the Absorbing screen to enter offline mode. This stops syncing, saves data, and only shows your downloaded books. Great for flights or low signal areas.';
+      '点击“正在收听”界面上的同步图标即可进入离线模式。这将暂停同步并节省流量，且仅显示你已下载的书籍。非常适合在飞机上或信号较弱的区域使用。';
 
   @override
-  String get tipsSheetUpcomingReleasesTitle => 'Upcoming Releases';
+  String get tipsSheetUpcomingReleasesTitle => '即将上架';
 
   @override
   String get tipsSheetUpcomingReleasesDesc =>
-      'On the Series tab, tap the tab again to open its sort and filter sheet, then choose Upcoming Releases to see new and upcoming books across your series, sorted by release date.';
+      '在“系列”标签页中，再次点击该标签即可打开其排序与筛选面板，然后选择“即将上架”，即可按出版日期查看当前系列中已推出和即将推出的新书。';
 
   @override
-  String get tipsSheetPerBookEqTitle => 'Per-Book Equalizer';
+  String get tipsSheetPerBookEqTitle => '为每本书单独配置均衡器';
 
   @override
   String get tipsSheetPerBookEqDesc =>
       'Each book remembers its own equalizer settings. Tweak EQ once for a sci-fi epic and the next time you play it, it sounds the same.';
 
   @override
-  String get tipsSheetPerBookSpeedTitle => 'Per-Book Speed';
+  String get tipsSheetPerBookSpeedTitle => '针对单本有声书的语速设置';
 
   @override
   String get tipsSheetPerBookSpeedDesc =>
-      'Playback speed is saved per book. Run nonfiction at 1.5x and dramatic fiction at 1.0x without setting it every time.';
+      '播放速度支持书籍单独配置。非虚构内容 1.5x 效率拉满，有声剧 1.0x 原汁原味，省去频繁调整的麻烦。';
 
   @override
-  String get tipsSheetAutoSleepWindowTitle => 'Auto Sleep Window';
+  String get tipsSheetAutoSleepWindowTitle => '自动睡眠时间段';
 
   @override
-  String get tipsSheetAutoSleepWindowDesc =>
-      'Pick the hours you usually fall asleep and the sleep timer will start itself when you begin listening in that window.';
+  String get tipsSheetAutoSleepWindowDesc => '设定您常睡的时间段，在此时间段内听书，睡眠定时器将自动启用。';
 
   @override
-  String get tipsSheetSleepFadeChimeTitle => 'Sleep Fade and Chime';
+  String get tipsSheetSleepFadeChimeTitle => '睡眠淡出与提示音';
 
   @override
   String get tipsSheetSleepFadeChimeDesc =>
-      'When the sleep timer ends, audio gradually fades out and an optional chime plays so it doesn\'t cut off mid-sentence.';
+      '睡眠定时结束时，音频将逐渐淡出并伴有可选提示音，避免在听书时突然中断。';
 
   @override
-  String get tipsSheetCarModeTitle => 'Car Mode';
+  String get tipsSheetCarModeTitle => '车载模式';
 
   @override
-  String get tipsSheetCarModeDesc =>
-      'Tap the car icon to switch to giant-button mode designed for safer use while driving.';
+  String get tipsSheetCarModeDesc => '轻点汽车图标，开启车载模式，让行车操作更安全舒适。';
 
   @override
-  String get tipsSheetAudibleSeriesTitle => 'Audible Series Discovery';
+  String get tipsSheetAudibleSeriesTitle => '获取 Audible 系列信息';
 
   @override
   String get tipsSheetAudibleSeriesDesc =>
-      'Open a series and use the overflow menu (the three dots) to pull the full series list from Audible, including missing entries and books you haven\'t started.';
+      '打开任意系列，点击右上角的“更多”图标（三个点），即可从 Audible 获取完整的系列清单，包含缺失以及您尚未开始阅读的书籍。';
 
   @override
   String get bookCardUnknownTitle => 'Unknown Title';
@@ -5962,21 +5948,20 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String downloadNotifCompleteBody(String title) {
-    return '$title is ready to listen offline';
+    return '《$title》已经下载好，随时随地开始听吧';
   }
 
   @override
   String get downloadNotifFailedTitle => 'Download Failed';
 
   @override
-  String get upcomingNotifChannelName => 'Upcoming Release Scan';
+  String get upcomingNotifChannelName => '扫描即将发布内容';
 
   @override
-  String get upcomingNotifChannelDesc =>
-      'Shows progress while scanning for upcoming releases';
+  String get upcomingNotifChannelDesc => '显示即将发布扫描的进度';
 
   @override
-  String get upcomingNotifScanTitle => 'Scanning for upcoming releases';
+  String get upcomingNotifScanTitle => '即将发布内容扫描中';
 
   @override
   String get upcomingNotifStartingScan => 'Starting scan…';
@@ -5991,7 +5976,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get upcomingNotifFoundTitle => 'Upcoming releases found!';
+  String get upcomingNotifFoundTitle => '查找到即将发布内容！';
 
   @override
   String upcomingNotifFoundBody(int books, int series) {
@@ -6090,7 +6075,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get region => 'Region';
 
   @override
-  String get editTabDetails => 'Details';
+  String get editTabDetails => '详情';
 
   @override
   String get editTabCover => 'Cover';

@@ -1,10 +1,211 @@
 {
   "@@locale": "ru",
+  "appTitle": "A B S O R B",
+  "online": "Подключен",
+  "offline": "Не в сети",
   "stillOffline": "Не удается подключиться. Нажмите, чтобы попробовать еще раз.",
+  "retry": "Повторить",
+  "cancel": "Отменить",
+  "delete": "Удалить",
+  "remove": "Убрать",
+  "save": "Сохранить",
+  "done": "Выполнено",
+  "edit": "Править",
+  "search": "Поиск",
+  "apply": "Применить",
+  "enable": "Включить",
+  "clear": "Очистить",
+  "off": "Выкл",
+  "disabled": "Отключено",
+  "later": "Позже",
   "noDownloadedBooks": "Нет загруженных книг",
   "yourLibraryIsEmpty": "Ваша библиотека пуста",
   "loginCouldNotReachServer": "Не удалось подключиться к серверу",
+  "librarySearchAuthors": "Авторы",
+  "librarySearchTags": "Теги",
+  "librarySearchGenres": "Жанры",
+  "librarySeriesCount": "{count} серии",
+  "@librarySeriesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryAuthorsCount": "{count} авторы",
+  "@libraryAuthorsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryNarratorsCount": "{count} чтецы",
+  "@libraryNarratorsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryBooksCount": "{loaded}/{total} книги",
+  "@libraryBooksCount": {
+    "placeholders": {
+      "loaded": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "carModeBookmarkDefault": "Закладка",
+  "carModeBookmarkAdded": "Закладка добавлена",
+  "downloadsTitle": "Сохраненные",
+  "downloadsCancelSelection": "Отменить загрузку",
+  "downloadsSelect": "Выберите",
+  "downloadsNoDownloads": "Нет загрузок",
+  "downloadsDownloading": "Идёт загрузка",
+  "downloadsQueued": "Очередь",
+  "downloadsCompleted": "Завершено",
+  "downloadsWaiting": "Подождите...",
+  "downloadsCancel": "Отменить",
+  "downloadsDelete": "Удалить",
+  "downloadsDeleteCount": "Удалить {count} загрузку(ок)?",
+  "@downloadsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsDeleteContent": "Загруженные файлы будут удалены.",
+  "downloadsDeletedCount": "Удалено {count} загрузка(ок)",
+  "@downloadsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsRemoveTitle": "Удалить из загруженных?",
+  "downloadsRemoveContent": "Удалить \"{title}\" из памяти?",
+  "@downloadsRemoveContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsRemovedTitle": "\"{title}\" удалено",
+  "@downloadsRemovedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsSelectedCount": "{count} выбрано",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "bookmarksTitle": "Все закладки",
+  "bookmarksCancelSelection": "Отменить выбранное",
+  "bookmarksSortedByNewest": "Сортировка по последним",
+  "bookmarksSortedByPosition": "Сортировка по позиции",
+  "bookmarksSelect": "Выберите закладку",
+  "bookmarksNoBookmarks": "Закладок пока нет",
+  "bookmarksDeleteCount": "Удалить {count} закладку(ок)?",
+  "@bookmarksDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksDeleteContent": "Это невозможно отменить.",
+  "bookmarksDeletedCount": "Удалено {count} закладка(ок)",
+  "@bookmarksDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksJumpTitle": "Перейти к закладкам?",
+  "bookmarksJumpContent": "\"{title}\" на {position}\nв {bookTitle}",
+  "@bookmarksJumpContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "position": {
+        "type": "String"
+      },
+      "bookTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "bookmarksJump": "Перейти",
+  "bookmarksNotConnected": "Нет подключения к серверу",
+  "bookmarksCouldNotLoad": "Не удается загрузить книгу",
+  "bookmarksSelectedCount": "{count} выбрано",
+  "@bookmarksSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsTitle": "Ваша Статистика",
+  "statsCouldNotLoad": "Не удается загрузить статистику",
+  "statsTotalListeningTime": "ОБЩЕЕ ВРЕМЯ ПРОСЛУШИВАНИЯ",
+  "statsHoursUnit": "ч",
+  "statsMinutesUnit": "м",
+  "statsDaysOfAudio": "Это {days} дней звучания",
+  "@statsDaysOfAudio": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "statsHoursOfAudio": "Это {hours} часов звучания",
+  "@statsHoursOfAudio": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "statsToday": "Сегодня",
+  "statsThisWeek": "За эту неделю",
+  "statsThisMonth": "За этот месяц",
+  "statsActivity": "Действия",
+  "statsCurrentStreak": "Текущая Серия",
+  "statsBestStreak": "Лучшая Серия",
+  "statsFinished": "Прослушано",
+  "statsBooksFinished": "Книги",
+  "statsEpisodesFinished": "Серии",
+  "statsBooksThisYear": "Книги в этом году",
+  "statsEpisodesThisYear": "Серии в этом году",
+  "statsRemoveFromYearTitle": "Удалить за этот год",
+  "statsRemoveFromYearWithDate": "Завершенная дата {date} останется на сервере. Это только удаляет \"{title}\" из вашего Absorb списка книг за этот год.",
+  "@statsRemoveFromYearWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "appShellHomeTab": "Главная",
   "appShellLibraryTab": "Библиотека",
   "appShellStatsTab": "Статистика",
@@ -22,7 +223,78 @@
   "disablePageFade": "Отключить затухание страницы",
   "disablePageFadeOnSubtitle": "Страницы переключаются мгновенно",
   "disablePageFadeOffSubtitle": "Страницы затухают при смене вкладок",
+  "mergeLibraries": "Единая страница Поглощения",
+  "mergeLibrariesInfoTitle": "Главная Поглощающая Страница",
+  "mergeLibrariesInfoContent": "Если включено, в одном окне отображаются все ваши текущие книги и подкасты из каждой библиотеки. Когда отключено, отображаются только элементы из выбранной вами библиотеки.",
+  "mergeLibrariesOnSubtitle": "Показывать элементы из всех библиотек",
+  "mergeLibrariesOffSubtitle": "Показывать элементы из текущей библиотеки",
+  "queueMode": "Режим очереди",
+  "queueModeInfoTitle": "Режим Очереди",
+  "queueModeInfoOff": "Выкл",
+  "queueModeInfoOffDesc": "Плеер остановится после текущей книги или серии.",
+  "queueModeInfoManual": "Очередь Вручную",
+  "queueModeInfoManualDesc": "Ваши поглощающие карты действуют в качестве плейлиста. По завершении одной следующая незавершённая карта запуститься автоматически. Добавьте элементы нажав на кнопку «Добавить в абсорбцию» на книге или серии и измените порядок с экрана поглощения.",
+  "queueModeOff": "Выкл",
+  "queueModeManual": "Вручную",
+  "queueModeAuto": "Авто",
+  "queueModePlaylist": "Плейлист",
+  "queueModeInfoPlaylist": "Плейлист очереди",
+  "queueModeInfoPlaylistDesc": "Воспроизведение элементов плейлиста, кроме прослушанных книг или серий. Остановка в конце списка.",
+  "queuePlaylistPickerTitle": "Выберите плейлист",
+  "queuePlaylistNone": "Не выбран плейлист",
+  "queuePlaylistActiveLabel": "Плейлист: {name}",
+  "@queuePlaylistActiveLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "queueModePlaylistHint": "Запустите плейлист очереди, открыв плейлист на главной странице.",
+  "exit": "Выход",
+  "upNext": "Далее: {label}",
+  "@upNext": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "nothingUpNext": "Далее ничего нет",
+  "showUpNextLabel": "Показывать следующую на странице поглощения",
+  "openSeries": "Открыть серию",
+  "openPlaylist": "Открыть плейлист",
+  "playlistPlayAction": "Играть плейлист",
+  "playlistAllFinished": "Все завершено",
+  "queueModeBooks": "Книги",
+  "queueModePodcasts": "Подкасты",
+  "autoDownloadQueue": "Автозагрузка очереди",
+  "autoDownloadQueueOnSubtitle": "Оставить следующие {count} загруженных элементов",
+  "@autoDownloadQueueOnSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoDownloadQueueOffSubtitle": "Выкл. - загрузки вручную",
   "sectionPlayback": "Воспроизведение",
+  "sectionMediaControls": "Управление медиа",
+  "defaultSpeed": "Стандартная скорость",
+  "defaultSpeedSubtitle": "Новые книги начинаются с этой скоростью - каждая книга сохранит эту настройку",
+  "skipBack": "Перейти назад",
+  "skipForward": "Перейти вперед",
+  "chapterProgressInNotification": "Прогресс главы в уведомлении и в Android Auto",
+  "chapterProgressOnSubtitle": "Вкл. - уведомление и Android Auto покажут прогресс главы",
+  "chapterProgressOffSubtitle": "Выкл. - они покажут прогресс всей книги",
+  "chapterProgressInNotificationIos": "Прогресс главы на экране блокировки и CarPlay",
+  "chapterProgressOnSubtitleIos": "Вкл. - блокировка экрана и CarPlay покажут прогресс главы",
+  "speedBookmarkInControls": "Скорость и закладки в панели управления медиа",
+  "speedBookmarkOnSubtitle": "Вкл. - уведомление покажет скорость и закладку; в Android Auto переключатели глав",
+  "speedBookmarkOffSubtitle": "Выкл. - в уведомлении переключатели глав; в Android Auto скорость и закладка",
+  "lockSeekBar": "Заблокировать ползунок на панели",
+  "lockSeekBarOnSubtitle": "Вкл. - уведомление покажет прогресс, на экране блокировки и Android Auto, но ползунок переместить невозможно",
+  "lockSeekBarOffSubtitle": "Выкл. - ползунок прогресса перемещается в уведомлении, на экране блокировки и Android Auto",
   "sectionSleepTimer": "Таймер сна",
   "sectionDownloadsAndStorage": "Загрузки и хранилище",
   "sectionLibrary": "Библиотека",
@@ -34,5 +306,189 @@
   "addAccount": "Добавить аккаунт",
   "signOut": "Выйти",
   "tipsAndHiddenFeatures": "Советы и скрытые возможности",
-  "checkForUpdate": "Проверить наличие обновлений"
+  "checkForUpdate": "Проверить наличие обновлений",
+  "chapterTimeHintFull": "ЧЧ:ММ:СС или секунд",
+  "chapterInvalidTime": "Неверное время",
+  "chapterLocked": "Глава заблокирована",
+  "chapterAllLocked": "Все главы заблокированы",
+  "chapterTrackTitle": "Трек {number}",
+  "@chapterTrackTitle": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterNoAudioForPosition": "Для этой позиции нет аудио",
+  "chapterCouldNotPlayPreview": "Предпросмотр не удался",
+  "chapterStartSetTo": "Начало установлено на {time}",
+  "@chapterStartSetTo": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterAddNumberedTitle": "Добавить нумерацию глав",
+  "chapterRemoveBranding": "Удалить брендинг Audible (вступление/заключение)",
+  "chapterFoundCount": "{count} Глав найдено",
+  "@chapterFoundCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterAudibleVsBook": "Audible {audible}  -  Книга {book}",
+  "@chapterAudibleVsBook": {
+    "placeholders": {
+      "audible": {
+        "type": "String"
+      },
+      "book": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterAudibleLonger": "Версия Audible длиннее вашего файла - более поздние главы могут не совпадать.",
+  "chapterAudibleShorter": "Версия Audible короче, чем ваш файл - главы могут не совпадать.",
+  "chapterTitlesOnly": "Только заголовки",
+  "chapterApplyChapters": "Применить главы",
+  "coverSearchTitle": "Поиск обложек",
+  "coverSearchRefineHint": "Уточните название/автор для очистки результата - это не меняет книгу.",
+  "coverNoneFound": "Обложки не найдены",
+  "coverEnterTitleFirst": "Введите сначала название",
+  "coverUpdated": "Обложка обновлена",
+  "coverCouldNotUpdate": "Не удается обновить обложку",
+  "coverApply": "Применить обложку",
+  "coverUnknownResolution": "Неизвестное разрешение",
+  "embedIntro": "Вставить метаданные в аудио файлы, включая обложку и главы.",
+  "embedBackupOption": "Сначала сделайте резервную копию аудио файлов",
+  "embedNoteInFolder": "Метаданные будут встроены в аудиофайлы в папку аудиокниг.",
+  "embedNoteMultiTrack": "Главы не встроить в мульти-трековые аудиокниги.",
+  "embedNoteNavigateAway": "После запуска задачи вы можете уйти с этой страницы.",
+  "embedStartButton": "Запустить вставку метаданных",
+  "embedProgress": "Встраивание {percent}%",
+  "@embedProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "embedProgressIndeterminate": "Встраивание...",
+  "taskProgressKeepsRunning": "{percent}% - продолжит запуск, если вы покинете эту страницу",
+  "@taskProgressKeepsRunning": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "taskStarting": "Запуск...",
+  "embedBackupNoteIntro": "Резервная копия ваших оригинальных аудиофайлов будет сохранена на сервере в ",
+  "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
+  "@embedBackupNotePath": {
+    "placeholders": {
+      "itemId": {
+        "type": "String"
+      }
+    }
+  },
+  "embedBackupNoteOutro": ". Периодически очищайте кэш элементов.",
+  "embedDialogTitle": "Встроенные метаданные",
+  "embedConfirmMessage": "Встроить метаданные в {count, plural, one{# audio file} other{# audio files}}? Аудиофайлы будут перезаписаны{backup}.",
+  "@embedConfirmMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "backup": {
+        "type": "String"
+      }
+    }
+  },
+  "embedConfirmBackupClause": " (оригиналы резервных копий сначала)",
+  "embedConfirmAction": "Встроить",
+  "embedCouldNotStart": "Невозможно начать вставку",
+  "embedStarted": "Встраивание начато",
+  "embedComplete": "Встраивание завершено",
+  "embedFailed": "Не удалось встроить",
+  "encodeComplete": "Кодирование завершено",
+  "encodeFailedTask": "Ошибка кодирования",
+  "encodeProgress": "Кодирование {percent}%",
+  "@encodeProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "encodeProgressIndeterminate": "Кодирование...",
+  "adminApiKeys": "API-ключи",
+  "adminApiKeysSubtitle": "Программные токены доступа",
+  "adminApiKeysNewTitle": "Новый API-ключ",
+  "adminApiKeysName": "Название",
+  "adminApiKeysNameHint": "например Home Assistant",
+  "adminApiKeysOwner": "Пользователь",
+  "adminApiKeysExpiration": "Срок действия",
+  "adminApiKeysActive": "Активный",
+  "adminApiKeysActiveSub": "Ключ работает сразу же после создания",
+  "adminApiKeysInactive": "Неактивен",
+  "adminApiKeysExpired": "Истек срок",
+  "adminApiKeysCreate": "Создать ключ",
+  "adminApiKeysCreated": "API-ключ создан",
+  "adminApiKeysTokenLabel": "Ваш новый API-ключ",
+  "adminApiKeysCopyWarning": "Скопируйте этот ключ сейчас. Для безопасности он не будет показан снова.",
+  "adminApiKeysCopy": "Копировать",
+  "adminApiKeysCopied": "Скопирован в буфер обмена",
+  "adminApiKeysDone": "Готово",
+  "adminApiKeysDeleteTitle": "Отозвать API-ключ?",
+  "adminApiKeysDeleted": "API-ключ отозван",
+  "adminApiKeysRevoke": "Отозвать",
+  "adminApiKeysSetActive": "Активировать",
+  "adminApiKeysSetInactive": "Деактивировать",
+  "adminApiKeysFailedCreate": "Не удалось создать API-ключ",
+  "adminApiKeysFailedDelete": "Не удалось отозвать API ключ",
+  "adminApiKeysFailedUpdate": "Не удалось обновить API-ключ",
+  "adminApiKeysEmpty": "API-ключей еще нет",
+  "adminApiKeysEmptySub": "Создайте, чтобы приложения и скрипты дошли до вашего сервера",
+  "adminApiKeysNeverUsed": "Не использовался",
+  "adminApiKeysNeverExpires": "Без срока действия",
+  "adminApiKeysNameRequired": "Введите имя",
+  "adminApiKeysUserRequired": "Выберите пользователя",
+  "adminApiKeysExpNever": "Не ограничен",
+  "adminApiKeysExp7d": "7 дней",
+  "adminApiKeysExp30d": "30 дней",
+  "adminApiKeysExp90d": "90 дней",
+  "adminApiKeysExp1y": "1 год",
+  "adminApiKeysLastUsed": "Последнее использование {time}",
+  "@adminApiKeysLastUsed": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "adminApiKeysExpiresOn": "Истекает {date}",
+  "@adminApiKeysExpiresOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminApiKeysDeleteContent": "Отозвать \"{name}\"? Приложения с этим ключом немедленно потеряют доступ.",
+  "@adminApiKeysDeleteContent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "endOfEpisode": "Окончание серии",
+  "sleepTimerSheetEpisodeSleepStart": "Сон в конце серии",
+  "bookmarkListen": "Прослушать",
+  "bookmarkPause": "Пауза",
+  "bookmarkPreviewFailed": "Не удалось воспроизвести это место."
 }

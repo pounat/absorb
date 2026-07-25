@@ -66,7 +66,6 @@
   "loginFailed": "登录失败",
   "loginSsoFailed": "单点登录失败或已取消",
   "loginSsoAuthFailed": "单点登录认证失败，请重试。",
-  "loginRestoreFromBackup": "从备份恢复",
   "loginInvalidBackupFile": "无效的备份文件",
   "loginRestoreBackupTitle": "恢复备份？",
   "loginRestoreBackupWithAccounts": "这将恢复所有设置和 {count} 个已保存的账户。你将自动登录。",
@@ -409,6 +408,9 @@
   "queueModeOff": "关闭",
   "queueModeManual": "手动",
   "queueModeAuto": "自动",
+  "queueModePlaylist": "播放列表",
+  "queueModeInfoPlaylistDesc": "按所选播放列表的顺序播放，跳过已完成的项目，并在列表结束时停止。",
+  "playlistPlayAction": "播放列表",
   "queueModeBooks": "书籍",
   "queueModePodcasts": "播客",
   "autoDownloadQueue": "自动下载队列",
@@ -426,9 +428,7 @@
   "defaultSpeedSubtitle": "新书以此速度开始播放 - 每本书会记住自己的速度",
   "skipBack": "快退",
   "skipForward": "快进",
-  "chapterProgressInNotification": "通知中显示章节进度",
-  "chapterProgressOnSubtitle": "开启 - 锁屏显示章节进度",
-  "chapterProgressOffSubtitle": "关闭 - 锁屏显示全书进度",
+  "lockSeekBar": "锁定搜索栏",
   "autoRewindOnResume": "恢复播放时自动倒退",
   "autoRewindOnSubtitle": "开启 - 根据暂停时长倒回 {min} 秒至 {max} 秒",
   "@autoRewindOnSubtitle": {
@@ -554,13 +554,7 @@
     }
   },
   "sectionDownloadsAndStorage": "下载与存储",
-  "downloadOverWifiOnly": "仅在 Wi-Fi 下下载",
-  "downloadOverWifiOnSubtitle": "开启 - 禁止使用移动数据下载",
-  "downloadOverWifiOffSubtitle": "关闭 - 任何网络均可下载",
-  "autoDownloadOnWifi": "Wi-Fi 下自动下载",
-  "autoDownloadOnWifiInfoTitle": "Wi-Fi 下自动下载",
-  "autoDownloadOnWifiInfoContent": "当你在 Wi-Fi 下开始流式播放一本书时，它将自动在后台下载整本书。这样你无需手动开始下载即可离线收听。",
-  "autoDownloadOnWifiOnSubtitle": "在 Wi-Fi 下开始流式播放时，书籍将在后台下载",
+  "autoDownloadOnWifiInfoContent": "当您开始在线播放书籍时，系统会在后台同步下载完整内容，无需手动操作即可实现离线收听。后台下载将严格遵循上方的“下载网络设置”，若您希望在移动网络下也能自动下载，请将其设置为“任意网络”。",
   "autoDownloadOnWifiOffSubtitle": "关闭",
   "concurrentDownloads": "同时下载数",
   "autoDownload": "自动下载",
@@ -889,6 +883,8 @@
   "addToAbsorbing": "添加到收听中",
   "removedFromAbsorbing": "已从收听中移除",
   "addedToAbsorbing": "已添加到收听中",
+  "removeFromContinueListening": "移出继续收听",
+  "removedFromContinueListening": "已从“继续收听”中移出",
   "addToPlaylist": "添加到播放列表",
   "addToCollection": "添加到收藏集",
   "downloadEbook": "下载电子书",
@@ -1135,7 +1131,6 @@
   "removeDownloadContent": "这将从你的设备中移除。",
   "downloadRemoved": "下载已移除",
   "finished": "已完成",
-  "saved": "已保存",
   "selectLibrary": "选择媒体库",
   "switchLibraryTooltip": "切换媒体库",
   "noBooksFound": "未找到书籍",
@@ -1172,6 +1167,200 @@
   "audible": "Audible",
   "iTunes": "iTunes",
   "openLibrary": "打开媒体库",
+  "coverPlayPause": "点击封面播放/暂停",
+  "coverPlayPauseOnSubtitle": "开启 - 点击封面播放/暂停",
+  "coverPlayPauseOffSubtitle": "关闭 - 使用控制栏中的播放/暂停按钮",
+  "queueModeMergedSubtitle": "可选择停止播放、手动队列，或自动播放下一项",
+  "queueModeSeriesLabel": "系列",
+  "queueModeInfoSeries": "系列",
+  "queueModeInfoSeriesDesc": "自动播放同系列的下一本书，或播客节目的下一集。",
+  "resetButtonGridQuestion": "确认重置按钮布局？",
+  "resetButtonGridContent": "这将恢复默认的按钮布局、顺序和开关设置。",
+  "reset": "重置",
+  "resetButtonGrid": "重置按钮布局",
+  "chimeBeforeSleep": "睡前提示音",
+  "chimeBeforeSleepOnSubtitle": "在定时器即将结束时播放轻柔的提示铃声",
+  "chimeBeforeSleepOffSubtitle": "睡前无提示音",
+  "windDownDurationSubtitle": "定时结束{seconds} 秒前开始淡出并提示",
+  "@windDownDurationSubtitle": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "fadeVolumeOnSubtitleDynamic": "在最后 {seconds} 秒内逐渐降低音量",
+  "@fadeVolumeOnSubtitleDynamic": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "endOfChapterShort": "章节结束",
+  "endOfChapterOnSubtitle": "在当前章节结束时停止播放",
+  "endOfChapterOffSubtitle": "使用睡眠定时器",
+  "showExplicitBadge": "显示敏感内容标记",
+  "showExplicitBadgeOnSubtitle": "敏感内容会显示 “E” 标记",
+  "showExplicitBadgeOffSubtitle": "关闭 - 隐藏敏感内容标记",
+  "cardIconsOnlyChip": "仅图标",
+  "cardMoreInGridChip": "更多",
+  "speed": "速度",
+  "bookDetailsLabel": "书籍详情",
+  "equalizerLabel": "音频增强",
+  "episodeListSortNewest": "最新",
+  "seriesBooksFindMissingTitle": "扫描缺失书籍",
+  "seriesBooksFindMissingContent": "此功能将检索 Audible以查找该系列中你的媒体库可能缺失的书籍。\n\n系统会优先通过 ASIN 进行匹配（取决于你的服务器中书籍是否包含 ASIN），若无则通过书名进行匹配。搜索结果可能不会完全准确。",
+  "expandedCardStreaming": "串流播放",
+  "bookmarksScreenSortPosition": "位置",
+  "upcomingReleasesTitle": "即将上架",
+  "upcomingReleasesRescanTitle": "重新扫描？",
+  "upcomingReleasesRescanContent": "这些结果是 {days} 天前获取的。发布日期可能已发生变更——是否需要重新扫描？",
+  "@upcomingReleasesRescanContent": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesNotNow": "稍后再说",
+  "upcomingReleasesRescan": "重新扫描",
+  "upcomingReleasesRescanReleaseDate": "重新扫描发布日期",
+  "upcomingReleasesRescanning": "正在重新扫描...",
+  "upcomingReleasesUpdatedWithDate": "更新于 {date}",
+  "@upcomingReleasesUpdatedWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "upcomingReleasesNoReleaseDateFound": "未找到发布日期",
+  "upcomingReleasesRescanFailed": "重新扫描失败",
+  "upcomingReleasesDateChip": "发布日期",
+  "upcomingReleasesCheckingSeries": "正在获取 {name}... ({processed}/{total})",
+  "@upcomingReleasesCheckingSeries": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "processed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesLoadingSeries": "系列加载中...",
+  "upcomingReleasesScannedToday": "(今天已扫描)",
+  "upcomingReleasesScannedYesterday": "(昨天已扫描)",
+  "upcomingReleasesScannedDaysAgo": "(扫描于 {days} 天前)",
+  "@upcomingReleasesScannedDaysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesUpcomingCount": "{count} 个即将发布",
+  "@upcomingReleasesUpcomingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesRecentCount": "{count} 个最近更新",
+  "@upcomingReleasesRecentCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesNoneFound": "未找到即将推出或最近更新的内容",
+  "upcomingReleasesAcrossSeries": "{summary}共 {count} 个系列",
+  "@upcomingReleasesAcrossSeries": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesCheckedSeries": "已扫描 Audible 上的 {count} 个系列",
+  "@upcomingReleasesCheckedSeries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesDateFormat": "{year}-{month}-{day}",
+  "@upcomingReleasesDateFormat": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "int"
+      },
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBadgeUpcoming": "即将发布",
+  "upcomingReleasesBadgeAdded": "已添加",
+  "upcomingReleasesBadgeMissing": "缺失",
+  "playlistDetailItemCount": "{count} 个项目",
+  "@playlistDetailItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collectionDetailBookCount": "{count}本书",
+  "@collectionDetailBookCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "audibleSeriesNoUpcoming": "未找到即将上架的内容",
+  "equalizerPresetFlat": "原声",
+  "equalizerPresetVoiceBoost": "人声增强",
+  "equalizerPresetBassBoost": "低音增强",
+  "equalizerPresetTrebleBoost": "高音增强",
+  "equalizerPresetPodcast": "播客模式",
+  "equalizerPresetAudiobook": "有声书",
+  "equalizerPresetReduceNoise": "降噪模式",
+  "equalizerEditingSavedNamed": "正在编辑\"{title}\"",
+  "@equalizerEditingSavedNamed": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "equalizerPerBookEq": "每本书单独配置",
+  "librarySortFilterUpcomingReleases": "即将发布",
+  "librarySortFilterUpcomingReleasesSubtitle": "Audible 中检查系列新书",
+  "sleepTimerSheetStartChapterSleep": "{count, plural, =1{听完 1 章结束} other{听完 {count} 章结束}}",
+  "@sleepTimerSheetStartChapterSleep": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTimerSheetRewindOnSleep": "定时结束自动倒回",
+  "sleepTimerSheetShake": "摇一摇",
   "sleepTimerSheetTabSpecificChapter": "章节",
   "sleepTimerSheetSpecificNoChapters": "没有可用的章节",
   "sleepTimerSheetSpecificChapterFallback": "第 {number} 章",
@@ -1199,10 +1388,75 @@
   "sleepTimerSheetSpecificStartButtonPassed": "已过",
   "timeAm": "上午",
   "timePm": "下午",
+  "homeCustomizeAddGenreTitle": "新增类型分区",
+  "homeCustomizeAddGenreSubtitle": "选择一个类型显示在你的首页",
+  "tipsSheetQuickBookmarksTitle": "快速书签",
+  "tipsSheetQuickBookmarksDesc": "长按任意卡片上的书签按钮即可立即添加书签，无需打开书签页面。",
+  "tipsSheetCoverPlayPauseTitle": "点击封面播放/暂停",
+  "tipsSheetCoverPlayPauseDesc": "点击任意卡片的封面即可播放或暂停。可在设置的“收听卡片”中切换此功能。播放时会显示淡淡的暂停图标，提示封面可点击。",
+  "tipsSheetFullScreenPlayerTitle": "全屏播放器",
+  "tipsSheetFullScreenPlayerDesc": "在任意沉浸卡片上向上滑动即可打开全屏播放器，向下滑动即可关闭。",
+  "tipsSheetQuickAddAbsorbingTitle": "快速加入收听卡片",
+  "tipsSheetQuickAddAbsorbingDesc": "在列表页（系列、作者、搜索结果）中向右滑动任意书籍，即可将其立即加入收听队列。",
+  "tipsSheetShakeExtendSleepTitle": "摇一摇延长睡眠定时",
+  "tipsSheetShakeExtendSleepDesc": "如果睡眠定时器正在运行，摇动手机即可延长时间。可在设置中的“睡眠定时器”调整延长的分钟数。",
+  "tipsSheetSeriesNavigationTitle": "系列导航",
+  "tipsSheetSeriesNavigationDesc": "在任意书籍的详情弹窗中点击系列名称，即可查看该系列的所有书籍，并按阅读顺序排序，每本书的封面都会显示序号徽章。",
+  "tipsSheetSwipeBetweenBooksTitle": "滑动切换书籍",
+  "tipsSheetSwipeBetweenBooksDesc": "在收听界面左右滑动即可切换你正在收听的书籍。开启手动队列模式后，卡片也会作为你的队列使用，因此当前书籍播放结束时会自动播放下一本。",
+  "tipsSheetTapToSeekTitle": "点击跳转",
+  "tipsSheetTapToSeekDesc": "点击章节或书籍进度条的任意位置即可直接跳转到对应进度。你也可以拖动进度条以进行更精细的控制。",
+  "tipsSheetSpeedAdjustedTimeTitle": "实际播放时长",
+  "tipsSheetSpeedAdjustedTimeDesc": "剩余时间和章节时长会根据你的播放速度自动调整。用 1.5×倍播放？界面显示的时间就是你实际需要的时长。",
+  "tipsSheetPlaybackHistoryTitle": "播放历史",
+  "tipsSheetPlaybackHistoryDesc": "点击任意卡片上的历史按钮即可查看所有播放、暂停、跳转和倍速调整的时间线。点击任意事件即可跳回对应位置。",
+  "tipsSheetAutoRewindTitle": "自动回退",
+  "tipsSheetAutoRewindDesc": "暂停后恢复播放时，Absorb 会自动回退几秒，确保你不会错过内容。回退时长会根据你离开的时间自动调整。你可以在设置中进行修改。",
+  "tipsSheetSeriesQueueModeTitle": "系列连播模式",
+  "tipsSheetSeriesQueueModeDesc": "当你听完某个系列中的一本书时，Absorb 可以自动播放下一本书。请在“设置”中将队列模式更改为“系列”。",
+  "tipsSheetOfflineModeTitle": "离线模式",
+  "tipsSheetOfflineModeDesc": "点击“正在收听”界面上的同步图标即可进入离线模式。这将暂停同步并节省流量，且仅显示你已下载的书籍。非常适合在飞机上或信号较弱的区域使用。",
+  "tipsSheetUpcomingReleasesTitle": "即将上架",
+  "tipsSheetUpcomingReleasesDesc": "在“系列”标签页中，再次点击该标签即可打开其排序与筛选面板，然后选择“即将上架”，即可按出版日期查看当前系列中已推出和即将推出的新书。",
+  "tipsSheetPerBookEqTitle": "为每本书单独配置均衡器",
+  "tipsSheetPerBookSpeedTitle": "针对单本有声书的语速设置",
+  "tipsSheetPerBookSpeedDesc": "播放速度支持书籍单独配置。非虚构内容 1.5x 效率拉满，有声剧 1.0x 原汁原味，省去频繁调整的麻烦。",
+  "tipsSheetAutoSleepWindowTitle": "自动睡眠时间段",
+  "tipsSheetAutoSleepWindowDesc": "设定您常睡的时间段，在此时间段内听书，睡眠定时器将自动启用。",
+  "tipsSheetSleepFadeChimeTitle": "睡眠淡出与提示音",
+  "tipsSheetSleepFadeChimeDesc": "睡眠定时结束时，音频将逐渐淡出并伴有可选提示音，避免在听书时突然中断。",
+  "tipsSheetCarModeTitle": "车载模式",
+  "tipsSheetCarModeDesc": "轻点汽车图标，开启车载模式，让行车操作更安全舒适。",
+  "tipsSheetAudibleSeriesTitle": "获取 Audible 系列信息",
+  "tipsSheetAudibleSeriesDesc": "打开任意系列，点击右上角的“更多”图标（三个点），即可从 Audible 获取完整的系列清单，包含缺失以及您尚未开始阅读的书籍。",
+  "downloadNotifCompleteBody": "《{title}》已经下载好，随时随地开始听吧",
+  "@downloadNotifCompleteBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "upcomingNotifChannelName": "扫描即将发布内容",
+  "upcomingNotifChannelDesc": "显示即将发布扫描的进度",
+  "upcomingNotifScanTitle": "即将发布内容扫描中",
+  "upcomingNotifFoundTitle": "查找到即将发布内容！",
   "showTipsAgain": "再次显示提示",
   "showTipsAgainSubtitle": "恢复你已关闭的功能提示",
   "tipsRestored": "已恢复提示",
   "resetSpeedPresets": "重置速度预设",
   "resetSpeedPresetsSubtitle": "恢复默认的播放速度选项",
-  "speedPresetsReset": "速度预设已重置"
+  "speedPresetsReset": "速度预设已重置",
+  "editTabDetails": "详情",
+  "loginRestoreFromBackup": "从备份恢复",
+  "chapterProgressInNotification": "通知中显示章节进度",
+  "chapterProgressOnSubtitle": "开启 - 锁屏显示章节进度",
+  "chapterProgressOffSubtitle": "关闭 - 锁屏显示全书进度",
+  "downloadOverWifiOnly": "仅在 Wi-Fi 下下载",
+  "downloadOverWifiOnSubtitle": "开启 - 禁止使用移动数据下载",
+  "downloadOverWifiOffSubtitle": "关闭 - 任何网络均可下载",
+  "autoDownloadOnWifi": "Wi-Fi 下自动下载",
+  "autoDownloadOnWifiInfoTitle": "Wi-Fi 下自动下载",
+  "autoDownloadOnWifiOnSubtitle": "在 Wi-Fi 下开始流式播放时，书籍将在后台下载",
+  "saved": "已保存"
 }

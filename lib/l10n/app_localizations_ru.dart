@@ -12,56 +12,56 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appTitle => 'A B S O R B';
 
   @override
-  String get online => 'Online';
+  String get online => 'Подключен';
 
   @override
-  String get offline => 'Offline';
+  String get offline => 'Не в сети';
 
   @override
   String get stillOffline =>
       'Не удается подключиться. Нажмите, чтобы попробовать еще раз.';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Повторить';
 
   @override
-  String get cancel => 'Cancel';
+  String get cancel => 'Отменить';
 
   @override
-  String get delete => 'Delete';
+  String get delete => 'Удалить';
 
   @override
-  String get remove => 'Remove';
+  String get remove => 'Убрать';
 
   @override
-  String get save => 'Save';
+  String get save => 'Сохранить';
 
   @override
-  String get done => 'Done';
+  String get done => 'Выполнено';
 
   @override
-  String get edit => 'Edit';
+  String get edit => 'Править';
 
   @override
-  String get search => 'Search';
+  String get search => 'Поиск';
 
   @override
-  String get apply => 'Apply';
+  String get apply => 'Применить';
 
   @override
-  String get enable => 'Enable';
+  String get enable => 'Включить';
 
   @override
-  String get clear => 'Clear';
+  String get clear => 'Очистить';
 
   @override
-  String get off => 'Off';
+  String get off => 'Выкл';
 
   @override
-  String get disabled => 'Disabled';
+  String get disabled => 'Отключено';
 
   @override
-  String get later => 'Later';
+  String get later => 'Позже';
 
   @override
   String get gotIt => 'Got it';
@@ -448,32 +448,32 @@ class AppLocalizationsRu extends AppLocalizations {
   String get librarySearchSeries => 'Series';
 
   @override
-  String get librarySearchAuthors => 'Authors';
+  String get librarySearchAuthors => 'Авторы';
 
   @override
-  String get librarySearchTags => 'Tags';
+  String get librarySearchTags => 'Теги';
 
   @override
-  String get librarySearchGenres => 'Genres';
+  String get librarySearchGenres => 'Жанры';
 
   @override
   String librarySeriesCount(int count) {
-    return '$count series';
+    return '$count серии';
   }
 
   @override
   String libraryAuthorsCount(int count) {
-    return '$count authors';
+    return '$count авторы';
   }
 
   @override
   String libraryNarratorsCount(int count) {
-    return '$count narrators';
+    return '$count чтецы';
   }
 
   @override
   String libraryBooksCount(int loaded, int total) {
-    return '$loaded/$total books';
+    return '$loaded/$total книги';
   }
 
   @override
@@ -679,193 +679,192 @@ class AppLocalizationsRu extends AppLocalizations {
   String get carModeChapterLabel => 'Chapter';
 
   @override
-  String get carModeBookmarkDefault => 'Bookmark';
+  String get carModeBookmarkDefault => 'Закладка';
 
   @override
-  String get carModeBookmarkAdded => 'Bookmark added';
+  String get carModeBookmarkAdded => 'Закладка добавлена';
 
   @override
-  String get downloadsTitle => 'Downloads';
+  String get downloadsTitle => 'Сохраненные';
 
   @override
-  String get downloadsCancelSelection => 'Cancel selection';
+  String get downloadsCancelSelection => 'Отменить загрузку';
 
   @override
-  String get downloadsSelect => 'Select';
+  String get downloadsSelect => 'Выберите';
 
   @override
-  String get downloadsNoDownloads => 'No downloads';
+  String get downloadsNoDownloads => 'Нет загрузок';
 
   @override
-  String get downloadsDownloading => 'Downloading';
+  String get downloadsDownloading => 'Идёт загрузка';
 
   @override
-  String get downloadsQueued => 'Queued';
+  String get downloadsQueued => 'Очередь';
 
   @override
-  String get downloadsCompleted => 'Completed';
+  String get downloadsCompleted => 'Завершено';
 
   @override
-  String get downloadsWaiting => 'Waiting...';
+  String get downloadsWaiting => 'Подождите...';
 
   @override
-  String get downloadsCancel => 'Cancel';
+  String get downloadsCancel => 'Отменить';
 
   @override
-  String get downloadsDelete => 'Delete';
+  String get downloadsDelete => 'Удалить';
 
   @override
   String downloadsDeleteCount(int count) {
-    return 'Delete $count download(s)?';
+    return 'Удалить $count загрузку(ок)?';
   }
 
   @override
-  String get downloadsDeleteContent =>
-      'Downloaded files will be removed from this device.';
+  String get downloadsDeleteContent => 'Загруженные файлы будут удалены.';
 
   @override
   String downloadsDeletedCount(int count) {
-    return 'Deleted $count download(s)';
+    return 'Удалено $count загрузка(ок)';
   }
 
   @override
-  String get downloadsRemoveTitle => 'Remove download?';
+  String get downloadsRemoveTitle => 'Удалить из загруженных?';
 
   @override
   String downloadsRemoveContent(String title) {
-    return 'Delete \"$title\" from this device?';
+    return 'Удалить \"$title\" из памяти?';
   }
 
   @override
   String downloadsRemovedTitle(String title) {
-    return '\"$title\" removed';
+    return '\"$title\" удалено';
   }
 
   @override
   String downloadsSelectedCount(int count) {
-    return '$count selected';
+    return '$count выбрано';
   }
 
   @override
   String get bookmarksTitle => 'Все закладки';
 
   @override
-  String get bookmarksCancelSelection => 'Cancel selection';
+  String get bookmarksCancelSelection => 'Отменить выбранное';
 
   @override
-  String get bookmarksSortedByNewest => 'Sorted by newest';
+  String get bookmarksSortedByNewest => 'Сортировка по последним';
 
   @override
-  String get bookmarksSortedByPosition => 'Sorted by position';
+  String get bookmarksSortedByPosition => 'Сортировка по позиции';
 
   @override
-  String get bookmarksSelect => 'Select';
+  String get bookmarksSelect => 'Выберите закладку';
 
   @override
-  String get bookmarksNoBookmarks => 'No bookmarks yet';
+  String get bookmarksNoBookmarks => 'Закладок пока нет';
 
   @override
   String bookmarksDeleteCount(int count) {
-    return 'Delete $count bookmark(s)?';
+    return 'Удалить $count закладку(ок)?';
   }
 
   @override
-  String get bookmarksDeleteContent => 'This cannot be undone.';
+  String get bookmarksDeleteContent => 'Это невозможно отменить.';
 
   @override
   String bookmarksDeletedCount(int count) {
-    return 'Deleted $count bookmark(s)';
+    return 'Удалено $count закладка(ок)';
   }
 
   @override
-  String get bookmarksJumpTitle => 'Jump to bookmark?';
+  String get bookmarksJumpTitle => 'Перейти к закладкам?';
 
   @override
   String bookmarksJumpContent(String title, String position, String bookTitle) {
-    return '\"$title\" at $position\nin $bookTitle';
+    return '\"$title\" на $position\nв $bookTitle';
   }
 
   @override
-  String get bookmarksJump => 'Jump';
+  String get bookmarksJump => 'Перейти';
 
   @override
-  String get bookmarksNotConnected => 'Not connected to server';
+  String get bookmarksNotConnected => 'Нет подключения к серверу';
 
   @override
-  String get bookmarksCouldNotLoad => 'Could not load book';
+  String get bookmarksCouldNotLoad => 'Не удается загрузить книгу';
 
   @override
   String bookmarksSelectedCount(int count) {
-    return '$count selected';
+    return '$count выбрано';
   }
 
   @override
-  String get statsTitle => 'Your Stats';
+  String get statsTitle => 'Ваша Статистика';
 
   @override
-  String get statsCouldNotLoad => 'Couldn\'t load stats';
+  String get statsCouldNotLoad => 'Не удается загрузить статистику';
 
   @override
-  String get statsTotalListeningTime => 'TOTAL LISTENING TIME';
+  String get statsTotalListeningTime => 'ОБЩЕЕ ВРЕМЯ ПРОСЛУШИВАНИЯ';
 
   @override
-  String get statsHoursUnit => 'h';
+  String get statsHoursUnit => 'ч';
 
   @override
-  String get statsMinutesUnit => 'm';
+  String get statsMinutesUnit => 'м';
 
   @override
   String get statsSecondsUnit => 's';
 
   @override
   String statsDaysOfAudio(String days) {
-    return 'That\'s $days days of audio';
+    return 'Это $days дней звучания';
   }
 
   @override
   String statsHoursOfAudio(String hours) {
-    return 'That\'s $hours hours of audio';
+    return 'Это $hours часов звучания';
   }
 
   @override
-  String get statsToday => 'Today';
+  String get statsToday => 'Сегодня';
 
   @override
-  String get statsThisWeek => 'This Week';
+  String get statsThisWeek => 'За эту неделю';
 
   @override
-  String get statsThisMonth => 'This Month';
+  String get statsThisMonth => 'За этот месяц';
 
   @override
-  String get statsActivity => 'Activity';
+  String get statsActivity => 'Действия';
 
   @override
-  String get statsCurrentStreak => 'Current Streak';
+  String get statsCurrentStreak => 'Текущая Серия';
 
   @override
-  String get statsBestStreak => 'Best Streak';
+  String get statsBestStreak => 'Лучшая Серия';
 
   @override
-  String get statsFinished => 'Finished';
+  String get statsFinished => 'Прослушано';
 
   @override
-  String get statsBooksFinished => 'Books';
+  String get statsBooksFinished => 'Книги';
 
   @override
-  String get statsEpisodesFinished => 'Episodes';
+  String get statsEpisodesFinished => 'Серии';
 
   @override
-  String get statsBooksThisYear => 'Books this year';
+  String get statsBooksThisYear => 'Книги в этом году';
 
   @override
-  String get statsEpisodesThisYear => 'Episodes this year';
+  String get statsEpisodesThisYear => 'Серии в этом году';
 
   @override
-  String get statsRemoveFromYearTitle => 'Remove from this year';
+  String get statsRemoveFromYearTitle => 'Удалить за этот год';
 
   @override
   String statsRemoveFromYearWithDate(String date, String title) {
-    return 'The finished date will still be $date on the server. This only removes \"$title\" from your Absorb books-this-year list.';
+    return 'Завершенная дата $date останется на сервере. Это только удаляет \"$title\" из вашего Absorb списка книг за этот год.';
   }
 
   @override
@@ -1318,144 +1317,144 @@ class AppLocalizationsRu extends AppLocalizations {
   String get whenAbsorbedAutoRelease => 'Auto-release';
 
   @override
-  String get mergeLibraries => 'Unified Absorbing page';
+  String get mergeLibraries => 'Единая страница Поглощения';
 
   @override
-  String get mergeLibrariesInfoTitle => 'Unified Absorbing Page';
+  String get mergeLibrariesInfoTitle => 'Главная Поглощающая Страница';
 
   @override
   String get mergeLibrariesInfoContent =>
-      'When enabled, the Absorbing screen shows all your in-progress books and podcasts from every library in a single view. When disabled, only items from the library you currently have selected are shown.';
+      'Если включено, в одном окне отображаются все ваши текущие книги и подкасты из каждой библиотеки. Когда отключено, отображаются только элементы из выбранной вами библиотеки.';
 
   @override
   String get mergeLibrariesOnSubtitle =>
-      'Absorbing page shows items from all libraries';
+      'Показывать элементы из всех библиотек';
 
   @override
   String get mergeLibrariesOffSubtitle =>
-      'Absorbing page shows current library only';
+      'Показывать элементы из текущей библиотеки';
 
   @override
-  String get queueMode => 'Queue mode';
+  String get queueMode => 'Режим очереди';
 
   @override
-  String get queueModeInfoTitle => 'Queue Mode';
+  String get queueModeInfoTitle => 'Режим Очереди';
 
   @override
-  String get queueModeInfoOff => 'Off';
+  String get queueModeInfoOff => 'Выкл';
 
   @override
   String get queueModeInfoOffDesc =>
-      'Playback stops when the current book or episode finishes.';
+      'Плеер остановится после текущей книги или серии.';
 
   @override
-  String get queueModeInfoManual => 'Manual Queue';
+  String get queueModeInfoManual => 'Очередь Вручную';
 
   @override
   String get queueModeInfoManualDesc =>
-      'Your absorbing cards act as a playlist. When one finishes, the next non-finished card auto-plays. Add items with the \"Add to Absorbing\" button on a book or episode and reorder from the absorbing screen.';
+      'Ваши поглощающие карты действуют в качестве плейлиста. По завершении одной следующая незавершённая карта запуститься автоматически. Добавьте элементы нажав на кнопку «Добавить в абсорбцию» на книге или серии и измените порядок с экрана поглощения.';
 
   @override
-  String get queueModeOff => 'Off';
+  String get queueModeOff => 'Выкл';
 
   @override
-  String get queueModeManual => 'Manual';
+  String get queueModeManual => 'Вручную';
 
   @override
-  String get queueModeAuto => 'Auto';
+  String get queueModeAuto => 'Авто';
 
   @override
-  String get queueModePlaylist => 'Playlist';
+  String get queueModePlaylist => 'Плейлист';
 
   @override
   String get queueModeCollection => 'Collection';
 
   @override
-  String get queueModeInfoPlaylist => 'Playlist Queue';
+  String get queueModeInfoPlaylist => 'Плейлист очереди';
 
   @override
   String get queueModeInfoPlaylistDesc =>
-      'Plays items in order from a chosen playlist, skipping anything already finished. Stops at the end of the list.';
+      'Воспроизведение элементов плейлиста, кроме прослушанных книг или серий. Остановка в конце списка.';
 
   @override
-  String get queuePlaylistPickerTitle => 'Choose a playlist';
+  String get queuePlaylistPickerTitle => 'Выберите плейлист';
 
   @override
-  String get queuePlaylistNone => 'No playlist selected';
+  String get queuePlaylistNone => 'Не выбран плейлист';
 
   @override
   String queuePlaylistActiveLabel(String name) {
-    return 'Playlist: $name';
+    return 'Плейлист: $name';
   }
 
   @override
   String get queueModePlaylistHint =>
-      'Start a playlist queue by opening a playlist on the home page.';
+      'Запустите плейлист очереди, открыв плейлист на главной странице.';
 
   @override
-  String get exit => 'Exit';
+  String get exit => 'Выход';
 
   @override
   String upNext(String label) {
-    return 'Up next: $label';
+    return 'Далее: $label';
   }
 
   @override
-  String get nothingUpNext => 'Nothing up next';
+  String get nothingUpNext => 'Далее ничего нет';
 
   @override
-  String get showUpNextLabel => 'Show Up next on the absorbing page';
+  String get showUpNextLabel => 'Показывать следующую на странице поглощения';
 
   @override
-  String get openSeries => 'Open series';
+  String get openSeries => 'Открыть серию';
 
   @override
-  String get openPlaylist => 'Open playlist';
+  String get openPlaylist => 'Открыть плейлист';
 
   @override
   String get openCollection => 'Open collection';
 
   @override
-  String get playlistPlayAction => 'Play playlist';
+  String get playlistPlayAction => 'Играть плейлист';
 
   @override
-  String get playlistAllFinished => 'All finished';
+  String get playlistAllFinished => 'Все завершено';
 
   @override
-  String get queueModeBooks => 'Books';
+  String get queueModeBooks => 'Книги';
 
   @override
-  String get queueModePodcasts => 'Podcasts';
+  String get queueModePodcasts => 'Подкасты';
 
   @override
-  String get autoDownloadQueue => 'Auto-download queue';
+  String get autoDownloadQueue => 'Автозагрузка очереди';
 
   @override
   String autoDownloadQueueOnSubtitle(int count) {
-    return 'Keep next $count items downloaded';
+    return 'Оставить следующие $count загруженных элементов';
   }
 
   @override
-  String get autoDownloadQueueOffSubtitle => 'Off - manual downloads only';
+  String get autoDownloadQueueOffSubtitle => 'Выкл. - загрузки вручную';
 
   @override
   String get sectionPlayback => 'Воспроизведение';
 
   @override
-  String get sectionMediaControls => 'Media Controls';
+  String get sectionMediaControls => 'Управление медиа';
 
   @override
-  String get defaultSpeed => 'Default speed';
+  String get defaultSpeed => 'Стандартная скорость';
 
   @override
   String get defaultSpeedSubtitle =>
-      'New books start at this speed - each book remembers its own';
+      'Новые книги начинаются с этой скоростью - каждая книга сохранит эту настройку';
 
   @override
-  String get skipBack => 'Skip back';
+  String get skipBack => 'Перейти назад';
 
   @override
-  String get skipForward => 'Skip forward';
+  String get skipForward => 'Перейти вперед';
 
   @override
   String get longSkipButtons => 'Long skip buttons';
@@ -1510,44 +1509,46 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chapterProgressInNotification =>
-      'Chapter progress in notification & Android Auto';
+      'Прогресс главы в уведомлении и в Android Auto';
 
   @override
   String get chapterProgressOnSubtitle =>
-      'On - notification & Android Auto show chapter progress';
+      'Вкл. - уведомление и Android Auto покажут прогресс главы';
 
   @override
-  String get chapterProgressOffSubtitle => 'Off - they show full book progress';
+  String get chapterProgressOffSubtitle =>
+      'Выкл. - они покажут прогресс всей книги';
 
   @override
   String get chapterProgressInNotificationIos =>
-      'Chapter progress on lock screen & CarPlay';
+      'Прогресс главы на экране блокировки и CarPlay';
 
   @override
   String get chapterProgressOnSubtitleIos =>
-      'On - lock screen & CarPlay show chapter progress';
+      'Вкл. - блокировка экрана и CarPlay покажут прогресс главы';
 
   @override
-  String get speedBookmarkInControls => 'Speed & bookmark in media controls';
+  String get speedBookmarkInControls =>
+      'Скорость и закладки в панели управления медиа';
 
   @override
   String get speedBookmarkOnSubtitle =>
-      'On - notification shows speed & bookmark; chapter skip stays in Android Auto';
+      'Вкл. - уведомление покажет скорость и закладку; в Android Auto переключатели глав';
 
   @override
   String get speedBookmarkOffSubtitle =>
-      'Off - notification shows chapter skip; speed & bookmark stay in Android Auto';
+      'Выкл. - в уведомлении переключатели глав; в Android Auto скорость и закладка';
 
   @override
-  String get lockSeekBar => 'Lock the seek bar';
+  String get lockSeekBar => 'Заблокировать ползунок на панели';
 
   @override
   String get lockSeekBarOnSubtitle =>
-      'On - the scrubber in the notification, lockscreen and car shows progress but can\'t be dragged';
+      'Вкл. - уведомление покажет прогресс, на экране блокировки и Android Auto, но ползунок переместить невозможно';
 
   @override
   String get lockSeekBarOffSubtitle =>
-      'Off - drag the scrubber in the notification, lockscreen and car to jump around';
+      'Выкл. - ползунок прогресса перемещается в уведомлении, на экране блокировки и Android Auto';
 
   @override
   String get autoRewindOnResume => 'Auto-rewind on resume';
@@ -6207,35 +6208,35 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chapterTimeHintSeconds => 'Seconds';
 
   @override
-  String get chapterTimeHintFull => 'HH:MM:SS or seconds';
+  String get chapterTimeHintFull => 'ЧЧ:ММ:СС или секунд';
 
   @override
-  String get chapterInvalidTime => 'Invalid time';
+  String get chapterInvalidTime => 'Неверное время';
 
   @override
-  String get chapterLocked => 'Chapter is locked';
+  String get chapterLocked => 'Глава заблокирована';
 
   @override
-  String get chapterAllLocked => 'All chapters are locked';
+  String get chapterAllLocked => 'Все главы заблокированы';
 
   @override
   String chapterTrackTitle(int number) {
-    return 'Track $number';
+    return 'Трек $number';
   }
 
   @override
-  String get chapterNoAudioForPosition => 'No audio for this position';
+  String get chapterNoAudioForPosition => 'Для этой позиции нет аудио';
 
   @override
-  String get chapterCouldNotPlayPreview => 'Could not play preview';
+  String get chapterCouldNotPlayPreview => 'Предпросмотр не удался';
 
   @override
   String chapterStartSetTo(String time) {
-    return 'Start set to $time';
+    return 'Начало установлено на $time';
   }
 
   @override
-  String get chapterAddNumberedTitle => 'Add numbered chapters';
+  String get chapterAddNumberedTitle => 'Добавить нумерацию глав';
 
   @override
   String chapterNextPreview(String first, String second) {
@@ -6368,98 +6369,100 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chapterNoChaptersFound => 'No chapters found for that ASIN';
 
   @override
-  String get chapterRemoveBranding => 'Remove Audible branding (intro/outro)';
+  String get chapterRemoveBranding =>
+      'Удалить брендинг Audible (вступление/заключение)';
 
   @override
   String chapterFoundCount(int count) {
-    return '$count chapters found';
+    return '$count Глав найдено';
   }
 
   @override
   String chapterAudibleVsBook(String audible, String book) {
-    return 'Audible $audible  -  Book $book';
+    return 'Audible $audible  -  Книга $book';
   }
 
   @override
   String get chapterAudibleLonger =>
-      'The Audible version is longer than your file - later chapters may not line up.';
+      'Версия Audible длиннее вашего файла - более поздние главы могут не совпадать.';
 
   @override
   String get chapterAudibleShorter =>
-      'The Audible version is shorter than your file - chapters may not line up.';
+      'Версия Audible короче, чем ваш файл - главы могут не совпадать.';
 
   @override
-  String get chapterTitlesOnly => 'Titles only';
+  String get chapterTitlesOnly => 'Только заголовки';
 
   @override
-  String get chapterApplyChapters => 'Apply chapters';
+  String get chapterApplyChapters => 'Применить главы';
 
   @override
-  String get coverSearchTitle => 'Search for a cover';
+  String get coverSearchTitle => 'Поиск обложек';
 
   @override
   String get coverSearchRefineHint =>
-      'Refine the title/author to clean up results - this does not change the book.';
+      'Уточните название/автор для очистки результата - это не меняет книгу.';
 
   @override
-  String get coverNoneFound => 'No covers found';
+  String get coverNoneFound => 'Обложки не найдены';
 
   @override
-  String get coverEnterTitleFirst => 'Enter a title first';
+  String get coverEnterTitleFirst => 'Введите сначала название';
 
   @override
-  String get coverUpdated => 'Cover updated';
+  String get coverUpdated => 'Обложка обновлена';
 
   @override
-  String get coverCouldNotUpdate => 'Could not update cover';
+  String get coverCouldNotUpdate => 'Не удается обновить обложку';
 
   @override
-  String get coverApply => 'Apply cover';
+  String get coverApply => 'Применить обложку';
 
   @override
-  String get coverUnknownResolution => 'Unknown resolution';
+  String get coverUnknownResolution => 'Неизвестное разрешение';
 
   @override
   String get embedIntro =>
-      'Embed metadata into audio files including cover image and chapters.';
+      'Вставить метаданные в аудио файлы, включая обложку и главы.';
 
   @override
-  String get embedBackupOption => 'Back up audio files first';
+  String get embedBackupOption =>
+      'Сначала сделайте резервную копию аудио файлов';
 
   @override
   String get embedNoteInFolder =>
-      'Metadata will be embedded in the audio tracks inside your audiobook folder.';
+      'Метаданные будут встроены в аудиофайлы в папку аудиокниг.';
 
   @override
   String get embedNoteMultiTrack =>
-      'Chapters are not embedded in multi-track audiobooks.';
+      'Главы не встроить в мульти-трековые аудиокниги.';
 
   @override
   String get embedNoteNavigateAway =>
-      'Once the task is started you can navigate away from this page.';
+      'После запуска задачи вы можете уйти с этой страницы.';
 
   @override
-  String get embedStartButton => 'Start Metadata Embed';
+  String get embedStartButton => 'Запустить вставку метаданных';
 
   @override
   String embedProgress(String percent) {
-    return 'Embedding $percent%';
+    return 'Встраивание $percent%';
   }
 
   @override
-  String get embedProgressIndeterminate => 'Embedding...';
+  String get embedProgressIndeterminate => 'Встраивание...';
 
   @override
   String taskProgressKeepsRunning(String percent) {
-    return '$percent% - keeps running if you leave this page';
+    return '$percent% - продолжит запуск, если вы покинете эту страницу';
   }
 
   @override
-  String get taskStarting => 'Starting...';
+  String get taskStarting => 'Запуск...';
 
   @override
   String get embedBackupNoteIntro =>
-      'A backup of your original audio files will be stored on the server in ';
+      'Резервная копия ваших оригинальных аудиофайлов будет сохранена на сервере в ';
 
   @override
   String embedBackupNotePath(String itemId) {
@@ -6467,11 +6470,10 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get embedBackupNoteOutro =>
-      '. Make sure to periodically purge the items cache.';
+  String get embedBackupNoteOutro => '. Периодически очищайте кэш элементов.';
 
   @override
-  String get embedDialogTitle => 'Embed metadata';
+  String get embedDialogTitle => 'Встроенные метаданные';
 
   @override
   String embedConfirmMessage(int count, String backup) {
@@ -6481,183 +6483,183 @@ class AppLocalizationsRu extends AppLocalizations {
       other: '# audio files',
       one: '# audio file',
     );
-    return 'Embed metadata into $_temp0? Your audio files will be rewritten$backup.';
+    return 'Встроить метаданные в $_temp0? Аудиофайлы будут перезаписаны$backup.';
   }
 
   @override
-  String get embedConfirmBackupClause => ' (originals backed up first)';
+  String get embedConfirmBackupClause => ' (оригиналы резервных копий сначала)';
 
   @override
-  String get embedConfirmAction => 'Embed';
+  String get embedConfirmAction => 'Встроить';
 
   @override
-  String get embedCouldNotStart => 'Could not start embed';
+  String get embedCouldNotStart => 'Невозможно начать вставку';
 
   @override
-  String get embedStarted => 'Embed started';
+  String get embedStarted => 'Встраивание начато';
 
   @override
-  String get embedComplete => 'Embed complete';
+  String get embedComplete => 'Встраивание завершено';
 
   @override
-  String get embedFailed => 'Embed failed';
+  String get embedFailed => 'Не удалось встроить';
 
   @override
-  String get encodeComplete => 'Encode complete';
+  String get encodeComplete => 'Кодирование завершено';
 
   @override
-  String get encodeFailedTask => 'Encode failed';
+  String get encodeFailedTask => 'Ошибка кодирования';
 
   @override
   String encodeProgress(String percent) {
-    return 'Encoding $percent%';
+    return 'Кодирование $percent%';
   }
 
   @override
-  String get encodeProgressIndeterminate => 'Encoding...';
+  String get encodeProgressIndeterminate => 'Кодирование...';
 
   @override
-  String get adminApiKeys => 'API Keys';
+  String get adminApiKeys => 'API-ключи';
 
   @override
-  String get adminApiKeysSubtitle => 'Programmatic access tokens';
+  String get adminApiKeysSubtitle => 'Программные токены доступа';
 
   @override
-  String get adminApiKeysNewTitle => 'New API Key';
+  String get adminApiKeysNewTitle => 'Новый API-ключ';
 
   @override
-  String get adminApiKeysName => 'Name';
+  String get adminApiKeysName => 'Название';
 
   @override
-  String get adminApiKeysNameHint => 'e.g. Home Assistant';
+  String get adminApiKeysNameHint => 'например Home Assistant';
 
   @override
-  String get adminApiKeysOwner => 'User';
+  String get adminApiKeysOwner => 'Пользователь';
 
   @override
-  String get adminApiKeysExpiration => 'Expiration';
+  String get adminApiKeysExpiration => 'Срок действия';
 
   @override
-  String get adminApiKeysActive => 'Active';
+  String get adminApiKeysActive => 'Активный';
 
   @override
-  String get adminApiKeysActiveSub => 'Key works as soon as it\'s created';
+  String get adminApiKeysActiveSub => 'Ключ работает сразу же после создания';
 
   @override
-  String get adminApiKeysInactive => 'Inactive';
+  String get adminApiKeysInactive => 'Неактивен';
 
   @override
-  String get adminApiKeysExpired => 'Expired';
+  String get adminApiKeysExpired => 'Истек срок';
 
   @override
-  String get adminApiKeysCreate => 'Create Key';
+  String get adminApiKeysCreate => 'Создать ключ';
 
   @override
-  String get adminApiKeysCreated => 'API key created';
+  String get adminApiKeysCreated => 'API-ключ создан';
 
   @override
-  String get adminApiKeysTokenLabel => 'Your new API key';
+  String get adminApiKeysTokenLabel => 'Ваш новый API-ключ';
 
   @override
   String get adminApiKeysCopyWarning =>
-      'Copy this key now. For security it won\'t be shown again.';
+      'Скопируйте этот ключ сейчас. Для безопасности он не будет показан снова.';
 
   @override
-  String get adminApiKeysCopy => 'Copy';
+  String get adminApiKeysCopy => 'Копировать';
 
   @override
-  String get adminApiKeysCopied => 'Copied to clipboard';
+  String get adminApiKeysCopied => 'Скопирован в буфер обмена';
 
   @override
-  String get adminApiKeysDone => 'Done';
+  String get adminApiKeysDone => 'Готово';
 
   @override
-  String get adminApiKeysDeleteTitle => 'Revoke API key?';
+  String get adminApiKeysDeleteTitle => 'Отозвать API-ключ?';
 
   @override
-  String get adminApiKeysDeleted => 'API key revoked';
+  String get adminApiKeysDeleted => 'API-ключ отозван';
 
   @override
-  String get adminApiKeysRevoke => 'Revoke';
+  String get adminApiKeysRevoke => 'Отозвать';
 
   @override
-  String get adminApiKeysSetActive => 'Set active';
+  String get adminApiKeysSetActive => 'Активировать';
 
   @override
-  String get adminApiKeysSetInactive => 'Set inactive';
+  String get adminApiKeysSetInactive => 'Деактивировать';
 
   @override
-  String get adminApiKeysFailedCreate => 'Couldn\'t create API key';
+  String get adminApiKeysFailedCreate => 'Не удалось создать API-ключ';
 
   @override
-  String get adminApiKeysFailedDelete => 'Couldn\'t revoke API key';
+  String get adminApiKeysFailedDelete => 'Не удалось отозвать API ключ';
 
   @override
-  String get adminApiKeysFailedUpdate => 'Couldn\'t update API key';
+  String get adminApiKeysFailedUpdate => 'Не удалось обновить API-ключ';
 
   @override
-  String get adminApiKeysEmpty => 'No API keys yet';
+  String get adminApiKeysEmpty => 'API-ключей еще нет';
 
   @override
   String get adminApiKeysEmptySub =>
-      'Create one to let apps and scripts reach your server';
+      'Создайте, чтобы приложения и скрипты дошли до вашего сервера';
 
   @override
-  String get adminApiKeysNeverUsed => 'Never used';
+  String get adminApiKeysNeverUsed => 'Не использовался';
 
   @override
-  String get adminApiKeysNeverExpires => 'No expiration';
+  String get adminApiKeysNeverExpires => 'Без срока действия';
 
   @override
-  String get adminApiKeysNameRequired => 'Enter a name';
+  String get adminApiKeysNameRequired => 'Введите имя';
 
   @override
-  String get adminApiKeysUserRequired => 'Pick a user';
+  String get adminApiKeysUserRequired => 'Выберите пользователя';
 
   @override
-  String get adminApiKeysExpNever => 'Never';
+  String get adminApiKeysExpNever => 'Не ограничен';
 
   @override
-  String get adminApiKeysExp7d => '7 days';
+  String get adminApiKeysExp7d => '7 дней';
 
   @override
-  String get adminApiKeysExp30d => '30 days';
+  String get adminApiKeysExp30d => '30 дней';
 
   @override
-  String get adminApiKeysExp90d => '90 days';
+  String get adminApiKeysExp90d => '90 дней';
 
   @override
-  String get adminApiKeysExp1y => '1 year';
+  String get adminApiKeysExp1y => '1 год';
 
   @override
   String adminApiKeysLastUsed(String time) {
-    return 'Last used $time';
+    return 'Последнее использование $time';
   }
 
   @override
   String adminApiKeysExpiresOn(String date) {
-    return 'Expires $date';
+    return 'Истекает $date';
   }
 
   @override
   String adminApiKeysDeleteContent(String name) {
-    return 'Revoke \"$name\"? Apps using this key will lose access immediately.';
+    return 'Отозвать \"$name\"? Приложения с этим ключом немедленно потеряют доступ.';
   }
 
   @override
-  String get endOfEpisode => 'End of Episode';
+  String get endOfEpisode => 'Окончание серии';
 
   @override
-  String get sleepTimerSheetEpisodeSleepStart => 'Sleep at end of episode';
+  String get sleepTimerSheetEpisodeSleepStart => 'Сон в конце серии';
 
   @override
-  String get bookmarkListen => 'Listen';
+  String get bookmarkListen => 'Прослушать';
 
   @override
-  String get bookmarkPause => 'Pause';
+  String get bookmarkPause => 'Пауза';
 
   @override
-  String get bookmarkPreviewFailed => 'Couldn\'t play this spot.';
+  String get bookmarkPreviewFailed => 'Не удалось воспроизвести это место.';
 
   @override
   String get clipExport => 'Export clip';

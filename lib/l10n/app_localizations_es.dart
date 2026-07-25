@@ -9,156 +9,158 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
-  String get appTitle => 'A B S O R B';
+  String get appTitle => 'A B O R B';
 
   @override
-  String get online => 'Online';
+  String get online => 'En línea';
 
   @override
-  String get offline => 'Offline';
+  String get offline => 'Sin conexión';
 
   @override
-  String get stillOffline => 'Still offline. Tap to try again.';
+  String get stillOffline => 'Aún sin conexión. Toca para intentarlo de nuevo.';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Reintentar';
 
   @override
-  String get cancel => 'Cancel';
+  String get cancel => 'Cancelar';
 
   @override
-  String get delete => 'Delete';
+  String get delete => 'Borrar';
 
   @override
-  String get remove => 'Remove';
+  String get remove => 'Eliminar';
 
   @override
-  String get save => 'Save';
+  String get save => 'Guardar';
 
   @override
-  String get done => 'Done';
+  String get done => 'Completado';
 
   @override
-  String get edit => 'Edit';
+  String get edit => 'Editar';
 
   @override
-  String get search => 'Search';
+  String get search => 'Buscar';
 
   @override
-  String get apply => 'Apply';
+  String get apply => 'Aplicar';
 
   @override
-  String get enable => 'Enable';
+  String get enable => 'Activar';
 
   @override
-  String get clear => 'Clear';
+  String get clear => 'Limpiar';
 
   @override
-  String get off => 'Off';
+  String get off => 'Apagado';
 
   @override
-  String get disabled => 'Disabled';
+  String get disabled => 'Desactivado';
 
   @override
-  String get later => 'Later';
+  String get later => 'Después';
 
   @override
-  String get gotIt => 'Got it';
+  String get gotIt => 'Entendido';
 
   @override
-  String get preview => 'Preview';
+  String get preview => 'Vista previa';
 
   @override
-  String get or => 'or';
+  String get or => 'o';
 
   @override
-  String get file => 'File';
+  String get file => 'Archivo';
 
   @override
-  String get more => 'More';
+  String get more => 'Más';
 
   @override
-  String get unknown => 'Unknown';
+  String get unknown => 'Desconocido';
 
   @override
-  String get untitled => 'Untitled';
+  String get untitled => 'Sin título';
 
   @override
-  String get noThanks => 'No Thanks';
+  String get noThanks => 'No, gracias';
 
   @override
-  String get stay => 'Stay';
+  String get stay => 'Permanecer';
 
   @override
-  String get homeTitle => 'Home';
+  String get homeTitle => 'Inicio';
 
   @override
-  String get continueListening => 'Continue Listening';
+  String get continueListening => 'Continuar escuchando';
 
   @override
-  String get continueSeries => 'Continue Series';
+  String get continueSeries => 'Continuar Serie';
 
   @override
-  String get recentlyAdded => 'Recently Added';
+  String get recentlyAdded => 'Agregado recientemente';
 
   @override
-  String get listenAgain => 'Listen Again';
+  String get listenAgain => 'Volver a escuchar';
 
   @override
-  String get discover => 'Discover';
+  String get discover => 'Descubrir';
 
   @override
-  String get newEpisodes => 'New Episodes';
+  String get newEpisodes => 'Nuevos Episodios';
 
   @override
-  String get downloads => 'Downloads';
+  String get downloads => 'Descargas';
 
   @override
-  String get noDownloadedBooks => 'No downloaded books';
+  String get noDownloadedBooks => 'No hay libros descargados';
 
   @override
-  String get yourLibraryIsEmpty => 'Your library is empty';
+  String get yourLibraryIsEmpty => 'Tu biblioteca está vacía';
 
   @override
   String get downloadBooksWhileOnline =>
-      'Download books while online to listen offline';
+      'Descargar libros mientras estás conectado para escuchar sin conexión';
 
   @override
-  String get customizeHome => 'Customize Home';
+  String get customizeHome => 'Personalizar inicio';
 
   @override
-  String get dragToReorderTapEye => 'Drag to reorder, tap eye to show/hide';
+  String get dragToReorderTapEye =>
+      'Arrastra para reordenar, toca el ojo para mostrar/ocultar';
 
   @override
   String get loginTagline => 'Start Absorbing';
 
   @override
-  String get loginConnectToServer => 'Connect to your server';
+  String get loginConnectToServer => 'Conectar a tu servidor';
 
   @override
-  String get loginServerAddress => 'Server address';
+  String get loginServerAddress => 'Dirección del servidor';
 
   @override
-  String get loginServerHint => 'my.server.com';
+  String get loginServerHint => 'mi.servidor.com';
 
   @override
-  String get loginServerHelper => 'IP:port works too (e.g. 192.168.1.5:13378)';
+  String get loginServerHelper =>
+      'IP con un puerto funciona también (por ejemplo, 192.168.1.5:13378)';
 
   @override
-  String get loginCouldNotReachServer => 'Could not reach server';
+  String get loginCouldNotReachServer => 'No se pudo acceder al servidor';
 
   @override
-  String get loginAdvanced => 'Advanced';
+  String get loginAdvanced => 'Avanzado';
 
   @override
-  String get loginCustomHttpHeaders => 'Custom HTTP Headers';
+  String get loginCustomHttpHeaders => 'Encabezados HTTP personalizados';
 
   @override
   String get loginCustomHeadersDescription =>
-      'For Cloudflare tunnels or reverse proxies that require extra headers. Add headers before entering your server URL.';
+      'Para túneles de Cloudflare o proxies inversos que requieren encabezados extra. Agrega encabezados antes de ingresar la URL de su servidor.';
 
   @override
-  String get loginHeaderName => 'Header name';
+  String get loginHeaderName => 'Nombre del encabezado';
 
   @override
   String get loginHeaderValue => 'Value';
