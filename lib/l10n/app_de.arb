@@ -142,6 +142,21 @@
     }
   },
   "setupLinkConfirmTitle": "Mit diesem Link anmelden?",
+  "setupLinkConfirmBody": "Bei {server} als {username} anmelden? Fahre nur fort, wenn du diesem Link vertraust.",
+  "@setupLinkConfirmBody": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      },
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkInvalid": "Dieser Anmelde-Link ist ungültig oder unvollständig",
+  "setupLinkSigningIn": "Anmelde-Link wird überprüft...",
+  "loginPasteLink": "Anmelde-Link einfügen",
+  "loginPasteLinkHelp": "Füge den vollständigen Anmelde-Link ein, den du erhalten hast. Behandle ihn wie ein Passwort.",
   "loginFailed": "Anmeldung fehlgeschlagen",
   "loginSsoFailed": "SSO-Anmeldung fehlgeschlagen oder abgebrochen",
   "loginSsoAuthFailed": "SSO-Authentifizierung fehlgeschlagen. Bitte versuche es erneut.",
@@ -185,12 +200,15 @@
   "libraryTabAuthors": "Autoren",
   "libraryTabNarrators": "Sprecher",
   "libraryNoBooks": "Keine Bücher gefunden",
+  "libraryNoUnfinishedBooks": "Keine unerledigten Bücher",
   "libraryNoBooksInProgress": "Keine angefangenen Bücher",
   "libraryNoFinishedBooks": "Keine beendeten Bücher",
   "libraryAllBooksStarted": "Alle Bücher wurden begonnen",
   "libraryNoDownloadedBooks": "Keine heruntergeladenen Bücher",
   "libraryNoSeriesFound": "Keine Serien gefunden",
   "libraryNoBooksWithEbooks": "Keine Bücher mit eBooks",
+  "libraryNoBooksMissingMetadata": "Diese Metadaten fehlen in keinem Buch",
+  "libraryNoItemsMatchingFilter": "Keine Elemente entsprechen diesem Filter",
   "libraryNoBooksInGenre": "Keine Bücher in \"{genre}\"",
   "@libraryNoBooksInGenre": {
     "placeholders": {
@@ -265,11 +283,26 @@
   "duration": "Dauer",
   "random": "Zufällig",
   "collapseSeries": "Serien zusammenklappen",
+  "notFinished": "Unerledigt",
   "inProgress": "Angefangen",
   "filterFinished": "Beendet",
   "notStarted": "Nicht begonnen",
   "downloaded": "Heruntergeladen",
   "hasEbook": "Mit eBook",
+  "noEbook": "Kein eBook",
+  "hasSupplementaryEbook": "Hat ergänzendes eBook",
+  "noSupplementaryEbook": "Kein ergänzendes eBook",
+  "noSeries": "Keine Reihe",
+  "publishedDecade": "Veröffentlichtes Jahrzehnt",
+  "tracks": "Titel",
+  "noTracks": "Keine Titel",
+  "singleTrack": "Einzelner Titel",
+  "multipleTracks": "Mehrere Titel",
+  "abridged": "Gekürzt",
+  "issues": "Probleme",
+  "rssFeedOpen": "RSS-Feed geöffnet",
+  "explicitContent": "Explizit",
+  "missingMetadata": "Fehlende Metadaten",
   "genre": "Genre",
   "tag": "Schlagwort",
   "clearFilter": "Filter zurücksetzen",
@@ -277,6 +310,17 @@
   "noTagsFound": "Keine Schlagwörter gefunden",
   "asc": "AUF",
   "desc": "AB",
+  "fileSize": "Dateigröße",
+  "lastUpdated": "Zuletzt aktualisiert",
+  "fileCreated": "Datei erstellt",
+  "lastModified": "Zuletzt geändert",
+  "authorFirstLast": "Autor (Erster Letzter)",
+  "authorLastFirst": "Autor (Letzter, Erster)",
+  "progressSort": "Fortschritt",
+  "dateStarted": "Startdatum",
+  "dateFinished": "Abschlussdatum",
+  "episodeCount": "Anzahl Folgen",
+  "sequence": "Reihe-Reihenfolge",
   "absorbingTitle": "Absorbing",
   "absorbingStop": "Stopp",
   "absorbingManageQueue": "Warteschlange verwalten",
@@ -401,6 +445,7 @@
   "statsTotalListeningTime": "GESAMTE HÖRZEIT",
   "statsHoursUnit": "h",
   "statsMinutesUnit": "m",
+  "statsSecondsUnit": "s",
   "statsDaysOfAudio": "Das sind {days} Tage Audio",
   "@statsDaysOfAudio": {
     "placeholders": {
@@ -1134,6 +1179,31 @@
   "tipsAndHiddenFeatures": "Tipps & versteckte Funktionen",
   "tipsSubtitle": "Hol das Beste aus Absorb heraus",
   "adminTitle": "Server-Admin",
+  "adminTasksTitle": "Server-Aktivität",
+  "adminTasksRunning": "{count, plural, one {}=1{1 Aufgabe läuft} other{{count} Aufgaben laufen}}",
+  "@adminTasksRunning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTasksRecent": "Letzte Server-Aktivität",
+  "adminTasksEmpty": "Es laufen keine Server-Aufgaben",
+  "adminTaskScanSummary": "{added} hinzugefügt - {updated} aktualisiert - {missing} fehlen",
+  "@adminTaskScanSummary": {
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "missing": {
+        "type": "int"
+      }
+    }
+  },
   "adminServer": "Server",
   "adminVersion": "Version",
   "adminUsers": "Benutzer",
@@ -1415,6 +1485,10 @@
   "bookmarkAdded": "Lesezeichen hinzugefügt",
   "startPlayingSomethingFirst": "Spiele zuerst etwas ab",
   "playbackHistory": "Wiedergabeverlauf",
+  "historyLocalTab": "Verlauf",
+  "historyServerTab": "Sitzungen",
+  "historyNoServerSessions": "Noch keine Serversitzungen für dieses Element",
+  "historyServerLoadFailed": "Serversitzungen konnten nicht geladen werden",
   "clearHistoryTooltip": "Verlauf löschen",
   "tapEventToJump": "Tippe auf ein Ereignis, um zu dieser Position zu springen",
   "noHistoryYet": "Noch kein Verlauf",
@@ -1484,6 +1558,7 @@
   "castingTo": "Cast an",
   "editDetails": "Details bearbeiten",
   "quickMatch": "Schnellabgleich",
+  "quickMatchNoUpdates": "Keine Aktualisierungen erforderlich",
   "custom": "Benutzerdefiniert",
   "authorOptionalLabel": "Autor (optional)",
   "noResultsFound": "Keine Ergebnisse gefunden.\nPasse deine Suche oder den Anbieter an.",
@@ -2256,6 +2331,14 @@
   "adminPodcastsCouldNotFindFeed": "Podcast-Feed nicht gefunden",
   "adminPodcastsSearchHint": "Podcasts suchen…",
   "adminPodcastsSearchItunesHint": "iTunes durchsuchen...",
+  "adminPodcastsSearchItunesFor": "Durchsuche iTunes nach \"{query}\"",
+  "@adminPodcastsSearchItunesFor": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "adminPodcastsNoPodcastsFound": "Keine Podcasts gefunden",
   "adminPodcastsRelToday": "Heute",
   "adminPodcastsWeeksAgo": "vor {count} Wo.",
@@ -2541,6 +2624,7 @@
   "episodeListSubscribe": "Abonnieren",
   "episodeListShowFinishedEpisodes": "Beendete Episoden anzeigen",
   "episodeListHideFinishedEpisodes": "Beendete Episoden ausblenden",
+  "episodeListShowSettings": "Serien Einstellungen",
   "episodeListPlaysNewerToOlder": "Spielt von neueren zu älteren Episoden",
   "episodeListPlaysOlderToNewer": "Spielt von älteren zu neueren Episoden",
   "episodeListEpisodeCount": "{count, plural, =1{1 Episode} other{{count} Episoden}}",
@@ -2782,6 +2866,21 @@
   "statsScreenListened": "Gehört",
   "sessionEditTitle": "Sitzung bearbeiten",
   "sessionDayLabel": "Tag",
+  "sessionEndPosition": "Endposition",
+  "sessionEndPositionHint": "Dies zu ändern kann auch deinen aktuellen Fortschritt aktualisieren.",
+  "statsViewSessions": "Sitzungen anzeigen",
+  "statsSessionsForDate": "Sitzungen für {date}",
+  "@statsSessionsForDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "statsNoSessionsForDate": "Keine Hörsitzungen für diesen Tag gefunden",
+  "statsSearchSessions": "Sitzungen durchsuchen",
+  "statsNoSessionSearchResults": "Keine Sitzungen entsprechen deiner Suche",
+  "statsSessionsLoadFailed": "Sitzungen für diesen Tag konnten nicht geladen werden",
   "sessionDeleteConfirmTitle": "Sitzung löschen?",
   "sessionDeleteConfirmBody": "Dies entfernt die Sitzung und senkt die Hörstatistik um deren Zeit. Es kann nicht rückgängig gemacht werden.",
   "sessionSaved": "Sitzung aktualisiert",
@@ -3937,6 +4036,79 @@
   "fsUseThisFolder": "Diesen Ordner verwenden",
   "adminLibrariesManage": "Bibliotheken",
   "adminLibrariesManageSubtitle": "Erstellen, bearbeiten und umsortieren",
+  "adminUploadTitle": "Medien Hochladen",
+  "adminUploadSubtitle": "Bücher und Podcasts aus Dateien hinzufügen",
+  "adminUploadNoLibraries": "Erstelle eine Bibliothek, bevor du die Medien hochlädst.",
+  "adminUploadDestination": "Ziel",
+  "adminUploadFolder": "Bibliotheksordner",
+  "adminUploadDetails": "Eintrag-Details",
+  "adminUploadOptional": "Optional",
+  "adminUploadAutoMetadata": "Metadaten automatisch abrufen",
+  "adminUploadAutoMetadataSubtitle": "Titel, Autor und Reihe aus der besten Übereinstimmung übernehmen",
+  "adminUploadMetadataProvider": "Metadaten-Anbieter",
+  "adminUploadMetadataSearching": "Suche nach Metadaten...",
+  "adminUploadMetadataNoResults": "Keine Metadaten gefunden. Du kannst dieses Element trotzdem hochladen.",
+  "adminUploadMetadataFailed": "Konnte nicht nach Metadaten suchen. Du kannst dieses Element trotzdem hochladen.",
+  "adminUploadDestinationPreview": "Server Ziel",
+  "adminUploadFiles": "Dateien",
+  "adminUploadSelectedFiles": "{count, plural, one {}=1{1 Datei} other{{count} Dateien}}",
+  "@adminUploadSelectedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUploadChooseFiles": "Datei auswählen",
+  "adminUploadAddFiles": "Dateien hinzufügen",
+  "adminUploadBookFilesHint": "Wähle Audio- oder eBook-Dateien. Du kannst auch Cover- und Metadatendateien einbinden.",
+  "adminUploadPodcastFilesHint": "Wähle eine oder mehrere Audiodateien. Du kannst auch Cover- und Metadatendateien einfügen.",
+  "adminUploadUnsupportedFiles": "Einige der ausgewählten Dateien werden von Audiobookshelf nicht unterstützt.",
+  "adminUploadFilePickerFailed": "Konnte die gewählten Dateien nicht öffnen.",
+  "adminUploadTitleRequired": "Titel eingeben",
+  "adminUploadLibraryRequired": "Wähle eine Bibliothek",
+  "adminUploadFolderRequired": "Wähle einen Bibliotheksordner",
+  "adminUploadFilesRequired": "Mindestens eine Datei auswählen",
+  "adminUploadPodcastFileRequired": "Wähle mindestens eine Audiodatei für diesen Podcast.",
+  "adminUploadBookFileRequired": "Wähle mindestens eine Audio- oder eBook-Datei für dieses Buch.",
+  "adminUploadPathCheckFailed": "Der Zielordner konnte nicht überprüft werden. Es wurde nichts hochgeladen.",
+  "adminUploadDestinationExists": "Dieser Zielordner existiert bereits auf dem Server.",
+  "adminUploadDestinationUsedBy": "Dieses Ziel wird bereits von \"{title}\" verwendet.",
+  "@adminUploadDestinationUsedBy": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUploadUploading": "Wird hochgeladen...",
+  "adminUploadProgress": "Fortschritt beim Hochladen: {percent} %",
+  "@adminUploadProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUploadButton": "Hochladen",
+  "adminUploadComplete": "\"{title}\" hochgeladen",
+  "@adminUploadComplete": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUploadFailed": "Hochladen fehlgeschlagen",
+  "adminUploadFailedReason": "Hochladen fehlgeschlagen: {error}",
+  "@adminUploadFailedReason": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUploadReselectFiles": "Wähle die Dateien erneut aus, bevor du es wieder versuchst.",
   "adminServerSettings": "Servereinstellungen",
   "adminServerSettingsSubtitle": "Scanner, Speicher und Sortierung",
   "adminStats": "Statistiken",
