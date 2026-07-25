@@ -80,7 +80,19 @@
       }
     }
   },
+  "adminCreateSetupFile": "Anmeldung teilen",
+  "adminSetupFileDescription": "Erstellt einen privaten Anmelde-Link für {username}, der nur in der Absorb-App funktioniert.",
+  "@adminSetupFileDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "adminSetupFileServerUrl": "Server-URL, die der neue Benutzer verwenden wird",
+  "adminSetupFileNoteWithHeaders": "Ein API-Key und die benutzerdefinierten Header werden mit eingeschlossen, um die Anmeldung auf dem Server zu ermöglichen. Behandle den Link wie ein Passwort.",
+  "adminSetupFileNote": "Ein spezieller API-Schlüssel wird hinzugefügt. Behandle den Link wie ein Passwort.",
+  "adminSetupFileCreate": "Link erstellen",
   "adminSetupFileSaveTitle": "Setup Datei speichern",
   "adminSetupFileKeyError": "Für diesen Benutzer konnte kein API Key erstellt werden",
   "adminSetupFileSaved": "Setup-Datei für {username} gespeichert",
@@ -91,6 +103,45 @@
       }
     }
   },
+  "adminSetupFileFailed": "Fehler beim Erstellen der Anmeldung: {error}",
+  "@adminSetupFileFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkShareTitle": "Anmeldung teilen",
+  "setupLinkShareDescription": "Versende diesen privaten Link oder lasse den QR Code scannen, um eine Anmeldung als {username} zu ermöglichen.",
+  "@setupLinkShareDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkPrivateWarning": "Jeder mit diesem Link kann sich als {username} anmelden. Behandle ihn wie ein Passwort.",
+  "@setupLinkPrivateWarning": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkShare": "Link teilen",
+  "setupLinkCopy": "Link kopieren",
+  "setupLinkCopied": "Anmelde-Link kopiert",
+  "setupLinkSaveFile": "Setup Datei speichern",
+  "setupLinkQrError": "Dieser Setup-Link ist zu groß für einen QR-Code. Teile stattdessen den Link.",
+  "setupLinkShareSubject": "Absorb Anmeldung für {username}",
+  "@setupLinkShareSubject": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkConfirmTitle": "Mit diesem Link anmelden?",
   "loginFailed": "Anmeldung fehlgeschlagen",
   "loginSsoFailed": "SSO-Anmeldung fehlgeschlagen oder abgebrochen",
   "loginSsoAuthFailed": "SSO-Authentifizierung fehlgeschlagen. Bitte versuche es erneut.",
