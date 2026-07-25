@@ -2708,7 +2708,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editServerDetails => 'Server-Details bearbeiten';
 
   @override
-  String get encodeTab => 'Verschlüsseln';
+  String get encodeTab => 'Kodieren';
 
   @override
   String get codec => 'Codec';
@@ -3260,7 +3260,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get welcomeAbsorbingIntro =>
-      'Wir verwenden \"Absorb\" anstelle von \"abspielen\" und \"hören\".';
+      'Wir verwenden \"Absorb\" anstelle von \"abspielen\" und \"hören\". Du bevorzugst die klassischen Begriffe? Das kannst du in den Einstellungen umstellen.';
 
   @override
   String get welcomeAbsorbingTabBullet => 'Absorbing-Tab - was du gerade hörst';
