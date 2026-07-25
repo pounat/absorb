@@ -7,7 +7,8 @@ import '../l10n/app_localizations.dart';
 import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import 'rmab_book_detail_sheet.dart';
-import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey;
+import 'rmab_config_sheet.dart'
+    show kRmabBaseUrlKey, kRmabApiTokenKey, loadRmabCustomHeaders;
 import 'rmab_request_status_chip.dart';
 import 'stackable_sheet.dart';
 
@@ -54,6 +55,7 @@ class _RmabSearchSheetContentState extends State<_RmabSearchSheetContent> {
   bool _loadingPrefs = true;
   String? _baseUrl;
   String? _apiToken;
+  Map<String, String> _customHeaders = const {};
 
   bool _searching = false;
   String? _error;
@@ -72,6 +74,7 @@ class _RmabSearchSheetContentState extends State<_RmabSearchSheetContent> {
   Future<void> _loadCreds() async {
     final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+    final headers = await loadRmabCustomHeaders();
     if (!mounted) return;
     debugPrint('[RMAB] search sheet opened '
         '(initialQuery="${widget.initialQuery}" '
@@ -79,6 +82,7 @@ class _RmabSearchSheetContentState extends State<_RmabSearchSheetContent> {
     setState(() {
       _baseUrl = base;
       _apiToken = token;
+      _customHeaders = headers;
       _loadingPrefs = false;
     });
     if (base != null &&
@@ -126,8 +130,9 @@ class _RmabSearchSheetContentState extends State<_RmabSearchSheetContent> {
       _error = null;
     });
     try {
-      final res =
-          await RmabService(baseUrl: base, apiToken: token).search(query);
+      final res = await RmabService(
+              baseUrl: base, apiToken: token, customHeaders: _customHeaders)
+          .search(query);
       if (!mounted) return;
       // Drop stale results
       if (_controller.text.trim() != query) return;

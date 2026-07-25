@@ -221,6 +221,7 @@ class BackupService {
       'baseUrl': await ScopedPrefs.getString('rmab_base_url'),
       'apiToken': await ScopedPrefs.getString('rmab_api_token'),
       'legacyUrl': await ScopedPrefs.getString('rmab_url'),
+      'customHeaders': await ScopedPrefs.getString('rmab_custom_headers'),
     };
 
     // Home screen layout per library (scoped, keyed by libraryId)
@@ -654,6 +655,10 @@ class BackupService {
       if (apiToken != null) await ScopedPrefs.setString('rmab_api_token', apiToken);
       final legacyUrl = rmab['legacyUrl'] as String?;
       if (legacyUrl != null) await ScopedPrefs.setString('rmab_url', legacyUrl);
+      final customHeaders = rmab['customHeaders'] as String?;
+      if (customHeaders != null) {
+        await ScopedPrefs.setString('rmab_custom_headers', customHeaders);
+      }
     }
 
     // Home screen layout per library (scoped)

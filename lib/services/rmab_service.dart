@@ -13,8 +13,11 @@ import '../l10n/app_localizations.dart';
 ///
 /// See: documentation/backend/services/api-tokens.md in the RMAB repo.
 class RmabService {
-  RmabService({required String baseUrl, required this.apiToken})
-      : baseUrl = _trimTrailingSlash(baseUrl);
+  RmabService({
+    required String baseUrl,
+    required this.apiToken,
+    this.customHeaders = const {},
+  }) : baseUrl = _trimTrailingSlash(baseUrl);
 
   /// Bare RMAB server URL with no trailing slash (e.g. https://rmab.example.com).
   final String baseUrl;
@@ -22,10 +25,15 @@ class RmabService {
   /// `rmab_…` bearer token issued by the RMAB server.
   final String apiToken;
 
+  /// Extra headers sent on every request, for auth proxies in front of RMAB
+  /// (Cloudflare Access service tokens, Authelia bypass headers, etc.).
+  final Map<String, String> customHeaders;
+
   static String _trimTrailingSlash(String s) =>
       s.endsWith('/') ? s.substring(0, s.length - 1) : s;
 
   Map<String, String> get _headers => {
+        ...customHeaders,
         'Authorization': 'Bearer $apiToken',
         'Content-Type': 'application/json',
         'Accept': 'application/json',

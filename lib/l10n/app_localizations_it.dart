@@ -2421,6 +2421,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Paste your auto-login URL so \'Open in browser view\' lands you signed in. Leave blank to use a regular login.';
 
   @override
+  String get rmabConfigHeadersHelp =>
+      'Extra headers sent with every ReadMeABook request, for reverse proxies like Cloudflare Access.';
+
+  @override
   String get rmabConfigConnect => 'Connect';
 
   @override

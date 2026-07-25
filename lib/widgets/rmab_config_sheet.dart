@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,22 @@ import 'stackable_sheet.dart';
 /// ScopedPrefs keys used by the RMAB integration.
 const String kRmabBaseUrlKey = 'rmab_base_url';
 const String kRmabApiTokenKey = 'rmab_api_token';
+
+/// JSON-encoded `Map<String, String>` of extra headers sent on every RMAB
+/// request, for auth proxies (Cloudflare Access, Authelia, etc.).
+const String kRmabCustomHeadersKey = 'rmab_custom_headers';
+
+/// Load the saved RMAB custom headers, or an empty map if none / unparsable.
+Future<Map<String, String>> loadRmabCustomHeaders() async {
+  final raw = await ScopedPrefs.getString(kRmabCustomHeadersKey);
+  if (raw == null || raw.isEmpty) return const {};
+  try {
+    return Map<String, String>.from(jsonDecode(raw) as Map);
+  } catch (e) {
+    debugPrint('[RMAB] failed to parse saved custom headers: $e');
+    return const {};
+  }
+}
 
 /// Legacy single-URL key. Still read so existing WebView-only users keep
 /// working, and so the "Open in browser view" action prefers their
@@ -79,6 +97,9 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
   bool _connecting = false;
   bool _obscureToken = true;
   bool _wasConfigured = false;
+  bool _showHeaders = false;
+  final List<(TextEditingController, TextEditingController)>
+      _headerControllers = [];
   String? _legacyUrl;
   String? _errorText;
   String? _connectedAsName;
@@ -97,6 +118,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final token = await ScopedPrefs.getString(kRmabApiTokenKey);
     final legacy = await ScopedPrefs.getString(kRmabLegacyUrlKey);
+    final headers = await loadRmabCustomHeaders();
 
     // Migration: if the new base URL isn't set but a legacy URL is, try to
     // extract just the origin so the user only needs to paste a token.
@@ -115,6 +137,13 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
       _tokenController.text = token ?? '';
       _legacyUrlController.text = legacy ?? '';
       _legacyUrl = legacy;
+      for (final entry in headers.entries) {
+        _headerControllers.add((
+          TextEditingController(text: entry.key),
+          TextEditingController(text: entry.value),
+        ));
+      }
+      _showHeaders = headers.isNotEmpty;
       _wasConfigured =
           (base ?? '').isNotEmpty && (token ?? '').isNotEmpty;
       _loadingPrefs = false;
@@ -129,7 +158,21 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     _urlFocus.dispose();
     _tokenFocus.dispose();
     _legacyUrlFocus.dispose();
+    for (final (k, v) in _headerControllers) {
+      k.dispose();
+      v.dispose();
+    }
     super.dispose();
+  }
+
+  Map<String, String> _collectHeaders() {
+    final headers = <String, String>{};
+    for (final (keyCtrl, valCtrl) in _headerControllers) {
+      final k = keyCtrl.text.trim();
+      final v = valCtrl.text.trim();
+      if (k.isNotEmpty && v.isNotEmpty) headers[k] = v;
+    }
+    return headers;
   }
 
   Uri? _parseBaseUrl(String raw) {
@@ -170,13 +213,23 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     // empty `?` and `#` in toString(), which then turns appended `/api/...`
     // into a URL fragment that never reaches the server.
     final cleanBase = baseUri.origin;
+    final customHeaders = _collectHeaders();
 
     try {
-      final me =
-          await RmabService(baseUrl: cleanBase, apiToken: token).me();
+      final me = await RmabService(
+        baseUrl: cleanBase,
+        apiToken: token,
+        customHeaders: customHeaders,
+      ).me();
 
       await ScopedPrefs.setString(kRmabBaseUrlKey, cleanBase);
       await ScopedPrefs.setString(kRmabApiTokenKey, token);
+      if (customHeaders.isNotEmpty) {
+        await ScopedPrefs.setString(
+            kRmabCustomHeadersKey, jsonEncode(customHeaders));
+      } else {
+        await ScopedPrefs.remove(kRmabCustomHeadersKey);
+      }
       // Legacy URL handling depends on context:
       //   Admin: respect whatever they typed in the legacy URL field.
       //     Non-empty → save it. Empty → clear it. Gives admins explicit
@@ -251,11 +304,31 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     setState(() => _obscureToken = !_obscureToken);
   }
 
+  void _toggleShowHeaders() {
+    setState(() => _showHeaders = !_showHeaders);
+  }
+
+  void _addHeaderRow() {
+    setState(() {
+      _headerControllers
+          .add((TextEditingController(), TextEditingController()));
+    });
+  }
+
+  void _removeHeaderRow(int i) {
+    setState(() {
+      _headerControllers[i].$1.dispose();
+      _headerControllers[i].$2.dispose();
+      _headerControllers.removeAt(i);
+    });
+  }
+
   Future<void> _disconnect() async {
     debugPrint('[RMAB] disconnect: clearing all rmab_* keys + local cache');
     await ScopedPrefs.remove(kRmabBaseUrlKey);
     await ScopedPrefs.remove(kRmabApiTokenKey);
     await ScopedPrefs.remove(kRmabLegacyUrlKey);
+    await ScopedPrefs.remove(kRmabCustomHeadersKey);
     RmabLocalRequestCache.clear();
     if (!mounted) return;
     Navigator.of(context).pop(const RmabConfigResult(disconnected: true));
@@ -536,6 +609,84 @@ class _SetupForm extends StatelessWidget {
             style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
         ],
+        const SizedBox(height: 14),
+        InkWell(
+          onTap: state._connecting ? null : state._toggleShowHeaders,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(children: [
+              Icon(
+                state._showHeaders
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+                size: 18,
+                color: cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                l.loginCustomHttpHeaders,
+                style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            ]),
+          ),
+        ),
+        if (state._showHeaders) ...[
+          const SizedBox(height: 4),
+          Text(
+            l.rmabConfigHeadersHelp,
+            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          ...state._headerControllers.asMap().entries.map((entry) {
+            final i = entry.key;
+            final (keyCtrl, valCtrl) = entry.value;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: keyCtrl,
+                    enabled: !state._connecting,
+                    autocorrect: false,
+                    decoration: InputDecoration(
+                      hintText: l.loginHeaderName,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: valCtrl,
+                    enabled: !state._connecting,
+                    autocorrect: false,
+                    decoration: InputDecoration(
+                      hintText: l.loginHeaderValue,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close_rounded,
+                      size: 18, color: cs.error.withValues(alpha: 0.8)),
+                  onPressed: state._connecting
+                      ? null
+                      : () => state._removeHeaderRow(i),
+                ),
+              ]),
+            );
+          }),
+          TextButton.icon(
+            onPressed: state._connecting ? null : state._addHeaderRow,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: Text(l.loginAddHeader),
+          ),
+        ],
         if (state._errorText != null) ...[
           const SizedBox(height: 12),
           Row(children: [
@@ -685,6 +836,7 @@ class _MyRequestsTabState extends State<_MyRequestsTab>
     debugPrint('[RMAB] my-requests tab fetching');
     final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+    final headers = await loadRmabCustomHeaders();
     if (!mounted) return;
     if (base == null || base.isEmpty || token == null || token.isEmpty) {
       debugPrint('[RMAB] my-requests: no creds, showing error');
@@ -699,7 +851,8 @@ class _MyRequestsTabState extends State<_MyRequestsTab>
       _error = null;
     });
     try {
-      final page = await RmabService(baseUrl: base, apiToken: token)
+      final page = await RmabService(
+              baseUrl: base, apiToken: token, customHeaders: headers)
           .listRequests(myOnly: true, take: 50);
       if (!mounted) return;
       setState(() {

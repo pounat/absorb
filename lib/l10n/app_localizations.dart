@@ -4414,6 +4414,12 @@ abstract class AppLocalizations {
   /// **'Paste your auto-login URL so \'Open in browser view\' lands you signed in. Leave blank to use a regular login.'**
   String get rmabConfigLegacyUrlHelp;
 
+  /// No description provided for @rmabConfigHeadersHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra headers sent with every ReadMeABook request, for reverse proxies like Cloudflare Access.'**
+  String get rmabConfigHeadersHelp;
+
   /// No description provided for @rmabConfigConnect.
   ///
   /// In en, this message translates to:

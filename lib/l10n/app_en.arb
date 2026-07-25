@@ -1207,6 +1207,7 @@
   "rmabConfigLegacyUrlLabel": "Web UI login URL (optional)",
   "rmabConfigLegacyUrlHint": "https://rmab.example.com/?token=...",
   "rmabConfigLegacyUrlHelp": "Paste your auto-login URL so 'Open in browser view' lands you signed in. Leave blank to use a regular login.",
+  "rmabConfigHeadersHelp": "Extra headers sent with every ReadMeABook request, for reverse proxies like Cloudflare Access.",
   "rmabConfigConnect": "Connect",
   "rmabConfigDisconnect": "Disconnect",
   "rmabConfigOpenWebView": "Open in browser view",

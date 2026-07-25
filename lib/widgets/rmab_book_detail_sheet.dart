@@ -6,7 +6,8 @@ import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import 'html_description.dart';
 import 'overlay_toast.dart';
-import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey;
+import 'rmab_config_sheet.dart'
+    show kRmabBaseUrlKey, kRmabApiTokenKey, loadRmabCustomHeaders;
 import 'rmab_request_status_chip.dart';
 import 'stackable_sheet.dart';
 
@@ -64,6 +65,7 @@ class _RmabBookDetailContentState extends State<_RmabBookDetailContent> {
     debugPrint('[RMAB] detail Request tapped (asin=${widget.book.asin})');
     final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+    final headers = await loadRmabCustomHeaders();
     if (!mounted) return;
     if (base == null || base.isEmpty || token == null || token.isEmpty) {
       debugPrint('[RMAB] detail Request: missing creds, prompting reconnect');
@@ -74,7 +76,8 @@ class _RmabBookDetailContentState extends State<_RmabBookDetailContent> {
     setState(() => _submitting = true);
 
     try {
-      final result = await RmabService(baseUrl: base, apiToken: token)
+      final result = await RmabService(
+              baseUrl: base, apiToken: token, customHeaders: headers)
           .createRequest(RmabRequestInput.fromSearchResult(widget.book));
 
       if (!mounted) return;
