@@ -2752,6 +2752,16 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String audioTracksCount(int count) {
+    return 'Audio Tracks ($count)';
+  }
+
+  @override
+  String libraryFilesCount(int count) {
+    return 'Library Files ($count)';
+  }
+
+  @override
   String get chapters => 'Chapitres';
 
   @override
@@ -6675,6 +6685,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get bookmarkPreviewFailed => 'Couldn\'t play this spot.';
+
+  @override
+  String get previewSample => 'Preview';
 
   @override
   String get clipExport => 'Export clip';

@@ -4996,6 +4996,18 @@ abstract class AppLocalizations {
   /// **'Chapters ({count})'**
   String chaptersCount(int count);
 
+  /// No description provided for @audioTracksCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Tracks ({count})'**
+  String audioTracksCount(int count);
+
+  /// No description provided for @libraryFilesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Library Files ({count})'**
+  String libraryFilesCount(int count);
+
   /// No description provided for @chapters.
   ///
   /// In en, this message translates to:
@@ -11576,6 +11588,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t play this spot.'**
   String get bookmarkPreviewFailed;
+
+  /// No description provided for @previewSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get previewSample;
 
   /// No description provided for @clipExport.
   ///

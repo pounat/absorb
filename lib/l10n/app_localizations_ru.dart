@@ -2736,6 +2736,16 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String audioTracksCount(int count) {
+    return 'Audio Tracks ($count)';
+  }
+
+  @override
+  String libraryFilesCount(int count) {
+    return 'Library Files ($count)';
+  }
+
+  @override
   String get chapters => 'Chapters';
 
   @override
@@ -6660,6 +6670,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get bookmarkPreviewFailed => 'Не удалось воспроизвести это место.';
+
+  @override
+  String get previewSample => 'Preview';
 
   @override
   String get clipExport => 'Export clip';

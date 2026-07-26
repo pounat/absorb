@@ -24,6 +24,7 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import 'card_buttons.dart';
 import '../services/api_service.dart';
+import '../services/bookmark_preview_player.dart';
 import '../services/bookmark_service.dart';
 import '../services/download_service.dart';
 import '../services/ebook_cache.dart';
@@ -98,6 +99,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _isLoading = true;
   bool _chaptersExpanded = false;
   bool _bookmarksExpanded = false;
+  bool _tracksExpanded = false;
+  bool _filesExpanded = false;
+  BookmarkPreviewPlayer? _preview;
   List<Bookmark> _bookmarks = [];
   bool _isAbsorbing = false;
   bool _hasLocalOverride = false;
@@ -146,6 +150,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   void dispose() {
     SocketService().removeItemUpdatedListener(_onSocketItemUpdated);
     _liveRefreshDebounce?.cancel();
+    _preview?.removeListener(_onPreviewChanged);
+    _preview?.dispose();
     super.dispose();
   }
 
@@ -413,6 +419,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final media = _item!['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final chapters = media['chapters'] as List<dynamic>? ?? [];
+    final audioFiles = media['audioFiles'] as List<dynamic>? ?? [];
+    final libraryFiles = _item!['libraryFiles'] as List<dynamic>? ?? [];
     final title = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
     final descRaw = metadata['description'] as String? ?? '';
@@ -439,6 +447,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final ebookFile = resolveEbookFile(_item);
 
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
+    // Preview only makes sense before the book has been started. The 60s
+    // grace means an accidental tap-and-close doesn't hide it forever.
+    final showPreview = !isEbookOnly && !isFinished && currentTime < 60 && duration > 0;
 
     return ListView(controller: widget.scrollController, padding: EdgeInsets.fromLTRB(20, 8, 20, 32 + MediaQuery.of(context).viewPadding.bottom), children: [
       Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
@@ -699,6 +710,30 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 )),
         ],
       ]),
+      if (showPreview) ...[
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => _togglePreview(context, chapters, duration),
+          child: Container(
+            height: 36,
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              if (_preview?.isLoading ?? false)
+                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant))
+              else
+                Icon((_preview?.isPlaying ?? false) ? Icons.stop_rounded : Icons.headphones_rounded,
+                    size: 16, color: cs.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Text((_preview?.isPlaying ?? false) ? l.chapterStopPreview : l.previewSample,
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w500)),
+            ]),
+          ),
+        ),
+      ],
       // More button below primary row
       const SizedBox(height: 8),
       GestureDetector(
@@ -810,6 +845,45 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                   if (hasNote)
                     Text(bm.note!, maxLines: 2, overflow: TextOverflow.ellipsis, style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.35))),
                 ])),
+              ]));
+          })]],
+      if (audioFiles.isNotEmpty) ...[const SizedBox(height: 16),
+        GestureDetector(onTap: () => setState(() => _tracksExpanded = !_tracksExpanded),
+          child: Row(children: [
+            Text(l.audioTracksCount(audioFiles.length), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+            const Spacer(), Icon(_tracksExpanded ? Icons.expand_less : Icons.expand_more, color: cs.onSurface.withValues(alpha: 0.3), size: 20)])),
+        if (_tracksExpanded) ...[const SizedBox(height: 8),
+          ...audioFiles.asMap().entries.map((e) {
+            final af = e.value as Map<String, dynamic>;
+            final afMeta = af['metadata'] as Map<String, dynamic>? ?? {};
+            final trackDuration = (af['duration'] as num?)?.toDouble() ?? 0;
+            return Padding(padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(children: [
+                SizedBox(width: 28, child: Text('${(af['index'] as num?)?.toInt() ?? e.key + 1}', style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
+                Expanded(child: Text(afMeta['filename'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6)))),
+                if (trackDuration > 0)
+                  Text(formatHm(trackDuration), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))),
+              ]));
+          })]],
+      if (libraryFiles.isNotEmpty) ...[const SizedBox(height: 16),
+        GestureDetector(onTap: () => setState(() => _filesExpanded = !_filesExpanded),
+          child: Row(children: [
+            Text(l.libraryFilesCount(libraryFiles.length), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+            const Spacer(), Icon(_filesExpanded ? Icons.expand_less : Icons.expand_more, color: cs.onSurface.withValues(alpha: 0.3), size: 20)])),
+        if (_filesExpanded) ...[const SizedBox(height: 8),
+          ...libraryFiles.map((f) {
+            final lf = f as Map<String, dynamic>;
+            final lfMeta = lf['metadata'] as Map<String, dynamic>? ?? {};
+            final size = (lfMeta['size'] as num?)?.toInt() ?? 0;
+            return Padding(padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(lfMeta['relPath'] as String? ?? lfMeta['filename'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
+                  if ((lf['fileType'] as String?)?.isNotEmpty ?? false)
+                    Text(lf['fileType'] as String, style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.35))),
+                ])),
+                if (size > 0) ...[const SizedBox(width: 8),
+                  Text(_fmtSize(size), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))],
               ]));
           })]],
     ]);
@@ -1827,7 +1901,56 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     );
   }
 
+  /// Where a preview should start. Front matter (credits, dedication, intro)
+  /// is always short, so the first chapter long enough to be real prose is the
+  /// sample point - capped to the first 10% of the book so a preview can never
+  /// spoil. Books without a usable chapter land shortly past the credits.
+  double _previewStartSeconds(List<dynamic> chapters, double duration) {
+    const minRealChapter = 300.0;
+    const fallback = 90.0;
+    final clampedFallback = duration * 0.25 < fallback ? duration * 0.25 : fallback;
+    final spoilerCap = duration * 0.10;
+    for (final c in chapters) {
+      if (c is! Map<String, dynamic>) continue;
+      final start = (c['start'] as num?)?.toDouble() ?? 0;
+      final end = (c['end'] as num?)?.toDouble() ?? 0;
+      if (end - start >= minRealChapter && start <= spoilerCap) {
+        // A qualifying chapter at 0:00 means the credits are baked into it
+        // (single-file books) - nudge past them instead.
+        return start == 0 ? clampedFallback : start;
+      }
+    }
+    return clampedFallback;
+  }
+
+  Future<void> _togglePreview(BuildContext context, List<dynamic> chapters, double duration) async {
+    final l = AppLocalizations.of(context)!;
+    if (_preview?.isLoading ?? false) return;
+    if (_preview?.isPlaying ?? false) {
+      await _preview!.stop();
+      return;
+    }
+    _preview ??= BookmarkPreviewPlayer(itemId: widget.itemId, api: context.read<AuthProvider>().apiService)
+      ..clipLength = const Duration(minutes: 5)
+      ..addListener(_onPreviewChanged);
+    final startAt = _previewStartSeconds(chapters, duration);
+    debugPrint('[BookDetail] preview start at ${startAt.toStringAsFixed(1)}s of ${duration.toStringAsFixed(0)}s');
+    try {
+      await _preview!.toggleAt(startAt);
+    } catch (e) {
+      debugPrint('[BookDetail] preview failed: $e');
+      if (mounted) {
+        showOverlayToast(context, l.bookmarkPreviewFailed, icon: Icons.error_outline_rounded);
+      }
+    }
+  }
+
+  void _onPreviewChanged() {
+    if (mounted) setState(() {});
+  }
+
   Future<void> _startAbsorb(BuildContext context, {required AuthProvider auth, required String title, required String author, required String? coverUrl, required double duration, required List<dynamic> chapters}) async {
+    await _preview?.stop();
     final player = AudioPlayerService();
     // Grab the root navigator before we pop the sheet
     final rootNav = Navigator.of(context, rootNavigator: true);

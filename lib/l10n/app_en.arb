@@ -1353,6 +1353,22 @@
       }
     }
   },
+  "audioTracksCount": "Audio Tracks ({count})",
+  "@audioTracksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryFilesCount": "Library Files ({count})",
+  "@libraryFilesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chapters": "Chapters",
   "noChaptersBook": "This book has no chapters",
   "noChaptersPodcast": "This podcast has no chapters",
@@ -3947,6 +3963,7 @@
   "bookmarkListen": "Listen",
   "bookmarkPause": "Pause",
   "bookmarkPreviewFailed": "Couldn't play this spot.",
+  "previewSample": "Preview",
 
   "clipExport": "Export clip",
   "clipJumpToStart": "Jump to start",
