@@ -145,24 +145,40 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
 
   String _showIdOf(Map<String, dynamic> ep) =>
       ep['libraryItemId'] as String? ??
+      (ep['podcast'] as Map<String, dynamic>?)?['libraryItemId'] as String? ??
       ep['podcastId'] as String? ??
       (ep['podcast'] as Map<String, dynamic>?)?['id'] as String? ??
       '';
 
-  /// The recent-episodes payload carries the parent show as `podcast` (a
-  /// library item without its episode list). Fall back to a minimal synthetic
-  /// item so the detail sheets can still resolve title/cover by id.
+  /// The recent-episodes payload embeds the parent show as `podcast` in the
+  /// OLD media-level JSON: its `id` is the podcast MEDIA id (useless against
+  /// /api/items), the library item id lives in `libraryItemId`, and metadata
+  /// sits at the top level with no `media` wrapper. Rebuild a library-item
+  /// shape so the episode-list sheet fetches the show by the right id.
   Map<String, dynamic> _podcastItemOf(Map<String, dynamic> ep) {
     final podcast = ep['podcast'];
     if (podcast is Map<String, dynamic> && podcast['id'] != null) {
+      if (podcast['media'] is Map<String, dynamic>) {
+        // Already library-item shaped (not the current payload - defensive).
+        return {
+          ...podcast,
+          'libraryId': podcast['libraryId'] ?? ep['libraryId'] ?? widget.libraryId,
+        };
+      }
       return {
-        ...podcast,
-        'libraryId': podcast['libraryId'] ?? widget.libraryId,
+        'id': podcast['libraryItemId'] as String? ?? _showIdOf(ep),
+        'libraryId': ep['libraryId'] ?? widget.libraryId,
+        'mediaType': 'podcast',
+        'media': {
+          if (podcast['metadata'] is Map<String, dynamic>)
+            'metadata': podcast['metadata'],
+          if (podcast['tags'] is List) 'tags': podcast['tags'],
+        },
       };
     }
     return {
       'id': _showIdOf(ep),
-      'libraryId': widget.libraryId,
+      'libraryId': ep['libraryId'] ?? widget.libraryId,
       'mediaType': 'podcast',
       'media': {
         'metadata': {'title': ep['podcastTitle'] as String? ?? ''},
@@ -172,9 +188,8 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
 
   String _showTitleOf(Map<String, dynamic> ep) {
     final podcast = ep['podcast'] as Map<String, dynamic>?;
-    final meta =
-        (podcast?['media'] as Map<String, dynamic>?)?['metadata']
-            as Map<String, dynamic>?;
+    final meta = ((podcast?['media'] as Map<String, dynamic>?)?['metadata'] ??
+        podcast?['metadata']) as Map<String, dynamic>?;
     return meta?['title'] as String? ?? ep['podcastTitle'] as String? ?? '';
   }
 
@@ -261,8 +276,10 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       episodeId: episodeId,
       episodeTitle: title,
       // Prefer the show's own library - the feed can aggregate shows from
-      // other libraries when unified libraries is on.
-      libraryId: (ep['podcast'] as Map<String, dynamic>?)?['libraryId'] as String? ??
+      // other libraries when unified libraries is on. The server stamps
+      // libraryId on the episode itself, not on the embedded podcast.
+      libraryId: ep['libraryId'] as String? ??
+          (ep['podcast'] as Map<String, dynamic>?)?['libraryId'] as String? ??
           widget.libraryId,
     );
     if (error != null && mounted) showErrorToast(context, error);
