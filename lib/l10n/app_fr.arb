@@ -101,6 +101,46 @@
       }
     }
   },
+  "setupLinkShareDescription": "Envoyez ce lien privé ou demandez-leur de scanner le code QR pour se connecter en tant que {username}.",
+  "@setupLinkShareDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkPrivateWarning": "N'importe qui avec ce lien peut se connecter en tant que {username}. Traitez-le comme un mot de passe.",
+  "@setupLinkPrivateWarning": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkCopy": "Copier le lien",
+  "setupLinkCopied": "Lien de connexion copié",
+  "setupLinkSaveFile": "Enregistrer le fichier de configuration",
+  "setupLinkQrError": "Ce lien de configuration est trop volumineux pour un code QR. Partagez le lien à la place.",
+  "setupLinkShareSubject": "Connexion à Absorb pour {username}",
+  "@setupLinkShareSubject": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkConfirmTitle": "Se connecter avec ce lien ?",
+  "setupLinkConfirmBody": "Se Connecter à {server} en tant que {username} ? Ne continuez que si vous faites confiance à celui qui vous a envoyé ce lien.",
+  "@setupLinkConfirmBody": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      },
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "loginFailed": "Échec de connexion",
   "loginSsoFailed": "La connexion SSO a échoué ou a été annulée",
   "loginSsoAuthFailed": "Échec de l'authentification SSO. Veuillez réessayer.",
