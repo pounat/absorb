@@ -100,6 +100,8 @@ class _MetadataEditViewState extends State<MetadataEditView>
   bool _coverSearching = false;
   String _coverProvider = 'best';
   bool _saving = false;
+  bool _explicit = false;
+  bool _abridged = false;
 
   // Existing library values for the series/genres/tags typeahead. Fetched once
   // from the library's filterdata so a value can be picked instead of retyped.
@@ -152,6 +154,8 @@ class _MetadataEditViewState extends State<MetadataEditView>
     _asinCtrl = TextEditingController(text: m['asin'] as String? ?? '');
     _isbnCtrl = TextEditingController(text: m['isbn'] as String? ?? '');
     _languageCtrl = TextEditingController(text: m['language'] as String? ?? '');
+    _explicit = m['explicit'] == true;
+    _abridged = m['abridged'] == true;
     _coverUrlCtrl = TextEditingController();
     _coverSearchTitleCtrl = TextEditingController(text: m['title'] as String? ?? '');
     _coverSearchAuthorCtrl = TextEditingController(text: m['authorName'] as String? ?? '');
@@ -302,6 +306,8 @@ class _MetadataEditViewState extends State<MetadataEditView>
     _tagsCtrl.text = _safeString(media['tags']);
     _asinCtrl.text = value('asin');
     _isbnCtrl.text = value('isbn');
+    _explicit = metadata['explicit'] == true;
+    _abridged = metadata['abridged'] == true;
 
     final previousSeriesRows = List.of(_seriesRows);
     _seriesRows.clear();
@@ -566,6 +572,8 @@ class _MetadataEditViewState extends State<MetadataEditView>
       'asin': _asinCtrl.text.trim(),
       'isbn': _isbnCtrl.text.trim(),
       'language': _languageCtrl.text.trim(),
+      'explicit': _explicit,
+      'abridged': _abridged,
     };
 
     // Authors/narrators are arrays in ABS, not simple strings
@@ -1393,6 +1401,35 @@ class _MetadataEditViewState extends State<MetadataEditView>
               Expanded(child: _field(l.asinLabel, _asinCtrl, tt)),
               const SizedBox(width: 12),
               Expanded(child: _field(l.isbnLabel, _isbnCtrl, tt)),
+            ]),
+            Row(children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _explicit = !_explicit),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Row(children: [
+                    Checkbox(
+                      value: _explicit,
+                      onChanged: (v) => setState(() => _explicit = v ?? false),
+                    ),
+                    Expanded(child: Text(l.explicitContent, style: tt.bodyMedium)),
+                  ]),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _abridged = !_abridged),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Row(children: [
+                    Checkbox(
+                      value: _abridged,
+                      onChanged: (v) => setState(() => _abridged = v ?? false),
+                    ),
+                    Expanded(child: Text(l.abridged, style: tt.bodyMedium)),
+                  ]),
+                ),
+              ),
             ]),
 
           ],
