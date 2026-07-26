@@ -1,5 +1,5 @@
 {
-  "@@locale": "zh",
+  "@@locale": "zh-CN",
   "appTitle": "A B S O R B",
   "online": "在线",
   "offline": "离线",
@@ -1447,16 +1447,5 @@
   "resetSpeedPresets": "重置速度预设",
   "resetSpeedPresetsSubtitle": "恢复默认的播放速度选项",
   "speedPresetsReset": "速度预设已重置",
-  "editTabDetails": "详情",
-  "loginRestoreFromBackup": "从备份恢复",
-  "chapterProgressInNotification": "通知中显示章节进度",
-  "chapterProgressOnSubtitle": "开启 - 锁屏显示章节进度",
-  "chapterProgressOffSubtitle": "关闭 - 锁屏显示全书进度",
-  "downloadOverWifiOnly": "仅在 Wi-Fi 下下载",
-  "downloadOverWifiOnSubtitle": "开启 - 禁止使用移动数据下载",
-  "downloadOverWifiOffSubtitle": "关闭 - 任何网络均可下载",
-  "autoDownloadOnWifi": "Wi-Fi 下自动下载",
-  "autoDownloadOnWifiInfoTitle": "Wi-Fi 下自动下载",
-  "autoDownloadOnWifiOnSubtitle": "在 Wi-Fi 下开始流式播放时，书籍将在后台下载",
-  "saved": "已保存"
+  "editTabDetails": "详情"
 }
