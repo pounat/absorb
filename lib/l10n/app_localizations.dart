@@ -5416,6 +5416,12 @@ abstract class AppLocalizations {
   /// **'Select All'**
   String get selectAll;
 
+  /// No description provided for @deselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect All'**
+  String get deselectAll;
+
   /// No description provided for @autoDownloadThisPodcast.
   ///
   /// In en, this message translates to:
@@ -11588,12 +11594,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t play this spot.'**
   String get bookmarkPreviewFailed;
-
-  /// No description provided for @previewSample.
-  ///
-  /// In en, this message translates to:
-  /// **'Preview'**
-  String get previewSample;
 
   /// No description provided for @clipExport.
   ///

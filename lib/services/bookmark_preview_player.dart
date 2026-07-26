@@ -37,6 +37,13 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
   /// preview is exactly what an export would produce.
   Duration clipLength = const Duration(seconds: 60);
 
+  /// When true, the clip-length timer and the natural end of the audio fully
+  /// [stop] the audition (resuming the main player) instead of just pausing.
+  /// The bookmark dialog leaves this false - there the audited book is
+  /// usually the one loaded in the main player, and yanking it back to life
+  /// mid-edit would be jarring.
+  bool stopOnClipEnd = false;
+
   List<BookTrack>? _tracks;
 
   bool get isLoading => _loading;
@@ -52,7 +59,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
         _autoStop?.cancel();
         await p.pause();
       } else {
-        _pauseMain();
+        await _pauseMain();
         // Restart from the clip start so every replay auditions the beginning
         // of the selection (also recovers from the auto-stop at the clip end).
         if (_lastSeekMs != null) {
@@ -69,7 +76,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
   Future<void> _playAt(double globalSeconds) async {
     _loading = true;
     notifyListeners();
-    _pauseMain();
+    await _pauseMain();
 
     final tracks = await _resolveTracks();
     if (_disposed) return;
@@ -101,7 +108,13 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
             s.processingState == ProcessingState.buffering;
         _playing = s.playing && !done;
         notifyListeners();
-        if (done) player.pause();
+        if (done) {
+          if (stopOnClipEnd) {
+            unawaited(stop());
+          } else {
+            player.pause();
+          }
+        }
       });
       if (track.local) {
         await player.setAudioSource(localAudioSource(track.source));
@@ -118,6 +131,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
       await player.play();
     } catch (e) {
       debugPrint('[BookmarkPreview] $itemId: playback error: $e');
+      if (_disposed) return;
       _loading = false;
       notifyListeners();
       rethrow;
@@ -129,17 +143,21 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
     return _tracks;
   }
 
-  void _pauseMain() {
+  Future<void> _pauseMain() async {
     final main = AudioPlayerService();
     _mainWasPlaying ??= main.isPlaying;
-    if (main.isPlaying) main.pause();
+    if (main.isPlaying) await main.pause();
   }
 
   void _startAutoStop() {
     _autoStop?.cancel();
     _autoStop = Timer(clipLength, () {
       debugPrint('[BookmarkPreview] auto-stop after ${clipLength.inSeconds}s');
-      _player?.pause();
+      if (stopOnClipEnd) {
+        unawaited(stop());
+      } else {
+        _player?.pause();
+      }
     });
   }
 
@@ -163,10 +181,19 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
   /// Stop the audition and resume the main player if we had paused it.
   Future<void> stop() async {
     await _disposePlayer();
-    if (_mainWasPlaying == true) {
-      _mainWasPlaying = null;
-      await AudioPlayerService().play();
-    }
+    // Reset the snapshot even when it's false, or a sheet-lifetime player's
+    // second audition would pause the main book and never resume it.
+    final shouldResume = _mainWasPlaying == true;
+    _mainWasPlaying = null;
+    if (shouldResume) await AudioPlayerService().play();
+    if (!_disposed) notifyListeners();
+  }
+
+  /// Tear down the audition without resuming the main player - for callers
+  /// about to start real playback themselves.
+  Future<void> discard() async {
+    _mainWasPlaying = null;
+    await _disposePlayer();
     if (!_disposed) notifyListeners();
   }
 

@@ -2976,6 +2976,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get selectAll => 'Select All';
 
   @override
+  String get deselectAll => 'Deselect All';
+
+  @override
   String get autoDownloadThisPodcast => 'Auto-Download This Podcast?';
 
   @override
@@ -6670,9 +6673,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get bookmarkPreviewFailed => 'Не удалось воспроизвести это место.';
-
-  @override
-  String get previewSample => 'Preview';
 
   @override
   String get clipExport => 'Export clip';

@@ -2903,6 +2903,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectAll => '全选';
 
   @override
+  String get deselectAll => 'Deselect All';
+
+  @override
   String get autoDownloadThisPodcast => '自动下载此播客？';
 
   @override
@@ -6573,9 +6576,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get bookmarkPreviewFailed => 'Couldn\'t play this spot.';
-
-  @override
-  String get previewSample => 'Preview';
 
   @override
   String get clipExport => 'Export clip';

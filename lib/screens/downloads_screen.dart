@@ -177,6 +177,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final allSelected = _selecting &&
+        () {
+          final visible = _visibleCompleted();
+          return visible.isNotEmpty &&
+              visible.every((d) => _selected.contains(d.itemId));
+        }();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -197,9 +203,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       ),
                       if (_selecting) ...[
                         IconButton(
-                          icon: Icon(Icons.select_all_rounded,
+                          icon: Icon(
+                              allSelected
+                                  ? Icons.deselect_rounded
+                                  : Icons.select_all_rounded,
                               color: cs.onSurfaceVariant),
-                          tooltip: l.selectAll,
+                          tooltip: allSelected ? l.deselectAll : l.selectAll,
                           onPressed: _toggleSelectAll,
                         ),
                         IconButton(

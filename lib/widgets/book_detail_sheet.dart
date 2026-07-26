@@ -448,8 +448,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
     // Preview only makes sense before the book has been started. The 60s
-    // grace means an accidental tap-and-close doesn't hide it forever.
-    final showPreview = !isEbookOnly && !isFinished && currentTime < 60 && duration > 0;
+    // grace means an accidental tap-and-close doesn't hide it forever. Check
+    // the override-aware progress fraction too - the server currentTime can
+    // lag local playback.
+    final showPreview = !isEbookOnly && !isFinished && currentTime < 60 &&
+        progress * duration < 60 && duration > 0;
 
     return ListView(controller: widget.scrollController, padding: EdgeInsets.fromLTRB(20, 8, 20, 32 + MediaQuery.of(context).viewPadding.bottom), children: [
       Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
@@ -728,7 +731,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 Icon((_preview?.isPlaying ?? false) ? Icons.stop_rounded : Icons.headphones_rounded,
                     size: 16, color: cs.onSurfaceVariant),
               const SizedBox(width: 6),
-              Text((_preview?.isPlaying ?? false) ? l.chapterStopPreview : l.previewSample,
+              Text((_preview?.isPlaying ?? false) ? l.chapterStopPreview : l.preview,
                   style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w500)),
             ]),
           ),
@@ -1932,6 +1935,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
     _preview ??= BookmarkPreviewPlayer(itemId: widget.itemId, api: context.read<AuthProvider>().apiService)
       ..clipLength = const Duration(minutes: 5)
+      ..stopOnClipEnd = true
       ..addListener(_onPreviewChanged);
     final startAt = _previewStartSeconds(chapters, duration);
     debugPrint('[BookDetail] preview start at ${startAt.toStringAsFixed(1)}s of ${duration.toStringAsFixed(0)}s');
@@ -1950,7 +1954,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   }
 
   Future<void> _startAbsorb(BuildContext context, {required AuthProvider auth, required String title, required String author, required String? coverUrl, required double duration, required List<dynamic> chapters}) async {
-    await _preview?.stop();
+    // Discard, not stop: we're about to start playback ourselves, so briefly
+    // resuming the previous book would just be an audible blip.
+    await _preview?.discard();
     final player = AudioPlayerService();
     // Grab the root navigator before we pop the sheet
     final rootNav = Navigator.of(context, rootNavigator: true);

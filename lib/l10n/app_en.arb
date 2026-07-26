@@ -1500,6 +1500,7 @@
     }
   },
   "selectAll": "Select All",
+  "deselectAll": "Deselect All",
   "autoDownloadThisPodcast": "Auto-Download This Podcast?",
   "autoDownloadPodcastContent": "Automatically download the next episodes as you listen.",
   "download": "Download",
@@ -3963,7 +3964,6 @@
   "bookmarkListen": "Listen",
   "bookmarkPause": "Pause",
   "bookmarkPreviewFailed": "Couldn't play this spot.",
-  "previewSample": "Preview",
 
   "clipExport": "Export clip",
   "clipJumpToStart": "Jump to start",

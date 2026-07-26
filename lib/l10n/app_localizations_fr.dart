@@ -2992,6 +2992,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get selectAll => 'Select All';
 
   @override
+  String get deselectAll => 'Deselect All';
+
+  @override
   String get autoDownloadThisPodcast => 'Auto-Download This Podcast?';
 
   @override
@@ -6685,9 +6688,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get bookmarkPreviewFailed => 'Couldn\'t play this spot.';
-
-  @override
-  String get previewSample => 'Preview';
 
   @override
   String get clipExport => 'Export clip';
