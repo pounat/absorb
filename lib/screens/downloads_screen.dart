@@ -71,6 +71,30 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     });
   }
 
+  /// The completed downloads currently visible, honoring the same library
+  /// filter as the list - select-all must never grab hidden items or a bulk
+  /// delete would remove downloads the user can't see.
+  List<DownloadInfo> _visibleCompleted() {
+    final lib = context.read<LibraryProvider>();
+    final activeLibId = lib.selectedLibraryId;
+    final shouldFilter = !lib.isOffline && !_mergeLibraries && activeLibId != null;
+    final completed = DownloadService().downloadedItems;
+    if (!shouldFilter) return completed;
+    return completed
+        .where((d) => d.libraryId == null || d.libraryId == activeLibId)
+        .toList();
+  }
+
+  void _toggleSelectAll() {
+    final visible = _visibleCompleted().map((d) => d.itemId).toList();
+    setState(() {
+      final allSelected =
+          visible.isNotEmpty && visible.every(_selected.contains);
+      _selected.clear();
+      if (!allSelected) _selected.addAll(visible);
+    });
+  }
+
   Future<void> _deleteSelected() async {
     if (_selected.isEmpty) return;
 
@@ -171,14 +195,20 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                           padding: EdgeInsets.zero,
                         ),
                       ),
-                      if (_selecting)
+                      if (_selecting) ...[
+                        IconButton(
+                          icon: Icon(Icons.select_all_rounded,
+                              color: cs.onSurfaceVariant),
+                          tooltip: l.selectAll,
+                          onPressed: _toggleSelectAll,
+                        ),
                         IconButton(
                           icon: Icon(Icons.close_rounded,
                               color: cs.onSurfaceVariant),
                           tooltip: l.downloadsCancelSelection,
                           onPressed: _exitSelection,
-                        )
-                      else ...[
+                        ),
+                      ] else ...[
                         if (_items.isNotEmpty)
                           IconButton(
                             icon: Icon(Icons.checklist_rounded,
