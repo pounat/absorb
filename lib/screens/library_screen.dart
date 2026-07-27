@@ -670,6 +670,7 @@ class LibraryScreenState extends State<LibraryScreen>
       PlayerSettings.getPodcastTagFilter(),
       PlayerSettings.getPodcastFilterValue(),
       PlayerSettings.getPodcastFilterValueLabel(),
+      PlayerSettings.getPodcastView(),
     ]);
     if (!mounted) return;
     final sortName = results[0] as String;
@@ -818,6 +819,11 @@ class LibraryScreenState extends State<LibraryScreen>
       if (!isPodcast && savedTab > 0 && savedTab <= maxRestorableTab) {
         _currentTab = savedTab;
         _tabController?.animateTo(savedTab);
+      }
+      // Podcast libraries: restore the Shows/Episodes pill the same way
+      // book libraries restore their tab.
+      if (isPodcast) {
+        _podcastView = (results.last as int) == 1 ? 1 : 0;
       }
     });
     // Lazy load data for the restored tab
@@ -2752,6 +2758,7 @@ class LibraryScreenState extends State<LibraryScreen>
                 onTap: () {
                   if (!active) {
                     setState(() => _podcastView = i);
+                    PlayerSettings.setPodcastView(i);
                   } else if (i == 0) {
                     // Re-tap on the active Shows pill opens the sort sheet,
                     // same as the book libraries' pills.

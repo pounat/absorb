@@ -610,6 +610,10 @@ class PlayerSettings {
   static Future<int> getLibraryTab() => _get('libraryTab', 0);
   static Future<void> setLibraryTab(int value) => _set('libraryTab', value);
 
+  /// Podcast library view: 0 = Shows grid, 1 = Episodes feed.
+  static Future<int> getPodcastView() => _get('podcastView', 0);
+  static Future<void> setPodcastView(int value) => _set('podcastView', value);
+
   // ── Podcast library sort persistence ──
 
   static Future<String> getPodcastSort() => _get('podcastSort', 'recentlyAdded');
