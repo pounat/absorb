@@ -157,7 +157,9 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   /// shape so the episode-list sheet fetches the show by the right id.
   Map<String, dynamic> _podcastItemOf(Map<String, dynamic> ep) {
     final podcast = ep['podcast'];
-    if (podcast is Map<String, dynamic> && podcast['id'] != null) {
+    // No id gate: some payload shapes (minified podcast) carry metadata but
+    // no id - the episode's libraryItemId still identifies the show.
+    if (podcast is Map<String, dynamic>) {
       if (podcast['media'] is Map<String, dynamic>) {
         // Already library-item shaped (not the current payload - defensive).
         return {
@@ -297,7 +299,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       author: _showTitleOf(ep),
       coverUrl: api.getCoverUrl(showId),
       episodeId: episodeId,
-      libraryId: widget.libraryId,
+      libraryId: ep['libraryId'] as String? ?? widget.libraryId,
     );
     if (error != null && mounted) {
       showOverlayToast(context, error, icon: Icons.error_outline_rounded);

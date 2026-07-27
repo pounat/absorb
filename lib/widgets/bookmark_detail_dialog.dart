@@ -90,6 +90,8 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       await _preview.toggleAt(_seconds);
     } catch (e) {
       debugPrint('[BookmarkPreview] toggle failed: $e');
+      // stop() resumes the main book we paused and resets for a retry.
+      await _preview.stop();
       if (!mounted) return;
       final l = AppLocalizations.of(context)!;
       showOverlayToast(context, l.bookmarkPreviewFailed,

@@ -163,7 +163,8 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       author: _showTitle,
       coverUrl: api.getCoverUrl(_itemId),
       episodeId: _episodeId,
-      libraryId: context.read<LibraryProvider>().selectedLibraryId,
+      libraryId: widget.podcastItem['libraryId'] as String? ??
+          context.read<LibraryProvider>().selectedLibraryId,
     );
     if (error != null && mounted) {
       showOverlayToast(context, error, icon: Icons.error_outline_rounded);

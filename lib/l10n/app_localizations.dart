@@ -3721,7 +3721,7 @@ abstract class AppLocalizations {
   /// No description provided for @mp3IndexSeekingInfoContent.
   ///
   /// In en, this message translates to:
-  /// **'Only enable this if you have MP3 files that don\'t seek to the right position. Inaccurate seeking usually comes from variable bitrate (VBR) MP3s. Index seeking builds an exact time map as the file is read, so jumping near the end of a large MP3 can take a moment - especially when streaming, since the file has to be read up to that point. Takes effect the next time a book starts.'**
+  /// **'Only enable this if you have MP3 files that don\'t seek to the right position. Inaccurate seeking usually comes from variable bitrate (VBR) MP3s. Index seeking builds an exact time map as the file is read, so jumping near the end of a large MP3 can take a moment - especially when streaming, since the file has to be read up to that point. Takes effect the next time a book or podcast episode starts.'**
   String get mp3IndexSeekingInfoContent;
 
   /// No description provided for @mp3IndexSeekingOnSubtitle.

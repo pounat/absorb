@@ -1943,6 +1943,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       await _preview!.toggleAt(startAt);
     } catch (e) {
       debugPrint('[BookDetail] preview failed: $e');
+      // stop() resumes the main book we paused and resets for a retry.
+      await _preview?.stop();
       if (mounted) {
         showOverlayToast(context, l.bookmarkPreviewFailed, icon: Icons.error_outline_rounded);
       }

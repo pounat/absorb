@@ -196,6 +196,9 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       final media = fullItem['media'] as Map<String, dynamic>? ?? {};
       final episodes = media['episodes'] as List<dynamic>? ?? [];
       setState(() {
+        // Adopt the full item so a synthetic/lean map from the caller gets
+        // real metadata (title, description) once the fetch lands.
+        _podcastItem = Map<String, dynamic>.from(fullItem);
         _episodes = _sortEpisodes(episodes);
         _isLoading = false;
       });
@@ -364,7 +367,8 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       author: _title,
       coverUrl: coverUrl,
       episodeId: episodeId,
-      libraryId: context.read<LibraryProvider>().selectedLibraryId,
+      libraryId: _podcastItem['libraryId'] as String? ??
+          context.read<LibraryProvider>().selectedLibraryId,
     );
 
     if (error != null && mounted) {

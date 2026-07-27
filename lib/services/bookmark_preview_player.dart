@@ -24,6 +24,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
   bool _playing = false;
   bool _disposed = false;
   bool? _mainWasPlaying;
+  String? _mainWasItemId;
   Timer? _autoStop;
 
   // Track-local position (ms) the current audition started at, so pausing then
@@ -124,6 +125,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
       }
       _lastSeekMs = (local * 1000).round();
       await player.seek(Duration(milliseconds: _lastSeekMs!));
+      if (_disposed) return;
       // Start the auto-stop BEFORE awaiting play(): just_audio's play() future
       // doesn't complete until playback ends, so a timer after it never armed -
       // that's why the cap wasn't firing.
@@ -146,12 +148,22 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
   Future<void> _pauseMain() async {
     final main = AudioPlayerService();
     _mainWasPlaying ??= main.isPlaying;
+    _mainWasItemId ??= main.currentItemId;
     if (main.isPlaying) await main.pause();
   }
+
+  /// Resume the main player only if the book we paused is still the loaded
+  /// one and nothing else started playing meanwhile (the notification or
+  /// Android Auto can change both while an audition runs).
+  bool get _canResumeMain =>
+      _mainWasPlaying == true &&
+      !AudioPlayerService().isPlaying &&
+      AudioPlayerService().currentItemId == _mainWasItemId;
 
   void _startAutoStop() {
     _autoStop?.cancel();
     _autoStop = Timer(clipLength, () {
+      if (_disposed) return;
       debugPrint('[BookmarkPreview] auto-stop after ${clipLength.inSeconds}s');
       if (stopOnClipEnd) {
         unawaited(stop());
@@ -183,8 +195,9 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
     await _disposePlayer();
     // Reset the snapshot even when it's false, or a sheet-lifetime player's
     // second audition would pause the main book and never resume it.
-    final shouldResume = _mainWasPlaying == true;
+    final shouldResume = _canResumeMain;
     _mainWasPlaying = null;
+    _mainWasItemId = null;
     if (shouldResume) await AudioPlayerService().play();
     if (!_disposed) notifyListeners();
   }
@@ -193,17 +206,19 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
   /// about to start real playback themselves.
   Future<void> discard() async {
     _mainWasPlaying = null;
+    _mainWasItemId = null;
     await _disposePlayer();
     if (!_disposed) notifyListeners();
   }
 
   @override
   void dispose() {
+    final shouldResume = _canResumeMain;
     _disposed = true;
     _autoStop?.cancel();
     _stateSub?.cancel();
     _player?.dispose();
-    if (_mainWasPlaying == true) AudioPlayerService().play();
+    if (shouldResume) AudioPlayerService().play();
     super.dispose();
   }
 }

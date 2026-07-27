@@ -177,13 +177,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
-    final allSelected = _selecting &&
-        () {
-          final visible = _visibleCompleted();
-          return visible.isNotEmpty &&
-              visible.every((d) => _selected.contains(d.itemId));
-        }();
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -202,14 +195,24 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         ),
                       ),
                       if (_selecting) ...[
-                        IconButton(
-                          icon: Icon(
-                              allSelected
-                                  ? Icons.deselect_rounded
-                                  : Icons.select_all_rounded,
-                              color: cs.onSurfaceVariant),
-                          tooltip: allSelected ? l.deselectAll : l.selectAll,
-                          onPressed: _toggleSelectAll,
+                        // Listens to DownloadService so a download completing
+                        // mid-selection doesn't leave a stale all-selected look.
+                        ListenableBuilder(
+                          listenable: DownloadService(),
+                          builder: (_, __) {
+                            final visible = _visibleCompleted();
+                            final allSelected = visible.isNotEmpty &&
+                                visible.every((d) => _selected.contains(d.itemId));
+                            return IconButton(
+                              icon: Icon(
+                                  allSelected
+                                      ? Icons.deselect_rounded
+                                      : Icons.select_all_rounded,
+                                  color: cs.onSurfaceVariant),
+                              tooltip: allSelected ? l.deselectAll : l.selectAll,
+                              onPressed: _toggleSelectAll,
+                            );
+                          },
                         ),
                         IconButton(
                           icon: Icon(Icons.close_rounded,

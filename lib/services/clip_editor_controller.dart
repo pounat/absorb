@@ -90,8 +90,8 @@ class ClipEditorController extends ChangeNotifier {
       if (track.local) {
         await player.setAudioSource(localAudioSource(track.source));
       } else {
-        await player.setAudioSource(
-            AudioSource.uri(Uri.parse(track.source), headers: api?.mediaHeaders));
+        await player.setAudioSource(AudioSource.uri(Uri.parse(track.source),
+            headers: api?.mediaHeaders, options: mp3ExtractorOptions()));
       }
       await player.seek(Duration(milliseconds: ((_position - _trackBase) * 1000).round()));
       _posSub = player.positionStream.listen((d) {

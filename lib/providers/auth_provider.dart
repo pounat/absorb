@@ -945,6 +945,12 @@ class AuthProvider extends ChangeNotifier {
     // previous account's values cached in widget state.
     PlayerSettings.notifySettingsChanged();
 
+    // Synchronous PlayerSettings caches are loaded at startup, so refresh
+    // them from the new account's scope or playback keeps the old account's
+    // values until restart.
+    PlayerSettings.showExplicitBadge = await PlayerSettings.getShowExplicitBadge();
+    PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
+
     // Reload EQ settings from the new account's scope. Without this the
     // EqualizerService singleton keeps the previous account's in-memory
     // state and would write it back into the new scope on any change.

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
+import '../services/offline_source.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -513,7 +514,9 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
         });
         if (done) _stopPreview();
       });
-      await player.setUrl(api.buildTrackUrl(contentUrl));
+      await player.setAudioSource(AudioSource.uri(
+          Uri.parse(api.buildTrackUrl(contentUrl)),
+          options: mp3ExtractorOptions()));
       await player.seek(Duration(milliseconds: (seekSec * 1000).round()));
       await player.play();
     } catch (e) {
