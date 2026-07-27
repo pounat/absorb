@@ -681,11 +681,14 @@
   "mergeLibraries": "Page d'Absorption unifiée",
   "mergeLibrariesInfoTitle": "Page d'Absorption unifiée",
   "mergeLibrariesInfoContent": "Quand activé, l’écran Absorbing affiche tous vos livres et podcasts en cours, provenant de toutes vos bibliothèques, dans une seule vue. Quand désactivé, il n’affiche que les éléments de la bibliothèque que vous avez actuellement sélectionnée.",
+  "mergeLibrariesOnSubtitle": "La page d'absorption affiche les éléments de toutes les bibliothèques",
   "mergeLibrariesOffSubtitle": "La page d'Absorption ne montre que la bibliothèque actuelle",
   "queueMode": "Mode file d'attente",
   "queueModeInfoTitle": "Mode file d'attente",
   "queueModeInfoOff": "Désactivé",
+  "queueModeInfoOffDesc": "La lecture s'arrête à la fin du livre ou de l'épisode en cours.",
   "queueModeInfoManual": "File d'attente manuelle",
+  "queueModeInfoManualDesc": "Vos cartes d'absorption agissent comme une liste de lecture. Quand l'une se termine, la prochaine carte non terminée se lance automatiquement. Ajoutez des éléments avec le bouton \"Ajouter à l'Absorbation\" sur un livre ou un épisode et réorganisez à partir de l'écran d'absorption.",
   "queueModeOff": "Désactivé",
   "queueModeManual": "Manuel",
   "queueModeAuto": "Auto",
@@ -715,11 +718,43 @@
   },
   "nothingUpNext": "Rien à venir",
   "showUpNextLabel": "Afficher le suivant sur la page d'absorption",
+  "queueModeBooks": "Livres",
   "queueModePodcasts": "Podcasts",
+  "autoDownloadQueue": "File de téléchargement automatique",
+  "autoDownloadQueueOnSubtitle": "Garder les {count} prochains éléments téléchargés",
+  "@autoDownloadQueueOnSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoDownloadQueueOffSubtitle": "Désactivé - téléchargements manuels uniquement",
+  "sectionPlayback": "Lecture",
+  "sectionMediaControls": "Contrôles multimédia",
   "defaultSpeed": "Vitesse par défaut",
   "defaultSpeedSubtitle": "Les nouveaux livres commencent à cette vitesse — chacun mémorise ensuite sa propre vitesse",
   "skipBack": "Reculer",
   "skipForward": "Avancer",
+  "longSkipButtons": "Boutons de saut long",
+  "longSkipButtonsOnSubtitle": "Activé - le lecteur affiche une seconde paire de sauts plus grands",
+  "longSkipButtonsOffSubtitle": "Désactivé - juste les boutons de saut normaux",
+  "longSkipBack": "Retour en arrière long",
+  "longSkipForward": "Saut vers l'avant long",
+  "coverShapeDefault": "Défaut",
+  "coverShapeSquare": "Carré",
+  "coverShapeRectangle": "Rectangle",
+  "coverShapeLabel": "Forme de couverture",
+  "currentLibrarySettingsTitle": "Bibliothèque actuelle : {name}",
+  "@currentLibrarySettingsTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "currentLibrarySkipOverride": "Longueurs de saut personnalisées",
+  "currentLibrarySkipOverrideOnSubtitle": "Activé - cette bibliothèque utilise ses propres longueurs de saut",
   "currentLibrarySkipBack": "Reculer",
   "currentLibrarySkipForward": "Avancer",
   "autoRewindOnResume": "Rembobiner lors de la reprise",
