@@ -594,6 +594,7 @@
   "filterAllEpisodes": "Tous",
   "filterUnplayed": "Non lus",
   "episodeFeedEmpty": "Aucun épisode ne correspond à ce filtre",
+  "podcastFilterNew": "Nouveau",
   "settingsPodcastTab": "Onglet Podcasts",
   "settingsPodcastTabDesc": "Donner à une bibliothèque de podcast son propre onglet dans la barre du bas",
   "settingsPodcastTabLibrary": "Bibliothèque pour l'onglet podcasts",
@@ -1036,6 +1037,7 @@
   "adminOnline": "En ligne",
   "adminPurgeCache": "Purger le cache",
   "adminPodcasts": "Podcasts",
+  "adminScan": "Scanner",
   "adminMatchAllContent": "Faire correspondre les métadonnées de tous les éléments dans {name} ? Cela peut prendre un certain temps.",
   "@adminMatchAllContent": {
     "placeholders": {
@@ -1080,6 +1082,7 @@
   "rmabRequestSent": "Demande envoyée",
   "rmabRequestErrorAlreadyAvailable": "Déjà dans votre bibliothèque",
   "rmabMyRequestsTab": "Mes demandes",
+  "rmabSetupTab": "Configuration",
   "rmabMyRequestsRefresh": "Actualiser",
   "rmabRequestDetailStatus": "Statut",
   "rmabRequestDetailRequestedOn": "Demandé le",
@@ -1147,6 +1150,7 @@
   "newNote": "Nouvelle note",
   "markdownMd": "Markdown (.md)",
   "plainTextTxt": "Texte brut (.txt)",
+  "titleHint": "Titre",
   "addedToName": "Ajouté à \"{name}\"",
   "@addedToName": {
     "placeholders": {
@@ -1161,6 +1165,7 @@
   "showLess": "Afficher moins",
   "readMore": "Lire plus",
   "userFallback": "Utilisateur",
+  "admin": "Admin",
   "minutesAgo": "Il y a {count} min",
   "@minutesAgo": {
     "placeholders": {
@@ -1186,6 +1191,8 @@
     }
   },
   "audible": "Audible",
+  "root": "Racine",
+  "reset": "Réinitialiser",
   "rewindRangeValue": "{min}s – {max}s",
   "@rewindRangeValue": {
     "placeholders": {
@@ -1261,6 +1268,8 @@
   "smtpPort": "Port",
   "smtpUser": "Utilisateur",
   "smtpPass": "Mot de passe",
+  "smtpSaveSettings": "Enregistrer",
+  "ereaderDeviceName": "Nom",
   "ereaderAvailUserOrUp": "Tous les utilisateurs",
   "libraryCountOne": "{count} bibliothèque",
   "@libraryCountOne": {
@@ -1324,7 +1333,9 @@
   },
   "adminLibraries": "Bibliothèques",
   "adminLibraryFolders": "dossiers",
+  "adminLibrarySize": "taille",
   "adminLibraryDuration": "durée",
+  "adminUsersRootBadge": "root",
   "adminUsersNever": "Jamais",
   "adminUsersNewUser": "Nouvel utilisateur",
   "adminUsersUsername": "Utilisateur",
@@ -1374,6 +1385,7 @@
   "adminPodcastsGenreEducation": "Éducation",
   "adminPodcastsGenreTvFilm": "TV & Film",
   "adminPodcastsGenreMusic": "Musique",
+  "adminPodcastsGenreNews": "Actualités",
   "adminPodcastsAddedToLibrary": "{title} ajouté à la bibliothèque",
   "@adminPodcastsAddedToLibrary": {
     "placeholders": {
@@ -1428,6 +1440,13 @@
   "adminPodcastsFrequency": "Fréquence",
   "adminPodcastsFreqDaily": "Quotidiennement",
   "adminPodcastsDay": "Jour",
+  "adminPodcastsDaySun": "Dim",
+  "adminPodcastsDayMon": "Lun",
+  "adminPodcastsDayTue": "Mar",
+  "adminPodcastsDayWed": "Mer",
+  "adminPodcastsDayThu": "Jeu",
+  "adminPodcastsDayFri": "Ven",
+  "adminPodcastsDaySat": "Sam",
   "adminPodcastsSeasonChip": "Saison {season}",
   "@adminPodcastsSeasonChip": {
     "placeholders": {
@@ -1479,6 +1498,7 @@
       }
     }
   },
+  "seriesBooksDone": "Terminé",
   "seriesBooksExplicitBadge": "E",
   "bookmarksScreenClose": "Fermer",
   "statsScreenSessionCountOne": "{count} session",
@@ -1541,26 +1561,53 @@
       }
     }
   },
+  "sessionDayLabel": "Jour",
   "statsScreenClient": "Client",
   "statsScreenDevice": "Appareil",
   "statsScreenOs": "OS",
   "statsScreenAmLabel": "AM",
   "statsScreenPmLabel": "PM",
   "statsScreenMonthJan": "Jan",
+  "statsScreenMonthFeb": "Fév",
+  "statsScreenMonthMar": "Mar",
+  "statsScreenMonthApr": "Avr",
+  "statsScreenMonthMay": "Mai",
+  "statsScreenMonthJun": "Jui",
+  "statsScreenMonthJul": "Juil",
+  "statsScreenMonthAug": "Aoû",
+  "statsScreenMonthSep": "Sep",
+  "statsScreenMonthOct": "Oct",
+  "statsScreenMonthNov": "Nov",
+  "statsScreenMonthDec": "Déc",
+  "upcomingReleasesDateChip": "Date",
+  "playlistDetailDone": "Terminé",
+  "collectionDetailDone": "Terminé",
+  "authorBooksList": "Liste",
+  "authorBooksGrid": "Grille",
+  "equalizerPresetFlat": "Plat",
   "timeAm": "AM",
   "timePm": "PM",
+  "cardChaptersPlay": "Lire",
   "absorbingSharedAm": "AM",
   "absorbingSharedPm": "PM",
+  "sectionDetailDoneBadge": "Terminé",
+  "homeSectionDoneBadge": "Terminé",
   "bookCardExplicitBadge": "E",
+  "bookCardDone": "Terminé",
   "librarySearchResultsExplicitBadge": "E",
+  "librarySearchResultsDone": "Terminé",
   "libraryGridTilesExplicitBadge": "E",
+  "libraryGridTilesDone": "Terminé",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
   "downloadNotifProgressChannelDesc": "Affiche la progression pendant les téléchargements de livres audio",
   "downloadNotifAlertChannelName": "Alertes de téléchargement",
   "androidAutoTabLibrary": "Bibliothèque",
+  "authorName": "Nom",
+  "add": "Ajouter",
   "ok": "OK",
   "chapterShowSeconds": "Afficher les secondes",
   "chapterShiftBySeconds": "Décaler de (secondes)",
+  "chapterMore": "Plus",
   "chapterUnlock": "Déverrouiller",
   "chapterLock": "Verrouiller",
   "chapterFoundCount": "{count} chapitres trouvés",
@@ -1592,6 +1639,7 @@
   "adminApiKeysCopyWarning": "Copiez cette clé maintenant. Par sécurité, elle ne sera pas affichée à nouveau.",
   "adminApiKeysCopy": "Copier",
   "adminApiKeysCopied": "Copiée dans le presse-papiers",
+  "adminApiKeysDone": "Terminé",
   "adminApiKeysDeleteTitle": "Révoquer la clé API ?",
   "adminApiKeysDeleted": "Clé API révoquée",
   "adminApiKeysRevoke": "Révoquer",
@@ -1644,11 +1692,14 @@
   "libMediaBook": "Livres audio",
   "libMediaPodcast": "Podcasts",
   "libProvider": "Fournisseur de métadonnées",
+  "libIcon": "Icône",
   "libCoverSquare": "Carré",
   "libCoverStandard": "Standard",
   "libCreate": "Créer une bibliothèque",
   "libCreated": "Bibliothèque créée",
   "libUpdated": "Bibliothèque mise à jour",
+  "readEbook": "Lu",
+  "moreActions": "Plus",
   "readerLineSpacing": "Interligne",
   "readerSideMargins": "Marges latérales",
   "readerTopBottom": "Haut et bas",
@@ -1671,5 +1722,7 @@
     }
   },
   "readerAnnotations": "Notes",
+  "readerNoteTitle": "Note",
+  "readerTooltipCopy": "Copier",
   "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez."
 }
