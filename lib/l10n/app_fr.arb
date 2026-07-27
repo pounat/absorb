@@ -501,6 +501,7 @@
   "statsAddedBackToYear": "Ajouté de nouveau à cette année",
   "statsHiddenFromYear": "Masqué dans cette année",
   "statsNothingHidden": "Rien de masqué",
+  "settingsCustomizeStats": "Personnaliser les statistiques",
   "statsGoalTitle": "Objectif d'écoute",
   "statsGoalOff": "Désactivé",
   "statsGoalDaily": "Quotidien",
@@ -569,6 +570,14 @@
   },
   "statsTimeSavedResetConfirm": "Le temps gagné commencera à compter de nouveau à partir d'aujourd'hui.",
   "statsTimeSavedResetDone": "Remise à zéro du temps gagné",
+  "statsOnPaceFor": "Bon rythme pour {count} livres",
+  "@statsOnPaceFor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "statsDaysActive": "Nombre de jours actifs",
   "statsDailyAverage": "Moyenne quotidienne",
   "statsLast7Days": "7 derniers jours",
@@ -654,14 +663,21 @@
   "fullScreenPlayerOffSubtitle": "Stop - jouer dans la vue carte",
   "fullBookScrubberOnSubtitle": "Activé - curseur de recherche sur tout le livre",
   "fullBookScrubberOffSubtitle": "Désactivé - barre de progression uniquement",
+  "cardScrubbers": "Barres de lecture pour les cartes",
   "cardScrubbersBoth": "Les deux",
   "cardScrubbersChapter": "Chapitre",
   "cardScrubbersLocked": "Verrouillé",
   "cardScrubbersBothSubtitle": "Les barres de livre et de chapitre peuvent positionner la lecture",
+  "cardScrubbersChapterSubtitle": "Seul la barre de chapitre peut positionner la lecture",
+  "cardScrubbersLockedSubtitle": "La progression est affichée sans positionnement possible",
+  "speedAdjustedTime": "Temps ajusté à la vitesse",
   "speedAdjustedTimeOnSubtitle": "Activé - le temps restant reflète la vitesse de lecture",
   "speedAdjustedTimeOffSubtitle": "Désactivé - affichage de la durée audio brute",
+  "buttonLayout": "Disposition des boutons",
+  "buttonLayoutSubtitle": "Comment les boutons d'action sont disposés sur la carte",
   "whenAbsorbedInfoContent": "Contrôle ce qu’il arrive à une carte « en cours d’absorption » quand tu termines un livre ou un épisode.\n\nLes cartes terminées sont automatiquement retirées de ton écran Absorbing.",
   "whenAbsorbedSubtitle": "Ce qui arrive à la carte d’absorption quand un livre ou un épisode se termine",
+  "whenAbsorbedShowOverlay": "Afficher la superposition",
   "mergeLibraries": "Page d'Absorption unifiée",
   "mergeLibrariesInfoTitle": "Page d'Absorption unifiée",
   "mergeLibrariesInfoContent": "Quand activé, l’écran Absorbing affiche tous vos livres et podcasts en cours, provenant de toutes vos bibliothèques, dans une seule vue. Quand désactivé, il n’affiche que les éléments de la bibliothèque que vous avez actuellement sélectionnée.",
