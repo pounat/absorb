@@ -110,6 +110,7 @@
       }
     }
   },
+  "setupLinkShareTitle": "Partager la connexion",
   "setupLinkShareDescription": "Envoyez ce lien privé ou demandez-leur de scanner le code QR pour se connecter en tant que {username}.",
   "@setupLinkShareDescription": {
     "placeholders": {
@@ -150,6 +151,10 @@
       }
     }
   },
+  "setupLinkInvalid": "Ce lien de connexion est invalide ou incomplet",
+  "setupLinkSigningIn": "Vérification du lien de connexion...",
+  "loginPasteLink": "Coller le lien de connexion",
+  "loginPasteLinkHelp": "Collez le lien complet de connexion que vous avez reçu. Traitez-le comme un mot de passe.",
   "loginFailed": "Échec de connexion",
   "loginSsoFailed": "La connexion SSO a échoué ou a été annulée",
   "loginSsoAuthFailed": "Échec de l'authentification SSO. Veuillez réessayer.",
@@ -193,11 +198,15 @@
   "libraryTabAuthors": "Auteurs",
   "libraryTabNarrators": "Narrateurs",
   "libraryNoBooks": "Aucun livre trouvé",
+  "libraryNoUnfinishedBooks": "Aucun livre inachevé",
   "libraryNoBooksInProgress": "Aucun livre en cours de lecture",
   "libraryNoFinishedBooks": "Aucun livre achevé",
   "libraryAllBooksStarted": "Tous les livres ont été commencés",
   "libraryNoDownloadedBooks": "Aucun livre téléchargé",
   "libraryNoSeriesFound": "Aucune série trouvée",
+  "libraryNoBooksWithEbooks": "Aucun livre avec eBooks",
+  "libraryNoBooksMissingMetadata": "Cette métadonnée n'est absente d'aucun livre",
+  "libraryNoItemsMatchingFilter": "Aucun élément ne correspond à ce filtre",
   "libraryNoBooksInGenre": "Aucun livre du genre \"{genre}\"",
   "@libraryNoBooksInGenre": {
     "placeholders": {
@@ -271,10 +280,24 @@
   "publishedYear": "Année de publication",
   "duration": "Durée",
   "random": "Aléatoire",
+  "collapseSeries": "Replier les séries",
+  "notFinished": "Non terminé",
   "inProgress": "En cours",
   "filterFinished": "Fini",
   "notStarted": "Non commencé",
   "downloaded": "Téléchargé",
+  "hasEbook": "A un eBook",
+  "noEbook": "Aucun eBook",
+  "hasSupplementaryEbook": "A un eBook supplémentaire",
+  "noSupplementaryEbook": "Pas de livre électronique supplémentaire",
+  "noSeries": "Pas de série",
+  "publishedDecade": "Décennie de publication",
+  "tracks": "Pistes",
+  "noTracks": "Aucune piste",
+  "singleTrack": "Piste unique",
+  "multipleTracks": "Multiples pistes",
+  "explicitContent": "Explicite",
+  "missingMetadata": "Métadonnées manquantes",
   "genre": "Genre",
   "tag": "Mot-clé",
   "clearFilter": "Supprimer le filtre",
@@ -282,6 +305,16 @@
   "noTagsFound": "Aucun mot-clé trouvé",
   "asc": "Croissant",
   "desc": "Décroissant",
+  "fileSize": "Taille du fichier",
+  "lastUpdated": "Dernière mise à jour",
+  "fileCreated": "Fichier créé",
+  "lastModified": "Dernière modification",
+  "authorFirstLast": "Auteur (Prénom Nom)",
+  "authorLastFirst": "Auteur (Nom, Prénom)",
+  "progressSort": "Progression",
+  "dateStarted": "Date de démarrage",
+  "dateFinished": "Date de complétion",
+  "episodeCount": "Nombre d'épisodes",
   "absorbingTitle": "Lecture",
   "absorbingStop": "Stop",
   "absorbingManageQueue": "Gérer la file d'attente",
@@ -298,6 +331,8 @@
   "carModeNoBookLoaded": "Aucun livre chargé",
   "carModeBookLabel": "Livre",
   "carModeChapterLabel": "Chapitre",
+  "carModeBookmarkDefault": "Signet",
+  "carModeBookmarkAdded": "Signet ajouté",
   "downloadsTitle": "Téléchargements",
   "downloadsCancelSelection": "Annuler la sélection",
   "downloadsSelect": "Sélectionner",
@@ -350,8 +385,45 @@
       }
     }
   },
+  "bookmarksTitle": "Tous les signets",
   "bookmarksCancelSelection": "Annuler la sélection",
+  "bookmarksSortedByNewest": "Plus récents d'abord",
+  "bookmarksSortedByPosition": "Triés par position",
   "bookmarksSelect": "Sélectionner",
+  "bookmarksNoBookmarks": "Aucun signet pour l'instant",
+  "bookmarksDeleteCount": "Supprimer {count} signet(s) ?",
+  "@bookmarksDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksDeleteContent": "Cette opération est irréversible.",
+  "bookmarksDeletedCount": "{count} signet(s) supprimé(s)",
+  "@bookmarksDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksJumpTitle": "Aller au signet ?",
+  "bookmarksJumpContent": "\"{title}\" à {position}\ndans {bookTitle}",
+  "@bookmarksJumpContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "position": {
+        "type": "String"
+      },
+      "bookTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "bookmarksJump": "Allez à",
   "bookmarksNotConnected": "Non connecté au serveur",
   "bookmarksCouldNotLoad": "Impossible de charger le livre",
   "bookmarksSelectedCount": "{count} sélectionné(s)",
@@ -367,6 +439,7 @@
   "statsTotalListeningTime": "TEMPS TOTAL D'ÉCOUTE",
   "statsHoursUnit": "h",
   "statsMinutesUnit": "m",
+  "statsSecondsUnit": "s",
   "statsDaysOfAudio": "C'est {days} jours d'audio",
   "@statsDaysOfAudio": {
     "placeholders": {
@@ -387,6 +460,8 @@
   "statsThisWeek": "Cette semaine",
   "statsThisMonth": "Ce mois-ci",
   "statsActivity": "Activité",
+  "statsCurrentStreak": "Série actuelle",
+  "statsBestStreak": "Meilleure série",
   "statsFinished": "Terminé",
   "statsBooksFinished": "Livres",
   "statsEpisodesFinished": "Épisodes",
@@ -412,6 +487,20 @@
       }
     }
   },
+  "statsRemovedFromYear": "Retiré de cette année",
+  "statsAddBackToYearTitle": "Ajouter de nouveau à cette année",
+  "statsAddBackToYearBody": "Ajouter «{title}» à votre liste des livres Absorb de cette année?",
+  "@statsAddBackToYearBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsAddBack": "Ajouter à nouveau",
+  "statsAddedBackToYear": "Ajouté de nouveau à cette année",
+  "statsHiddenFromYear": "Masqué dans cette année",
+  "statsNothingHidden": "Rien de masqué",
   "statsGoalTitle": "Objectif d'écoute",
   "statsGoalOff": "Désactivé",
   "statsGoalDaily": "Quotidien",
@@ -444,14 +533,32 @@
       }
     }
   },
+  "statsBookChallengeProgress": "{done} de {target} livres",
+  "@statsBookChallengeProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
   "statsGoalReached": "Objectif atteint",
+  "statsChartTitle": "Graphique d'écoute",
+  "statsChartBar": "Histogrammes",
+  "statsChartLine": "Ligne",
+  "statsChartHeatmap": "Heatmap",
   "statsChartDays7": "7 jours",
   "statsChartDays30": "30 jours",
   "statsLast30Days": "30 derniers jours",
   "statsThisYearTitle": "Cette année",
+  "statsSectionsTitle": "Sections",
+  "statsSectionTimePeriods": "Périodes",
   "statsHeatmapLess": "Moins",
   "statsHeatmapMore": "Plus",
   "statsDayOfWeek": "Moyenne par jour de la semaine",
+  "statsTimeSavedLabel": "Enregistré par vitesse",
   "statsTimeSavedSince": "depuis le {date}",
   "@statsTimeSavedSince": {
     "placeholders": {
@@ -460,8 +567,12 @@
       }
     }
   },
+  "statsTimeSavedResetConfirm": "Le temps gagné commencera à compter de nouveau à partir d'aujourd'hui.",
+  "statsTimeSavedResetDone": "Remise à zéro du temps gagné",
+  "statsDaysActive": "Nombre de jours actifs",
   "statsDailyAverage": "Moyenne quotidienne",
   "statsLast7Days": "7 derniers jours",
+  "statsMostListened": "Les plus écoutées",
   "statsRecentSessions": "Sessions récentes",
   "appShellHomeTab": "Accueil",
   "appShellLibraryTab": "Bibliothèque",
@@ -475,6 +586,11 @@
   "filterUnplayed": "Non lus",
   "episodeFeedEmpty": "Aucun épisode ne correspond à ce filtre",
   "settingsPodcastTab": "Onglet Podcasts",
+  "settingsPodcastTabDesc": "Donner à une bibliothèque de podcast son propre onglet dans la barre du bas",
+  "settingsPodcastTabLibrary": "Bibliothèque pour l'onglet podcasts",
+  "settingsMergeImpliedByPodcastTab": "Toujours allumé lorsque l'onglet Podcasts est activé",
+  "settingsEpisodeNotifs": "Notifications de nouvel épisode",
+  "settingsEpisodeNotifsDesc": "Vérifier les séries abonnées en arrière-plan",
   "notifIntervalOff": "Désactivé",
   "notifIntervalMinutes": "Toutes les {n} minutes",
   "@notifIntervalMinutes": {
@@ -517,12 +633,14 @@
   "colorSourceCustom": "Personnalisée",
   "useColorEverywhereLabel": "Utiliser cette couleur partout",
   "useColorEverywhereSubtitle": "Colorer aussi les pages de détail des livres et la carte du lecteur avec ta couleur définie plutôt qu’avec la couverture de chaque livre",
+  "flatBackgroundLabel": "Arrière-plan plat",
   "flatBackgroundSubtitle": "Supprime le dégradé d’arrière‑plan. Noir pur en mode sombre pour les écrans OLED.",
   "backgroundIntensityLabel": "Intensité de l'arrière-plan",
   "startScreenLabel": "Écran d'accueil",
   "startScreenSubtitle": "Quel onglet ouvrir au lancement de l'application",
   "startScreenHome": "Accueil",
   "startScreenLibrary": "Bibliothèque",
+  "startScreenAbsorb": "Absorb",
   "startScreenStats": "Stats",
   "disablePageFade": "Désactiver le fondu de page",
   "disablePageFadeOnSubtitle": "Le changement de page est instantané",
@@ -530,10 +648,16 @@
   "rectangleBookCovers": "Couvertures de livres rectangulaires",
   "progressTextSize": "Taille du texte de la progression",
   "rectangleBookCoversOnSubtitle": "Les couvertures s'affichent au format 2:3",
+  "rectangleBookCoversOffSubtitle": "Les couvertures sont carrées",
   "fullScreenPlayer": "Lecteur plein écran",
   "fullScreenPlayerOnSubtitle": "Activé - livres ouverts en plein écran lors de la lecture",
+  "fullScreenPlayerOffSubtitle": "Stop - jouer dans la vue carte",
   "fullBookScrubberOnSubtitle": "Activé - curseur de recherche sur tout le livre",
   "fullBookScrubberOffSubtitle": "Désactivé - barre de progression uniquement",
+  "cardScrubbersBoth": "Les deux",
+  "cardScrubbersChapter": "Chapitre",
+  "cardScrubbersLocked": "Verrouillé",
+  "cardScrubbersBothSubtitle": "Les barres de livre et de chapitre peuvent positionner la lecture",
   "speedAdjustedTimeOnSubtitle": "Activé - le temps restant reflète la vitesse de lecture",
   "speedAdjustedTimeOffSubtitle": "Désactivé - affichage de la durée audio brute",
   "whenAbsorbedInfoContent": "Contrôle ce qu’il arrive à une carte « en cours d’absorption » quand tu termines un livre ou un épisode.\n\nLes cartes terminées sont automatiquement retirées de ton écran Absorbing.",
