@@ -1951,6 +1951,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get trustAllCertificatesInfoTitle => '自签名证书';
 
   @override
+  String get mp3IndexSeeking => 'MP3 index seeking';
+
+  @override
+  String get mp3IndexSeekingInfoTitle => 'MP3 Index Seeking';
+
+  @override
+  String get mp3IndexSeekingInfoContent =>
+      'Only enable this if you have MP3 files that don\'t seek to the right position. Inaccurate seeking usually comes from variable bitrate (VBR) MP3s. Index seeking builds an exact time map as the file is read, so jumping near the end of a large MP3 can take a moment - especially when streaming, since the file has to be read up to that point. Takes effect the next time a book starts.';
+
+  @override
+  String get mp3IndexSeekingOnSubtitle =>
+      'On - exact seeking for VBR MP3 files';
+
+  @override
+  String get mp3IndexSeekingOffSubtitle => 'Off - normal seeking';
+
+  @override
   String get trustAllCertificatesInfoContent =>
       '如果你的 Audiobookshelf 服务器使用自签名证书或自定义根 CA，请启用此选项。启用后，Absorb 将跳过所有连接的 TLS 证书验证。仅在您信任当前网络环境时启用。';
 

@@ -195,6 +195,7 @@ void main() async {
     snappyTransitionsNotifier.value = await PlayerSettings.getSnappyTransitions();
     classicWordingNotifier.value = await PlayerSettings.getClassicWording();
     PlayerSettings.showExplicitBadge = await PlayerSettings.getShowExplicitBadge();
+    PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
     // Restore last cover seed color so the theme doesn't flash on startup
     {
       final seedInt = await PlayerSettings.getCoverSeedColor();
@@ -608,6 +609,7 @@ class _AuthGateState extends State<AuthGate> {
     snappyTransitionsNotifier.value = await PlayerSettings.getSnappyTransitions();
     classicWordingNotifier.value = await PlayerSettings.getClassicWording();
     PlayerSettings.showExplicitBadge = await PlayerSettings.getShowExplicitBadge();
+    PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
     // Rotation lock: main() applied it before scope was active, so that pass
     // read the never-written unscoped key and always came up unlocked. The
     // timeout matters: on a headless boot (Android Auto bind) there is no

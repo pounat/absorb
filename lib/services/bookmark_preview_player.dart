@@ -119,8 +119,8 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
       if (track.local) {
         await player.setAudioSource(localAudioSource(track.source));
       } else {
-        await player.setAudioSource(
-            AudioSource.uri(Uri.parse(track.source), headers: api?.mediaHeaders));
+        await player.setAudioSource(AudioSource.uri(Uri.parse(track.source),
+            headers: api?.mediaHeaders, options: mp3ExtractorOptions()));
       }
       _lastSeekMs = (local * 1000).round();
       await player.seek(Duration(milliseconds: _lastSeekMs!));

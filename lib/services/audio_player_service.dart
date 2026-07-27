@@ -1498,6 +1498,7 @@ class AudioPlayerService extends ChangeNotifier {
             .map((t) => AudioSource.uri(
                   Uri.parse((t as Map<String, dynamic>)['url'] as String),
                   headers: audioHeaders,
+                  options: mp3ExtractorOptions(),
                 ) as AudioSource)
             .toList();
       }
@@ -2998,7 +2999,7 @@ class AudioPlayerService extends ChangeNotifier {
         final track = t as Map<String, dynamic>;
         final contentUrl = track['contentUrl'] as String? ?? '';
         final fullUrl = api.buildTrackUrl(contentUrl);
-        trackSources.add(AudioSource.uri(Uri.parse(fullUrl), headers: audioHeaders));
+        trackSources.add(AudioSource.uri(Uri.parse(fullUrl), headers: audioHeaders, options: mp3ExtractorOptions()));
       }
       source = ConcatenatingAudioSource(children: trackSources);
 
@@ -3324,7 +3325,7 @@ class AudioPlayerService extends ChangeNotifier {
         final track = t as Map<String, dynamic>;
         final contentUrl = track['contentUrl'] as String? ?? '';
         final fullUrl = api.buildTrackUrl(contentUrl);
-        trackSources.add(AudioSource.uri(Uri.parse(fullUrl), headers: audioHeaders));
+        trackSources.add(AudioSource.uri(Uri.parse(fullUrl), headers: audioHeaders, options: mp3ExtractorOptions()));
       }
       final source = ConcatenatingAudioSource(children: trackSources);
 
@@ -3432,14 +3433,14 @@ class AudioPlayerService extends ChangeNotifier {
                 final track = retryTracks.first as Map<String, dynamic>;
                 final contentUrl = track['contentUrl'] as String? ?? '';
                 final fullUrl = api.buildTrackUrl(contentUrl);
-                retrySource = AudioSource.uri(Uri.parse(fullUrl), headers: audioHeaders);
+                retrySource = AudioSource.uri(Uri.parse(fullUrl), headers: audioHeaders, options: mp3ExtractorOptions());
               } else {
                 final sources = <AudioSource>[];
                 for (final t in retryTracks) {
                   final track = t as Map<String, dynamic>;
                   final contentUrl = track['contentUrl'] as String? ?? '';
                   final fullUrl = api.buildTrackUrl(contentUrl);
-                  sources.add(AudioSource.uri(Uri.parse(fullUrl), headers: audioHeaders));
+                  sources.add(AudioSource.uri(Uri.parse(fullUrl), headers: audioHeaders, options: mp3ExtractorOptions()));
                 }
                 retrySource = ConcatenatingAudioSource(children: sources);
               }
@@ -3534,13 +3535,13 @@ class AudioPlayerService extends ChangeNotifier {
       if (retryTracks.length == 1) {
         final track = retryTracks.first as Map<String, dynamic>;
         final contentUrl = track['contentUrl'] as String? ?? '';
-        retrySource = AudioSource.uri(Uri.parse(api.buildTrackUrl(contentUrl)), headers: audioHeaders);
+        retrySource = AudioSource.uri(Uri.parse(api.buildTrackUrl(contentUrl)), headers: audioHeaders, options: mp3ExtractorOptions());
       } else {
         final sources = <AudioSource>[];
         for (final t in retryTracks) {
           final track = t as Map<String, dynamic>;
           final contentUrl = track['contentUrl'] as String? ?? '';
-          sources.add(AudioSource.uri(Uri.parse(api.buildTrackUrl(contentUrl)), headers: audioHeaders));
+          sources.add(AudioSource.uri(Uri.parse(api.buildTrackUrl(contentUrl)), headers: audioHeaders, options: mp3ExtractorOptions()));
         }
         retrySource = ConcatenatingAudioSource(children: sources);
       }

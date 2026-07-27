@@ -2022,6 +2022,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get trustAllCertificatesInfoTitle => 'Selbstsignierte Zertifikate';
 
   @override
+  String get mp3IndexSeeking => 'MP3 index seeking';
+
+  @override
+  String get mp3IndexSeekingInfoTitle => 'MP3 Index Seeking';
+
+  @override
+  String get mp3IndexSeekingInfoContent =>
+      'Only enable this if you have MP3 files that don\'t seek to the right position. Inaccurate seeking usually comes from variable bitrate (VBR) MP3s. Index seeking builds an exact time map as the file is read, so jumping near the end of a large MP3 can take a moment - especially when streaming, since the file has to be read up to that point. Takes effect the next time a book starts.';
+
+  @override
+  String get mp3IndexSeekingOnSubtitle =>
+      'On - exact seeking for VBR MP3 files';
+
+  @override
+  String get mp3IndexSeekingOffSubtitle => 'Off - normal seeking';
+
+  @override
   String get trustAllCertificatesInfoContent =>
       'Aktiviere dies, wenn dein Audiobookshelf-Server ein selbstsigniertes Zertifikat oder eine eigene Root-CA verwendet. Wenn aktiviert, überspringt Absorb die TLS-Zertifikatsprüfung für alle Verbindungen. Aktiviere dies nur, wenn du deinem Netzwerk vertraust.';
 

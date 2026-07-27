@@ -2294,7 +2294,9 @@ abstract class AudioSource {
   /// for background audio purposes, consider using the plugin audio_service
   /// instead of just_audio_background.
   static UriAudioSource uri(Uri uri,
-      {Map<String, String>? headers, dynamic tag}) {
+      {Map<String, String>? headers,
+      dynamic tag,
+      ProgressiveAudioSourceOptions? options}) {
     bool hasExtension(Uri uri, String extension) =>
         uri.path.toLowerCase().endsWith('.$extension') ||
         uri.fragment.toLowerCase().endsWith('.$extension');
@@ -2303,7 +2305,8 @@ abstract class AudioSource {
     } else if (hasExtension(uri, 'm3u8')) {
       return HlsAudioSource(uri, headers: headers, tag: tag);
     } else {
-      return ProgressiveAudioSource(uri, headers: headers, tag: tag);
+      return ProgressiveAudioSource(uri,
+          headers: headers, tag: tag, options: options);
     }
   }
 
@@ -2314,8 +2317,9 @@ abstract class AudioSource {
   /// ```
   /// AudioSource.uri(Uri.file(filePath), tag: tag);
   /// ```
-  static UriAudioSource file(String filePath, {dynamic tag}) {
-    return AudioSource.uri(Uri.file(filePath), tag: tag);
+  static UriAudioSource file(String filePath,
+      {dynamic tag, ProgressiveAudioSourceOptions? options}) {
+    return AudioSource.uri(Uri.file(filePath), tag: tag, options: options);
   }
 
   /// Convenience method to create an audio source for an asset.

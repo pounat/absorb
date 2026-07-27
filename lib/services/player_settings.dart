@@ -470,6 +470,14 @@ class PlayerSettings {
     await _set('showExplicitBadge', value);
   }
 
+  /// Cached value for synchronous access when building audio sources.
+  static bool mp3IndexSeeking = false;
+  static Future<bool> getMp3IndexSeeking() => _get('mp3IndexSeeking', false);
+  static Future<void> setMp3IndexSeeking(bool value) async {
+    mp3IndexSeeking = value;
+    await _set('mp3IndexSeeking', value);
+  }
+
   static Future<bool> getNotificationChapterProgress() => _get('notificationChapterProgress', false);
   static Future<void> setNotificationChapterProgress(bool value) => _set('notificationChapterProgress', value, notify: true);
 

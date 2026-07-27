@@ -74,6 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifChapterProgress = false;
   bool _notifSpeedBookmark = false;
   bool _lockSeekBar = false;
+  bool _mp3IndexSeeking = false;
   bool _speedAdjustedTime = true;
   int _forwardSkip = 30;
   int _backSkip = 10;
@@ -753,6 +754,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ]);
     final s = results[0] as AutoRewindSettings;
     final progressScale = results.last as double;
+    final mp3IndexSeek = await PlayerSettings.getMp3IndexSeeking();
     final flatBackground = await PlayerSettings.getFlatBackground();
     final colorSource = await PlayerSettings.getColorSource();
     final manualSeed = await PlayerSettings.getManualSeedColor();
@@ -865,6 +867,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _fullScreenPlayer = fullScreen;
       _snappyTransitions = snappyTrans;
       _classicWording = classicWording;
+      _mp3IndexSeeking = mp3IndexSeek;
       _themeMode = theme == 'oled' ? 'dark' : theme;
       _flatBackground = flatBackground;
       _colorSource = colorSource == 'manual' ? 'manual' : 'dynamic';
@@ -3495,6 +3498,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         applyTrustAllCerts(v);
                       } : null,
                     ),
+                    if (Platform.isAndroid) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: Row(children: [
+                          Flexible(child: Text(l.mp3IndexSeeking)),
+                          _infoIcon(l.mp3IndexSeekingInfoTitle, l.mp3IndexSeekingInfoContent),
+                        ]),
+                        subtitle: Text(
+                          _mp3IndexSeeking
+                              ? l.mp3IndexSeekingOnSubtitle
+                              : l.mp3IndexSeekingOffSubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        value: _mp3IndexSeeking,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _mp3IndexSeeking = v);
+                          PlayerSettings.setMp3IndexSeeking(v);
+                        } : null,
+                      ),
+                    ],
                     if (_isGithubBuild) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       SwitchListTile(
