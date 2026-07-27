@@ -1297,6 +1297,7 @@
   "backupDetailsSeparator": " · ",
   "speed": "Vitesse",
   "details": "Détails",
+  "equalizerShort": "EQ",
   "chaptersChip": "{count} chapitres",
   "@chaptersChip": {
     "placeholders": {
@@ -1367,6 +1368,7 @@
     }
   },
   "adminPodcastsRelToday": "Aujourd'hui",
+  "adminPodcastsGenreAll": "Tous",
   "adminPodcastsGenreArts": "Arts",
   "adminPodcastsGenreComedy": "Comédie",
   "adminPodcastsGenreEducation": "Éducation",
@@ -1425,6 +1427,7 @@
   },
   "adminPodcastsFrequency": "Fréquence",
   "adminPodcastsFreqDaily": "Quotidiennement",
+  "adminPodcastsDay": "Jour",
   "adminPodcastsSeasonChip": "Saison {season}",
   "@adminPodcastsSeasonChip": {
     "placeholders": {
@@ -1476,6 +1479,7 @@
       }
     }
   },
+  "seriesBooksExplicitBadge": "E",
   "bookmarksScreenClose": "Fermer",
   "statsScreenSessionCountOne": "{count} session",
   "@statsScreenSessionCountOne": {
@@ -1540,7 +1544,14 @@
   "statsScreenClient": "Client",
   "statsScreenDevice": "Appareil",
   "statsScreenOs": "OS",
+  "statsScreenAmLabel": "AM",
+  "statsScreenPmLabel": "PM",
   "statsScreenMonthJan": "Jan",
+  "timeAm": "AM",
+  "timePm": "PM",
+  "absorbingSharedAm": "AM",
+  "absorbingSharedPm": "PM",
+  "bookCardExplicitBadge": "E",
   "librarySearchResultsExplicitBadge": "E",
   "libraryGridTilesExplicitBadge": "E",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
