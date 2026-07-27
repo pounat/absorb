@@ -701,6 +701,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   Future<void> _refreshProgress() async {
     if (_api == null) return;
     try {
+      final pendingSyncs =
+          (await ScopedPrefs.getStringList('pending_syncs')).toSet();
       final me = await _api!.getMe();
       if (me != null) {
         final progressList = me['mediaProgress'] as List<dynamic>?;
@@ -770,6 +772,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
               return true;
             }
             if (serverData != null && serverData['isFinished'] == false) {
+              if (pendingSyncs.contains(key)) {
+                debugPrint('[Progress] Keeping local finished (sync pending): $key');
+                return false;
+              }
               debugPrint('[Progress] Clearing local finished (server says not finished): $key');
               return true;
             }
@@ -778,6 +784,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           });
           final overridesBefore = _localProgressOverrides.length;
           _localProgressOverrides.removeWhere((key, localProgress) {
+            if (pendingSyncs.contains(key)) return false;
             if (_locallyFinishedItems.contains(key)) return false;
             // Keep the override if local progress is ahead of server
             final serverProgress = ((_progressMap[key]?['progress'] as num?)?.toDouble()) ?? 0;

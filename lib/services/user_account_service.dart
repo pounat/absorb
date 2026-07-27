@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/server_url.dart';
+import 'auth_tokens.dart';
 
 /// Represents a saved user account (server + credentials).
 class SavedAccount {
@@ -36,7 +38,7 @@ class SavedAccount {
         'token': token,
         if (refreshToken != null) 'refreshToken': refreshToken,
         'userId': userId,
-        if (isLegacyToken) 'isLegacyToken': true,
+        'isLegacyToken': isLegacyToken,
       };
 
   factory SavedAccount.fromJson(Map<String, dynamic> json) => SavedAccount(
@@ -161,16 +163,66 @@ class UserAccountService {
   /// single-use - so a refresh whose result is only kept in memory strands
   /// the on-disk session with an expired access token and a consumed refresh
   /// token, and the next app launch can't sign in.
-  Future<void> persistRefreshedTokens(String accessToken, String? refreshToken) async {
+  Future<void> persistRefreshedTokens(
+    String accessToken,
+    String? refreshToken, {
+    required String serverUrl,
+    required String? username,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final activeServer = prefs.getString('server_url');
+    final activeUsername = prefs.getString('username');
+    if (activeServer == null ||
+        normalizeServerUrl(activeServer) != normalizeServerUrl(serverUrl) ||
+        activeUsername != username) {
+      return;
+    }
     await prefs.setString('token', accessToken);
     if (refreshToken != null) await prefs.setString('refresh_token', refreshToken);
-    final serverUrl = prefs.getString('server_url');
-    final username = prefs.getString('username');
-    if (serverUrl != null && username != null) {
+    if (username != null) {
       if (_accounts.isEmpty) await init();
       await updateTokens(serverUrl, username, accessToken, refreshToken: refreshToken);
     }
+  }
+
+  /// Reload the active session from disk. SharedPreferences keeps an
+  /// isolate-local cache, so reload is required before a foreground client can
+  /// see a token rotation performed by background work.
+  Future<AuthTokens?> loadPersistedTokens(
+      String serverUrl, String? username) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final activeServer = prefs.getString('server_url');
+    final activeUsername = prefs.getString('username');
+    if (activeServer == null ||
+        normalizeServerUrl(activeServer) != normalizeServerUrl(serverUrl) ||
+        activeUsername != username) {
+      return null;
+    }
+    final accessToken = prefs.getString('token');
+    if (accessToken == null || accessToken.isEmpty) return null;
+    return AuthTokens(
+      accessToken: accessToken,
+      refreshToken: prefs.getString('refresh_token'),
+    );
+  }
+
+  /// Keep the server/account available for a prefilled re-login while making
+  /// sure a rejected token cannot be quick-switched back into the app.
+  Future<void> clearTokens(String serverUrl, String username) async {
+    final idx = _accounts.indexWhere(
+        (a) => a.serverUrl == serverUrl && a.username == username);
+    if (idx < 0) return;
+    final old = _accounts[idx];
+    _accounts[idx] = SavedAccount(
+      serverUrl: old.serverUrl,
+      username: old.username,
+      token: '',
+      userId: old.userId,
+      isLegacyToken: old.isLegacyToken,
+    );
+    await _persist();
   }
 
   /// Change the server URL of a saved account (e.g. a dynamic-DNS hostname

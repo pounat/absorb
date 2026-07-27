@@ -22,7 +22,14 @@ import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final SavedAccount? prefillAccount;
+  final String? prefillServerUrl;
+
+  const LoginScreen({
+    super.key,
+    this.prefillAccount,
+    this.prefillServerUrl,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -88,6 +95,36 @@ class _LoginScreenState extends State<LoginScreen>
     _animController.forward();
     _serverController.addListener(_onServerChanged);
     _loadVersion();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = context.read<AuthProvider>();
+      final account = widget.prefillAccount;
+      if (account != null) {
+        _prefillLogin(account.serverUrl, account.username);
+        return;
+      }
+      final requestedServer = widget.prefillServerUrl;
+      if (requestedServer != null && requestedServer.isNotEmpty) {
+        _prefillLogin(requestedServer, '');
+        return;
+      }
+      final serverUrl = auth.serverUrl;
+      if (!auth.isAuthenticated && serverUrl != null && serverUrl.isNotEmpty) {
+        _prefillLogin(serverUrl, auth.username ?? '');
+      }
+    });
+  }
+
+  void _prefillLogin(String serverUrl, String username) {
+    final uri = Uri.tryParse(serverUrl);
+    final protocol = uri?.scheme == 'http' || uri?.scheme == 'https'
+        ? '${uri!.scheme}://'
+        : _protocol;
+    setState(() => _protocol = protocol);
+    _serverController.text = serverUrl.startsWith(protocol)
+        ? serverUrl.substring(protocol.length)
+        : serverUrl;
+    _usernameController.text = username;
   }
 
   Future<void> _loadVersion() async {
@@ -1034,6 +1071,12 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _quickSwitch(SavedAccount account) async {
+    if (account.token.isEmpty) {
+      _prefillLogin(account.serverUrl, account.username);
+      _passwordController.clear();
+      _usernameFocus.unfocus();
+      return;
+    }
     setState(() => _isConnecting = true);
 
     final auth = context.read<AuthProvider>();

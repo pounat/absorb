@@ -131,32 +131,60 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   bool _bookmarkSavedFlash = false;
   Timer? _bookmarkFlashTimer;
 
-  // While the next item is loading (queue advance or fresh play), report
-  // `loading` instead of idle/completed so Android Auto animates its
-  // buffering bar rather than blanking. Cleared automatically once the
-  // player reaches ready.
-  bool _advanceLoading = false;
-  void setAdvanceLoading(bool value) {
-    if (_advanceLoading == value) return;
-    _advanceLoading = value;
+  // Keep the media session in buffering while a queued item is taking over.
+  // Android maps AudioProcessingState.loading to STATE_CONNECTING, which does
+  // not show the buffering animation used for an in-progress media load.
+  bool _advanceBuffering = false;
+  DateTime? _advanceBufferingUntil;
+  Timer? _advanceBufferingMinimumTimer;
+
+  void setAdvanceBuffering(
+    bool value, {
+    Duration minimumDuration = Duration.zero,
+  }) {
+    _advanceBufferingMinimumTimer?.cancel();
+    _advanceBufferingMinimumTimer = null;
+    final changed = _advanceBuffering != value;
+    _advanceBuffering = value;
+    _advanceBufferingUntil = value
+        ? DateTime.now().add(minimumDuration)
+        : null;
+    if (value) _clearAdvanceBufferingIfReady();
+    if (!changed && !value) return;
     refreshPlaybackState();
   }
 
+  void _clearAdvanceBufferingIfReady({bool refresh = true}) {
+    if (!_advanceBuffering ||
+        _player.processingState != ProcessingState.ready) {
+      return;
+    }
+    final remaining = _advanceBufferingUntil?.difference(DateTime.now()) ??
+        Duration.zero;
+    if (remaining > Duration.zero) {
+      _advanceBufferingMinimumTimer?.cancel();
+      _advanceBufferingMinimumTimer = Timer(remaining, () {
+        _advanceBufferingMinimumTimer = null;
+        _clearAdvanceBufferingIfReady();
+      });
+      return;
+    }
+    _advanceBuffering = false;
+    _advanceBufferingUntil = null;
+    if (refresh) refreshPlaybackState();
+  }
+
   void _subscribePlaybackEvents() {
-    _player.playbackEventStream.map(_transformEvent).listen(
-      (state) {
+    _player.playbackEventStream.listen(
+      (event) {
+        _clearAdvanceBufferingIfReady(refresh: false);
+        final state = _transformEvent(event);
         // Only push state on meaningful changes (play/pause, processing state)
         // or at most every 5 seconds for position updates
         final now = DateTime.now();
         final playingChanged = _player.playing != _lastPlaying;
         final processingChanged = _player.processingState != _lastProcessingState;
         final elapsed = now.difference(_lastPlaybackStateUpdate);
-
-        // Load finished: hand state reporting back to the real player.
-        if (_advanceLoading &&
-            _player.processingState == ProcessingState.ready) {
-          _advanceLoading = false;
-        }
 
         if (playingChanged || processingChanged || elapsed.inSeconds >= 5) {
           playbackState.add(state);
@@ -304,11 +332,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
           ProcessingState.ready: AudioProcessingState.ready,
           ProcessingState.completed: AudioProcessingState.completed,
         }[_player.processingState]!;
-        if (_advanceLoading &&
-            (mapped == AudioProcessingState.idle ||
-                mapped == AudioProcessingState.completed)) {
-          return AudioProcessingState.loading;
-        }
+        if (_advanceBuffering) return AudioProcessingState.buffering;
         return mapped;
       }(),
       playing: _player.playing,
@@ -1188,7 +1212,7 @@ class AudioPlayerService extends ChangeNotifier {
   Map<String, dynamic>? _preloadedNextBook;
   bool _autoQueueAdvancing = false;
   Timer? _bgSaveTimer;
-  Timer? _advanceLoadingBackstop;
+  Timer? _advanceBufferingBackstop;
   Timer? _pauseStopTimer;
   static const _pauseStopTimeout = Duration(minutes: 10);
   // A streamed book's cover isn't in the content-provider cache on first play,
@@ -1198,6 +1222,26 @@ class AudioPlayerService extends ChangeNotifier {
   // cover has been fetched. Tracks the item already scheduled for this.
   String? _coverRepushItem;
   Timer? _coverRepushTimer;
+
+  void _beginAdvanceBuffering() {
+    if (!Platform.isAndroid) return;
+    _handler?.setAdvanceBuffering(
+      true,
+      minimumDuration: const Duration(milliseconds: 900),
+    );
+    _advanceBufferingBackstop?.cancel();
+    _advanceBufferingBackstop = Timer(const Duration(seconds: 30), () {
+      _advanceBufferingBackstop = null;
+      _handler?.setAdvanceBuffering(false);
+    });
+  }
+
+  void _endAdvanceBuffering() {
+    if (!Platform.isAndroid) return;
+    _advanceBufferingBackstop?.cancel();
+    _advanceBufferingBackstop = null;
+    _handler?.setAdvanceBuffering(false);
+  }
   /// Last known position in seconds — used to detect end→0 position jumps.
   double _lastKnownPositionSec = 0;
   // ── Stream error retry tracking ──
@@ -1634,6 +1678,7 @@ class AudioPlayerService extends ChangeNotifier {
     if (next == null) return;
     if (_autoQueueAdvancing) return;
     _autoQueueAdvancing = true;
+    _beginAdvanceBuffering();
     debugPrint('[PreBuffer] Auto-queue advanced to ${next['title']}');
 
     final oldItemId = _currentItemId;
@@ -2483,24 +2528,14 @@ class AudioPlayerService extends ChangeNotifier {
         'startTime=$startTime forceStartTime=$forceStartTime\n'
         'Caller:\n${StackTrace.current}');
 
-    // Report a buffering state to the media session while the item loads
-    // (session start + source build), so Android Auto shows its animated
-    // loading bar instead of a blank one - most visible during queue
-    // auto-advance where the previous book already stopped. The handler
-    // clears the flag itself once the player reaches ready; the timer is a
-    // backstop for load failures so the session can't stay stuck buffering.
-    _handler!.setAdvanceLoading(true);
-    _advanceLoadingBackstop?.cancel();
-    _advanceLoadingBackstop = Timer(const Duration(seconds: 30), () {
-      _handler?.setAdvanceLoading(false);
-    });
-
     // Don't start local playback while casting
     final cast = ChromecastService();
     if (cast.isCasting) {
       debugPrint('[Player] Cast active - skipping local playback');
       return null;
     }
+
+    _beginAdvanceBuffering();
 
     final playbackGeneration = ++_playbackGeneration;
 
@@ -2613,6 +2648,7 @@ class AudioPlayerService extends ChangeNotifier {
       final manualOffline = prefs.getBool('manual_offline_mode') ?? false;
       if (manualOffline) {
         debugPrint('[Player] Manual offline — cannot stream non-downloaded item');
+        _endAdvanceBuffering();
         _clearState();
         return 'This item isn\'t downloaded and offline mode is on';
       }
@@ -2638,6 +2674,7 @@ class AudioPlayerService extends ChangeNotifier {
     }
 
     _isLoadingNewItem = false;
+    if (result != null) _endAdvanceBuffering();
     notifyListeners();
 
     // Session-start rewind: rewind by maxRewind when starting a new session
@@ -5167,9 +5204,7 @@ class AudioPlayerService extends ChangeNotifier {
   Future<void> stop() async {
     _pauseStopTimer?.cancel();
     _pauseStopTimer = null;
-    _advanceLoadingBackstop?.cancel();
-    _advanceLoadingBackstop = null;
-    _handler?.setAdvanceLoading(false);
+    _endAdvanceBuffering();
     final wasPlaying = _player?.playing ?? false;
     // Save final position locally
     if (_currentItemId != null) {
@@ -5232,6 +5267,7 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// Stop playback without saving progress — used by reset progress.
   Future<void> stopWithoutSaving() async {
+    _endAdvanceBuffering();
     // Close server session without syncing position
     if (_playbackSessionId != null && _api != null) {
       try {
@@ -5252,6 +5288,7 @@ class AudioPlayerService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _endAdvanceBuffering();
     _syncSub?.cancel();
     _bgSaveTimer?.cancel();
     _pauseStopTimer?.cancel();

@@ -60,6 +60,7 @@ class AuthProvider extends ChangeNotifier {
 
   bool _isLoading = true;
   String? _errorMessage;
+  bool _authExpiryInProgress = false;
 
   // Getters
   bool get isAuthenticated => _accessToken != null && _serverUrl != null;
@@ -189,30 +190,70 @@ class AuthProvider extends ChangeNotifier {
   ApiService? get apiService {
     final url = activeServerUrl;
     if (url != null && _accessToken != null) {
-      return ApiService(
+      return _createSessionApi(
         baseUrl: url,
         token: _accessToken!,
         refreshToken: _refreshToken,
         isLegacyToken: _isLegacyToken,
-        customHeaders: _customHeaders,
-        onTokensRefreshed: _onTokensRefreshed,
-        onAuthExpired: _onAuthExpired,
       );
     }
     return null;
   }
 
-  void _onTokensRefreshed(String newAccessToken, String? newRefreshToken) {
+  ApiService _createSessionApi({
+    required String baseUrl,
+    required String token,
+    required String? refreshToken,
+    required bool isLegacyToken,
+  }) {
+    final sessionServer = _serverUrl ?? baseUrl;
+    final sessionUsername = _username;
+    return ApiService(
+      baseUrl: baseUrl,
+      token: token,
+      refreshToken: refreshToken,
+      isLegacyToken: isLegacyToken,
+      customHeaders: _customHeaders,
+      loadPersistedTokens: () => UserAccountService()
+          .loadPersistedTokens(sessionServer, sessionUsername),
+      onTokensRefreshed: (access, refresh) => _onTokensRefreshed(
+        sessionServer,
+        sessionUsername,
+        access,
+        refresh,
+      ),
+      onAuthExpired: () => _onAuthExpired(sessionServer, sessionUsername),
+    );
+  }
+
+  bool _isCurrentSession(String serverUrl, String? username) {
+    final currentServer = _serverUrl;
+    return currentServer != null &&
+        normalizeServerUrl(currentServer) == normalizeServerUrl(serverUrl) &&
+        _username == username;
+  }
+
+  Future<void> _onTokensRefreshed(
+    String sessionServer,
+    String? sessionUsername,
+    String newAccessToken,
+    String? newRefreshToken,
+  ) async {
+    if (!_isCurrentSession(sessionServer, sessionUsername) ||
+        _accessToken == null) {
+      return;
+    }
     _accessToken = newAccessToken;
     if (newRefreshToken != null) _refreshToken = newRefreshToken;
-    // Persist updated tokens
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString('token', _accessToken!);
-      if (_refreshToken != null) prefs.setString('refresh_token', _refreshToken!);
-    });
-    // Update saved account
-    if (_serverUrl != null && _username != null) {
-      UserAccountService().updateTokens(_serverUrl!, _username!, _accessToken!, refreshToken: _refreshToken);
+    try {
+      await UserAccountService().persistRefreshedTokens(
+        _accessToken!,
+        _refreshToken,
+        serverUrl: sessionServer,
+        username: sessionUsername,
+      );
+    } catch (e) {
+      debugPrint('[Auth] Failed to persist refreshed tokens: $e');
     }
     // Push new token to socket
     SocketService().updateToken(_accessToken!);
@@ -239,14 +280,22 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  void _onAuthExpired() {
+  void _onAuthExpired(String sessionServer, String? sessionUsername) {
+    if (!_isCurrentSession(sessionServer, sessionUsername) ||
+        _accessToken == null ||
+        _authExpiryInProgress) {
+      return;
+    }
+    _authExpiryInProgress = true;
     debugPrint('[Auth] Token refresh failed, forcing re-login');
     // Show a message to the user
     final ctx = rootNavigatorKey.currentContext;
     final l = ctx != null ? AppLocalizations.of(ctx) : null;
     final msg = l?.authSessionExpired ?? 'Session expired. Please log in again.';
     if (ctx != null) showOverlayToast(ctx, msg, icon: Icons.error_outline_rounded);
-    logout();
+    unawaited(logout(forgetAccount: false).whenComplete(() {
+      _authExpiryInProgress = false;
+    }));
   }
 
   /// Try to restore a saved session from SharedPreferences.
@@ -336,14 +385,11 @@ class AuthProvider extends ChangeNotifier {
         if (reachable) {
           try {
             debugPrint('[Auth] fetching /me... (${sw.elapsedMilliseconds}ms)');
-            final api = ApiService(
+            final api = _createSessionApi(
               baseUrl: activeServerUrl!,
               token: savedToken,
               refreshToken: savedRefreshToken,
               isLegacyToken: _isLegacyToken,
-              customHeaders: _customHeaders,
-              onTokensRefreshed: _onTokensRefreshed,
-              onAuthExpired: _onAuthExpired,
             );
             // Prefer /api/authorize over /api/me because it returns the
             // full login payload (including ereaderDevices) — /api/me drops
@@ -378,6 +424,11 @@ class AuthProvider extends ChangeNotifier {
           } catch (_) {}
           _fetchServerVersion(activeServerUrl!);
         }
+      } else if (savedUrl != null) {
+        // A rejected refresh clears credentials but keeps enough identity to
+        // prefill the login form instead of making the user re-enter the server.
+        _serverUrl = normalizeServerUrl(savedUrl);
+        _username = savedUsername;
       }
     } catch (e) {
       // Restore failed — but if we already set credentials, keep them
@@ -409,14 +460,11 @@ class AuthProvider extends ChangeNotifier {
     if (!isAuthenticated || _accessToken == null || activeServerUrl == null) return;
     _ensuringUserInfo = true;
     try {
-      final api = ApiService(
+      final api = _createSessionApi(
         baseUrl: activeServerUrl!,
         token: _accessToken!,
         refreshToken: _refreshToken,
         isLegacyToken: _isLegacyToken,
-        customHeaders: _customHeaders,
-        onTokensRefreshed: _onTokensRefreshed,
-        onAuthExpired: _onAuthExpired,
       );
       final auth = await api.authorize();
       if (auth != null) {
@@ -859,7 +907,10 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> logout() async {
+  Future<void> logout({
+    bool forgetAccount = true,
+    bool keepServer = false,
+  }) async {
     // Stop any active playback
     try {
       final player = AudioPlayerService();
@@ -890,8 +941,10 @@ class AuthProvider extends ChangeNotifier {
     _accessToken = null;
     _refreshToken = null;
     _isLegacyToken = false;
-    _serverUrl = null;
-    _username = null;
+    if (forgetAccount) {
+      _serverUrl = keepServer ? logoutServer : null;
+      _username = null;
+    }
     _userId = null;
     _defaultLibraryId = null;
     _userJson = null;
@@ -903,13 +956,23 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       if (logoutServer != null && logoutUser != null) {
-        await UserAccountService().removeAccount(logoutServer, logoutUser);
+        if (forgetAccount) {
+          await UserAccountService().removeAccount(logoutServer, logoutUser);
+        } else {
+          await UserAccountService().clearTokens(logoutServer, logoutUser);
+        }
       }
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('server_url');
+      if (forgetAccount) {
+        if (keepServer && logoutServer != null) {
+          await prefs.setString('server_url', logoutServer);
+        } else {
+          await prefs.remove('server_url');
+        }
+      }
       await prefs.remove('token');
       await prefs.remove('refresh_token');
-      await prefs.remove('username');
+      if (forgetAccount) await prefs.remove('username');
       await prefs.remove('user_id');
       await prefs.remove('default_library_id');
     } catch (_) {}
@@ -924,6 +987,8 @@ class AuthProvider extends ChangeNotifier {
   /// Stops playback, swaps credentials, and notifies listeners so the
   /// app reloads with the new user's data.
   Future<bool> switchToAccount(SavedAccount account) async {
+    if (account.token.isEmpty) return false;
+
     // Stop current playback
     try {
       final player = AudioPlayerService();
@@ -937,8 +1002,11 @@ class AuthProvider extends ChangeNotifier {
     AndroidAutoService().clearCache();
     CarPlayService().clearAndRefresh();
 
-    // Set the new account as active in the account service
-    UserAccountService().switchTo(account.serverUrl, account.username);
+    // Set the new account as active in the account service. It may have been
+    // removed since the caller loaded its saved-account row.
+    final selected =
+        UserAccountService().switchTo(account.serverUrl, account.username);
+    if (selected == null) return false;
 
     // Notify widgets that read scoped settings (e.g. card button layout) so
     // they reload from the new account's ScopedPrefs instead of keeping the
@@ -1003,14 +1071,11 @@ class AuthProvider extends ChangeNotifier {
 
     // Verify the token still works and get user info
     try {
-      final api = ApiService(
+      final api = _createSessionApi(
         baseUrl: _serverUrl!,
         token: _accessToken!,
         refreshToken: _refreshToken,
         isLegacyToken: _isLegacyToken,
-        customHeaders: _customHeaders,
-        onTokensRefreshed: _onTokensRefreshed,
-        onAuthExpired: _onAuthExpired,
       );
       final auth = await api.authorize();
       if (auth != null) {

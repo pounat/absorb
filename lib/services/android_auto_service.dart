@@ -10,6 +10,7 @@ import 'audio_player_service.dart';
 import 'download_service.dart';
 import 'progress_sync_service.dart';
 import 'scoped_prefs.dart';
+import 'user_account_service.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
 
@@ -289,6 +290,7 @@ class AndroidAutoService {
     final url = prefs.getString('server_url');
     final token = prefs.getString('token');
     final refreshToken = prefs.getString('refresh_token');
+    final username = prefs.getString('username');
     if (url == null || token == null) return null;
     Map<String, String> customHeaders = const {};
     final headersJson = prefs.getString('custom_headers');
@@ -303,6 +305,15 @@ class AndroidAutoService {
       refreshToken: refreshToken,
       isLegacyToken: refreshToken == null,
       customHeaders: customHeaders,
+      loadPersistedTokens: () =>
+          UserAccountService().loadPersistedTokens(url, username),
+      onTokensRefreshed: (access, refresh) =>
+          UserAccountService().persistRefreshedTokens(
+            access,
+            refresh,
+            serverUrl: url,
+            username: username,
+          ),
     );
   }
 

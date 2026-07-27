@@ -4382,7 +4382,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               await _stopAndSyncPlayback();
-              if (context.mounted) context.read<AuthProvider>().logout();
+              if (context.mounted) {
+                context.read<AuthProvider>().logout(keepServer: true);
+              }
             },
             style: FilledButton.styleFrom(backgroundColor: cs.error),
             child: Text(l.signOut),
@@ -4392,13 +4394,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _addAccount(BuildContext context) async {
+  Future<void> _addAccount(
+    BuildContext context, {
+    SavedAccount? prefillAccount,
+  }) async {
     // Stop playback and sync before navigating to login
     await _stopAndSyncPlayback();
     if (!context.mounted) return;
+    final currentServer = context.read<AuthProvider>().serverUrl;
     // Navigate to login screen as a pushed route (not replacing current)
     await Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(
+        builder: (_) => LoginScreen(
+          prefillAccount: prefillAccount,
+          prefillServerUrl: prefillAccount == null ? currentServer : null,
+        ),
+      ),
     );
     // After login, refresh the library for the newly active account
     if (!context.mounted) return;
@@ -4543,6 +4554,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (confirmed != true || !context.mounted) return;
 
+    if (account.token.isEmpty) {
+      await _addAccount(context, prefillAccount: account);
+      return;
+    }
+
     // Stop playback and sync before switching
     await _stopAndSyncPlayback();
     if (!context.mounted) return;
@@ -4550,7 +4566,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final auth = context.read<AuthProvider>();
     final lib = context.read<LibraryProvider>();
 
-    await auth.switchToAccount(account);
+    final switched = await auth.switchToAccount(account);
+    if (!switched) return;
 
     // Re-init the library provider with the new user
     if (context.mounted) {

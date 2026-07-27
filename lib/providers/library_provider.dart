@@ -386,13 +386,17 @@ class LibraryProvider extends ChangeNotifier
     if (_api != null) {
       await ProgressSyncService().flushPendingSync(api: _api!);
     }
+    final pendingSyncs =
+        (await ScopedPrefs.getStringList('pending_syncs')).toSet();
     _lastFinishedItemId = null;
     await Future.wait([
       loadPersonalizedView(force: true),
       _refreshProgress(),
     ]);
-    _localProgressOverrides.clear();
-    _locallyFinishedItems.clear();
+    _localProgressOverrides
+        .removeWhere((itemId, _) => !pendingSyncs.contains(itemId));
+    _locallyFinishedItems
+        .removeWhere((itemId) => !pendingSyncs.contains(itemId));
     final sync = ProgressSyncService();
     for (final entry in _progressMap.entries) {
       final itemId = entry.key;

@@ -258,6 +258,7 @@ class HomeWidgetService {
       return;
     }
     final refreshToken = prefs.getString('refresh_token');
+    final username = prefs.getString('username');
 
     Map<String, String>? customHeaders;
     final headersJson = prefs.getString('custom_headers');
@@ -275,6 +276,15 @@ class HomeWidgetService {
       refreshToken: refreshToken,
       isLegacyToken: refreshToken == null,
       customHeaders: customHeaders ?? const {},
+      loadPersistedTokens: () =>
+          UserAccountService().loadPersistedTokens(serverUrl, username),
+      onTokensRefreshed: (access, refresh) =>
+          UserAccountService().persistRefreshedTokens(
+            access,
+            refresh,
+            serverUrl: serverUrl,
+            username: username,
+          ),
     );
 
     try {
@@ -363,6 +373,7 @@ class HomeWidgetService {
     final serverUrl = prefs.getString('server_url');
     final token = prefs.getString('token');
     final refreshToken = prefs.getString('refresh_token');
+    final username = prefs.getString('username');
     debugPrint(
       '[HomeWidget] play_pause: server=${serverUrl != null}, token=${token != null}',
     );
@@ -384,6 +395,15 @@ class HomeWidgetService {
       refreshToken: refreshToken,
       isLegacyToken: refreshToken == null,
       customHeaders: customHeaders ?? const {},
+      loadPersistedTokens: () =>
+          UserAccountService().loadPersistedTokens(serverUrl, username),
+      onTokensRefreshed: (access, refresh) =>
+          UserAccountService().persistRefreshedTokens(
+            access,
+            refresh,
+            serverUrl: serverUrl,
+            username: username,
+          ),
     );
 
     final episodeId = prefs.getString('widget_episode_id');
@@ -880,6 +900,7 @@ class HomeWidgetService {
     final token = prefs.getString('token');
     if (remoteUrl == null || token == null) return null;
     final refreshToken = prefs.getString('refresh_token');
+    final username = prefs.getString('username');
 
     Map<String, String>? customHeaders;
     final headersJson = prefs.getString('custom_headers');
@@ -912,8 +933,15 @@ class HomeWidgetService {
       refreshToken: refreshToken,
       isLegacyToken: refreshToken == null,
       customHeaders: headers,
+      loadPersistedTokens: () =>
+          UserAccountService().loadPersistedTokens(remoteUrl, username),
       onTokensRefreshed: (access, refresh) =>
-          UserAccountService().persistRefreshedTokens(access, refresh),
+          UserAccountService().persistRefreshedTokens(
+            access,
+            refresh,
+            serverUrl: remoteUrl,
+            username: username,
+          ),
     );
   }
 

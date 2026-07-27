@@ -245,6 +245,7 @@ Future<ApiService?> _buildApiService() async {
   final token = prefs.getString('token');
   if (remoteUrl == null || token == null) return null;
   final refreshToken = prefs.getString('refresh_token');
+  final username = prefs.getString('username');
 
   Map<String, String>? customHeaders;
   final headersJson = prefs.getString('custom_headers');
@@ -270,7 +271,14 @@ Future<ApiService?> _buildApiService() async {
     refreshToken: refreshToken,
     isLegacyToken: refreshToken == null,
     customHeaders: headers,
+    loadPersistedTokens: () =>
+        UserAccountService().loadPersistedTokens(remoteUrl, username),
     onTokensRefreshed: (access, refresh) =>
-        UserAccountService().persistRefreshedTokens(access, refresh),
+        UserAccountService().persistRefreshedTokens(
+          access,
+          refresh,
+          serverUrl: remoteUrl,
+          username: username,
+        ),
   );
 }

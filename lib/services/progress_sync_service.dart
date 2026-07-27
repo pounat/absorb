@@ -18,6 +18,7 @@ class ProgressSyncService {
   bool _isOnline = true;
   bool _isFlushing = false;
   bool _flushAgain = false;
+  Completer<void>? _flushCompleter;
   bool _isFlushingOfflineListening = false;
   int _consecutiveFailures = 0;
   static const _maxConsecutiveFailures = 10;
@@ -191,10 +192,14 @@ class ProgressSyncService {
 
     if (_isFlushing) {
       _flushAgain = true;
+      final activeFlush = _flushCompleter;
+      if (activeFlush != null) await activeFlush.future;
       return;
     }
 
     _isFlushing = true;
+    final flushCompleter = Completer<void>();
+    _flushCompleter = flushCompleter;
     try {
       final pendingList = List<String>.from(
           await ScopedPrefs.getStringList('pending_syncs'));
@@ -327,6 +332,10 @@ class ProgressSyncService {
       }
     } finally {
       _isFlushing = false;
+      if (!flushCompleter.isCompleted) flushCompleter.complete();
+      if (identical(_flushCompleter, flushCompleter)) {
+        _flushCompleter = null;
+      }
     }
 
     final remaining = await ScopedPrefs.getStringList('pending_syncs');

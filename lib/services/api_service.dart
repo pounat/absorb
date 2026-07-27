@@ -83,6 +83,12 @@ class MediaUploadResult {
   const MediaUploadResult({required this.success, this.error});
 }
 
+enum _RefreshOutcome {
+  refreshed,
+  rejected,
+  transientFailure,
+}
+
 class ApiService {
   static String appVersion = '1.3.0'; // fallback; overwritten by initVersion()
   static String appBuild = ''; // build number; set by initVersion()
@@ -120,13 +126,20 @@ class ApiService {
   final http.Client? _httpClient;
 
   /// Called after a successful token refresh so the auth layer can persist.
-  void Function(String newAccessToken, String? newRefreshToken)? onTokensRefreshed;
+  FutureOr<void> Function(String newAccessToken, String? newRefreshToken)? onTokensRefreshed;
+
+  /// Loads the latest persisted tokens before refreshing. Background isolates
+  /// can rotate tokens while this instance is still alive, so the store is the
+  /// only source of truth shared by every ApiService holder.
+  Future<AuthTokens?> Function()? loadPersistedTokens;
 
   /// Called when refresh fails and the user must re-login.
   VoidCallback? onAuthExpired;
 
+  final Duration _refreshRetryDelay;
+
   // Concurrency lock for refresh
-  Completer<bool>? _refreshCompleter;
+  Completer<_RefreshOutcome>? _refreshCompleter;
 
   // Device info - set once at app start
   static String deviceManufacturer = '';
@@ -152,11 +165,14 @@ class ApiService {
     bool isLegacyToken = false,
     this.customHeaders = const {},
     this.onTokensRefreshed,
+    this.loadPersistedTokens,
     this.onAuthExpired,
+    Duration refreshRetryDelay = const Duration(milliseconds: 250),
     http.Client? httpClient,
   })  : _accessToken = token,
         _refreshToken = refreshToken,
         _isLegacyToken = isLegacyToken,
+        _refreshRetryDelay = refreshRetryDelay,
         _httpClient = httpClient;
 
   /// Current access token (for external use like cover URLs, socket auth).
@@ -194,52 +210,115 @@ class ApiService {
     return _httpClient?.delete(url, headers: headers) ?? http.delete(url, headers: headers);
   }
 
-  /// Attempt to refresh the access token using the refresh token.
-  /// Returns true if successful. Uses a lock so concurrent 401s only
-  /// trigger one refresh.
-  Future<bool> _refreshAccessToken() async {
+  Future<bool> _adoptPersistedTokens() async {
+    final loader = loadPersistedTokens;
+    if (loader == null) return false;
+
+    final previousAccess = _accessToken;
+    try {
+      final persisted = await loader();
+      final persistedAccess = persisted?.accessToken;
+      if (persistedAccess == null) return false;
+      _accessToken = persistedAccess;
+      if (persisted?.refreshToken != null) {
+        _refreshToken = persisted!.refreshToken;
+      }
+      final adopted = _accessToken != previousAccess;
+      if (adopted) {
+        await _notifyTokensRefreshed();
+      }
+      return adopted;
+    } catch (e) {
+      debugPrint('[API] Failed to reload persisted tokens: $e');
+      return false;
+    }
+  }
+
+  Future<void> _notifyTokensRefreshed() async {
+    try {
+      await onTokensRefreshed?.call(_accessToken, _refreshToken);
+    } catch (e) {
+      debugPrint('[API] Failed to persist refreshed tokens: $e');
+    }
+  }
+
+  /// Attempt to refresh the access token using the refresh token. A rejected
+  /// refresh is kept distinct from a temporary network/server failure so only
+  /// an explicit 401/403 can expire the local session.
+  Future<_RefreshOutcome> _refreshAccessToken() async {
     if (_isLegacyToken || _refreshToken == null) {
       debugPrint('[API] Cannot refresh: isLegacy=$_isLegacyToken, hasRefreshToken=${_refreshToken != null}');
-      return false;
+      return _RefreshOutcome.transientFailure;
     }
 
     // If a refresh is already in progress, wait for it
     if (_refreshCompleter != null) return _refreshCompleter!.future;
 
-    _refreshCompleter = Completer<bool>();
+    _refreshCompleter = Completer<_RefreshOutcome>();
     try {
-      // Timeout is load-bearing: this is awaited from tryRestoreSession via
-      // the 401-retry path, and a stalled response here would otherwise hold
-      // the splash screen forever.
-      final response = await _post(
-        Uri.parse('$_cleanBaseUrl/auth/refresh'),
-        headers: {
-          ...customHeaders,
-          'x-refresh-token': _refreshToken!,
-        },
-      ).timeout(const Duration(seconds: 15));
+      if (await _adoptPersistedTokens()) {
+        _refreshCompleter!.complete(_RefreshOutcome.refreshed);
+        return _RefreshOutcome.refreshed;
+      }
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final tokens = AuthTokens.fromResponse(data);
-        final newAccess = tokens.accessToken;
-        final newRefresh = tokens.refreshToken;
-        if (newAccess != null) {
-          _accessToken = newAccess;
-          if (newRefresh != null) _refreshToken = newRefresh;
-          onTokensRefreshed?.call(_accessToken, _refreshToken);
-          debugPrint('[API] Token refreshed successfully');
-          _refreshCompleter!.complete(true);
-          return true;
+      for (var attempt = 0; attempt < 2; attempt++) {
+        final refreshTokenSent = _refreshToken;
+        if (refreshTokenSent == null) break;
+
+        try {
+          // Timeout is load-bearing: this is awaited from tryRestoreSession via
+          // the 401-retry path, and a stalled response here would otherwise hold
+          // the splash screen forever.
+          final response = await _post(
+            Uri.parse('$_cleanBaseUrl/auth/refresh'),
+            headers: {
+              ...customHeaders,
+              'x-refresh-token': refreshTokenSent,
+            },
+          ).timeout(const Duration(seconds: 15));
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body) as Map<String, dynamic>;
+            final tokens = AuthTokens.fromResponse(data);
+            final newAccess = tokens.accessToken;
+            final newRefresh = tokens.refreshToken;
+            if (newAccess != null) {
+              _accessToken = newAccess;
+              if (newRefresh != null) _refreshToken = newRefresh;
+              await _notifyTokensRefreshed();
+              debugPrint('[API] Token refreshed successfully');
+              _refreshCompleter!.complete(_RefreshOutcome.refreshed);
+              return _RefreshOutcome.refreshed;
+            }
+          }
+
+          if (response.statusCode == 401 || response.statusCode == 403) {
+            if (await _adoptPersistedTokens()) {
+              _refreshCompleter!.complete(_RefreshOutcome.refreshed);
+              return _RefreshOutcome.refreshed;
+            }
+            if (_refreshToken != refreshTokenSent && attempt == 0) continue;
+            debugPrint('[API] Token refresh rejected: ${response.statusCode}');
+            _refreshCompleter!.complete(_RefreshOutcome.rejected);
+            return _RefreshOutcome.rejected;
+          }
+
+          debugPrint('[API] Token refresh failed: ${response.statusCode}');
+        } catch (e) {
+          debugPrint('[API] Token refresh error: $e');
+        }
+
+        if (attempt == 0) {
+          await Future<void>.delayed(_refreshRetryDelay);
+          if (await _adoptPersistedTokens()) {
+            _refreshCompleter!.complete(_RefreshOutcome.refreshed);
+            return _RefreshOutcome.refreshed;
+          }
         }
       }
-      debugPrint('[API] Token refresh failed: ${response.statusCode}');
-      _refreshCompleter!.complete(false);
-      return false;
-    } catch (e) {
-      debugPrint('[API] Token refresh error: $e');
-      _refreshCompleter!.complete(false);
-      return false;
+
+      _refreshCompleter!.complete(_RefreshOutcome.transientFailure);
+      return _RefreshOutcome.transientFailure;
     } finally {
       _refreshCompleter = null;
     }
@@ -254,12 +333,13 @@ class ApiService {
       debugPrint('[API] 401 on GET ${url.path} - isLegacy=$_isLegacyToken, hasRefresh=${_refreshToken != null}, tokenLen=${_accessToken.length}');
     }
     if (response.statusCode == 401 && !_isLegacyToken) {
-      if (await _refreshAccessToken()) {
+      final outcome = await _refreshAccessToken();
+      if (outcome == _RefreshOutcome.refreshed) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
         response = await _get(url, headers: refreshedHeaders).timeout(timeout);
       }
-      if (response.statusCode == 401) onAuthExpired?.call();
+      if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
     }
     return response;
   }
@@ -270,12 +350,13 @@ class ApiService {
     final h = headers ?? _headers;
     var response = await _post(url, headers: h, body: body).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
-      if (await _refreshAccessToken()) {
+      final outcome = await _refreshAccessToken();
+      if (outcome == _RefreshOutcome.refreshed) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
         response = await _post(url, headers: refreshedHeaders, body: body).timeout(timeout);
       }
-      if (response.statusCode == 401) onAuthExpired?.call();
+      if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
     }
     return response;
   }
@@ -285,12 +366,13 @@ class ApiService {
     final h = headers ?? _headers;
     var response = await _patch(url, headers: h, body: body).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
-      if (await _refreshAccessToken()) {
+      final outcome = await _refreshAccessToken();
+      if (outcome == _RefreshOutcome.refreshed) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
         response = await _patch(url, headers: refreshedHeaders, body: body).timeout(timeout);
       }
-      if (response.statusCode == 401) onAuthExpired?.call();
+      if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
     }
     return response;
   }
@@ -300,12 +382,13 @@ class ApiService {
     final h = headers ?? _headers;
     var response = await _delete(url, headers: h).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
-      if (await _refreshAccessToken()) {
+      final outcome = await _refreshAccessToken();
+      if (outcome == _RefreshOutcome.refreshed) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
         response = await _delete(url, headers: refreshedHeaders).timeout(timeout);
       }
-      if (response.statusCode == 401) onAuthExpired?.call();
+      if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
     }
     return response;
   }
