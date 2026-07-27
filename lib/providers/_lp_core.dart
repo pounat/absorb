@@ -1348,9 +1348,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       _lastPersonalizedFetchLibraryId = _selectedLibraryId;
       await _refreshProgress();
       _personalizedSections = await _api!.getPersonalizedView(
-        _selectedLibraryId!,
-        include: const ['numEpisodesIncomplete'],
-      );
+            _selectedLibraryId!,
+            include: const ['numEpisodesIncomplete'],
+          ) ??
+          [];
       for (final section in _personalizedSections) {
         for (final e in (section['entities'] as List<dynamic>? ?? [])) {
           if (e is Map<String, dynamic>) {
@@ -1432,11 +1433,12 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
     try {
       final sections = await api.getPersonalizedView(
-        libraryId,
-        include: const ['numEpisodesIncomplete'],
-        shelves: _StateMixin._progressDrivenShelfIds,
-        limit: 10,
-      );
+            libraryId,
+            include: const ['numEpisodesIncomplete'],
+            shelves: _StateMixin._progressDrivenShelfIds,
+            limit: 10,
+          ) ??
+          [];
       _lastProgressShelvesFetchAt = DateTime.now();
       _lastProgressShelvesLibraryId = libraryId;
       if (_selectedLibraryId != libraryId || isOffline) return;
@@ -1512,9 +1514,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     unawaited(() async {
       try {
         final sections = await api.getPersonalizedView(
-          libraryId,
-          include: const ['numEpisodesIncomplete', 'rssfeed'],
-        );
+              libraryId,
+              include: const ['numEpisodesIncomplete', 'rssfeed'],
+            ) ??
+            [];
         _lastRssHydrationAt = DateTime.now();
         _lastRssHydrationLibraryId = libraryId;
 

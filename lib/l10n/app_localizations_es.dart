@@ -1071,6 +1071,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get episodeFeedEmpty => 'No episodes match this filter';
 
   @override
+  String get podcastFilterUpNext => 'Up Next';
+
+  @override
+  String get podcastFilterNew => 'New';
+
+  @override
   String get settingsPodcastTab => 'Podcasts tab';
 
   @override

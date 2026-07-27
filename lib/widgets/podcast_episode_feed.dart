@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -62,13 +63,27 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   String _filter = 'all';
   final _scroll = ScrollController();
 
+  // Server-category filters ("Up Next" / "New") show a personalized shelf
+  // instead of the client-filtered recent-episodes pages.
+  final _shelfEpisodes = <Map<String, dynamic>>[];
+  bool _shelfLoading = false;
+  String? _loadedShelfFilter;
+  String? _shelfError;
+  int _shelfReq = 0;
+
+  bool get _isShelfFilter => _filter == 'upnext' || _filter == 'new';
+
   @override
   void initState() {
     super.initState();
     ScopedPrefs.getString('episode_feed_filter_${widget.libraryId}').then((v) {
       if (mounted && v != null && v.isNotEmpty) {
         setState(() => _filter = v);
-        _fillFilteredResults();
+        if (_isShelfFilter) {
+          _loadShelf();
+        } else {
+          _fillFilteredResults();
+        }
       }
     });
     _scroll.addListener(_onScroll);
@@ -82,7 +97,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   }
 
   void _onScroll() {
-    if (!_hasMore || _loadingMore || _loading) return;
+    if (_isShelfFilter || !_hasMore || _loadingMore || _loading) return;
     if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 600) {
       _loadPage();
     }
@@ -115,6 +130,10 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   }
 
   Future<void> _refresh() async {
+    if (_isShelfFilter) {
+      await _loadShelf();
+      return;
+    }
     _episodes.clear();
     _page = 0;
     _hasMore = true;
@@ -125,13 +144,85 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     if (f == _filter) return;
     setState(() => _filter = f);
     ScopedPrefs.setString('episode_feed_filter_${widget.libraryId}', f);
-    _fillFilteredResults();
+    if (_isShelfFilter) {
+      _loadShelf();
+    } else {
+      _fillFilteredResults();
+    }
+  }
+
+  /// "Up Next" maps to the personalized view's continue-listening shelf,
+  /// "New" to newest-episodes - the shelves the old podcast home page
+  /// showed before the Podcasts tab replaced it. Always refetches on entry
+  /// (progress changes reshape Up Next server-side); previous rows for the
+  /// same shelf stay visible while the refresh runs.
+  Future<void> _loadShelf() async {
+    final wanted = _filter;
+    final req = ++_shelfReq;
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    setState(() {
+      _shelfLoading = true;
+      _shelfError = null;
+      if (_loadedShelfFilter != wanted) _shelfEpisodes.clear();
+    });
+    final shelves = await api.getPersonalizedView(widget.libraryId, limit: 50);
+    // The token guards A -> B -> A chip flips, where the filter check alone
+    // would let the first A response overwrite the second's.
+    if (!mounted || _filter != wanted || req != _shelfReq) return;
+    if (shelves == null) {
+      // Failed fetch: keep whatever is showing; only surface an error when
+      // the list is empty. Pull-to-refresh retries.
+      setState(() {
+        _shelfLoading = false;
+        if (_shelfEpisodes.isEmpty) {
+          _shelfError = AppLocalizations.of(context)!.failedToLoad;
+        }
+      });
+      return;
+    }
+    final shelfId =
+        wanted == 'upnext' ? 'continue-listening' : 'newest-episodes';
+    final shelf = shelves.whereType<Map<String, dynamic>>().firstWhere(
+          (s) => s['id'] == shelfId && s['type'] == 'episode',
+          orElse: () => const <String, dynamic>{},
+        );
+    final entities = shelf['entities'] as List<dynamic>? ?? const [];
+    debugPrint('[EpisodeFeed] shelf $shelfId -> ${entities.length} entities');
+    setState(() {
+      _shelfEpisodes
+        ..clear()
+        ..addAll(_mapShelfEntities(entities));
+      _loadedShelfFilter = wanted;
+      _shelfLoading = false;
+    });
+  }
+
+  /// Personalized shelf entities are minified library items with the episode
+  /// attached as `recentEpisode`. Flatten to the feed's episode shape.
+  List<Map<String, dynamic>> _mapShelfEntities(List<dynamic> entities) {
+    final out = <Map<String, dynamic>>[];
+    for (final item in entities.whereType<Map<String, dynamic>>()) {
+      final ep = item['recentEpisode'];
+      if (ep is! Map<String, dynamic>) continue;
+      out.add(<String, dynamic>{
+        ...ep,
+        // Non-expanded episode JSON keeps duration inside audioFile.
+        'duration': ep['duration'] ??
+            (ep['audioFile'] as Map<String, dynamic>?)?['duration'],
+        'libraryItemId': ep['libraryItemId'] ?? item['id'],
+        'libraryId': item['libraryId'] ?? widget.libraryId,
+        'podcast': item,
+      });
+    }
+    return out;
   }
 
   void _fillFilteredResults() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           _filter == 'all' ||
+          _isShelfFilter ||
           !_hasMore ||
           _loading ||
           _loadingMore) {
@@ -336,6 +427,8 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       lib.markFinishedLocally('$showId-$epId', skipAutoAdvance: true);
     }
     if (mounted) setState(() {});
+    // Up Next is server-shaped by progress, so re-pull it after a toggle.
+    if (mounted && _isShelfFilter) unawaited(_loadShelf());
   }
 
   @override
@@ -344,10 +437,12 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
 
-    if (_loading) {
+    // Shelf mode renders from its own state - don't let the recent-feed's
+    // initial load or error blank an already-loaded shelf.
+    if (_loading && !_isShelfFilter) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_error != null && _episodes.isEmpty) {
+    if (_error != null && _episodes.isEmpty && !_isShelfFilter) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -360,7 +455,9 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       );
     }
 
-    final filtered = _episodes.where((ep) => _matchesFilter(lib, ep)).toList();
+    final filtered = _isShelfFilter
+        ? _shelfEpisodes
+        : _episodes.where((ep) => _matchesFilter(lib, ep)).toList();
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -380,6 +477,8 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                     children: [
                       for (final (key, label) in [
                         ('all', l.filterAllEpisodes),
+                        ('upnext', l.podcastFilterUpNext),
+                        ('new', l.podcastFilterNew),
                         ('subscribed', l.episodeListSubscribedChip),
                         ('notfinished', l.notFinished),
                         ('unplayed', l.filterUnplayed),
@@ -401,19 +500,27 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
               ),
             ),
           ),
-          if (filtered.isEmpty)
+          if (_isShelfFilter && _shelfLoading && _shelfEpisodes.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (filtered.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  l.episodeFeedEmpty,
+                  _isShelfFilter && _shelfError != null
+                      ? _shelfError!
+                      : l.episodeFeedEmpty,
                   style: TextStyle(color: cs.onSurfaceVariant),
                 ),
               ),
             )
           else
             SliverList.builder(
-              itemCount: filtered.length + (_loadingMore ? 1 : 0),
+              itemCount: filtered.length +
+                  (_loadingMore && !_isShelfFilter ? 1 : 0),
               itemBuilder: (context, i) {
                 if (i >= filtered.length) {
                   return const Padding(

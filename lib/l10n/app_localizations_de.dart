@@ -1077,6 +1077,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episodeFeedEmpty => 'Keine Folgen entsprechen diesem Filter';
 
   @override
+  String get podcastFilterUpNext => 'Up Next';
+
+  @override
+  String get podcastFilterNew => 'New';
+
+  @override
   String get settingsPodcastTab => 'Podcast-Tab';
 
   @override

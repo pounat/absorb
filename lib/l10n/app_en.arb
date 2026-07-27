@@ -532,6 +532,8 @@
   "filterAllEpisodes": "All",
   "filterUnplayed": "Unplayed",
   "episodeFeedEmpty": "No episodes match this filter",
+  "podcastFilterUpNext": "Up Next",
+  "podcastFilterNew": "New",
   "settingsPodcastTab": "Podcasts tab",
   "settingsPodcastTabDesc": "Give one podcast library its own tab in the bottom bar",
   "settingsPodcastTabLibrary": "Podcasts tab library",

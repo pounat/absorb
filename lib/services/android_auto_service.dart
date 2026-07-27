@@ -599,14 +599,16 @@ class AndroidAutoService {
       // episodes come from a separate /recent-episodes call below since the
       // personalized endpoint's `episodes-recently-added` shelf gets stripped
       // when a `shelves` filter is passed.
-      final clFutures = _libraries.map((lib) => api.getPersonalizedView(
+      final clFutures = _libraries.map((lib) => api
+          .getPersonalizedView(
             lib.id,
             include: const ['numEpisodesIncomplete'],
             shelves: lib.isPodcast
                 ? const ['continue-listening']
                 : const ['continue-listening', 'continue-series', 'recently-added'],
             limit: 10,
-          ));
+          )
+          .then((sections) => sections ?? const <dynamic>[]));
 
       // Newly added podcast episodes per podcast library (empty for book libs).
       final episodeFutures = _libraries

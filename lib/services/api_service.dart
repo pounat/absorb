@@ -468,7 +468,9 @@ class ApiService {
 
   /// Get the personalized home view for a library.
   /// Returns sections like "continue-listening", "recently-added", "discover", etc.
-  Future<List<dynamic>> getPersonalizedView(
+  /// Null means the request failed (network / non-200), as opposed to an
+  /// empty list of shelves.
+  Future<List<dynamic>?> getPersonalizedView(
     String libraryId, {
     bool minified = true,
     List<String> include = const ['numEpisodesIncomplete'],
@@ -502,7 +504,7 @@ class ApiService {
     } catch (e) {
       // ignore
     }
-    return [];
+    return null;
   }
 
   /// Get library items (paginated).

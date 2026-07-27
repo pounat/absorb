@@ -2050,6 +2050,18 @@ abstract class AppLocalizations {
   /// **'No episodes match this filter'**
   String get episodeFeedEmpty;
 
+  /// No description provided for @podcastFilterUpNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Up Next'**
+  String get podcastFilterUpNext;
+
+  /// No description provided for @podcastFilterNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get podcastFilterNew;
+
   /// No description provided for @settingsPodcastTab.
   ///
   /// In en, this message translates to:
