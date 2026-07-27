@@ -131,6 +131,17 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   bool _bookmarkSavedFlash = false;
   Timer? _bookmarkFlashTimer;
 
+  // While the next item is loading (queue advance or fresh play), report
+  // `loading` instead of idle/completed so Android Auto animates its
+  // buffering bar rather than blanking. Cleared automatically once the
+  // player reaches ready.
+  bool _advanceLoading = false;
+  void setAdvanceLoading(bool value) {
+    if (_advanceLoading == value) return;
+    _advanceLoading = value;
+    refreshPlaybackState();
+  }
+
   void _subscribePlaybackEvents() {
     _player.playbackEventStream.map(_transformEvent).listen(
       (state) {
@@ -140,6 +151,12 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         final playingChanged = _player.playing != _lastPlaying;
         final processingChanged = _player.processingState != _lastProcessingState;
         final elapsed = now.difference(_lastPlaybackStateUpdate);
+
+        // Load finished: hand state reporting back to the real player.
+        if (_advanceLoading &&
+            _player.processingState == ProcessingState.ready) {
+          _advanceLoading = false;
+        }
 
         if (playingChanged || processingChanged || elapsed.inSeconds >= 5) {
           playbackState.add(state);
@@ -279,13 +296,21 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         if (Platform.isIOS) MediaAction.skipToPrevious,
       },
       androidCompactActionIndices: compactIndices,
-      processingState: const {
-        ProcessingState.idle: AudioProcessingState.idle,
-        ProcessingState.loading: AudioProcessingState.loading,
-        ProcessingState.buffering: AudioProcessingState.buffering,
-        ProcessingState.ready: AudioProcessingState.ready,
-        ProcessingState.completed: AudioProcessingState.completed,
-      }[_player.processingState]!,
+      processingState: () {
+        final mapped = const {
+          ProcessingState.idle: AudioProcessingState.idle,
+          ProcessingState.loading: AudioProcessingState.loading,
+          ProcessingState.buffering: AudioProcessingState.buffering,
+          ProcessingState.ready: AudioProcessingState.ready,
+          ProcessingState.completed: AudioProcessingState.completed,
+        }[_player.processingState]!;
+        if (_advanceLoading &&
+            (mapped == AudioProcessingState.idle ||
+                mapped == AudioProcessingState.completed)) {
+          return AudioProcessingState.loading;
+        }
+        return mapped;
+      }(),
       playing: _player.playing,
       updatePosition: _speedAdjustedPosition(),
       bufferedPosition: _player.bufferedPosition,
@@ -1163,6 +1188,7 @@ class AudioPlayerService extends ChangeNotifier {
   Map<String, dynamic>? _preloadedNextBook;
   bool _autoQueueAdvancing = false;
   Timer? _bgSaveTimer;
+  Timer? _advanceLoadingBackstop;
   Timer? _pauseStopTimer;
   static const _pauseStopTimeout = Duration(minutes: 10);
   // A streamed book's cover isn't in the content-provider cache on first play,
@@ -2456,6 +2482,18 @@ class AudioPlayerService extends ChangeNotifier {
     debugPrint('[PlayItemEntry] itemId=$itemId episodeId=$episodeId '
         'startTime=$startTime forceStartTime=$forceStartTime\n'
         'Caller:\n${StackTrace.current}');
+
+    // Report a buffering state to the media session while the item loads
+    // (session start + source build), so Android Auto shows its animated
+    // loading bar instead of a blank one - most visible during queue
+    // auto-advance where the previous book already stopped. The handler
+    // clears the flag itself once the player reaches ready; the timer is a
+    // backstop for load failures so the session can't stay stuck buffering.
+    _handler!.setAdvanceLoading(true);
+    _advanceLoadingBackstop?.cancel();
+    _advanceLoadingBackstop = Timer(const Duration(seconds: 30), () {
+      _handler?.setAdvanceLoading(false);
+    });
 
     // Don't start local playback while casting
     final cast = ChromecastService();
@@ -5129,6 +5167,9 @@ class AudioPlayerService extends ChangeNotifier {
   Future<void> stop() async {
     _pauseStopTimer?.cancel();
     _pauseStopTimer = null;
+    _advanceLoadingBackstop?.cancel();
+    _advanceLoadingBackstop = null;
+    _handler?.setAdvanceLoading(false);
     final wasPlaying = _player?.playing ?? false;
     // Save final position locally
     if (_currentItemId != null) {
