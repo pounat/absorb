@@ -728,6 +728,7 @@
   "nothingUpNext": "Rien à venir",
   "showUpNextLabel": "Afficher le suivant sur la page d'absorption",
   "openPlaylist": "Ouvrir une liste de lecture",
+  "openCollection": "Ouvrir la collection",
   "playlistPlayAction": "Lire la playlist",
   "playlistAllFinished": "Tous les terminés",
   "queueModeBooks": "Livres",
@@ -987,6 +988,8 @@
   "localServerUrlSetSnackbar": "URL du serveur local définie - la connexion se fera automatiquement lorsque vous serez sur votre réseau domestique",
   "restartRequired": "Redémarrage requis",
   "closeApp": "Fermer l'application",
+  "supportTheDev": "Soutenir le développeur",
+  "buyMeACoffee": "Offrez moi un café",
   "appVersionFormat": "Absorb v{version}",
   "@appVersionFormat": {
     "placeholders": {
@@ -1096,6 +1099,7 @@
       }
     }
   },
+  "rmabConfigErrorGeneric": "Connexion impossible",
   "rmabConfigSavedSnackbar": "ReadMeABook connecté",
   "rmabConfigDisconnectedSnackbar": "ReadMeABook déconnecté",
   "rmabSearchHint": "Rechercher par titre ou auteur",
@@ -1131,6 +1135,7 @@
   "absorbAgain": "Absorber à nouveau",
   "fullyAbsorbed": "Entièrement absorbé",
   "fullyAbsorbAction": "Absorber entièrement",
+  "addToAbsorbing": "Ajouter à l'Absorption",
   "addToPlaylist": "Ajouter à la liste de lecture",
   "downloadEbook": "Télécharger l'eBook",
   "resetProgress": "Réinitialiser la progression",
@@ -1139,6 +1144,7 @@
   "codec": "Codec",
   "mono": "Mono",
   "stereo": "Stéréo",
+  "startM4bEncode": "Commencer l'encodage M4B",
   "currentlyLabel": "Actuellement :",
   "aboutSection": "À propos",
   "chaptersCount": "Chapitres ({count})",
@@ -1166,6 +1172,14 @@
     "placeholders": {
       "date": {
         "type": "String"
+      }
+    }
+  },
+  "andCountMore": "et {count} de plus",
+  "@andCountMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
       }
     }
   },
@@ -1197,6 +1211,7 @@
   "downloadAll": "Tout télécharger",
   "standalone": "Autonome",
   "episodes": "Épisodes",
+  "markFinished": "Marqué comme terminé",
   "markUnfinished": "Marquer comme inachevé",
   "allEpisodes": "Tous les épisodes",
   "selectAll": "Tout sélectionner",
@@ -1212,6 +1227,7 @@
   "authorLabel": "Auteur",
   "narratorLabel": "Narrateur",
   "seriesLabel": "Séries",
+  "removeSeries": "Supprimer les séries",
   "descriptionLabel": "Description",
   "publisherLabel": "Éditeur",
   "yearLabel": "Année",
@@ -1229,6 +1245,7 @@
   "noNotesYet": "Aucune note pour le moment",
   "markdownMd": "Markdown (.md)",
   "plainTextTxt": "Texte brut (.txt)",
+  "untitledNote": "Note sans titre",
   "titleHint": "Titre",
   "equalizer": "ÉGALISEUR",
   "bassBoost": "Amplification des basses",
@@ -1240,6 +1257,7 @@
   "deleteCollection": "Supprimer la collection",
   "deletePlaylist": "Supprimer la liste de lecture",
   "newPlaylist": "Nouvelle liste de lecture",
+  "playlistNameHint": "Nom de la liste de lecture",
   "addedToName": "Ajouté à \"{name}\"",
   "@addedToName": {
     "placeholders": {
@@ -1248,6 +1266,7 @@
       }
     }
   },
+  "failedToAdd": "Échec de l'ajout",
   "newCollection": "Nouvelle collection",
   "collectionNameHint": "Nom de la collection",
   "castToDevice": "Diffuser sur un appareil",
@@ -1257,6 +1276,7 @@
   "welcomeToAbsorb": "Bienvenue dans Absorb",
   "welcomeTagline": "Un client Audiobookshelf.",
   "welcomeAbsorbingTitle": "Absorption",
+  "welcomeMakeItYoursTitle": "Personnalisez-le",
   "showMore": "Afficher plus",
   "showLess": "Afficher moins",
   "readMore": "Lire plus",
@@ -1374,6 +1394,7 @@
       }
     }
   },
+  "pickEreaderDevice": "Choisissez un appareil",
   "adminEmail": "Courriel",
   "smtpSection": "SMTP",
   "smtpHost": "Hôte",
@@ -1393,6 +1414,7 @@
   "ereaderDeviceEmail": "Courriel",
   "ereaderAvailUserOrUp": "Tous les utilisateurs",
   "ereaderAvailGuestOrUp": "Tout le monde",
+  "ereaderDevicesSaved": "Appareils enregistrés",
   "libraryCountOne": "{count} bibliothèque",
   "@libraryCountOne": {
     "placeholders": {
@@ -1434,6 +1456,14 @@
   "bookDetailsLabel": "Détails du livre",
   "equalizerShort": "EQ",
   "equalizerLabel": "Égaliseur",
+  "atPosition": "à {position}",
+  "@atPosition": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      }
+    }
+  },
   "chaptersChip": "{count} chapitres",
   "@chaptersChip": {
     "placeholders": {
@@ -1466,6 +1496,7 @@
       }
     }
   },
+  "adminListeningNow": "À l'écoute en ce moment",
   "adminLibraries": "Bibliothèques",
   "adminLibraryShows": "séries",
   "adminLibraryBooks": "livres",
@@ -2216,6 +2247,7 @@
   "statsTopGenres": "Genres Principaux",
   "srvScannerSection": "Scanneur",
   "srvFindCovers": "Trouver des couvertures",
+  "srvCoverProvider": "Fournisseur de couverture",
   "srvStorageSection": "Stockage",
   "srvMetadataFormat": "Format de fichier de métadonnées",
   "srvDateFormat": "Format de date",
@@ -2247,6 +2279,7 @@
   "libRemoveFoldersTitle": "Supprimer les dossiers ?",
   "readEbook": "Lu",
   "ebookDownload": "Télécharger",
+  "ebookSaveToDevice": "Enregistrer sur l’appareil",
   "ebookSaveToDeviceTitle": "Enregistrer sur l'appareil ?",
   "moreActions": "Plus",
   "readerChapters": "Chapitres",
