@@ -197,6 +197,12 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         _resubscribeCount = 0;
       },
       onError: (Object e, StackTrace st) {
+        if (PlaybackErrorPolicy.isSourceError(e)) {
+          debugPrint('[Player] playbackEvent source error - restarting stream: $e');
+          AudioPlayerService()._attemptStreamRetry(e);
+          return;
+        }
+
         final now = DateTime.now();
         // Reset counter if it's been more than 5 seconds since last error
         if (now.difference(_lastResubscribe).inSeconds > 5) {
@@ -3842,6 +3848,7 @@ class AudioPlayerService extends ChangeNotifier {
       totalDuration: totalDuration,
       chapters: chapters,
       startTime: retryPos,
+      forceStartTime: true,
       episodeId: episodeId,
       episodeTitle: episodeTitle,
       libraryId: libraryId,
