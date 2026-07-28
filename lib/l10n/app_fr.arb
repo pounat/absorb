@@ -946,6 +946,7 @@
   "manageDownloads": "Gérer les téléchargements",
   "streamingCache": "Cache de diffusion en continu",
   "streamingCacheInfoTitle": "Cache de diffusion en continu",
+  "streamingCacheInfoContent": "Cache le flux audio vers le disque afin qu'il ne soit pas téléchargé à nouveau si vous revenez en arrière ou réécoutez des sections. Le cache est géré automatiquement - les fichiers les plus anciens sont supprimés lorsque la taille limite est atteinte. Ceci est séparé des livres téléchargés complètement.",
   "streamingCacheOff": "Désactivé",
   "streamingCacheOffSubtitle": "Désactivé - l'audio est diffusé sans mise en cache",
   "streamingCacheOnSubtitle": "{size} Mo - l'audio diffusé récemment est mis en cache sur le disque",
@@ -987,7 +988,9 @@
   "localServerUrlHint": "http://192.168.1.100:13378",
   "localServerUrlSetSnackbar": "URL du serveur local définie - la connexion se fera automatiquement lorsque vous serez sur votre réseau domestique",
   "disableAudioFocus": "Désactiver le focus audio",
+  "disableAudioFocusInfoContent": "Par défaut, Android donne le « focus » audio à une application à la fois - quand Absorb joue, d'autres audio (musique, vidéos) seront mis en pause. La désactivation du focus audio permet à Absorb de jouer en même temps que les autres applications. Les appels téléphoniques mettront toujours en pause la lecture quel que soit la valeur de ce paramètre.",
   "restartRequired": "Redémarrage requis",
+  "restartRequiredContent": "Le changement sur le focus audio nécessite un redémarrage complet pour prendre effet. Fermer l'application maintenant ?",
   "closeApp": "Fermer l'application",
   "mp3IndexSeeking": "Recherche d'index MP3",
   "supportTheDev": "Soutenir le développeur",
@@ -1085,6 +1088,7 @@
   "adminRmabReload": "Recharger",
   "adminRmabConnected": "Connecté",
   "rmabConfigTitle": "Connecter ReadMeABook",
+  "rmabConfigExplainerAdmin": "ReadMeABook est un service auto-hébergé pour demander des livres audio. Générez un jeton d'API dans RMAB sous Tableau de bord Admin > Paramètres > API, puis collez l'URL du serveur et le jeton ci-dessous. Absorb n'héberge ni ne télécharge aucun contenu, il envoie simplement des requêtes à votre serveur.",
   "rmabConfigLearnMore": "En savoir plus sur ReadMeABook",
   "rmabConfigBaseUrlLabel": "URL du serveur RMAB",
   "rmabConfigBaseUrlHint": "https://rmab.exemple.com",
@@ -1337,6 +1341,7 @@
   "buttonGridReset": "Réinitialiser la grille de boutons",
   "resetButtonGrid": "Réinitialiser la grille de boutons",
   "chapterBarrierInfoTitle": "Barrière de chapitre",
+  "rewindOnSessionStartInfoContent": "Le retour automatique normal se déclenche lorsque vous redémarrez après une pause dans une session active. Ce paramètre ajoute un retour en arrière lors du démarrage d'une nouvelle session - par exemple après la fermeture de l'application, lorsque la lecture a été arrêtée, ou si vous ouvrez l'application à nouveau.\n\nQuand activé, la lecture redémarre par la quantité maximum de rembobinage au début de chaque nouvelle session afin que vous puissiez réentendre là où vous vous êtiez arrêté.",
   "rewindRangeValue": "{min}s – {max}s",
   "@rewindRangeValue": {
     "placeholders": {
@@ -1841,6 +1846,7 @@
       }
     }
   },
+  "seriesBooksFindMissingContent": "Ceci cherche sur Audible pour trouver dans cette série des livres qui peuvent être manquants dans votre bibliothèque.\n\nLes livres sont trouvés d'abord par ASIN (selon que votre serveur a des ASINs pour ses livres), sinon fait une correspondance de titre. Il se peut que les résultats ne soient pas parfaitement exacts.",
   "seriesBooksUnmarkAll": "Décocher tout",
   "seriesBooksDone": "Terminé",
   "seriesBooksExplicitBadge": "E",
@@ -2221,6 +2227,7 @@
       }
     }
   },
+  "authorQuickMatchHint": "Récupérer le nom, l'ASIN, la description et l'image de Audible pour la région choisie.",
   "editTabDetails": "Détails",
   "editTabCover": "Couverture",
   "editTabEmbed": "Intégré",
@@ -2263,11 +2270,14 @@
       }
     }
   },
+  "chapterAudibleShorter": "La version Audible est plus courte que votre fichier - les chapitres peuvent ne pas s'aligner.",
   "coverSearchTitle": "Rechercher une couverture",
+  "coverSearchRefineHint": "Affinez le titre/auteur pour nettoyer les résultats - cela ne change pas le livre.",
   "coverNoneFound": "Aucune couverture trouvée",
   "coverUpdated": "Couverture mise à jour",
   "coverApply": "Appliquer la couverture",
   "coverUnknownResolution": "Résolution inconnue",
+  "embedNoteInFolder": "Les métadonnées seront intégrées dans les pistes audio dans le dossier de votre livre audio.",
   "embedProgressIndeterminate": "Intégration...",
   "taskStarting": "Démarrage...",
   "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
@@ -2366,6 +2376,7 @@
   "adminUploadFiles": "Fichiers",
   "adminUploadChooseFiles": "Choisir les fichiers",
   "adminUploadAddFiles": "Ajouter des fichiers",
+  "adminUploadBookFilesHint": "Choisissez des fichiers audio ou ebook. Vous pouvez également inclure des fichiers de couvertures et de métadonnées.",
   "adminUploadTitleRequired": "Entrez un titre",
   "adminUploadLibraryRequired": "Choisir une bibliothèque",
   "adminUploadUploading": "Envoi...",
@@ -2413,6 +2424,7 @@
   "srvSaved": "Paramètres sauvegardés",
   "libNoneYet": "Pas encore de bibliothèques",
   "libDeleteTitle": "Supprimer la bibliothèque ?",
+  "libDeleteBody": "Cela supprime définitivement la bibliothèque et tous ses éléments du serveur.",
   "libDeleted": "Bibliothèque supprimée",
   "libNewTitle": "Nouvelle bibliothèque",
   "libEditTitle": "Modifier la bibliothèque",
@@ -2431,6 +2443,7 @@
   "libCreated": "Bibliothèque créée",
   "libUpdated": "Bibliothèque mise à jour",
   "libRemoveFoldersTitle": "Supprimer les dossiers ?",
+  "libRemoveFoldersBody": "La suppression d'un dossier supprime ses éléments de la bibliothèque. Cette action est irréversible.",
   "readEbook": "Lu",
   "ebookDownload": "Télécharger",
   "ebookSaveToDevice": "Enregistrer sur l’appareil",
