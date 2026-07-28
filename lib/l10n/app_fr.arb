@@ -1208,6 +1208,7 @@
   "loudness": "Volume",
   "monoAudio": "Audio mono",
   "skipSilence": "Sauter les silences",
+  "deletePlaylist": "Supprimer la liste de lecture",
   "newPlaylist": "Nouvelle liste de lecture",
   "addedToName": "Ajouté à \"{name}\"",
   "@addedToName": {
@@ -1218,6 +1219,7 @@
     }
   },
   "newCollection": "Nouvelle collection",
+  "collectionNameHint": "Nom de la collection",
   "castToDevice": "Diffuser sur un appareil",
   "stopCasting": "Arrêter la diffusion",
   "disconnect": "Déconnecter",
@@ -1261,10 +1263,12 @@
   "iTunes": "iTunes",
   "openLibrary": "Ouvrir la bibliothèque",
   "root": "Racine",
+  "cardBackground": "Arrière-plan de la carte",
   "cardBackgroundGradient": "Dégradé",
   "queueModeSeriesLabel": "Séries",
   "queueModeInfoSeries": "Séries",
   "reset": "Réinitialiser",
+  "chapterBarrierInfoTitle": "Barrière de chapitre",
   "rewindRangeValue": "{min}s – {max}s",
   "@rewindRangeValue": {
     "placeholders": {
@@ -1346,6 +1350,7 @@
   "smtpFromAddress": "Adresse de l'expéditeur",
   "smtpTestAddress": "Adresse de test",
   "smtpSaveSettings": "Enregistrer",
+  "smtpTestSent": "Email de test envoyé",
   "addEreaderDevice": "Ajouter un appareil",
   "deleteEreaderDevice": "Supprimer",
   "ereaderDeviceName": "Nom",
@@ -1389,6 +1394,7 @@
   "cardLayoutHidden": "Masqué",
   "speed": "Vitesse",
   "details": "Détails",
+  "episodeDetailsLabel": "Détails de l'épisode",
   "bookDetailsLabel": "Détails du livre",
   "equalizerShort": "EQ",
   "chaptersChip": "{count} chapitres",
@@ -1423,6 +1429,14 @@
   "adminLibraryDuration": "durée",
   "adminLibraryReview": "Vérification",
   "adminMissingDeleteTitle": "Supprimer l'élément",
+  "adminMissingRemovedOne": "{title} supprimé",
+  "@adminMissingRemovedOne": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "adminMatchFailed": "Échec",
   "adminPurgeCacheFailed": "Échec",
   "adminUsersRootBadge": "root",
@@ -1460,6 +1474,7 @@
       }
     }
   },
+  "adminUsersOpenIdUnlinked": "OpenID dissocié",
   "adminUsersByAuthor": "par {author}",
   "@adminUsersByAuthor": {
     "placeholders": {
@@ -1474,6 +1489,7 @@
   "adminUsersDevice": "Appareil",
   "adminUsersOs": "OS",
   "adminPodcastsCheck": "Vérifier",
+  "adminPodcastsNoPodcastsYet": "Pas encore de podcasts",
   "adminPodcastsEpisodesCount": "{count} épisodes",
   "@adminPodcastsEpisodesCount": {
     "placeholders": {
@@ -1532,8 +1548,10 @@
   },
   "adminPodcastsAdding": "Ajout en cours…",
   "adminPodcastsAddToLibrary": "Ajouter à la bibliothèque",
+  "adminPodcastsSelectMultipleTooltip": "Sélection multiple",
   "adminPodcastsTabDownloaded": "Téléchargé",
   "adminPodcastsTabSettings": "Paramètres",
+  "adminPodcastsDeleteEpisodeTitle": "Supprimer l'épisode ?",
   "adminPodcastsDeleteEpisodeContent": "Supprimer \"{title}\" ?",
   "@adminPodcastsDeleteEpisodeContent": {
     "placeholders": {
@@ -1756,7 +1774,12 @@
   "statsScreenListened": "Écouté",
   "sessionEditTitle": "Modifier la session",
   "sessionDayLabel": "Jour",
+  "sessionEndPosition": "Position de fin",
   "statsViewSessions": "Voir les sessions",
+  "statsSearchSessions": "Sessions de recherche",
+  "sessionDeleteConfirmTitle": "Supprimer la session ?",
+  "sessionSaved": "Session mise à jour",
+  "sessionDeleted": "Session supprimée",
   "statsScreenStarted": "Commencé",
   "statsScreenUpdated": "Mis à jour",
   "statsScreenClient": "Client",
@@ -1784,6 +1807,7 @@
   "upcomingReleasesRescanning": "Nouvelle analyse...",
   "upcomingReleasesRescanFailed": "Échec du nouveau scan",
   "upcomingReleasesDateChip": "Date",
+  "upcomingReleasesScannedToday": "(scanné aujourd'hui)",
   "upcomingReleasesBadgeUpcoming": "À VENIR",
   "upcomingReleasesBadgeMissing": "MANQUANT",
   "homeScreenEpisodeFallback": "Épisode",
@@ -1816,6 +1840,9 @@
       }
     }
   },
+  "audibleSeriesOpenOnAudible": "Ouvrir sur Audible",
+  "audibleSeriesAddToCalendar": "Ajouter au calendrier",
+  "authorBooksGroupBySeries": "Regrouper par série",
   "authorBooksList": "Liste",
   "authorBooksGrid": "Grille",
   "authorBooksBookCount": "{count} livres",
@@ -1856,6 +1883,7 @@
       }
     }
   },
+  "sleepTimerSheetRewindOnSleep": "Retour après endormissement",
   "sleepTimerSheetShake": "Secouer",
   "sleepTimerSheetTabSpecificChapter": "Chapitre",
   "sleepTimerSheetSpecificStart": "Début du chapitre",
@@ -1869,6 +1897,7 @@
   "absorbingSharedPm": "PM",
   "sectionDetailDoneBadge": "Terminé",
   "homeSectionDoneBadge": "Terminé",
+  "tipsSheetQuickBookmarksTitle": "Signets rapides",
   "bookCardUnknownTitle": "Titre inconnu",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Terminé",
@@ -1886,6 +1915,7 @@
   "librarySearchResultsExplicitBadge": "E",
   "librarySearchResultsDone": "Terminé",
   "librarySearchResultsSaved": "Enregistré",
+  "librarySearchResultsUnknownEpisode": "Épisode inconnu",
   "libraryGridTilesExplicitBadge": "E",
   "libraryGridTilesDone": "Terminé",
   "libraryGridTilesSaved": "Enregistré",
