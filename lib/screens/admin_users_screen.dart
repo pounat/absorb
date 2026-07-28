@@ -951,6 +951,8 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
   late bool _hasOpenIDLink;
 
   bool get _isNew => widget.user == null;
+  bool get _isSelf => !_isNew && widget.user?['id'] == context.read<AuthProvider>().userId;
+  bool get _canDeleteUser => !_isNew && !_isSelf && widget.user?['type'] != 'root';
 
   @override
   void initState() {
@@ -986,7 +988,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
         Padding(padding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
           child: Row(children: [
             Expanded(child: Text(_isNew ? l.adminUsersNewUser : l.adminUsersEditUser, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface))),
-            if (!_isNew) IconButton(
+            if (_canDeleteUser) IconButton(
               icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade300, size: 20),
               onPressed: _deleting ? null : _deleteUser),
           ])),
@@ -996,10 +998,16 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             _lbl(cs, tt, l.adminUsersUsername), const SizedBox(height: 6),
             TextField(controller: _usernameCtrl, enabled: _isNew, style: TextStyle(color: cs.onSurface),
               decoration: _deco(cs, l.adminUsersEnterUsername)),
-            const SizedBox(height: 16),
-            _lbl(cs, tt, _isNew ? l.adminUsersPassword : l.adminUsersNewPassword), const SizedBox(height: 6),
-            TextField(controller: _passwordCtrl, obscureText: true, style: TextStyle(color: cs.onSurface),
-              decoration: _deco(cs, _isNew ? l.adminUsersEnterPassword : l.adminUsersLeaveBlankToKeep)),
+            if (_isNew || !_isSelf) ...[
+              const SizedBox(height: 16),
+              _lbl(cs, tt, _isNew ? l.adminUsersPassword : l.adminUsersNewPassword), const SizedBox(height: 6),
+              TextField(controller: _passwordCtrl, obscureText: true, style: TextStyle(color: cs.onSurface),
+                decoration: _deco(cs, _isNew ? l.adminUsersEnterPassword : l.adminUsersLeaveBlankToKeep)),
+              if (!_isNew) ...[
+                const SizedBox(height: 6),
+                Text(l.otherUserPasswordResetWarning, style: tt.bodySmall?.copyWith(color: cs.error)),
+              ],
+            ],
             const SizedBox(height: 20),
             _lbl(cs, tt, l.adminUsersAccountType), const SizedBox(height: 8),
             Row(children: [
@@ -1119,7 +1127,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     } else {
       final up = <String, dynamic>{'type': _type, 'isActive': _isActive, 'isLocked': _isLocked,
         'permissions': perms, 'librariesAccessible': _accessAllLibraries ? [] : _selectedLibraries.toList()};
-      if (_passwordCtrl.text.isNotEmpty) up['password'] = _passwordCtrl.text;
+      if (!_isSelf && _passwordCtrl.text.isNotEmpty) up['password'] = _passwordCtrl.text;
       ok = await api.updateUser(widget.user!['id'] as String, up);
     }
     if (mounted) {
@@ -1131,6 +1139,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
   }
 
   Future<void> _deleteUser() async {
+    if (!_canDeleteUser) return;
     final l = AppLocalizations.of(context)!;
     final name = widget.user?['username'] ?? l.adminUsersThisUser;
     final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(

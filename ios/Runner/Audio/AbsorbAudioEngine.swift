@@ -365,6 +365,7 @@ final class AbsorbAudioEngine: NSObject {
       guard let self = self else { completion(nil); return }
       var err: NSError?
       let status = asset.statusOfValue(forKey: "tracks", error: &err)
+      let decodedDurationS = asset.duration.seconds
       if status != .loaded {
         self.emit("[AudioEngine] loadTrack idx=\(index) tracks-load failed status=\(status.rawValue) err=\(err?.localizedDescription ?? "nil")")
       }
@@ -398,7 +399,7 @@ final class AbsorbAudioEngine: NSObject {
           }
           self.queue.async {
             self.emit("[AudioEngine] loadTrack idx=\(index) localStart=\(localStart) autoPlay=\(autoPlay)")
-            completion(self.totalDurationS > 0 ? self.totalDurationS : nil)
+            completion(decodedDurationS.isFinite && decodedDurationS > 0 ? decodedDurationS : nil)
           }
         }
 

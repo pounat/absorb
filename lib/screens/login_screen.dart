@@ -100,11 +100,13 @@ class _LoginScreenState extends State<LoginScreen>
       final auth = context.read<AuthProvider>();
       final account = widget.prefillAccount;
       if (account != null) {
+        _setInitialHeaders(account.customHeaders);
         _prefillLogin(account.serverUrl, account.username);
         return;
       }
       final requestedServer = widget.prefillServerUrl;
       if (requestedServer != null && requestedServer.isNotEmpty) {
+        _setInitialHeaders(auth.customHeaders);
         _prefillLogin(requestedServer, '');
         return;
       }
@@ -125,6 +127,22 @@ class _LoginScreenState extends State<LoginScreen>
         ? serverUrl.substring(protocol.length)
         : serverUrl;
     _usernameController.text = username;
+  }
+
+  void _setInitialHeaders(Map<String, String> headers) {
+    for (final (key, value) in _headerControllers) {
+      key.dispose();
+      value.dispose();
+    }
+    _headerControllers
+      ..clear()
+      ..addAll(headers.entries.map(
+        (entry) => (
+          TextEditingController(text: entry.key),
+          TextEditingController(text: entry.value),
+        ),
+      ));
+    if (headers.isNotEmpty) _showAdvanced = true;
   }
 
   Future<void> _loadVersion() async {
@@ -1072,6 +1090,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _quickSwitch(SavedAccount account) async {
     if (account.token.isEmpty) {
+      _setInitialHeaders(account.customHeaders);
       _prefillLogin(account.serverUrl, account.username);
       _passwordController.clear();
       _usernameFocus.unfocus();

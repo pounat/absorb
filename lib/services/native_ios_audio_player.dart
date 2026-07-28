@@ -87,6 +87,12 @@ class NativeIosAudioPlayer {
     final tracks = _flattenSource(source);
     if (tracks.isEmpty) return null;
 
+    // A new source must never inherit the outgoing track's duration. The
+    // native load may legitimately return no duration, and returning the old
+    // cache here made single-file books look truncated after a title switch.
+    _duration = null;
+    _durationController.add(null);
+
     final startS = (initialPosition?.inMilliseconds ?? 0) / 1000.0;
     final eqEnabled = await ScopedPrefs.getBool('eq_enabled') ?? false;
     final result = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('load', {
@@ -101,12 +107,13 @@ class NativeIosAudioPlayer {
       // it adopts the live engine instead of starting a duplicate stream.
       if (itemId != null) 'itemId': itemId,
     });
-    final durS = result?['durationS'] as double?;
-    if (durS != null) {
-      _duration = Duration(milliseconds: (durS * 1000).round());
-      _durationController.add(_duration);
-    }
-    return _duration;
+    final durS = (result?['durationS'] as num?)?.toDouble();
+    final loadedDuration = durS != null && durS > 0
+        ? Duration(milliseconds: (durS * 1000).round())
+        : null;
+    _duration = loadedDuration;
+    _durationController.add(loadedDuration);
+    return loadedDuration;
   }
 
   /// New: pre-buffer the next book so the engine can swap to it gaplessly when

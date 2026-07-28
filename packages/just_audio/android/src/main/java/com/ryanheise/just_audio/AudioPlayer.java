@@ -430,9 +430,17 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
     public void onPlayerError(PlaybackException error) {
         if (error instanceof ExoPlaybackException) {
             final ExoPlaybackException exoError = (ExoPlaybackException)error;
+            String forwardedMessage = exoError.getMessage();
+            String sourceCause = null;
             switch (exoError.type) {
             case ExoPlaybackException.TYPE_SOURCE:
-                Log.e(TAG, "TYPE_SOURCE: " + exoError.getSourceException().getMessage());
+                final Throwable sourceException = exoError.getSourceException();
+                sourceCause = sourceException.getClass().getSimpleName()
+                        + (sourceException.getMessage() != null
+                        ? ": " + sourceException.getMessage()
+                        : "");
+                Log.e(TAG, "TYPE_SOURCE: " + sourceCause);
+                forwardedMessage = "Source error: " + sourceCause;
                 break;
 
             case ExoPlaybackException.TYPE_RENDERER:
@@ -447,7 +455,9 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
                 Log.e(TAG, "default ExoPlaybackException: " + exoError.getUnexpectedException().getMessage());
             }
             // TODO: send both errorCode and type
-            sendError(String.valueOf(exoError.type), exoError.getMessage(), mapOf("index", currentIndex));
+            final Map<String, Object> details = mapOf("index", currentIndex);
+            if (sourceCause != null) details.put("cause", sourceCause);
+            sendError(String.valueOf(exoError.type), forwardedMessage, details);
         } else {
             Log.e(TAG, "default PlaybackException: " + error.getMessage());
             sendError(String.valueOf(error.errorCode), error.getMessage(), mapOf("index", currentIndex));

@@ -277,7 +277,25 @@ class AuthProvider extends ChangeNotifier {
       userId: _userId,
       isLegacyToken: _isLegacyToken,
       customHeaders: _customHeaders,
+      supportsTokenReturn: true,
     );
+  }
+
+  /// Adopt a token pair rotated by Android Auto or the paired Wear app.
+  Future<void> adoptCompanionTokens() async {
+    final server = _serverUrl;
+    final username = _username;
+    if (server == null || _accessToken == null) return;
+    final tokens = await UserAccountService().loadPersistedTokens(server, username);
+    if (tokens?.accessToken == null || tokens!.accessToken == _accessToken) return;
+    await _onTokensRefreshed(
+      server,
+      username,
+      tokens.accessToken!,
+      tokens.refreshToken,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('wear_token_pair_pending');
   }
 
   void _onAuthExpired(String sessionServer, String? sessionUsername) {
@@ -341,13 +359,26 @@ class AuthProvider extends ChangeNotifier {
         _userId = prefs.getString('user_id');
         _defaultLibraryId = savedLibraryId;
 
-        // Restore custom headers
+        // Older releases stored one global header map. Saved accounts now own
+        // their headers, but keep the global value as a migration fallback.
         final headersJson = prefs.getString('custom_headers');
+        var legacyCustomHeaders = <String, String>{};
         if (headersJson != null) {
           try {
-            _customHeaders = Map<String, String>.from(jsonDecode(headersJson) as Map);
+            legacyCustomHeaders =
+                Map<String, String>.from(jsonDecode(headersJson) as Map);
           } catch (_) {}
         }
+        SavedAccount? restoredAccount;
+        for (final account in UserAccountService().accounts) {
+          if (normalizeServerUrl(account.serverUrl) == restoredUrl &&
+              account.username == savedUsername) {
+            restoredAccount = account;
+            break;
+          }
+        }
+        _customHeaders =
+            restoredAccount?.customHeaders ?? legacyCustomHeaders;
 
         // Load local server config
         await _loadLocalServerSettings();
@@ -606,6 +637,7 @@ class AuthProvider extends ChangeNotifier {
         refreshToken: _refreshToken,
         userId: _userId,
         isLegacyToken: _isLegacyToken,
+        customHeaders: customHeaders,
       ));
     } catch (_) {}
 
@@ -688,6 +720,7 @@ class AuthProvider extends ChangeNotifier {
         refreshToken: null,
         userId: _userId,
         isLegacyToken: true,
+        customHeaders: customHeaders,
       ));
     } catch (_) {}
 
@@ -785,6 +818,7 @@ class AuthProvider extends ChangeNotifier {
         refreshToken: _refreshToken,
         userId: _userId,
         isLegacyToken: _isLegacyToken,
+        customHeaders: customHeaders,
       ));
     } catch (_) {}
 
@@ -910,7 +944,11 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout({
     bool forgetAccount = true,
     bool keepServer = false,
+    bool revokeServerSession = false,
+    bool allDevices = false,
   }) async {
+    if (revokeServerSession) await adoptCompanionTokens();
+
     // Stop any active playback
     try {
       final player = AudioPlayerService();
@@ -937,6 +975,21 @@ class AuthProvider extends ChangeNotifier {
     // Remove account from saved accounts list
     final logoutServer = _serverUrl;
     final logoutUser = _username;
+
+    // Only an explicit sign-out revokes the server session. Account switches
+    // and auth-expiry cleanup intentionally keep their existing local behavior.
+    if (revokeServerSession &&
+        logoutServer != null &&
+        _accessToken != null &&
+        _refreshToken != null) {
+      final api = _createSessionApi(
+        baseUrl: logoutServer,
+        token: _accessToken!,
+        refreshToken: _refreshToken,
+        isLegacyToken: _isLegacyToken,
+      );
+      await api.revokeServerSession(allDevices: allDevices);
+    }
 
     _accessToken = null;
     _refreshToken = null;
@@ -988,6 +1041,7 @@ class AuthProvider extends ChangeNotifier {
   /// app reloads with the new user's data.
   Future<bool> switchToAccount(SavedAccount account) async {
     if (account.token.isEmpty) return false;
+    await adoptCompanionTokens();
 
     // Stop current playback
     try {
@@ -1025,12 +1079,13 @@ class AuthProvider extends ChangeNotifier {
     await EqualizerService().reloadForActiveAccount();
 
     // Set credentials
-    _serverUrl = account.serverUrl;
-    _accessToken = account.token;
-    _refreshToken = account.refreshToken;
-    _isLegacyToken = account.isLegacyToken;
-    _username = account.username;
-    _userId = account.userId;
+    _serverUrl = selected.serverUrl;
+    _accessToken = selected.token;
+    _refreshToken = selected.refreshToken;
+    _isLegacyToken = selected.isLegacyToken;
+    _username = selected.username;
+    _userId = selected.userId;
+    _customHeaders = selected.customHeaders;
     _defaultLibraryId = null;
     _userJson = null;
     _serverSettings = null;
@@ -1045,29 +1100,17 @@ class AuthProvider extends ChangeNotifier {
       if (_accessToken != null) await prefs.setString('token', _accessToken!);
       if (_username != null) await prefs.setString('username', _username!);
       if (_userId != null) await prefs.setString('user_id', _userId!);
+      if (_customHeaders.isNotEmpty) {
+        await prefs.setString('custom_headers', jsonEncode(_customHeaders));
+      } else {
+        await prefs.remove('custom_headers');
+      }
     } catch (_) {}
 
     // Clear the stats widget so the previous account's numbers don't linger
     // while the new user's data is fetched, then force a refresh.
     await HomeWidgetService().clearStats();
     HomeWidgetService().refreshStats(force: true);
-
-    // Restore custom headers for this session
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final headersJson = prefs.getString('custom_headers');
-      if (headersJson != null) {
-        try {
-          _customHeaders = Map<String, String>.from(jsonDecode(headersJson) as Map);
-        } catch (_) {
-          _customHeaders = {};
-        }
-      } else {
-        _customHeaders = {};
-      }
-    } catch (_) {
-      _customHeaders = {};
-    }
 
     // Verify the token still works and get user info
     try {
@@ -1127,12 +1170,37 @@ class AuthProvider extends ChangeNotifier {
   /// next API call (and the [apiService] getter) uses the new address.
   /// Returns true if the account was found and updated.
   Future<bool> editServerUrl(SavedAccount account, String newServerUrl) async {
+    return editServerConnection(
+      account,
+      newServerUrl,
+      account.customHeaders,
+    );
+  }
+
+  /// Update the connection details for one saved account. Custom headers are
+  /// account-specific so users on different reverse proxies do not inherit
+  /// each other's credentials.
+  Future<bool> editServerConnection(
+    SavedAccount account,
+    String newServerUrl,
+    Map<String, String> customHeaders,
+  ) async {
     final url = normalizeServerUrl(newServerUrl);
     if (url.isEmpty) return false;
-    if (url == account.serverUrl) return true; // nothing to change
+    final headersUnchanged =
+        customHeaders.length == account.customHeaders.length &&
+        customHeaders.entries.every(
+          (entry) => account.customHeaders[entry.key] == entry.value,
+        );
+    if (url == account.serverUrl && headersUnchanged) return true;
 
     final ok = await UserAccountService()
-        .updateAccountUrl(account.serverUrl, account.username, url);
+        .updateAccountConnection(
+          account.serverUrl,
+          account.username,
+          url,
+          customHeaders,
+        );
     if (!ok) return false;
 
     // If we just edited the currently active session, update it live.
@@ -1140,11 +1208,25 @@ class AuthProvider extends ChangeNotifier {
         account.serverUrl == _serverUrl && account.username == _username;
     if (isActiveSession) {
       _serverUrl = url;
+      _customHeaders = Map.unmodifiable(customHeaders);
       _serverReachable = true;
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('server_url', url);
+        if (_customHeaders.isNotEmpty) {
+          await prefs.setString('custom_headers', jsonEncode(_customHeaders));
+        } else {
+          await prefs.remove('custom_headers');
+        }
       } catch (_) {}
+      final token = _accessToken;
+      if (token != null) {
+        SocketService().connect(
+          activeServerUrl!,
+          token,
+          customHeaders: _customHeaders,
+        );
+      }
       _pushSessionToWear();
       notifyListeners();
     }

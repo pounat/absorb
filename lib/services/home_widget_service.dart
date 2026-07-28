@@ -821,17 +821,17 @@ class HomeWidgetService {
         return;
       }
 
-      debugPrint('[StatsWidget] Fetching listening-stats and /me');
+      debugPrint('[StatsWidget] Fetching listening-stats and progress');
       final stats = await api.getListeningStats();
-      final me = await api.getMe();
+      final progress = await api.getAllProgress();
 
       if (stats == null)
         debugPrint('[StatsWidget] listening-stats returned null');
-      if (me == null) debugPrint('[StatsWidget] /me returned null');
+      if (progress == null) debugPrint('[StatsWidget] progress returned null');
 
       // Both calls failed - the server is unreachable. Don't blow away the
       // widget with zeros; leave whatever it was showing in place.
-      if (stats == null && me == null) {
+      if (stats == null && progress == null) {
         debugPrint('[StatsWidget] Both fetches failed - keeping last values');
         return;
       }
@@ -844,7 +844,7 @@ class HomeWidgetService {
       final hidden = (await ScopedPrefs.getStringList(
         'year_hidden_ids',
       )).toSet();
-      final booksYear = _countBooksFinishedThisYear(me, hidden);
+      final booksYear = _countBooksFinishedThisYear(progress, hidden);
 
       debugPrint(
         '[StatsWidget] Computed: today=${today}s week=${week}s streak=${streak}d booksThisYear=$booksYear (dailyMapKeys=${dailyMap.length})',
@@ -997,16 +997,13 @@ class HomeWidgetService {
   }
 
   int _countBooksFinishedThisYear(
-    Map<String, dynamic>? me,
+    List<Map<String, dynamic>>? progress,
     Set<String> hidden,
   ) {
-    if (me == null) return 0;
-    final progress = me['mediaProgress'];
-    if (progress is! List) return 0;
+    if (progress == null) return 0;
     final year = DateTime.now().year;
     var count = 0;
     for (final entry in progress) {
-      if (entry is! Map) continue;
       if (entry['isFinished'] != true) continue;
       // episodeId is non-null for podcast entries — exclude so the "books"
       // count doesn't inflate with every finished podcast episode.

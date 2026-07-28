@@ -12,8 +12,9 @@ class WearAuthService {
   WearAuthService._();
   static final WearAuthService instance = WearAuthService._();
 
-  static const MethodChannel _channel =
-      MethodChannel('com.barnabas.absorb/wear_auth');
+  static const MethodChannel _channel = MethodChannel(
+    'com.barnabas.absorb/wear_auth',
+  );
 
   bool get _supported => !kIsWeb && Platform.isAndroid;
 
@@ -30,6 +31,7 @@ class WearAuthService {
     String? userId,
     required bool isLegacyToken,
     Map<String, String> customHeaders = const {},
+    bool supportsTokenReturn = false,
   }) async {
     if (!_supported) return;
     try {
@@ -41,6 +43,7 @@ class WearAuthService {
         'userId': userId,
         'isLegacyToken': isLegacyToken,
         'customHeaders': customHeaders,
+        'supportsTokenReturn': supportsTokenReturn,
       });
     } catch (e) {
       // Pure-best-effort: the phone app must work even if Play Services

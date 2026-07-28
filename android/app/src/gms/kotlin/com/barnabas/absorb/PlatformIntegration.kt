@@ -83,6 +83,7 @@ object PlatformIntegration {
                             userId = call.argument<String>("userId"),
                             isLegacyToken = call.argument<Boolean>("isLegacyToken") ?: false,
                             customHeaders = headers,
+                            supportsTokenReturn = call.argument<Boolean>("supportsTokenReturn") ?: false,
                         )
                         result.success(true)
                     }

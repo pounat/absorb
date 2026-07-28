@@ -77,42 +77,22 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   Future<void> _syncAll() async {
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
-    final user = await api.getMe();
-    if (user == null || !mounted) return;
+    final userBookmarks = await api.getAllBookmarks();
+    if (userBookmarks == null || !mounted) return;
     final itemIds = <String>{};
-    // Bookmarks on the user object (keyed by libraryItemId)
-    final userBookmarks = user['bookmarks'] as List<dynamic>?;
-    if (userBookmarks != null) {
-      for (final b in userBookmarks) {
-        if (b is Map<String, dynamic>) {
-          final itemId = b['libraryItemId'] as String? ?? '';
-          if (itemId.isNotEmpty) itemIds.add(itemId);
-        }
-      }
-    }
-    // Also check mediaProgress for bookmarks
-    final progressList = user['mediaProgress'] as List<dynamic>? ?? [];
-    for (final p in progressList) {
-      if (p is! Map<String, dynamic>) continue;
-      final bookmarks = p['bookmarks'] as List?;
-      if (bookmarks != null && bookmarks.isNotEmpty) {
-        final itemId = p['libraryItemId'] as String? ?? '';
-        if (itemId.isNotEmpty) itemIds.add(itemId);
-      }
+    for (final b in userBookmarks) {
+      final itemId = b['libraryItemId'] as String? ?? '';
+      if (itemId.isNotEmpty) itemIds.add(itemId);
     }
     // Also include items we have local bookmarks for
     final local = await BookmarkService().getAllBookmarks();
     itemIds.addAll(local.keys);
     // Group server bookmarks by itemId for efficient sync
     final serverByItem = <String, List<Map<String, dynamic>>>{};
-    if (userBookmarks != null) {
-      for (final b in userBookmarks) {
-        if (b is Map<String, dynamic>) {
-          final id = b['libraryItemId'] as String? ?? '';
-          if (id.isNotEmpty) {
-            serverByItem.putIfAbsent(id, () => []).add(b);
-          }
-        }
+    for (final b in userBookmarks) {
+      final id = b['libraryItemId'] as String? ?? '';
+      if (id.isNotEmpty) {
+        serverByItem.putIfAbsent(id, () => []).add(b);
       }
     }
     // Sync each item with pre-loaded server data

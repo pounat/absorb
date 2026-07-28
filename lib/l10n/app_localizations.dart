@@ -3958,6 +3958,204 @@ abstract class AppLocalizations {
   /// **'Sign Out'**
   String get signOut;
 
+  /// No description provided for @changePasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Password'**
+  String get changePasswordTitle;
+
+  /// No description provided for @changePasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update your Audiobookshelf password safely'**
+  String get changePasswordSubtitle;
+
+  /// No description provided for @currentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get currentPassword;
+
+  /// No description provided for @newPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPassword;
+
+  /// No description provided for @confirmNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new password'**
+  String get confirmNewPassword;
+
+  /// No description provided for @passwordChangeEffect.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing your password signs out your other Audiobookshelf sessions. This device stays signed in.'**
+  String get passwordChangeEffect;
+
+  /// No description provided for @passwordFieldsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in all password fields'**
+  String get passwordFieldsRequired;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'New passwords do not match'**
+  String get passwordsDoNotMatch;
+
+  /// No description provided for @passwordChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Password changed. Other signed-in devices were disconnected.'**
+  String get passwordChanged;
+
+  /// No description provided for @passwordInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The current password is incorrect'**
+  String get passwordInvalid;
+
+  /// No description provided for @passwordChangeUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This server version does not support safe password changes in Absorb'**
+  String get passwordChangeUnsupported;
+
+  /// No description provided for @passwordChangeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change your password'**
+  String get passwordChangeFailed;
+
+  /// No description provided for @otherUserPasswordResetWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing this password signs the user out on every device.'**
+  String get otherUserPasswordResetWarning;
+
+  /// No description provided for @manageSessionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed-in Devices'**
+  String get manageSessionsTitle;
+
+  /// No description provided for @manageSessionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review and remove Audiobookshelf sessions'**
+  String get manageSessionsSubtitle;
+
+  /// No description provided for @sessionsCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current device'**
+  String get sessionsCurrent;
+
+  /// No description provided for @sessionsUnknownDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown device'**
+  String get sessionsUnknownDevice;
+
+  /// No description provided for @sessionsLastActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Last active {date}'**
+  String sessionsLastActive(String date);
+
+  /// No description provided for @sessionsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No active sessions'**
+  String get sessionsNone;
+
+  /// No description provided for @sessionsLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get sessionsLoadMore;
+
+  /// No description provided for @sessionsUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Session management requires Audiobookshelf 2.36 or newer.'**
+  String get sessionsUnsupported;
+
+  /// No description provided for @sessionsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load signed-in devices'**
+  String get sessionsLoadFailed;
+
+  /// No description provided for @sessionsLegacyNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This login does not have a refresh session, so Absorb cannot identify this device in the list.'**
+  String get sessionsLegacyNotice;
+
+  /// No description provided for @sessionsRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out device'**
+  String get sessionsRemove;
+
+  /// No description provided for @sessionsRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out this device?'**
+  String get sessionsRemoveTitle;
+
+  /// No description provided for @sessionsRemoveContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes its refresh session. Its current access may keep working until that short-lived token expires.'**
+  String get sessionsRemoveContent;
+
+  /// No description provided for @sessionsRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Device signed out'**
+  String get sessionsRemoved;
+
+  /// No description provided for @sessionsRemoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not sign out that device'**
+  String get sessionsRemoveFailed;
+
+  /// No description provided for @sessionsSignOutAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out all devices'**
+  String get sessionsSignOutAll;
+
+  /// No description provided for @sessionsSignOutAllTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out everywhere?'**
+  String get sessionsSignOutAllTitle;
+
+  /// No description provided for @sessionsSignOutAllContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes every refresh session, including this device. Existing access tokens may work until they expire.'**
+  String get sessionsSignOutAllContent;
+
+  /// No description provided for @podcastScheduleServerTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule uses server time ({timeZone})'**
+  String podcastScheduleServerTime(String timeZone);
+
+  /// No description provided for @podcastScheduleServerTimeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule uses server time'**
+  String get podcastScheduleServerTimeUnknown;
+
   /// No description provided for @editServerAddressTitle.
   ///
   /// In en, this message translates to:
@@ -3993,6 +4191,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit server address'**
   String get editServerAddressAction;
+
+  /// No description provided for @editServerConnectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Server Connection'**
+  String get editServerConnectionTitle;
+
+  /// No description provided for @editServerConnectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update the server address and custom headers for {username}. Your stats and downloads are kept.'**
+  String editServerConnectionSubtitle(String username);
+
+  /// No description provided for @editServerConnectionAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit server connection'**
+  String get editServerConnectionAction;
+
+  /// No description provided for @editServerConnectionUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Server connection updated'**
+  String get editServerConnectionUpdated;
+
+  /// No description provided for @editServerConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update server connection'**
+  String get editServerConnectionFailed;
+
+  /// No description provided for @editCustomHeadersDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for Cloudflare tunnels or reverse proxies. These headers apply only to this saved account.'**
+  String get editCustomHeadersDescription;
 
   /// No description provided for @removeAccountAction.
   ///

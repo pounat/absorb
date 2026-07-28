@@ -28,8 +28,51 @@ class WearAuthListenerService : WearableListenerService() {
         when (event.path) {
             WearAuthBridge.AUTH_REQUEST_PATH -> republishFromStoredPrefs()
             WearAuthBridge.AUTH_SIGN_OUT_PATH -> WearAuthBridge.clear(applicationContext)
+            WearAuthBridge.AUTH_ROTATED_PATH -> adoptRotatedTokens(event.data)
             else -> super.onMessageReceived(event)
         }
+    }
+
+    private fun adoptRotatedTokens(bytes: ByteArray) {
+        val payload = try {
+            JSONObject(bytes.toString(Charsets.UTF_8))
+        } catch (e: Exception) {
+            Log.w(TAG, "Watch returned malformed credentials", e)
+            return
+        }
+        val accessToken = payload.optString("accessToken").takeIf { it.isNotEmpty() }
+        val refreshToken = payload.optString("refreshToken").takeIf { it.isNotEmpty() }
+        val serverUrl = payload.optString("serverUrl").trimEnd('/')
+        val username = payload.optString("username")
+        if (accessToken == null || refreshToken == null || serverUrl.isEmpty()) {
+            Log.w(TAG, "Watch returned an incomplete token pair")
+            return
+        }
+
+        val prefs = applicationContext.getSharedPreferences(
+            FLUTTER_PREFS_FILE,
+            Context.MODE_PRIVATE,
+        )
+        val activeServer = prefs.getString("flutter.server_url", null)?.trimEnd('/')
+        val activeUsername = prefs.getString("flutter.username", null) ?: ""
+        if (!serverUrl.equals(activeServer, ignoreCase = true) || username != activeUsername) {
+            Log.w(TAG, "Ignoring rotated credentials for a different account")
+            return
+        }
+
+        // One synchronous commit keeps the access/refresh pair indivisible for
+        // Android Auto and Flutter readers in other isolates.
+        val saved = prefs.edit()
+            .putString("flutter.token", accessToken)
+            .putString("flutter.refresh_token", refreshToken)
+            .putBoolean("flutter.wear_token_pair_pending", true)
+            .commit()
+        if (!saved) {
+            Log.w(TAG, "Failed to persist rotated credentials from watch")
+            return
+        }
+        Log.i(TAG, "Adopted rotated credentials returned by watch")
+        republishFromStoredPrefs()
     }
 
     private fun republishFromStoredPrefs() {
@@ -73,6 +116,7 @@ class WearAuthListenerService : WearableListenerService() {
             userId = userId,
             isLegacyToken = isLegacy,
             customHeaders = headers,
+            supportsTokenReturn = true,
         )
     }
 

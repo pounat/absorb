@@ -114,6 +114,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    testImplementation("junit:junit:4.13.2")
 
     // SAF document moves for custom download folders (MainActivity.moveBookToSaf).
     implementation("androidx.documentfile:documentfile:1.0.1")

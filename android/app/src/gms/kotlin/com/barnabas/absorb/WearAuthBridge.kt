@@ -27,6 +27,7 @@ object WearAuthBridge {
     const val AUTH_PATH = "/absorb/auth/v1"
     const val AUTH_REQUEST_PATH = "/absorb/auth/request"
     const val AUTH_SIGN_OUT_PATH = "/absorb/auth/signout"
+    const val AUTH_ROTATED_PATH = "/absorb/auth/rotated"
 
     private const val KEY_PAYLOAD = "payload"
     private const val KEY_ISSUED_AT = "issuedAt"
@@ -45,6 +46,7 @@ object WearAuthBridge {
         userId: String?,
         isLegacyToken: Boolean,
         customHeaders: Map<String, String> = emptyMap(),
+        supportsTokenReturn: Boolean = false,
     ) {
         scope.launch {
             try {
@@ -60,6 +62,8 @@ object WearAuthBridge {
                     put("userId", userId ?: JSONObject.NULL)
                     put("isLegacyToken", isLegacyToken)
                     put("customHeaders", headersJson)
+                    put("source", "phone")
+                    put("supportsTokenReturn", supportsTokenReturn)
                     put("issuedAt", now)
                 }.toString()
 

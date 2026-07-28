@@ -1933,6 +1933,8 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
           final hour = parsed.$2;      // 0-23
           final minute = parsed.$3;    // 0-59
           final dayOfWeek = parsed.$4; // 0-6 (Sun-Sat)
+          final serverTimeZone = context.read<AuthProvider>()
+              .serverSettings?['timeZone'] as String?;
 
           void saveCron(String f, int h, int m, int d) {
             String cron;
@@ -1979,6 +1981,13 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
                 const SizedBox(width: 12),
                 Text(l.adminPodcastsCheckSchedule, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
               ]),
+              Padding(
+                padding: const EdgeInsets.only(left: 32, top: 4),
+                child: Text(serverTimeZone == null
+                    ? l.podcastScheduleServerTimeUnknown
+                    : l.podcastScheduleServerTime(serverTimeZone),
+                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              ),
               const SizedBox(height: 10),
               // Frequency
               Text(l.adminPodcastsFrequency, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 10)),

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
@@ -630,6 +631,7 @@ class _AppShellState extends State<AppShell>
     // resume. The screens snap their own driver back to shown on next scroll
     // anyway, but mirror it here in case the user resumes onto a stale tab.
     _navBarAnimController.value = 1.0;
+    unawaited(context.read<AuthProvider>().adoptCompanionTokens());
     context.read<LibraryProvider>().onAppForegrounded();
     SleepTimerService().onAppForegrounded();
     AudioPlayerService.onAppForegrounded();

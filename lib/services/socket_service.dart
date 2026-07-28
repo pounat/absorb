@@ -2,6 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
+  static const authorChangeEvents = <String>[
+    'author_added',
+    'author_updated',
+    'author_removed',
+    'authors_num_books_updated',
+  ];
   static final SocketService _instance = SocketService._();
   factory SocketService() => _instance;
   SocketService._();
@@ -231,6 +237,12 @@ class SocketService {
     }
   }
 
+  void _registerAuthorListeners() {
+    for (final event in authorChangeEvents) {
+      _socket!.on(event, (_) => _emitAuthorsChanged());
+    }
+  }
+
   /// Called when ereader devices change. Server emits this both for the
   /// per-user update (always) and admin-wide updates (only to admins).
   /// Payload shape: { ereaderDevices: [...] } already filtered for this user.
@@ -357,9 +369,7 @@ class SocketService {
       });
 
       // Author changes
-      _socket!.on('author_added', (_) => _emitAuthorsChanged());
-      _socket!.on('author_updated', (_) => _emitAuthorsChanged());
-      _socket!.on('author_removed', (_) => _emitAuthorsChanged());
+      _registerAuthorListeners();
 
       // Current user updated
       _socket!.on('user_updated', (data) {
@@ -520,9 +530,7 @@ class SocketService {
       _socket!.on('playlist_updated', (_) => onPlaylistUpdated?.call());
       _socket!.on('playlist_removed', (_) => onPlaylistUpdated?.call());
 
-      _socket!.on('author_added', (_) => _emitAuthorsChanged());
-      _socket!.on('author_updated', (_) => _emitAuthorsChanged());
-      _socket!.on('author_removed', (_) => _emitAuthorsChanged());
+      _registerAuthorListeners();
 
       _socket!.on('user_updated', (data) {
         if (data is Map<String, dynamic>) onUserUpdated?.call(data);

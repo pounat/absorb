@@ -378,18 +378,25 @@ class BackupService {
   static Future<void> importSettings(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
+    final customHeaders = data['customHeaders'] as Map<String, dynamic>?;
+    final restoredCustomHeaders = customHeaders == null
+        ? const <String, String>{}
+        : Map<String, String>.from(customHeaders);
+
     // Restore accounts FIRST so ScopedPrefs has the right scope
     // when we write settings below. saveAccount() sets the active scope key.
     final accounts = data['accounts'] as List<dynamic>?;
     if (accounts != null) {
       for (final a in accounts) {
         final map = a as Map<String, dynamic>;
-        await UserAccountService().saveAccount(SavedAccount.fromJson(map));
+        await UserAccountService().saveAccount(SavedAccount.fromJson(
+          map,
+          legacyCustomHeaders: restoredCustomHeaders,
+        ));
       }
     }
 
     // Custom headers (restore early, before any API calls)
-    final customHeaders = data['customHeaders'] as Map<String, dynamic>?;
     if (customHeaders != null) {
       await prefs.setString('custom_headers', jsonEncode(customHeaders));
     }

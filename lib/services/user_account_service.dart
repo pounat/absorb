@@ -12,6 +12,7 @@ class SavedAccount {
   final String? refreshToken;
   final String? userId;
   final bool isLegacyToken;
+  final Map<String, String> customHeaders;
 
   SavedAccount({
     required this.serverUrl,
@@ -20,7 +21,8 @@ class SavedAccount {
     this.refreshToken,
     this.userId,
     this.isLegacyToken = false,
-  });
+    Map<String, String> customHeaders = const {},
+  }) : customHeaders = Map.unmodifiable(customHeaders);
 
   /// Unique key for scoping per-user SharedPreferences data.
   /// Uses serverUrl + username to uniquely identify an account.
@@ -39,15 +41,23 @@ class SavedAccount {
         if (refreshToken != null) 'refreshToken': refreshToken,
         'userId': userId,
         'isLegacyToken': isLegacyToken,
+        'customHeaders': customHeaders,
       };
 
-  factory SavedAccount.fromJson(Map<String, dynamic> json) => SavedAccount(
+  factory SavedAccount.fromJson(
+    Map<String, dynamic> json, {
+    Map<String, String> legacyCustomHeaders = const {},
+  }) =>
+      SavedAccount(
         serverUrl: json['serverUrl'] as String,
         username: json['username'] as String,
         token: json['token'] as String,
         refreshToken: json['refreshToken'] as String?,
         userId: json['userId'] as String?,
         isLegacyToken: json['isLegacyToken'] as bool? ?? (json['refreshToken'] == null),
+        customHeaders: json.containsKey('customHeaders')
+            ? Map<String, String>.from(json['customHeaders'] as Map? ?? const {})
+            : legacyCustomHeaders,
       );
 
   @override
@@ -83,6 +93,14 @@ class UserAccountService {
   /// Initialise from SharedPreferences. Call once at app startup.
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
+    var legacyCustomHeaders = <String, String>{};
+    final headersJson = prefs.getString('custom_headers');
+    if (headersJson != null) {
+      try {
+        legacyCustomHeaders =
+            Map<String, String>.from(jsonDecode(headersJson) as Map);
+      } catch (_) {}
+    }
 
     // Load saved accounts
     final json = prefs.getString(_accountsKey);
@@ -90,7 +108,10 @@ class UserAccountService {
       try {
         final list = jsonDecode(json) as List<dynamic>;
         _accounts = list
-            .map((e) => SavedAccount.fromJson(e as Map<String, dynamic>))
+            .map((e) => SavedAccount.fromJson(
+                  e as Map<String, dynamic>,
+                  legacyCustomHeaders: legacyCustomHeaders,
+                ))
             .toList();
       } catch (e) {
         debugPrint('[UserAccount] Failed to load accounts: $e');
@@ -153,6 +174,7 @@ class UserAccountService {
         refreshToken: refreshToken ?? old.refreshToken,
         userId: old.userId,
         isLegacyToken: old.isLegacyToken,
+        customHeaders: old.customHeaders,
       );
       await _persist();
     }
@@ -221,6 +243,7 @@ class UserAccountService {
       token: '',
       userId: old.userId,
       isLegacyToken: old.isLegacyToken,
+      customHeaders: old.customHeaders,
     );
     await _persist();
   }
@@ -231,6 +254,26 @@ class UserAccountService {
   /// from the old scope to the new one. Returns true if the account was found.
   Future<bool> updateAccountUrl(
       String oldServerUrl, String username, String newServerUrl) async {
+    final index = _accounts.indexWhere(
+        (a) => a.serverUrl == oldServerUrl && a.username == username);
+    if (index < 0) return false;
+    return updateAccountConnection(
+      oldServerUrl,
+      username,
+      newServerUrl,
+      _accounts[index].customHeaders,
+    );
+  }
+
+  /// Update the URL and proxy headers for one saved account. If the URL
+  /// changes, scoped per-account data follows it just as it did for the older
+  /// URL-only editor.
+  Future<bool> updateAccountConnection(
+    String oldServerUrl,
+    String username,
+    String newServerUrl,
+    Map<String, String> customHeaders,
+  ) async {
     final idx = _accounts.indexWhere(
         (a) => a.serverUrl == oldServerUrl && a.username == username);
     if (idx < 0) return false;
@@ -243,6 +286,7 @@ class UserAccountService {
       refreshToken: old.refreshToken,
       userId: old.userId,
       isLegacyToken: old.isLegacyToken,
+      customHeaders: customHeaders,
     );
 
     final oldScope = old.scopeKey;

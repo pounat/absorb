@@ -28,6 +28,8 @@ import '../widgets/update_dialog.dart';
 import '../screens/admin_screen.dart';
 import '../screens/downloads_screen.dart';
 import '../screens/bookmarks_screen.dart';
+import '../screens/change_password_screen.dart';
+import '../screens/auth_sessions_screen.dart';
 import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
 import '../widgets/absorb_page_header.dart';
@@ -41,6 +43,7 @@ import '../widgets/tips_sheet.dart';
 import '../widgets/feature_hint.dart';
 import '../widgets/welcome_sheet.dart';
 import '../widgets/rmab_config_sheet.dart';
+import '../widgets/server_connection_editor.dart';
 import '../l10n/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -4233,7 +4236,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: cs.onSurfaceVariant.withValues(alpha: 0.5)), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 if (activeAccount != null)
                   InkResponse(
-                    onTap: () { Navigator.pop(ctx); _editServerUrl(context, activeAccount!); },
+                    onTap: () { Navigator.pop(ctx); _editServerConnection(context, activeAccount!); },
                     radius: 22,
                     child: Padding(padding: const EdgeInsets.all(6),
                       child: Icon(Icons.edit_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
@@ -4262,6 +4265,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
           ),
           const SizedBox(height: 12),
+          Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
+          InkWell(
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const ChangePasswordScreen(),
+              ));
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(children: [
+                Icon(Icons.password_rounded, size: 20, color: cs.onSurfaceVariant),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(l.changePasswordTitle, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(l.changePasswordSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                ])),
+                Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant),
+              ]),
+            ),
+          ),
+          InkWell(
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const AuthSessionsScreen(),
+              ));
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(children: [
+                Icon(Icons.devices_rounded, size: 20, color: cs.onSurfaceVariant),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(l.manageSessionsTitle, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(l.manageSessionsSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                ])),
+                Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant),
+              ]),
+            ),
+          ),
           Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
           // Other accounts
           if (otherAccounts.isNotEmpty) ...[
@@ -4383,7 +4427,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(ctx);
               await _stopAndSyncPlayback();
               if (context.mounted) {
-                context.read<AuthProvider>().logout(keepServer: true);
+                await context.read<AuthProvider>().logout(
+                  keepServer: true,
+                  revokeServerSession: true,
+                );
               }
             },
             style: FilledButton.styleFrom(backgroundColor: cs.error),
@@ -4438,8 +4485,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 8),
         ListTile(
           leading: Icon(Icons.dns_rounded, color: cs.primary),
-          title: Text(l.editServerAddressAction),
-          onTap: () { Navigator.pop(ctx); _editServerUrl(context, account); }),
+          title: Text(l.editServerConnectionAction),
+          onTap: () { Navigator.pop(ctx); _editServerConnection(context, account); }),
         ListTile(
           leading: Icon(Icons.delete_outline_rounded, color: cs.error),
           title: Text(l.removeAccountAction, style: TextStyle(color: cs.error)),
@@ -4449,59 +4496,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Edit the server URL of a saved account in place (dynamic-DNS hostname
-  /// changed, etc.) without losing the account's data. See
-  /// [AuthProvider.editServerUrl].
-  void _editServerUrl(BuildContext context, SavedAccount account) {
+  /// Edit the URL and custom proxy headers for one saved account without
+  /// losing its scoped data.
+  Future<void> _editServerConnection(
+      BuildContext context, SavedAccount account) async {
     final l = AppLocalizations.of(context)!;
-    final ctrl = TextEditingController(text: account.serverUrl);
-    showDialog(
+    final result = await showDialog<ServerConnectionSettings>(
       context: context,
-      builder: (ctx) {
-        final cs = Theme.of(ctx).colorScheme;
-        return AlertDialog(
-          title: Text(l.editServerAddressTitle),
-          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(l.editServerAddressSubtitle(account.username),
-              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              decoration: InputDecoration(
-                labelText: l.editServerAddressField,
-                hintText: 'https://example.com',
-                border: const OutlineInputBorder()),
-            ),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
-            FilledButton(
-              onPressed: () async {
-                final newUrl = ctrl.text.trim();
-                Navigator.pop(ctx);
-                if (newUrl.isEmpty) return;
-                final auth = context.read<AuthProvider>();
-                final wasActive = account.serverUrl == auth.serverUrl && account.username == auth.username;
-                final ok = await auth.editServerUrl(account, newUrl);
-                if (!context.mounted) return;
-                // Re-pull the active library from the new address.
-                if (ok && wasActive) context.read<LibraryProvider>().refresh();
-                if (context.mounted) setState(() {});
-                showOverlayToast(
-                  context,
-                  ok ? l.editServerAddressUpdated : l.editServerAddressFailed,
-                  icon: ok
-                      ? Icons.check_circle_outline_rounded
-                      : Icons.error_outline_rounded,
-                );
-              },
-              child: Text(l.save)),
-          ],
-        );
-      },
+      builder: (_) => ServerConnectionEditor(
+        username: account.username,
+        serverUrl: account.serverUrl,
+        customHeaders: account.customHeaders,
+      ),
+    );
+    if (result == null || !context.mounted) return;
+
+    final auth = context.read<AuthProvider>();
+    final wasActive = account.serverUrl == auth.serverUrl &&
+        account.username == auth.username;
+    final ok = await auth.editServerConnection(
+      account,
+      result.serverUrl,
+      result.customHeaders,
+    );
+    if (!context.mounted) return;
+    if (ok && wasActive) context.read<LibraryProvider>().refresh();
+    setState(() {});
+    showOverlayToast(
+      context,
+      ok
+          ? l.editServerConnectionUpdated
+          : l.editServerConnectionFailed,
+      icon: ok
+          ? Icons.check_circle_outline_rounded
+          : Icons.error_outline_rounded,
     );
   }
 

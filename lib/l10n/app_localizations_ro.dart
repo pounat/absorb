@@ -2149,6 +2149,119 @@ class AppLocalizationsRo extends AppLocalizations {
   String get signOut => 'Sign Out';
 
   @override
+  String get changePasswordTitle => 'Change Password';
+
+  @override
+  String get changePasswordSubtitle =>
+      'Update your Audiobookshelf password safely';
+
+  @override
+  String get currentPassword => 'Current password';
+
+  @override
+  String get newPassword => 'New password';
+
+  @override
+  String get confirmNewPassword => 'Confirm new password';
+
+  @override
+  String get passwordChangeEffect =>
+      'Changing your password signs out your other Audiobookshelf sessions. This device stays signed in.';
+
+  @override
+  String get passwordFieldsRequired => 'Fill in all password fields';
+
+  @override
+  String get passwordsDoNotMatch => 'New passwords do not match';
+
+  @override
+  String get passwordChanged =>
+      'Password changed. Other signed-in devices were disconnected.';
+
+  @override
+  String get passwordInvalid => 'The current password is incorrect';
+
+  @override
+  String get passwordChangeUnsupported =>
+      'This server version does not support safe password changes in Absorb';
+
+  @override
+  String get passwordChangeFailed => 'Could not change your password';
+
+  @override
+  String get otherUserPasswordResetWarning =>
+      'Changing this password signs the user out on every device.';
+
+  @override
+  String get manageSessionsTitle => 'Signed-in Devices';
+
+  @override
+  String get manageSessionsSubtitle =>
+      'Review and remove Audiobookshelf sessions';
+
+  @override
+  String get sessionsCurrent => 'Current device';
+
+  @override
+  String get sessionsUnknownDevice => 'Unknown device';
+
+  @override
+  String sessionsLastActive(String date) {
+    return 'Last active $date';
+  }
+
+  @override
+  String get sessionsNone => 'No active sessions';
+
+  @override
+  String get sessionsLoadMore => 'Load more';
+
+  @override
+  String get sessionsUnsupported =>
+      'Session management requires Audiobookshelf 2.36 or newer.';
+
+  @override
+  String get sessionsLoadFailed => 'Could not load signed-in devices';
+
+  @override
+  String get sessionsLegacyNotice =>
+      'This login does not have a refresh session, so Absorb cannot identify this device in the list.';
+
+  @override
+  String get sessionsRemove => 'Sign out device';
+
+  @override
+  String get sessionsRemoveTitle => 'Sign out this device?';
+
+  @override
+  String get sessionsRemoveContent =>
+      'This removes its refresh session. Its current access may keep working until that short-lived token expires.';
+
+  @override
+  String get sessionsRemoved => 'Device signed out';
+
+  @override
+  String get sessionsRemoveFailed => 'Could not sign out that device';
+
+  @override
+  String get sessionsSignOutAll => 'Sign out all devices';
+
+  @override
+  String get sessionsSignOutAllTitle => 'Sign out everywhere?';
+
+  @override
+  String get sessionsSignOutAllContent =>
+      'This removes every refresh session, including this device. Existing access tokens may work until they expire.';
+
+  @override
+  String podcastScheduleServerTime(String timeZone) {
+    return 'Schedule uses server time ($timeZone)';
+  }
+
+  @override
+  String get podcastScheduleServerTimeUnknown => 'Schedule uses server time';
+
+  @override
   String get editServerAddressTitle => 'Edit Server Address';
 
   @override
@@ -2167,6 +2280,27 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get editServerAddressAction => 'Edit server address';
+
+  @override
+  String get editServerConnectionTitle => 'Edit Server Connection';
+
+  @override
+  String editServerConnectionSubtitle(String username) {
+    return 'Update the server address and custom headers for $username. Your stats and downloads are kept.';
+  }
+
+  @override
+  String get editServerConnectionAction => 'Edit server connection';
+
+  @override
+  String get editServerConnectionUpdated => 'Server connection updated';
+
+  @override
+  String get editServerConnectionFailed => 'Couldn\'t update server connection';
+
+  @override
+  String get editCustomHeadersDescription =>
+      'Used for Cloudflare tunnels or reverse proxies. These headers apply only to this saved account.';
 
   @override
   String get removeAccountAction => 'Remove account';

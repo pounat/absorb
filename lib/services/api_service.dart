@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'auth_tokens.dart';
+import '../models/auth_session.dart';
 import '../utils/server_url.dart';
 
 /// Outcome of a local-session upsert. [serverTooOld] flags a 404/501 (the
@@ -89,6 +90,20 @@ enum _RefreshOutcome {
   transientFailure,
 }
 
+enum PasswordChangeStatus {
+  success,
+  invalidPassword,
+  unsupported,
+  failed,
+}
+
+class PasswordChangeResult {
+  final PasswordChangeStatus status;
+  final String? message;
+
+  const PasswordChangeResult(this.status, {this.message});
+}
+
 class ApiService {
   static String appVersion = '1.3.0'; // fallback; overwritten by initVersion()
   static String appBuild = ''; // build number; set by initVersion()
@@ -140,6 +155,7 @@ class ApiService {
 
   // Concurrency lock for refresh
   Completer<_RefreshOutcome>? _refreshCompleter;
+  Completer<void>? _tokenMutationCompleter;
 
   // Device info - set once at app start
   static String deviceManufacturer = '';
@@ -177,6 +193,11 @@ class ApiService {
 
   /// Current access token (for external use like cover URLs, socket auth).
   String get token => _accessToken;
+
+  bool get hasRefreshToken => _refreshToken?.isNotEmpty == true;
+  bool get isLegacyToken => _isLegacyToken;
+
+  static String get userAgent => 'Absorb/$appVersionFull';
 
   Map<String, String> get _headers => {
         ...customHeaders,
@@ -242,6 +263,47 @@ class ApiService {
     }
   }
 
+  Future<Completer<void>> _acquireTokenMutationLock() async {
+    while (_tokenMutationCompleter != null) {
+      await _tokenMutationCompleter!.future;
+    }
+    final lock = Completer<void>();
+    _tokenMutationCompleter = lock;
+    return lock;
+  }
+
+  void _releaseTokenMutationLock(Completer<void> lock) {
+    if (identical(_tokenMutationCompleter, lock)) {
+      _tokenMutationCompleter = null;
+    }
+    if (!lock.isCompleted) lock.complete();
+  }
+
+  Future<bool> _refreshTokenPairOnce() async {
+    final refreshToken = _refreshToken;
+    if (_isLegacyToken || refreshToken == null) return false;
+    try {
+      final response = await _post(
+        Uri.parse('$_cleanBaseUrl/auth/refresh'),
+        headers: {
+          ...customHeaders,
+          'x-refresh-token': refreshToken,
+          if (!kIsWeb) 'User-Agent': userAgent,
+        },
+      ).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return false;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final tokens = AuthTokens.fromResponse(data);
+      if (tokens.accessToken == null || tokens.refreshToken == null) return false;
+      _accessToken = tokens.accessToken!;
+      _refreshToken = tokens.refreshToken!;
+      await _notifyTokensRefreshed();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Attempt to refresh the access token using the refresh token. A rejected
   /// refresh is kept distinct from a temporary network/server failure so only
   /// an explicit 401/403 can expire the local session.
@@ -255,6 +317,7 @@ class ApiService {
     if (_refreshCompleter != null) return _refreshCompleter!.future;
 
     _refreshCompleter = Completer<_RefreshOutcome>();
+    final mutationLock = await _acquireTokenMutationLock();
     try {
       if (await _adoptPersistedTokens()) {
         _refreshCompleter!.complete(_RefreshOutcome.refreshed);
@@ -274,6 +337,7 @@ class ApiService {
             headers: {
               ...customHeaders,
               'x-refresh-token': refreshTokenSent,
+              if (!kIsWeb) 'User-Agent': userAgent,
             },
           ).timeout(const Duration(seconds: 15));
 
@@ -321,6 +385,7 @@ class ApiService {
       return _RefreshOutcome.transientFailure;
     } finally {
       _refreshCompleter = null;
+      _releaseTokenMutationLock(mutationLock);
     }
   }
 
@@ -337,6 +402,10 @@ class ApiService {
       if (outcome == _RefreshOutcome.refreshed) {
         final refreshedHeaders = Map<String, String>.from(h)
           ..['Authorization'] = 'Bearer $_accessToken';
+        if (refreshedHeaders.containsKey('x-refresh-token') &&
+            _refreshToken != null) {
+          refreshedHeaders['x-refresh-token'] = _refreshToken!;
+        }
         response = await _get(url, headers: refreshedHeaders).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
@@ -407,7 +476,12 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse(url),
-        headers: {...customHeaders, 'Content-Type': 'application/json', 'x-return-tokens': 'true'},
+        headers: {
+          ...customHeaders,
+          'Content-Type': 'application/json',
+          'x-return-tokens': 'true',
+          if (!kIsWeb) 'User-Agent': userAgent,
+        },
         body: jsonEncode({'username': username, 'password': password}),
       );
 
@@ -698,6 +772,178 @@ class ApiService {
       debugPrint('[API] getMe error: $e');
     }
     return null;
+  }
+
+  /// Use the compact v2.36 endpoint, with one `/api/me` fallback for older servers.
+  Future<List<Map<String, dynamic>>?> getAllProgress() async {
+    try {
+      final response = await _authGet(
+        Uri.parse('$_cleanBaseUrl/api/me/progress'),
+        timeout: const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return (data['mediaProgress'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+      }
+      if (response.statusCode != 404) return null;
+      final user = await getMe();
+      return (user?['mediaProgress'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    } catch (e) {
+      debugPrint('[API] getAllProgress error: $e');
+      return null;
+    }
+  }
+
+  /// Use the compact v2.36 endpoint, with one `/api/me` fallback for older servers.
+  Future<List<Map<String, dynamic>>?> getAllBookmarks() async {
+    try {
+      final response = await _authGet(
+        Uri.parse('$_cleanBaseUrl/api/me/bookmarks'),
+        timeout: const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return (data['bookmarks'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+      }
+      if (response.statusCode != 404) return null;
+      final user = await getMe();
+      return (user?['bookmarks'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    } catch (e) {
+      debugPrint('[API] getAllBookmarks error: $e');
+      return null;
+    }
+  }
+
+  Future<AuthSessionsResult> getAuthSessions({int page = 0, int itemsPerPage = 20}) async {
+    try {
+      final refreshToken = _refreshToken;
+      final response = await _authGet(
+        Uri.parse('$_cleanBaseUrl/api/me/sessions?page=$page&itemsPerPage=$itemsPerPage'),
+        headers: {
+          ..._headers,
+          if (refreshToken != null) 'x-refresh-token': refreshToken,
+        },
+        timeout: const Duration(seconds: 10));
+      if (response.statusCode == 404) {
+        return const AuthSessionsResult(AuthSessionsStatus.unsupported);
+      }
+      if (response.statusCode != 200) {
+        return const AuthSessionsResult(AuthSessionsStatus.failed);
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return AuthSessionsResult(
+        AuthSessionsStatus.supported,
+        AuthSessionsPage.fromJson(data));
+    } catch (e) {
+      debugPrint('[API] getAuthSessions error: $e');
+      return const AuthSessionsResult(AuthSessionsStatus.failed);
+    }
+  }
+
+  Future<bool> deleteAuthSession(AuthSession session) async {
+    if (session.current) return false;
+    try {
+      final response = await _authDelete(
+        Uri.parse('$_cleanBaseUrl/api/me/sessions/${session.id}'),
+        timeout: const Duration(seconds: 10));
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (e) {
+      debugPrint('[API] deleteAuthSession error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> revokeServerSession({bool allDevices = false}) async {
+    final refreshToken = _refreshToken;
+    if (refreshToken == null || refreshToken.isEmpty) return false;
+    try {
+      final suffix = allDevices ? '?allDevices=1' : '';
+      final response = await _post(
+        Uri.parse('$_cleanBaseUrl/logout$suffix'),
+        headers: {
+          ...customHeaders,
+          'x-refresh-token': refreshToken,
+          if (!kIsWeb) 'User-Agent': userAgent,
+        }).timeout(const Duration(seconds: 10));
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (e) {
+      debugPrint('[API] logout error: $e');
+      return false;
+    }
+  }
+
+  Future<PasswordChangeResult> changeMyPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final mutationLock = await _acquireTokenMutationLock();
+    try {
+      await _adoptPersistedTokens();
+      Future<http.Response> sendPasswordChange() => _patch(
+          Uri.parse('$_cleanBaseUrl/api/me/password'),
+          headers: {
+            ..._headers,
+            if (_refreshToken != null) 'x-refresh-token': _refreshToken!,
+            if (!kIsWeb) 'User-Agent': userAgent,
+          },
+          body: jsonEncode({'password': currentPassword, 'newPassword': newPassword})
+        ).timeout(const Duration(seconds: 15));
+
+      var response = await sendPasswordChange();
+      if (response.statusCode == 401 && !_isLegacyToken) {
+        final adopted = await _adoptPersistedTokens();
+        if (adopted || await _refreshTokenPairOnce()) {
+          response = await sendPasswordChange();
+        }
+      }
+
+      if (response.statusCode == 404) {
+        return const PasswordChangeResult(PasswordChangeStatus.unsupported);
+      }
+      if (response.statusCode == 400) {
+        return PasswordChangeResult(
+          PasswordChangeStatus.invalidPassword,
+          message: response.body.trim().isEmpty ? null : response.body.trim());
+      }
+      if (response.statusCode != 200) {
+        return const PasswordChangeResult(PasswordChangeStatus.failed);
+      }
+
+      if (response.body.trim().isNotEmpty) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is! Map<String, dynamic>) {
+          return const PasswordChangeResult(PasswordChangeStatus.failed);
+        }
+        final data = decoded;
+        final error = data['error'];
+        if (error is String && error.trim().isNotEmpty) {
+          return PasswordChangeResult(
+            PasswordChangeStatus.invalidPassword,
+            message: error.trim(),
+          );
+        }
+        final tokens = AuthTokens.fromResponse(data);
+        // The server rotates these together. Never adopt half a pair.
+        if (tokens.accessToken != null && tokens.refreshToken != null) {
+          _accessToken = tokens.accessToken!;
+          _refreshToken = tokens.refreshToken!;
+          await _notifyTokensRefreshed();
+        }
+      }
+      // Older servers return an empty 200 and keep the current pair valid.
+      return const PasswordChangeResult(PasswordChangeStatus.success);
+    } catch (e) {
+      debugPrint('[API] changeMyPassword error: $e');
+      return const PasswordChangeResult(PasswordChangeStatus.failed);
+    } finally {
+      _releaseTokenMutationLock(mutationLock);
+    }
   }
 
   /// Get user's listening stats.
@@ -1582,18 +1828,19 @@ class ApiService {
   // ─── Bookmark Endpoints ───────────────────────────────────
 
   /// Get bookmarks for an item from the server.
-  /// Uses GET /api/me/item/:id which includes bookmarks in the response.
   Future<List<Map<String, dynamic>>?> getServerBookmarks(String itemId) async {
     try {
-      // Try mediaProgress first
-      final progress = await getItemProgress(itemId);
-      if (progress != null) {
-        final bookmarks = progress['bookmarks'] as List<dynamic>?;
-        if (bookmarks != null && bookmarks.isNotEmpty) {
-          return bookmarks.whereType<Map<String, dynamic>>().toList();
-        }
+      final response = await _authGet(
+        Uri.parse('$_cleanBaseUrl/api/me/bookmarks/$itemId'),
+        timeout: const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return (data['bookmarks'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
       }
-      // Fall back to user object - bookmarks may be stored there
+      if (response.statusCode != 404) return null;
+
       final user = await getMe();
       if (user != null) {
         final bookmarks = user['bookmarks'] as List<dynamic>?;

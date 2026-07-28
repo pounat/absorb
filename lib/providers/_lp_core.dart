@@ -703,10 +703,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     try {
       final pendingSyncs =
           (await ScopedPrefs.getStringList('pending_syncs')).toSet();
-      final me = await _api!.getMe();
-      if (me != null) {
-        final progressList = me['mediaProgress'] as List<dynamic>?;
-        if (progressList != null) {
+      final progressList = await _api!.getAllProgress();
+      if (progressList != null) {
           final localFinished = <String, Map<String, dynamic>>{};
           if (_lastFinishedItemId != null &&
               _progressMap.containsKey(_lastFinishedItemId!)) {
@@ -729,13 +727,11 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           }
           _progressMap = {};
           for (final mp in progressList) {
-            if (mp is Map<String, dynamic>) {
-              final itemId = mp['libraryItemId'] as String?;
-              final episodeId = mp['episodeId'] as String?;
-              if (itemId != null) {
-                final key = episodeId != null ? '$itemId-$episodeId' : itemId;
-                _progressMap[key] = mp;
-              }
+            final itemId = mp['libraryItemId'] as String?;
+            final episodeId = mp['episodeId'] as String?;
+            if (itemId != null) {
+              final key = episodeId != null ? '$itemId-$episodeId' : itemId;
+              _progressMap[key] = mp;
             }
           }
           for (final entry in localFinished.entries) {
@@ -795,7 +791,6 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           if (cleared > 0) {
             debugPrint('[Progress] Cleared $cleared overrides');
           }
-        }
       }
     } catch (_) {}
   }

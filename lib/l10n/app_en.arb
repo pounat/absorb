@@ -1046,6 +1046,53 @@
   "logOutTitle": "Log out?",
   "logOutContent": "This will sign you out. Your downloads will stay on this device.",
   "signOut": "Sign Out",
+  "changePasswordTitle": "Change Password",
+  "changePasswordSubtitle": "Update your Audiobookshelf password safely",
+  "currentPassword": "Current password",
+  "newPassword": "New password",
+  "confirmNewPassword": "Confirm new password",
+  "passwordChangeEffect": "Changing your password signs out your other Audiobookshelf sessions. This device stays signed in.",
+  "passwordFieldsRequired": "Fill in all password fields",
+  "passwordsDoNotMatch": "New passwords do not match",
+  "passwordChanged": "Password changed. Other signed-in devices were disconnected.",
+  "passwordInvalid": "The current password is incorrect",
+  "passwordChangeUnsupported": "This server version does not support safe password changes in Absorb",
+  "passwordChangeFailed": "Could not change your password",
+  "otherUserPasswordResetWarning": "Changing this password signs the user out on every device.",
+  "manageSessionsTitle": "Signed-in Devices",
+  "manageSessionsSubtitle": "Review and remove Audiobookshelf sessions",
+  "sessionsCurrent": "Current device",
+  "sessionsUnknownDevice": "Unknown device",
+  "sessionsLastActive": "Last active {date}",
+  "@sessionsLastActive": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionsNone": "No active sessions",
+  "sessionsLoadMore": "Load more",
+  "sessionsUnsupported": "Session management requires Audiobookshelf 2.36 or newer.",
+  "sessionsLoadFailed": "Could not load signed-in devices",
+  "sessionsLegacyNotice": "This login does not have a refresh session, so Absorb cannot identify this device in the list.",
+  "sessionsRemove": "Sign out device",
+  "sessionsRemoveTitle": "Sign out this device?",
+  "sessionsRemoveContent": "This removes its refresh session. Its current access may keep working until that short-lived token expires.",
+  "sessionsRemoved": "Device signed out",
+  "sessionsRemoveFailed": "Could not sign out that device",
+  "sessionsSignOutAll": "Sign out all devices",
+  "sessionsSignOutAllTitle": "Sign out everywhere?",
+  "sessionsSignOutAllContent": "This removes every refresh session, including this device. Existing access tokens may work until they expire.",
+  "podcastScheduleServerTime": "Schedule uses server time ({timeZone})",
+  "@podcastScheduleServerTime": {
+    "placeholders": {
+      "timeZone": {
+        "type": "String"
+      }
+    }
+  },
+  "podcastScheduleServerTimeUnknown": "Schedule uses server time",
   "editServerAddressTitle": "Edit Server Address",
   "editServerAddressSubtitle": "Update the address for {username}. Use this if your server's address changed - it's still the same server, just a new URL. Your stats and downloads are kept.",
   "@editServerAddressSubtitle": {
@@ -1059,6 +1106,19 @@
   "editServerAddressUpdated": "Server address updated",
   "editServerAddressFailed": "Couldn't update server address",
   "editServerAddressAction": "Edit server address",
+  "editServerConnectionTitle": "Edit Server Connection",
+  "editServerConnectionSubtitle": "Update the server address and custom headers for {username}. Your stats and downloads are kept.",
+  "@editServerConnectionSubtitle": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "editServerConnectionAction": "Edit server connection",
+  "editServerConnectionUpdated": "Server connection updated",
+  "editServerConnectionFailed": "Couldn't update server connection",
+  "editCustomHeadersDescription": "Used for Cloudflare tunnels or reverse proxies. These headers apply only to this saved account.",
   "removeAccountAction": "Remove account",
   "removeAccountTitle": "Remove Account?",
   "removeAccountContent": "Remove {username} on {server} from saved accounts?\n\nYou can always add it back later by signing in again.",
