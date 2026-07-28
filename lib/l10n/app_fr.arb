@@ -986,8 +986,10 @@
   "localServerUrlLabel": "URL locale du serveur",
   "localServerUrlHint": "http://192.168.1.100:13378",
   "localServerUrlSetSnackbar": "URL du serveur local définie - la connexion se fera automatiquement lorsque vous serez sur votre réseau domestique",
+  "disableAudioFocus": "Désactiver le focus audio",
   "restartRequired": "Redémarrage requis",
   "closeApp": "Fermer l'application",
+  "mp3IndexSeeking": "Recherche d'index MP3",
   "supportTheDev": "Soutenir le développeur",
   "buyMeACoffee": "Offrez moi un café",
   "appVersionFormat": "Absorb v{version}",
@@ -2089,6 +2091,7 @@
       }
     }
   },
+  "cardChaptersPlayFromChapterTitle": "Jouer à partir du chapitre ?",
   "cardChaptersPlay": "Lire",
   "absorbingSharedToday": "Aujourd'hui",
   "absorbingSharedYesterday": "Hier",
@@ -2102,7 +2105,10 @@
   "homeSectionDoneBadge": "Terminé",
   "tipsSheetQuickBookmarksTitle": "Signets rapides",
   "tipsSheetCoverPlayPauseTitle": "Lecture/pause sur la couverture",
+  "tipsSheetFullScreenPlayerTitle": "Lecteur plein écran",
+  "tipsSheetPlaybackHistoryTitle": "Historique de lecture",
   "tipsSheetOfflineModeTitle": "Mode hors-ligne",
+  "tipsSheetPerBookEqTitle": "Égaliseur par livre",
   "tipsSheetCarModeTitle": "Mode voiture",
   "bookCardUnknownTitle": "Titre inconnu",
   "bookCardExplicitBadge": "E",
@@ -2176,6 +2182,14 @@
   },
   "cardProgressQuarterSpeed": "Vitesse /4",
   "cardProgressHalfSpeed": "Vitesse /2",
+  "cardProgressChapterPrefix": "Chapitre {number}",
+  "@cardProgressChapterPrefix": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "cardEdgeProgressQuarterSpeed": "Vitesse /4",
   "cardEdgeProgressHalfSpeed": "Vitesse /2",
   "authInvalidApiKey": "Clé API invalide",
@@ -2199,6 +2213,14 @@
   "authorImage": "Image de l'auteur",
   "authorRemoveImage": "Supprimer l’image",
   "authorImageRemoved": "Image supprimée",
+  "authorMergedInto": "Fusionné dans {name}",
+  "@authorMergedInto": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "editTabDetails": "Détails",
   "editTabCover": "Couverture",
   "editTabEmbed": "Intégré",
@@ -2207,12 +2229,16 @@
   "chapterTimeHintSeconds": "Secondes",
   "chapterInvalidTime": "Heure non valide",
   "add": "Ajouter",
+  "chaptersApplied": "Chapitres appliqués",
+  "chapterDiscardTitle": "Abandonner les changements ?",
+  "chaptersUpdated": "Chapitres mis à jour",
   "ok": "OK",
   "chapterSaveButton": "Enregistrer les chapitres",
   "chapterRemoveAll": "Tout supprimer",
   "chapterShowSeconds": "Afficher les secondes",
   "chapterShiftBySeconds": "Décaler de (secondes)",
   "chapterBack1Second": "Retour de 1 seconde",
+  "chapterForward1Second": "Avancer de 1 seconde",
   "chapterTitleHint": "Titre du chapitre",
   "chapterStopPreview": "Arrêt de l'aperçu",
   "chapterStartAt": "Commencer à {time}",
@@ -2237,9 +2263,11 @@
       }
     }
   },
+  "coverSearchTitle": "Rechercher une couverture",
   "coverNoneFound": "Aucune couverture trouvée",
   "coverUpdated": "Couverture mise à jour",
   "coverApply": "Appliquer la couverture",
+  "coverUnknownResolution": "Résolution inconnue",
   "embedProgressIndeterminate": "Intégration...",
   "taskStarting": "Démarrage...",
   "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
@@ -2286,6 +2314,14 @@
   "adminApiKeysExp30d": "30 jours",
   "adminApiKeysExp90d": "90 jours",
   "adminApiKeysExp1y": "1 an",
+  "adminApiKeysLastUsed": "Dernière utilisation {time}",
+  "@adminApiKeysLastUsed": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "adminApiKeysExpiresOn": "Expire le {date}",
   "@adminApiKeysExpiresOn": {
     "placeholders": {
@@ -2319,17 +2355,28 @@
   },
   "fsPickerTitle": "Sélectionner un dossier",
   "fsServerRoot": "Racine du serveur",
+  "fsEmptyFolder": "Aucun sous-dossier ici",
   "fsUseThisFolder": "Utiliser ce dossier",
   "adminLibrariesManage": "Bibliothèques",
   "adminUploadTitle": "Téléverser un média",
   "adminUploadDestination": "Destination",
   "adminUploadDetails": "Détails de l'élément",
   "adminUploadOptional": "Facultatif",
+  "adminUploadDestinationPreview": "Serveur destinataire",
   "adminUploadFiles": "Fichiers",
   "adminUploadChooseFiles": "Choisir les fichiers",
   "adminUploadAddFiles": "Ajouter des fichiers",
   "adminUploadTitleRequired": "Entrez un titre",
+  "adminUploadLibraryRequired": "Choisir une bibliothèque",
   "adminUploadUploading": "Envoi...",
+  "adminUploadComplete": "Envoyé \"{title}\"",
+  "@adminUploadComplete": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "adminUploadFailed": "Échec de l’envoi",
   "adminServerSettings": "Paramètres du serveur",
   "adminStats": "Statistiques",
@@ -2353,14 +2400,18 @@
   "srvCoverProvider": "Fournisseur de couverture",
   "srvStorageSection": "Stockage",
   "srvMetadataFormat": "Format de fichier de métadonnées",
+  "srvFormatSection": "Affichage et format",
   "srvDateFormat": "Format de date",
   "srvTimeFormat": "Format de l'heure",
   "srvLanguage": "Langage du serveur",
+  "srvChromecast": "Support Chromecast",
   "srvSortingSection": "Tri",
+  "srvSortingPrefixes": "Préfixes de tri",
   "srvAddPrefix": "Ajouter un préfixe",
   "srvSave": "Enregistrer les paramètres",
   "srvSavePrefixes": "Enregistrer les préfixes",
   "srvSaved": "Paramètres sauvegardés",
+  "libNoneYet": "Pas encore de bibliothèques",
   "libDeleteTitle": "Supprimer la bibliothèque ?",
   "libDeleted": "Bibliothèque supprimée",
   "libNewTitle": "Nouvelle bibliothèque",
@@ -2412,6 +2463,7 @@
     }
   },
   "readerAnnotations": "Notes",
+  "readerNoBookmarks": "Aucun signet pour l'instant",
   "readerBookmarkDefault": "Signet",
   "readerNoteTitle": "Note",
   "readerNoteHint": "Ajouter une note...",
