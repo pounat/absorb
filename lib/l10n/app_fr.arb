@@ -1051,6 +1051,17 @@
   "removeAccountAction": "Supprimer le compte",
   "removeAccountTitle": "Supprimer le compte ?",
   "switchAccountTitle": "Changer de compte ?",
+  "switchAccountContent": "Passer à {username} sur {server}?\n\nVotre lecture actuelle sera arrêtée et l'application se rechargera avec les données de l'autre compte.",
+  "@switchAccountContent": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      },
+      "server": {
+        "type": "String"
+      }
+    }
+  },
   "switchButton": "Changer",
   "downloadLocationSheetTitle": "Emplacement des téléchargements",
   "currentLocation": "Emplacement actuel",
@@ -1095,6 +1106,7 @@
   "adminRmabUrlTitle": "URL ReadMeABook",
   "adminRmabReload": "Recharger",
   "adminRmabConnected": "Connecté",
+  "adminRmabSettingsInfo": "ReadMeABook est un service auto-hébergé pour demander et télécharger des livres audio. Il doit être installé et configuré par l'administrateur de votre serveur.",
   "rmabConfigTitle": "Connecter ReadMeABook",
   "rmabConfigExplainerAdmin": "ReadMeABook est un service auto-hébergé pour demander des livres audio. Générez un jeton d'API dans RMAB sous Tableau de bord Admin > Paramètres > API, puis collez l'URL du serveur et le jeton ci-dessous. Absorb n'héberge ni ne télécharge aucun contenu, il envoie simplement des requêtes à votre serveur.",
   "rmabConfigExplainerUser": "ReadMeABook est un service auto-hébergé pour demander des livres audio. Demandez à l'administrateur de votre serveur l'URL RMAB et un jeton d'API. Absorb n'héberge ni ne télécharge aucun contenu, il envoie simplement des requêtes à votre serveur.",
@@ -1161,6 +1173,14 @@
   "stereo": "Stéréo",
   "startM4bEncode": "Commencer l'encodage M4B",
   "currentlyLabel": "Actuellement :",
+  "encodeBackupNote": "Une sauvegarde de vos fichiers audio d'origine sera stockée dans : /metadata/cache/items/{itemId}/. Assurez-vous de purger périodiquement le cache des éléments.",
+  "@encodeBackupNote": {
+    "placeholders": {
+      "itemId": {
+        "type": "String"
+      }
+    }
+  },
   "aboutSection": "À propos",
   "chaptersCount": "Chapitres ({count})",
   "@chaptersCount": {
@@ -1300,6 +1320,7 @@
   "welcomeToAbsorb": "Bienvenue dans Absorb",
   "welcomeTagline": "Un client Audiobookshelf.",
   "welcomeAbsorbingTitle": "Absorption",
+  "welcomeGettingAroundBody": "Appuyez sur n'importe quelle couverture pour ouvrir ses détails. Les cartes de poursuite d'écoute sont différentes - touchez pour jouer immédiatement, appuyez et maintenez pour ouvrir les détails.",
   "welcomeMakeItYoursTitle": "Personnalisez-le",
   "showMore": "Afficher plus",
   "showLess": "Afficher moins",
@@ -1857,9 +1878,36 @@
       }
     }
   },
+  "editMetadataConfirmMatch": "Cela mettra à jour les métadonnées du serveur pour ce livre en utilisant :\n\n\"{title}\"\n\nTous les champs et la couverture seront remplacés sur le serveur.",
+  "@editMetadataConfirmMatch": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "editMetadataConfirmMatchWithAuthor": "Ceci mettra à jour les métadonnées du serveur pour ce livre en utilisant :\n\n\"{title}\" par {author}\n\nTous les champs et la couverture seront remplacés sur le serveur.",
+  "@editMetadataConfirmMatchWithAuthor": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      }
+    }
+  },
   "seriesBooksFindMissingContent": "Ceci cherche sur Audible pour trouver dans cette série des livres qui peuvent être manquants dans votre bibliothèque.\n\nLes livres sont trouvés d'abord par ASIN (selon que votre serveur a des ASINs pour ses livres), sinon fait une correspondance de titre. Il se peut que les résultats ne soient pas parfaitement exacts.",
   "seriesBooksMarkAllNotFinishedContent": "{count, plural, =1{Cela effacera le statut fini du livre de cette série.} other{Cela va effacer le statut fini pour les {count} livres de cette série.}}",
   "@seriesBooksMarkAllNotFinishedContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesBooksFullyAbsorbContent": "{count, plural, =1{Cela marquera le livre de cette série comme terminé.} other{Cela marquera les {count} livres de cette série comme terminé.}}",
+  "@seriesBooksFullyAbsorbContent": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -2130,16 +2178,27 @@
   "sectionDetailDoneBadge": "Terminé",
   "homeSectionDoneBadge": "Terminé",
   "tipsSheetQuickBookmarksTitle": "Signets rapides",
+  "tipsSheetQuickBookmarksDesc": "Appuyez longuement sur le bouton de signet de n'importe quelle carte pour déposer instantanément un signet à votre position actuelle sans ouvrir la feuille de signets.",
   "tipsSheetCoverPlayPauseTitle": "Lecture/pause sur la couverture",
   "tipsSheetCoverPlayPauseDesc": "Appuyez sur la pochette de n'importe quelle carte pour jouer ou mettre en pause. Activez ceci dans Réglages sous Cartes d'Absorption. Une icône de pause pâle apparaît lors de la lecture pour que vous sachiez qu'elle est tappable.",
   "tipsSheetFullScreenPlayerTitle": "Lecteur plein écran",
+  "tipsSheetQuickAddAbsorbingDesc": "Glissez à droite sur n'importe quel livre dans une page de liste (séries, auteur, résultats de recherche) pour l'ajouter instantanément à votre file d'attente.",
+  "tipsSheetShakeExtendSleepDesc": "Si vous avez un minuteur de sommeil en cours et que vous secouez votre téléphone, cela ajoutera des minutes supplémentaires. Configurez la quantité dans les paramètres sous Minuterie de sommeil.",
+  "tipsSheetSeriesNavigationDesc": "Appuyez sur le nom de la série dans la popup de détails de n'importe quel livre pour voir tous les livres de la série, trié en ordre de lecture avec des badges séquentiels sur chaque couverture.",
+  "tipsSheetSwipeBetweenBooksDesc": "Glissez vers la gauche et la droite sur l'écran Absorbing pour basculer entre vos livres en cours. Avec le mode file d'attente manuelle activée, les cartes agissent également comme une file d'attente, de sorte que la prochaine jouera automatiquement lorsque la carte actuelle se terminera.",
+  "tipsSheetTapToSeekDesc": "Tapotez n'importe où sur la barre de progression du chapitre ou du livre pour passer directement à cette position. Vous pouvez également faire glisser les barres pour un contrôle précis.",
   "tipsSheetSpeedAdjustedTimeDesc": "Temps restant et temps de chapitre s'ajustent automatiquement en fonction de votre vitesse de lecture. Vous écoutez à 1,5x ? Le temps affiché reflète combien de temps il vous faudra effectivement.",
   "tipsSheetPlaybackHistoryTitle": "Historique de lecture",
+  "tipsSheetPlaybackHistoryDesc": "Appuyez sur le bouton Historique de n'importe quelle carte pour voir une chronologie de chaque lecture, pause, recherche et changement de vitesse. Appuyez sur n'importe quel événement pour revenir à cette position.",
   "tipsSheetAutoRewindDesc": "Lorsque vous redémarrez après une pause, Absorb revient en arrière automatiquement de quelques secondes pour ne pas perdre votre place. La durée du retour varie avec le temps d'absence. Configurez-le dans les paramètres.",
+  "tipsSheetSeriesQueueModeDesc": "Quand vous avez terminé un livre qui fait partie d'une série, Absorb peut automatiquement lire le livre suivant. Réglez le mode file d'attente sur \"Séries\" dans les paramètres.",
   "tipsSheetOfflineModeTitle": "Mode hors-ligne",
   "tipsSheetOfflineModeDesc": "Appuyez sur le bouton Avion de l'écran Absorption pour passer en mode hors ligne. Ceci arrête la synchronisation, enregistre les données et affiche uniquement les livres téléchargés. Idéal pour les vols ou les zones de faible signal.",
   "tipsSheetUpcomingReleasesDesc": "Dans l'onglet Série, appuyez à nouveau sur l'onglet pour ouvrir sa page de tri et de filtre, puis choisissez Sorties à venir pour voir les nouveaux livres et ceux à venir de votre série, triés par date de publication.",
   "tipsSheetPerBookEqTitle": "Égaliseur par livre",
+  "tipsSheetPerBookEqDesc": "Chaque livre se souvient de ses propres paramètres d'égaliseur. Ajuster l'EQ une fois pour une épopée de science-fiction et la prochaine fois que vous la jouerez, il sonnera pareil.",
+  "tipsSheetAutoSleepWindowDesc": "Choisissez les heures où vous vous endormez habituellement et le minuteur de sommeil se déclenchera quand vous commencerez à écouter dans cette plage.",
+  "tipsSheetSleepFadeChimeDesc": "Quand le minuteur de sommeil se termine, l'audio s'estompe graduellement et une cloche optionnelle joue pour qu'il ne coupe pas au milieu d'une phrase.",
   "tipsSheetCarModeTitle": "Mode voiture",
   "tipsSheetAudibleSeriesDesc": "Ouvrez une série et utilisez le menu de débordement (les trois points) pour récupérer la liste complète des séries d'Audible, y compris les entrées manquantes et les livres que vous n'avez pas commencés.",
   "bookCardUnknownTitle": "Titre inconnu",
@@ -2310,6 +2369,17 @@
   "@embedBackupNotePath": {
     "placeholders": {
       "itemId": {
+        "type": "String"
+      }
+    }
+  },
+  "embedConfirmMessage": "Intégrez les métadonnées dans {count, plural, one{# fichier audio} other{# fichiers audio}}? Vos fichiers audio seront réécrits{backup}.",
+  "@embedConfirmMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "backup": {
         "type": "String"
       }
     }
