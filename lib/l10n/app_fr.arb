@@ -965,6 +965,9 @@
   "contactSubtitle": "Envoyer les informations de l'appareil par e-mail",
   "enableLogging": "Activer la journalisation",
   "enableLoggingOnSubtitle": "Activé - journaux enregistrés dans un fichier (redémarrez pour appliquer)",
+  "clearLogs": "Vider les journaux",
+  "logsCleared": "Journaux effacés",
+  "sectionAdvanced": "Avancé",
   "localServer": "Serveur local",
   "localServerInfoTitle": "Serveur local",
   "localServerInfoContent": "Si vous faites tourner votre serveur Audiobookshelf chez vous, vous pouvez définir ici une URL locale/LAN. Absorb basculera automatiquement sur cette connexion locale, plus rapide, lorsqu’il détecte que vous êtes sur votre réseau domestique, et reviendra à votre URL distante quand vous êtes ailleurs.",
@@ -1032,6 +1035,7 @@
   },
   "redownload": "Re-télécharger",
   "redownloadStarted": "Re-téléchargement",
+  "adminTitle": "Administrateur du serveur",
   "adminServer": "Serveur",
   "adminVersion": "Version",
   "adminUsers": "Utilisateurs",
@@ -1090,6 +1094,8 @@
   "rmabMyRequestsRefresh": "Actualiser",
   "rmabRequestDetailStatus": "Statut",
   "rmabRequestDetailRequestedOn": "Demandé le",
+  "rmabRequestDetailCompletedOn": "Complétée le",
+  "rmabRequestDetailProgress": "Progression",
   "rmabStatusAvailable": "Disponible",
   "rmabStatusDownloaded": "Téléchargé",
   "rmabStatusFailed": "Échec",
@@ -1097,11 +1103,15 @@
   "rmabStatusDenied": "Refusé",
   "rmabStatusUnknown": "Inconnu",
   "onAudible": "sur Audible",
+  "absorbing": "Absorption ...",
+  "absorbAgain": "Absorber à nouveau",
+  "fullyAbsorbAction": "Absorber entièrement",
   "clearLocalMetadata": "Effacer les métadonnées locales",
   "searchOnGoodreads": "Rechercher sur Goodreads",
   "codec": "Codec",
   "mono": "Mono",
   "stereo": "Stéréo",
+  "currentlyLabel": "Actuellement :",
   "aboutSection": "À propos",
   "chaptersCount": "Chapitres ({count})",
   "@chaptersCount": {
@@ -1133,15 +1143,28 @@
   "unmark": "Désélectionner",
   "clearLocalMetadataQuestion": "Effacer les métadonnées locales ?",
   "localMetadataCleared": "Métadonnées locales effacées",
+  "saveEbook": "Enregistrer l'eBook",
+  "bookmark": "Signet",
   "playbackSpeed": "Vitesse de lecture",
+  "addBookmark": "Ajouter un signet",
   "titleLabel": "Titre",
   "noteOptionalLabel": "Note (facultatif)",
   "playbackHistory": "Historique de lecture",
+  "historyServerTab": "Sessions",
   "clearHistoryTooltip": "Effacer l'historique",
+  "downloadAll": "Tout télécharger",
+  "standalone": "Autonome",
+  "episodes": "Épisodes",
+  "allEpisodes": "Tous les épisodes",
+  "selectAll": "Tout sélectionner",
+  "deselectAll": "Tout désélectionner",
   "download": "Télécharger",
+  "castingTo": "Diffusion vers",
+  "editDetails": "Modifier les détails",
   "custom": "Personnalisé",
   "authorOptionalLabel": "Auteur (facultatif)",
   "metadataUpdated": "Métadonnées mises à jour",
+  "subtitleLabel": "Sous-titre",
   "authorLabel": "Auteur",
   "narratorLabel": "Narrateur",
   "seriesLabel": "Séries",
@@ -1156,9 +1179,16 @@
   "localMetadata": "Métadonnées locales",
   "notes": "Notes",
   "newNote": "Nouvelle note",
+  "noNotesYet": "Aucune note pour le moment",
   "markdownMd": "Markdown (.md)",
   "plainTextTxt": "Texte brut (.txt)",
   "titleHint": "Titre",
+  "bassBoost": "Amplification des basses",
+  "surround": "Surround",
+  "loudness": "Volume",
+  "monoAudio": "Audio mono",
+  "skipSilence": "Sauter les silences",
+  "newPlaylist": "Nouvelle liste de lecture",
   "addedToName": "Ajouté à \"{name}\"",
   "@addedToName": {
     "placeholders": {
@@ -1167,13 +1197,20 @@
       }
     }
   },
+  "stopCasting": "Arrêter la diffusion",
   "disconnect": "Déconnecter",
+  "audioOutput": "Sortie audio",
   "welcomeTagline": "Un client Audiobookshelf.",
   "showMore": "Afficher plus",
   "showLess": "Afficher moins",
   "readMore": "Lire plus",
+  "finished": "Terminé",
+  "saved": "Téléchargé",
   "userFallback": "Utilisateur",
+  "rootAdmin": "Administrateur Root",
   "admin": "Admin",
+  "serverAdmin": "Administrateur du serveur",
+  "justNow": "À l'instant",
   "minutesAgo": "Il y a {count} min",
   "@minutesAgo": {
     "placeholders": {
@@ -1200,7 +1237,9 @@
   },
   "audible": "Audible",
   "iTunes": "iTunes",
+  "openLibrary": "Ouvrir la bibliothèque",
   "root": "Racine",
+  "cardBackgroundGradient": "Dégradé",
   "queueModeSeriesLabel": "Séries",
   "queueModeInfoSeries": "Séries",
   "reset": "Réinitialiser",
@@ -1215,6 +1254,7 @@
       }
     }
   },
+  "rewindOneHrPause": "1 heure de pause",
   "speedValue": "{speed}x",
   "@speedValue": {
     "placeholders": {
@@ -1257,6 +1297,7 @@
   "endOfChapterOnSubtitle": "Arrêter à la fin du chapitre en cours",
   "libraryFallback": "Bibliothèque",
   "updateAvailable": "Mise à jour disponible",
+  "downloadButton": "Télécharger",
   "sendingToEreader": "Envoi à {device}...",
   "@sendingToEreader": {
     "placeholders": {
@@ -1280,11 +1321,15 @@
   "smtpSecure": "Sécurisé",
   "smtpUser": "Utilisateur",
   "smtpPass": "Mot de passe",
+  "smtpFromAddress": "Adresse de l'expéditeur",
+  "smtpTestAddress": "Adresse de test",
   "smtpSaveSettings": "Enregistrer",
+  "addEreaderDevice": "Ajouter un appareil",
   "deleteEreaderDevice": "Supprimer",
   "ereaderDeviceName": "Nom",
   "ereaderDeviceEmail": "Courriel",
   "ereaderAvailUserOrUp": "Tous les utilisateurs",
+  "ereaderAvailGuestOrUp": "Tout le monde",
   "libraryCountOne": "{count} bibliothèque",
   "@libraryCountOne": {
     "placeholders": {
@@ -1318,9 +1363,11 @@
     }
   },
   "backupDetailsSeparator": " · ",
+  "cardIconsOnlyChip": "Icônes uniquement",
   "cardLayoutHidden": "Masqué",
   "speed": "Vitesse",
   "details": "Détails",
+  "bookDetailsLabel": "Détails du livre",
   "equalizerShort": "EQ",
   "chaptersChip": "{count} chapitres",
   "@chaptersChip": {
@@ -1353,12 +1400,16 @@
   "adminLibrarySize": "taille",
   "adminLibraryDuration": "durée",
   "adminLibraryReview": "Vérification",
+  "adminMissingDeleteTitle": "Supprimer l'élément",
   "adminMatchFailed": "Échec",
   "adminPurgeCacheFailed": "Échec",
   "adminUsersRootBadge": "root",
   "adminUsersAdminBadge": "admin",
+  "adminUsersDisabledBadge": "désactivé",
+  "adminUsersOnlineNow": "En ligne actuellement",
   "adminUsersNever": "Jamais",
   "adminUsersTotal": "Total",
+  "adminUsersLoadingDots": "Chargement...",
   "adminUsersNewUser": "Nouvel utilisateur",
   "adminUsersUsername": "Utilisateur",
   "adminUsersPassword": "Mot de passe",
@@ -1371,9 +1422,14 @@
   "adminUsersAccountActive": "Compte actif",
   "adminUsersLocked": "Verrouillé",
   "adminUsersPermissions": "Permissions",
+  "adminUsersPermDownload": "Télécharger",
   "adminUsersPermUpdate": "Mise à jour",
   "adminUsersPermDelete": "Supprimer",
   "adminUsersPermUpload": "Téléverser",
+  "adminUsersSaveChanges": "Enregistrer les modifications",
+  "adminUsersUserCreated": "Utilisateur créé",
+  "adminUsersUserUpdated": "Utilisateur mis à jour",
+  "adminUsersDeleteUserTitle": "Supprimer l'utilisateur ?",
   "adminUsersUserDeleted": "{name} supprimé",
   "@adminUsersUserDeleted": {
     "placeholders": {
@@ -1405,6 +1461,22 @@
     }
   },
   "adminPodcastsRelToday": "Aujourd'hui",
+  "adminPodcastsWeeksAgo": "Il y a {count} sem",
+  "@adminPodcastsWeeksAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsYearsAgo": "Il y a {count} a",
+  "@adminPodcastsYearsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminPodcastsGenreAll": "Tous",
   "adminPodcastsGenreArts": "Arts",
   "adminPodcastsGenreComedy": "Comédie",
@@ -1412,7 +1484,10 @@
   "adminPodcastsGenreTvFilm": "TV & Film",
   "adminPodcastsGenreMusic": "Musique",
   "adminPodcastsGenreNews": "Actualités",
+  "adminPodcastsGenreReligion": "Religion",
   "adminPodcastsGenreSports": "Sports",
+  "adminPodcastsGenreTechnology": "Technologie",
+  "adminPodcastsGenreTrueCrime": "Documentaire criminel",
   "adminPodcastsGenreHistory": "Historique",
   "adminPodcastsPodcastFallback": "Podcast",
   "adminPodcastsEpisodeFallback": "Épisode",
@@ -1426,6 +1501,8 @@
   },
   "adminPodcastsAdding": "Ajout en cours…",
   "adminPodcastsAddToLibrary": "Ajouter à la bibliothèque",
+  "adminPodcastsTabDownloaded": "Téléchargé",
+  "adminPodcastsTabSettings": "Paramètres",
   "adminPodcastsDeleteEpisodeContent": "Supprimer \"{title}\" ?",
   "@adminPodcastsDeleteEpisodeContent": {
     "placeholders": {
@@ -1481,6 +1558,7 @@
   "adminPodcastsDayThu": "Jeu",
   "adminPodcastsDayFri": "Ven",
   "adminPodcastsDaySat": "Sam",
+  "adminPodcastsFeedUrl": "URL du flux",
   "adminPodcastsSeasonChip": "Saison {season}",
   "@adminPodcastsSeasonChip": {
     "placeholders": {
@@ -1497,15 +1575,41 @@
       }
     }
   },
+  "adminPodcastsNoResults": "Aucun résultat",
+  "adminPodcastsSelectAll": "Tout sélectionner",
+  "adminPodcastsSelectAllNew": "Nouveaux uniquement",
+  "adminPodcastsSortNewestFirst": "Les plus récents en premier",
+  "adminPodcastsSortOldestFirst": "Les plus anciens en premier",
+  "adminPodcastsEditTitle": "Modifier le podcast",
+  "adminPodcastsReleaseDate": "Date de parution",
+  "adminPodcastsExplicit": "Explicite",
   "episodeListEpisodeFallback": "Épisode",
   "episodeListUnknownPodcast": "Podcast inconnu",
   "episodeListShowFinishedEpisodes": "Afficher les épisodes achevés",
   "episodeListHideFinishedEpisodes": "Cacher les épisodes achevés",
+  "episodeListSubscribedChip": "Abonné",
+  "episodeListExplicitChip": "Explicite",
   "episodeListSortNewest": "Les plus récents",
   "episodeListSortOldest": "Les plus anciens",
   "episodeDetailEpisodeFallback": "Épisode",
   "episodeDetailToday": "Aujourd'hui",
   "episodeDetailYesterday": "Hier",
+  "episodeDetailDaysAgo": "Il y a {count} j",
+  "@episodeDetailDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "episodeDetailWeeksAgo": "Il y a {count} sem",
+  "@episodeDetailWeeksAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "episodeDetailDurationHm": "{hours}h {minutes}m",
   "@episodeDetailDurationHm": {
     "placeholders": {
@@ -1517,7 +1621,16 @@
       }
     }
   },
+  "episodeDetailDurationM": "{minutes}m",
+  "@episodeDetailDurationM": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "episodeDetailResume": "Reprendre",
+  "episodeDetailPlayEpisode": "Lire l'épisode",
   "episodeDetailEpisodeNumber": "Épisode {number}",
   "@episodeDetailEpisodeNumber": {
     "placeholders": {
@@ -1534,10 +1647,20 @@
       }
     }
   },
+  "seriesBooksUnmarkAll": "Décocher tout",
   "seriesBooksDone": "Terminé",
   "seriesBooksExplicitBadge": "E",
   "expandedCardDeviceFallback": "Appareil",
   "bookmarksScreenClose": "Fermer",
+  "bookmarksScreenSortPosition": "Position",
+  "statsScreenStreakDays": "{count}j",
+  "@statsScreenStreakDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "statsScreenSessionCountOne": "{count} session",
   "@statsScreenSessionCountOne": {
     "placeholders": {
@@ -1598,12 +1721,15 @@
       }
     }
   },
+  "statsScreenListened": "Écouté",
+  "sessionEditTitle": "Modifier la session",
   "sessionDayLabel": "Jour",
   "statsScreenStarted": "Commencé",
   "statsScreenUpdated": "Mis à jour",
   "statsScreenClient": "Client",
   "statsScreenDevice": "Appareil",
   "statsScreenOs": "OS",
+  "statsScreenLoading": "Chargement...",
   "statsScreenPlayMethodLocal": "Local",
   "statsScreenAmLabel": "AM",
   "statsScreenPmLabel": "PM",
@@ -1622,19 +1748,49 @@
   "upcomingReleasesRescanTitle": "Rescanner ?",
   "upcomingReleasesNotNow": "Plus tard",
   "upcomingReleasesDateChip": "Date",
+  "upcomingReleasesBadgeUpcoming": "À VENIR",
   "upcomingReleasesBadgeMissing": "MANQUANT",
   "homeScreenEpisodeFallback": "Épisode",
+  "playlistDetailUnfinished": "Non terminé",
   "playlistDetailDone": "Terminé",
+  "collectionDetailDefaultName": "Collection",
   "collectionDetailDone": "Terminé",
   "authorBooksList": "Liste",
   "authorBooksGrid": "Grille",
   "metadataLookupCover": "Couverture",
   "equalizerPresetFlat": "Plat",
+  "equalizerPresetBassBoost": "Amplification des basses",
+  "equalizerPresetTrebleBoost": "Amplification des aigus",
   "equalizerPresetPodcast": "Podcast",
+  "sleepTimerSheetMinShort": "{minutes}m",
+  "@sleepTimerSheetMinShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTimerSheetSecondsShort": "{seconds}s",
+  "@sleepTimerSheetSecondsShort": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTimerSheetChaptersChip": "{count} ch",
+  "@sleepTimerSheetChaptersChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sleepTimerSheetShake": "Secouer",
   "sleepTimerSheetTabSpecificChapter": "Chapitre",
   "timeAm": "AM",
   "timePm": "PM",
+  "collectionPickerCollectionFallback": "Collection",
   "cardChaptersPlay": "Lire",
   "absorbingSharedToday": "Aujourd'hui",
   "absorbingSharedTuesday": "Mardi",
@@ -1647,16 +1803,28 @@
   "bookCardSaved": "Enregistré",
   "episodeRowEpisode": "Épisode",
   "episodeRowToday": "Aujourd'hui",
+  "episodeRowDurationM": "{minutes}m",
+  "@episodeRowDurationM": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "librarySearchResultsExplicitBadge": "E",
   "librarySearchResultsDone": "Terminé",
   "librarySearchResultsSaved": "Enregistré",
   "libraryGridTilesExplicitBadge": "E",
   "libraryGridTilesDone": "Terminé",
   "libraryGridTilesSaved": "Enregistré",
+  "cardProgressHalfSpeed": "Vitesse /2",
+  "cardEdgeProgressHalfSpeed": "Vitesse /2",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
   "downloadNotifProgressChannelDesc": "Affiche la progression pendant les téléchargements de livres audio",
   "downloadNotifAlertChannelName": "Alertes de téléchargement",
+  "downloadNotifStartingLabel": "Démarrage…",
   "androidAutoTabLibrary": "Bibliothèque",
+  "androidAutoTabDownloads": "Téléchargements",
   "androidAutoCatBooks": "Livres",
   "androidAutoCatAuthors": "Auteurs",
   "authorName": "Nom",
@@ -1666,6 +1834,7 @@
   "chapterTimeHintSeconds": "Secondes",
   "add": "Ajouter",
   "ok": "OK",
+  "chapterRemoveAll": "Tout supprimer",
   "chapterShowSeconds": "Afficher les secondes",
   "chapterShiftBySeconds": "Décaler de (secondes)",
   "chapterMore": "Plus",
@@ -1696,6 +1865,7 @@
   "adminApiKeysActive": "Active",
   "adminApiKeysInactive": "Inactive",
   "adminApiKeysExpired": "Expirée",
+  "adminApiKeysCreate": "Créer une clé",
   "adminApiKeysCreated": "Clé API créée",
   "adminApiKeysTokenLabel": "Votre nouvelle clé API",
   "adminApiKeysCopyWarning": "Copiez cette clé maintenant. Par sécurité, elle ne sera pas affichée à nouveau.",
@@ -1705,6 +1875,7 @@
   "adminApiKeysDeleteTitle": "Révoquer la clé API ?",
   "adminApiKeysDeleted": "Clé API révoquée",
   "adminApiKeysRevoke": "Révoquer",
+  "adminApiKeysSetActive": "Activer",
   "adminApiKeysNeverUsed": "Jamais utilisée",
   "adminApiKeysNeverExpires": "Pas d'expiration",
   "adminApiKeysExpNever": "Jamais",
@@ -1730,6 +1901,9 @@
   },
   "bookmarkListen": "Écouter",
   "bookmarkPause": "Pause",
+  "clipExport": "Exporter le clip",
+  "clipJumpToEnd": "Sauter à la fin",
+  "clipSave": "Enregistrer le clip",
   "clipExportSaved": "{filename} sauvegardé",
   "@clipExportSaved": {
     "placeholders": {
@@ -1738,19 +1912,35 @@
       }
     }
   },
+  "fsServerRoot": "Racine du serveur",
   "fsUseThisFolder": "Utiliser ce dossier",
   "adminLibrariesManage": "Bibliothèques",
+  "adminUploadDestination": "Destination",
   "adminUploadFiles": "Fichiers",
+  "adminUploadAddFiles": "Ajouter des fichiers",
   "adminServerSettings": "Paramètres du serveur",
   "adminStats": "Statistiques",
+  "adminSessionsAllUsers": "Tous les utilisateurs",
   "adminSessionsEmpty": "Aucune session",
   "statsTotalItems": "Éléments",
+  "statsAudioFiles": "Fichiers audio",
+  "statsTotalSize": "Taille totale",
   "statsBooks": "Livres",
   "statsPodcasts": "Podcasts",
+  "statsBooksSize": "Taille des livres",
   "statsSessions": "Sessions",
+  "statsBooksAdded": "Livres ajoutés",
+  "statsTopAuthors": "Meilleurs auteurs",
+  "statsTopGenres": "Genres Principaux",
+  "srvScannerSection": "Scanneur",
+  "srvFindCovers": "Trouver des couvertures",
+  "srvStorageSection": "Stockage",
   "srvMetadataFormat": "Format de fichier de métadonnées",
   "srvDateFormat": "Format de date",
+  "srvTimeFormat": "Format de l'heure",
   "srvLanguage": "Langage du serveur",
+  "srvSortingSection": "Tri",
+  "srvAddPrefix": "Ajouter un préfixe",
   "srvSaved": "Paramètres sauvegardés",
   "libDeleted": "Bibliothèque supprimée",
   "libNewTitle": "Nouvelle bibliothèque",
@@ -1758,6 +1948,8 @@
   "libMediaPodcast": "Podcasts",
   "libProvider": "Fournisseur de métadonnées",
   "libIcon": "Icône",
+  "libFolders": "Dossiers",
+  "libCoverShape": "Forme de couverture",
   "libCoverSquare": "Carré",
   "libCoverStandard": "Standard",
   "libCreate": "Créer une bibliothèque",
@@ -1765,6 +1957,7 @@
   "libUpdated": "Bibliothèque mise à jour",
   "readEbook": "Lu",
   "moreActions": "Plus",
+  "readerFontSize": "Taille de la police",
   "readerLineSpacing": "Interligne",
   "readerSideMargins": "Marges latérales",
   "readerTopBottom": "Haut et bas",
