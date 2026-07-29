@@ -334,7 +334,10 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
           SliverPadding(
             padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPad),
             sliver: SliverGrid(
-              gridDelegate: sheetBookGridDelegate(context),
+              gridDelegate: sheetBookGridDelegate(
+                context,
+                childAspectRatio: 0.65,
+              ),
               delegate: SliverChildBuilderDelegate((_, i) {
                 final item = collapsed[i];
                 if (item is _BookSection) {
@@ -357,7 +360,10 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             sliver: SliverGrid(
-              gridDelegate: sheetBookGridDelegate(context),
+              gridDelegate: sheetBookGridDelegate(
+                context,
+                childAspectRatio: 0.65,
+              ),
               delegate: SliverChildBuilderDelegate(
                 (_, i) => GridBookTile(item: section.books[i], sequenceBadge: _sequenceFor(section.books[i], section.label)?.replaceFirst('#', '')),
                 childCount: section.books.length,
