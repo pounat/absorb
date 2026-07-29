@@ -2598,15 +2598,19 @@ class AudioPlayerService extends ChangeNotifier {
       }
     }
 
-    // Phase 1.6: if the iOS native player core was driving while Flutter was
-    // dead, it stamped a fresher `np_position_s` to the app group. Pick that
-    // up so opening absorb after a widget-tap session shows the right spot.
-    if (Platform.isIOS && !forceStartTime) {
-      final nativePos = await HomeWidgetService()
-          .getNativeNowPlayingPosition(itemId, episodeId);
-      if (nativePos != null && nativePos > startTime + 1.0) {
-        debugPrint('[Player] Resuming from native widget position: ${nativePos}s (was ${startTime}s)');
-        startTime = nativePos;
+    // The widget stash is independent of the scoped SharedPreferences cache.
+    // That matters on Android Auto cold starts, where a long-lived headless
+    // engine can have an older browse entry and an older preferences snapshot.
+    if (!forceStartTime) {
+      final stashedPos = await HomeWidgetService()
+          .getStashedNowPlayingPosition(itemId, episodeId);
+      final newerStashedPos = HomeWidgetService.newerStashedNowPlayingPosition(
+        startTime,
+        stashedPos,
+      );
+      if (newerStashedPos != null) {
+        debugPrint('[Player] Resuming from stashed widget position: ${newerStashedPos}s (was ${startTime}s)');
+        startTime = newerStashedPos;
         localTimestampAtStart = DateTime.now().millisecondsSinceEpoch;
       }
     }

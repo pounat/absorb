@@ -152,17 +152,26 @@ class HomeWidgetService {
     }
   }
 
-  /// Phase 1.6: read the native player core's last position for an item, so
-  /// when Flutter wakes up after a widget-driven session it can pick up
-  /// where native left off. Returns null if the stashed `np_item_id` doesn't
-  /// match (the app group has data for some other item) or if reads fail.
-  ///
-  /// iOS only - Android doesn't have the native core path.
-  Future<double?> getNativeNowPlayingPosition(
+  @visibleForTesting
+  static bool supportsStashedNowPlayingPosition(TargetPlatform platform) =>
+      platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+
+  static double? newerStashedNowPlayingPosition(
+    double startTime,
+    double? stashedPosition,
+  ) => stashedPosition != null && stashedPosition > startTime + 1.0
+      ? stashedPosition
+      : null;
+
+  /// Read the last stashed playback position for an item. On iOS the native
+  /// player may have advanced it while Flutter was dead. On Android it is an
+  /// independent fallback when a headless Android Auto launch has stale
+  /// SharedPreferences or browse-tree state.
+  Future<double?> getStashedNowPlayingPosition(
     String itemId,
     String? episodeId,
   ) async {
-    if (!Platform.isIOS) return null;
+    if (!supportsStashedNowPlayingPosition(defaultTargetPlatform)) return null;
     try {
       final stashedItem = await HomeWidget.getWidgetData<String>('np_item_id');
       if (stashedItem != itemId) return null;
@@ -173,7 +182,7 @@ class HomeWidgetService {
       final pos = await HomeWidget.getWidgetData<double>('np_position_s');
       return pos;
     } catch (e) {
-      debugPrint('[WidgetDebug] getNativeNowPlayingPosition failed: $e');
+      debugPrint('[WidgetDebug] getStashedNowPlayingPosition failed: $e');
       return null;
     }
   }
