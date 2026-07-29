@@ -780,6 +780,7 @@
   "speedBookmarkOnSubtitle": "Activé - la notification affiche la vitesse et le signet ; le saut de chapitre reste dans Android Auto",
   "speedBookmarkOffSubtitle": "Désactivé - la notification montre le saut de chapitre, la vitesse et le signet restent dans Android Auto",
   "lockSeekBar": "Verrouiller la barre de lecture",
+  "lockSeekBarOnSubtitle": "Activé - la barre dans la notification, l'écran de verrouillage et le mode voiture montre la progression mais ne peut pas être déplacée",
   "autoRewindOnResume": "Rembobiner lors de la reprise",
   "autoRewindOnSubtitle": "Activé - {min}s à {max}s en fonction de la longueur de la pause",
   "@autoRewindOnSubtitle": {
@@ -1050,6 +1051,17 @@
   "editServerAddressField": "Adresse du serveur",
   "removeAccountAction": "Supprimer le compte",
   "removeAccountTitle": "Supprimer le compte ?",
+  "removeAccountContent": "Supprimer {username} sur {server} des comptes enregistrés ?\n\nVous pouvez toujours l'ajouter plus tard en vous connectant à nouveau.",
+  "@removeAccountContent": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      },
+      "server": {
+        "type": "String"
+      }
+    }
+  },
   "switchAccountTitle": "Changer de compte ?",
   "switchAccountContent": "Passer à {username} sur {server}?\n\nVotre lecture actuelle sera arrêtée et l'application se rechargera avec les données de l'autre compte.",
   "@switchAccountContent": {
@@ -1069,6 +1081,7 @@
   "chooseFolder": "Choisir un dossier",
   "chooseDownloadFolder": "Choisir le dossier de téléchargement",
   "openSettings": "Ouvrir les paramètres",
+  "cannotWriteToFolder": "Impossible d'écrire dans ce dossier - choisissez un autre emplacement ou accordez l'accès aux fichiers dans les paramètres système",
   "resetToDefault": "Réinitialiser aux valeurs par défaut",
   "legacyDownloadsNotice": "{count, plural, =1{1 téléchargement se trouve dans un ancien dossier personnalisé qui ne peut plus être ouvert. Téléchargez-le à nouveau ou ignorez cette notification.} other{{count} téléchargements se trouvent dans un ancien dossier personnalisé qui ne peut plus être ouvert. Téléchargez-les à nouveau ou ignorez cette notification.}}",
   "@legacyDownloadsNotice": {
@@ -1116,6 +1129,8 @@
   "rmabConfigTokenLabel": "Jeton d'API",
   "rmabConfigTokenHint": "rmab_...",
   "rmabConfigLegacyUrlHint": "https://rmab.exemple.com/?token=...",
+  "rmabConfigLegacyUrlHelp": "Collez votre URL de connexion automatique pour que vous soyez connecté dans \"Ouvrir dans la vue du navigateur\". Laissez vide pour utiliser une connexion normale.",
+  "rmabConfigHeadersHelp": "En-têtes supplémentaires envoyés avec chaque requête ReadMeABook pour les proxy inversés comme Cloudflare Access.",
   "rmabConfigConnect": "Connecter",
   "rmabConfigDisconnect": "Déconnecter",
   "rmabConfigConnectedAs": "Connecté en tant que {name}",
@@ -1220,6 +1235,7 @@
   },
   "unmark": "Désélectionner",
   "resetProgressQuestion": "Réinitialiser la progression ?",
+  "resetProgressContent": "Ceci effacera toute la progression de ce livre et le réinitialisera au début. Cela ne peut pas être annulé.",
   "clearLocalMetadataQuestion": "Effacer les métadonnées locales ?",
   "localMetadataCleared": "Métadonnées locales effacées",
   "saveEbook": "Enregistrer l'eBook",
@@ -1320,6 +1336,7 @@
   "welcomeToAbsorb": "Bienvenue dans Absorb",
   "welcomeTagline": "Un client Audiobookshelf.",
   "welcomeAbsorbingTitle": "Absorption",
+  "welcomeAbsorbingIntro": "Nous utilisons \"absorber\" à la place de \"jouer\" et \"écouter\". Vous préférez le libellé classique ? Changez-le dans les paramètres.",
   "welcomeGettingAroundBody": "Appuyez sur n'importe quelle couverture pour ouvrir ses détails. Les cartes de poursuite d'écoute sont différentes - touchez pour jouer immédiatement, appuyez et maintenez pour ouvrir les détails.",
   "welcomeMakeItYoursTitle": "Personnalisez-le",
   "welcomeMakeItYoursBody": "Explorez les paramètres pour ajuster Absorb à votre goût. La section Astuce & Fonctionnalités cachées qui s'y trouve vaut la peine d'être regardée.",
@@ -1643,6 +1660,14 @@
       }
     }
   },
+  "adminUsersUnlinkOpenIdContent": "Supprimer la connexion OpenID pour {name}? Il devra se connecter à nouveau avec OpenID pour ré-associer.",
+  "@adminUsersUnlinkOpenIdContent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersOpenIdUnlinked": "OpenID dissocié",
   "adminUsersByAuthor": "par {author}",
   "@adminUsersByAuthor": {
@@ -1659,6 +1684,7 @@
   "adminUsersDevice": "Appareil",
   "adminUsersOs": "OS",
   "adminUsersPlayTranscode": "Transcoder",
+  "adminPodcastsCheckNewEpisodesContent": "Cela vérifiera les flux RSS de toutes les podcasts et téléchargera les nouveaux épisodes trouvés (si le téléchargement automatique est activé).",
   "adminPodcastsCheck": "Vérifier",
   "adminPodcastsNoPodcastsYet": "Pas encore de podcasts",
   "adminPodcastsEpisodesCount": "{count} épisodes",
@@ -1815,6 +1841,15 @@
   "adminPodcastsExplicit": "Explicite",
   "episodeListEpisodeFallback": "Épisode",
   "episodeListUnknownPodcast": "Podcast inconnu",
+  "episodeListMarkedUnfinished": "{count, plural, =1{1 épisode marqué comme inachevé} other{{count} épisodes marqués comme inachevés}}",
+  "@episodeListMarkedUnfinished": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "episodeListSubscribeContent": "Les nouveaux épisodes seront automatiquement téléchargés et ajoutés à votre file d’attente d’absorption lorsqu’ils apparaîtront sur le serveur.",
   "episodeListSubscribe": "S'abonner",
   "episodeListShowFinishedEpisodes": "Afficher les épisodes achevés",
   "episodeListHideFinishedEpisodes": "Cacher les épisodes achevés",
@@ -1824,6 +1859,7 @@
   "episodeListSortNewest": "Les plus récents",
   "episodeListSortOldest": "Les plus anciens",
   "episodeDetailEpisodeFallback": "Épisode",
+  "episodeDetailResetProgressContent": "Ceci effacera toute la progression de cet épisode et le réinitialisera au début. Cela ne peut pas être annulé.",
   "episodeDetailToday": "Aujourd'hui",
   "episodeDetailYesterday": "Hier",
   "episodeDetailDaysAgo": "Il y a {count} j",
@@ -2287,6 +2323,17 @@
   "cardEdgeProgressHalfSpeed": "Vitesse /2",
   "authInvalidApiKey": "Clé API invalide",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
+  "lpSubscribedPodcastDownloading": "{showTitle}: {count, plural, =1{1 nouvel épisode en cours de téléchargement} other{{count} nouveaux épisodes en cours de téléchargement}}",
+  "@lpSubscribedPodcastDownloading": {
+    "placeholders": {
+      "showTitle": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "episodeListPositionTop": "En haut de la file d'attente",
   "episodeListPositionSecond": "Deuxième dans la file d'attente",
   "episodeListPositionEnd": "Fin de la file d'attente",
