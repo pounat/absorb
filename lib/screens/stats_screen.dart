@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
+import '../services/scoped_prefs.dart';
+import '../services/user_account_service.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/finished_books_this_year_sheet.dart';
 import '../widgets/stats_charts.dart';
@@ -283,14 +285,20 @@ class _StatsScreenState extends State<StatsScreen>
   static const _kSessions = 'cached_sessions';
 
   Future<void> _loadStats() async {
+    final accountScope = UserAccountService().activeScopeKey;
+    bool isActiveAccount() =>
+        UserAccountService().activeScopeKey == accountScope;
     final api = context.read<AuthProvider>().apiService;
     final lib = context.read<LibraryProvider>();
     final prefs = await SharedPreferences.getInstance();
+    final statsCacheKey = ScopedPrefs.keyForScope(accountScope, _kStats);
+    final sessionsCacheKey = ScopedPrefs.keyForScope(accountScope, _kSessions);
 
     // The saved-by-speed counter banks while listening, so re-read it on
     // every load (incl. pull-to-refresh), not just at screen creation.
     final timeSaved = await PlayerSettings.getStatsTimeSaved();
     final timeSavedSince = await PlayerSettings.getStatsTimeSavedSince();
+    if (!isActiveAccount()) return;
     if (mounted && (timeSaved != _timeSavedSeconds || timeSavedSince != _timeSavedSince)) {
       setState(() {
         _timeSavedSeconds = timeSaved;
@@ -300,8 +308,8 @@ class _StatsScreenState extends State<StatsScreen>
 
     // Load cached data first so the page renders immediately even offline.
     if (_isLoading) {
-      final cachedStats = prefs.getString(_kStats);
-      final cachedSessions = prefs.getString(_kSessions);
+      final cachedStats = prefs.getString(statsCacheKey);
+      final cachedSessions = prefs.getString(sessionsCacheKey);
       if (cachedStats != null) {
         final stats = jsonDecode(cachedStats) as Map<String, dynamic>;
         final sessions = cachedSessions != null
@@ -330,13 +338,14 @@ class _StatsScreenState extends State<StatsScreen>
 
     // Phase 1: load core stats from network and cache them.
     final stats = await api.getListeningStats();
+    if (!mounted || !isActiveAccount()) return;
     final finishedBooks = lib.finishedBooksCount;
     final finishedEpisodes = lib.finishedEpisodesCount;
     final finishedBooksYear = lib.finishedBooksThisYearCount;
     final finishedEpisodesYear = lib.finishedEpisodesThisYearCount;
 
     if (stats != null) {
-      prefs.setString(_kStats, jsonEncode(stats));
+      prefs.setString(statsCacheKey, jsonEncode(stats));
     }
 
     if (mounted) {
@@ -358,9 +367,10 @@ class _StatsScreenState extends State<StatsScreen>
     // Phase 2: load heavier sessions list in background and cache.
     final sessionsData =
         await api.getListeningSessions(page: 0, itemsPerPage: _sessionsPerPage);
+    if (!mounted || !isActiveAccount()) return;
     final sessions = sessionsData?['sessions'] as List<dynamic>? ?? [];
     if (sessions.isNotEmpty) {
-      prefs.setString(_kSessions, jsonEncode(sessions));
+      prefs.setString(sessionsCacheKey, jsonEncode(sessions));
     }
     if (mounted) {
       setState(() {

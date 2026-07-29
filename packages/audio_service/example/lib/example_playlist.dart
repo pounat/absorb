@@ -184,8 +184,7 @@ class MainScreen extends StatelessWidget {
                   final queueState = snapshot.data ?? QueueState.empty;
                   final queue = queueState.queue;
                   return ReorderableListView(
-                    onReorder: (int oldIndex, int newIndex) {
-                      if (oldIndex < newIndex) newIndex--;
+                    onReorderItem: (int oldIndex, int newIndex) {
                       _audioHandler.moveQueueItem(oldIndex, newIndex);
                     },
                     children: [

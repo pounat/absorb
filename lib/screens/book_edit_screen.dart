@@ -11,6 +11,7 @@ class BookEditScreen extends StatelessWidget {
   final Map<String, dynamic> metadata;
   final List<String> tags;
   final List<dynamic> audioFiles;
+  final List<dynamic> libraryFiles;
   final String relPath;
   final bool isEbookOnly;
   final bool isAdmin;
@@ -23,6 +24,7 @@ class BookEditScreen extends StatelessWidget {
     required this.metadata,
     required this.tags,
     required this.audioFiles,
+    this.libraryFiles = const [],
     required this.relPath,
     required this.isEbookOnly,
     required this.isAdmin,
@@ -53,6 +55,7 @@ class BookEditScreen extends StatelessWidget {
         metadata: metadata,
         tags: tags,
         audioFiles: audioFiles,
+        libraryFiles: libraryFiles,
         relPath: relPath,
         isEbookOnly: isEbookOnly,
         isAdmin: isAdmin,

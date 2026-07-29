@@ -482,6 +482,18 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     return data;
   }
 
+  void applyLocalProgressDates(
+    String itemId, {
+    int? startedAt,
+    int? finishedAt,
+  }) {
+    final progress = Map<String, dynamic>.from(_progressMap[itemId] ?? {});
+    if (startedAt != null) progress['startedAt'] = startedAt;
+    if (finishedAt != null) progress['finishedAt'] = finishedAt;
+    _progressMap[itemId] = progress;
+    notifyListeners();
+  }
+
   /// True if [itemId] currently appears in the personalized "Continue Listening"
   /// shelf. Gates the "Remove from Continue Listening" book action.
   bool isInContinueListeningShelf(String itemId) {
@@ -1201,6 +1213,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     _progressMap[key] = mp;
     _localProgressOverrides.remove(key);
     _resetItems.remove(key);
+    (this as _AbsorbingMixin)._pruneRemotelyFinishedBooks([key]);
     notifyListeners();
 
     _progressRefreshDebounce?.cancel();
@@ -1275,6 +1288,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     final progressList = data['mediaProgress'] as List<dynamic>?;
     if (progressList != null) {
       final player = AudioPlayerService();
+      final updatedKeys = <String>[];
       final playingKey = player.currentEpisodeId != null
           ? '${player.currentItemId}-${player.currentEpisodeId}'
           : player.currentItemId;
@@ -1288,9 +1302,11 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
             if (key == playingKey && player.hasBook) continue;
             _progressMap[key] = mp;
             _localProgressOverrides.remove(key);
+            updatedKeys.add(key);
           }
         }
       }
+      (this as _AbsorbingMixin)._pruneRemotelyFinishedBooks(updatedKeys);
       notifyListeners();
     } else {
       _progressRefreshDebounce?.cancel();
@@ -1346,8 +1362,6 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
 
     try {
-      _lastPersonalizedFetchAt = DateTime.now();
-      _lastPersonalizedFetchLibraryId = _selectedLibraryId;
       await _refreshProgress();
       _personalizedSections = await _api!.getPersonalizedView(
             _selectedLibraryId!,

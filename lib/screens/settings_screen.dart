@@ -24,6 +24,7 @@ import '../services/socket_service.dart';
 import '../screens/login_screen.dart';
 import '../screens/app_shell.dart';
 import '../services/update_checker_service.dart';
+import '../services/audiobookshelf_update_service.dart';
 import '../widgets/update_dialog.dart';
 import '../screens/admin_screen.dart';
 import '../screens/downloads_screen.dart';
@@ -44,6 +45,7 @@ import '../widgets/feature_hint.dart';
 import '../widgets/welcome_sheet.dart';
 import '../widgets/rmab_config_sheet.dart';
 import '../widgets/server_connection_editor.dart';
+import '../widgets/server_admin_status_badges.dart';
 import '../l10n/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -170,6 +172,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _rmabApiToken;
   bool _loaded = false;
   int _adminIssueCount = 0;
+  AudiobookshelfServerUpdate? _serverUpdate;
+  String? _serverUpdateCheckedFor;
+  bool _serverUpdateCheckRunning = false;
   String _downloadLocationLabel = 'App Internal Storage (Default)';
   bool _canPickDownloadLocation = false;
   int _totalDownloadSizeBytes = 0;
@@ -245,6 +250,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final counts = await Future.wait(ids.map(api.getIssueItemCount));
     if (!mounted) return;
     setState(() => _adminIssueCount = counts.fold<int>(0, (a, b) => a + b));
+  }
+
+  Future<void> _loadServerUpdate(String currentVersion) async {
+    _serverUpdateCheckedFor = currentVersion;
+    _serverUpdateCheckRunning = true;
+    final update = await AudiobookshelfUpdateService.check(currentVersion: currentVersion);
+    _serverUpdateCheckRunning = false;
+    if (!mounted || _serverUpdateCheckedFor != currentVersion) return;
+    setState(() => _serverUpdate = update);
   }
 
   @override
@@ -1168,6 +1182,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (mounted) _loadAdminIssueCount();
       });
     }
+    final serverVersion = auth.serverVersion?.trim();
+    if (auth.isAdmin && serverVersion != null && serverVersion.isNotEmpty &&
+        !_serverUpdateCheckRunning && _serverUpdateCheckedFor != serverVersion) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadServerUpdate(serverVersion);
+      });
+    }
     if (lib.selectedLibraryId != null && lib.selectedLibraryId != _curLibId) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadCurrentLibraryOverrides(lib.selectedLibraryId!);
@@ -1326,19 +1347,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                                 ],
                               )),
-                              if (_adminIssueCount > 0) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    Icon(Icons.report_problem_rounded, size: 12, color: Colors.orange.shade700),
-                                    const SizedBox(width: 4),
-                                    Text('$_adminIssueCount', style: tt.labelSmall?.copyWith(
-                                      color: Colors.orange.shade700, fontWeight: FontWeight.w700)),
-                                  ]),
+                              if (_adminIssueCount > 0 || _serverUpdate != null) ...[
+                                ServerAdminStatusBadges(
+                                  issueCount: _adminIssueCount,
+                                  updateVersion: _serverUpdate?.latestVersion,
+                                  updateTooltip: _serverUpdate == null
+                                      ? ''
+                                      : l.serverUpdateAvailable(_serverUpdate!.latestVersion),
                                 ),
                                 const SizedBox(width: 10),
                               ],
@@ -4587,24 +4602,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    // Stop playback and sync before switching
-    await _stopAndSyncPlayback();
-    if (!context.mounted) return;
-
     final auth = context.read<AuthProvider>();
     final lib = context.read<LibraryProvider>();
+    auth.beginAccountSwitch();
+    try {
+      // The startup view is visible now, so none of the previous account's
+      // Settings or Stats state remains on screen during the transition.
+      await _stopAndSyncPlayback();
+      final switched = await auth.switchToAccount(account);
+      if (!switched) return;
 
-    final switched = await auth.switchToAccount(account);
-    if (!switched) return;
-
-    // Re-init the library provider with the new user
-    if (context.mounted) {
+      // Re-init the library provider with the new user and keep the startup
+      // view up until its first account-specific data refresh completes.
       lib.updateAuth(auth);
-      await lib.refresh();
-      // Reload settings for the new account
-      _loadSettings();
-      // Jump to the absorbing screen
-      AppShell.goToAbsorbingGlobal();
+      await lib.waitForActiveAccountReady();
+    } finally {
+      auth.finishAccountSwitch();
     }
   }
 }

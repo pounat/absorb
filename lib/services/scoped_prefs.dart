@@ -11,7 +11,11 @@ import 'user_account_service.dart';
 class ScopedPrefs {
   ScopedPrefs._();
 
-  static String _scope(String key) => UserAccountService().scopedKey(key);
+  static String keyForScope(String scope, String key) =>
+      scope.isEmpty ? key : '$scope:$key';
+
+  static String _scope(String key) =>
+      keyForScope(UserAccountService().activeScopeKey, key);
 
   /// Only fall back to un-scoped data when there is no active scope
   /// (i.e. pre-multi-user migration). Once scoped, a missing key means

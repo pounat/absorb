@@ -71,6 +71,22 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
         _absorbingItemCache.values.map((e) => jsonEncode(e)).toList());
   }
 
+  void _pruneRemotelyFinishedBooks(Iterable<String> keys) {
+    var changed = false;
+    for (final key in keys) {
+      if (key.length > 36 ||
+          shouldIncludeBookInAbsorbing(
+            isFinished: (this as LibraryProvider).isItemFinishedByKey(key),
+            manuallyAdded: _manualAbsorbAdds.contains(key),
+          )) {
+        continue;
+      }
+      changed = _absorbingBookIds.remove(key) || changed;
+      changed = _absorbingItemCache.remove(key) != null || changed;
+    }
+    if (changed) unawaited(_saveManualAbsorbing());
+  }
+
   Future<void> _updateAbsorbingCache() async {
     final allowedKeys = <String>{};
     final showEntities = <String, Map<String, dynamic>>{};
@@ -78,6 +94,10 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     final continueSeriesKeys = <String>[];
 
     final existingIds = Set<String>.from(_absorbingBookIds);
+    bool shouldIncludeBook(String key) => shouldIncludeBookInAbsorbing(
+          isFinished: (this as LibraryProvider).isItemFinishedByKey(key),
+          manuallyAdded: _manualAbsorbAdds.contains(key),
+        );
 
     for (final section in _personalizedSections) {
       final id = section['id'] as String? ?? '';
@@ -112,6 +132,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
                 }
               }
             } else {
+              if (!shouldIncludeBook(itemId)) continue;
               if (isDownloadedOnly &&
                   !_progressMap.containsKey(itemId) &&
                   !_manualAbsorbAdds.contains(itemId)) {
@@ -241,6 +262,10 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
 
     final toRemove = <String>[];
     for (final key in _absorbingBookIds) {
+      if (key.length <= 36 && !shouldIncludeBook(key)) {
+        toRemove.add(key);
+        continue;
+      }
       if (allowedKeys.contains(key)) continue;
       if (_manualAbsorbAdds.contains(key)) continue;
       final hasProgress = key.length > 36

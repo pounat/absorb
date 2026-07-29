@@ -7,6 +7,7 @@ import 'package:vibration/vibration.dart';
 import 'scoped_prefs.dart';
 import 'audio_player_service.dart';
 import 'chromecast_service.dart';
+import 'sleep_timer_tick_policy.dart';
 
 enum SleepTimerMode { off, time, chapters, episodes }
 
@@ -126,6 +127,8 @@ class SleepTimerService extends ChangeNotifier {
   bool _warningSent = false;
   Duration _fadeThreshold = const Duration(seconds: 30);
   double _fadeStartVolume = 1.0; // volume when fade begins
+  bool _tickInProgress = false;
+  bool _isTriggeringSleep = false;
 
   // Reset on pause/play
   bool _wasPlaying = false; // tracks play state transitions
@@ -195,31 +198,53 @@ class SleepTimerService extends ChangeNotifier {
   }
 
   void _onTimerTick(Timer timer) async {
-    if (_timeRemaining.inSeconds <= 0) {
-      _triggerSleep();
-      return;
-    }
-    final isPlaying = _isPlaybackActive;
-
-    // Detect pause->play transition and reset if setting is on
-    if (isPlaying && !_wasPlaying) {
-      final resetOnPause = await PlayerSettings.getResetSleepOnPause();
-      if (resetOnPause) {
-        _timeRemaining = _initialDuration;
-        _warningSent = false;
-        if (_isFadingOut) {
-          _isFadingOut = false;
-          _player.setVolume(_fadeStartVolume);
-        }
-        debugPrint('[SleepTimer] Reset to ${_initialDuration.inMinutes}m on resume');
-        onToast?.call('Sleep timer reset: ${_initialDuration.inMinutes}m');
-        _scheduleNextTick();
+    if (_tickInProgress) return;
+    _tickInProgress = true;
+    try {
+      if (_mode != SleepTimerMode.time) return;
+      final isPlaying = _isPlaybackActive;
+      final pauseRequested = !_cast.isCasting && _player.isPauseRequested;
+      var action = sleepTimerTickAction(
+        timeRemaining: _timeRemaining,
+        isPlaybackActive: isPlaying,
+        isPauseRequested: pauseRequested,
+      );
+      if (action == SleepTimerTickAction.wait) {
+        _wasPlaying = false;
+        return;
       }
-    }
-    _wasPlaying = isPlaying;
 
-    // Only count down when playing
-    if (isPlaying) {
+      // Detect pause->play transition and reset if setting is on
+      if (!_wasPlaying) {
+        final resetOnPause = await PlayerSettings.getResetSleepOnPause();
+        if (resetOnPause) {
+          _timeRemaining = _initialDuration;
+          _warningSent = false;
+          if (_isFadingOut) {
+            _isFadingOut = false;
+            _player.setVolume(_fadeStartVolume);
+          }
+          debugPrint('[SleepTimer] Reset to ${_initialDuration.inMinutes}m on resume');
+          onToast?.call('Sleep timer reset: ${_initialDuration.inMinutes}m');
+          _scheduleNextTick();
+        }
+      }
+      _wasPlaying = true;
+
+      action = sleepTimerTickAction(
+        timeRemaining: _timeRemaining,
+        isPlaybackActive: _isPlaybackActive,
+        isPauseRequested: !_cast.isCasting && _player.isPauseRequested,
+      );
+      if (action == SleepTimerTickAction.wait) {
+        _wasPlaying = false;
+        return;
+      }
+      if (action == SleepTimerTickAction.trigger) {
+        await _triggerSleep();
+        return;
+      }
+
       _timeRemaining -= Duration(seconds: _tickIntervalSeconds);
       // Switch to fast ticks when approaching fade threshold
       if (_tickIntervalSeconds > 1 &&
@@ -251,6 +276,8 @@ class SleepTimerService extends ChangeNotifier {
       }
 
       notifyListeners();
+    } finally {
+      _tickInProgress = false;
     }
   }
 
@@ -315,7 +342,7 @@ class SleepTimerService extends ChangeNotifier {
 
         // Check if we've reached the end of the target chapter
         if (currentIdx >= _targetChapterIndex) {
-          _triggerSleep();
+          unawaited(_triggerSleep());
         }
       }
     });
@@ -359,7 +386,7 @@ class SleepTimerService extends ChangeNotifier {
       if (totalSec <= 0) return;
       final posSec = _player.position.inMilliseconds / 1000.0;
       if (posSec >= totalSec - _episodeEndGuardSec) {
-        _triggerSleep();
+        unawaited(_triggerSleep());
       }
     });
   }
@@ -385,23 +412,34 @@ class SleepTimerService extends ChangeNotifier {
   bool _isFadingOut = false;
   bool get isFadingOut => _isFadingOut;
 
-  void _triggerSleep() async {
-    debugPrint('[SleepTimer] Triggering sleep — pausing playback');
-    if (_cast.isCasting) {
-      _cast.pause();
-    } else {
-      _player.pause();
-      // Restore volume so next playback starts at normal level
-      _player.setVolume(_fadeStartVolume);
-      // Auto-rewind so the user resumes from a few seconds back
-      final rewindSeconds = await PlayerSettings.getEffectiveSleepRewindSeconds(_player.currentItemId);
-      if (rewindSeconds > 0) {
-        await _player.sleepTimerRewind(rewindSeconds);
-        debugPrint('[SleepTimer] Rewound ${rewindSeconds}s');
-      }
+  Future<void> _triggerSleep() async {
+    if (_isTriggeringSleep) return;
+    final pauseRequested = !_cast.isCasting && _player.isPauseRequested;
+    if (!_isPlaybackActive || pauseRequested) {
+      _wasPlaying = false;
+      return;
     }
-    _isFadingOut = false;
-    cancel();
+    _isTriggeringSleep = true;
+    debugPrint('[SleepTimer] Triggering sleep — pausing playback');
+    try {
+      if (_cast.isCasting) {
+        await _cast.pause();
+      } else {
+        await _player.pause();
+        // Restore volume so next playback starts at normal level
+        _player.setVolume(_fadeStartVolume);
+        // Auto-rewind so the user resumes from a few seconds back
+        final rewindSeconds = await PlayerSettings.getEffectiveSleepRewindSeconds(_player.currentItemId);
+        if (rewindSeconds > 0) {
+          await _player.sleepTimerRewind(rewindSeconds);
+          debugPrint('[SleepTimer] Rewound ${rewindSeconds}s');
+        }
+      }
+      _isFadingOut = false;
+      cancel();
+    } finally {
+      _isTriggeringSleep = false;
+    }
   }
 
   void cancel() {

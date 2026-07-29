@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'audio_player_service.dart';
+import 'book_search_index.dart';
 import 'download_service.dart';
 import 'progress_sync_service.dart';
 import 'scoped_prefs.dart';
@@ -1646,9 +1647,29 @@ class AndroidAutoService {
     final api = await getApi();
     final libId = await getDefaultLibraryId();
     if (api == null || libId == null) return [];
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) return [];
 
     try {
-      final result = await api.searchLibrary(libId, query, limit: 20);
+      final library = _libraries.cast<AutoLibraryEntry?>().firstWhere(
+        (entry) => entry?.id == libId,
+        orElse: () => null,
+      );
+      if (library?.isPodcast != true) {
+        final index = BookSearchIndex();
+        await index.ensureIndex(api, libId);
+        if (index.isReady(libId)) {
+          final hits = index
+              .search(libId, trimmedQuery, limit: 20)
+              .where((hit) => hit.item['mediaType'] != 'podcast')
+              .map((hit) => _libraryItemToEntry(hit.item, api)?.toMediaItem())
+              .whereType<MediaItem>()
+              .toList();
+          if (library?.isBook == true || hits.isNotEmpty) return hits;
+        }
+      }
+
+      final result = await api.searchLibrary(libId, trimmedQuery, limit: 20);
       if (result == null) return [];
 
       final items = <MediaItem>[];

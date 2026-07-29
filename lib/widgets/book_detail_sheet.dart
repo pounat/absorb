@@ -78,6 +78,65 @@ void showQuickActionsSheet(BuildContext context, String itemId, {Map<String, dyn
   );
 }
 
+class BookDetailInfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const BookDetailInfoChip({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final pill = Container(
+      constraints: const BoxConstraints(maxWidth: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: onTap != null
+            ? cs.tertiary.withValues(alpha: 0.10)
+            : cs.onSurface.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: onTap != null
+              ? cs.tertiary.withValues(alpha: 0.30)
+              : cs.onSurface.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 12,
+            color: onTap != null
+                ? cs.tertiary
+                : cs.onSurface.withValues(alpha: 0.3),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(
+                color: onTap != null ? cs.tertiary : cs.onSurfaceVariant,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (onTap == null) return pill;
+    return GestureDetector(onTap: onTap, child: pill);
+  }
+}
+
 class _BookDetailSheetContent extends StatefulWidget {
   final String itemId;
   final ScrollController scrollController;
@@ -99,8 +158,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _isLoading = true;
   bool _chaptersExpanded = false;
   bool _bookmarksExpanded = false;
-  bool _tracksExpanded = false;
-  bool _filesExpanded = false;
   BookmarkPreviewPlayer? _preview;
   List<Bookmark> _bookmarks = [];
   bool _isAbsorbing = false;
@@ -111,6 +168,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _authorsExpanded = false;
   bool _narratorsExpanded = false;
   bool _squareCovers = false;
+  bool _isUpdatingProgressDate = false;
   ColorScheme? _rawCoverScheme;
   String? _coverSchemeUrl; // URL the current scheme was derived from
 
@@ -419,8 +477,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final media = _item!['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final chapters = media['chapters'] as List<dynamic>? ?? [];
-    final audioFiles = media['audioFiles'] as List<dynamic>? ?? [];
-    final libraryFiles = _item!['libraryFiles'] as List<dynamic>? ?? [];
     final title = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
     final descRaw = metadata['description'] as String? ?? '';
@@ -436,7 +492,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final tags = tagsRaw.cast<String>();
     final publisher = metadata['publisher'] as String? ?? '';
     final year = metadata['publishedYear'] as String? ?? '';
-    final serverPath = _item!['path'] as String? ?? _item!['relPath'] as String? ?? '';
     final lib = context.watch<LibraryProvider>();
     final progress = lib.getProgress(widget.itemId);
     final auth = context.read<AuthProvider>();
@@ -740,7 +795,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       // More button below primary row
       const SizedBox(height: 8),
       GestureDetector(
-        onTap: () => _showMoreSheet(context, auth, lib, title, authorName, progress, isFinished, duration, ebookFile, isEbookOnly, serverPath),
+        onTap: () => _showMoreSheet(context, auth, lib, title, authorName, progress, isFinished, duration, ebookFile, isEbookOnly,
+          ),
         child: Container(
           height: 36,
           decoration: BoxDecoration(
@@ -779,9 +835,26 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
               },
             )),
         if (progressData?['startedAt'] is num)
-          _chip(Icons.play_circle_outline_rounded, l.startedDate(_fmtDate((progressData!['startedAt'] as num).toInt()))),
+          _chip(Icons.play_circle_outline_rounded, l.startedDate(_fmtDate((progressData!['startedAt'] as num).toInt())),
+                key: ValueKey('book-started-date-${widget.itemId}'),
+                onTap: () => _editProgressDate(
+                  auth: auth,
+                  lib: lib,
+                  editingFinishedDate: false,
+                  startedAt: (progressData['startedAt'] as num).toInt(),
+                  finishedAt: (progressData['finishedAt'] as num?)?.toInt(),
+                ),
+              ),
         if (progressData?['finishedAt'] is num)
-          _chip(Icons.check_circle_outline_rounded, l.finishedDate(_fmtDate((progressData!['finishedAt'] as num).toInt()))),
+          _chip(Icons.check_circle_outline_rounded, l.finishedDate(_fmtDate((progressData!['finishedAt'] as num).toInt()),
+                ),
+                key: ValueKey('book-finished-date-${widget.itemId}'),
+                onTap: () => _editProgressDate(
+                  auth: auth,
+                  lib: lib,
+                  editingFinishedDate: true,
+                  startedAt: (progressData['startedAt'] as num).toInt(),
+                  finishedAt: (progressData['finishedAt'] as num).toInt())),
       ]),
       if (seriesEntries.isNotEmpty) ...[const SizedBox(height: 16),
         ...seriesEntries.map((s) {
@@ -850,46 +923,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 ])),
               ]));
           })]],
-      if (audioFiles.isNotEmpty) ...[const SizedBox(height: 16),
-        GestureDetector(onTap: () => setState(() => _tracksExpanded = !_tracksExpanded),
-          child: Row(children: [
-            Text(l.audioTracksCount(audioFiles.length), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
-            const Spacer(), Icon(_tracksExpanded ? Icons.expand_less : Icons.expand_more, color: cs.onSurface.withValues(alpha: 0.3), size: 20)])),
-        if (_tracksExpanded) ...[const SizedBox(height: 8),
-          ...audioFiles.asMap().entries.map((e) {
-            final af = e.value as Map<String, dynamic>;
-            final afMeta = af['metadata'] as Map<String, dynamic>? ?? {};
-            final trackDuration = (af['duration'] as num?)?.toDouble() ?? 0;
-            return Padding(padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(children: [
-                SizedBox(width: 28, child: Text('${(af['index'] as num?)?.toInt() ?? e.key + 1}', style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
-                Expanded(child: Text(afMeta['filename'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6)))),
-                if (trackDuration > 0)
-                  Text(formatHm(trackDuration), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))),
-              ]));
-          })]],
-      if (libraryFiles.isNotEmpty) ...[const SizedBox(height: 16),
-        GestureDetector(onTap: () => setState(() => _filesExpanded = !_filesExpanded),
-          child: Row(children: [
-            Text(l.libraryFilesCount(libraryFiles.length), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
-            const Spacer(), Icon(_filesExpanded ? Icons.expand_less : Icons.expand_more, color: cs.onSurface.withValues(alpha: 0.3), size: 20)])),
-        if (_filesExpanded) ...[const SizedBox(height: 8),
-          ...libraryFiles.map((f) {
-            final lf = f as Map<String, dynamic>;
-            final lfMeta = lf['metadata'] as Map<String, dynamic>? ?? {};
-            final size = (lfMeta['size'] as num?)?.toInt() ?? 0;
-            return Padding(padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(lfMeta['relPath'] as String? ?? lfMeta['filename'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
-                  if ((lf['fileType'] as String?)?.isNotEmpty ?? false)
-                    Text(lf['fileType'] as String, style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.35))),
-                ])),
-                if (size > 0) ...[const SizedBox(width: 8),
-                  Text(_fmtSize(size), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))],
-              ]));
-          })]],
-    ]);
+      ]);
   }
 
   // ─── QUICK ACTIONS (long-press) ─────────────────────────────
@@ -906,7 +940,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final title = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
     final duration = (media['duration'] as num?)?.toDouble() ?? 0;
-    final serverPath = _item!['path'] as String? ?? _item!['relPath'] as String? ?? '';
     final ebookFile = resolveEbookFile(_item);
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
 
@@ -971,7 +1004,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         // Secondary actions as the shared responsive pill grid. The quick sheet
         // stays open behind navigation actions, so dismiss is a no-op here.
         _actionPillGrid(context, cs, tt, l, auth, lib, title, authorName, progress,
-          isFinished, duration, ebookFile, isEbookOnly, serverPath, inContinueListening,
+          isFinished, duration, ebookFile, isEbookOnly,
+          inContinueListening,
           continueSeriesId, dismiss: () {}, includeOpenDetails: true),
       ],
     );
@@ -986,7 +1020,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   Widget _actionPillGrid(BuildContext context, ColorScheme cs, TextTheme tt, AppLocalizations l,
       AuthProvider auth, LibraryProvider lib, String title, String authorName, double progress,
       bool isFinished, double duration, Map<String, dynamic>? ebookFile, bool isEbookOnly,
-      String serverPath, bool inContinueListening, String? continueSeriesId,
+    bool inContinueListening, String? continueSeriesId,
       {required VoidCallback dismiss, bool includeOpenDetails = false}) {
     final onAbsorbing = lib.isOnAbsorbingList(widget.itemId);
     return Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1089,19 +1123,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           child: Wrap(spacing: gap, runSpacing: gap, children: pills),
         );
       }),
-      if (auth.isAdmin && serverPath.isNotEmpty) ...[
-        const SizedBox(height: 10),
-        GestureDetector(
-          onTap: () {
-            dismiss();
-            Clipboard.setData(ClipboardData(text: serverPath));
-            HapticFeedback.lightImpact();
-          },
-          child: Text(serverPath, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.25), fontSize: 11)),
-        ),
-      ],
-    ]);
+      ]);
   }
 
   Widget _quickThumb(double size, Map<String, String> headers, ColorScheme cs) {
@@ -1219,7 +1241,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
   void _showMoreSheet(BuildContext context, AuthProvider auth, LibraryProvider lib,
       String title, String authorName, double progress, bool isFinished,
-      double duration, Map<String, dynamic>? ebookFile, bool isEbookOnly, String serverPath) {
+      double duration, Map<String, dynamic>? ebookFile, bool isEbookOnly,
+  ) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
@@ -1256,7 +1279,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
               Flexible(
                 child: SingleChildScrollView(
                   child: _actionPillGrid(context, cs, tt, l, auth, lib, title, authorName,
-                    progress, isFinished, duration, ebookFile, isEbookOnly, serverPath,
+                    progress, isFinished, duration, ebookFile, isEbookOnly,
                     inContinueListening, continueSeriesId, dismiss: () => Navigator.pop(ctx)),
                 ),
               ),
@@ -1317,6 +1340,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final meta = media['metadata'] as Map<String, dynamic>? ?? {};
     final mediaTags = ((media['tags'] as List<dynamic>?) ?? const []).cast<String>();
     final audioFiles = (media['audioFiles'] as List<dynamic>?) ?? const [];
+    final libraryFiles = (_item!['libraryFiles'] as List<dynamic>?) ?? const [];
     final rel = _item!['relPath'] as String? ?? '';
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
       builder: (_) => BookEditScreen(
@@ -1325,7 +1349,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         metadata: meta,
         tags: mediaTags,
         audioFiles: audioFiles,
-        relPath: rel,
+          libraryFiles: libraryFiles,
+          relPath: rel,
         isEbookOnly: isEbookOnly,
         isAdmin: auth.isAdmin,
         libraryId: _item!['libraryId'] as String?,
@@ -1362,47 +1387,103 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     return '${(bytes / 1073741824).toStringAsFixed(2)} GB';
   }
 
-  Widget _chip(IconData icon, String text, {VoidCallback? onTap}) {
-    final cs = Theme.of(context).colorScheme;
-    final pill = Container(
-      constraints: const BoxConstraints(maxWidth: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: onTap != null
-            ? cs.tertiary.withValues(alpha: 0.10)
-            : cs.onSurface.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: onTap != null
-              ? cs.tertiary.withValues(alpha: 0.30)
-              : cs.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon,
-            size: 12,
-            color: onTap != null
-                ? cs.tertiary
-                : cs.onSurface.withValues(alpha: 0.3)),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(text,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              style: TextStyle(
-                  color: onTap != null ? cs.tertiary : cs.onSurfaceVariant,
-                  fontSize: 11)),
-        ),
-      ]),
-    );
-    if (onTap == null) return pill;
-    return GestureDetector(onTap: onTap, child: pill);
+  Widget _chip(IconData icon, String text, {Key? key, VoidCallback? onTap}) {
+    return BookDetailInfoChip(key: key, icon: icon, label: text, onTap: onTap);
   }
 
   String _fmtDate(int ms) {
     final d = DateTime.fromMillisecondsSinceEpoch(ms);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
+
+  Future<void> _editProgressDate({
+    required AuthProvider auth,
+    required LibraryProvider lib,
+    required bool editingFinishedDate,
+    required int startedAt,
+    int? finishedAt,
+  }) async {
+    if (_isUpdatingProgressDate) return;
+    final l = AppLocalizations.of(context)!;
+    final api = auth.apiService;
+    if (api == null || lib.isOffline) {
+      showOverlayToast(
+        context,
+        l.failedToUpdateCheckConnection,
+        icon: Icons.cloud_off_rounded,
+      );
+      return;
+    }
+
+    final currentTimestamp = editingFinishedDate ? finishedAt : startedAt;
+    if (currentTimestamp == null) return;
+    final initialDate = DateUtils.dateOnly(
+      DateTime.fromMillisecondsSinceEpoch(currentTimestamp),
+    );
+    var firstDate = DateTime(1900);
+    var lastDate = DateUtils.dateOnly(DateTime.now());
+    if (editingFinishedDate) {
+      final startedDate = DateUtils.dateOnly(
+        DateTime.fromMillisecondsSinceEpoch(startedAt),
+      );
+      if (startedDate.isAfter(firstDate)) firstDate = startedDate;
+    } else if (finishedAt != null) {
+      final finishedDate = DateUtils.dateOnly(
+        DateTime.fromMillisecondsSinceEpoch(finishedAt),
+      );
+      if (finishedDate.isBefore(lastDate)) lastDate = finishedDate;
+    }
+    if (initialDate.isBefore(firstDate)) firstDate = initialDate;
+    if (initialDate.isAfter(lastDate)) lastDate = initialDate;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: editingFinishedDate ? l.dateFinished : l.dateStarted,
+      cancelText: l.cancel,
+      confirmText: l.save,
+    );
+    if (picked == null || !mounted) return;
+    if (picked.year == initialDate.year &&
+        picked.month == initialDate.month &&
+        picked.day == initialDate.day) {
+      return;
+    }
+
+    final timestamp = DateTime.utc(
+      picked.year,
+      picked.month,
+      picked.day,
+      12,
+    ).millisecondsSinceEpoch;
+    setState(() => _isUpdatingProgressDate = true);
+    final updated = editingFinishedDate
+        ? await api.updateProgressFinishedDate(widget.itemId, timestamp)
+        : await api.updateProgressStartDate(widget.itemId, timestamp);
+    if (!mounted) return;
+    setState(() => _isUpdatingProgressDate = false);
+
+    if (updated) {
+      lib.applyLocalProgressDates(
+        widget.itemId,
+        startedAt: editingFinishedDate ? null : timestamp,
+        finishedAt: editingFinishedDate ? timestamp : null,
+      );
+      showOverlayToast(
+        context,
+        l.sessionSaved,
+        icon: Icons.event_available_rounded,
+      );
+    } else {
+      showOverlayToast(
+        context,
+        l.sessionSaveFailed,
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
 

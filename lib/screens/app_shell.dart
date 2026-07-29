@@ -26,6 +26,7 @@ import 'home_screen.dart';
 import 'library_screen.dart';
 import 'stats_screen.dart';
 import 'settings_screen.dart';
+import 'app_shell_navigation_policy.dart';
 import '../widgets/library_picker_sheet.dart';
 import '../widgets/welcome_sheet.dart';
 import '../services/review_service.dart';
@@ -34,7 +35,9 @@ import '../widgets/update_dialog.dart';
 import '../widgets/overlay_toast.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  final bool startOnAbsorbing;
+
+  const AppShell({super.key, this.startOnAbsorbing = false});
 
   /// Navigate to the Absorbing tab using BuildContext (ancestor lookup).
   static void goToAbsorbing(BuildContext context) {
@@ -313,6 +316,7 @@ class _AppShellState extends State<AppShell>
       if (mounted && idx != _currentIndex && idx >= 0 && idx <= 4) {
         setState(() => _currentIndex = idx);
         _ensurePageBuilt(idx);
+        _restoreBookLibraryForCurrentTab(restoreLibraryPage: true);
       }
     });
   }
@@ -321,7 +325,7 @@ class _AppShellState extends State<AppShell>
   void initState() {
     super.initState();
     _instance = this;
-    _loadStartScreen();
+    if (!widget.startOnAbsorbing) _loadStartScreen();
     _ensurePageBuilt(_currentIndex);
     _playerHadBook = _player.hasBook;
     _wasPlaying = _player.isPlaying;
@@ -356,12 +360,27 @@ class _AppShellState extends State<AppShell>
         _podcastTabLibraryId = libId;
       });
     }
+    _restoreBookLibraryForCurrentTab(restoreLibraryPage: true);
   }
 
   bool _podcastsShown(LibraryProvider lib) =>
       _podcastTabEnabled &&
       _podcastTabLibraryId.isNotEmpty &&
       lib.libraries.any((l) => l['id'] == _podcastTabLibraryId);
+
+  void _restoreBookLibraryForCurrentTab({bool restoreLibraryPage = false}) {
+    final lib = context.read<LibraryProvider>();
+    final podcastsShown = _podcastsShown(lib);
+    if (shouldRestoreBookLibrary(
+      pageIndex: _currentIndex,
+      podcastsShown: podcastsShown,
+      selectedLibraryId: lib.selectedLibraryId,
+      podcastLibraryId: _podcastTabLibraryId,
+      restoreLibraryPage: restoreLibraryPage,
+    )) {
+      _syncTabLibrary(_currentIndex, podcastsShown);
+    }
+  }
 
   // Display-destination index <-> stack page mapping when the Podcasts tab
   // is shown (it sits at display slot 2 and shares stack page 1).
@@ -435,14 +454,7 @@ class _AppShellState extends State<AppShell>
     // Re-derive cover scheme whenever absorbing list changes so the app
     // theme always reflects the current [0] book.
     _deriveCoverScheme();
-    // With the dedicated Podcasts tab, Home never shows the podcast library.
-    // Covers the cold start restoring last_selected_library onto page 0.
-    final lib = context.read<LibraryProvider>();
-    if (_currentIndex == 0 &&
-        _podcastsShown(lib) &&
-        lib.selectedLibraryId == _podcastTabLibraryId) {
-      _syncTabLibrary(0, true);
-    }
+    _restoreBookLibraryForCurrentTab();
   }
 
   /// Attempt to derive cover scheme. Returns true if successful.

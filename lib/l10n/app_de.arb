@@ -1165,7 +1165,7 @@
   },
   "resetToDefault": "Auf Standard zurücksetzen",
   "resetToDefaultStorage": "Auf Standardspeicher zurücksetzen",
-  "legacyDownloadsNotice": "{count, plural, one {}=1{1 Download liegt in einem alten benutzerdefinierten Ordner, der nicht mehr geöffnet werden kann. Lade ihn erneut herunter oder schließe diese Mitteilung.} other{{count} Downloads liegen in einem alten benutzerdefinierten Ordner, der nicht mehr geöffnet werden kann. Lade die Dateien erneut herunter oder schließe diese Mitteilung.}}",
+  "legacyDownloadsNotice": "{count, plural, one {1 Download liegt in einem alten benutzerdefinierten Ordner, der nicht mehr geöffnet werden kann. Lade ihn erneut herunter oder schließe diese Mitteilung.} other{{count} Downloads liegen in einem alten benutzerdefinierten Ordner, der nicht mehr geöffnet werden kann. Lade die Dateien erneut herunter oder schließe diese Mitteilung.}}",
   "@legacyDownloadsNotice": {
     "placeholders": {
       "count": {
@@ -1180,7 +1180,7 @@
   "tipsSubtitle": "Hol das Beste aus Absorb heraus",
   "adminTitle": "Server-Admin",
   "adminTasksTitle": "Server-Aktivität",
-  "adminTasksRunning": "{count, plural, one {}=1{1 Aufgabe läuft} other{{count} Aufgaben laufen}}",
+  "adminTasksRunning": "{count, plural, one {1 Aufgabe läuft} other{{count} Aufgaben laufen}}",
   "@adminTasksRunning": {
     "placeholders": {
       "count": {
@@ -2104,7 +2104,7 @@
   "adminLibraryFolders": "Ordner",
   "adminLibrarySize": "Größe",
   "adminLibraryDuration": "Dauer",
-  "adminLibraryIssues": "{count, plural, one {}=1{1 fehlendes oder ungültiges Element} other{{count} fehlende oder ungültige Elemente}}",
+  "adminLibraryIssues": "{count, plural, one {1 fehlendes oder ungültiges Element} other{{count} fehlende oder ungültige Elemente}}",
   "@adminLibraryIssues": {
     "placeholders": {
       "count": {
@@ -2158,7 +2158,7 @@
       }
     }
   },
-  "adminMissingRemovedMany": "{count, plural, one {}=1{1 Eintrag entfernt} other{{count} Einträge entfernt}}",
+  "adminMissingRemovedMany": "{count, plural, one {1 Eintrag entfernt} other{{count} Einträge entfernt}}",
   "@adminMissingRemovedMany": {
     "placeholders": {
       "count": {
@@ -4051,7 +4051,7 @@
   "adminUploadMetadataFailed": "Konnte nicht nach Metadaten suchen. Du kannst dieses Element trotzdem hochladen.",
   "adminUploadDestinationPreview": "Server Ziel",
   "adminUploadFiles": "Dateien",
-  "adminUploadSelectedFiles": "{count, plural, one {}=1{1 Datei} other{{count} Dateien}}",
+  "adminUploadSelectedFiles": "{count, plural, one {1 Datei} other{{count} Dateien}}",
   "@adminUploadSelectedFiles": {
     "placeholders": {
       "count": {
@@ -4164,7 +4164,7 @@
   "libDeleteBody": "Dies entfernt die Bibliothek und alle Elemente dauerhaft vom Server.",
   "libDeleted": "Bibliothek gelöscht",
   "libDeleteFailed": "Bibliothek konnte nicht gelöscht werden",
-  "libFolderCount": "{count, plural, one {}=1{1 Ordner} other{{count} Ordner}}",
+  "libFolderCount": "{count, plural, one {1 Ordner} other{{count} Ordner}}",
   "@libFolderCount": {
     "placeholders": {
       "count": {

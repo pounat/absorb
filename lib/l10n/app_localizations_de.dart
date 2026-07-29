@@ -3508,6 +3508,11 @@ class AppLocalizationsDe extends AppLocalizations {
       'Benutzer, Bibliotheken & Server-Einstellungen verwalten';
 
   @override
+  String serverUpdateAvailable(String version) {
+    return 'Server update $version available';
+  }
+
+  @override
   String get justNow => 'Gerade eben';
 
   @override

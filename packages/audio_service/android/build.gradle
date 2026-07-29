@@ -1,5 +1,5 @@
 group = "com.ryanheise.audioservice"
-version "1.0-SNAPSHOT"
+version = "1.0-SNAPSHOT"
 def args = ["-Xlint:deprecation","-Xlint:unchecked"]
 
 buildscript {
@@ -30,7 +30,7 @@ project.getTasks().withType(JavaCompile) {
 apply plugin: "com.android.library"
 
 android {
-    namespace "com.ryanheise.audioservice"
+    namespace = "com.ryanheise.audioservice"
     compileSdk = 35
 
     compileOptions {

@@ -16,6 +16,7 @@ import 'local_session_service.dart';
 import 'sync_logic.dart';
 import 'sleep_timer_service.dart';
 import 'equalizer_service.dart';
+import 'external_audio_output_types.dart';
 import 'android_auto_service.dart';
 import 'chromecast_service.dart';
 import 'chapter_lookup.dart';
@@ -416,6 +417,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> pause() async {
+    _service?._markPauseRequested();
     debugPrint('[Handler] pause() called - routing to service');
     await _logAbsorbDiag('pause');
     final pauseEntryBt = await AudioPlayerService._isBluetoothAudioConnected();
@@ -2191,16 +2193,6 @@ class AudioPlayerService extends ChangeNotifier {
   // speaker). With two outputs connected at once (e.g. car stereo + earbuds),
   // dropping one just reroutes to the other and never fires it, so the book
   // plays on silently. Watching device removal covers that gap.
-  static const Set<AudioDeviceType> _externalOutputTypes = {
-    AudioDeviceType.bluetoothA2dp,
-    AudioDeviceType.bluetoothSco,
-    AudioDeviceType.bluetoothLe,
-    AudioDeviceType.wiredHeadset,
-    AudioDeviceType.wiredHeadphones,
-    AudioDeviceType.usbAudio,
-    AudioDeviceType.hearingAid,
-    AudioDeviceType.carAudio,
-  };
   // Set true when BT/headphones disconnect so the interruption handler
   // won't auto-resume playback onto the phone speaker.
   static bool _noisyPause = false;
@@ -2362,7 +2354,7 @@ class AudioPlayerService extends ChangeNotifier {
           final service = _instance;
           if (!service.isPlaying) return;
           final lost = event.devicesRemoved
-              .where((d) => d.isOutput && _externalOutputTypes.contains(d.type))
+              .where((d) => d.isOutput && externalAudioOutputTypes.contains(d.type))
               .toSet();
           if (lost.isEmpty) return;
           // Settle re-check: some devices briefly drop and re-add a route when
@@ -2515,6 +2507,7 @@ class AudioPlayerService extends ChangeNotifier {
     String? episodeTitle,
     String? libraryId,
   }) async {
+    _pauseRequested = false;
     if (_handler == null) {
       debugPrint('[Player] Handler not yet initialized, waiting…');
       await _initCompleter.future;
@@ -4657,6 +4650,12 @@ class AudioPlayerService extends ChangeNotifier {
   double _lastAutoRewindAmount = 0;
   bool _seekedWhilePaused = false;
   bool _wasPlayingBeforeInterrupt = false;
+  bool _pauseRequested = false;
+  bool get isPauseRequested => _pauseRequested;
+
+  void _markPauseRequested() {
+    _pauseRequested = true;
+  }
 
   // Storm guard for the idle-on-resume re-init path. A book the player can't
   // start (e.g. a thousands-of-files book the engine never leaves `idle` on)
@@ -4687,6 +4686,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> play({String? logDetail}) async {
+    _pauseRequested = false;
     debugPrint('[Service] play() called — lastPause=${_lastPauseTime != null}');
 
     // Cold-start play guard. If the OS killed absorb during a long pause
@@ -4915,6 +4915,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> pause() async {
+    _markPauseRequested();
     debugPrint('[Service] pause() called');
     _playVerifyTimer?.cancel();
     _wasPlayingBeforeInterrupt = false;

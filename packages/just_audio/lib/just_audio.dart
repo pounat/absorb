@@ -4203,7 +4203,9 @@ Future<void> _serveCachedFile(HttpRequest request, File cachedFile,
       final lower = name.toLowerCase();
       if (lower == 'content-length' ||
           lower == 'content-range' ||
-          lower == 'transfer-encoding') return;
+          lower == 'transfer-encoding') {
+        return;
+      }
       try {
         request.response.headers.set(name, value);
       } catch (_) {}

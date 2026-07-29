@@ -59,12 +59,15 @@ class AuthProvider extends ChangeNotifier {
   bool _useLocalServer = false;
 
   bool _isLoading = true;
+  bool _startOnAbsorbingAfterAccountChange = false;
   String? _errorMessage;
   bool _authExpiryInProgress = false;
 
   // Getters
   bool get isAuthenticated => _accessToken != null && _serverUrl != null;
   bool get isLoading => _isLoading;
+  bool get startOnAbsorbingAfterAccountChange =>
+      _startOnAbsorbingAfterAccountChange;
   bool get serverReachable => _serverReachable;
   /// Current access token (or legacy token for old servers).
   String? get token => _accessToken;
@@ -109,6 +112,21 @@ class AuthProvider extends ChangeNotifier {
   bool get canDelete {
     final perms = _userJson?['permissions'] as Map<String, dynamic>?;
     return perms?['delete'] == true;
+  }
+
+  /// Replace the live app shell with the startup loading view while a saved
+  /// account is being activated and its library is prepared.
+  void beginAccountSwitch() {
+    _startOnAbsorbingAfterAccountChange = true;
+    if (_isLoading) return;
+    _isLoading = true;
+    notifyListeners();
+  }
+
+  void finishAccountSwitch() {
+    if (!_isLoading) return;
+    _isLoading = false;
+    notifyListeners();
   }
 
   /// Re-cache server settings after an admin saves them via PATCH /api/settings
@@ -322,6 +340,7 @@ class AuthProvider extends ChangeNotifier {
     final sw = Stopwatch()..start();
     debugPrint('[Auth] tryRestoreSession started');
     _isLoading = true;
+    _startOnAbsorbingAfterAccountChange = false;
     _serverReachable = true;
     notifyListeners();
 
@@ -648,6 +667,7 @@ class AuthProvider extends ChangeNotifier {
     HomeWidgetService().refreshStats(force: true);
 
     _pushSessionToWear();
+    _startOnAbsorbingAfterAccountChange = true;
     _isLoading = false;
     notifyListeners();
     return true;
@@ -730,6 +750,7 @@ class AuthProvider extends ChangeNotifier {
     HomeWidgetService().refreshStats(force: true);
 
     _pushSessionToWear();
+    _startOnAbsorbingAfterAccountChange = true;
     _isLoading = false;
     notifyListeners();
     return true;
@@ -829,6 +850,7 @@ class AuthProvider extends ChangeNotifier {
     HomeWidgetService().refreshStats(force: true);
 
     _pushSessionToWear();
+    _startOnAbsorbingAfterAccountChange = true;
     _isLoading = false;
     notifyListeners();
     return true;
@@ -1003,6 +1025,7 @@ class AuthProvider extends ChangeNotifier {
     _userJson = null;
     _serverSettings = null;
     _serverVersion = null;
+    _startOnAbsorbingAfterAccountChange = false;
     _errorMessage = null;
     _ereaderDevices = const [];
     await _persistEreaderDevices();
@@ -1061,6 +1084,7 @@ class AuthProvider extends ChangeNotifier {
     final selected =
         UserAccountService().switchTo(account.serverUrl, account.username);
     if (selected == null) return false;
+    _startOnAbsorbingAfterAccountChange = true;
 
     // Notify widgets that read scoped settings (e.g. card button layout) so
     // they reload from the new account's ScopedPrefs instead of keeping the
@@ -1098,8 +1122,18 @@ class AuthProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
       if (_accessToken != null) await prefs.setString('token', _accessToken!);
+      if (_refreshToken != null) {
+        await prefs.setString('refresh_token', _refreshToken!);
+      } else {
+        await prefs.remove('refresh_token');
+      }
       if (_username != null) await prefs.setString('username', _username!);
-      if (_userId != null) await prefs.setString('user_id', _userId!);
+      if (_userId != null) {
+        await prefs.setString('user_id', _userId!);
+      } else {
+        await prefs.remove('user_id');
+      }
+      await prefs.remove('default_library_id');
       if (_customHeaders.isNotEmpty) {
         await prefs.setString('custom_headers', jsonEncode(_customHeaders));
       } else {

@@ -19,12 +19,14 @@ enum _ETab { details, cover, chapters, match, encode, embed }
 /// adjacent tabs never double-attaches one controller.
 class MetadataEditView extends StatefulWidget {
   static const quickMatchButtonKey = Key('metadataQuickMatchButton');
+  static const filePathsSectionKey = Key('metadataFilePathsSection');
 
   final String itemId;
   final String bookTitle;
   final Map<String, dynamic> metadata;
   final List<String> tags;
   final List<dynamic> audioFiles;
+  final List<dynamic> libraryFiles;
   final String relPath;
   final bool isEbookOnly;
   final bool isAdmin;
@@ -37,6 +39,7 @@ class MetadataEditView extends StatefulWidget {
     required this.metadata,
     this.tags = const [],
     this.audioFiles = const [],
+    this.libraryFiles = const [],
     this.relPath = '',
     this.isEbookOnly = false,
     this.isAdmin = false,
@@ -1309,6 +1312,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
   // ─── Custom Tab ─────────────────────────────────────────────
 
   Widget _buildCustomTab(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    final filePaths = fullLibraryFilePaths(widget.libraryFiles);
     return Column(children: [
       // Save button bar
       Padding(
@@ -1431,6 +1435,19 @@ class _MetadataEditViewState extends State<MetadataEditView>
                 ),
               ),
             ]),
+            if (widget.isAdmin && filePaths.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text(l.libraryFilesCount(filePaths.length),
+                key: MetadataEditView.filePathsSectionKey,
+                style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              for (final path in filePaths)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: SelectableText(path, style: tt.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant, height: 1.35)),
+                ),
+            ],
 
           ],
         ),
@@ -1857,4 +1874,16 @@ class _MetadataEditViewState extends State<MetadataEditView>
       },
     );
   }
+}
+
+List<String> fullLibraryFilePaths(List<dynamic> libraryFiles) {
+  final paths = <String>[];
+  for (final file in libraryFiles) {
+    if (file is! Map) continue;
+    final metadata = file['metadata'];
+    if (metadata is! Map) continue;
+    final path = metadata['path']?.toString().trim() ?? '';
+    if (path.isNotEmpty && !paths.contains(path)) paths.add(path);
+  }
+  return paths;
 }

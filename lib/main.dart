@@ -39,7 +39,7 @@ import 'services/setup_link_service.dart';
 import 'services/wording.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_shell.dart';
-import 'widgets/absorb_wave_icon.dart';
+import 'widgets/auth_loading_screen.dart';
 import 'widgets/setup_link_login.dart';
 
 /// Global notifier so any widget (e.g. settings) can change the theme instantly.
@@ -736,42 +736,14 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (auth.isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AbsorbWaveIcon(
-                size: 48,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'A B S O R B',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      letterSpacing: 6,
-                      fontWeight: FontWeight.w300,
-                    ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color:
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return const AuthLoadingScreen();
     }
 
     if (auth.isAuthenticated) {
-      return const AppShell();
+      return AppShell(
+        key: ValueKey(UserAccountService().activeScopeKey),
+        startOnAbsorbing: auth.startOnAbsorbingAfterAccountChange,
+      );
     }
 
     return const LoginScreen();

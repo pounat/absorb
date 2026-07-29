@@ -3392,6 +3392,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverAdminSubtitle => '管理用户、媒体库和服务器设置';
 
   @override
+  String serverUpdateAvailable(String version) {
+    return 'Server update $version available';
+  }
+
+  @override
   String get justNow => '刚刚';
 
   @override

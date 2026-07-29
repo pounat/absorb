@@ -241,6 +241,21 @@ class BackupService {
     collectHome('home_hidden_sections_', 'hidden');
     collectHome('home_genre_sections_', 'genres');
 
+    final librarySettings = <String, Map<String, dynamic>>{};
+    void collectLibrarySetting(String shortPrefix, String field) {
+      final fullPrefix = '$scopePrefix$shortPrefix';
+      for (final key in prefs.getKeys()) {
+        if (!key.startsWith(fullPrefix)) continue;
+        final libraryId = key.substring(fullPrefix.length);
+        final value = prefs.get(key);
+        if (value is! String && value is! int) continue;
+        librarySettings.putIfAbsent(libraryId, () => {})[field] = value;
+      }
+    }
+    collectLibrarySetting('rectangleCovers_', 'coverShape');
+    collectLibrarySetting('skipOverrideForward_', 'skipForward');
+    collectLibrarySetting('skipOverrideBack_', 'skipBack');
+
     // Per-item metadata overrides (scoped, keyed by itemId)
     final metadataOverrides = <String, String>{};
     final metaPrefix = '${scopePrefix}metadata_override_';
@@ -334,6 +349,7 @@ class BackupService {
       'offlineListening': offlineListening,
       'rmab': rmab,
       'homeLayouts': homeLayouts,
+      'librarySettings': librarySettings,
       'metadataOverrides': metadataOverrides,
       'ebookAnnotations': ebookAnnotations,
       'ereader': ereader,
@@ -462,8 +478,18 @@ class BackupService {
     if (s['rollingDownloadDeleteFinished'] != null) PlayerSettings.setRollingDownloadDeleteFinished(s['rollingDownloadDeleteFinished'] as bool);
     if (s['queueAutoDownload'] != null) PlayerSettings.setQueueAutoDownload(s['queueAutoDownload'] as bool);
     if (s['mergeAbsorbingLibraries'] != null) PlayerSettings.setMergeAbsorbingLibraries(s['mergeAbsorbingLibraries'] as bool);
-    if (s['podcastTabEnabled'] != null) PlayerSettings.setPodcastTabEnabled(s['podcastTabEnabled'] as bool);
-    if (s['podcastTabLibraryId'] != null) PlayerSettings.setPodcastTabLibraryId(s['podcastTabLibraryId'] as String);
+    if (s['podcastTabLibraryId'] != null) {
+      await ScopedPrefs.setString(
+        'podcastTabLibraryId',
+        s['podcastTabLibraryId'] as String,
+      );
+    }
+    if (s['podcastTabEnabled'] != null) {
+      await ScopedPrefs.setBool(
+        'podcastTabEnabled',
+        s['podcastTabEnabled'] as bool,
+      );
+    }
     if (s['episodeNotifIntervalMinutes'] != null) PlayerSettings.setEpisodeNotifIntervalMinutes(s['episodeNotifIntervalMinutes'] as int);
     if (s['maxConcurrentDownloads'] != null) PlayerSettings.setMaxConcurrentDownloads(s['maxConcurrentDownloads'] as int);
     if (s['colorSource'] != null) PlayerSettings.setColorSource(s['colorSource'] as String);
@@ -683,6 +709,44 @@ class BackupService {
       }
     }
 
+    final librarySettings = data['librarySettings'] as Map<String, dynamic>?;
+    if (librarySettings != null) {
+      final scope = UserAccountService().activeScopeKey;
+      final scopePrefix = scope.isNotEmpty ? '$scope:' : '';
+      final prefixes = [
+        '${scopePrefix}rectangleCovers_',
+        '${scopePrefix}skipOverrideForward_',
+        '${scopePrefix}skipOverrideBack_',
+      ];
+      final oldKeys = prefs
+          .getKeys()
+          .where((key) => prefixes.any(key.startsWith))
+          .toList();
+      for (final key in oldKeys) {
+        await prefs.remove(key);
+      }
+      for (final entry in librarySettings.entries) {
+        final libraryId = entry.key;
+        final settings = entry.value as Map<String, dynamic>;
+        final coverShape = settings['coverShape'] as String?;
+        if (coverShape == 'rect' || coverShape == 'square') {
+          await PlayerSettings.setRectangleCoversOverride(
+            libraryId,
+            coverShape,
+          );
+        }
+        final skipForward = (settings['skipForward'] as num?)?.toInt();
+        final skipBack = (settings['skipBack'] as num?)?.toInt();
+        if (skipForward != null && skipBack != null) {
+          await PlayerSettings.setSkipOverride(
+            libraryId,
+            forward: skipForward,
+            back: skipBack,
+          );
+        }
+      }
+    }
+
     // Per-item metadata overrides (scoped)
     final metadataOverrides = data['metadataOverrides'] as Map<String, dynamic>?;
     if (metadataOverrides != null) {
@@ -737,5 +801,7 @@ class BackupService {
     if (customDownloadPath != null) {
       await prefs.setString('custom_download_path', customDownloadPath);
     }
+
+    PlayerSettings.notifySettingsChanged();
   }
 }

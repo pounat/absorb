@@ -20,17 +20,27 @@ import androidx.car.app.model.PlaceListMapTemplate
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
+import androidx.car.app.model.Header
 import androidx.car.app.model.ListTemplate
+import androidx.car.app.versioning.CarAppApiLevels
 
 class MainScreen(carContext: CarContext) : Screen(carContext) {
     init {}
 
+    @Suppress("DEPRECATION")
     override fun onGetTemplate(): Template {
         val appName =
             carContext.applicationInfo.loadLabel(carContext.packageManager)
                 .toString() ?: ""
 
-        return FlutterAndroidAutoPlugin.currentTemplate
-            ?: ListTemplate.Builder().setTitle(appName).setLoading(true).build()
+        FlutterAndroidAutoPlugin.currentTemplate?.let { return it }
+
+        val templateBuilder = ListTemplate.Builder().setLoading(true)
+        if (carContext.carAppApiLevel >= CarAppApiLevels.LEVEL_7) {
+            templateBuilder.setHeader(Header.Builder().setTitle(appName).build())
+        } else {
+            templateBuilder.setTitle(appName)
+        }
+        return templateBuilder.build()
     }
 }

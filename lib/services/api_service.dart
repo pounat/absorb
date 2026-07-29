@@ -1531,6 +1531,108 @@ class ApiService {
     return null;
   }
 
+  Map<String, dynamic>? _progressRecreationBody(
+    Map<String, dynamic> progress, {
+    required int startedAt,
+  }) {
+    final originalStartedAt = progress['startedAt'];
+    if (progress['id'] is! String || originalStartedAt is! num) return null;
+
+    final body = <String, dynamic>{
+      'createdAt': startedAt,
+      'isFinished': progress['isFinished'] == true,
+    };
+    for (final key in [
+      'currentTime',
+      'duration',
+      'progress',
+      'hideFromContinueListening',
+      'ebookLocation',
+      'ebookProgress',
+      'finishedAt',
+    ]) {
+      if (progress[key] != null) body[key] = progress[key];
+    }
+    return body;
+  }
+
+  /// Change a book's start date while preserving its listening progress.
+  /// Audiobookshelf stores the displayed start date as the progress record's
+  /// creation time, so changing it requires recreating that record.
+  Future<bool> updateProgressStartDate(String itemId, int startedAt) async {
+    try {
+      final progress = await getItemProgress(itemId);
+      if (progress == null) return false;
+      final progressId = progress['id'];
+      final originalStartedAt = progress['startedAt'];
+      if (progressId is! String || originalStartedAt is! num) return false;
+
+      final updatedBody = _progressRecreationBody(
+        progress,
+        startedAt: startedAt,
+      );
+      final originalBody = _progressRecreationBody(
+        progress,
+        startedAt: originalStartedAt.toInt(),
+      );
+      if (updatedBody == null || originalBody == null) return false;
+
+      final deleteResponse = await _authDelete(
+        Uri.parse('$_cleanBaseUrl/api/me/progress/$progressId'),
+        timeout: const Duration(seconds: 10),
+      );
+      if (deleteResponse.statusCode < 200 || deleteResponse.statusCode >= 300) {
+        return false;
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      int? updateStatus;
+      try {
+        final updateResponse = await _authPatch(
+          Uri.parse('$_cleanBaseUrl/api/me/progress/$itemId'),
+          body: jsonEncode(updatedBody),
+          timeout: const Duration(seconds: 10),
+        );
+        updateStatus = updateResponse.statusCode;
+        if (updateStatus >= 200 && updateStatus < 300) return true;
+      } catch (e) {
+        debugPrint('[API] updateProgressStartDate recreate error: $e');
+      }
+
+      try {
+        final restoreResponse = await _authPatch(
+          Uri.parse('$_cleanBaseUrl/api/me/progress/$itemId'),
+          body: jsonEncode(originalBody),
+          timeout: const Duration(seconds: 10),
+        );
+        debugPrint(
+          '[API] updateProgressStartDate failed ($updateStatus); '
+          'restore=${restoreResponse.statusCode}',
+        );
+      } catch (e) {
+        debugPrint('[API] updateProgressStartDate restore error: $e');
+      }
+    } catch (e) {
+      debugPrint('[API] updateProgressStartDate error: $e');
+    }
+    return false;
+  }
+
+  /// Change the finish date on an existing progress record.
+  Future<bool> updateProgressFinishedDate(String itemId, int finishedAt) async {
+    try {
+      final response = await _authPatch(
+        Uri.parse('$_cleanBaseUrl/api/me/progress/$itemId'),
+        body: jsonEncode({'finishedAt': finishedAt, 'isFinished': true}),
+        timeout: const Duration(seconds: 10),
+      );
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (e) {
+      debugPrint('[API] updateProgressFinishedDate error: $e');
+      return false;
+    }
+  }
+
   /// Update media progress directly (for offline sync).
   /// PATCH /api/me/progress/:id
   Future<void> updateProgress(

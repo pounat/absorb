@@ -6346,6 +6346,12 @@ abstract class AppLocalizations {
   /// **'Manage users, libraries & server settings'**
   String get serverAdminSubtitle;
 
+  /// No description provided for @serverUpdateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Server update {version} available'**
+  String serverUpdateAvailable(String version);
+
   /// No description provided for @justNow.
   ///
   /// In en, this message translates to:

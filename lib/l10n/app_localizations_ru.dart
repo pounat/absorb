@@ -3471,6 +3471,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get serverAdminSubtitle => 'Manage users, libraries & server settings';
 
   @override
+  String serverUpdateAvailable(String version) {
+    return 'Server update $version available';
+  }
+
+  @override
   String get justNow => 'Just now';
 
   @override

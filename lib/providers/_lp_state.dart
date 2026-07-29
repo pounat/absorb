@@ -33,8 +33,6 @@ mixin _StateMixin on ChangeNotifier {
 
   Future<void>? _personalizedInFlight;
   Future<void>? _progressShelvesInFlight;
-  DateTime? _lastPersonalizedFetchAt;
-  String? _lastPersonalizedFetchLibraryId;
   DateTime? _lastProgressShelvesFetchAt;
   String? _lastProgressShelvesLibraryId;
   bool _rssHydrationInFlight = false;

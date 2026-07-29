@@ -4,11 +4,13 @@ import androidx.car.app.CarContext
 import androidx.car.app.model.Action
 import androidx.car.app.model.CarIcon
 import androidx.car.app.model.CarText
+import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.SectionedItemList
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
+import androidx.car.app.versioning.CarAppApiLevels
 import androidx.car.app.Screen
 import androidx.car.app.ScreenManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -242,6 +244,7 @@ class FlutterAndroidAutoPlugin : FlutterPlugin, EventChannel.StreamHandler {
         }
     }
 
+    @Suppress("DEPRECATION")
     private suspend fun getListTemplate(
         call: MethodCall,
         result: MethodChannel.Result,
@@ -249,8 +252,21 @@ class FlutterAndroidAutoPlugin : FlutterPlugin, EventChannel.StreamHandler {
         addBackButton: Boolean = true
     ): Template {
         val template = FAAListTemplate.fromJson(data)
-        val listTemplateBuilder =
-            ListTemplate.Builder().setTitle(template.title)
+        val listTemplateBuilder = ListTemplate.Builder()
+        val carApiLevel = AndroidAutoService.session?.carContext?.carAppApiLevel
+
+        if (carApiLevel != null && carApiLevel >= CarAppApiLevels.LEVEL_7) {
+            val headerBuilder = Header.Builder().setTitle(template.title)
+            if (addBackButton) {
+                headerBuilder.setStartHeaderAction(Action.BACK)
+            }
+            listTemplateBuilder.setHeader(headerBuilder.build())
+        } else {
+            listTemplateBuilder.setTitle(template.title)
+            if (addBackButton) {
+                listTemplateBuilder.setHeaderAction(Action.BACK)
+            }
+        }
 
         if (template.sections.size == 0) {
             listTemplateBuilder.setLoading(true)
@@ -278,10 +294,6 @@ class FlutterAndroidAutoPlugin : FlutterPlugin, EventChannel.StreamHandler {
                     listTemplateBuilder.addSectionedList(sectionedItemList)
                 }
             }
-        }
-
-        if (addBackButton) {
-            listTemplateBuilder.setHeaderAction(Action.BACK)
         }
 
         return listTemplateBuilder.build()

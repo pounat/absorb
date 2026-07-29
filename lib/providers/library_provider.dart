@@ -20,6 +20,7 @@ import '../services/session_cache.dart';
 import '../services/socket_service.dart';
 import '../services/book_search_index.dart';
 import '../services/home_widget_service.dart';
+import '../utils/absorbing_inclusion.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../widgets/overlay_toast.dart';
@@ -30,6 +31,18 @@ part '_lp_absorbing.dart';
 
 class LibraryProvider extends ChangeNotifier
     with _StateMixin, _CoreMixin, _AbsorbingMixin {
+  int _accountLoadGeneration = 0;
+  Completer<void>? _accountReadyCompleter;
+
+  Future<void> waitForActiveAccountReady() =>
+      _accountReadyCompleter?.future ?? Future.value();
+
+  void _completeAccountLoad(int generation) {
+    if (generation != _accountLoadGeneration) return;
+    final completer = _accountReadyCompleter;
+    if (completer != null && !completer.isCompleted) completer.complete();
+  }
+
   LibraryProvider() {
     // Registered once at provider construction so the audio service can
     // notify this provider on completion/playback events even when the
@@ -111,8 +124,16 @@ class LibraryProvider extends ChangeNotifier
       }
       _lastUseLocalServer = auth.useLocalServer;
 
+      final accountLoadGeneration = ++_accountLoadGeneration;
+      final previousCompleter = _accountReadyCompleter;
+      if (previousCompleter != null && !previousCompleter.isCompleted) {
+        previousCompleter.complete();
+      }
+      _accountReadyCompleter = Completer<void>();
+
       if (isNewUser || isFreshLogin) {
         _libraries = [];
+        _selectedLibraryId = null;
         _personalizedSections = [];
         _series = [];
         _progressMap = {};
@@ -127,8 +148,6 @@ class LibraryProvider extends ChangeNotifier
         _seriesBooksCache.clear();
         _seriesTabCache.clear();
         _personalizedInFlight = null;
-        _lastPersonalizedFetchAt = null;
-        _lastPersonalizedFetchLibraryId = null;
         _rssHydrationInFlight = false;
         _lastRssHydrationAt = null;
         _lastRssHydrationLibraryId = null;
@@ -143,9 +162,12 @@ class LibraryProvider extends ChangeNotifier
 
       // Refresh the local metadata cover overrides for this account so the
       // grid/card covers reflect them, then repaint once loaded.
-      MetadataOverrideService().loadAll().then((_) => notifyListeners());
+      MetadataOverrideService().loadAll().then((_) {
+        if (accountLoadGeneration == _accountLoadGeneration) notifyListeners();
+      });
 
       restoreOfflineMode().then((_) async {
+        if (accountLoadGeneration != _accountLoadGeneration) return;
         debugPrint(
             '[Library] restoreOfflineMode done, serverReachable=${auth.serverReachable} api=${_api != null} offline=$isOffline');
         _startConnectivityMonitoring();
@@ -170,6 +192,7 @@ class LibraryProvider extends ChangeNotifier
           notifyListeners();
           refreshLocalProgress();
           if (_deviceHasConnectivity) _startServerPingTimer();
+          _completeAccountLoad(accountLoadGeneration);
           return;
         }
         if (_api != null && !isOffline) {
@@ -201,13 +224,20 @@ class LibraryProvider extends ChangeNotifier
           socket.connect(auth.serverUrl!, auth.token!, customHeaders: auth.customHeaders);
         }
         debugPrint('[Library] Calling loadLibraries()');
-        loadLibraries();
+        await loadLibraries();
+        _completeAccountLoad(accountLoadGeneration);
       }).catchError((e) {
+        if (accountLoadGeneration != _accountLoadGeneration) return;
         debugPrint('[Library] restoreOfflineMode error: $e');
         _isLoading = false;
         notifyListeners();
+        _completeAccountLoad(accountLoadGeneration);
       });
     } else {
+      _accountLoadGeneration++;
+      final completer = _accountReadyCompleter;
+      if (completer != null && !completer.isCompleted) completer.complete();
+      _accountReadyCompleter = null;
       _lastAuthKey = null;
       _lastUseLocalServer = null;
       _libraries = [];
@@ -225,8 +255,6 @@ class LibraryProvider extends ChangeNotifier
       _stopHealthCheckTimer();
       SocketService().disconnect();
       _personalizedInFlight = null;
-      _lastPersonalizedFetchAt = null;
-      _lastPersonalizedFetchLibraryId = null;
       _rssHydrationInFlight = false;
       _lastRssHydrationAt = null;
       _lastRssHydrationLibraryId = null;
