@@ -598,6 +598,7 @@
   "filterAllEpisodes": "Tous",
   "filterUnplayed": "Non lus",
   "episodeFeedEmpty": "Aucun épisode ne correspond à ce filtre",
+  "podcastFilterUpNext": "Suivant",
   "podcastFilterNew": "Nouveau",
   "settingsPodcastTab": "Onglet Podcasts",
   "settingsPodcastTabDesc": "Donner à une bibliothèque de podcast son propre onglet dans la barre du bas",
@@ -961,11 +962,18 @@
   "clearCache": "Effacer le cache",
   "streamingCacheCleared": "Cache de diffusion vidé",
   "sectionLibrary": "Bibliothèque",
+  "hideEbookOnlyOnSubtitle": "Les livres sans fichiers audio sont cachés",
+  "hideEbookOnlyOffSubtitle": "Désactivé - tous les éléments de la bibliothèque sont affichés",
   "showGoodreadsButton": "Afficher le bouton Goodreads",
+  "showGoodreadsOnSubtitle": "La fiche de détail du livre affiche un lien vers Goodreads",
   "showGoodreadsOffSubtitle": "Désactivé - Bouton « Goodreads» masqué",
   "sectionPermissions": "Permissions",
   "notifications": "Notifications",
+  "notificationsSubtitle": "Pour l'avancement des téléchargements et le contrôle de lecture",
   "notificationsAlreadyEnabled": "Notifications déjà activées",
+  "unrestrictedBattery": "Ne pas limiter l'usage de la batterie",
+  "unrestrictedBatterySubtitle": "Évite qu'Android arrête la lecture en arrière-plan",
+  "batteryAlreadyUnrestricted": "L'usage de la batterie n'est pas limité",
   "sectionIssuesAndSupport": "Problèmes et assistance",
   "bugsAndFeatureRequests": "Bugs et demandes de fonctionnalités",
   "bugsAndFeatureRequestsSubtitle": "Ouvrir un ticket sur GitHub",
@@ -975,7 +983,19 @@
   "contactSubtitle": "Envoyer les informations de l'appareil par e-mail",
   "enableLogging": "Activer la journalisation",
   "enableLoggingOnSubtitle": "Activé - journaux enregistrés dans un fichier (redémarrez pour appliquer)",
+  "enableLoggingOffSubtitle": "Désactivé - pas de logs capturés",
+  "loggingEnabledSnackbar": "Journalisation activée - redémarrez l'application pour démarrer l'enregistrement",
+  "loggingDisabledSnackbar": "Journalisation désactivée - redémarrez l'application pour arrêter l'enregistrement",
   "sendLogs": "Envoyer les journaux",
+  "sendLogsSubtitle": "Partager le fichier de journalisation en pièce jointe",
+  "failedToShare": "Échec du partage : {error}",
+  "@failedToShare": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "clearLogs": "Vider les journaux",
   "logsCleared": "Journaux effacés",
   "sectionAdvanced": "Avancé",
@@ -993,6 +1013,8 @@
   "restartRequired": "Redémarrage requis",
   "restartRequiredContent": "Le changement sur le focus audio nécessite un redémarrage complet pour prendre effet. Fermer l'application maintenant ?",
   "closeApp": "Fermer l'application",
+  "trustAllCertificates": "Faire confiance à tous les certificats",
+  "trustAllCertificatesInfoTitle": "Certificats auto-signés",
   "mp3IndexSeeking": "Recherche d'index MP3",
   "supportTheDev": "Soutenir le développeur",
   "buyMeACoffee": "Offrez moi un café",
@@ -1040,6 +1062,13 @@
   "logOutTitle": "Se déconnecter ?",
   "logOutContent": "Cela vous déconnectera. Vos téléchargements resteront sur cet appareil.",
   "signOut": "Se déconnecter",
+  "currentPassword": "Mot de passe actuel",
+  "newPassword": "Nouveau mot de passe",
+  "confirmNewPassword": "Confirmez le nouveau mot de passe",
+  "passwordInvalid": "Le mot de passe actuel est incorrect",
+  "sessionsCurrent": "Appareil actuel",
+  "sessionsUnknownDevice": "Appareil inconnu",
+  "sessionsNone": "Aucune session active",
   "editServerAddressSubtitle": "Mettre à jour l'adresse de {username}. Utilisez ceci si l'adresse de votre serveur a changé - c'est toujours le même serveur, juste une nouvelle URL. Vos statistiques et vos téléchargements sont conservés.",
   "@editServerAddressSubtitle": {
     "placeholders": {
@@ -1095,6 +1124,7 @@
   "redownloadStarted": "Re-téléchargement",
   "adminTitle": "Administrateur du serveur",
   "adminTasksTitle": "Activité du serveur",
+  "adminTasksRecent": "Activité récente du serveur",
   "adminServer": "Serveur",
   "adminVersion": "Version",
   "adminUsers": "Utilisateurs",
@@ -1102,6 +1132,17 @@
   "adminBackup": "Sauvegarder",
   "adminPurgeCache": "Purger le cache",
   "adminManage": "Gérer",
+  "adminUsersSubtitle": "{userCount} comptes - {onlineCount} en ligne",
+  "@adminUsersSubtitle": {
+    "placeholders": {
+      "userCount": {
+        "type": "int"
+      },
+      "onlineCount": {
+        "type": "int"
+      }
+    }
+  },
   "adminPodcasts": "Podcasts",
   "adminScan": "Scanner",
   "adminMatchAllContent": "Faire correspondre les métadonnées de tous les éléments dans {name} ? Cela peut prendre un certain temps.",
@@ -1117,6 +1158,7 @@
   "adminCachePurged": "Cache purgé",
   "adminRmab": "ReadMeABook",
   "adminRmabUrlTitle": "URL ReadMeABook",
+  "adminRmabUrlHint": "https://rmab.example.com/?token=...",
   "adminRmabReload": "Recharger",
   "adminRmabConnected": "Connecté",
   "adminRmabSettingsInfo": "ReadMeABook est un service auto-hébergé pour demander et télécharger des livres audio. Il doit être installé et configuré par l'administrateur de votre serveur.",
