@@ -1067,10 +1067,13 @@
   "currentPassword": "Mot de passe actuel",
   "newPassword": "Nouveau mot de passe",
   "confirmNewPassword": "Confirmez le nouveau mot de passe",
+  "passwordChangeEffect": "La modification de votre mot de passe déconnecte vos autres sessions d'Audiobookshelf. Cet appareil reste connecté.",
   "passwordInvalid": "Le mot de passe actuel est incorrect",
   "sessionsCurrent": "Appareil actuel",
   "sessionsUnknownDevice": "Appareil inconnu",
   "sessionsNone": "Aucune session active",
+  "sessionsRemoveContent": "Cela supprime sa session de rafraîchissement. Son accès actuel peut continuer à fonctionner jusqu'à l'expiration de ce jeton de courte durée.",
+  "sessionsSignOutAllContent": "Cela supprime toutes les sessions de rafraîchissement, y compris cet appareil. Les jetons d'accès existants peuvent fonctionner jusqu'à ce qu'ils expirent.",
   "editServerAddressSubtitle": "Mettre à jour l'adresse de {username}. Utilisez ceci si l'adresse de votre serveur a changé - c'est toujours le même serveur, juste une nouvelle URL. Vos statistiques et vos téléchargements sont conservés.",
   "@editServerAddressSubtitle": {
     "placeholders": {
