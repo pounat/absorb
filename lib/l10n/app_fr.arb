@@ -1016,6 +1016,8 @@
   "trustAllCertificates": "Faire confiance à tous les certificats",
   "trustAllCertificatesInfoTitle": "Certificats auto-signés",
   "mp3IndexSeeking": "Recherche d'index MP3",
+  "mp3IndexSeekingInfoContent": "Activez cette option uniquement si vous avez des fichiers MP3 qui ne se positionnent pas à la bonne position. Le positionnement inexact provient généralement de MP3 à débit variable (VBR). L'index cherchant à construire une carte temporelle exacte lorsque le fichier est lu, sauter près de la fin d'un grand MP3 peut prendre un moment - surtout en streaming, car le fichier doit être lu jusqu'à ce point. Prend effet la prochaine fois qu'un livre ou un podcast commence.",
+  "trustAllCertificatesInfoContent": "Activez cette option si votre serveur Audiobookshelf utilise un certificat auto-signé ou une AC racine personnalisée. Lorsque cette option est activée, Absorb ignorera la vérification du certificat TLS pour toutes les connexions. N'activez cette option que si vous faites confiance à votre réseau.",
   "supportTheDev": "Soutenir le développeur",
   "buyMeACoffee": "Offrez moi un café",
   "appVersionFormat": "Absorb v{version}",
