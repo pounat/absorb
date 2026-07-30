@@ -254,9 +254,15 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   void _buildOfflineSections() {
     final isPodcast = isPodcastLibrary;
     final allDownloads = DownloadService().downloadedItems;
-    final downloads = allDownloads
-        .where((dl) => (dl.itemId.length > 36) == isPodcast)
-        .toList();
+    final downloads = allDownloads.where((dl) {
+      final libraryId = dl.libraryId;
+      if (libraryId != null &&
+          libraryId.isNotEmpty &&
+          _selectedLibraryId != null) {
+        return libraryId == _selectedLibraryId;
+      }
+      return (dl.itemId.length > 36) == isPodcast;
+    }).toList();
     debugPrint(
         '[Library] Building offline sections: ${downloads.length}/${allDownloads.length} downloads (${isPodcast ? "podcast" : "book"})');
     if (downloads.isEmpty) {
@@ -367,9 +373,15 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   void _injectDownloadedSection() {
     final isPodcast = isPodcastLibrary;
     final allDownloads = DownloadService().downloadedItems;
-    final downloads = allDownloads
-        .where((dl) => (dl.itemId.length > 36) == isPodcast)
-        .toList();
+    final downloads = allDownloads.where((dl) {
+      final libraryId = dl.libraryId;
+      if (libraryId != null &&
+          libraryId.isNotEmpty &&
+          _selectedLibraryId != null) {
+        return libraryId == _selectedLibraryId;
+      }
+      return (dl.itemId.length > 36) == isPodcast;
+    }).toList();
     if (downloads.isEmpty) return;
 
     final entities = <Map<String, dynamic>>[];

@@ -11,6 +11,7 @@ import '../services/api_service.dart';
 import '../services/progress_sync_service.dart';
 import '../services/local_session_service.dart';
 import '../services/download_service.dart';
+import '../services/library_cache.dart';
 import '../services/android_auto_service.dart';
 import '../services/carplay_service.dart';
 import '../services/chromecast_service.dart';
@@ -176,6 +177,7 @@ class LibraryProvider extends ChangeNotifier
         await _loadSubscribedPodcasts();
         await _loadYearHidden();
         await _loadKnownEpisodeIds();
+        await _restoreCachedLibraries();
         Future.microtask(() => checkSubscribedPodcasts());
 
         // Replay any book-finished event that fired before the absorbing
@@ -283,28 +285,15 @@ class LibraryProvider extends ChangeNotifier
       _libraries = await _api!.getLibraries();
       debugPrint(
           '[Library] loadLibraries: got ${_libraries.length} libraries');
+      await LibraryCache.save(_libraries);
 
       if (_libraries.isNotEmpty) {
-        final savedId = await ScopedPrefs.getString('last_selected_library');
-        final defaultId = _auth?.defaultLibraryId;
-        if (savedId != null &&
-            _libraries.any((l) => l['id'] == savedId)) {
-          _selectedLibraryId = savedId;
-        } else if (defaultId != null &&
-            _libraries.any((l) => l['id'] == defaultId)) {
-          _selectedLibraryId = defaultId;
-        } else {
-          final bookLibraries = _libraries
-              .where((l) =>
-                  (l['mediaType'] as String? ?? 'book') != 'podcast')
-              .toList();
-          _selectedLibraryId = bookLibraries.isNotEmpty
-              ? bookLibraries.first['id']
-              : _libraries.first['id'];
-        }
+        await _restoreSelectedLibrary();
 
         await _loadSectionPrefs();
         await loadPersonalizedView(force: true);
+      } else {
+        _selectedLibraryId = null;
       }
     } catch (e) {
       if (_isLikelyNetworkError(e)) {
@@ -320,6 +309,40 @@ class LibraryProvider extends ChangeNotifier
     _catchUpRollingDownloads();
     _catchUpQueueAutoDownloads();
     catchUpSubscribedPodcasts();
+  }
+
+  Future<void> _restoreCachedLibraries() async {
+    if (_libraries.isNotEmpty) return;
+    final cached = await LibraryCache.load();
+    if (cached.isEmpty) return;
+    _libraries = cached;
+    await _restoreSelectedLibrary();
+    debugPrint(
+        '[Library] Restored ${_libraries.length} cached libraries for offline use');
+  }
+
+  Future<void> _restoreSelectedLibrary() async {
+    if (_libraries.isEmpty) {
+      _selectedLibraryId = null;
+      return;
+    }
+    final savedId = await ScopedPrefs.getString('last_selected_library');
+    final defaultId = _auth?.defaultLibraryId;
+    if (savedId != null && _libraries.any((l) => l['id'] == savedId)) {
+      _selectedLibraryId = savedId;
+      return;
+    }
+    if (defaultId != null && _libraries.any((l) => l['id'] == defaultId)) {
+      _selectedLibraryId = defaultId;
+      return;
+    }
+    final bookLibraries = _libraries
+        .where((l) =>
+            (l['mediaType'] as String? ?? 'book') != 'podcast')
+        .toList();
+    _selectedLibraryId = bookLibraries.isNotEmpty
+        ? bookLibraries.first['id'] as String?
+        : _libraries.first['id'] as String?;
   }
 
   Future<void> selectLibrary(String libraryId) async {
