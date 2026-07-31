@@ -602,6 +602,8 @@
   "filterAllEpisodes": "Alle",
   "filterUnplayed": "Ungespielt",
   "episodeFeedEmpty": "Keine Folgen entsprechen diesem Filter",
+  "podcastFilterUpNext": "Als Nächstes",
+  "podcastFilterNew": "Neu",
   "settingsPodcastTab": "Podcast-Tab",
   "settingsPodcastTabDesc": "Gib einer Podcast-Bibliothek einen eigenen Tab in der unteren Leiste",
   "settingsPodcastTabLibrary": "Podcasts Registerkarte",
@@ -1109,6 +1111,9 @@
   "logOutTitle": "Abmelden?",
   "logOutContent": "Du wirst abgemeldet. Deine Downloads bleiben auf diesem Gerät.",
   "signOut": "Abmelden",
+  "changePasswordTitle": "Passwort ändern",
+  "currentPassword": "Aktuelles Passwort",
+  "newPassword": "Neues Passwort",
   "editServerAddressTitle": "Serveradresse bearbeiten",
   "editServerAddressSubtitle": "Aktualisiere die Adresse für {username}. Nutze diese Option, wenn sich lediglich die URL geändert hat - es aber noch immer der gleiche Server ist. Deine Statistiken und Downloads werden beibehalten.",
   "@editServerAddressSubtitle": {
