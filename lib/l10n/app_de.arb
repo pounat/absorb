@@ -675,9 +675,13 @@
   "fullBookScrubber": "Ganzes-Buch-Scrubber",
   "fullBookScrubberOnSubtitle": "An - durchziehbarer Slider über das gesamte Buch",
   "fullBookScrubberOffSubtitle": "Aus - nur Fortschrittsbalken",
+  "cardScrubbers": "Karten scrubber",
   "cardScrubbersBoth": "Beides",
   "cardScrubbersChapter": "Kapitel",
   "cardScrubbersLocked": "Gesperrt",
+  "cardScrubbersBothSubtitle": "Vollständige Buch- und Kapitelleisten können suchen",
+  "cardScrubbersChapterSubtitle": "Nur die Kapitelleiste kann suchen",
+  "cardScrubbersLockedSubtitle": "Fortschritt wird angezeigt, ohne zu suchen",
   "speedAdjustedTime": "Geschwindigkeitsangepasste Zeit",
   "speedAdjustedTimeOnSubtitle": "An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit",
   "speedAdjustedTimeOffSubtitle": "Aus - zeigt die reine Audiodauer",
@@ -1024,6 +1028,11 @@
   "closeApp": "App schließen",
   "trustAllCertificates": "Allen Zertifikaten vertrauen",
   "trustAllCertificatesInfoTitle": "Selbstsignierte Zertifikate",
+  "mp3IndexSeeking": "MP3-Indexsuche",
+  "mp3IndexSeekingInfoTitle": "MP3-Indexsuche",
+  "mp3IndexSeekingInfoContent": "Aktivieren dies nur, wenn deine MP3-Dateien nicht an die richtige Stelle springen. Dies ist gewöhnlicherweise eine Auswirkung von variablen Bitraten (VBR) MP3s. Die Indexsuche erstellt eine exakte Zeitkarte beim Wiedergeben der Datei, so dass ein Sprung ans Ende einer großen MP3 einen Moment dauern kann - vor allem beim Streamen, da die Datei bis zu diesem Punkt gelesen werden muss. Die Aktivierung wird erst beim nächsten Start eines Buches oder einer Podcast-Episode wirksam.",
+  "mp3IndexSeekingOnSubtitle": "An - exakte Suche bei VBR MP3 Dateien",
+  "mp3IndexSeekingOffSubtitle": "Aus - normale Suche",
   "trustAllCertificatesInfoContent": "Aktiviere dies, wenn dein Audiobookshelf-Server ein selbstsigniertes Zertifikat oder eine eigene Root-CA verwendet. Wenn aktiviert, überspringt Absorb die TLS-Zertifikatsprüfung für alle Verbindungen. Aktiviere dies nur, wenn du deinem Netzwerk vertraust.",
   "trustAllCertificatesOnSubtitle": "An - alle Zertifikate werden akzeptiert",
   "trustAllCertificatesOffSubtitle": "Aus - nur vertrauenswürdige Zertifikate akzeptiert",
@@ -1112,8 +1121,52 @@
   "logOutContent": "Du wirst abgemeldet. Deine Downloads bleiben auf diesem Gerät.",
   "signOut": "Abmelden",
   "changePasswordTitle": "Passwort ändern",
+  "changePasswordSubtitle": "Aktualisiere sicher dein Audiobookshelf Passwort",
   "currentPassword": "Aktuelles Passwort",
   "newPassword": "Neues Passwort",
+  "confirmNewPassword": "Neues Passwort bestätigen",
+  "passwordChangeEffect": "Das Ändern deines Passworts meldet dich von allen anderen Audiobookshelf Sitzungen ab. Dieses Gerät bleibt angemeldet.",
+  "passwordFieldsRequired": "Alle Passwortfelder ausfüllen",
+  "passwordsDoNotMatch": "Die neuen Passwörter stimmen nicht überein",
+  "passwordChanged": "Passwort geändert. Andere angemeldete Geräte wurden getrennt.",
+  "passwordInvalid": "Das aktuelle Kennwort ist falsch",
+  "passwordChangeUnsupported": "Diese Server-Version unterstützt keine sicheren Passwortänderungen in Absorb",
+  "passwordChangeFailed": "Dein Passwort konnte nicht geändert werden",
+  "otherUserPasswordResetWarning": "Das Ändern dieses Passworts meldet den Benutzer auf allen Geräten ab.",
+  "manageSessionsTitle": "Angemeldete Geräte",
+  "manageSessionsSubtitle": "Audiobookshelf Sitzungen überprüfen und entfernen",
+  "sessionsCurrent": "Aktuelles Gerät",
+  "sessionsUnknownDevice": "Unbekanntes Gerät",
+  "sessionsLastActive": "Zuletzt aktiv {date}",
+  "@sessionsLastActive": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionsNone": "Keine aktiven Sitzungen",
+  "sessionsLoadMore": "Mehr laden",
+  "sessionsUnsupported": "Das Session-Management benötigt Audiobookshelf 2.36 oder neuer.",
+  "sessionsLoadFailed": "Angemeldete Geräte konnten nicht geladen werden",
+  "sessionsLegacyNotice": "Dieser Login hat keine Sitzungsaktualisierung, daher kann Absorb dieses Gerät nicht in der Liste identifizieren.",
+  "sessionsRemove": "Gerät abmelden",
+  "sessionsRemoveTitle": "Dieses Gerät abmelden?",
+  "sessionsRemoveContent": "Dies entfernt die Sitzungsaktualisierung. Der aktuelle Zugriff funktioniert eventuell weiter, bis das kurzlebige Token abläuft.",
+  "sessionsRemoved": "Gerät abgemeldet",
+  "sessionsRemoveFailed": "Das Gerät konnte nicht abgemeldet werden",
+  "sessionsSignOutAll": "Alle Geräte abmelden",
+  "sessionsSignOutAllTitle": "Überall abmelden?",
+  "sessionsSignOutAllContent": "Dies entfernt jede Sitzungsaktualisierung, einschließlich dieses Geräts. Vorhandene Zugriffs-Token können bis zum Ablauf funktionieren.",
+  "podcastScheduleServerTime": "Zeitplan verwendet die Serverzeit ({timeZone})",
+  "@podcastScheduleServerTime": {
+    "placeholders": {
+      "timeZone": {
+        "type": "String"
+      }
+    }
+  },
+  "podcastScheduleServerTimeUnknown": "Zeitplan verwendet die Serverzeit",
   "editServerAddressTitle": "Serveradresse bearbeiten",
   "editServerAddressSubtitle": "Aktualisiere die Adresse für {username}. Nutze diese Option, wenn sich lediglich die URL geändert hat - es aber noch immer der gleiche Server ist. Deine Statistiken und Downloads werden beibehalten.",
   "@editServerAddressSubtitle": {
@@ -1127,6 +1180,19 @@
   "editServerAddressUpdated": "Serveradresse aktualisiert",
   "editServerAddressFailed": "Serveradresse konnte nicht aktualisiert werden",
   "editServerAddressAction": "Serveradresse bearbeiten",
+  "editServerConnectionTitle": "Server-Verbindung bearbeiten",
+  "editServerConnectionSubtitle": "Aktualisieren die Serveradresse und die benutzerdefinierten Header für {username}. Deine Statistiken und Downloads werden beibehalten.",
+  "@editServerConnectionSubtitle": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "editServerConnectionAction": "Server-Verbindung bearbeiten",
+  "editServerConnectionUpdated": "Serververbindung aktualisiert",
+  "editServerConnectionFailed": "Serververbindung konnte nicht aktualisiert werden",
+  "editCustomHeadersDescription": "Wird für Cloudflare Tunnel oder Reverse Proxies verwendet. Diese Header gelten nur für dieses gespeicherte Konto.",
   "removeAccountAction": "Konto entfernen",
   "removeAccountTitle": "Konto entfernen?",
   "removeAccountContent": "{username} auf {server} aus den gespeicherten Konten entfernen?\n\nDu kannst es jederzeit wieder hinzufügen, indem du dich erneut anmeldest.",
@@ -1282,6 +1348,7 @@
   "rmabConfigLegacyUrlLabel": "Web UI Login URL (Optional)",
   "rmabConfigLegacyUrlHint": "https://rmab.example.com/?token=...",
   "rmabConfigLegacyUrlHelp": "Füge deine Auto-Login-URL ein, sodass dich 'In Browseransicht öffnen' direkt anmeldet. Für einen regulären Login lasse das Feld einfach leer.",
+  "rmabConfigHeadersHelp": "Zusätzliche Header, die mit jeder ReadMeABook-Anfrage gesendet werden, für Reverse Proxies wie Cloudflare Access.",
   "rmabConfigConnect": "Verbinden",
   "rmabConfigDisconnect": "Trennen",
   "rmabConfigOpenWebView": "In der Browseransicht öffnen",
@@ -1427,6 +1494,22 @@
       }
     }
   },
+  "audioTracksCount": "Audio-Tracks ({count})",
+  "@audioTracksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryFilesCount": "Bibliotheks-Dateien ({count})",
+  "@libraryFilesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chapters": "Kapitel",
   "noChaptersBook": "Dieses Buch hat keine Kapitel",
   "noChaptersPodcast": "Dieser Podcast hat keine Kapitel",
@@ -1558,6 +1641,7 @@
     }
   },
   "selectAll": "Alle auswählen",
+  "deselectAll": "Alle abwählen",
   "autoDownloadThisPodcast": "Diesen Podcast automatisch herunterladen?",
   "autoDownloadPodcastContent": "Lädt die nächsten Episoden beim Hören automatisch herunter.",
   "download": "Herunterladen",
@@ -1673,6 +1757,14 @@
   "admin": "Admin",
   "serverAdmin": "Server-Admin",
   "serverAdminSubtitle": "Benutzer, Bibliotheken & Server-Einstellungen verwalten",
+  "serverUpdateAvailable": "Serverupdate {version} verfügbar",
+  "@serverUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "justNow": "Gerade eben",
   "minutesAgo": "vor {count} Min.",
   "@minutesAgo": {
