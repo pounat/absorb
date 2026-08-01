@@ -1,6 +1,7 @@
 bool shouldIncludeBookInAbsorbing({
   required bool isFinished,
-  required bool manuallyAdded,
+  required bool addedAfterFinish,
+  bool isActive = false,
 }) {
-  return !isFinished || manuallyAdded;
+  return !isFinished || addedAfterFinish || isActive;
 }

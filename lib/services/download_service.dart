@@ -1255,6 +1255,7 @@ class DownloadService extends ChangeNotifier {
 
   /// Returns null on success, error message string on failure.
   /// For podcast episodes, pass [episodeId] so the correct API endpoint is used.
+  /// [shouldStart] lets a caller invalidate the request while setup is waiting.
   Future<String?> downloadItem({
     required ApiService api,
     required String itemId,
@@ -1263,7 +1264,9 @@ class DownloadService extends ChangeNotifier {
     String? coverUrl,
     String? episodeId,
     String? libraryId,
+    bool Function()? shouldStart,
   }) async {
+    if (shouldStart?.call() == false) return null;
     try {
       await init().timeout(const Duration(seconds: 8));
     } on TimeoutException catch (e) {
@@ -1273,6 +1276,7 @@ class DownloadService extends ChangeNotifier {
       debugPrint('[Download] Downloader initialization failed: $e');
       return 'Downloads could not start. Please try again.';
     }
+    if (shouldStart?.call() == false) return null;
 
     if (_activeDownloadIds.contains(itemId)) return null;
     if (isDownloaded(itemId)) return null;
@@ -1281,14 +1285,17 @@ class DownloadService extends ChangeNotifier {
 
     // Check wifi-only setting
     final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
+    if (shouldStart?.call() == false) return null;
     if (wifiOnly) {
       final connectivity = await Connectivity().checkConnectivity();
+      if (shouldStart?.call() == false) return null;
       if (!connectivity.contains(ConnectivityResult.wifi)) {
         return 'Downloads are set to Wi-Fi only. Connect to Wi-Fi or change this in Settings.';
       }
     }
 
     final maxConcurrent = await PlayerSettings.getMaxConcurrentDownloads();
+    if (shouldStart?.call() == false) return null;
 
     // The checks above ran before settings were loaded, so another tap may
     // have started or queued this item in the meantime.
@@ -1300,6 +1307,7 @@ class DownloadService extends ChangeNotifier {
 
     // If at capacity, queue this one
     if (_activeDownloadIds.length >= maxConcurrent) {
+      if (shouldStart?.call() == false) return null;
       debugPrint('[Download] Queued "$title" ($itemId); slots ${_activeDownloadIds.length}/$maxConcurrent full, ${_queue.length} waiting');
       _queue.add(_QueuedDownload(
         api: api,
@@ -1324,6 +1332,7 @@ class DownloadService extends ChangeNotifier {
     }
 
     // Launch immediately (fire-and-forget so caller doesn't block)
+    if (shouldStart?.call() == false) return null;
     unawaited(_executeDownload(
       api: api,
       itemId: itemId,
@@ -1974,7 +1983,7 @@ class DownloadService extends ChangeNotifier {
     // live position, so it's safe even when this fires from a background update.
     try {
       final player = AudioPlayerService();
-      if (player.currentItemId == itemId && player.hasBook) {
+      if (player.hasBook) {
         await player.switchToLocal(itemId);
       }
     } catch (_) {}

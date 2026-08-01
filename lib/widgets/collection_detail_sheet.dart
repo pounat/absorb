@@ -345,7 +345,8 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                   Navigator.pop(context);
                   AppShell.goToAbsorbingGlobal();
                   await PlayerSettings.setQueueModeCollection(id, name);
-                  await lib.playCollectionFromStart(id);
+                  final started = await lib.playCollectionFromStart(id);
+                  if (started) unawaited(lib.syncQueueAutoDownloads());
                 }
               : null,
           icon: Icon(allFinished

@@ -87,7 +87,11 @@ class EqualizerService extends ChangeNotifier {
         if (_bandLevels.length != numBands) {
           _bandLevels = List.filled(numBands, 0.0);
         }
-        debugPrint('[EQ] Platform EQ available: ${_bandFrequencies.length} bands');
+        if (result['deferred'] == true) {
+          debugPrint('[EQ] Platform EQ will initialize when playback starts');
+        } else {
+          debugPrint('[EQ] Platform EQ available: ${_bandFrequencies.length} bands');
+        }
         if (_enabled) _applyCurrentSettings();
       }
     } on MissingPluginException {

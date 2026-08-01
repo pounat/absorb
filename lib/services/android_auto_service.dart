@@ -211,8 +211,23 @@ class AndroidAutoService {
   }
 
   Timer? _downloadsRefreshDebounce;
+  String? _downloadsSignature;
+
+  String _currentDownloadsSignature() {
+    final entries = DownloadService()
+        .downloadedItems
+        .map((d) => '${d.itemId}|${d.title ?? ''}|${d.author ?? ''}|'
+            '${d.localCoverPath ?? ''}|${d.libraryId ?? ''}')
+        .toList()
+      ..sort();
+    return entries.join('\n');
+  }
+
   void _onDownloadsChanged() {
-    // Coalesce bursts (multiple state ticks during a download).
+    final signature = _currentDownloadsSignature();
+    if (signature == _downloadsSignature) return;
+    _downloadsSignature = signature;
+
     _downloadsRefreshDebounce?.cancel();
     _downloadsRefreshDebounce = Timer(const Duration(milliseconds: 500), () async {
       await _refreshDownloaded();
@@ -450,16 +465,17 @@ class AndroidAutoService {
       debugPrint('[AutoBrowse] notifyItemUpdated listener threw: $e');
     }
     if (Platform.isAndroid) {
-      try {
-        // ignore: deprecated_member_use
-        AudioServiceBackground.notifyChildrenChanged(AutoMediaIds.root);
-      } catch (_) {}
+      // ignore: deprecated_member_use
+      unawaited(AudioServiceBackground
+          .notifyChildrenChanged(AutoMediaIds.root)
+          .catchError((_) {}));
     }
   }
 
   Future<void> _refreshDownloaded() async {
     final ds = DownloadService();
     final items = ds.downloadedItems;
+    _downloadsSignature = _currentDownloadsSignature();
     final entries = <AutoBookEntry>[];
 
     for (final dl in items) {

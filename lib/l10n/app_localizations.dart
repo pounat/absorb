@@ -3319,7 +3319,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteAbsorbedDownloadsInfoContent.
   ///
   /// In en, this message translates to:
-  /// **'When enabled, downloaded books or episodes are automatically deleted from your device after you finish listening to them. This helps free up storage space as you work through your library.'**
+  /// **'When enabled, downloaded books or episodes are automatically deleted from this device after you finish them in Absorb. Finishing an item on the web or another device won’t delete its download here.'**
   String get deleteAbsorbedDownloadsInfoContent;
 
   /// No description provided for @deleteAbsorbedOnSubtitle.

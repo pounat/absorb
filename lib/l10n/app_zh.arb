@@ -564,7 +564,7 @@
   "keepNextInfoContent": "要保留下载的项目数量，包括你当前正在收听的项目。例如，\"保留接下来3个\"意味着当前书籍加上系列或播客中的下2本将保持下载状态。",
   "deleteAbsorbedDownloads": "删除已完成的下载",
   "deleteAbsorbedDownloadsInfoTitle": "删除已完成的下载",
-  "deleteAbsorbedDownloadsInfoContent": "启用后，听完的书籍或剧集将自动从设备中删除。这有助于在你浏览媒体库时释放存储空间。",
+  "deleteAbsorbedDownloadsInfoContent": "启用后，在 Absorb 中听完的已下载书籍或剧集会自动从此设备删除。如果你在网页端或其他设备上听完，保存在此设备上的下载不会被删除。",
   "deleteAbsorbedOnSubtitle": "已完成项目将被移除以节省空间",
   "deleteAbsorbedOffSubtitle": "关闭 - 保留已完成的下载",
   "downloadLocation": "下载位置",

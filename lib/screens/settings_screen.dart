@@ -78,6 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   CardScrubberMode _cardScrubberMode = CardScrubberMode.chapter;
   bool _notifChapterProgress = false;
   bool _notifSpeedBookmark = false;
+  bool _duckBriefInterruptions = false;
   bool _lockSeekBar = false;
   bool _mp3IndexSeeking = false;
   bool _speedAdjustedTime = true;
@@ -298,6 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _bookQueueMode = 'playlist';
       _podcastQueueMode = 'playlist';
     });
+    unawaited(context.read<LibraryProvider>().syncQueueAutoDownloads());
   }
 
   Future<void> _setBookQueueMode(String mode) async {
@@ -314,6 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (wasPlaylist) _podcastQueueMode = mode;
     });
     PlayerSettings.notifySettingsChanged();
+    unawaited(context.read<LibraryProvider>().syncQueueAutoDownloads());
   }
 
   Future<void> _setPodcastQueueMode(String mode) async {
@@ -330,6 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (wasPlaylist) _bookQueueMode = mode;
     });
     PlayerSettings.notifySettingsChanged();
+    unawaited(context.read<LibraryProvider>().syncQueueAutoDownloads());
   }
 
   Future<void> _setMergedQueueMode(String mode) async {
@@ -342,6 +346,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _podcastQueueMode = mode;
     });
     PlayerSettings.notifySettingsChanged();
+    unawaited(context.read<LibraryProvider>().syncQueueAutoDownloads());
   }
 
   void _setManualColor(int argb) {
@@ -846,6 +851,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final podcastTabEnabled = await PlayerSettings.getPodcastTabEnabled();
     final podcastTabLibraryId = await PlayerSettings.getPodcastTabLibraryId();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
+    final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
     if (mounted) setState(() {
       _podcastTabEnabled = podcastTabEnabled;
       _podcastTabLibraryId = podcastTabLibraryId;
@@ -864,6 +870,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _cardScrubberMode = cardScrubberMode;
       _notifChapterProgress = notifChapter;
       _notifSpeedBookmark = notifSpeedBookmark;
+      _duckBriefInterruptions = duckBriefInterruptions;
       _lockSeekBar = lockSeek;
       _speedAdjustedTime = speedAdj;
       _forwardSkip = fwd;
@@ -1902,9 +1909,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     : w.mergeLibrariesOffSubtitle,
                             style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                           value: effectiveMerge,
-                          onChanged: (_loaded && !_podcastTabEnabled) ? (v) {
+                          onChanged: (_loaded && !_podcastTabEnabled) ? (v) async {
                             setState(() => _mergeAbsorbingLibraries = v);
-                            PlayerSettings.setMergeAbsorbingLibraries(v);
+                            await PlayerSettings.setMergeAbsorbingLibraries(v);
+                            unawaited(lib.syncQueueAutoDownloads());
                           } : null,
                         );
                       },
@@ -2006,7 +2014,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             )),
                           ],
                         ],
-                        if (_bookQueueMode == 'manual' || _podcastQueueMode == 'manual') ...[
+                        if (_bookQueueMode != 'off' || _podcastQueueMode != 'off') ...[
                           const SizedBox(height: 4),
                           SwitchListTile(
                             title: Text(l.autoDownloadQueue),
@@ -2016,9 +2024,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   : l.autoDownloadQueueOffSubtitle,
                               style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                             value: _queueAutoDownload,
-                            onChanged: _loaded ? (v) {
+                            onChanged: _loaded ? (v) async {
                               setState(() => _queueAutoDownload = v);
-                              PlayerSettings.setQueueAutoDownload(v);
+                              await PlayerSettings.setQueueAutoDownload(v);
+                              unawaited(lib.syncQueueAutoDownloads());
                             } : null,
                             dense: true,
                             contentPadding: EdgeInsets.zero,
@@ -2473,6 +2482,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (Platform.isAndroid) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       SwitchListTile(
+                        title: const Text('Duck brief interruptions'),
+                        subtitle: Text(
+                          _duckBriefInterruptions
+                              ? 'Notifications and prompts lower the volume instead of pausing'
+                              : 'Notifications and prompts pause playback',
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        value: _duckBriefInterruptions,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _duckBriefInterruptions = v);
+                          PlayerSettings.setDuckBriefInterruptions(v);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
                         title: Text(l.speedBookmarkInControls),
                         subtitle: Text(
                           _notifSpeedBookmark
@@ -2920,9 +2943,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ButtonSegment(value: 5, label: Text('5')),
                             ],
                             selected: {_rollingDownloadCount},
-                            onSelectionChanged: (v) {
+                            onSelectionChanged: (v) async {
                               setState(() => _rollingDownloadCount = v.first);
-                              PlayerSettings.setRollingDownloadCount(v.first);
+                              await PlayerSettings.setRollingDownloadCount(v.first);
+                              if (_queueAutoDownload) {
+                                unawaited(lib.syncQueueAutoDownloads());
+                              }
                             },
                           )),
                           const SizedBox(height: 8),

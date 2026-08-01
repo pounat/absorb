@@ -487,6 +487,12 @@ class PlayerSettings {
   static Future<bool> getMediaControlsSpeedBookmark() => _get('mediaControlsSpeedBookmark', false);
   static Future<void> setMediaControlsSpeedBookmark(bool value) => _set('mediaControlsSpeedBookmark', value, notify: true);
 
+  // Android only: lower the volume for brief focus interruptions instead of
+  // pausing. Pausing remains the default.
+  static Future<bool> getDuckBriefInterruptions() => _get('duckBriefInterruptions', false);
+  static Future<void> setDuckBriefInterruptions(bool value) =>
+      _set('duckBriefInterruptions', value, notify: true);
+
   // When true, the system media scrubber still shows progress but can't be
   // dragged to seek - stops accidental position jumps from the notification,
   // lockscreen, Android Auto and CarPlay. Implemented by dropping the seek

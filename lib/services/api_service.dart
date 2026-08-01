@@ -153,9 +153,11 @@ class ApiService {
 
   final Duration _refreshRetryDelay;
 
-  // Concurrency lock for refresh
+  // Each ApiService instance already deduplicates its own refreshes. This lock
+  // also serializes token rotation across the short-lived instances created by
+  // providers, widgets, and the background browse service.
   Completer<_RefreshOutcome>? _refreshCompleter;
-  Completer<void>? _tokenMutationCompleter;
+  static Completer<void>? _tokenMutationCompleter;
 
   // Device info - set once at app start
   static String deviceManufacturer = '';
@@ -210,6 +212,12 @@ class ApiService {
         ...customHeaders,
         'Authorization': 'Bearer $_accessToken',
       };
+
+  /// Playback-session tracks use ABS's unguessable public session URLs, so
+  /// only reverse-proxy headers belong on the media request. Keeping the
+  /// account token off the AVPlayer/ExoPlayer source prevents token rotation
+  /// from invalidating a stream that is already playing.
+  Map<String, String> get playbackSessionHeaders => {...customHeaders};
 
   String get _cleanBaseUrl => normalizeServerUrl(baseUrl);
 
@@ -1371,20 +1379,44 @@ class ApiService {
 
   /// Build a full audio track URL from a contentUrl returned by the play session.
   String buildTrackUrl(String contentUrl) {
-    if (contentUrl.startsWith('http')) return contentUrl;
     // ABS servers with ROUTER_BASE_PATH set return contentUrls that already
     // include the base path (e.g. "/abs/public/session/.../track/0"). If the
     // user's server URL also includes that base path, blindly concatenating
     // would double it ("/abs/abs/..."). Detect and use origin only.
     final baseUri = Uri.parse(_cleanBaseUrl);
     final basePath = baseUri.path;
-    if (basePath.isNotEmpty && contentUrl.startsWith('$basePath/')) {
-      return '${baseUri.origin}$contentUrl?token=$token';
+    final isAbsolute = contentUrl.startsWith('http');
+    final Uri trackUri;
+    if (isAbsolute) {
+      trackUri = Uri.parse(contentUrl);
+    } else if (basePath.isNotEmpty && contentUrl.startsWith('$basePath/')) {
+      trackUri = Uri.parse('${baseUri.origin}$contentUrl');
+    } else {
+      trackUri = Uri.parse('$_cleanBaseUrl$contentUrl');
     }
+
+    if (trackUri.path.contains('/public/session/')) {
+      final query = Map<String, dynamic>.from(trackUri.queryParametersAll)
+        ..remove('token');
+      if (query.isEmpty) {
+        final value = trackUri.toString();
+        final queryStart = value.indexOf('?');
+        if (queryStart < 0) return value;
+        final fragmentStart = value.indexOf('#', queryStart);
+        return value.substring(0, queryStart) +
+            (fragmentStart < 0 ? '' : value.substring(fragmentStart));
+      }
+      return trackUri.replace(queryParameters: query).toString();
+    }
+
+    if (isAbsolute) return contentUrl;
+
     // No per-track logging here: this runs in a hot loop over every track, and
     // books with thousands of files would flood (and roll over) the log buffer.
     // The session's "First track contentUrl" line already gives a sample.
-    return '$_cleanBaseUrl$contentUrl?token=$token';
+    final query = Map<String, dynamic>.from(trackUri.queryParametersAll)
+      ..['token'] = token;
+    return trackUri.replace(queryParameters: query).toString();
   }
 
   /// Build a durable, session-independent file download URL for [ino] within

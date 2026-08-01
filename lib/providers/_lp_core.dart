@@ -815,6 +815,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           if (cleared > 0) {
             debugPrint('[Progress] Cleared $cleared overrides');
           }
+          (this as _AbsorbingMixin)
+              ._pruneRemotelyFinishedBooks(_progressMap.keys);
       }
     } catch (_) {}
   }
@@ -871,7 +873,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         if (reachable) {
           setNetworkOffline(false);
           if (_rollingDownloadSeries.isNotEmpty) _catchUpRollingDownloads();
-          _catchUpQueueAutoDownloads();
+          unawaited(_catchUpQueueAutoDownloads());
           (this as LibraryProvider).catchUpSubscribedPodcasts();
         } else {
           debugPrint('[Library] Connectivity changed but server unreachable — starting ping timer');
@@ -1216,9 +1218,14 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     final playingKey = player.currentEpisodeId != null
         ? '${player.currentItemId}-${player.currentEpisodeId}'
         : player.currentItemId;
-    if (key == playingKey && player.hasBook && player.isPlaying) {
-      if (mp['isFinished'] == true) {
+    if (key == playingKey && player.hasBook) {
+      if (mp['isFinished'] == true && !_resetItems.contains(key)) {
         (this as _AbsorbingMixin).markFinishedLocally(key, skipAutoAdvance: true);
+      } else if (mp['isFinished'] != true) {
+        _progressMap[key] = mp;
+        _localProgressOverrides.remove(key);
+        _resetItems.remove(key);
+        notifyListeners();
       }
       return;
     }
@@ -1590,6 +1597,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     } catch (_) {}
     _isLoadingPlaylists = false;
     notifyListeners();
+    unawaited(_catchUpQueueAutoDownloads());
   }
 
   Future<Map<String, dynamic>?> createPlaylist(String name) async {
@@ -1695,6 +1703,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     } catch (_) {}
     _isLoadingCollections = false;
     notifyListeners();
+    unawaited(_catchUpQueueAutoDownloads());
   }
 
   Future<Map<String, dynamic>?> createCollection(String name, {List<String> books = const []}) async {
@@ -2180,8 +2189,6 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       if (!connectivity.contains(ConnectivityResult.wifi)) return;
     }
 
-    final count = await PlayerSettings.getRollingDownloadCount();
-
     for (final seriesOrShowId in _rollingDownloadSeries.toList()) {
       String? latestPodcastKey;
       num latestPodcastUpdate = 0;
@@ -2212,33 +2219,55 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       }
 
       if (latestPodcastKey != null) {
-        _rollingDownloadPodcast(latestPodcastKey, count);
+        _checkRollingDownloads(latestPodcastKey);
       } else if (latestBookKey != null) {
-        _rollingDownloadBook(latestBookKey, count);
+        _checkRollingDownloads(latestBookKey);
       }
     }
   }
 
   void _checkRollingDownloads(String playingKey) async {
-    if (_api == null || isOffline) return;
+    final api = _api;
+    if (api == null || isOffline) return;
     // With the "auto series download" default on, a book in a series enables
     // rolling download for that series on first play (books only).
     final autoSeriesDefault =
         await PlayerSettings.getAutoSeriesDownloadDefault();
+    final player = AudioPlayerService();
+    final activeKey = player.currentEpisodeId == null
+        ? player.currentItemId
+        : '${player.currentItemId}-${player.currentEpisodeId}';
+    final activeQueueMode = activeKey == null
+        ? 'off'
+        : activeKey.length > 36
+            ? await PlayerSettings.getPodcastQueueMode()
+            : await PlayerSettings.getBookQueueMode();
+    final activeQueueOwnsWindow = activeQueueMode != 'off' &&
+        await PlayerSettings.getQueueAutoDownload();
     if (_rollingDownloadSeries.isEmpty && !autoSeriesDefault) return;
     final count = await PlayerSettings.getRollingDownloadCount();
 
     if (playingKey.length > 36) {
       final showId = playingKey.substring(0, 36);
+      final activeShowId = activeKey != null && activeKey.length > 36
+          ? activeKey.substring(0, 36)
+          : null;
+      if (activeQueueOwnsWindow && activeShowId == showId) return;
       if (_rollingDownloadSeries.contains(showId)) {
         _rollingDownloadPodcast(playingKey, count);
       }
     } else {
+      if (activeQueueOwnsWindow &&
+          activeKey == playingKey &&
+          !autoSeriesDefault) {
+        return;
+      }
       var data = _itemDataWithSeries(playingKey);
       var (seriesId, _) = data != null ? _StateMixin._extractSeries(data) : (null, null);
       if (seriesId == null) {
-        final fullItem = await _api!.getLibraryItem(playingKey);
+        final fullItem = await api.getLibraryItem(playingKey);
         if (fullItem != null) {
+          data = fullItem;
           (seriesId, _) = _StateMixin._extractSeries(fullItem);
         }
       }
@@ -2248,111 +2277,242 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         await _saveRollingDownloadSeries();
         notifyListeners();
       }
+      if (activeQueueOwnsWindow && activeKey != null && activeKey.length <= 36) {
+        if (activeKey == playingKey) return;
+        var activeData = _itemDataWithSeries(activeKey);
+        var (activeSeriesId, _) = activeData != null
+            ? _StateMixin._extractSeries(activeData)
+            : (null, null);
+        if (activeSeriesId == null) {
+          activeData = await api.getLibraryItem(activeKey);
+          if (activeData != null) {
+            (activeSeriesId, _) = _StateMixin._extractSeries(activeData);
+          }
+        }
+        if (activeSeriesId == seriesId) return;
+      }
       if (_rollingDownloadSeries.contains(seriesId)) {
         _rollingDownloadBook(playingKey, count);
       }
     }
   }
 
-  void _checkQueueAutoDownloads(String playingKey) async {
-    if (_api == null || isOffline) {
-      return;
-    }
-    final isPodcastKey = playingKey.length > 36;
-    final queueMode = isPodcastKey
-        ? await PlayerSettings.getPodcastQueueMode()
-        : await PlayerSettings.getBookQueueMode();
-    if (queueMode != 'manual') {
-      return;
-    }
-    final enabled = await PlayerSettings.getQueueAutoDownload();
-    if (!enabled) return;
-    final merged = await PlayerSettings.getMergeAbsorbingLibraries();
+  Future<void> _checkQueueAutoDownloads(String playingKey) async {
+    try {
+      final self = this as LibraryProvider;
+      final planGeneration = ++_queueDownloadPlanGeneration;
+      final api = _api;
+      if (api == null || isOffline) return;
+      final accountGeneration = self._accountLoadGeneration;
 
-    final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
-    if (wifiOnly) {
-      final connectivity = await Connectivity().checkConnectivity();
-      if (!connectivity.contains(ConnectivityResult.wifi)) return;
-    }
-
-    final count = await PlayerSettings.getRollingDownloadCount();
-    final dl = DownloadService();
-    int queued = 0;
-    int newDownloads = 0;
-
-    final playingIdx = _absorbingBookIds.indexOf(playingKey);
-    final startIdx = playingIdx >= 0 ? playingIdx : 0;
-
-    final playingCached = _absorbingItemCache[playingKey];
-    final playingLibId = playingCached?['libraryId'] as String?;
-
-    for (int i = startIdx;
-        i < _absorbingBookIds.length && queued < count;
-        i++) {
-      final key = _absorbingBookIds[i];
-      if ((this as LibraryProvider).isItemFinishedByKey(key)) continue;
-
-      final cached = _absorbingItemCache[key];
-      if (cached == null) continue;
-
-      if (!merged && playingLibId != null) {
-        final candidateLibId = cached['libraryId'] as String?;
-        if (candidateLibId != null && candidateLibId != playingLibId) continue;
+      String? activePlayerKey() {
+        final player = AudioPlayerService();
+        final itemId = player.currentItemId;
+        if (itemId == null) return null;
+        final episodeId = player.currentEpisodeId;
+        return episodeId == null ? itemId : '$itemId-$episodeId';
       }
 
-      if (dl.isDownloaded(key) || dl.isDownloading(key)) {
-        queued++;
-        continue;
+      bool isStale() {
+        return planGeneration != _queueDownloadPlanGeneration ||
+            accountGeneration != self._accountLoadGeneration ||
+            !identical(api, _api) ||
+            isOffline ||
+            activePlayerKey() != playingKey;
       }
 
-      final media = cached['media'] as Map<String, dynamic>? ?? {};
-      final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
-      final title = metadata['title'] as String? ?? '';
-      final author = metadata['authorName'] as String? ?? '';
+      if (isStale()) return;
+      final isPodcastKey = playingKey.length > 36;
+      final bookMode = await PlayerSettings.getBookQueueMode();
+      if (isStale()) return;
+      final podcastMode = await PlayerSettings.getPodcastQueueMode();
+      if (isStale()) return;
+      final merged = await PlayerSettings.getMergeAbsorbingLibraries();
+      if (isStale()) return;
+      final queueMode = isPodcastKey ? podcastMode : bookMode;
+      if (queueMode == 'off') return;
+      final queueSourceId = queueMode == 'playlist'
+          ? await PlayerSettings.getQueuePlaylistId()
+          : queueMode == 'collection'
+              ? await PlayerSettings.getQueueCollectionId()
+              : null;
+      if (isStale()) return;
 
-      if (key.length > 36) {
-        final showId = key.substring(0, 36);
-        final epId = key.substring(37);
-        final ep = cached['recentEpisode'] as Map<String, dynamic>?;
-        dl.downloadItem(
-          api: _api!,
-          itemId: key,
-          title: ep?['title'] as String? ?? 'Episode',
-          author: title,
-          coverUrl: getCoverUrl(showId),
-          episodeId: epId,
-          libraryId: _selectedLibraryId,
-        );
-      } else {
-        dl.downloadItem(
-          api: _api!,
+      final enabled = await PlayerSettings.getQueueAutoDownload();
+      if (!enabled || isStale()) return;
+      final count = await PlayerSettings.getRollingDownloadCount();
+      if (count <= 0 || isStale()) return;
+      final podcastAdvanceDir = isPodcastKey && queueMode == 'auto_next'
+          ? await PlayerSettings.getPodcastAdvanceDir(
+              playingKey.substring(0, 36))
+          : null;
+      if (isStale()) return;
+
+      final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
+      if (isStale()) return;
+      if (wifiOnly) {
+        final connectivity = await Connectivity().checkConnectivity();
+        if (isStale() ||
+            !connectivity.contains(ConnectivityResult.wifi)) {
+          return;
+        }
+      }
+
+      Future<bool> settingsStillMatch() async {
+        if (isStale()) return false;
+        if (await PlayerSettings.getBookQueueMode() != bookMode || isStale()) {
+          return false;
+        }
+        if (await PlayerSettings.getPodcastQueueMode() != podcastMode ||
+            isStale()) {
+          return false;
+        }
+        if (await PlayerSettings.getMergeAbsorbingLibraries() != merged ||
+            isStale()) {
+          return false;
+        }
+        if (!await PlayerSettings.getQueueAutoDownload() || isStale()) {
+          return false;
+        }
+        if (await PlayerSettings.getRollingDownloadCount() != count ||
+            isStale()) {
+          return false;
+        }
+        if (queueMode == 'playlist' &&
+            await PlayerSettings.getQueuePlaylistId() != queueSourceId) {
+          return false;
+        }
+        if (queueMode == 'collection' &&
+            await PlayerSettings.getQueueCollectionId() != queueSourceId) {
+          return false;
+        }
+        if (podcastAdvanceDir != null &&
+            await PlayerSettings.getPodcastAdvanceDir(
+                    playingKey.substring(0, 36)) !=
+                podcastAdvanceDir) {
+          return false;
+        }
+        return !isStale();
+      }
+
+      final items = await self._queueItemsForDownload(
+        playingKey,
+        queueMode,
+        api,
+        limit: count,
+        bookMode: bookMode,
+        podcastMode: podcastMode,
+        merged: merged,
+        queueSourceId: queueSourceId,
+        podcastAdvanceDir: podcastAdvanceDir,
+        isStale: isStale,
+      );
+      if (items.isEmpty || !await settingsStillMatch()) return;
+
+      final downloads = DownloadService();
+      var newDownloads = 0;
+      String keyOf(Map<String, dynamic> item) {
+        final libraryItemId = item['libraryItemId'] as String? ?? '';
+        final episodeId = item['episodeId'] as String?;
+        return episodeId == null
+            ? libraryItemId
+            : '$libraryItemId-$episodeId';
+      }
+      final pendingItems = queueItemsNeedingDownload(
+        items: items.where((item) => keyOf(item).isNotEmpty),
+        count: count,
+        keyOf: keyOf,
+        isFinished: (item) => self.isItemFinishedByKey(keyOf(item)),
+        isAvailable: (item) {
+          final key = keyOf(item);
+          return downloads.isDownloaded(key) || downloads.isDownloading(key);
+        },
+      );
+
+      for (final item in pendingItems) {
+        if (isStale()) return;
+        final libraryItemId = item['libraryItemId'] as String? ?? '';
+        if (libraryItemId.isEmpty) continue;
+        final episodeId = item['episodeId'] as String?;
+        final key = keyOf(item);
+        if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
+          continue;
+        }
+
+        var libraryItem =
+            item['libraryItem'] as Map<String, dynamic>? ?? const {};
+        if (libraryItem['media'] == null) {
+          final fetched = await api.getLibraryItem(libraryItemId);
+          if (fetched != null) libraryItem = fetched;
+        }
+        if (!await settingsStillMatch()) return;
+        final media =
+            libraryItem['media'] as Map<String, dynamic>? ?? const {};
+        final metadata =
+            media['metadata'] as Map<String, dynamic>? ?? const {};
+        var episode = item['episode'] as Map<String, dynamic>?;
+        if (episode == null && episodeId != null) {
+          for (final candidate
+              in (media['episodes'] as List<dynamic>? ?? const [])) {
+            if (candidate is Map<String, dynamic> &&
+                candidate['id'] == episodeId) {
+              episode = candidate;
+              break;
+            }
+          }
+        }
+
+        final title = episodeId == null
+            ? metadata['title'] as String? ?? ''
+            : episode?['title'] as String? ?? 'Episode';
+        final author = episodeId == null
+            ? metadata['authorName'] as String? ?? ''
+            : metadata['title'] as String? ?? '';
+        if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
+          continue;
+        }
+        final error = await downloads.downloadItem(
+          api: api,
           itemId: key,
           title: title,
           author: author,
-          coverUrl: getCoverUrl(key),
-          libraryId: _selectedLibraryId,
+          coverUrl: getCoverUrl(libraryItemId),
+          episodeId: episodeId,
+          libraryId:
+              libraryItem['libraryId'] as String? ?? _selectedLibraryId,
+          shouldStart: () => !isStale(),
         );
+        if (isStale()) return;
+        if (error == null &&
+            (downloads.isDownloaded(key) || downloads.isDownloading(key))) {
+          newDownloads++;
+        }
       }
-      queued++;
-      newDownloads++;
-    }
 
-    if (newDownloads > 0) {
-      final l = _l();
-      _showRollingToast(
-          l?.lpQueueDownloadingItems(newDownloads)
-          ?? 'Queue: downloading $newDownloads item${newDownloads == 1 ? '' : 's'}',
-          icon: Icons.download_rounded);
+      if (newDownloads > 0) {
+        final l = _l();
+        _showRollingToast(
+            l?.lpQueueDownloadingItems(newDownloads) ??
+                'Queue: downloading $newDownloads item${newDownloads == 1 ? '' : 's'}',
+            icon: Icons.download_rounded);
+      }
+    } catch (error, stackTrace) {
+      debugPrint('[QueueDownload] Check failed: $error\n$stackTrace');
     }
   }
 
-  void _catchUpQueueAutoDownloads() {
+  Future<void> _catchUpQueueAutoDownloads() async {
     final itemId = AudioPlayerService().currentItemId;
-    if (itemId == null) return;
+    if (itemId == null) {
+      _queueDownloadPlanGeneration++;
+      return;
+    }
     final epId = AudioPlayerService().currentEpisodeId;
     final key = epId != null ? '$itemId-$epId' : itemId;
-    _checkQueueAutoDownloads(key);
+    await _checkQueueAutoDownloads(key);
   }
+
+  Future<void> syncQueueAutoDownloads() => _catchUpQueueAutoDownloads();
 
   void _checkAutoDownloadOnStream(String playingKey) async {
     if (_api == null || isOffline) {
@@ -2398,9 +2558,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       (seriesId, currentSeq) = _StateMixin._extractSeries(fullItem);
     }
     if (seriesId == null || currentSeq == null) return;
+    final libraryId = data?['libraryId'] as String? ?? _selectedLibraryId;
 
     final books = await _api!.getBooksBySeries(
-      _selectedLibraryId ?? '',
+      libraryId ?? '',
       seriesId,
       limit: 100,
     );
@@ -2422,7 +2583,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         title: md['title'] as String? ?? '',
         author: md['authorName'] as String? ?? '',
         coverUrl: getCoverUrl(bookId),
-        libraryId: _selectedLibraryId,
+        libraryId: libraryId,
       );
       newDownloads++;
     }
@@ -2462,7 +2623,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         title: metadata['title'] as String? ?? '',
         author: metadata['authorName'] as String? ?? '',
         coverUrl: getCoverUrl(id),
-        libraryId: _selectedLibraryId,
+        libraryId: bookMap['libraryId'] as String? ?? libraryId,
       );
       queued++;
       newDownloads++;
@@ -2484,14 +2645,17 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     final fullItem = await _api!.getLibraryItem(showId);
     if (fullItem == null) return;
     final media = fullItem['media'] as Map<String, dynamic>? ?? {};
+    final libraryId = fullItem['libraryId'] as String? ?? _selectedLibraryId;
     final episodes =
         List<dynamic>.from(media['episodes'] as List<dynamic>? ?? []);
     if (episodes.isEmpty) return;
 
+    final newestFirst =
+        await PlayerSettings.getPodcastAdvanceDir(showId) == 'newest_first';
     episodes.sort((a, b) {
       final aTime = (a['publishedAt'] as num?)?.toInt() ?? 0;
       final bTime = (b['publishedAt'] as num?)?.toInt() ?? 0;
-      return aTime.compareTo(bTime);
+      return newestFirst ? bTime.compareTo(aTime) : aTime.compareTo(bTime);
     });
 
     final currentIdx = episodes.indexWhere(
@@ -2516,7 +2680,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         author: metadata['title'] as String? ?? '',
         coverUrl: getCoverUrl(showId),
         episodeId: episodeId,
-        libraryId: _selectedLibraryId,
+        libraryId: libraryId,
       );
       newDownloads++;
     }
@@ -2541,7 +2705,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         author: metadata['title'] as String? ?? '',
         coverUrl: getCoverUrl(showId),
         episodeId: epId,
-        libraryId: _selectedLibraryId,
+        libraryId: libraryId,
       );
       queued++;
       newDownloads++;

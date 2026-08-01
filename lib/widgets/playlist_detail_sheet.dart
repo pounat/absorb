@@ -467,7 +467,8 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                   Navigator.pop(context);
                   AppShell.goToAbsorbingGlobal();
                   await PlayerSettings.setQueueModePlaylist(playlistId);
-                  await lib.playPlaylistFromStart(playlistId);
+                  final started = await lib.playPlaylistFromStart(playlistId);
+                  if (started) unawaited(lib.syncQueueAutoDownloads());
                 }
               : null,
           icon: Icon(allFinished

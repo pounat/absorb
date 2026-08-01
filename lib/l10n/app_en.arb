@@ -856,7 +856,7 @@
   "keepNextInfoContent": "The number of items to keep downloaded, including the one you're currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in the series or podcast will stay downloaded.",
   "deleteAbsorbedDownloads": "Delete absorbed downloads",
   "deleteAbsorbedDownloadsInfoTitle": "Delete Absorbed Downloads",
-  "deleteAbsorbedDownloadsInfoContent": "When enabled, downloaded books or episodes are automatically deleted from your device after you finish listening to them. This helps free up storage space as you work through your library.",
+  "deleteAbsorbedDownloadsInfoContent": "When enabled, downloaded books or episodes are automatically deleted from this device after you finish them in Absorb. Finishing an item on the web or another device won’t delete its download here.",
   "deleteAbsorbedOnSubtitle": "Finished items are removed to save space",
   "deleteAbsorbedOffSubtitle": "Off - finished downloads kept",
   "downloadLocation": "Download location",

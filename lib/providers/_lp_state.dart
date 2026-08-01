@@ -94,9 +94,11 @@ mixin _StateMixin on ChangeNotifier {
   final Set<String> _resetItems = {};
 
   Set<String> _manualAbsorbAdds = {};
+  Set<String> _finishedManualAbsorbAdds = {};
   Set<String> _manualAbsorbRemoves = {};
   List<String> _absorbingBookIds = [];
   Map<String, Map<String, dynamic>> _absorbingItemCache = {};
+  int _queueDownloadPlanGeneration = 0;
   String? _lastFinishedItemId;
   // A just-arrived subscribed-podcast episode the user asked to land at the top
   // of the queue. The absorbing screen's "keep last-finished/playing on top"

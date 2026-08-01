@@ -987,7 +987,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 case "notifyChildrenChanged": {
                     String parentMediaId = (String)args.get("parentMediaId");
                     Map<?, ?> options = (Map<?, ?>)args.get("options");
-                    AudioService.instance.notifyChildrenChanged(parentMediaId, mapToBundle(options));
+                    if (options == null) {
+                        AudioService.instance.notifyChildrenChanged(parentMediaId);
+                    } else {
+                        AudioService.instance.notifyChildrenChanged(parentMediaId, mapToBundle(options));
+                    }
                     result.success(null);
                     break;
                 }

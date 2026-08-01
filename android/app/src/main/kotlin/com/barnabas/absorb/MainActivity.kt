@@ -121,6 +121,14 @@ class MainActivity : AudioServiceActivity() {
             }
         Log.d(TAG, "EQ method channel registered")
 
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.audio_diag")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "snapshot" -> result.success(AudioService.getDiagnosticSnapshot())
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.storage")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -289,8 +297,14 @@ class MainActivity : AudioServiceActivity() {
             ))
         } catch (e: Exception) {
             effectsAvailable = false
-            Log.e(TAG, "init failed: ${e.message}")
-            result.error("EQ_INIT_ERROR", e.message, null)
+            Log.d(TAG, "EQ probe deferred until playback: ${e.message}")
+            result.success(mapOf(
+                "bands" to 5,
+                "frequencies" to listOf(60, 230, 910, 3600, 14000),
+                "minLevel" to -15.0,
+                "maxLevel" to 15.0,
+                "deferred" to true
+            ))
         }
     }
 

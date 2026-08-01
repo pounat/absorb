@@ -17,6 +17,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
@@ -106,6 +107,22 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static ServiceListener listener;
     private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<>();
     private static final Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
+    private static volatile int lastMediaKeyCode = -1;
+    private static volatile long lastMediaKeyAt = 0;
+    private static volatile long lastPlayAt = 0;
+    private static volatile long lastPauseAt = 0;
+
+    public static Map<String, Object> getDiagnosticSnapshot() {
+        final long now = SystemClock.elapsedRealtime();
+        final Map<String, Object> snapshot = new HashMap<>();
+        snapshot.put("lastKeyCode", lastMediaKeyCode);
+        snapshot.put("lastKeyAgeMs", lastMediaKeyAt == 0 ? -1 : now - lastMediaKeyAt);
+        snapshot.put("lastPlayCaller", "mediaSession");
+        snapshot.put("lastPlayCallerAgeMs", lastPlayAt == 0 ? -1 : now - lastPlayAt);
+        snapshot.put("lastPauseCaller", "mediaSession");
+        snapshot.put("lastPauseCallerAgeMs", lastPauseAt == 0 ? -1 : now - lastPauseAt);
+        return snapshot;
+    }
 
     public static void init(ServiceListener listener) {
         AudioService.listener = listener;
@@ -954,6 +971,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onPlay() {
             if (listener == null) return;
+            lastPlayAt = SystemClock.elapsedRealtime();
             listener.onPlay();
         }
 
@@ -982,6 +1000,8 @@ public class AudioService extends MediaBrowserServiceCompat {
             @SuppressWarnings("deprecation")
             final KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().getParcelable(Intent.EXTRA_KEY_EVENT);
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                lastMediaKeyCode = event.getKeyCode();
+                lastMediaKeyAt = SystemClock.elapsedRealtime();
                 switch (event.getKeyCode()) {
                 case KEYCODE_BYPASS_PLAY:
                     onPlay();
@@ -1037,6 +1057,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onPause() {
             if (listener == null) return;
+            lastPauseAt = SystemClock.elapsedRealtime();
             listener.onPause();
         }
 

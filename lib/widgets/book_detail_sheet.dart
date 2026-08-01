@@ -2044,16 +2044,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     // Grab the root navigator before we pop the sheet
     final rootNav = Navigator.of(context, rootNavigator: true);
 
-    // Ensure this book is on the absorbing list (clear any manual remove)
-    // Clear finished state so the card updates immediately
-    if (context.mounted) {
-      final lib = context.read<LibraryProvider>();
-      lib.addToAbsorbing(widget.itemId);
-      if (lib.getProgressData(widget.itemId)?['isFinished'] == true) {
-        lib.resetProgressFor(widget.itemId);
-      }
-    }
-    
     if (player.currentItemId == widget.itemId) {
       if (!player.isPlaying) player.play();
       rootNav.popUntil((route) => route.isFirst);
@@ -2387,4 +2377,3 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
     );
   }
 }
-

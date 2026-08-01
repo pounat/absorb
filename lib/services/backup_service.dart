@@ -196,6 +196,8 @@ class BackupService {
     // Podcast subscriptions + manually-curated Absorbing list (scoped)
     final subscribedPodcasts = await ScopedPrefs.getStringList('subscribed_podcasts');
     final absorbingManualAdds = await ScopedPrefs.getStringList('absorbing_manual_adds');
+    final absorbingFinishedManualAdds =
+        await ScopedPrefs.getStringList('absorbing_finished_manual_adds');
     final absorbingManualRemoves = await ScopedPrefs.getStringList('absorbing_manual_removes');
 
     // Pending offline state (scoped) - server hasn't received these yet
@@ -340,6 +342,7 @@ class BackupService {
       'rollingDownloadSeries': rollingDownloadSeries,
       'subscribedPodcasts': subscribedPodcasts,
       'absorbingManualAdds': absorbingManualAdds,
+      'absorbingFinishedManualAdds': absorbingFinishedManualAdds,
       'absorbingManualRemoves': absorbingManualRemoves,
       'pendingSyncs': pendingSyncs,
       'pendingOfflineListening': pendingOfflineListening,
@@ -646,6 +649,14 @@ class BackupService {
     final absorbingManualAdds = data['absorbingManualAdds'] as List<dynamic>?;
     if (absorbingManualAdds != null) {
       await ScopedPrefs.setStringList('absorbing_manual_adds', absorbingManualAdds.cast<String>());
+    }
+    final absorbingFinishedManualAdds =
+        data['absorbingFinishedManualAdds'] as List<dynamic>?;
+    if (absorbingFinishedManualAdds != null) {
+      await ScopedPrefs.setStringList(
+        'absorbing_finished_manual_adds',
+        absorbingFinishedManualAdds.cast<String>(),
+      );
     }
     final absorbingManualRemoves = data['absorbingManualRemoves'] as List<dynamic>?;
     if (absorbingManualRemoves != null) {

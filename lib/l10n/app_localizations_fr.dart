@@ -1795,7 +1795,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get deleteAbsorbedDownloadsInfoContent =>
-      'Lorsque cette option est activée, les livres ou épisodes téléchargés sont automatiquement supprimés de votre appareil après que vous avez fini de les écouter. Cela permet de libérer de l’espace de stockage au fur et à mesure que vous avancez dans votre bibliothèque.';
+      'Lorsque cette option est activée, les livres ou épisodes téléchargés sont automatiquement supprimés de cet appareil lorsque vous les terminez dans Absorb. Si vous terminez un livre ou un épisode sur le Web ou un autre appareil, son téléchargement reste sur cet appareil.';
 
   @override
   String get deleteAbsorbedOnSubtitle =>

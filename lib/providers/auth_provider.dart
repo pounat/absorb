@@ -51,6 +51,7 @@ class AuthProvider extends ChangeNotifier {
     // Now that the server is back, pull the user info we missed.
     if (value) unawaited(_ensureUserInfo());
   }
+
   Map<String, String> _customHeaders = {};
 
   // Local server auto-switch
@@ -69,10 +70,13 @@ class AuthProvider extends ChangeNotifier {
   bool get startOnAbsorbingAfterAccountChange =>
       _startOnAbsorbingAfterAccountChange;
   bool get serverReachable => _serverReachable;
+
   /// Current access token (or legacy token for old servers).
   String? get token => _accessToken;
   String? get serverUrl => _serverUrl;
-  String? get activeServerUrl => (_useLocalServer && _localServerUrl.isNotEmpty) ? _localServerUrl : _serverUrl;
+  String? get activeServerUrl => (_useLocalServer && _localServerUrl.isNotEmpty)
+      ? _localServerUrl
+      : _serverUrl;
   bool get useLocalServer => _useLocalServer;
   bool get localServerEnabled => _localServerEnabled;
   String get localServerUrl => _localServerUrl;
@@ -183,7 +187,8 @@ class AuthProvider extends ChangeNotifier {
   /// admin updates the full device list to figure out what THIS user can
   /// still see.
   List<Map<String, dynamic>> filterDevicesForCurrentUser(
-      List<Map<String, dynamic>> all) {
+    List<Map<String, dynamic>> all,
+  ) {
     final id = _userId;
     final type = _userJson?['type'] as String? ?? 'user';
     final isAdminLike = type == 'admin' || type == 'root';
@@ -232,14 +237,12 @@ class AuthProvider extends ChangeNotifier {
       refreshToken: refreshToken,
       isLegacyToken: isLegacyToken,
       customHeaders: _customHeaders,
-      loadPersistedTokens: () => UserAccountService()
-          .loadPersistedTokens(sessionServer, sessionUsername),
-      onTokensRefreshed: (access, refresh) => _onTokensRefreshed(
+      loadPersistedTokens: () => UserAccountService().loadPersistedTokens(
         sessionServer,
         sessionUsername,
-        access,
-        refresh,
       ),
+      onTokensRefreshed: (access, refresh) =>
+          _onTokensRefreshed(sessionServer, sessionUsername, access, refresh),
       onAuthExpired: () => _onAuthExpired(sessionServer, sessionUsername),
     );
   }
@@ -261,6 +264,9 @@ class AuthProvider extends ChangeNotifier {
         _accessToken == null) {
       return;
     }
+    final refreshUnchanged =
+        newRefreshToken == null || newRefreshToken == _refreshToken;
+    if (_accessToken == newAccessToken && refreshUnchanged) return;
     _accessToken = newAccessToken;
     if (newRefreshToken != null) _refreshToken = newRefreshToken;
     try {
@@ -304,8 +310,12 @@ class AuthProvider extends ChangeNotifier {
     final server = _serverUrl;
     final username = _username;
     if (server == null || _accessToken == null) return;
-    final tokens = await UserAccountService().loadPersistedTokens(server, username);
-    if (tokens?.accessToken == null || tokens!.accessToken == _accessToken) return;
+    final tokens = await UserAccountService().loadPersistedTokens(
+      server,
+      username,
+    );
+    if (tokens?.accessToken == null || tokens!.accessToken == _accessToken)
+      return;
     await _onTokensRefreshed(
       server,
       username,
@@ -327,11 +337,15 @@ class AuthProvider extends ChangeNotifier {
     // Show a message to the user
     final ctx = rootNavigatorKey.currentContext;
     final l = ctx != null ? AppLocalizations.of(ctx) : null;
-    final msg = l?.authSessionExpired ?? 'Session expired. Please log in again.';
-    if (ctx != null) showOverlayToast(ctx, msg, icon: Icons.error_outline_rounded);
-    unawaited(logout(forgetAccount: false).whenComplete(() {
-      _authExpiryInProgress = false;
-    }));
+    final msg =
+        l?.authSessionExpired ?? 'Session expired. Please log in again.';
+    if (ctx != null)
+      showOverlayToast(ctx, msg, icon: Icons.error_outline_rounded);
+    unawaited(
+      logout(forgetAccount: false).whenComplete(() {
+        _authExpiryInProgress = false;
+      }),
+    );
   }
 
   /// Try to restore a saved session from SharedPreferences.
@@ -347,7 +361,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       debugPrint('[Auth] getting SharedPreferences...');
       final prefs = await SharedPreferences.getInstance();
-      debugPrint('[Auth] SharedPreferences loaded (${sw.elapsedMilliseconds}ms)');
+      debugPrint(
+        '[Auth] SharedPreferences loaded (${sw.elapsedMilliseconds}ms)',
+      );
       final savedUrl = prefs.getString('server_url');
       final savedToken = prefs.getString('token');
       final savedRefreshToken = prefs.getString('refresh_token');
@@ -357,7 +373,9 @@ class AuthProvider extends ChangeNotifier {
       // return them, so without this they'd stay empty until next login.
       await _restoreEreaderDevices();
 
-      debugPrint('[Auth] saved credentials: url=${savedUrl != null}, token=${savedToken != null}, refreshToken=${savedRefreshToken != null}');
+      debugPrint(
+        '[Auth] saved credentials: url=${savedUrl != null}, token=${savedToken != null}, refreshToken=${savedRefreshToken != null}',
+      );
 
       if (savedUrl != null && savedToken != null) {
         // Always restore credentials so we can at least go offline
@@ -365,15 +383,20 @@ class AuthProvider extends ChangeNotifier {
         if (restoredUrl != savedUrl) {
           await prefs.setString('server_url', restoredUrl);
           if (savedUsername != null) {
-            await UserAccountService()
-                .updateAccountUrl(savedUrl, savedUsername, restoredUrl);
+            await UserAccountService().updateAccountUrl(
+              savedUrl,
+              savedUsername,
+              restoredUrl,
+            );
           }
         }
         _serverUrl = restoredUrl;
         _accessToken = savedToken;
         _refreshToken = savedRefreshToken;
         _isLegacyToken = savedRefreshToken == null;
-        debugPrint('[Auth] Restored token: ${savedToken.substring(0, savedToken.length.clamp(0, 20))}... (${savedToken.length} chars, isLegacy=$_isLegacyToken)');
+        debugPrint(
+          '[Auth] Restored token: ${savedToken.substring(0, savedToken.length.clamp(0, 20))}... (${savedToken.length} chars, isLegacy=$_isLegacyToken)',
+        );
         _username = savedUsername;
         _userId = prefs.getString('user_id');
         _defaultLibraryId = savedLibraryId;
@@ -384,8 +407,9 @@ class AuthProvider extends ChangeNotifier {
         var legacyCustomHeaders = <String, String>{};
         if (headersJson != null) {
           try {
-            legacyCustomHeaders =
-                Map<String, String>.from(jsonDecode(headersJson) as Map);
+            legacyCustomHeaders = Map<String, String>.from(
+              jsonDecode(headersJson) as Map,
+            );
           } catch (_) {}
         }
         SavedAccount? restoredAccount;
@@ -396,8 +420,7 @@ class AuthProvider extends ChangeNotifier {
             break;
           }
         }
-        _customHeaders =
-            restoredAccount?.customHeaders ?? legacyCustomHeaders;
+        _customHeaders = restoredAccount?.customHeaders ?? legacyCustomHeaders;
 
         // Load local server config
         await _loadLocalServerSettings();
@@ -409,25 +432,37 @@ class AuthProvider extends ChangeNotifier {
         if (_localServerEnabled && _localServerUrl.isNotEmpty) {
           final connectivity = await Connectivity().checkConnectivity();
           if (connectivity.contains(ConnectivityResult.wifi)) {
-            debugPrint('[Auth] On WiFi with local server enabled, trying local first... (${sw.elapsedMilliseconds}ms)');
-            final localReachable = await ApiService.pingServer(_localServerUrl, customHeaders: _customHeaders)
-                .timeout(const Duration(seconds: 2), onTimeout: () => false);
+            debugPrint(
+              '[Auth] On WiFi with local server enabled, trying local first... (${sw.elapsedMilliseconds}ms)',
+            );
+            final localReachable = await ApiService.pingServer(
+              _localServerUrl,
+              customHeaders: _customHeaders,
+            ).timeout(const Duration(seconds: 2), onTimeout: () => false);
             if (localReachable) {
-              debugPrint('[Auth] Local server reachable - using local (${sw.elapsedMilliseconds}ms)');
+              debugPrint(
+                '[Auth] Local server reachable - using local (${sw.elapsedMilliseconds}ms)',
+              );
               _useLocalServer = true;
               reachable = true;
             }
           }
         }
         if (!reachable) {
-          debugPrint('[Auth] pinging remote server... (${sw.elapsedMilliseconds}ms)');
+          debugPrint(
+            '[Auth] pinging remote server... (${sw.elapsedMilliseconds}ms)',
+          );
           // Cap at 5s so a silently-dropping reverse proxy or dead network
           // path doesn't hold up app launch. The health-check timer will
           // re-probe every 60s once we're past startup, so a transient
           // false-offline self-corrects quickly.
-          reachable = await ApiService.pingServer(restoredUrl, customHeaders: _customHeaders)
-              .timeout(const Duration(seconds: 5), onTimeout: () => false);
-          debugPrint('[Auth] remote ping result: reachable=$reachable (${sw.elapsedMilliseconds}ms)');
+          reachable = await ApiService.pingServer(
+            restoredUrl,
+            customHeaders: _customHeaders,
+          ).timeout(const Duration(seconds: 5), onTimeout: () => false);
+          debugPrint(
+            '[Auth] remote ping result: reachable=$reachable (${sw.elapsedMilliseconds}ms)',
+          );
         }
         _serverReachable = reachable;
 
@@ -470,7 +505,9 @@ class AuthProvider extends ChangeNotifier {
                 debugPrint('[Auth] /me returned null (token may be invalid)');
               }
             }
-            debugPrint('[Auth] authorize/me done (${sw.elapsedMilliseconds}ms)');
+            debugPrint(
+              '[Auth] authorize/me done (${sw.elapsedMilliseconds}ms)',
+            );
           } catch (_) {}
           _fetchServerVersion(activeServerUrl!);
         }
@@ -482,11 +519,15 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e) {
       // Restore failed — but if we already set credentials, keep them
-      debugPrint('[Auth] tryRestoreSession error: $e (${sw.elapsedMilliseconds}ms)');
+      debugPrint(
+        '[Auth] tryRestoreSession error: $e (${sw.elapsedMilliseconds}ms)',
+      );
       _serverReachable = false;
     }
 
-    debugPrint('[Auth] tryRestoreSession done, isAuthenticated=$isAuthenticated (${sw.elapsedMilliseconds}ms)');
+    debugPrint(
+      '[Auth] tryRestoreSession done, isAuthenticated=$isAuthenticated (${sw.elapsedMilliseconds}ms)',
+    );
     if (isAuthenticated) _pushSessionToWear();
     _isLoading = false;
     notifyListeners();
@@ -507,7 +548,8 @@ class AuthProvider extends ChangeNotifier {
   /// already have the user.
   Future<void> _ensureUserInfo() async {
     if (_userJson != null || _ensuringUserInfo) return;
-    if (!isAuthenticated || _accessToken == null || activeServerUrl == null) return;
+    if (!isAuthenticated || _accessToken == null || activeServerUrl == null)
+      return;
     _ensuringUserInfo = true;
     try {
       final api = _createSessionApi(
@@ -540,7 +582,9 @@ class AuthProvider extends ChangeNotifier {
         }
       }
       if (_userJson != null) {
-        debugPrint('[Auth] Loaded user info on reconnect (type=${_userJson?['type']})');
+        debugPrint(
+          '[Auth] Loaded user info on reconnect (type=${_userJson?['type']})',
+        );
         notifyListeners();
       }
     } catch (e) {
@@ -566,9 +610,13 @@ class AuthProvider extends ChangeNotifier {
     final url = normalizeServerUrl(serverUrl);
 
     // Check server reachability
-    final reachable = await ApiService.pingServer(url, customHeaders: customHeaders);
+    final reachable = await ApiService.pingServer(
+      url,
+      customHeaders: customHeaders,
+    );
     if (!reachable) {
-      _errorMessage = l?.authCannotReachServer(url) ?? 'Cannot reach server at $url';
+      _errorMessage =
+          l?.authCannotReachServer(url) ?? 'Cannot reach server at $url';
       return false;
     }
 
@@ -583,14 +631,16 @@ class AuthProvider extends ChangeNotifier {
     if (result == null) {
       _errorMessage = statusCode == 401
           ? (l?.authInvalidUsernameOrPassword ?? 'Invalid username or password')
-          : (l?.authLoginFailedDetail ?? 'Login failed - check your server address and credentials');
+          : (l?.authLoginFailedDetail ??
+                'Login failed - check your server address and credentials');
       return false;
     }
 
     // Extract user info
     final user = result['user'] as Map<String, dynamic>?;
     if (user == null) {
-      _errorMessage = l?.authUnexpectedServerResponse ?? 'Unexpected server response';
+      _errorMessage =
+          l?.authUnexpectedServerResponse ?? 'Unexpected server response';
       return false;
     }
 
@@ -599,7 +649,8 @@ class AuthProvider extends ChangeNotifier {
     // the top-level shape and legacy token used by older servers.
     final tokens = AuthTokens.fromResponse(result);
     if (tokens.token == null) {
-      _errorMessage = l?.authUnexpectedServerResponse ?? 'Unexpected server response';
+      _errorMessage =
+          l?.authUnexpectedServerResponse ?? 'Unexpected server response';
       return false;
     }
     _isLegacyToken = tokens.isLegacy;
@@ -607,8 +658,12 @@ class AuthProvider extends ChangeNotifier {
     _refreshToken = tokens.refreshToken;
     debugPrint('[Auth] Login response keys: ${result.keys.toList()}');
     debugPrint('[Auth] Login user keys: ${user.keys.toList()}');
-    debugPrint('[Auth] accessToken=${tokens.accessToken != null}, refreshToken=${tokens.refreshToken != null}, legacyToken=${tokens.legacyToken != null}, isLegacy=$_isLegacyToken');
-    debugPrint('[Auth] Token being used: ${_accessToken != null ? '${_accessToken!.substring(0, _accessToken!.length.clamp(0, 20))}... (${_accessToken!.length} chars)' : 'null'}');
+    debugPrint(
+      '[Auth] accessToken=${tokens.accessToken != null}, refreshToken=${tokens.refreshToken != null}, legacyToken=${tokens.legacyToken != null}, isLegacy=$_isLegacyToken',
+    );
+    debugPrint(
+      '[Auth] Token being used: ${_accessToken != null ? '${_accessToken!.substring(0, _accessToken!.length.clamp(0, 20))}... (${_accessToken!.length} chars)' : 'null'}',
+    );
     _username = user['username'] as String?;
     _userId = user['id'] as String?;
     _defaultLibraryId = result['userDefaultLibraryId'] as String?;
@@ -621,8 +676,9 @@ class AuthProvider extends ChangeNotifier {
     await _persistEreaderDevices();
 
     // Try to get version from login response first, fall back to /status
-    final loginVersion = result['serverVersion'] as String?
-        ?? (_serverSettings?['version'] as String?);
+    final loginVersion =
+        result['serverVersion'] as String? ??
+        (_serverSettings?['version'] as String?);
     if (loginVersion != null && loginVersion.isNotEmpty) {
       _serverVersion = loginVersion;
     } else {
@@ -634,7 +690,8 @@ class AuthProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
       if (_accessToken != null) await prefs.setString('token', _accessToken!);
-      if (_refreshToken != null) await prefs.setString('refresh_token', _refreshToken!);
+      if (_refreshToken != null)
+        await prefs.setString('refresh_token', _refreshToken!);
       if (_username != null) await prefs.setString('username', _username!);
       if (_userId != null) await prefs.setString('user_id', _userId!);
       if (_defaultLibraryId != null) {
@@ -649,15 +706,17 @@ class AuthProvider extends ChangeNotifier {
 
     // Save to multi-account service
     try {
-      await UserAccountService().saveAccount(SavedAccount(
-        serverUrl: _serverUrl!,
-        username: _username ?? '',
-        token: _accessToken ?? '',
-        refreshToken: _refreshToken,
-        userId: _userId,
-        isLegacyToken: _isLegacyToken,
-        customHeaders: customHeaders,
-      ));
+      await UserAccountService().saveAccount(
+        SavedAccount(
+          serverUrl: _serverUrl!,
+          username: _username ?? '',
+          token: _accessToken ?? '',
+          refreshToken: _refreshToken,
+          userId: _userId,
+          isLegacyToken: _isLegacyToken,
+          customHeaders: customHeaders,
+        ),
+      );
     } catch (_) {}
 
     await _onAccountActivated();
@@ -686,9 +745,13 @@ class AuthProvider extends ChangeNotifier {
 
     final url = normalizeServerUrl(serverUrl);
 
-    final reachable = await ApiService.pingServer(url, customHeaders: customHeaders);
+    final reachable = await ApiService.pingServer(
+      url,
+      customHeaders: customHeaders,
+    );
     if (!reachable) {
-      _errorMessage = l?.authCannotReachServer(url) ?? 'Cannot reach server at $url';
+      _errorMessage =
+          l?.authCannotReachServer(url) ?? 'Cannot reach server at $url';
       return false;
     }
 
@@ -701,7 +764,8 @@ class AuthProvider extends ChangeNotifier {
     if (user == null) {
       _errorMessage = statusCode == 401
           ? (l?.authInvalidApiKey ?? 'Invalid API key')
-          : (l?.authLoginFailedDetail ?? 'Login failed - check your server address and API key');
+          : (l?.authLoginFailedDetail ??
+                'Login failed - check your server address and API key');
       return false;
     }
 
@@ -733,15 +797,17 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {}
 
     try {
-      await UserAccountService().saveAccount(SavedAccount(
-        serverUrl: _serverUrl!,
-        username: _username ?? '',
-        token: _accessToken!,
-        refreshToken: null,
-        userId: _userId,
-        isLegacyToken: true,
-        customHeaders: customHeaders,
-      ));
+      await UserAccountService().saveAccount(
+        SavedAccount(
+          serverUrl: _serverUrl!,
+          username: _username ?? '',
+          token: _accessToken!,
+          refreshToken: null,
+          userId: _userId,
+          isLegacyToken: true,
+          customHeaders: customHeaders,
+        ),
+      );
     } catch (_) {}
 
     await _onAccountActivated();
@@ -773,7 +839,8 @@ class AuthProvider extends ChangeNotifier {
 
     final user = result['user'] as Map<String, dynamic>?;
     if (user == null) {
-      _errorMessage = l?.authSsoUnexpectedResponse ?? 'SSO returned an unexpected response';
+      _errorMessage =
+          l?.authSsoUnexpectedResponse ?? 'SSO returned an unexpected response';
       notifyListeners();
       return false;
     }
@@ -781,7 +848,8 @@ class AuthProvider extends ChangeNotifier {
     _serverUrl = url;
     final tokens = AuthTokens.fromResponse(result);
     if (tokens.token == null) {
-      _errorMessage = l?.authSsoUnexpectedResponse ?? 'SSO returned an unexpected response';
+      _errorMessage =
+          l?.authSsoUnexpectedResponse ?? 'SSO returned an unexpected response';
       notifyListeners();
       return false;
     }
@@ -790,8 +858,12 @@ class AuthProvider extends ChangeNotifier {
     _refreshToken = tokens.refreshToken;
     debugPrint('[Auth] OIDC response keys: ${result.keys.toList()}');
     debugPrint('[Auth] OIDC user keys: ${user.keys.toList()}');
-    debugPrint('[Auth] accessToken=${tokens.accessToken != null}, refreshToken=${tokens.refreshToken != null}, legacyToken=${tokens.legacyToken != null}, isLegacy=$_isLegacyToken');
-    debugPrint('[Auth] Token being used: ${_accessToken != null ? '${_accessToken!.substring(0, _accessToken!.length.clamp(0, 20))}... (${_accessToken!.length} chars)' : 'null'}');
+    debugPrint(
+      '[Auth] accessToken=${tokens.accessToken != null}, refreshToken=${tokens.refreshToken != null}, legacyToken=${tokens.legacyToken != null}, isLegacy=$_isLegacyToken',
+    );
+    debugPrint(
+      '[Auth] Token being used: ${_accessToken != null ? '${_accessToken!.substring(0, _accessToken!.length.clamp(0, 20))}... (${_accessToken!.length} chars)' : 'null'}',
+    );
     _username = user['username'] as String?;
     _userId = user['id'] as String?;
     _defaultLibraryId = result['userDefaultLibraryId'] as String?;
@@ -804,8 +876,9 @@ class AuthProvider extends ChangeNotifier {
     await _persistEreaderDevices();
 
     // Try to get version from response first, fall back to /status
-    final oidcVersion = result['serverVersion'] as String?
-        ?? (_serverSettings?['version'] as String?);
+    final oidcVersion =
+        result['serverVersion'] as String? ??
+        (_serverSettings?['version'] as String?);
     if (oidcVersion != null && oidcVersion.isNotEmpty) {
       _serverVersion = oidcVersion;
     } else {
@@ -817,7 +890,8 @@ class AuthProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
       if (_accessToken != null) await prefs.setString('token', _accessToken!);
-      if (_refreshToken != null) await prefs.setString('refresh_token', _refreshToken!);
+      if (_refreshToken != null)
+        await prefs.setString('refresh_token', _refreshToken!);
       if (_username != null) await prefs.setString('username', _username!);
       if (_userId != null) await prefs.setString('user_id', _userId!);
       if (_defaultLibraryId != null) {
@@ -832,15 +906,17 @@ class AuthProvider extends ChangeNotifier {
 
     // Save to multi-account service
     try {
-      await UserAccountService().saveAccount(SavedAccount(
-        serverUrl: _serverUrl!,
-        username: _username ?? '',
-        token: _accessToken ?? '',
-        refreshToken: _refreshToken,
-        userId: _userId,
-        isLegacyToken: _isLegacyToken,
-        customHeaders: customHeaders,
-      ));
+      await UserAccountService().saveAccount(
+        SavedAccount(
+          serverUrl: _serverUrl!,
+          username: _username ?? '',
+          token: _accessToken ?? '',
+          refreshToken: _refreshToken,
+          userId: _userId,
+          isLegacyToken: _isLegacyToken,
+          customHeaders: customHeaders,
+        ),
+      );
     } catch (_) {}
 
     await _onAccountActivated();
@@ -865,7 +941,9 @@ class AuthProvider extends ChangeNotifier {
       await PlayerSettings.setLocalServerUrl(_localServerUrl);
     }
     if (_localServerEnabled) {
-      debugPrint('[Auth] Local server config loaded: enabled=$_localServerEnabled, url=${_localServerUrl.isNotEmpty ? "(set)" : "(empty)"}');
+      debugPrint(
+        '[Auth] Local server config loaded: enabled=$_localServerEnabled, url=${_localServerUrl.isNotEmpty ? "(set)" : "(empty)"}',
+      );
     }
   }
 
@@ -884,8 +962,9 @@ class AuthProvider extends ChangeNotifier {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.wifi)) {
         final localReachable = await ApiService.pingServer(
-                _localServerUrl, customHeaders: _customHeaders)
-            .timeout(const Duration(seconds: 2), onTimeout: () => false);
+          _localServerUrl,
+          customHeaders: _customHeaders,
+        ).timeout(const Duration(seconds: 2), onTimeout: () => false);
         if (localReachable) {
           debugPrint('[Auth] Local server reachable - using local');
           _useLocalServer = true;
@@ -897,11 +976,14 @@ class AuthProvider extends ChangeNotifier {
   /// Check if the configured local server is reachable.
   /// Called on WiFi connectivity changes by LibraryProvider.
   Future<void> checkLocalServer() async {
-    if (!_localServerEnabled || _localServerUrl.isEmpty || _serverUrl == null) return;
+    if (!_localServerEnabled || _localServerUrl.isEmpty || _serverUrl == null)
+      return;
     final wasLocal = _useLocalServer;
     try {
-      final reachable = await ApiService.pingServer(_localServerUrl, customHeaders: _customHeaders)
-          .timeout(const Duration(seconds: 3), onTimeout: () => false);
+      final reachable = await ApiService.pingServer(
+        _localServerUrl,
+        customHeaders: _customHeaders,
+      ).timeout(const Duration(seconds: 3), onTimeout: () => false);
       _useLocalServer = reachable;
       if (reachable) _serverReachable = true;
     } catch (_) {
@@ -912,9 +994,11 @@ class AuthProvider extends ChangeNotifier {
       SocketService().switchServer(activeServerUrl!);
       final ctx = rootNavigatorKey.currentContext;
       final l = ctx != null ? AppLocalizations.of(ctx) : null;
-      _showServerToast(_useLocalServer
-          ? (l?.authSwitchedToLocalServer ?? 'Switched to local server')
-          : (l?.authSwitchedToRemoteServer ?? 'Switched to remote server'));
+      _showServerToast(
+        _useLocalServer
+            ? (l?.authSwitchedToLocalServer ?? 'Switched to local server')
+            : (l?.authSwitchedToRemoteServer ?? 'Switched to remote server'),
+      );
       notifyListeners();
     }
   }
@@ -929,7 +1013,9 @@ class AuthProvider extends ChangeNotifier {
     }
     final ctx = rootNavigatorKey.currentContext;
     final l = ctx != null ? AppLocalizations.of(ctx) : null;
-    _showServerToast(l?.authSwitchedToRemoteServer ?? 'Switched to remote server');
+    _showServerToast(
+      l?.authSwitchedToRemoteServer ?? 'Switched to remote server',
+    );
     notifyListeners();
   }
 
@@ -942,7 +1028,10 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Update local server settings from the UI.
-  Future<void> setLocalServerConfig({required bool enabled, required String url}) async {
+  Future<void> setLocalServerConfig({
+    required bool enabled,
+    required String url,
+  }) async {
     final normalizedUrl = normalizeServerUrl(url);
     _localServerEnabled = enabled;
     _localServerUrl = normalizedUrl;
@@ -955,7 +1044,10 @@ class AuthProvider extends ChangeNotifier {
   /// Fetch server version asynchronously (non-blocking).
   void _fetchServerVersion(String url) async {
     try {
-      final version = await ApiService.getServerVersion(url, customHeaders: _customHeaders);
+      final version = await ApiService.getServerVersion(
+        url,
+        customHeaders: _customHeaders,
+      );
       if (version != null) {
         _serverVersion = version;
         notifyListeners();
@@ -1081,8 +1173,10 @@ class AuthProvider extends ChangeNotifier {
 
     // Set the new account as active in the account service. It may have been
     // removed since the caller loaded its saved-account row.
-    final selected =
-        UserAccountService().switchTo(account.serverUrl, account.username);
+    final selected = UserAccountService().switchTo(
+      account.serverUrl,
+      account.username,
+    );
     if (selected == null) return false;
     _startOnAbsorbingAfterAccountChange = true;
 
@@ -1094,7 +1188,8 @@ class AuthProvider extends ChangeNotifier {
     // Synchronous PlayerSettings caches are loaded at startup, so refresh
     // them from the new account's scope or playback keeps the old account's
     // values until restart.
-    PlayerSettings.showExplicitBadge = await PlayerSettings.getShowExplicitBadge();
+    PlayerSettings.showExplicitBadge =
+        await PlayerSettings.getShowExplicitBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
 
     // Reload EQ settings from the new account's scope. Without this the
@@ -1183,10 +1278,14 @@ class AuthProvider extends ChangeNotifier {
     if (_localServerEnabled && _localServerUrl.isNotEmpty) {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.wifi)) {
-        final localReachable = await ApiService.pingServer(_localServerUrl, customHeaders: _customHeaders)
-            .timeout(const Duration(seconds: 2), onTimeout: () => false);
+        final localReachable = await ApiService.pingServer(
+          _localServerUrl,
+          customHeaders: _customHeaders,
+        ).timeout(const Duration(seconds: 2), onTimeout: () => false);
         if (localReachable) {
-          debugPrint('[Auth] switchToAccount: local server reachable - using local');
+          debugPrint(
+            '[Auth] switchToAccount: local server reachable - using local',
+          );
           _useLocalServer = true;
         }
       }
@@ -1204,11 +1303,7 @@ class AuthProvider extends ChangeNotifier {
   /// next API call (and the [apiService] getter) uses the new address.
   /// Returns true if the account was found and updated.
   Future<bool> editServerUrl(SavedAccount account, String newServerUrl) async {
-    return editServerConnection(
-      account,
-      newServerUrl,
-      account.customHeaders,
-    );
+    return editServerConnection(account, newServerUrl, account.customHeaders);
   }
 
   /// Update the connection details for one saved account. Custom headers are
@@ -1228,13 +1323,12 @@ class AuthProvider extends ChangeNotifier {
         );
     if (url == account.serverUrl && headersUnchanged) return true;
 
-    final ok = await UserAccountService()
-        .updateAccountConnection(
-          account.serverUrl,
-          account.username,
-          url,
-          customHeaders,
-        );
+    final ok = await UserAccountService().updateAccountConnection(
+      account.serverUrl,
+      account.username,
+      url,
+      customHeaders,
+    );
     if (!ok) return false;
 
     // If we just edited the currently active session, update it live.

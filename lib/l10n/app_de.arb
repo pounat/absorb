@@ -921,7 +921,7 @@
   "keepNextInfoContent": "Die Anzahl der Elemente, die heruntergeladen bleiben sollen, einschließlich des Elements, das du gerade hörst. Beispiel: \"Nächste 3 behalten\" bedeutet, das aktuelle Buch plus die nächsten 2 in der Serie oder im Podcast bleiben heruntergeladen.",
   "deleteAbsorbedDownloads": "Absorbed Downloads löschen",
   "deleteAbsorbedDownloadsInfoTitle": "Absorbed Downloads löschen",
-  "deleteAbsorbedDownloadsInfoContent": "Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von deinem Gerät gelöscht, nachdem du sie zu Ende gehört hast. Das hilft, Speicherplatz freizugeben, während du dich durch deine Bibliothek arbeitest.",
+  "deleteAbsorbedDownloadsInfoContent": "Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von diesem Gerät gelöscht, nachdem du sie in Absorb zu Ende gehört hast. Wenn du einen Titel im Web oder auf einem anderen Gerät beendest, bleibt der Download hier erhalten.",
   "deleteAbsorbedOnSubtitle": "Beendete Elemente werden entfernt, um Platz zu sparen",
   "deleteAbsorbedOffSubtitle": "Aus - beendete Downloads werden behalten",
   "downloadLocation": "Download-Speicherort",

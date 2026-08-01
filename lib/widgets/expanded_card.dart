@@ -175,6 +175,16 @@ class _ExpandedCardState extends State<ExpandedCard> {
   }
 
   String? get _coverUrl {
+    final episodeId = _episodeId;
+    final downloadKey = episodeId == null ? _itemId : '$_itemId-$episodeId';
+    final localCover = DownloadService().getInfo(downloadKey).localCoverPath;
+    if (localCover != null && File(localCover).existsSync()) return localCover;
+
+    if (_isActive) {
+      final playingCover = widget.player.currentCoverUrl;
+      if (playingCover != null && playingCover.isNotEmpty) return playingCover;
+    }
+
     final lib = context.read<LibraryProvider>();
     return lib.getCoverUrl(_itemId, width: 800);
   }

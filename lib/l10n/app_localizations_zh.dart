@@ -1745,7 +1745,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get deleteAbsorbedDownloadsInfoContent =>
-      '启用后，听完的书籍或剧集将自动从设备中删除。这有助于在你浏览媒体库时释放存储空间。';
+      '启用后，在 Absorb 中听完的已下载书籍或剧集会自动从此设备删除。如果你在网页端或其他设备上听完，保存在此设备上的下载不会被删除。';
 
   @override
   String get deleteAbsorbedOnSubtitle => '已完成项目将被移除以节省空间';

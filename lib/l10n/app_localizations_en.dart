@@ -1781,7 +1781,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteAbsorbedDownloadsInfoContent =>
-      'When enabled, downloaded books or episodes are automatically deleted from your device after you finish listening to them. This helps free up storage space as you work through your library.';
+      'When enabled, downloaded books or episodes are automatically deleted from this device after you finish them in Absorb. Finishing an item on the web or another device won’t delete its download here.';
 
   @override
   String get deleteAbsorbedOnSubtitle =>

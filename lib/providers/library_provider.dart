@@ -21,6 +21,7 @@ import '../services/session_cache.dart';
 import '../services/socket_service.dart';
 import '../services/book_search_index.dart';
 import '../services/home_widget_service.dart';
+import '../services/queue_download_policy.dart';
 import '../utils/absorbing_inclusion.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
@@ -57,19 +58,28 @@ class LibraryProvider extends ChangeNotifier
       markFinishedLocally(oldItemId, skipAutoAdvance: true);
     });
     AudioPlayerService.setOnPeekNextItemCallback(peekNextQueueItemForPreBuffer);
-    AudioPlayerService.setOnPlayStartedCallback((key) {
+    AudioPlayerService.setOnPlayStartedCallback((key, duration) async {
+      await _prepareAbsorbingForPlayback(key, duration);
       // Auto-download the book/episode you're listening to kicks off quickly so
       // it doesn't feel broken; the short wait still skips it if you stop or
       // switch right away. Rolling/queue look-ahead stays deferred to keep the
       // moment playback starts light.
       Future.delayed(const Duration(seconds: 5), () {
-        if (!AudioPlayerService().isPlaying) return;
+        final player = AudioPlayerService();
+        final currentKey = player.currentEpisodeId == null
+            ? player.currentItemId
+            : '${player.currentItemId}-${player.currentEpisodeId}';
+        if (!player.isPlaying || currentKey != key) return;
         _checkAutoDownloadOnStream(key);
       });
       Future.delayed(const Duration(seconds: 30), () {
-        if (!AudioPlayerService().isPlaying) return;
+        final player = AudioPlayerService();
+        final currentKey = player.currentEpisodeId == null
+            ? player.currentItemId
+            : '${player.currentItemId}-${player.currentEpisodeId}';
+        if (!player.isPlaying || currentKey != key) return;
         _checkRollingDownloads(key);
-        _checkQueueAutoDownloads(key);
+        unawaited(_checkQueueAutoDownloads(key));
       });
     });
     AudioPlayerService.setOnPlaybackStateChangedCallback((playing) {
@@ -141,6 +151,7 @@ class LibraryProvider extends ChangeNotifier
         _localProgressOverrides.clear();
         _resetItems.clear();
         _manualAbsorbAdds.clear();
+        _finishedManualAbsorbAdds.clear();
         _manualAbsorbRemoves.clear();
         _absorbingBookIds.clear();
         _absorbingItemCache.clear();
@@ -307,7 +318,7 @@ class LibraryProvider extends ChangeNotifier
     notifyListeners();
 
     _catchUpRollingDownloads();
-    _catchUpQueueAutoDownloads();
+    unawaited(_catchUpQueueAutoDownloads());
     catchUpSubscribedPodcasts();
   }
 
