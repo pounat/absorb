@@ -8,7 +8,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:background_downloader/background_downloader.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:just_audio/just_audio.dart' show AudioPlayer;
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -748,7 +747,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       DownloadService().totalDownloadSize,                    // 25
       DownloadService.getDeviceStorage(),                     // 26
       AutoSleepSettings.load(),                               // 27
-      PackageInfo.fromPlatform(),                             // 29
+      UpdateCheckerService.currentInstalledVersion(),         // 29
       PlayerSettings.getStreamingCacheSizeMb(),               // 30
       PlayerSettings.getLocalServerEnabled(),                  // 31
       PlayerSettings.getLocalServerUrl(),                      // 32
@@ -816,7 +815,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final dlSize = results[25] as int;
     final deviceStorage = results[26] as Map<String, int>?;
     final autoSleep = results[27] as AutoSleepSettings;
-    final pkgInfo = results[28] as PackageInfo;
+    final appVersion = results[28] as String;
     final cacheSizeMb = results[29] as int;
     final localEnabled = results[30] as bool;
     final localUrl = results[31] as String;
@@ -905,9 +904,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _deviceAvailableBytes = deviceStorage['availableBytes']!;
       }
       _autoSleepSettings = autoSleep;
-      _appVersion = pkgInfo.buildNumber.isEmpty
-          ? pkgInfo.version
-          : '${pkgInfo.version}+${pkgInfo.buildNumber}';
+      _appVersion = appVersion;
       _streamingCacheSizeMb = cacheSizeMb;
       _localServerEnabled = localEnabled;
       _localServerUrl = localUrl;
