@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+OUT_DIR="build/app/outputs/apk/github/release"
+STAGING_DIR=$(mktemp -d)
+trap 'rm -rf "$STAGING_DIR"' EXIT
+
+FLUTTER_ARGS=()
+for arg in "$@"; do
+  if [ "$arg" != "--split-per-abi" ]; then
+    FLUTTER_ARGS+=("$arg")
+  fi
+done
+
+flutter build apk \
+  --release \
+  --flavor github \
+  --dart-define=GITHUB_BUILD=true \
+  "${FLUTTER_ARGS[@]}"
+
+shopt -s nullglob
+UNIVERSAL=("$OUT_DIR"/*-universal.apk)
+if [ "${#UNIVERSAL[@]}" -ne 1 ]; then
+  echo "Expected one universal GitHub APK, found ${#UNIVERSAL[@]}"
+  exit 1
+fi
+cp "${UNIVERSAL[0]}" "$STAGING_DIR/"
+
+flutter build apk \
+  --release \
+  --flavor github \
+  --dart-define=GITHUB_BUILD=true \
+  --split-per-abi \
+  "${FLUTTER_ARGS[@]}"
+
+mkdir -p "$OUT_DIR"
+cp "$STAGING_DIR"/*.apk "$OUT_DIR/"
+
+for package_kind in universal armeabi-v7a arm64-v8a x86_64; do
+  MATCHES=("$OUT_DIR"/*-"$package_kind".apk)
+  if [ "${#MATCHES[@]}" -ne 1 ]; then
+    echo "Expected one $package_kind GitHub APK, found ${#MATCHES[@]}"
+    exit 1
+  fi
+  echo "  ${MATCHES[0]}"
+done

@@ -129,6 +129,15 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
 
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.update")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getBaseBuildNumber" ->
+                        result.success(BuildConfig.ABSORB_BASE_VERSION_CODE)
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.storage")
             .setMethodCallHandler { call, result ->
                 when (call.method) {

@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'update_policy.dart';
 
 class UpdateInfo {
   final String latestVersion;
@@ -15,6 +18,8 @@ class UpdateInfo {
   final String downloadUrl;
   final String releaseNotes;
   final bool isPreRelease;
+  final bool isDirectApk;
+  final String? packageLabel;
 
   UpdateInfo({
     required this.latestVersion,
@@ -22,30 +27,12 @@ class UpdateInfo {
     required this.downloadUrl,
     this.releaseNotes = '',
     this.isPreRelease = false,
+    this.isDirectApk = true,
+    this.packageLabel,
   });
 
-  bool get hasUpdate => _compareVersions(latestVersion, currentVersion) > 0;
-}
-
-/// Compare versions like v1.9.1, v1.9.1-176, or 1.9.1+176: semver first, then
-/// the trailing build number. Returns positive if a > b, negative if a < b,
-/// 0 if equal. Builds only compare when both sides have one, so a clean final
-/// tag never out-ranks the beta build it was promoted from.
-int _compareVersions(String a, String b) {
-  final (aSem, aBuild) = _parseVersion(a);
-  final (bSem, bBuild) = _parseVersion(b);
-  for (int i = 0; i < 3; i++) {
-    if (aSem[i] != bSem[i]) return aSem[i] - bSem[i];
-  }
-  if (aBuild != null && bBuild != null) return aBuild - bBuild;
-  return 0;
-}
-
-(List<int>, int?) _parseVersion(String v) {
-  final sem = RegExp(r'(\d+)\.(\d+)\.(\d+)').firstMatch(v);
-  final parts = [for (var i = 1; i <= 3; i++) int.parse(sem?.group(i) ?? '0')];
-  final build = RegExp(r'[-+](\d+)$').firstMatch(v);
-  return (parts, build == null ? null : int.parse(build.group(1)!));
+  bool get hasUpdate =>
+      compareUpdateVersions(latestVersion, currentVersion) > 0;
 }
 
 class UpdateCheckerService {
@@ -53,6 +40,7 @@ class UpdateCheckerService {
   static const _checkInterval = Duration(hours: 12);
   static const _dismissedKey = 'update_dismissed_version';
   static const _lastCheckKey = 'update_last_check';
+  static const _updateChannel = MethodChannel('com.absorb.update');
 
   /// Check for updates. Returns UpdateInfo if a newer version exists, null otherwise.
   /// Respects a 12-hour cooldown between checks and skips dismissed versions.
@@ -96,18 +84,51 @@ class UpdateCheckerService {
       final assets = data['assets'] as List<dynamic>? ?? [];
       final isPreRelease = data['prerelease'] as bool? ?? false;
 
-      // Find APK asset
-      String downloadUrl = data['html_url'] as String? ?? '';
-      for (final asset in assets) {
-        final name = (asset['name'] as String? ?? '').toLowerCase();
-        if (name.endsWith('.apk')) {
-          downloadUrl = asset['browser_download_url'] as String? ?? downloadUrl;
-          break;
+      final releaseAssets = <UpdateReleaseAsset>[];
+      for (final rawAsset in assets) {
+        if (rawAsset is! Map<String, dynamic>) continue;
+        final name = rawAsset['name'] as String? ?? '';
+        final url = rawAsset['browser_download_url'] as String? ?? '';
+        if (name.isNotEmpty && url.isNotEmpty) {
+          releaseAssets.add(UpdateReleaseAsset(name: name, downloadUrl: url));
         }
       }
 
       final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+      List<String> supportedAbis = const [];
+      int? baseBuildNumber;
+      if (!kIsWeb && Platform.isAndroid) {
+        try {
+          supportedAbis =
+              (await DeviceInfoPlugin().androidInfo).supportedAbis;
+        } catch (error) {
+          debugPrint('[UpdateChecker] ABI detection failed: $error');
+        }
+        try {
+          baseBuildNumber =
+              await _updateChannel.invokeMethod<int>('getBaseBuildNumber');
+        } catch (error) {
+          debugPrint('[UpdateChecker] Base build lookup failed: $error');
+        }
+      }
+      final selectedAsset = selectAndroidUpdateAsset(
+        assets: releaseAssets,
+        supportedAbis: supportedAbis,
+      );
+      final currentVersion = currentUpdateVersion(
+        versionName: packageInfo.version,
+        packageBuildNumber: packageInfo.buildNumber,
+        baseBuildNumber: baseBuildNumber,
+      );
+      final downloadUrl = selectedAsset?.downloadUrl ??
+          data['html_url'] as String? ??
+          '';
+      if (selectedAsset != null) {
+        debugPrint(
+          '[UpdateChecker] Selected ${selectedAsset.name} for '
+          '${supportedAbis.join(', ')}',
+        );
+      }
 
       final info = UpdateInfo(
         latestVersion: tagName,
@@ -115,6 +136,10 @@ class UpdateCheckerService {
         downloadUrl: downloadUrl,
         releaseNotes: body,
         isPreRelease: isPreRelease,
+        isDirectApk: selectedAsset != null,
+        packageLabel: selectedAsset == null
+            ? null
+            : androidUpdatePackageLabel(selectedAsset),
       );
 
       if (!info.hasUpdate) return null;

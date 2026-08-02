@@ -155,7 +155,12 @@ jobs:
           storeFile=$RUNNER_TEMP/absorb-upload-key.jks
           EOF
 
+      - name: Build universal and split GitHub APKs
+        if: matrix.flavor == 'github'
+        run: bash scripts/build-github-apks
+
       - name: Build ${{ matrix.flavor }}
+        if: matrix.flavor != 'github'
         run: flutter build ${{ matrix.build_type }} --release --flavor ${{ matrix.flavor }} --dart-define=${{ matrix.define }}
 
       - name: Rename artifact
@@ -163,19 +168,40 @@ jobs:
           FNAME: ${{ needs.prepare.outputs.fname }}
           OUT_DIR: ${{ matrix.out_dir }}
           EXT: ${{ matrix.ext }}
+          PRE: ${{ needs.prepare.outputs.pre }}
         run: |
-          SRC=$(ls "$OUT_DIR"/*.$EXT | head -1)
-          DST="$OUT_DIR/${FNAME}.${EXT}"
-          # gradle already names the APK absorb-<version>-<code>.apk, so the
-          # source can equal the destination; only mv when they differ.
-          [ "$SRC" = "$DST" ] || mv "$SRC" "$DST"
-          echo "ARTIFACT=$DST" >> "$GITHUB_ENV"
+          if [ "${{ matrix.flavor }}" = "github" ]; then
+            if [ "$PRE" = "true" ]; then
+              for apk in "$OUT_DIR"/*.apk; do
+                mv "$apk" "${apk%.apk}-pre.apk"
+              done
+            fi
+          else
+            SRC=$(ls "$OUT_DIR"/*.$EXT | head -1)
+            DST="$OUT_DIR/${FNAME}.${EXT}"
+            [ "$SRC" = "$DST" ] || mv "$SRC" "$DST"
+            echo "ARTIFACT=$DST" >> "$GITHUB_ENV"
+          fi
 
       - name: Upload to GitHub draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION_TAG: ${{ needs.prepare.outputs.tag }}
-        run: gh release upload "$VERSION_TAG" "$ARTIFACT" --clobber
+          OUT_DIR: ${{ matrix.out_dir }}
+        run: |
+          if [ "${{ matrix.flavor }}" = "github" ]; then
+            shopt -s nullglob
+            UNIVERSAL=("$OUT_DIR"/*-universal*.apk)
+            ALL_APKS=("$OUT_DIR"/*.apk)
+            [ "${#UNIVERSAL[@]}" -eq 1 ] || { echo "Universal APK missing"; exit 1; }
+            gh release upload "$VERSION_TAG" "${UNIVERSAL[0]}" --clobber
+            for apk in "${ALL_APKS[@]}"; do
+              [ "$apk" = "${UNIVERSAL[0]}" ] && continue
+              gh release upload "$VERSION_TAG" "$apk" --clobber
+            done
+          else
+            gh release upload "$VERSION_TAG" "$ARTIFACT" --clobber
+          fi
 
       # Park the AAB in Play Console as an internal-track DRAFT (nothing
       # submitted or rolled out). Skips silently if the secret isn't set.

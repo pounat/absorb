@@ -50,28 +50,21 @@ workflows:
           keyAlias=$CM_KEY_ALIAS
           storeFile=$CM_KEYSTORE_PATH
           EOF
-      - name: Build GitHub APK
-        script: flutter build apk --release --flavor github --dart-define=GITHUB_BUILD=true
-      - name: Rename APK with version
-        script: |
-          RAW=$(grep 'version:' pubspec.yaml | head -1 | sed 's/version: //')
-          APK_SRC=$(ls build/app/outputs/apk/github/release/*.apk | head -1)
-          mv "$APK_SRC" "build/app/outputs/apk/github/release/absorb-${RAW//+/-}.apk"
+      - name: Build universal and split GitHub APKs
+        script: bash scripts/build-github-apks
       - name: Publish to GitHub Draft Release
         script: |
           VERSION="v$(grep 'version:' pubspec.yaml | head -1 | sed 's/version: //' | cut -d'+' -f1)"
+          UNIVERSAL=$(ls build/app/outputs/apk/github/release/*-universal*.apk)
           if gh release view "$VERSION" --repo "$CM_REPO_SLUG" &>/dev/null; then
-            gh release upload "$VERSION" \
-              build/app/outputs/apk/github/release/*.apk \
-              --clobber \
-              --repo "$CM_REPO_SLUG"
+            gh release upload "$VERSION" "$UNIVERSAL" --clobber --repo "$CM_REPO_SLUG"
           else
-            gh release create "$VERSION" \
-              build/app/outputs/apk/github/release/*.apk \
-              --draft \
-              --title "$VERSION" \
-              --repo "$CM_REPO_SLUG"
+            gh release create "$VERSION" "$UNIVERSAL" --draft --title "$VERSION" --repo "$CM_REPO_SLUG"
           fi
+          for apk in build/app/outputs/apk/github/release/*.apk; do
+            [ "$apk" = "$UNIVERSAL" ] && continue
+            gh release upload "$VERSION" "$apk" --clobber --repo "$CM_REPO_SLUG"
+          done
     artifacts:
       - build/app/outputs/apk/github/release/*.apk
     publishing:
@@ -100,34 +93,31 @@ workflows:
           keyAlias=$CM_KEY_ALIAS
           storeFile=$CM_KEYSTORE_PATH
           EOF
-      - name: Build GitHub APK
-        script: flutter build apk --release --flavor github --dart-define=GITHUB_BUILD=true
+      - name: Build universal and split GitHub APKs
+        script: bash scripts/build-github-apks
       - name: Build Play Store AAB
         script: flutter build appbundle --release --flavor playstore --dart-define=PLAYSTORE_BUILD=true
-      - name: Rename APK and AAB with version
+      - name: Rename AAB with version
         script: |
           RAW=$(grep 'version:' pubspec.yaml | head -1 | sed 's/version: //')
-          APK_SRC=$(ls build/app/outputs/apk/github/release/*.apk | head -1)
-          mv "$APK_SRC" "build/app/outputs/apk/github/release/absorb-${RAW//+/-}.apk"
           AAB_SRC=$(ls build/app/outputs/bundle/playstoreRelease/*.aab | head -1)
           mv "$AAB_SRC" "build/app/outputs/bundle/playstoreRelease/absorb-${RAW}.aab"
       - name: Publish to GitHub Draft Release
         script: |
           VERSION="v$(grep 'version:' pubspec.yaml | head -1 | sed 's/version: //' | cut -d'+' -f1)"
+          UNIVERSAL=$(ls build/app/outputs/apk/github/release/*-universal*.apk)
           if gh release view "$VERSION" --repo "$CM_REPO_SLUG" &>/dev/null; then
-            gh release upload "$VERSION" \
-              build/app/outputs/apk/github/release/*.apk \
-              build/app/outputs/bundle/playstoreRelease/*.aab \
-              --clobber \
-              --repo "$CM_REPO_SLUG"
+            gh release upload "$VERSION" "$UNIVERSAL" --clobber --repo "$CM_REPO_SLUG"
           else
-            gh release create "$VERSION" \
-              build/app/outputs/apk/github/release/*.apk \
-              build/app/outputs/bundle/playstoreRelease/*.aab \
-              --draft \
-              --title "$VERSION" \
-              --repo "$CM_REPO_SLUG"
+            gh release create "$VERSION" "$UNIVERSAL" --draft --title "$VERSION" --repo "$CM_REPO_SLUG"
           fi
+          for apk in build/app/outputs/apk/github/release/*.apk; do
+            [ "$apk" = "$UNIVERSAL" ] && continue
+            gh release upload "$VERSION" "$apk" --clobber --repo "$CM_REPO_SLUG"
+          done
+          for aab in build/app/outputs/bundle/playstoreRelease/*.aab; do
+            gh release upload "$VERSION" "$aab" --clobber --repo "$CM_REPO_SLUG"
+          done
     artifacts:
       - build/app/outputs/apk/github/release/*.apk
       - build/app/outputs/bundle/playstoreRelease/*.aab
@@ -256,17 +246,15 @@ workflows:
           EOF
       - name: Set up iOS code signing
         script: xcode-project use-profiles
-      - name: Build GitHub APK
-        script: flutter build apk --release --flavor github --dart-define=GITHUB_BUILD=true
+      - name: Build universal and split GitHub APKs
+        script: bash scripts/build-github-apks
       - name: Build Play Store AAB
         script: flutter build appbundle --release --flavor playstore --dart-define=PLAYSTORE_BUILD=true
       - name: Build iOS IPA
         script: flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
-      - name: Rename APK, AAB and IPA with version
+      - name: Rename AAB and IPA with version
         script: |
           RAW=$(grep 'version:' pubspec.yaml | head -1 | sed 's/version: //')
-          APK_SRC=$(ls build/app/outputs/apk/github/release/*.apk | head -1)
-          mv "$APK_SRC" "build/app/outputs/apk/github/release/absorb-${RAW//+/-}.apk"
           AAB_SRC=$(ls build/app/outputs/bundle/playstoreRelease/*.aab | head -1)
           mv "$AAB_SRC" "build/app/outputs/bundle/playstoreRelease/absorb-${RAW}.aab"
           IPA_SRC=$(ls build/ios/ipa/*.ipa | head -1)
@@ -274,22 +262,19 @@ workflows:
       - name: Publish all to GitHub Draft Release
         script: |
           VERSION="v$(grep 'version:' pubspec.yaml | head -1 | sed 's/version: //' | cut -d'+' -f1)"
+          UNIVERSAL=$(ls build/app/outputs/apk/github/release/*-universal*.apk)
           if gh release view "$VERSION" --repo "$CM_REPO_SLUG" &>/dev/null; then
-            gh release upload "$VERSION" \
-              build/app/outputs/apk/github/release/*.apk \
-              build/app/outputs/bundle/playstoreRelease/*.aab \
-              build/ios/ipa/*.ipa \
-              --clobber \
-              --repo "$CM_REPO_SLUG"
+            gh release upload "$VERSION" "$UNIVERSAL" --clobber --repo "$CM_REPO_SLUG"
           else
-            gh release create "$VERSION" \
-              build/app/outputs/apk/github/release/*.apk \
-              build/app/outputs/bundle/playstoreRelease/*.aab \
-              build/ios/ipa/*.ipa \
-              --draft \
-              --title "$VERSION" \
-              --repo "$CM_REPO_SLUG"
+            gh release create "$VERSION" "$UNIVERSAL" --draft --title "$VERSION" --repo "$CM_REPO_SLUG"
           fi
+          for apk in build/app/outputs/apk/github/release/*.apk; do
+            [ "$apk" = "$UNIVERSAL" ] && continue
+            gh release upload "$VERSION" "$apk" --clobber --repo "$CM_REPO_SLUG"
+          done
+          for artifact in build/app/outputs/bundle/playstoreRelease/*.aab build/ios/ipa/*.ipa; do
+            gh release upload "$VERSION" "$artifact" --clobber --repo "$CM_REPO_SLUG"
+          done
       - name: Publish to TestFlight
         script: |
           # Mirrors the ios-release workflow's explicit publish so this

@@ -91,18 +91,18 @@ jobs:
           storeFile=$RUNNER_TEMP/absorb-upload-key.jks
           EOF
 
-      - name: Build GitHub APK
-        run: flutter build apk --release --flavor github --dart-define=GITHUB_BUILD=true
+      - name: Build universal and split GitHub APKs
+        run: bash scripts/build-github-apks
 
-      - name: Rename APK with version
+      - name: Mark prerelease APK names
         env:
-          FNAME: ${{ steps.version.outputs.fname }}
+          PRE: ${{ steps.version.outputs.pre }}
         run: |
-          # gradle already names the APK absorb-<version>-<code>.apk, so skip
-          # the mv when source and destination are the same file.
-          APK_SRC=$(ls build/app/outputs/apk/github/release/*.apk | head -1)
-          APK_DST="build/app/outputs/apk/github/release/${FNAME}.apk"
-          [ "$APK_SRC" = "$APK_DST" ] || mv "$APK_SRC" "$APK_DST"
+          if [ "$PRE" = "true" ]; then
+            for apk in build/app/outputs/apk/github/release/*.apk; do
+              mv "$apk" "${apk%.apk}-pre.apk"
+            done
+          fi
 
       - name: Upload APK to GitHub draft release
         env:
@@ -110,17 +110,21 @@ jobs:
           VERSION_TAG: ${{ steps.version.outputs.tag }}
           PRE: ${{ steps.version.outputs.pre }}
         run: |
+          shopt -s nullglob
+          UNIVERSAL=(build/app/outputs/apk/github/release/*-universal*.apk)
+          ALL_APKS=(build/app/outputs/apk/github/release/*.apk)
+          [ "${#UNIVERSAL[@]}" -eq 1 ] || { echo "Universal APK missing"; exit 1; }
           if gh release view "$VERSION_TAG" &>/dev/null; then
-            gh release upload "$VERSION_TAG" \
-              build/app/outputs/apk/github/release/*.apk \
-              --clobber
+            gh release upload "$VERSION_TAG" "${UNIVERSAL[0]}" --clobber
           else
             CREATE_ARGS=(--draft --title "$VERSION_TAG")
             [ "$PRE" = "true" ] && CREATE_ARGS+=(--prerelease)
-            gh release create "$VERSION_TAG" \
-              build/app/outputs/apk/github/release/*.apk \
-              "${CREATE_ARGS[@]}"
+            gh release create "$VERSION_TAG" "${UNIVERSAL[0]}" "${CREATE_ARGS[@]}"
           fi
+          for apk in "${ALL_APKS[@]}"; do
+            [ "$apk" = "${UNIVERSAL[0]}" ] && continue
+            gh release upload "$VERSION_TAG" "$apk" --clobber
+          done
 
       - name: Notify Discord (build finished)
         if: always() && env.DISCORD_WEBHOOK_URL != ''

@@ -18,6 +18,10 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
@@ -43,6 +47,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        buildConfigField(
+            "int",
+            "ABSORB_BASE_VERSION_CODE",
+            flutter.versionCode.toString()
+        )
     }
 
     flavorDimensions += "distribution"
@@ -99,11 +108,14 @@ android {
         val variant = this
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
-            val abiCode = abiCodes[output.filters.find { it.filterType == "ABI" }?.identifier]
+            val abi = output.filters.find { it.filterType == "ABI" }?.identifier
+            val abiCode = abiCodes[abi]
             if (abiCode != null) {
                 output.versionCodeOverride = variant.versionCode * 10 + abiCode
             }
-            output.outputFileName = "absorb-${variant.versionName}-${output.versionCode}.apk"
+            val packageKind = abi ?: "universal"
+            output.outputFileName =
+                "absorb-${variant.versionName}-${variant.versionCode}-$packageKind.apk"
         }
     }
 }
