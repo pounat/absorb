@@ -671,6 +671,10 @@
   "queueModeBooks": "Books",
   "queueModePodcasts": "Podcasts",
   "autoDownloadQueue": "Auto-download queue",
+  "autoDownloadThisSeriesLabel": "Auto-download this series",
+  "autoDownloadThisShowLabel": "Auto-download this podcast",
+  "autoDownloadThisPlaylistLabel": "Auto-download this playlist",
+  "autoDownloadThisCollectionLabel": "Auto-download this collection",
   "autoDownloadQueueOnSubtitle": "Keep next {count} items downloaded",
   "@autoDownloadQueueOnSubtitle": {
     "placeholders": {
@@ -850,10 +854,10 @@
   "autoDownloadOnWifiOffSubtitle": "Off",
   "concurrentDownloads": "Concurrent downloads",
   "autoDownload": "Auto-download",
-  "autoDownloadSubtitle": "Enable per series or podcast from their detail pages",
+  "autoDownloadSubtitle": "Enable per series, podcast, playlist or collection from their detail pages",
   "keepNext": "Keep next",
   "keepNextInfoTitle": "Keep Next",
-  "keepNextInfoContent": "The number of items to keep downloaded, including the one you're currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in the series or podcast will stay downloaded.",
+  "keepNextInfoContent": "The number of items to keep downloaded, including the one you're currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in that series, podcast, playlist or collection will stay downloaded. This applies to every auto-download you turn on.",
   "deleteAbsorbedDownloads": "Delete absorbed downloads",
   "deleteAbsorbedDownloadsInfoTitle": "Delete Absorbed Downloads",
   "deleteAbsorbedDownloadsInfoContent": "When enabled, downloaded books or episodes are automatically deleted from this device after you finish them in Absorb. Finishing an item on the web or another device won’t delete its download here.",

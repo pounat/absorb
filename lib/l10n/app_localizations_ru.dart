@@ -1436,6 +1436,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get autoDownloadQueue => 'Автозагрузка очереди';
 
   @override
+  String get autoDownloadThisSeriesLabel => 'Auto-download this series';
+
+  @override
+  String get autoDownloadThisShowLabel => 'Auto-download this podcast';
+
+  @override
+  String get autoDownloadThisPlaylistLabel => 'Auto-download this playlist';
+
+  @override
+  String get autoDownloadThisCollectionLabel => 'Auto-download this collection';
+
+  @override
   String autoDownloadQueueOnSubtitle(int count) {
     return 'Оставить следующие $count загруженных элементов';
   }
@@ -1765,7 +1777,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get autoDownloadSubtitle =>
-      'Enable per series or podcast from their detail pages';
+      'Enable per series, podcast, playlist or collection from their detail pages';
 
   @override
   String get keepNext => 'Keep next';
@@ -1775,7 +1787,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get keepNextInfoContent =>
-      'The number of items to keep downloaded, including the one you\'re currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in the series or podcast will stay downloaded.';
+      'The number of items to keep downloaded, including the one you\'re currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in that series, podcast, playlist or collection will stay downloaded. This applies to every auto-download you turn on.';
 
   @override
   String get deleteAbsorbedDownloads => 'Delete absorbed downloads';

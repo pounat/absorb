@@ -1410,6 +1410,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoDownloadQueue => '自动下载队列';
 
   @override
+  String get autoDownloadThisSeriesLabel => 'Auto-download this series';
+
+  @override
+  String get autoDownloadThisShowLabel => 'Auto-download this podcast';
+
+  @override
+  String get autoDownloadThisPlaylistLabel => 'Auto-download this playlist';
+
+  @override
+  String get autoDownloadThisCollectionLabel => 'Auto-download this collection';
+
+  @override
   String autoDownloadQueueOnSubtitle(int count) {
     return '保留接下来 $count 个项目的下载';
   }

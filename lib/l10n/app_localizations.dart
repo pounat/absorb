@@ -2716,6 +2716,30 @@ abstract class AppLocalizations {
   /// **'Auto-download queue'**
   String get autoDownloadQueue;
 
+  /// No description provided for @autoDownloadThisSeriesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download this series'**
+  String get autoDownloadThisSeriesLabel;
+
+  /// No description provided for @autoDownloadThisShowLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download this podcast'**
+  String get autoDownloadThisShowLabel;
+
+  /// No description provided for @autoDownloadThisPlaylistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download this playlist'**
+  String get autoDownloadThisPlaylistLabel;
+
+  /// No description provided for @autoDownloadThisCollectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download this collection'**
+  String get autoDownloadThisCollectionLabel;
+
   /// No description provided for @autoDownloadQueueOnSubtitle.
   ///
   /// In en, this message translates to:
@@ -3283,7 +3307,7 @@ abstract class AppLocalizations {
   /// No description provided for @autoDownloadSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Enable per series or podcast from their detail pages'**
+  /// **'Enable per series, podcast, playlist or collection from their detail pages'**
   String get autoDownloadSubtitle;
 
   /// No description provided for @keepNext.
@@ -3301,7 +3325,7 @@ abstract class AppLocalizations {
   /// No description provided for @keepNextInfoContent.
   ///
   /// In en, this message translates to:
-  /// **'The number of items to keep downloaded, including the one you\'re currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in the series or podcast will stay downloaded.'**
+  /// **'The number of items to keep downloaded, including the one you\'re currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in that series, podcast, playlist or collection will stay downloaded. This applies to every auto-download you turn on.'**
   String get keepNextInfoContent;
 
   /// No description provided for @deleteAbsorbedDownloads.

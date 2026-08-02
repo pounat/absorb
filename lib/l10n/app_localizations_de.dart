@@ -1446,6 +1446,18 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autoDownloadQueue => 'Auto-Download-Warteschlange';
 
   @override
+  String get autoDownloadThisSeriesLabel => 'Auto-download this series';
+
+  @override
+  String get autoDownloadThisShowLabel => 'Auto-download this podcast';
+
+  @override
+  String get autoDownloadThisPlaylistLabel => 'Auto-download this playlist';
+
+  @override
+  String get autoDownloadThisCollectionLabel => 'Auto-download this collection';
+
+  @override
   String autoDownloadQueueOnSubtitle(int count) {
     return 'Die nächsten $count Inhalte heruntergeladen halten';
   }

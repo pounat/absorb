@@ -1174,9 +1174,15 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
       _currentPodcastShowId != null ||
       (_currentItemId == null && widget.isPodcast);
 
+  /// The source whose own auto-download toggle governs this queue. Playlists
+  /// and collections own theirs the same way a series does; the manual queue
+  /// has no source, so it falls back to the global setting.
   String? get _activeAutoDownloadSourceId {
-    if (_queueMode != 'auto_next') return null;
-    return _currentPodcastShowId ?? _seriesId;
+    if (_queueMode == 'auto_next') return _currentPodcastShowId ?? _seriesId;
+    if (_queueMode == 'playlist' || _queueMode == 'collection') {
+      return _activeQueueSourceId;
+    }
+    return null;
   }
 
   Future<void> _refreshQueueDownloadSettings() async {
@@ -1200,10 +1206,27 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
     });
   }
 
+  /// Name the thing the switch actually acts on, so it's clear the toggle is
+  /// scoped to this series/playlist/collection and not to every queue.
+  String _autoDownloadLabel(AppLocalizations l) {
+    switch (_queueMode) {
+      case 'auto_next':
+        return _currentPodcastShowId != null
+            ? l.autoDownloadThisShowLabel
+            : l.autoDownloadThisSeriesLabel;
+      case 'playlist':
+        return l.autoDownloadThisPlaylistLabel;
+      case 'collection':
+        return l.autoDownloadThisCollectionLabel;
+      default:
+        return l.autoDownloadQueue;
+    }
+  }
+
   Future<void> _setQueueAutoDownload(bool value) async {
     final sourceId = _activeAutoDownloadSourceId;
     setState(() => _queueAutoDownload = value);
-    if (_queueMode == 'auto_next' && sourceId != null) {
+    if (sourceId != null) {
       if (value) {
         await widget.lib.enableRollingDownload(sourceId);
       } else {
@@ -1495,7 +1518,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l.autoDownloadQueue,
+                    Text(_autoDownloadLabel(l),
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                     Text(
                       _queueAutoDownload

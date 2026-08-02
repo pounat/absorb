@@ -261,6 +261,14 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
               _headerIconButton(cs, Icons.library_add_rounded,
                 () => _openAddBooks(lib, collection, name, books)),
             _headerIconButton(cs,
+              lib.isRollingDownloadEnabled(widget.collectionId)
+                  ? Icons.downloading_rounded
+                  : Icons.download_outlined,
+              () => lib.toggleRollingDownload(widget.collectionId),
+              tooltip: lib.isRollingDownloadEnabled(widget.collectionId)
+                  ? l.turnAutoDownloadOff
+                  : l.turnAutoDownloadOn),
+            _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
               () => setState(() => _gridView = !_gridView)),
             if (canEditCollection)

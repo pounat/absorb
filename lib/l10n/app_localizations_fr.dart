@@ -1446,6 +1446,18 @@ class AppLocalizationsFr extends AppLocalizations {
   String get autoDownloadQueue => 'Auto-download queue';
 
   @override
+  String get autoDownloadThisSeriesLabel => 'Auto-download this series';
+
+  @override
+  String get autoDownloadThisShowLabel => 'Auto-download this podcast';
+
+  @override
+  String get autoDownloadThisPlaylistLabel => 'Auto-download this playlist';
+
+  @override
+  String get autoDownloadThisCollectionLabel => 'Auto-download this collection';
+
+  @override
   String autoDownloadQueueOnSubtitle(int count) {
     return 'Keep next $count items downloaded';
   }
@@ -1773,7 +1785,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get autoDownloadSubtitle =>
-      'Enable per series or podcast from their detail pages';
+      'Enable per series, podcast, playlist or collection from their detail pages';
 
   @override
   String get keepNext => 'Keep next';

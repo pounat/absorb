@@ -2252,6 +2252,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         await PlayerSettings.getQueueAutoDownload();
     if (_rollingDownloadSeries.isEmpty && !autoSeriesDefault) return;
     final count = await PlayerSettings.getRollingDownloadCount();
+    _checkListRollingDownloads(playingKey, count);
 
     if (playingKey.length > 36) {
       final showId = playingKey.substring(0, 36);
@@ -2318,11 +2319,108 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
   }
 
+  /// Per-playlist and per-collection auto-download. Mirrors how series behave:
+  /// it runs off whatever is playing and needs only the list's own toggle, so
+  /// the auto-play queue does not have to be in playlist or collection mode.
+  /// A list whose window the active queue already covers is skipped so the two
+  /// paths don't plan the same downloads twice.
+  Future<void> _checkListRollingDownloads(String playingKey, int count) async {
+    final api = _api;
+    if (api == null || isOffline || count <= 0) return;
+    if (_rollingDownloadSeries.isEmpty) return;
+    final self = this as LibraryProvider;
+
+    final sources =
+        <({String id, String kind, List<Map<String, dynamic>> items})>[];
+    for (final raw in _playlists) {
+      if (raw is! Map<String, dynamic>) continue;
+      final id = raw['id'] as String?;
+      if (id == null || !_rollingDownloadSeries.contains(id)) continue;
+      final items = (raw['items'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (items.isNotEmpty) {
+        sources.add((id: id, kind: 'playlist', items: items));
+      }
+    }
+    for (final raw in _collections) {
+      if (raw is! Map<String, dynamic>) continue;
+      final id = raw['id'] as String?;
+      if (id == null || !_rollingDownloadSeries.contains(id)) continue;
+      final items = self._collectionItems(raw);
+      if (items.isNotEmpty) {
+        sources.add((id: id, kind: 'collection', items: items));
+      }
+    }
+    if (sources.isEmpty) return;
+
+    final activeQueueMode = playingKey.length > 36
+        ? await PlayerSettings.getPodcastQueueMode()
+        : await PlayerSettings.getBookQueueMode();
+    final globalAutoDownload = await PlayerSettings.getQueueAutoDownload();
+    final activePlaylistId = await PlayerSettings.getQueuePlaylistId();
+    final activeCollectionId = await PlayerSettings.getQueueCollectionId();
+
+    String? playingNow() {
+      final player = AudioPlayerService();
+      final itemId = player.currentItemId;
+      if (itemId == null) return null;
+      final episodeId = player.currentEpisodeId;
+      return episodeId == null ? itemId : '$itemId-$episodeId';
+    }
+
+    bool isStale() =>
+        _api == null || isOffline || playingNow() != playingKey;
+    Future<bool> settingsStillMatch() async =>
+        !isStale() && await PlayerSettings.getRollingDownloadCount() == count;
+
+    for (final source in sources) {
+      if (isStale()) return;
+      final activeId =
+          source.kind == 'playlist' ? activePlaylistId : activeCollectionId;
+      final queueOwnsWindow = activeQueueMode == source.kind &&
+          activeId == source.id &&
+          resolveQueueAutoDownloadEnabled(
+            queueMode: activeQueueMode,
+            globalEnabled: globalAutoDownload,
+            activeSourceId: activeId,
+            activeSourceEnabled: _rollingDownloadSeries.contains(activeId),
+          );
+      if (queueOwnsWindow) {
+        debugPrint(
+            '[QueueDL] ${source.kind} ${source.id}: active queue already covers this window');
+        continue;
+      }
+      final window = queueTailFrom(
+        items: source.items,
+        currentKey: playingKey,
+        keyOf: self._playlistItemKey,
+      );
+      if (window.isEmpty) continue;
+      debugPrint(
+          '[QueueDL] ${source.kind} ${source.id}: ${source.items.length} items, window=${window.length} from $playingKey');
+      await _downloadQueueWindow(
+        items: window,
+        count: count,
+        api: api,
+        isStale: isStale,
+        settingsStillMatch: settingsStillMatch,
+        logLabel: '${source.kind}=${source.id}',
+      );
+    }
+  }
+
   Future<String?> _queueAutoDownloadSourceId(
     String playingKey,
     String queueMode,
     ApiService api,
   ) async {
+    if (queueMode == 'playlist') {
+      return PlayerSettings.getQueuePlaylistId();
+    }
+    if (queueMode == 'collection') {
+      return PlayerSettings.getQueueCollectionId();
+    }
     if (queueMode != 'auto_next') return null;
     if (playingKey.length > 36) return playingKey.substring(0, 36);
 
@@ -2528,102 +2626,126 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         return;
       }
 
-      final downloads = DownloadService();
-      var newDownloads = 0;
-      String keyOf(Map<String, dynamic> item) {
-        final libraryItemId = item['libraryItemId'] as String? ?? '';
-        final episodeId = item['episodeId'] as String?;
-        return queueItemKey(
-          libraryItemId: libraryItemId,
-          episodeId: episodeId,
-        );
-      }
-      final pendingItems = queueItemsNeedingDownload(
-        items: items.where((item) => keyOf(item).isNotEmpty),
+      await _downloadQueueWindow(
+        items: items,
         count: count,
-        keyOf: keyOf,
-        isFinished: (item) => self.isItemFinishedByKey(keyOf(item)),
-        isAvailable: (item) {
-          final key = keyOf(item);
-          return downloads.isDownloaded(key) || downloads.isDownloading(key);
-        },
+        api: api,
+        isStale: isStale,
+        settingsStillMatch: settingsStillMatch,
+        logLabel: 'mode=$queueMode',
       );
-      debugPrint(
-          '[QueueDL] plan: ${items.length} in tail, keep-next=$count, ${pendingItems.length} need downloading -> ${pendingItems.map(keyOf).join(', ')}');
-      if (pendingItems.isEmpty) {
-        debugPrint(
-            '[QueueDL] nothing to do - the next $count are already downloaded or finished');
-      }
-
-      for (final item in pendingItems) {
-        if (stop('download loop')) return;
-        final libraryItemId = item['libraryItemId'] as String? ?? '';
-        if (libraryItemId.isEmpty) continue;
-        final episodeId = item['episodeId'] as String?;
-        final key = keyOf(item);
-        if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
-          continue;
-        }
-
-        var libraryItem =
-            item['libraryItem'] as Map<String, dynamic>? ?? const {};
-        if (libraryItem['media'] == null) {
-          final fetched = await api.getLibraryItem(libraryItemId);
-          if (fetched != null) libraryItem = fetched;
-        }
-        if (!await settingsStillMatch()) return;
-        final media =
-            libraryItem['media'] as Map<String, dynamic>? ?? const {};
-        final metadata =
-            media['metadata'] as Map<String, dynamic>? ?? const {};
-        var episode = item['episode'] as Map<String, dynamic>?;
-        if (episode == null && episodeId != null) {
-          for (final candidate
-              in (media['episodes'] as List<dynamic>? ?? const [])) {
-            if (candidate is Map<String, dynamic> &&
-                candidate['id'] == episodeId) {
-              episode = candidate;
-              break;
-            }
-          }
-        }
-
-        final title = episodeId == null
-            ? metadata['title'] as String? ?? ''
-            : episode?['title'] as String? ?? 'Episode';
-        final author = episodeId == null
-            ? metadata['authorName'] as String? ?? ''
-            : metadata['title'] as String? ?? '';
-        if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
-          continue;
-        }
-        final error = await downloads.downloadItem(
-          api: api,
-          itemId: key,
-          title: title,
-          author: author,
-          coverUrl: getCoverUrl(libraryItemId),
-          episodeId: episodeId,
-          libraryId:
-              libraryItem['libraryId'] as String? ?? _selectedLibraryId,
-          shouldStart: () => !isStale(),
-        );
-        if (isStale()) return;
-        if (error == null &&
-            (downloads.isDownloaded(key) || downloads.isDownloading(key))) {
-          newDownloads++;
-        }
-      }
-
-      if (newDownloads > 0) {
-        final l = _l();
-        _showRollingToast(
-            l?.lpQueueDownloadingItems(newDownloads) ??
-                'Queue: downloading $newDownloads item${newDownloads == 1 ? '' : 's'}',
-            icon: Icons.download_rounded);
-      }
     } catch (error, stackTrace) {
       debugPrint('[QueueDownload] Check failed: $error\n$stackTrace');
+    }
+  }
+
+  /// Download the first [count] not-yet-available entries of an already-ordered
+  /// queue window. Shared by the active-queue check and the per-playlist /
+  /// per-collection check so both keep the same "keep next N" behaviour.
+  Future<void> _downloadQueueWindow({
+    required List<Map<String, dynamic>> items,
+    required int count,
+    required ApiService api,
+    required bool Function() isStale,
+    required Future<bool> Function() settingsStillMatch,
+    required String logLabel,
+  }) async {
+    final self = this as LibraryProvider;
+    final downloads = DownloadService();
+    var newDownloads = 0;
+    String keyOf(Map<String, dynamic> item) {
+      final libraryItemId = item['libraryItemId'] as String? ?? '';
+      final episodeId = item['episodeId'] as String?;
+      return queueItemKey(
+        libraryItemId: libraryItemId,
+        episodeId: episodeId,
+      );
+    }
+
+    final pendingItems = queueItemsNeedingDownload(
+      items: items.where((item) => keyOf(item).isNotEmpty),
+      count: count,
+      keyOf: keyOf,
+      isFinished: (item) => self.isItemFinishedByKey(keyOf(item)),
+      isAvailable: (item) {
+        final key = keyOf(item);
+        return downloads.isDownloaded(key) || downloads.isDownloading(key);
+      },
+    );
+    debugPrint(
+        '[QueueDL] plan ($logLabel): ${items.length} in window, keep-next=$count, ${pendingItems.length} need downloading -> ${pendingItems.map(keyOf).join(', ')}');
+    if (pendingItems.isEmpty) {
+      debugPrint(
+          '[QueueDL] nothing to do ($logLabel) - the next $count are already downloaded or finished');
+    }
+
+    for (final item in pendingItems) {
+      if (isStale()) {
+        debugPrint('[QueueDL] stop during download loop ($logLabel)');
+        return;
+      }
+      final libraryItemId = item['libraryItemId'] as String? ?? '';
+      if (libraryItemId.isEmpty) continue;
+      final episodeId = item['episodeId'] as String?;
+      final key = keyOf(item);
+      if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
+        continue;
+      }
+
+      var libraryItem =
+          item['libraryItem'] as Map<String, dynamic>? ?? const {};
+      if (libraryItem['media'] == null) {
+        final fetched = await api.getLibraryItem(libraryItemId);
+        if (fetched != null) libraryItem = fetched;
+      }
+      if (!await settingsStillMatch()) return;
+      final media = libraryItem['media'] as Map<String, dynamic>? ?? const {};
+      final metadata =
+          media['metadata'] as Map<String, dynamic>? ?? const {};
+      var episode = item['episode'] as Map<String, dynamic>?;
+      if (episode == null && episodeId != null) {
+        for (final candidate
+            in (media['episodes'] as List<dynamic>? ?? const [])) {
+          if (candidate is Map<String, dynamic> &&
+              candidate['id'] == episodeId) {
+            episode = candidate;
+            break;
+          }
+        }
+      }
+
+      final title = episodeId == null
+          ? metadata['title'] as String? ?? ''
+          : episode?['title'] as String? ?? 'Episode';
+      final author = episodeId == null
+          ? metadata['authorName'] as String? ?? ''
+          : metadata['title'] as String? ?? '';
+      if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
+        continue;
+      }
+      final error = await downloads.downloadItem(
+        api: api,
+        itemId: key,
+        title: title,
+        author: author,
+        coverUrl: getCoverUrl(libraryItemId),
+        episodeId: episodeId,
+        libraryId: libraryItem['libraryId'] as String? ?? _selectedLibraryId,
+        shouldStart: () => !isStale(),
+      );
+      if (isStale()) return;
+      if (error == null &&
+          (downloads.isDownloaded(key) || downloads.isDownloading(key))) {
+        newDownloads++;
+      }
+    }
+
+    if (newDownloads > 0) {
+      final l = _l();
+      _showRollingToast(
+          l?.lpQueueDownloadingItems(newDownloads) ??
+              'Queue: downloading $newDownloads item${newDownloads == 1 ? '' : 's'}',
+          icon: Icons.download_rounded);
     }
   }
 

@@ -392,6 +392,14 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
               _headerIconButton(cs, Icons.library_add_rounded,
                 () => _openAddBooks(lib, playlist, name, items)),
             _headerIconButton(cs,
+              lib.isRollingDownloadEnabled(widget.playlistId)
+                  ? Icons.downloading_rounded
+                  : Icons.download_outlined,
+              () => lib.toggleRollingDownload(widget.playlistId),
+              tooltip: lib.isRollingDownloadEnabled(widget.playlistId)
+                  ? l.turnAutoDownloadOff
+                  : l.turnAutoDownloadOn),
+            _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
               () => setState(() => _gridView = !_gridView)),
             _headerIconButton(cs, Icons.edit_rounded, () => _startEdit(items),
