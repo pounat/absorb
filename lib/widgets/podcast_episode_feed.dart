@@ -11,6 +11,7 @@ import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
 import '../services/scoped_prefs.dart';
+import '../utils/app_platform.dart';
 import 'card_buttons.dart' show showErrorToast;
 import 'episode_list_sheet.dart';
 import 'episode_row.dart';
@@ -299,7 +300,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       child: url == null
           ? placeholder
           // Downloaded shows resolve to a local file path.
-          : url.startsWith('/')
+          : !AppPlatform.isWeb && url.startsWith('/')
           ? Image.file(
               File(url),
               width: 48,
@@ -328,7 +329,8 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       _filter,
       progress: progress,
       finished: finished,
-      downloaded: DownloadService().isDownloaded('$showId-$epId'),
+      downloaded: !AppPlatform.isWeb &&
+          DownloadService().isDownloaded('$showId-$epId'),
       subscribed: lib.isPodcastSubscribed(showId),
     );
   }
@@ -379,6 +381,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   }
 
   Future<void> _downloadEpisode(Map<String, dynamic> ep) async {
+    if (AppPlatform.isWeb) return;
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
     final showId = _showIdOf(ep);
@@ -484,7 +487,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                         ('unplayed', l.filterUnplayed),
                         ('inprogress', l.inProgress),
                         ('finished', l.filterFinished),
-                        ('downloaded', l.downloaded),
+                        if (!AppPlatform.isWeb) ('downloaded', l.downloaded),
                       ]) ...[
                         ChoiceChip(
                           label: Text(label),
@@ -542,6 +545,9 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                     true;
                 return Dismissible(
                   key: ValueKey('feed-$showId-$epId'),
+                  direction: AppPlatform.isWeb
+                      ? DismissDirection.startToEnd
+                      : DismissDirection.horizontal,
                   // Swipes act without dismissing the row.
                   confirmDismiss: (direction) async {
                     if (direction == DismissDirection.startToEnd) {
@@ -562,15 +568,17 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                       color: cs.onPrimaryContainer,
                     ),
                   ),
-                  secondaryBackground: Container(
-                    color: cs.secondaryContainer,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 24),
-                    child: Icon(
-                      Icons.download_rounded,
-                      color: cs.onSecondaryContainer,
-                    ),
-                  ),
+                  secondaryBackground: AppPlatform.isWeb
+                      ? null
+                      : Container(
+                          color: cs.secondaryContainer,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 24),
+                          child: Icon(
+                            Icons.download_rounded,
+                            color: cs.onSecondaryContainer,
+                          ),
+                        ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [

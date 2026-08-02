@@ -43,10 +43,168 @@ import '../widgets/overlay_toast.dart';
 import '../widgets/tips_sheet.dart';
 import '../widgets/feature_hint.dart';
 import '../widgets/welcome_sheet.dart';
+import '../utils/app_platform.dart';
 import '../widgets/rmab_config_sheet.dart';
 import '../widgets/server_connection_editor.dart';
 import '../widgets/server_admin_status_badges.dart';
 import '../l10n/app_localizations.dart';
+
+class _SettingsSectionDestination {
+  final String id;
+  final IconData icon;
+  final String label;
+
+  const _SettingsSectionDestination(this.id, this.icon, this.label);
+}
+
+Future<T?> _showAdaptiveSettingsSurface<T>({
+  required BuildContext context,
+  required Widget Function(BuildContext context, bool desktopMode) builder,
+  double maxWidth = 620,
+}) {
+  final desktopMode =
+      AppPlatform.isWeb && MediaQuery.sizeOf(context).width >= 960;
+  final cs = Theme.of(context).colorScheme;
+  if (desktopMode) {
+    return showDialog<T>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: cs.surfaceContainerHigh,
+        clipBehavior: Clip.antiAlias,
+        insetPadding: const EdgeInsets.all(24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.4)),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: maxWidth,
+            maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.86,
+          ),
+          child: builder(dialogContext, true),
+        ),
+      ),
+    );
+  }
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: cs.surfaceContainerHigh,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheetContext) => builder(sheetContext, false),);
+}
+
+class _SettingsAdaptiveFrame extends StatelessWidget {
+  final bool desktopMode;
+  final String? selectedSection;
+  final List<_SettingsSectionDestination> destinations;
+  final ValueChanged<String> onSectionSelected;
+  final Widget child;
+
+  const _SettingsAdaptiveFrame({
+    required this.desktopMode,
+    required this.selectedSection,
+    required this.destinations,
+    required this.onSectionSelected,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!desktopMode) return child;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 224,
+          child: Material(
+            color: cs.surface.withValues(alpha: 0.38),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(14, 20, 14, 20),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Text(
+                    AppLocalizations.of(context)!.settingsTitle,
+                    style: tt.labelMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                for (final destination in destinations)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Material(
+                      color: selectedSection == destination.id
+                          ? cs.primary.withValues(alpha: 0.14)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(11),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => onSectionSelected(destination.id),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 11,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                destination.icon,
+                                size: 19,
+                                color: selectedSection == destination.id
+                                    ? cs.primary
+                                    : cs.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 11),
+                              Expanded(
+                                child: Text(
+                                  destination.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: tt.bodyMedium?.copyWith(
+                                    color: selectedSection == destination.id
+                                        ? cs.onSurface
+                                        : cs.onSurfaceVariant,
+                                    fontWeight:
+                                        selectedSection == destination.id
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: cs.outlineVariant.withValues(alpha: 0.35),
+        ),
+        Expanded(child: Align(
+            alignment: Alignment.topCenter, child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 880),
+              child: SizedBox.expand(child: child),
+            ),
+          ),),
+      ],
+    );
+  }
+}
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -184,6 +342,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   AutoSleepSettings _autoSleepSettings = const AutoSleepSettings();
   String _appVersion = '';
   String? _expandedSection;
+  final ScrollController _settingsScrollController = ScrollController();
   final Map<String, GlobalKey> _sectionKeys = {};
 
   GlobalKey _keyFor(String section) => _sectionKeys.putIfAbsent(section, () => GlobalKey());
@@ -202,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Future.delayed(const Duration(milliseconds: 350), () {
           final ctx = _keyFor(section).currentContext;
           if (ctx != null && mounted) {
-            Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 250), curve: Curves.easeOut, alignment: 0.3);
+            Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 250), curve: Curves.easeOut, alignment: 0.3,);
           }
         });
       }
@@ -229,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _onServerItemsChanged() {
     if (!mounted || !context.read<AuthProvider>().isAdmin) return;
     _issueBadgeDebounce?.cancel();
-    _issueBadgeDebounce = Timer(const Duration(seconds: 3), _loadAdminIssueCount);
+    _issueBadgeDebounce = Timer(const Duration(seconds: 3), _loadAdminIssueCount,);
   }
 
   /// Sum missing/invalid item counts across all libraries so the Server Admin
@@ -256,7 +415,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadServerUpdate(String currentVersion) async {
     _serverUpdateCheckedFor = currentVersion;
     _serverUpdateCheckRunning = true;
-    final update = await AudiobookshelfUpdateService.check(currentVersion: currentVersion);
+    final update = await AudiobookshelfUpdateService.check(currentVersion: currentVersion,);
     _serverUpdateCheckRunning = false;
     if (!mounted || _serverUpdateCheckedFor != currentVersion) return;
     setState(() => _serverUpdate = update);
@@ -268,6 +427,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _issueBadgeDebounce?.cancel();
     PlayerSettings.settingsChanged.removeListener(_onExternalSettingsChange);
     _localServerController.dispose();
+    _settingsScrollController.dispose();
     super.dispose();
   }
 
@@ -290,7 +450,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       final l = AppLocalizations.of(context)!;
       showOverlayToast(context, l.queueModePlaylistHint,
-          icon: Icons.playlist_play_rounded);
+          icon: Icons.playlist_play_rounded,);
       return;
     }
     await PlayerSettings.setQueueModePlaylist(id);
@@ -382,10 +542,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 gradient: const SweepGradient(colors: [
                   Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00),
                   Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF), Color(0xFFFF0000),
-                ]),
+                ],),
                 border: Border.all(color: cs.outlineVariant),
               ),
-              child: Icon(Icons.add_rounded, size: 20, color: Colors.white.withValues(alpha: 0.9)),
+              child: Icon(Icons.add_rounded, size: 20, color: Colors.white.withValues(alpha: 0.9),),
             ),
           ),
         ),
@@ -393,7 +553,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _swatch({required Color color, required bool selected, required String tooltip, required VoidCallback onTap}) {
+  Widget _swatch({required Color color, required bool selected, required String tooltip, required VoidCallback onTap,}) {
     final cs = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
@@ -413,7 +573,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           child: selected
               ? Icon(Icons.check_rounded, size: 20,
-                  color: ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black)
+                  color: ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black,)
               : null,
         ),
       ),
@@ -436,7 +596,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel),),
             FilledButton(
               onPressed: () {
                 _setManualColor(picked.withValues(alpha: 1.0).toARGB32());
@@ -451,9 +611,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _statsStepperRow(ColorScheme cs, TextTheme tt, String label, String value,
-      {VoidCallback? onMinus, VoidCallback? onPlus, VoidCallback? onTapValue}) {
+      {VoidCallback? onMinus, VoidCallback? onPlus, VoidCallback? onTapValue,}) {
     return Row(children: [
-      Expanded(child: Text(label, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant))),
+      Expanded(child: Text(label, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+          ),),
       IconButton(
         onPressed: _loaded ? onMinus : null,
         icon: const Icon(Icons.remove_circle_outline_rounded),
@@ -469,7 +630,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Text(value,
                 textAlign: TextAlign.center,
-                style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),),
           ),
         ),
       ),
@@ -479,7 +640,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: cs.primary,
         visualDensity: VisualDensity.compact,
       ),
-    ]);
+    ],);
   }
 
   String _statsMinutesLabel(AppLocalizations l, int minutes) {
@@ -522,8 +683,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onSubmitted: (v) => Navigator.pop(ctx, v),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: Text(l.save)),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel),),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: Text(l.save),),
         ],
       ),
     );
@@ -531,7 +692,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _editStatsTimeTarget() async {
     final l = AppLocalizations.of(context)!;
-    final input = await _promptStatsValue(l.statsGoalEnterTimeHint, TextInputType.datetime);
+    final input = await _promptStatsValue(l.statsGoalEnterTimeHint, TextInputType.datetime,);
     if (input == null) return;
     final minutes = _parseGoalMinutes(input);
     if (minutes == null) return;
@@ -615,7 +776,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: Icon(_statsSectionIcon(id), size: 18,
                 color: isHidden
                     ? cs.onSurfaceVariant.withValues(alpha: 0.3)
-                    : cs.onSurfaceVariant),
+                    : cs.onSurfaceVariant,),
             title: Text(_statsSectionLabel(l, id),
                 style: TextStyle(
                   fontSize: 13,
@@ -623,7 +784,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: isHidden
                       ? cs.onSurface.withValues(alpha: 0.35)
                       : cs.onSurface,
-                )),
+                ),),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               GestureDetector(
                 onTap: () {
@@ -651,10 +812,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.all(8),
                   child: Icon(Icons.drag_handle_rounded,
                       size: 18,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),),
                 ),
               ),
-            ]),
+            ],),
           ),
         );
       },
@@ -696,7 +857,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (picked > 0) await Permission.notification.request();
   }
 
-  Future<void> _pickPodcastTabLibrary(List<Map<String, dynamic>> podcastLibs) async {
+  Future<void> _pickPodcastTabLibrary(List<Map<String, dynamic>> podcastLibs,) async {
     final l = AppLocalizations.of(context)!;
     final picked = await showDialog<String>(
       context: context,
@@ -744,9 +905,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       PlayerSettings.getFullScreenPlayer(),                   // 21
       PlayerSettings.getThemeMode(),                          // 22
       PlayerSettings.getSnappyTransitions(),                  // 23
-      DownloadService().downloadLocationLabel,                // 24
-      DownloadService().totalDownloadSize,                    // 25
-      DownloadService.getDeviceStorage(),                     // 26
+      AppPlatform.isWeb
+          ? Future.value('Streaming only')
+          : DownloadService().downloadLocationLabel,          // 24
+      AppPlatform.isWeb
+          ? Future.value(0)
+          : DownloadService().totalDownloadSize,              // 25
+      AppPlatform.isWeb
+          ? Future<Map<String, int>?>.value(null)
+          : DownloadService.getDeviceStorage(),               // 26
       AutoSleepSettings.load(),                               // 27
       PackageInfo.fromPlatform(),                             // 29
       PlayerSettings.getStreamingCacheSizeMb(),               // 30
@@ -930,7 +1097,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _sleepChimeVolume = chimeVol;
       _shakeSensitivity = shakeSens;
       _language = language;
-      _canPickDownloadLocation = true;
+      _canPickDownloadLocation = !AppPlatform.isWeb;
       _statsGoalType = statsGoalType;
       _statsGoalMinutes = statsGoalMinutes;
       _statsBookGoal = statsBookGoal;
@@ -977,18 +1144,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
 
-    final picked = await showModalBottomSheet<String>(
+    final picked = await _showAdaptiveSettingsSurface<String>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: cs.surfaceContainerLow,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
+      maxWidth: 520,
+      builder: (ctx, desktopMode) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (desktopMode)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                  child: IconButton(
+                    tooltip: MaterialLocalizations.of(ctx).closeButtonTooltip,
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+              )
+            else ...[
             const SizedBox(height: 8),
             Container(
               width: 40, height: 4,
@@ -997,15 +1172,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
+            ],
             const SizedBox(height: 16),
-            Text(l.coverShapeLabel, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text(l.coverShapeLabel, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),),
             const SizedBox(height: 8),
             RadioListTile<String>(
               value: 'default',
               groupValue: _curLibCoverShape,
               onChanged: (v) => Navigator.pop(ctx, v),
               title: Text(l.coverShapeDefault),
-              subtitle: Text(_rectangleCovers ? l.coverShapeRectangle : l.coverShapeSquare),
+              subtitle: Text(_rectangleCovers ? l.coverShapeRectangle : l.coverShapeSquare,),
             ),
             RadioListTile<String>(
               value: 'square',
@@ -1026,10 +1202,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (picked == null || picked == _curLibCoverShape) return;
     setState(() => _curLibCoverShape = picked);
-    await PlayerSettings.setRectangleCoversOverride(libId, picked == 'default' ? null : picked);
+    await PlayerSettings.setRectangleCoversOverride(libId, picked == 'default' ? null : picked,);
   }
 
-  static const _shakeSensitivityKeys = ['veryLow', 'low', 'medium', 'high', 'veryHigh'];
+  static const _shakeSensitivityKeys = ['veryLow', 'low', 'medium', 'high', 'veryHigh',];
 
   int _shakeSensitivityIndex(String key) {
     final i = _shakeSensitivityKeys.indexOf(key);
@@ -1067,18 +1243,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final l = AppLocalizations.of(context)!;
     const codes = ['', 'en', 'de', 'zh'];
 
-    final picked = await showModalBottomSheet<String>(
+    final picked = await _showAdaptiveSettingsSurface<String>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: cs.surfaceContainerLow,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
+      maxWidth: 520,
+      builder: (ctx, desktopMode) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (desktopMode)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                  child: IconButton(
+                    tooltip: MaterialLocalizations.of(ctx).closeButtonTooltip,
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+              )
+            else ...[
             const SizedBox(height: 8),
             Container(
               width: 40, height: 4,
@@ -1087,9 +1271,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
+            ],
             const SizedBox(height: 16),
             Text(l.languageLabel,
-                style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),),
             const SizedBox(height: 8),
             for (final code in codes)
               RadioListTile<String>(
@@ -1136,12 +1321,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (ctx) => AlertDialog(
           title: Text(title),
           content: Text(content),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.gotIt))],
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.gotIt),
+            ),],
         ),
       ),
       child: Padding(
         padding: const EdgeInsets.only(left: 4),
-        child: Icon(Icons.info_outline_rounded, size: 16, color: cs.onSurfaceVariant),
+        child: Icon(Icons.info_outline_rounded, size: 16, color: cs.onSurfaceVariant,),
       ),
     );
   }
@@ -1161,15 +1347,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         : l.sleepTimerSheetMinShort(m);
   }
 
-  Future<void> _saveLocalServerUrl(AuthProvider auth, AppLocalizations l) async {
+  Future<void> _saveLocalServerUrl(AuthProvider auth, AppLocalizations l,) async {
     final url = _localServerController.text.trim();
     if (url.isEmpty) return;
     _localServerUrl = url;
-    await auth.setLocalServerConfig(enabled: _localServerEnabled, url: _localServerUrl);
+    await auth.setLocalServerConfig(enabled: _localServerEnabled, url: _localServerUrl,);
     if (!mounted) return;
     FocusScope.of(context).unfocus();
     showOverlayToast(context, l.localServerUrlSetSnackbar,
-        icon: Icons.check_circle_outline_rounded);
+        icon: Icons.check_circle_outline_rounded,);
     await auth.checkLocalServer();
     if (mounted) setState(() {});
   }
@@ -1210,55 +1396,120 @@ class _SettingsScreenState extends State<SettingsScreen> {
             end: Alignment.bottomCenter,
             stops: const [0.0, 0.35, 1.0],
             colors: [
-              cs.primary.withValues(alpha: gradientIntensityNotifier.value),
+              cs.primary.withValues(alpha: gradientIntensityNotifier.value,),
               Theme.of(context).scaffoldBackgroundColor,
               Theme.of(context).scaffoldBackgroundColor,
             ],
           ),
         ),
         child: SafeArea(
-        child: CustomScrollView(
-        slivers: [
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktopSettings =
+                  AppPlatform.isWeb && constraints.maxWidth >= 960;
+              final expandedSection = _expandedSection ??
+                  (isDesktopSettings ? 'Account' : null);
+              final destinations = <_SettingsSectionDestination>[
+                _SettingsSectionDestination(
+                  'Account',
+                  Icons.person_outline_rounded,
+                  l.userFallback,
+                ),
+                _SettingsSectionDestination(
+                  'Appearance',
+                  Icons.palette_outlined,
+                  l.sectionAppearance,
+                ),
+                _SettingsSectionDestination(
+                  'Customize Stats',
+                  Icons.bar_chart_rounded,
+                  l.settingsCustomizeStats,
+                ),
+                _SettingsSectionDestination(
+                  'Absorbing Cards',
+                  Icons.style_rounded,
+                  Wording.of(context).sectionAbsorbingCards,
+                ),
+                _SettingsSectionDestination(
+                  'Playback',
+                  Icons.play_circle_outline_rounded,
+                  l.sectionPlayback,
+                ),
+                _SettingsSectionDestination(
+                  'Media Controls',
+                  Icons.dvr_rounded,
+                  l.sectionMediaControls,
+                ),
+                _SettingsSectionDestination(
+                  'Sleep Timer',
+                  Icons.bedtime_outlined,
+                  l.sectionSleepTimer,
+                ),
+                _SettingsSectionDestination(
+                  'Library',
+                  Icons.auto_stories_outlined,
+                  l.sectionLibrary,
+                ),
+                _SettingsSectionDestination(
+                  'Issues & Support',
+                  Icons.support_agent_rounded,
+                  l.sectionIssuesAndSupport,
+                ),
+                _SettingsSectionDestination(
+                  'Advanced',
+                  Icons.tune_rounded,
+                  l.sectionAdvanced,
+                ),
+              ];
+              final content = CustomScrollView(
+                controller: _settingsScrollController,
+                slivers: [
           SliverToBoxAdapter(
             child: AbsorbPageHeader(
               title: l.settingsTitle,
+                      showBranding: !isDesktopSettings,
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
             ),
           ),
           SliverToBoxAdapter(
             child: Column(
               children: [
+                        if (!isDesktopSettings)
                 const SizedBox(height: 8),
 
                 // ── Tips & Tricks ──
+                        if (!isDesktopSettings)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4,),
                   child: GestureDetector(
                     onTap: () => showTipsSheet(context),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14,),
                       decoration: BoxDecoration(
                         gradient: flatNotifier.value ? null : LinearGradient(
-                          colors: [cs.primaryContainer, cs.tertiaryContainer],
+                          colors: [cs.primaryContainer, cs.tertiaryContainer,],
                         ),
                         color: flatNotifier.value ? cs.surfaceContainerHigh : null,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.auto_awesome_rounded, color: cs.onPrimaryContainer, size: 22),
+                          Icon(Icons.auto_awesome_rounded, color: cs.onPrimaryContainer, size: 22,),
                           const SizedBox(width: 12),
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(l.tipsAndHiddenFeatures, style: tt.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600, color: cs.onPrimaryContainer)),
+                                fontWeight: FontWeight.w600, color: cs.onPrimaryContainer,
+                                            ),),
                               const SizedBox(height: 2),
                               Text(l.tipsSubtitle, style: tt.bodySmall?.copyWith(
-                                color: cs.onPrimaryContainer.withValues(alpha: 0.7))),
+                                color: cs.onPrimaryContainer.withValues(alpha: 0.7),
+                                            ),),
                             ],
-                          )),
-                          Icon(Icons.chevron_right_rounded, color: cs.onPrimaryContainer.withValues(alpha: 0.5)),
+                          ),),
+                          Icon(Icons.chevron_right_rounded, color: cs.onPrimaryContainer.withValues(alpha: 0.5,
+                                      ),),
                         ],
                       ),
                     ),
@@ -1267,7 +1518,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 8),
 
                 // ── User Profile ──
+                        if (!isDesktopSettings || expandedSection == 'Account')
                 Padding(
+                            key: _keyFor('Account'),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: GestureDetector(
                     onTap: () => _showAccountSheet(context),
@@ -1283,49 +1536,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             cs.primary.withValues(alpha: 0.04),
                           ],
                         ),
-                        border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+                        border: Border.all(color: cs.primary.withValues(alpha: 0.15),),
                       ),
                       child: Row(children: [
                         Container(
                           width: 40, height: 40,
                           decoration: BoxDecoration(
-                            color: cs.primary.withValues(alpha: 0.15),
+                            color: cs.primary.withValues(alpha: 0.15,),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.person_rounded, size: 22, color: cs.primary),
+                          child: Icon(Icons.person_rounded, size: 22, color: cs.primary,),
                         ),
                         const SizedBox(width: 14),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
-                            Flexible(child: Text(auth.username ?? l.userFallback, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                              overflow: TextOverflow.ellipsis)),
+                            Flexible(child: Text(auth.username ?? l.userFallback, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700,),
+                              overflow: TextOverflow.ellipsis,
+                                                ),),
                             if (auth.isAdmin) ...[
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1,),
                                 decoration: BoxDecoration(
-                                  color: auth.isRoot ? Colors.amber.withValues(alpha: 0.12) : cs.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(4),
+                                  color: auth.isRoot ? Colors.amber.withValues(alpha: 0.12,) : cs.primary.withValues(alpha: 0.12,),
+                                  borderRadius: BorderRadius.circular(4,),
                                 ),
                                 child: Text(auth.isRoot ? l.root : l.admin, style: tt.labelSmall?.copyWith(
-                                  color: auth.isRoot ? Colors.amber : cs.primary, fontWeight: FontWeight.w600, fontSize: 9)),
+                                  color: auth.isRoot ? Colors.amber : cs.primary, fontWeight: FontWeight.w600, fontSize: 9,
+                                                        ),),
                               ),
                             ],
-                          ]),
+                          ],),
                           const SizedBox(height: 2),
                           Text(
-                            auth.serverUrl?.replaceAll(RegExp(r'^https?://'), '').replaceAll(RegExp(r'/+$'), '') ?? '',
+                            auth.serverUrl?.replaceAll(RegExp(r'^https?://'), '',).replaceAll(RegExp(r'/+$'), '',) ?? '',
                             maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
-                        ])),
-                        Icon(Icons.chevron_right_rounded, size: 20, color: cs.primary.withValues(alpha: 0.5)),
-                      ]),
+                            style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                                            ),),
+                        ],
+                                      ),),
+                        Icon(Icons.chevron_right_rounded, size: 20, color: cs.primary.withValues(alpha: 0.5),),
+                      ],),
                     ),
                   ),
                 ),
 
                 // ── Admin Controls ──
-                if (auth.isAdmin)
+                if (!isDesktopSettings &&auth.isAdmin)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: Material(
@@ -1336,35 +1593,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onTap: () async {
                           await Navigator.push(context, MaterialPageRoute(
                             builder: (_) => const AdminScreen(),
-                          ));
+                          ),);
                           _loadAdminIssueCount();
                         },
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14,),
                           child: Row(
                             children: [
-                              Icon(Icons.admin_panel_settings_rounded, color: cs.primary, size: 22),
+                              Icon(Icons.admin_panel_settings_rounded, color: cs.primary, size: 22,),
                               const SizedBox(width: 14),
                               Expanded(child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(l.serverAdmin, style: tt.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w600)),
+                                    fontWeight: FontWeight.w600,
+                                              ),),
                                   Text(l.serverAdminSubtitle,
-                                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                              ),),
                                 ],
-                              )),
+                              ),),
                               if (_adminIssueCount > 0 || _serverUpdate != null) ...[
                                 ServerAdminStatusBadges(
                                   issueCount: _adminIssueCount,
                                   updateVersion: _serverUpdate?.latestVersion,
                                   updateTooltip: _serverUpdate == null
                                       ? ''
-                                      : l.serverUpdateAvailable(_serverUpdate!.latestVersion),
+                                      : l.serverUpdateAvailable(_serverUpdate!.latestVersion,),
                                 ),
                                 const SizedBox(width: 10),
                               ],
-                              Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                              Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5,
+                                        ),),
                             ],
                           ),
                         ),
@@ -1380,29 +1640,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.palette_outlined,
                   title: l.sectionAppearance,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Appearance',
+                  isExpanded: expandedSection == 'Appearance',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Appearance', v),
                   children: [
                     InkWell(
                       onTap: _loaded ? () => _pickLanguage() : null,
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14,),
                         child: Row(
                           children: [
-                            Expanded(child: Text(l.languageLabel, style: tt.titleSmall)),
+                            Expanded(child: Text(l.languageLabel, style: tt.titleSmall,
+                                      ),),
                             Text(
                               _languageDisplayName(_language, l),
-                              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,),
                             ),
                             Icon(Icons.chevron_right_rounded,
-                                color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                                color: cs.onSurfaceVariant.withValues(alpha: 0.5,
+                                      ),),
                           ],
                         ),
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1413,9 +1676,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: SegmentedButton<String>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 'dark', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeDark, maxLines: 1))),
-                                ButtonSegment(value: 'light', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeLight, maxLines: 1))),
-                                ButtonSegment(value: 'system', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeAuto, maxLines: 1))),
+                                ButtonSegment(value: 'dark', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeDark, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 'light', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeLight, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 'system', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeAuto, maxLines: 1,
+                                            ),
+                                          ),),
                               ],
                               selected: {_themeMode},
                               onSelectionChanged: _loaded ? (selected) {
@@ -1431,8 +1700,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
-                            title: Text(l.flatBackgroundLabel, style: tt.bodyLarge),
-                            subtitle: Text(l.flatBackgroundSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            title: Text(l.flatBackgroundLabel, style: tt.bodyLarge,),
+                            subtitle: Text(l.flatBackgroundSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                             value: _flatBackground,
                             onChanged: _loaded ? (v) {
                               setState(() => _flatBackground = v);
@@ -1442,16 +1712,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           if (!_flatBackground) ...[
                             const SizedBox(height: 4),
-                            Text(l.backgroundIntensityLabel, style: tt.bodyMedium),
+                            Text(l.backgroundIntensityLabel, style: tt.bodyMedium,),
                             Slider(
-                              value: _gradientIntensity.clamp(0.0, 0.45),
+                              value: _gradientIntensity.clamp(0.0, 0.45,),
                               min: 0.0,
                               max: 0.45,
                               onChanged: _loaded ? (v) {
-                                setState(() => _gradientIntensity = v);
+                                setState(() => _gradientIntensity = v,);
                                 applyGradientIntensity(v);
                               } : null,
-                              onChangeEnd: (v) => PlayerSettings.setGradientIntensity(v),
+                              onChangeEnd: (v) => PlayerSettings.setGradientIntensity(v,),
                             ),
                           ],
                         ],
@@ -1459,25 +1729,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l.colorSourceLabel, style: tt.titleSmall),
+                          Text(l.colorSourceLabel, style: tt.titleSmall,),
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
                             child: SegmentedButton<String>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 'dynamic', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.colorSourceDynamic, maxLines: 1))),
-                                ButtonSegment(value: 'manual', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.colorSourceManual, maxLines: 1))),
+                                ButtonSegment(value: 'dynamic', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.colorSourceDynamic, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 'manual', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.colorSourceManual, maxLines: 1,
+                                            ),
+                                          ),),
                               ],
                               selected: {_colorSource},
                               onSelectionChanged: _loaded ? (selected) {
                                 final src = selected.first;
-                                setState(() => _colorSource = src);
-                                PlayerSettings.setColorSource(src);
+                                setState(() => _colorSource = src,);
+                                PlayerSettings.setColorSource(src,);
                                 applyColorSource(src);
                               } : null,
                               style: const ButtonStyle(
@@ -1488,19 +1762,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const SizedBox(height: 6),
                           Text(
                             _colorSource == 'manual' ? l.colorSourceManualDescription : l.colorSourceCoverDescription,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,),
                           ),
                           if (_colorSource == 'manual') ...[
                             const SizedBox(height: 14),
                             _buildColorSwatches(cs),
                             SwitchListTile.adaptive(
                               contentPadding: EdgeInsets.zero,
-                              title: Text(l.useColorEverywhereLabel, style: tt.bodyLarge),
-                              subtitle: Text(l.useColorEverywhereSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                              title: Text(l.useColorEverywhereLabel, style: tt.bodyLarge,),
+                              subtitle: Text(l.useColorEverywhereSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                        ),),
                               value: _useColorEverywhere,
                               onChanged: _loaded ? (v) {
-                                setState(() => _useColorEverywhere = v);
-                                PlayerSettings.setUseColorEverywhere(v);
+                                setState(() => _useColorEverywhere = v,);
+                                PlayerSettings.setUseColorEverywhere(v,);
                                 applyUseColorEverywhere(v);
                               } : null,
                             ),
@@ -1510,15 +1785,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l.startScreenLabel, style: tt.titleSmall),
+                          Text(l.startScreenLabel, style: tt.titleSmall,),
                           const SizedBox(height: 4),
                           Text(
                             l.startScreenSubtitle,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,),
                           ),
                           const SizedBox(height: 12),
                           SizedBox(
@@ -1526,16 +1801,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: SegmentedButton<int>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 0, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenHome, maxLines: 1))),
-                                ButtonSegment(value: 1, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenLibrary, maxLines: 1))),
-                                ButtonSegment(value: 2, label: FittedBox(fit: BoxFit.scaleDown, child: Text(Wording.of(context).startScreenAbsorb, maxLines: 1))),
-                                ButtonSegment(value: 3, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenStats, maxLines: 1))),
+                                ButtonSegment(value: 0, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenHome, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 1, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenLibrary, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 2, label: FittedBox(fit: BoxFit.scaleDown, child: Text(Wording.of(context,).startScreenAbsorb, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 3, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenStats, maxLines: 1,
+                                            ),
+                                          ),),
                               ],
                               selected: {_startScreen},
                               onSelectionChanged: _loaded ? (selected) {
                                 final idx = selected.first;
-                                setState(() => _startScreen = idx);
-                                PlayerSettings.setStartScreen(idx);
+                                setState(() => _startScreen = idx,);
+                                PlayerSettings.setStartScreen(idx,);
                               } : null,
                               style: const ButtonStyle(
                                 visualDensity: VisualDensity.compact,
@@ -1547,26 +1830,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l.progressTextSize, style: tt.titleSmall),
+                          Text(l.progressTextSize, style: tt.titleSmall,),
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
                             child: SegmentedButton<double>(
                               showSelectedIcon: false,
                               segments: const [
-                                ButtonSegment(value: 1.0, label: Text('A', style: TextStyle(fontSize: 13))),
-                                ButtonSegment(value: 1.5, label: Text('A', style: TextStyle(fontSize: 17))),
-                                ButtonSegment(value: 2.0, label: Text('A', style: TextStyle(fontSize: 21))),
+                                ButtonSegment(value: 1.0, label: Text('A', style: TextStyle(fontSize: 13),
+                                          ),),
+                                ButtonSegment(value: 1.5, label: Text('A', style: TextStyle(fontSize: 17),
+                                          ),),
+                                ButtonSegment(value: 2.0, label: Text('A', style: TextStyle(fontSize: 21),
+                                          ),),
                               ],
                               selected: {_progressTextScale},
                               onSelectionChanged: _loaded ? (selected) {
                                 final v = selected.first;
-                                setState(() => _progressTextScale = v);
-                                PlayerSettings.setProgressTextScale(v);
+                                setState(() => _progressTextScale = v,);
+                                PlayerSettings.setProgressTextScale(v,);
                               } : null,
                               style: const ButtonStyle(
                                 visualDensity: VisualDensity.compact,
@@ -1581,7 +1867,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(l.disablePageFade),
                       subtitle: Text(
                         _snappyTransitions ? l.disablePageFadeOnSubtitle : l.disablePageFadeOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _snappyTransitions,
                       onChanged: _loaded ? (v) {
                         setState(() => _snappyTransitions = v);
@@ -1594,7 +1881,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(l.rectangleBookCovers),
                       subtitle: Text(
                         _rectangleCovers ? l.rectangleBookCoversOnSubtitle : l.rectangleBookCoversOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _rectangleCovers,
                       onChanged: _loaded ? (v) {
                         setState(() => _rectangleCovers = v);
@@ -1608,7 +1896,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _classicWording
                             ? 'Using "Play", "Now Playing", "Finished"'
                             : 'Using "Absorb", "Absorbing", "Fully Absorbed"',
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _classicWording,
                       onChanged: _loaded ? (v) {
                         setState(() => _classicWording = v);
@@ -1618,15 +1907,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     // iPadOS ignores orientation preferences for multitasking
                     // apps, so the lock can't work there - hide it on iPad.
-                    if (!(Platform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600)) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (!AppPlatform.isWeb &&
+                        !(AppPlatform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600)) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: const Text('Lock rotation'),
                         subtitle: Text(
                           _lockPortrait
                               ? 'Screen stays in portrait'
                               : 'Screen can rotate with the device',
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                         value: _lockPortrait,
                         onChanged: _loaded ? (v) {
                           setState(() => _lockPortrait = v);
@@ -1637,6 +1928,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ],
                 ),
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Appearance')
                 const SizedBox(height: 16),
 
                 // ── Customize Stats ──
@@ -1645,11 +1938,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.bar_chart_rounded,
                   title: l.settingsCustomizeStats,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Customize Stats',
+                  isExpanded: expandedSection == 'Customize Stats',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Customize Stats', v),
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1660,17 +1954,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: SegmentedButton<String>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 'off', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalOff, maxLines: 1))),
-                                ButtonSegment(value: 'daily', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalDaily, maxLines: 1))),
-                                ButtonSegment(value: 'weekly', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalWeekly, maxLines: 1))),
-                                ButtonSegment(value: 'monthly', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalMonthly, maxLines: 1))),
+                                ButtonSegment(value: 'off', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalOff, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 'daily', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalDaily, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 'weekly', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalWeekly, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 'monthly', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalMonthly, maxLines: 1,
+                                            ),
+                                          ),),
                               ],
                               selected: {_statsGoalType},
                               onSelectionChanged: _loaded ? (selected) {
-                                setState(() => _statsGoalType = selected.first);
-                                PlayerSettings.setStatsGoalType(_statsGoalType);
+                                setState(() => _statsGoalType = selected.first,);
+                                PlayerSettings.setStatsGoalType(_statsGoalType,);
                               } : null,
-                              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                              style: const ButtonStyle(visualDensity: VisualDensity.compact,),
                             ),
                           ),
                           if (_statsGoalType != 'off')
@@ -1679,47 +1981,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 onTapValue: _editStatsTimeTarget,
                                 onMinus: _statsGoalMinutes > 5
                                     ? () {
-                                        setState(() => _statsGoalMinutes -= 5);
-                                        PlayerSettings.setStatsGoalMinutes(_statsGoalMinutes);
+                                        setState(() => _statsGoalMinutes -= 5,);
+                                        PlayerSettings.setStatsGoalMinutes(_statsGoalMinutes,);
                                       }
                                     : null,
                                 onPlus: _statsGoalMinutes < 600
                                     ? () {
-                                        setState(() => _statsGoalMinutes += 5);
-                                        PlayerSettings.setStatsGoalMinutes(_statsGoalMinutes);
+                                        setState(() => _statsGoalMinutes += 5,);
+                                        PlayerSettings.setStatsGoalMinutes(_statsGoalMinutes,);
                                       }
-                                    : null),
+                                    : null,),
                         ],
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l.statsBookChallengeTitle, style: tt.titleSmall),
+                          Text(l.statsBookChallengeTitle, style: tt.titleSmall,),
                           _statsStepperRow(cs, tt, l.statsBookChallengeDesc,
                               _statsBookGoal == 0 ? l.statsGoalOff : l.statsBooksShort(_statsBookGoal),
                               onTapValue: _editStatsBookTarget,
                               onMinus: _statsBookGoal > 0
                                   ? () {
                                       setState(() => _statsBookGoal--);
-                                      PlayerSettings.setStatsBookGoal(_statsBookGoal);
+                                      PlayerSettings.setStatsBookGoal(_statsBookGoal,);
                                     }
                                   : null,
                               onPlus: _statsBookGoal < 500
                                   ? () {
                                       setState(() => _statsBookGoal++);
-                                      PlayerSettings.setStatsBookGoal(_statsBookGoal);
+                                      PlayerSettings.setStatsBookGoal(_statsBookGoal,);
                                     }
-                                  : null),
+                                  : null,),
                         ],
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1730,15 +2032,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: SegmentedButton<String>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 'bar', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsChartBar, maxLines: 1))),
-                                ButtonSegment(value: 'line', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsChartLine, maxLines: 1))),
+                                ButtonSegment(value: 'bar', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsChartBar, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 'line', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsChartLine, maxLines: 1,
+                                            ),
+                                          ),),
                               ],
                               selected: {_statsChartStyle},
                               onSelectionChanged: _loaded ? (selected) {
-                                setState(() => _statsChartStyle = selected.first);
-                                PlayerSettings.setStatsChartStyle(_statsChartStyle);
+                                setState(() => _statsChartStyle = selected.first,);
+                                PlayerSettings.setStatsChartStyle(_statsChartStyle,);
                               } : null,
-                              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                              style: const ButtonStyle(visualDensity: VisualDensity.compact,),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1747,15 +2053,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: SegmentedButton<int>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 7, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsChartDays7, maxLines: 1))),
-                                ButtonSegment(value: 30, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsChartDays30, maxLines: 1))),
+                                ButtonSegment(value: 7, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsChartDays7, maxLines: 1,
+                                            ),
+                                          ),),
+                                ButtonSegment(value: 30, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsChartDays30, maxLines: 1,
+                                            ),
+                                          ),),
                               ],
                               selected: {_statsChartRange},
                               onSelectionChanged: _loaded ? (selected) {
-                                setState(() => _statsChartRange = selected.first);
-                                PlayerSettings.setStatsChartRange(_statsChartRange);
+                                setState(() => _statsChartRange = selected.first,);
+                                PlayerSettings.setStatsChartRange(_statsChartRange,);
                               } : null,
-                              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                              style: const ButtonStyle(visualDensity: VisualDensity.compact,),
                             ),
                           ),
                         ],
@@ -1763,15 +2073,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l.statsSectionsTitle, style: tt.titleSmall),
+                          Text(l.statsSectionsTitle, style: tt.titleSmall,),
                           const SizedBox(height: 4),
                           Text(
                             l.dragToReorderTapEye,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,),
                           ),
                           const SizedBox(height: 8),
                           _statsSectionsList(cs, tt, l),
@@ -1780,6 +2090,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Customize Stats')
                 const SizedBox(height: 16),
 
                 // ── Absorbing Cards ──
@@ -1788,14 +2100,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.style_rounded,
                   title: Wording.of(context).sectionAbsorbingCards,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Absorbing Cards',
+                  isExpanded: expandedSection == 'Absorbing Cards',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Absorbing Cards', v),
                   children: [
                     SwitchListTile(
                       title: Text(l.fullScreenPlayer),
                       subtitle: Text(
                         _fullScreenPlayer ? l.fullScreenPlayerOnSubtitle : l.fullScreenPlayerOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _fullScreenPlayer,
                       onChanged: _loaded ? (v) {
                         setState(() => _fullScreenPlayer = v);
@@ -1807,7 +2121,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(l.coverPlayPause),
                       subtitle: Text(
                         _coverPlayButton ? l.coverPlayPauseOnSubtitle : l.coverPlayPauseOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _coverPlayButton,
                       onChanged: _loaded ? (v) {
                         setState(() => _coverPlayButton = v);
@@ -1816,30 +2131,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12,),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(l.cardBackground, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                        Text(l.cardBackground, style: tt.bodyMedium?.copyWith(color: cs.onSurface,
+                                    ),),
                         const SizedBox(height: 8),
                         SizedBox(width: double.infinity, child: SegmentedButton<String>(
                           showSelectedIcon: false,
                           segments: [
-                            ButtonSegment(value: 'blurred', icon: const Icon(Icons.blur_on_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundBlurred))),
-                            ButtonSegment(value: 'gradient', icon: const Icon(Icons.gradient_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundGradient))),
-                            ButtonSegment(value: 'off', icon: const Icon(Icons.block_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.off))),
+                            ButtonSegment(value: 'blurred', icon: const Icon(Icons.blur_on_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundBlurred,
+                                            ),
+                                          ),),
+                            ButtonSegment(value: 'gradient', icon: const Icon(Icons.gradient_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundGradient,
+                                            ),
+                                          ),),
+                            ButtonSegment(value: 'off', icon: const Icon(Icons.block_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.off),
+                                          ),),
                           ],
                           selected: {_cardBackground},
                           onSelectionChanged: _loaded ? (s) {
                             if (s.isEmpty) return;
-                            setState(() => _cardBackground = s.first);
-                            PlayerSettings.setCardBackground(s.first);
+                            setState(() => _cardBackground = s.first,);
+                            PlayerSettings.setCardBackground(s.first,);
                           } : null,
-                          style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                        )),
-                      ]),
+                          style: const ButtonStyle(visualDensity: VisualDensity.compact,
+                                      ),
+                                    ),),
+                      ],),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1880,7 +2202,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(l.speedAdjustedTime),
                       subtitle: Text(
                         _speedAdjustedTime ? l.speedAdjustedTimeOnSubtitle : l.speedAdjustedTimeOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _speedAdjustedTime,
                       onChanged: _loaded ? (v) {
                         setState(() => _speedAdjustedTime = v);
@@ -1899,19 +2222,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return SwitchListTile(
                           title: Row(children: [
                             Flexible(child: Text(w.mergeLibraries)),
-                            _infoIcon(w.mergeLibrariesInfoTitle, w.mergeLibrariesInfoContent),
-                          ]),
+                            _infoIcon(w.mergeLibrariesInfoTitle, w.mergeLibrariesInfoContent,),
+                          ],),
                           subtitle: Text(
                             _podcastTabEnabled
                                 ? l.settingsMergeImpliedByPodcastTab
                                 : effectiveMerge
                                     ? w.mergeLibrariesOnSubtitle
                                     : w.mergeLibrariesOffSubtitle,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                    ),),
                           value: effectiveMerge,
                           onChanged: (_loaded && !_podcastTabEnabled) ? (v) async {
-                            setState(() => _mergeAbsorbingLibraries = v);
-                            await PlayerSettings.setMergeAbsorbingLibraries(v);
+                            setState(() => _mergeAbsorbingLibraries = v,);
+                            await PlayerSettings.setMergeAbsorbingLibraries(v,);
                             unawaited(lib.syncQueueAutoDownloads());
                           } : null,
                         );
@@ -1922,7 +2246,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Row(children: [
-                          Text(l.queueMode, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                          Text(l.queueMode, style: tt.bodyMedium?.copyWith(color: cs.onSurface,
+                                        ),),
                           const SizedBox(width: 4),
                           GestureDetector(
                             onTap: () => showDialog(
@@ -1933,85 +2258,111 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(l.queueModeInfoOff, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    Text(l.queueModeInfoOff, style: const TextStyle(fontWeight: FontWeight.w600,
+                                                  ),),
                                     const SizedBox(height: 4),
                                     Text(l.queueModeInfoOffDesc),
                                     const SizedBox(height: 12),
-                                    Text(l.queueModeInfoManual, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    Text(l.queueModeInfoManual, style: const TextStyle(fontWeight: FontWeight.w600,
+                                                  ),),
                                     const SizedBox(height: 4),
-                                    Text(Wording.of(ctx).queueModeInfoManualDesc),
+                                    Text(Wording.of(ctx,).queueModeInfoManualDesc,),
                                     const SizedBox(height: 12),
-                                    Text(l.queueModeInfoSeries, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    Text(l.queueModeInfoSeries, style: const TextStyle(fontWeight: FontWeight.w600,
+                                                  ),),
                                     const SizedBox(height: 4),
                                     Text(l.queueModeInfoSeriesDesc),
                                     const SizedBox(height: 12),
-                                    Text(l.queueModeInfoPlaylist, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    Text(l.queueModeInfoPlaylist, style: const TextStyle(fontWeight: FontWeight.w600,
+                                                  ),),
                                     const SizedBox(height: 4),
-                                    Text(l.queueModeInfoPlaylistDesc),
+                                    Text(l.queueModeInfoPlaylistDesc,),
                                   ],
                                 ),
-                                actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.gotIt))],
+                                actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.gotIt),
+                                              ),],
                               ),
                             ),
-                            child: Icon(Icons.info_outline_rounded, size: 16, color: cs.onSurfaceVariant),
+                            child: Icon(Icons.info_outline_rounded, size: 16, color: cs.onSurfaceVariant,),
                           ),
-                        ]),
+                        ],),
                         const SizedBox(height: 8),
                         // When libraries are merged, show a single unified control
                         if (_mergeAbsorbingLibraries || _podcastTabEnabled) ...[
                           Text(l.queueModeMergedSubtitle,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                           const SizedBox(height: 8),
                           SizedBox(width: double.infinity, child: SegmentedButton<String>(
                             showSelectedIcon: false,
                             segments: [
-                              ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff))),
-                              ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual))),
-                              ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeAuto))),
-                              ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
+                              ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff),
+                                            ),),
+                              ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual),
+                                            ),),
+                              ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeAuto),
+                                            ),),
+                              ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist),
+                                            ),),
                             ],
                             selected: {_mergedQueueMode},
                             onSelectionChanged: _loaded
                                 ? (s) { if (s.isNotEmpty) _setMergedQueueMode(s.first); }
                                 : null,
-                            style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                          )),
+                            style: const ButtonStyle(visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),),
                         ] else ...[
                           // Separate controls per type
-                          Text(l.queueModeBooks, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+                          Text(l.queueModeBooks, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600,
+                                      ),),
                           const SizedBox(height: 4),
                           SizedBox(width: double.infinity, child: SegmentedButton<String>(
                             showSelectedIcon: false,
                             segments: [
-                              ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff))),
-                              ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual))),
-                              ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeSeriesLabel))),
-                              ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
+                              ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff),
+                                            ),),
+                              ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual),
+                                            ),),
+                              ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeSeriesLabel,
+                                              ),
+                                            ),),
+                              ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist),
+                                            ),),
                             ],
                             selected: {_bookQueueMode},
                             onSelectionChanged: _loaded
                                 ? (s) { if (s.isNotEmpty) _setBookQueueMode(s.first); }
                                 : null,
-                            style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                          )),
-                          if (lib.libraries.any((lib) => lib['mediaType'] == 'podcast')) ...[
+                            style: const ButtonStyle(visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),),
+                          if (lib.libraries.any((lib) => lib['mediaType'] == 'podcast',)) ...[
                             const SizedBox(height: 8),
-                            Text(l.queueModePodcasts, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+                            Text(l.queueModePodcasts, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600,
+                                        ),),
                             const SizedBox(height: 4),
                             SizedBox(width: double.infinity, child: SegmentedButton<String>(
                               showSelectedIcon: false,
                               segments: [
-                                ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff))),
-                                ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual))),
-                                ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeShowLabel))),
-                                ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
+                                ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff),
+                                              ),),
+                                ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual),
+                                              ),),
+                                ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeShowLabel,
+                                                ),
+                                              ),),
+                                ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist,
+                                                ),
+                                              ),),
                               ],
                               selected: {_podcastQueueMode},
                               onSelectionChanged: _loaded
-                                  ? (s) { if (s.isNotEmpty) _setPodcastQueueMode(s.first); }
+                                  ? (s) { if (s.isNotEmpty) _setPodcastQueueMode(s.first,); }
                                   : null,
-                              style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                            )),
+                              style: const ButtonStyle(visualDensity: VisualDensity.compact,
+                                          ),
+                                        ),),
                           ],
                         ],
                         if (_bookQueueMode != 'off' || _podcastQueueMode != 'off') ...[
@@ -2020,50 +2371,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             title: Text(l.autoDownloadQueue),
                             subtitle: Text(
                               _queueAutoDownload
-                                  ? l.autoDownloadQueueOnSubtitle(_rollingDownloadCount)
+                                  ? l.autoDownloadQueueOnSubtitle(_rollingDownloadCount,)
                                   : l.autoDownloadQueueOffSubtitle,
-                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                        ),),
                             value: _queueAutoDownload,
                             onChanged: _loaded ? (v) async {
-                              setState(() => _queueAutoDownload = v);
-                              await PlayerSettings.setQueueAutoDownload(v);
+                              setState(() => _queueAutoDownload = v,);
+                              await PlayerSettings.setQueueAutoDownload(v,);
                               unawaited(lib.syncQueueAutoDownloads());
                             } : null,
                             dense: true,
                             contentPadding: EdgeInsets.zero,
                           ),
                         ],
-                      ]),
+                      ],),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10,),
                       child: Center(child: TextButton.icon(
                         onPressed: _loaded ? () async {
                           final confirmed = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: Text(l.resetButtonGridQuestion),
-                              content: Text(l.resetButtonGridContent),
+                              title: Text(l.resetButtonGridQuestion,),
+                              content: Text(l.resetButtonGridContent,),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
-                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.reset)),
+                                TextButton(onPressed: () => Navigator.pop(ctx, false,), child: Text(l.cancel),),
+                                TextButton(onPressed: () => Navigator.pop(ctx, true,), child: Text(l.reset),),
                               ],
                             ),
                           );
                           if (confirmed != true || !mounted) return;
-                          await PlayerSettings.setCardButtonOrder(PlayerSettings.defaultButtonOrder);
-                          await PlayerSettings.setCardButtonVisibleCount(PlayerSettings.defaultButtonVisibleCount);
-                          await PlayerSettings.setCardIconsOnly(false);
-                          await PlayerSettings.setCardMoreInline(false);
-                          if (mounted) showOverlayToast(context, l.buttonGridReset, icon: Icons.restart_alt_rounded);
+                          await PlayerSettings.setCardButtonOrder(PlayerSettings.defaultButtonOrder,);
+                          await PlayerSettings.setCardButtonVisibleCount(PlayerSettings.defaultButtonVisibleCount,);
+                          await PlayerSettings.setCardIconsOnly(false,);
+                          await PlayerSettings.setCardMoreInline(false,);
+                          if (mounted) showOverlayToast(context, l.buttonGridReset, icon: Icons.restart_alt_rounded,);
                         } : null,
-                        icon: Icon(Icons.restart_alt_rounded, size: 16, color: cs.onSurfaceVariant),
-                        label: Text(l.resetButtonGrid, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
-                      )),
+                        icon: Icon(Icons.restart_alt_rounded, size: 16, color: cs.onSurfaceVariant,),
+                        label: Text(l.resetButtonGrid, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),),
                     ),
                   ],
                 ),
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Absorbing Cards')
                 const SizedBox(height: 16),
 
                 // ── Playback ──
@@ -2072,7 +2428,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.play_circle_outline_rounded,
                   title: l.sectionPlayback,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Playback',
+                  isExpanded: expandedSection == 'Playback',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Playback', v),
                   children: [
                     // Default speed
@@ -2082,26 +2439,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(l.defaultSpeed, style: tt.bodyMedium),
-                          Text(l.speedValue(_defaultSpeed.toStringAsFixed(2)),
+                          Text(l.speedValue(_defaultSpeed.toStringAsFixed(2),),
                             style: tt.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700, color: cs.primary)),
+                              fontWeight: FontWeight.w700, color: cs.primary,
+                                    ),),
                         ],
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                       child: Text(l.defaultSpeedSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11,
+                                ),),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
                       child: Row(children: [
                         GestureDetector(
-                          onTap: _loaded ? () => _setDefaultSpeed(_defaultSpeed - 0.05) : null,
+                          onTap: _loaded ? () => _setDefaultSpeed(_defaultSpeed - 0.05,) : null,
                           child: Container(
                             width: 36, height: 36,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: cs.onSurface.withValues(alpha: 0.08)),
-                            child: Icon(Icons.remove_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.7)),
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: cs.onSurface.withValues(alpha: 0.08,
+                                        ),),
+                            child: Icon(Icons.remove_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.7,
+                                        ),),
                           ),
                         ),
                         Expanded(child: AbsorbSlider(
@@ -2111,24 +2472,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           divisions: 50,
                           activeColor: cs.primary,
                           onChanged: _loaded ? _setDefaultSpeed : null,
-                        )),
+                        ),),
                         GestureDetector(
-                          onTap: _loaded ? () => _setDefaultSpeed(_defaultSpeed + 0.05) : null,
+                          onTap: _loaded ? () => _setDefaultSpeed(_defaultSpeed + 0.05,) : null,
                           child: Container(
                             width: 36, height: 36,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: cs.onSurface.withValues(alpha: 0.08)),
-                            child: Icon(Icons.add_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.7)),
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: cs.onSurface.withValues(alpha: 0.08,
+                                        ),),
+                            child: Icon(Icons.add_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.7,
+                                        ),),
                           ),
                         ),
-                      ]),
+                      ],),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(52, 0, 52, 0),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('0.5x', style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3), fontSize: 11)),
-                          Text('3.0x', style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3), fontSize: 11)),
+                          Text('0.5x', style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3,), fontSize: 11,
+                                    ),),
+                          Text('3.0x', style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3,), fontSize: 11,
+                                    ),),
                         ],
                       ),
                     ),
@@ -2136,7 +2501,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                       child: Wrap(
                         spacing: 6, runSpacing: 4,
-                        children: [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0].map((s) {
+                        children: [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0,].map((s) {
                           final isActive = (_defaultSpeed - s).abs() < 0.01;
                           return ActionChip(
                             label: Text(l.speedValue(s.toString()),
@@ -2144,7 +2509,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 fontSize: 12,
                                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
                                 color: isActive ? cs.onPrimary : cs.onSurface,
-                              )),
+                              ),),
                             backgroundColor: isActive ? cs.primary : cs.surfaceContainerHighest,
                             side: BorderSide.none,
                             onPressed: _loaded ? () => _setDefaultSpeed(s) : null,
@@ -2154,15 +2519,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
-                      leading: Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),
+                      leading: Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant,),
                       title: Text(l.resetSpeedPresets),
                       subtitle: Text(l.resetSpeedPresetsSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       onTap: () async {
                         await PlayerSettings.resetSpeedPresets();
                         if (!mounted) return;
                         showOverlayToast(context, l.speedPresetsReset,
-                            icon: Icons.refresh_rounded);
+                            icon: Icons.refresh_rounded,);
                       },
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -2172,9 +2538,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(l.skipBack, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                          Text(l.skipBack, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                    ),),
                           Text(l.secondsValue(_backSkip.toString()), style: tt.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600, color: cs.primary)),
+                              fontWeight: FontWeight.w600, color: cs.primary,
+                                    ),),
                         ],
                       ),
                     ),
@@ -2191,9 +2559,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(l.skipForward, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                          Text(l.skipForward, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                    ),),
                           Text(l.secondsValue(_forwardSkip.toString()), style: tt.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600, color: cs.primary)),
+                              fontWeight: FontWeight.w600, color: cs.primary,
+                                    ),),
                         ],
                       ),
                     ),
@@ -2207,25 +2577,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     SwitchListTile(
                       title: Row(children: [
-                        Expanded(child: Text(l.chapterBarrierOnRewind)),
+                        Expanded(child: Text(l.chapterBarrierOnRewind),),
                         GestureDetector(
                           onTap: () => showDialog(
                             context: context,
                             builder: (_) => AlertDialog(
                               title: Text(l.chapterBarrierInfoTitle),
-                              content: Text(l.chapterBarrierInfoContent),
-                              actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l.gotIt))],
+                              content: Text(l.chapterBarrierInfoContent,),
+                              actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l.gotIt),
+                                          ),],
                             ),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(4),
-                            child: Icon(Icons.info_outline_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                            child: Icon(Icons.info_outline_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.5,
+                                        ),),
                           ),
                         ),
-                      ]),
+                      ],),
                       subtitle: Text(
                         _skipChapterBarrier ? l.chapterBarrierOnRewindOnSubtitle : l.chapterBarrierOnRewindOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,),
                       ),
                       value: _skipChapterBarrier,
                       onChanged: _loaded ? (v) {
@@ -2238,7 +2610,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(l.longSkipButtons),
                       subtitle: Text(
                         _longSkipButtons ? l.longSkipButtonsOnSubtitle : l.longSkipButtonsOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,),
                       ),
                       value: _longSkipButtons,
                       onChanged: _loaded ? (v) {
@@ -2248,13 +2620,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     if (_longSkipButtons) ...[
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4,),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(l.longSkipBack, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                            Text(l.longSkipBack, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                             Text(l.minutesValue(_longBackSkip ~/ 60), style: tt.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600, color: cs.primary)),
+                                fontWeight: FontWeight.w600, color: cs.primary,
+                                      ),),
                           ],
                         ),
                       ),
@@ -2262,18 +2636,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         value: (_longBackSkip ~/ 60).toDouble(),
                         min: 1, max: 10, divisions: 9,
                         onChanged: _loaded ? (v) {
-                          setState(() => _longBackSkip = v.round() * 60);
-                          PlayerSettings.setLongBackSkip(v.round() * 60);
+                          setState(() => _longBackSkip = v.round() * 60,);
+                          PlayerSettings.setLongBackSkip(v.round() * 60,);
                         } : null,
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4,),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(l.longSkipForward, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                            Text(l.longSkipForward, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                             Text(l.minutesValue(_longForwardSkip ~/ 60), style: tt.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600, color: cs.primary)),
+                                fontWeight: FontWeight.w600, color: cs.primary,
+                                      ),),
                           ],
                         ),
                       ),
@@ -2281,8 +2657,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         value: (_longForwardSkip ~/ 60).toDouble(),
                         min: 1, max: 10, divisions: 9,
                         onChanged: _loaded ? (v) {
-                          setState(() => _longForwardSkip = v.round() * 60);
-                          PlayerSettings.setLongForwardSkip(v.round() * 60);
+                          setState(() => _longForwardSkip = v.round() * 60,);
+                          PlayerSettings.setLongForwardSkip(v.round() * 60,);
                         } : null,
                       ),
                     ],
@@ -2292,9 +2668,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(l.autoRewindOnResume),
                       subtitle: Text(
                         _rewindSettings.enabled
-                            ? l.autoRewindOnSubtitleFormat(_rewindSettings.minRewind.round().toString(), _rewindSettings.maxRewind.round().toString())
+                            ? l.autoRewindOnSubtitleFormat(_rewindSettings.minRewind.round().toString(), _rewindSettings.maxRewind.round().toString(),)
                             : l.autoRewindOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _rewindSettings.enabled,
                       onChanged: _loaded ? (v) => _saveRewind(
                         AutoRewindSettings(
@@ -2308,68 +2685,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ) : null,
                     ),
                     if (_rewindSettings.enabled) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4,),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(l.rewindRange, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
-                            Text(l.rewindRangeValue(_rewindSettings.minRewind.round().toString(), _rewindSettings.maxRewind.round().toString()),
-                              style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                            Text(l.rewindRange, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
+                            Text(l.rewindRangeValue(_rewindSettings.minRewind.round().toString(), _rewindSettings.maxRewind.round().toString(),),
+                              style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary,
+                                      ),),
                           ],
                         ),
                       ),
                       AbsorbRangeSlider(
-                        values: RangeValues(_rewindSettings.minRewind, _rewindSettings.maxRewind),
+                        values: RangeValues(_rewindSettings.minRewind, _rewindSettings.maxRewind,),
                         min: 0, max: 60, divisions: 60,
                         onChanged: (v) => _saveRewind(AutoRewindSettings(
                           enabled: true, minRewind: v.start, maxRewind: v.end,
                           activationDelay: _rewindSettings.activationDelay,
                           chapterBarrier: _rewindSettings.chapterBarrier,
                           sessionStartRewind: _rewindSettings.sessionStartRewind,
-                        )),
+                        ),),
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4,),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(child: Text(l.rewindAfterPausedFor,
-                              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant))),
-                            Text(_rewindSettings.activationDelay == 0 ? l.rewindAnyPause : l.rewindActivationDelayValue(_rewindSettings.activationDelay.round().toString()),
-                              style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                        ),
+                                      ),),
+                            Text(_rewindSettings.activationDelay == 0 ? l.rewindAnyPause : l.rewindActivationDelayValue(_rewindSettings.activationDelay.round().toString(),),
+                              style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary,
+                                      ),),
                           ],
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8,),
                         child: Slider(
                           value: _rewindSettings.activationDelay, min: 0, max: 10, divisions: 10,
-                          label: _rewindSettings.activationDelay == 0 ? l.rewindAlwaysLabel : l.secondsValue(_rewindSettings.activationDelay.round().toString()),
+                          label: _rewindSettings.activationDelay == 0 ? l.rewindAlwaysLabel : l.secondsValue(_rewindSettings.activationDelay.round().toString(),),
                           onChanged: (v) => _saveRewind(AutoRewindSettings(
                             enabled: true, minRewind: _rewindSettings.minRewind,
                             maxRewind: _rewindSettings.maxRewind, activationDelay: v,
                             chapterBarrier: _rewindSettings.chapterBarrier,
                             sessionStartRewind: _rewindSettings.sessionStartRewind,
-                          )),
+                          ),),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4,),
                         child: Text(
                           _rewindSettings.activationDelay == 0
                             ? l.rewindAlwaysDescription
-                            : l.rewindAfterDescription(_rewindSettings.activationDelay.round().toString()),
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11)),
+                            : l.rewindAfterDescription(_rewindSettings.activationDelay.round().toString(),),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11,
+                                  ),),
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: Text(l.chapterBarrier),
                         subtitle: Text(
                           l.chapterBarrierSubtitle,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                         value: _rewindSettings.chapterBarrier,
                         onChanged: (v) => _saveRewind(AutoRewindSettings(
                           enabled: true,
@@ -2378,32 +2762,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           activationDelay: _rewindSettings.activationDelay,
                           chapterBarrier: v,
                           sessionStartRewind: _rewindSettings.sessionStartRewind,
-                        )),
+                        ),),
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: Row(children: [
-                          Expanded(child: Text(l.rewindOnSessionStart)),
+                          Expanded(child: Text(l.rewindOnSessionStart),),
                           GestureDetector(
                             onTap: () => showDialog(
                               context: context,
                               builder: (_) => AlertDialog(
                                 title: Text(l.rewindOnSessionStart),
-                                content: Text(l.rewindOnSessionStartInfoContent),
-                                actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l.gotIt))],
+                                content: Text(l.rewindOnSessionStartInfoContent,),
+                                actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l.gotIt),
+                                            ),],
                               ),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(4),
-                              child: Icon(Icons.info_outline_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                              child: Icon(Icons.info_outline_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.5,
+                                          ),),
                             ),
                           ),
-                        ]),
+                        ],),
                         subtitle: Text(
                           _rewindSettings.sessionStartRewind
-                              ? l.rewindOnSessionStartOnSubtitle(_rewindSettings.maxRewind.round().toString())
+                              ? l.rewindOnSessionStartOnSubtitle(_rewindSettings.maxRewind.round().toString(),)
                               : l.autoRewindOffSubtitle,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                         value: _rewindSettings.sessionStartRewind,
                         onChanged: (v) => _saveRewind(AutoRewindSettings(
                           enabled: true,
@@ -2412,20 +2799,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           activationDelay: _rewindSettings.activationDelay,
                           chapterBarrier: _rewindSettings.chapterBarrier,
                           sessionStartRewind: v,
-                        )),
+                        ),),
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12,),
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: cs.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(l.preview, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                              Text(l.preview, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant,
+                                        ),),
                               const SizedBox(height: 4),
                               ..._buildRewindPreviews(cs, tt, l),
                             ],
@@ -2435,6 +2823,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ],
                 ),
+                        if (!isDesktopSettings || expandedSection == 'Playback')
                 const SizedBox(height: 16),
 
                 // ── Media Controls ──
@@ -2443,24 +2832,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.dvr_rounded,
                   title: l.sectionMediaControls,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Media Controls',
+                  isExpanded: expandedSection == 'Media Controls',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Media Controls', v),
                   children: [
                     SwitchListTile(
-                      title: Text(Platform.isIOS
+                      title: Text(AppPlatform.isIOS
                           ? l.chapterProgressInNotificationIos
-                          : l.chapterProgressInNotification),
+                          : l.chapterProgressInNotification,),
                       subtitle: Text(
                         _notifChapterProgress
-                            ? (Platform.isIOS
+                            ? (AppPlatform.isIOS
                                 ? l.chapterProgressOnSubtitleIos
                                 : l.chapterProgressOnSubtitle)
                             : l.chapterProgressOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _notifChapterProgress,
                       onChanged: _loaded ? (v) {
                         setState(() => _notifChapterProgress = v);
-                        PlayerSettings.setNotificationChapterProgress(v);
+                        PlayerSettings.setNotificationChapterProgress(v,);
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -2470,7 +2861,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(l.lockSeekBar),
                       subtitle: Text(
                         _lockSeekBar ? l.lockSeekBarOnSubtitle : l.lockSeekBarOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _lockSeekBar,
                       onChanged: _loaded ? (v) {
                         setState(() => _lockSeekBar = v);
@@ -2479,38 +2871,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     // Android only: chooses which pair fills the phone media
                     // player's two extra slots. iOS uses CarPlay's own buttons.
-                    if (Platform.isAndroid) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (AppPlatform.isAndroid) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: const Text('Duck brief interruptions'),
                         subtitle: Text(
                           _duckBriefInterruptions
                               ? 'Notifications and prompts lower the volume instead of pausing'
                               : 'Notifications and prompts pause playback',
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                         value: _duckBriefInterruptions,
                         onChanged: _loaded ? (v) {
-                          setState(() => _duckBriefInterruptions = v);
-                          PlayerSettings.setDuckBriefInterruptions(v);
+                          setState(() => _duckBriefInterruptions = v,);
+                          PlayerSettings.setDuckBriefInterruptions(v,);
                         } : null,
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: Text(l.speedBookmarkInControls),
                         subtitle: Text(
                           _notifSpeedBookmark
                               ? l.speedBookmarkOnSubtitle
                               : l.speedBookmarkOffSubtitle,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                         value: _notifSpeedBookmark,
                         onChanged: _loaded ? (v) {
                           setState(() => _notifSpeedBookmark = v);
-                          PlayerSettings.setMediaControlsSpeedBookmark(v);
+                          PlayerSettings.setMediaControlsSpeedBookmark(v,);
                         } : null,
                       ),
                     ],
                   ],
                 ),
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Media Controls')
                 const SizedBox(height: 16),
 
                 // ── Sleep Timer ──
@@ -2519,12 +2915,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.bedtime_outlined,
                   title: l.sectionSleepTimer,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Sleep Timer',
+                  isExpanded: expandedSection == 'Sleep Timer',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Sleep Timer', v),
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                      child: Text(l.shakeDuringSleepTimer, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                      child: Text(l.shakeDuringSleepTimer, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -2533,9 +2931,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: SegmentedButton<String>(
                           showSelectedIcon: false,
                           segments: [
-                            ButtonSegment(value: 'off', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.shakeOff))),
-                            ButtonSegment(value: 'addTime', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.shakeAddTime))),
-                            ButtonSegment(value: 'resetTimer', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.shakeReset))),
+                            ButtonSegment(value: 'off', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.shakeOff),
+                                      ),),
+                            ButtonSegment(value: 'addTime', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.shakeAddTime),
+                                      ),),
+                            ButtonSegment(value: 'resetTimer', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.shakeReset),
+                                      ),),
                           ],
                           selected: {_shakeMode},
                           onSelectionChanged: _loaded ? (v) {
@@ -2547,23 +2948,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     if (_shakeMode != 'off') ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4,),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(l.shakeSensitivity, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
-                            Text(_shakeSensitivityLabel(l, _shakeSensitivity),
-                              style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                            Text(l.shakeSensitivity, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
+                            Text(_shakeSensitivityLabel(l, _shakeSensitivity,),
+                              style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary,
+                                      ),),
                           ],
                         ),
                       ),
                       AbsorbSlider(
-                        value: _shakeSensitivityIndex(_shakeSensitivity).toDouble(),
+                        value: _shakeSensitivityIndex(_shakeSensitivity,).toDouble(),
                         min: 0, max: 4, divisions: 4,
                         onChanged: _loaded ? (v) {
-                          final key = _shakeSensitivityKey(v.round());
+                          final key = _shakeSensitivityKey(v.round(),);
                           setState(() => _shakeSensitivity = key);
                           PlayerSettings.setShakeSensitivity(key);
                           SleepTimerService().restartShakeDetection();
@@ -2572,15 +2975,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 4),
                     ],
                     if (_shakeMode == 'addTime') ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4,),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(l.shakeAdds, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                            Text(l.shakeAdds, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                             Text(l.shakeAddsValue(_shakeAddMinutes),
-                              style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                              style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary,
+                                      ),),
                           ],
                         ),
                       ),
@@ -2588,8 +2993,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         value: _shakeAddMinutes.toDouble(),
                         min: 1, max: 30, divisions: 29,
                         onChanged: _loaded ? (v) {
-                          setState(() => _shakeAddMinutes = v.round());
-                          PlayerSettings.setShakeAddMinutes(v.round());
+                          setState(() => _shakeAddMinutes = v.round(),);
+                          PlayerSettings.setShakeAddMinutes(v.round(),);
                         } : null,
                       ),
                       const SizedBox(height: 4),
@@ -2601,7 +3006,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _resetSleepOnPause
                             ? l.resetTimerOnPauseOnSubtitle
                             : l.resetTimerOnPauseOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _resetSleepOnPause,
                       onChanged: _loaded ? (v) {
                         setState(() => _resetSleepOnPause = v);
@@ -2613,25 +3019,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                       child: Row(children: [
                         Icon(Icons.replay_rounded, size: 18,
-                          color: _sleepRewindSeconds > 0 ? cs.primary : cs.onSurfaceVariant),
+                          color: _sleepRewindSeconds > 0 ? cs.primary : cs.onSurfaceVariant,),
                         const SizedBox(width: 10),
                         Expanded(child: Text(l.sleepTimerSheetRewindOnSleep,
-                          style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant))),
+                          style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                      ),
+                                    ),),
                         Text(_rewindLabel(_sleepRewindSeconds, l),
                           style: tt.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: _sleepRewindSeconds > 0 ? cs.primary : cs.onSurfaceVariant)),
-                      ]),
+                            color: _sleepRewindSeconds > 0 ? cs.primary : cs.onSurfaceVariant,
+                                    ),),
+                      ],),
                     ),
                     AbsorbSlider(
-                      value: (_sleepRewindSeconds / 60).clamp(0.0, _maxRewindMinutes.toDouble()),
+                      value: (_sleepRewindSeconds / 60).clamp(0.0, _maxRewindMinutes.toDouble(),),
                       min: 0,
                       max: _maxRewindMinutes.toDouble(),
                       divisions: _maxRewindMinutes,
                       onChanged: _loaded ? (v) {
                         final seconds = (v * 60).round();
-                        setState(() => _sleepRewindSeconds = seconds);
-                        PlayerSettings.setSleepRewindSeconds(seconds);
+                        setState(() => _sleepRewindSeconds = seconds,);
+                        PlayerSettings.setSleepRewindSeconds(seconds,);
                       } : null,
                     ),
                     Padding(
@@ -2639,9 +3048,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(l.off, style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3), fontSize: 11)),
-                          Text(l.sleepTimerSheetMinShort(_maxRewindMinutes),
-                            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3), fontSize: 11)),
+                          Text(l.off, style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3,), fontSize: 11,
+                                    ),),
+                          Text(l.sleepTimerSheetMinShort(_maxRewindMinutes,),
+                            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3,), fontSize: 11,
+                                    ),),
                         ],
                       ),
                     ),
@@ -2650,9 +3061,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(l.fadeVolumeBeforeSleep),
                       subtitle: Text(
                         _sleepFadeOut
-                            ? l.fadeVolumeOnSubtitleDynamic(_sleepFadeDuration)
+                            ? l.fadeVolumeOnSubtitleDynamic(_sleepFadeDuration,)
                             : l.fadeVolumeOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _sleepFadeOut,
                       onChanged: _loaded ? (v) {
                         setState(() => _sleepFadeOut = v);
@@ -2666,7 +3078,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _sleepChime
                             ? l.chimeBeforeSleepOnSubtitle
                             : l.chimeBeforeSleepOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _sleepChime,
                       onChanged: _loaded ? (v) {
                         setState(() => _sleepChime = v);
@@ -2675,44 +3088,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     if (_sleepChime) ...[
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16,),
                         child: Row(children: [
-                          Icon(Icons.volume_down_rounded, size: 18, color: cs.onSurfaceVariant),
+                          Icon(Icons.volume_down_rounded, size: 18, color: cs.onSurfaceVariant,),
                           Expanded(child: Slider(
                             value: _sleepChimeVolume,
                             min: 0.5, max: 3.0, divisions: 10,
                             label: '${(_sleepChimeVolume * 100 / 3).round()}%',
                             onChanged: _loaded ? (v) {
-                              setState(() => _sleepChimeVolume = v);
-                              PlayerSettings.setSleepChimeVolume(v);
+                              setState(() => _sleepChimeVolume = v,);
+                              PlayerSettings.setSleepChimeVolume(v,);
                             } : null,
-                          )),
-                          Icon(Icons.volume_up_rounded, size: 18, color: cs.onSurfaceVariant),
-                        ]),
+                          ),),
+                          Icon(Icons.volume_up_rounded, size: 18, color: cs.onSurfaceVariant,),
+                        ],),
                       ),
                     ],
                     if (_sleepFadeOut || _sleepChime) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       ListTile(
                         title: Text(l.windDownDuration),
                         subtitle: Text(
-                          l.windDownDurationSubtitle(_sleepFadeDuration),
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          l.windDownDurationSubtitle(_sleepFadeDuration,),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16,),
                         child: Row(children: [
-                          Text(l.secondsValue(_sleepFadeDuration.toString()), style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          Text(l.secondsValue(_sleepFadeDuration.toString(),), style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                           Expanded(child: Slider(
                             value: _sleepFadeDuration.toDouble(),
                             min: 10, max: 60, divisions: 10,
-                            label: l.secondsValue(_sleepFadeDuration.toString()),
+                            label: l.secondsValue(_sleepFadeDuration.toString(),),
                             onChanged: _loaded ? (v) {
-                              setState(() => _sleepFadeDuration = v.round());
-                              PlayerSettings.setSleepFadeDuration(v.round());
+                              setState(() => _sleepFadeDuration = v.round(),);
+                              PlayerSettings.setSleepFadeDuration(v.round(),);
                             } : null,
-                          )),
-                        ]),
+                          ),),
+                        ],),
                       ),
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -2726,57 +3141,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _autoSleepSettings.endLabel,
                                 _autoSleepSettings.useEndOfChapter
                                     ? l.endOfChapterShort
-                                    : l.shakeAddsValue(_autoSleepSettings.durationMinutes))
+                                    : l.shakeAddsValue(_autoSleepSettings.durationMinutes,
+                                              ),)
                             : l.autoSleepTimerOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _autoSleepSettings.enabled,
                       onChanged: _loaded ? (v) {
                         final updated = _autoSleepSettings.copyWith(enabled: v);
-                        setState(() => _autoSleepSettings = updated);
+                        setState(() => _autoSleepSettings = updated,);
                         updated.save();
                         SleepTimerService().updateAutoSleepSettings(updated);
                       } : null,
                     ),
                     if (_autoSleepSettings.enabled) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       // Start time picker
                       ListTile(
                         title: Text(l.windowStart),
                         trailing: Text(_autoSleepSettings.startLabel,
-                          style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                          style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary,
+                                  ),),
                         onTap: () async {
                           final picked = await showTimePicker(
                             context: context,
-                            initialTime: TimeOfDay(hour: _autoSleepSettings.startHour, minute: _autoSleepSettings.startMinute),
+                            initialTime: TimeOfDay(hour: _autoSleepSettings.startHour, minute: _autoSleepSettings.startMinute,),
                           );
                           if (picked != null) {
-                            final updated = _autoSleepSettings.copyWith(startHour: picked.hour, startMinute: picked.minute);
-                            setState(() => _autoSleepSettings = updated);
+                            final updated = _autoSleepSettings.copyWith(startHour: picked.hour, startMinute: picked.minute,);
+                            setState(() => _autoSleepSettings = updated,);
                             updated.save();
-                            SleepTimerService().updateAutoSleepSettings(updated);
+                            SleepTimerService().updateAutoSleepSettings(updated,);
                           }
                         },
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       // End time picker
                       ListTile(
                         title: Text(l.windowEnd),
                         trailing: Text(_autoSleepSettings.endLabel,
-                          style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                          style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary,
+                                  ),),
                         onTap: () async {
                           final picked = await showTimePicker(
                             context: context,
-                            initialTime: TimeOfDay(hour: _autoSleepSettings.endHour, minute: _autoSleepSettings.endMinute),
+                            initialTime: TimeOfDay(hour: _autoSleepSettings.endHour, minute: _autoSleepSettings.endMinute,),
                           );
                           if (picked != null) {
-                            final updated = _autoSleepSettings.copyWith(endHour: picked.hour, endMinute: picked.minute);
-                            setState(() => _autoSleepSettings = updated);
+                            final updated = _autoSleepSettings.copyWith(endHour: picked.hour, endMinute: picked.minute,);
+                            setState(() => _autoSleepSettings = updated,);
                             updated.save();
-                            SleepTimerService().updateAutoSleepSettings(updated);
+                            SleepTimerService().updateAutoSleepSettings(updated,);
                           }
                         },
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       // End of chapter toggle
                       SwitchListTile(
                         title: Text(l.endOfChapterShort),
@@ -2784,26 +3203,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _autoSleepSettings.useEndOfChapter
                               ? l.endOfChapterOnSubtitle
                               : l.endOfChapterOffSubtitle,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                         value: _autoSleepSettings.useEndOfChapter,
                         onChanged: _loaded ? (v) {
                           final updated = _autoSleepSettings.copyWith(useEndOfChapter: v);
-                          setState(() => _autoSleepSettings = updated);
+                          setState(() => _autoSleepSettings = updated,);
                           updated.save();
                           SleepTimerService().updateAutoSleepSettings(updated);
                         } : null,
                       ),
                       // Duration slider (only for timed mode)
                       if (!_autoSleepSettings.useEndOfChapter) ...[
-                        const Divider(height: 1, indent: 16, endIndent: 16),
+                        const Divider(height: 1, indent: 16, endIndent: 16,),
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4,),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(l.timerDuration, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
-                              Text(l.shakeAddsValue(_autoSleepSettings.durationMinutes),
-                                style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                              Text(l.timerDuration, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                        ),),
+                              Text(l.shakeAddsValue(_autoSleepSettings.durationMinutes,),
+                                style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary,
+                                        ),),
                             ],
                           ),
                         ),
@@ -2811,8 +3233,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           value: _autoSleepSettings.durationMinutes.toDouble(),
                           min: 5, max: 120, divisions: 23,
                           onChanged: _loaded ? (v) {
-                            final updated = _autoSleepSettings.copyWith(durationMinutes: v.round());
-                            setState(() => _autoSleepSettings = updated);
+                            final updated = _autoSleepSettings.copyWith(durationMinutes: v.round(),);
+                            setState(() => _autoSleepSettings = updated,);
                             updated.save();
                             SleepTimerService().updateAutoSleepSettings(updated);
                           } : null,
@@ -2822,163 +3244,178 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ],
                 ),
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Sleep Timer')
                 const SizedBox(height: 16),
 
                 // ── Downloads & Storage ──
-                CollapsibleSection(
+                if (!AppPlatform.isWeb)
+                  CollapsibleSection(
                   key: _keyFor('Downloads & Storage'),
                   icon: Icons.download_outlined,
                   title: l.sectionDownloadsAndStorage,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Downloads & Storage',
+                  isExpanded:
+                                expandedSection == 'Downloads & Storage',
+                            desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Downloads & Storage', v),
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 12),
-                          Text(l.downloadOverWifiOnly, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                          Text(l.downloadOverWifiOnly, style: tt.bodyMedium?.copyWith(color: cs.onSurface,
+                                      ),),
                           const SizedBox(height: 8),
                           SizedBox(width: double.infinity, child: SegmentedButton<bool>(
                             showSelectedIcon: false,
                             segments: [
-                              ButtonSegment(value: true, label: Text(l.downloadOverWifiOnSubtitle)),
-                              ButtonSegment(value: false, label: Text(l.downloadOverWifiOffSubtitle)),
+                              ButtonSegment(value: true, label: Text(l.downloadOverWifiOnSubtitle,
+                                            ),),
+                              ButtonSegment(value: false, label: Text(l.downloadOverWifiOffSubtitle,
+                                            ),),
                             ],
                             selected: {_wifiOnlyDownloads},
                             onSelectionChanged: _loaded ? (v) {
-                              setState(() => _wifiOnlyDownloads = v.first);
-                              PlayerSettings.setWifiOnlyDownloads(v.first);
+                              setState(() => _wifiOnlyDownloads = v.first,);
+                              PlayerSettings.setWifiOnlyDownloads(v.first,);
                             } : null,
-                          )),
+                          ),),
                           const SizedBox(height: 8),
                         ],
                       ),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     SwitchListTile(
                       title: Row(children: [
                         Flexible(child: Text(l.autoDownloadOnWifi)),
-                        _infoIcon(l.autoDownloadOnWifiInfoTitle, l.autoDownloadOnWifiInfoContent),
-                      ]),
+                        _infoIcon(l.autoDownloadOnWifiInfoTitle, l.autoDownloadOnWifiInfoContent,),
+                      ],),
                       subtitle: Text(
                         _autoDownloadOnStream
                             ? l.autoDownloadOnWifiOnSubtitle
                             : l.autoDownloadOnWifiOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                       value: _autoDownloadOnStream,
                       onChanged: _loaded ? (v) {
-                        setState(() => _autoDownloadOnStream = v);
-                        PlayerSettings.setAutoDownloadOnStream(v);
+                        setState(() => _autoDownloadOnStream = v,);
+                        PlayerSettings.setAutoDownloadOnStream(v,);
                       } : null,
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     SwitchListTile(
                       title: const Text('Auto-download series'),
                       subtitle: Text(
                         _autoSeriesDownloadDefault
                             ? 'Starting a book in a series keeps the next books downloaded'
                             : 'Turn on series downloads yourself from the series menu',
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                       value: _autoSeriesDownloadDefault,
                       onChanged: _loaded ? (v) {
-                        setState(() => _autoSeriesDownloadDefault = v);
-                        PlayerSettings.setAutoSeriesDownloadDefault(v);
+                        setState(() => _autoSeriesDownloadDefault = v,);
+                        PlayerSettings.setAutoSeriesDownloadDefault(v,);
                       } : null,
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 12),
-                          Text(l.concurrentDownloads, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                          Text(l.concurrentDownloads, style: tt.bodyMedium?.copyWith(color: cs.onSurface,
+                                      ),),
                           const SizedBox(height: 8),
                           SizedBox(width: double.infinity, child: SegmentedButton<int>(
                             showSelectedIcon: false,
                             segments: const [
-                              ButtonSegment(value: 1, label: Text('1')),
-                              ButtonSegment(value: 2, label: Text('2')),
-                              ButtonSegment(value: 3, label: Text('3')),
-                              ButtonSegment(value: 4, label: Text('4')),
-                              ButtonSegment(value: 5, label: Text('5')),
+                              ButtonSegment(value: 1, label: Text('1'),),
+                              ButtonSegment(value: 2, label: Text('2'),),
+                              ButtonSegment(value: 3, label: Text('3'),),
+                              ButtonSegment(value: 4, label: Text('4'),),
+                              ButtonSegment(value: 5, label: Text('5'),),
                             ],
                             selected: {_maxConcurrentDownloads},
                             onSelectionChanged: (v) {
-                              setState(() => _maxConcurrentDownloads = v.first);
-                              PlayerSettings.setMaxConcurrentDownloads(v.first);
+                              setState(() => _maxConcurrentDownloads = v.first,);
+                              PlayerSettings.setMaxConcurrentDownloads(v.first,);
                             },
-                          )),
+                          ),),
                           const SizedBox(height: 8),
                         ],
                       ),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     ListTile(
                       title: Text(l.autoDownload),
                       subtitle: Text(
                         l.autoDownloadSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                      leading: Icon(Icons.downloading_rounded, color: cs.primary),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
+                      leading: Icon(Icons.downloading_rounded, color: cs.primary,),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(children: [
-                            Text(l.keepNext, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
-                            _infoIcon(l.keepNextInfoTitle, l.keepNextInfoContent),
-                          ]),
+                            Text(l.keepNext, style: tt.bodyMedium?.copyWith(color: cs.onSurface,
+                                          ),),
+                            _infoIcon(l.keepNextInfoTitle, l.keepNextInfoContent,),
+                          ],),
                           const SizedBox(height: 8),
                           SizedBox(width: double.infinity, child: SegmentedButton<int>(
                             showSelectedIcon: false,
                             segments: const [
-                              ButtonSegment(value: 2, label: Text('2')),
-                              ButtonSegment(value: 3, label: Text('3')),
-                              ButtonSegment(value: 4, label: Text('4')),
-                              ButtonSegment(value: 5, label: Text('5')),
+                              ButtonSegment(value: 2, label: Text('2'),),
+                              ButtonSegment(value: 3, label: Text('3'),),
+                              ButtonSegment(value: 4, label: Text('4'),),
+                              ButtonSegment(value: 5, label: Text('5'),),
                             ],
                             selected: {_rollingDownloadCount},
                             onSelectionChanged: (v) async {
-                              setState(() => _rollingDownloadCount = v.first);
-                              await PlayerSettings.setRollingDownloadCount(v.first);
+                              setState(() => _rollingDownloadCount = v.first,);
+                              await PlayerSettings.setRollingDownloadCount(v.first,);
                               if (_queueAutoDownload) {
                                 unawaited(lib.syncQueueAutoDownloads());
                               }
                             },
-                          )),
+                          ),),
                           const SizedBox(height: 8),
                         ],
                       ),
                     ),
                     SwitchListTile(
                       title: Row(children: [
-                        Flexible(child: Text(Wording.of(context).deleteAbsorbedDownloads)),
-                        _infoIcon(Wording.of(context).deleteAbsorbedDownloadsInfoTitle, l.deleteAbsorbedDownloadsInfoContent),
-                      ]),
+                        Flexible(child: Text(Wording.of(context,).deleteAbsorbedDownloads,
+                                      ),),
+                        _infoIcon(Wording.of(context,).deleteAbsorbedDownloadsInfoTitle, l.deleteAbsorbedDownloadsInfoContent,),
+                      ],),
                       subtitle: Text(
                         _rollingDownloadDeleteFinished
                             ? l.deleteAbsorbedOnSubtitle
                             : l.deleteAbsorbedOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                       value: _rollingDownloadDeleteFinished,
                       onChanged: _loaded ? (v) {
-                        setState(() => _rollingDownloadDeleteFinished = v);
-                        PlayerSettings.setRollingDownloadDeleteFinished(v);
+                        setState(() => _rollingDownloadDeleteFinished = v,);
+                        PlayerSettings.setRollingDownloadDeleteFinished(v,);
                       } : null,
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    if (!Platform.isIOS && _canPickDownloadLocation)
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
+                    if (!AppPlatform.isIOS && _canPickDownloadLocation)
                     ListTile(
-                      leading: Icon(Icons.folder_outlined, color: cs.primary),
+                      leading: Icon(Icons.folder_outlined, color: cs.primary,),
                       title: Text(l.downloadLocation),
                       subtitle: Text(
                         _downloadLocationLabel,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -2986,63 +3423,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () => _pickDownloadLocation(context, cs, tt),
                     ),
                     if (_totalDownloadSizeBytes > 0 || _deviceTotalBytes > 0) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       ListTile(
-                        leading: Icon(Icons.data_usage_rounded, color: cs.onSurfaceVariant),
+                        leading: Icon(Icons.data_usage_rounded, color: cs.onSurfaceVariant,),
                         title: Text(l.storageUsed),
                         subtitle: Text(
                           [
-                            if (_totalDownloadSizeBytes > 0) l.storageUsedByDownloads(_formatBytes(_totalDownloadSizeBytes)),
-                            if (_deviceTotalBytes > 0) l.storageFreeOfTotal(_formatBytes(_deviceAvailableBytes), _formatBytes(_deviceTotalBytes)),
+                            if (_totalDownloadSizeBytes > 0) l.storageUsedByDownloads(_formatBytes(_totalDownloadSizeBytes),),
+                            if (_deviceTotalBytes > 0) l.storageFreeOfTotal(_formatBytes(_deviceAvailableBytes), _formatBytes(_deviceTotalBytes),),
                           ].join('\n'),
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                    ),),
                         isThreeLine: _totalDownloadSizeBytes > 0 && _deviceTotalBytes > 0,
                       ),
                     ],
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     ListTile(
-                      leading: Icon(Icons.storage_rounded, color: cs.primary),
+                      leading: Icon(Icons.storage_rounded, color: cs.primary,),
                       title: Text(l.manageDownloads),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const DownloadsScreen())),
+                        MaterialPageRoute(builder: (_) => const DownloadsScreen(),
+                                  ),),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16,),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 12),
                           Row(children: [
-                            Text(l.streamingCache, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
-                            _infoIcon(l.streamingCacheInfoTitle, l.streamingCacheInfoContent),
-                          ]),
+                            Text(l.streamingCache, style: tt.bodyMedium?.copyWith(color: cs.onSurface,
+                                          ),),
+                            _infoIcon(l.streamingCacheInfoTitle, l.streamingCacheInfoContent,),
+                          ],),
                           const SizedBox(height: 4),
                           Text(
                             _streamingCacheSizeMb == 0
                                 ? l.streamingCacheOffSubtitle
-                                : l.streamingCacheOnSubtitle(_streamingCacheSizeMb),
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                                : l.streamingCacheOnSubtitle(_streamingCacheSizeMb,),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                           const SizedBox(height: 8),
                           SizedBox(width: double.infinity, child: SegmentedButton<int>(
                             showSelectedIcon: false,
                             segments: [
-                              ButtonSegment(value: 0, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.streamingCacheOff))),
-                              const ButtonSegment(value: 128, label: FittedBox(fit: BoxFit.scaleDown, child: Text('128 MB'))),
-                              const ButtonSegment(value: 256, label: FittedBox(fit: BoxFit.scaleDown, child: Text('256 MB'))),
-                              const ButtonSegment(value: 512, label: FittedBox(fit: BoxFit.scaleDown, child: Text('512 MB'))),
+                              ButtonSegment(value: 0, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.streamingCacheOff),
+                                            ),),
+                              const ButtonSegment(value: 128, label: FittedBox(fit: BoxFit.scaleDown, child: Text('128 MB'),
+                                            ),),
+                              const ButtonSegment(value: 256, label: FittedBox(fit: BoxFit.scaleDown, child: Text('256 MB'),
+                                            ),),
+                              const ButtonSegment(value: 512, label: FittedBox(fit: BoxFit.scaleDown, child: Text('512 MB'),
+                                            ),),
                             ],
                             selected: {_streamingCacheSizeMb},
                             onSelectionChanged: (v) {
-                              setState(() => _streamingCacheSizeMb = v.first);
-                              PlayerSettings.setStreamingCacheSizeMb(v.first);
+                              setState(() => _streamingCacheSizeMb = v.first,);
+                              PlayerSettings.setStreamingCacheSizeMb(v.first,);
                             },
-                          )),
+                          ),),
                           if (_streamingCacheSizeMb > 0) ...[
                             const SizedBox(height: 8),
                             TextButton.icon(
-                              icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                              icon: const Icon(Icons.delete_sweep_outlined, size: 18,),
                               label: Text(l.clearCache),
                               onPressed: () async {
                                 try {
@@ -3050,7 +3495,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 } catch (_) {}
                                 if (mounted) {
                                   showOverlayToast(context, l.streamingCacheCleared,
-                                      icon: Icons.delete_outline_rounded);
+                                      icon: Icons.delete_outline_rounded,);
                                 }
                               },
                             ),
@@ -3061,6 +3506,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Downloads & Storage')
                 const SizedBox(height: 16),
 
                 // ── Library ──
@@ -3069,13 +3516,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.auto_stories_outlined,
                   title: l.sectionLibrary,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Library',
+                  isExpanded: expandedSection == 'Library',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Library', v),
                   children: [
                     Consumer<LibraryProvider>(builder: (context, lib, _) {
                       final podcastLibs = lib.libraries
                           .whereType<Map<String, dynamic>>()
-                          .where((l) => (l['mediaType'] as String? ?? 'book') == 'podcast')
+                          .where((l) => (l['mediaType'] as String? ?? 'book') == 'podcast',)
                           .toList();
                       if (podcastLibs.isEmpty) return const SizedBox.shrink();
                       final currentName = podcastLibs.firstWhere(
@@ -3086,58 +3534,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         SwitchListTile(
                           title: Text(l.settingsPodcastTab),
                           subtitle: Text(l.settingsPodcastTabDesc,
-                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                        ),),
                           value: _podcastTabEnabled,
                           onChanged: _loaded ? (v) async {
                             var libId = _podcastTabLibraryId;
-                            if (v && !podcastLibs.any((p) => p['id'] == libId)) {
+                            if (v && !podcastLibs.any((p) => p['id'] == libId,)) {
                               libId = podcastLibs.first['id'] as String;
-                              await PlayerSettings.setPodcastTabLibraryId(libId);
+                              await PlayerSettings.setPodcastTabLibraryId(libId,);
                             }
                             setState(() {
                               _podcastTabEnabled = v;
                               _podcastTabLibraryId = libId;
                             });
-                            await PlayerSettings.setPodcastTabEnabled(v);
+                            await PlayerSettings.setPodcastTabEnabled(v,);
                           } : null,
                         ),
                         if (_podcastTabEnabled && podcastLibs.length > 1)
                           ListTile(
-                            title: Text(l.settingsPodcastTabLibrary),
+                            title: Text(l.settingsPodcastTabLibrary,),
                             subtitle: Text(currentName,
-                                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                            trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
+                                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                          ),),
+                            trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant,),
                             onTap: () => _pickPodcastTabLibrary(podcastLibs),
                           ),
-                        if (Platform.isAndroid) ...[
-                          const Divider(height: 1, indent: 16, endIndent: 16),
+                        if (AppPlatform.isAndroid) ...[
+                          const Divider(height: 1, indent: 16, endIndent: 16,),
                           ListTile(
                             title: Text(l.settingsEpisodeNotifs),
                             subtitle: Text(
                                 '${l.settingsEpisodeNotifsDesc} - ${_episodeNotifLabel(l)}',
-                                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                            trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
+                                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                          ),),
+                            trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant,),
                             onTap: _loaded ? _pickEpisodeNotifInterval : null,
                           ),
                           if (_episodeNotifMinutes > 0)
                             ListTile(
-                              title: Text(l.settingsBatteryUnrestricted),
+                              title: Text(l.settingsBatteryUnrestricted,),
                               subtitle: Text(l.settingsBatteryUnrestrictedDesc,
-                                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                              trailing: Icon(Icons.battery_saver_rounded, color: cs.onSurfaceVariant),
+                                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                            ),),
+                              trailing: Icon(Icons.battery_saver_rounded, color: cs.onSurfaceVariant,),
                               onTap: () => Permission.ignoreBatteryOptimizations.request(),
                             ),
                         ],
-                        const Divider(height: 1, indent: 16, endIndent: 16),
-                      ]);
-                    }),
+                        const Divider(height: 1, indent: 16, endIndent: 16,),
+                      ],);
+                    },),
                     SwitchListTile(
                       title: Text(l.hideEbookOnlyTitles),
                       subtitle: Text(
                         _hideEbookOnly
                             ? l.hideEbookOnlyOnSubtitle
                             : l.hideEbookOnlyOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _hideEbookOnly,
                       onChanged: _loaded ? (v) {
                         setState(() => _hideEbookOnly = v);
@@ -3151,7 +3604,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _showGoodreadsButton
                             ? l.showGoodreadsOnSubtitle
                             : l.showGoodreadsOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _showGoodreadsButton,
                       onChanged: _loaded ? (v) {
                         setState(() => _showGoodreadsButton = v);
@@ -3165,7 +3619,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _showExplicitBadge
                             ? l.showExplicitBadgeOnSubtitle
                             : l.showExplicitBadgeOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _showExplicitBadge,
                       onChanged: _loaded ? (v) {
                         setState(() => _showExplicitBadge = v);
@@ -3173,7 +3628,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     if (lib.libraries.length > 1) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       ...lib.libraries
                         .map((library) {
                         final id = library['id'] as String;
@@ -3183,64 +3638,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return ListTile(
                           leading: Icon(
                             mediaType == 'podcast' ? Icons.podcasts_rounded : Icons.auto_stories_rounded,
-                            color: isSelected ? cs.primary : cs.onSurfaceVariant),
+                            color: isSelected ? cs.primary : cs.onSurfaceVariant,),
                           title: Text(name),
-                          trailing: isSelected ? Icon(Icons.check_circle_rounded, color: cs.primary) : null,
+                          trailing: isSelected ? Icon(Icons.check_circle_rounded, color: cs.primary,) : null,
                           onTap: () { if (!isSelected) lib.selectLibrary(id); },
                         );
                       }),
                     ],
                     if (_curLibId != null) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 2,),
                         child: Text(
-                          l.currentLibrarySettingsTitle(lib.selectedLibrary?['name'] as String? ?? l.libraryFallback),
+                          l.currentLibrarySettingsTitle(lib.selectedLibrary?['name'] as String? ?? l.libraryFallback,),
                           style: tt.titleSmall,
                         ),
                       ),
                       InkWell(
                         onTap: _loaded ? () => _pickCurrentLibraryCoverShape() : null,
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14,),
                           child: Row(children: [
                             Expanded(child: Text(l.coverShapeLabel)),
-                            Text(_coverShapeValueLabel(l, _curLibCoverShape),
-                                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                            Text(_coverShapeValueLabel(l, _curLibCoverShape,),
+                                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                        ),),
                             Icon(Icons.chevron_right_rounded,
-                                color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
-                          ]),
+                                color: cs.onSurfaceVariant.withValues(alpha: 0.5,
+                                        ),),
+                          ],),
                         ),
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: Text(l.currentLibrarySkipOverride),
                         subtitle: Text(
                           _curLibSkipOverride
                               ? l.currentLibrarySkipOverrideOnSubtitle
                               : l.currentLibrarySkipOverrideOffSubtitle,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,),
                         ),
                         value: _curLibSkipOverride,
                         onChanged: _loaded ? (v) {
                           setState(() => _curLibSkipOverride = v);
                           if (v) {
                             PlayerSettings.setSkipOverride(_curLibId!,
-                                forward: _curLibSkipForward, back: _curLibSkipBack);
+                                forward: _curLibSkipForward, back: _curLibSkipBack,);
                           } else {
-                            PlayerSettings.setSkipOverride(_curLibId!, forward: null, back: null);
+                            PlayerSettings.setSkipOverride(_curLibId!, forward: null, back: null,);
                           }
                         } : null,
                       ),
                       if (_curLibSkipOverride) ...[
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4,),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(l.currentLibrarySkipBack, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
-                              Text(l.secondsValue(_curLibSkipBack.toString()), style: tt.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600, color: cs.primary)),
+                              Text(l.currentLibrarySkipBack, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                        ),),
+                              Text(l.secondsValue(_curLibSkipBack.toString(),), style: tt.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600, color: cs.primary,
+                                        ),),
                             ],
                           ),
                         ),
@@ -3248,19 +3707,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           value: _curLibSkipBack.toDouble(),
                           min: 5, max: 60, divisions: 11,
                           onChanged: _loaded ? (v) {
-                            setState(() => _curLibSkipBack = v.round());
+                            setState(() => _curLibSkipBack = v.round(),);
                             PlayerSettings.setSkipOverride(_curLibId!,
-                                forward: _curLibSkipForward, back: v.round());
+                                forward: _curLibSkipForward, back: v.round(),);
                           } : null,
                         ),
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4,),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(l.currentLibrarySkipForward, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
-                              Text(l.secondsValue(_curLibSkipForward.toString()), style: tt.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600, color: cs.primary)),
+                              Text(l.currentLibrarySkipForward, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant,
+                                        ),),
+                              Text(l.secondsValue(_curLibSkipForward.toString(),), style: tt.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600, color: cs.primary,
+                                        ),),
                             ],
                           ),
                         ),
@@ -3268,38 +3729,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           value: _curLibSkipForward.toDouble(),
                           min: 5, max: 60, divisions: 11,
                           onChanged: _loaded ? (v) {
-                            setState(() => _curLibSkipForward = v.round());
+                            setState(() => _curLibSkipForward = v.round(),);
                             PlayerSettings.setSkipOverride(_curLibId!,
-                                forward: v.round(), back: _curLibSkipBack);
+                                forward: v.round(), back: _curLibSkipBack,);
                           } : null,
                         ),
                       ],
                     ],
                   ],
                 ),
+                        if (!isDesktopSettings || expandedSection == 'Library')
                 const SizedBox(height: 16),
 
                 // ── Permissions ──
-                CollapsibleSection(
+                if (!AppPlatform.isWeb)
+                  CollapsibleSection(
                   key: _keyFor('Permissions'),
                   icon: Icons.shield_outlined,
                   title: l.sectionPermissions,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Permissions',
+                  isExpanded: expandedSection == 'Permissions',
+                            desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Permissions', v),
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.notifications_outlined),
+                      leading: const Icon(Icons.notifications_outlined,),
                       title: Text(l.notifications),
                       subtitle: Text(l.notificationsSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
+                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant,),
                       onTap: () async {
                         final status = await Permission.notification.status;
                         if (status.isGranted) {
                           if (mounted) {
                             showOverlayToast(context, l.notificationsAlreadyEnabled,
-                                icon: Icons.notifications_active_outlined);
+                                icon: Icons.notifications_active_outlined,);
                           }
                         } else {
                           final result = await Permission.notification.request();
@@ -3307,20 +3772,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         }
                       },
                     ),
-                    if (Platform.isAndroid) ...[
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (AppPlatform.isAndroid) ...[
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     ListTile(
-                      leading: const Icon(Icons.battery_saver_outlined),
+                      leading: const Icon(Icons.battery_saver_outlined,),
                       title: Text(l.unrestrictedBattery),
                       subtitle: Text(l.unrestrictedBatterySubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                    ),),
+                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant,),
                       onTap: () async {
                         final status = await Permission.ignoreBatteryOptimizations.status;
                         if (status.isGranted) {
                           if (mounted) {
                             showOverlayToast(context, l.batteryAlreadyUnrestricted,
-                                icon: Icons.battery_saver_outlined);
+                                icon: Icons.battery_saver_outlined,);
                           }
                         } else {
                           final result = await Permission.ignoreBatteryOptimizations.request();
@@ -3331,6 +3797,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ],
                 ),
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Permissions')
                 const SizedBox(height: 16),
 
                 // ── Issues & Support ──
@@ -3339,20 +3807,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.support_agent_rounded,
                   title: l.sectionIssuesAndSupport,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Issues & Support',
+                  isExpanded: expandedSection == 'Issues & Support',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Issues & Support', v),
                   children: [
                     ListTile(
                       leading: Icon(Icons.lightbulb_outline_rounded,
-                          color: cs.onSurfaceVariant),
+                          color: cs.onSurfaceVariant,),
                       title: Text(l.showTipsAgain),
                       subtitle: Text(l.showTipsAgainSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       onTap: () async {
                         await FeatureHint.resetAll();
                         if (!mounted) return;
                         showOverlayToast(context, l.tipsRestored,
-                            icon: Icons.lightbulb_outline_rounded);
+                            icon: Icons.lightbulb_outline_rounded,);
                         // Re-trigger the welcome dialog without an app
                         // restart. resetAll() already cleared the flag.
                         WelcomeSheet.showIfNeeded(context);
@@ -3360,34 +3830,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
-                      leading: Icon(Icons.bug_report_outlined, color: cs.onSurfaceVariant),
+                      leading: Icon(Icons.bug_report_outlined, color: cs.onSurfaceVariant,),
                       title: Text(l.bugsAndFeatureRequests),
                       subtitle: Text(l.bugsAndFeatureRequestsSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       trailing: Icon(Icons.open_in_new_rounded,
-                          size: 18, color: cs.onSurfaceVariant),
+                          size: 18, color: cs.onSurfaceVariant,),
                       onTap: () => launchUrl(
-                          Uri.parse('https://github.com/pounat/absorb/issues'),
-                          mode: LaunchMode.externalApplication),
+                          Uri.parse('https://github.com/pounat/absorb/issues',),
+                          mode: LaunchMode.externalApplication,),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
-                      leading: Icon(Icons.discord, color: cs.onSurfaceVariant),
+                      leading: Icon(Icons.discord, color: cs.onSurfaceVariant,),
                       title: Text(l.joinDiscord),
                       subtitle: Text(l.joinDiscordSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       trailing: Icon(Icons.open_in_new_rounded,
-                          size: 18, color: cs.onSurfaceVariant),
+                          size: 18, color: cs.onSurfaceVariant,),
                       onTap: () => launchUrl(
                           Uri.parse('https://discord.gg/bwH6hdvzZ4'),
-                          mode: LaunchMode.externalApplication),
+                          mode: LaunchMode.externalApplication,),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
-                      leading: Icon(Icons.email_outlined, color: cs.primary),
+                      leading: Icon(Icons.email_outlined, color: cs.primary,),
                       title: Text(l.contact),
                       subtitle: Text(l.contactSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () {
                         LogService().contactEmail(
@@ -3402,7 +3875,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _loggingEnabled
                             ? l.enableLoggingOnSubtitle
                             : l.enableLoggingOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _loggingEnabled,
                       onChanged: _loaded ? (v) {
                         setState(() => _loggingEnabled = v);
@@ -3417,13 +3891,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     if (_loggingEnabled && LogService().enabled) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       ListTile(
-                        leading: Icon(Icons.attach_file_rounded, color: cs.primary),
+                        leading: Icon(Icons.attach_file_rounded, color: cs.primary,),
                         title: Text(l.sendLogs),
                         subtitle: Text(l.sendLogsSubtitle,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                        trailing: const Icon(Icons.chevron_right_rounded),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
+                        trailing: const Icon(Icons.chevron_right_rounded,),
                         onTap: () async {
                           try {
                             final box = context.findRenderObject() as RenderBox?;
@@ -3445,21 +3920,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           }
                         },
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       ListTile(
-                        leading: Icon(Icons.delete_outline_rounded, color: cs.error),
+                        leading: Icon(Icons.delete_outline_rounded, color: cs.error,),
                         title: Text(l.clearLogs),
                         onTap: () async {
                           await LogService().clearLogs();
                           if (mounted) {
                             showOverlayToast(context, l.logsCleared,
-                                icon: Icons.delete_outline_rounded);
+                                icon: Icons.delete_outline_rounded,);
                           }
                         },
                       ),
                     ],
                   ],
                 ),
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Issues & Support')
                 const SizedBox(height: 16),
 
                 // ── Advanced ──
@@ -3468,92 +3945,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.tune_rounded,
                   title: l.sectionAdvanced,
                   cs: cs,
-                  isExpanded: _expandedSection == 'Advanced',
+                  isExpanded: expandedSection == 'Advanced',
+                          desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Advanced', v),
                   children: [
                     SwitchListTile(
                       title: Row(children: [
                         Flexible(child: Text(l.localServer)),
-                        _infoIcon(l.localServerInfoTitle, l.localServerInfoContent),
-                      ]),
+                        _infoIcon(l.localServerInfoTitle, l.localServerInfoContent,),
+                      ],),
                       subtitle: Text(
                         _localServerEnabled
                             ? (auth.useLocalServer
                                 ? l.localServerOnConnectedSubtitle
                                 : l.localServerOnRemoteSubtitle)
                             : l.localServerOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
                       value: _localServerEnabled,
                       onChanged: _loaded ? (v) {
                         setState(() => _localServerEnabled = v);
-                        auth.setLocalServerConfig(enabled: v, url: _localServerUrl);
+                        auth.setLocalServerConfig(enabled: v, url: _localServerUrl,);
                       } : null,
                     ),
                     if (_localServerEnabled) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0,),
                         child: TextField(
                           controller: _localServerController,
                           decoration: InputDecoration(
                             labelText: l.localServerUrlLabel,
                             hintText: l.localServerUrlHint,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),),
                           ),
                           onSubmitted: (_) => _saveLocalServerUrl(auth, l),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8,),
                         child: Align(
                           alignment: Alignment.centerRight,
                           child: FilledButton.icon(
-                            icon: const Icon(Icons.check_rounded, size: 18),
+                            icon: const Icon(Icons.check_rounded, size: 18,),
                             label: Text(l.setTooltip),
                             onPressed: () => _saveLocalServerUrl(auth, l),
                           ),
                         ),
                       ),
                       if (auth.useLocalServer) ...[
-                        const Divider(height: 1, indent: 16, endIndent: 16),
+                        const Divider(height: 1, indent: 16, endIndent: 16,),
                         ListTile(
-                          leading: Icon(Icons.check_circle_rounded, color: Colors.greenAccent.shade400),
+                          leading: Icon(Icons.check_circle_rounded, color: Colors.greenAccent.shade400,),
                           title: Text(l.localServerOnConnectedSubtitle),
                           subtitle: Text(_localServerUrl,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                    ),),
                         ),
                       ],
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    if (!AppPlatform.isWeb)
+                      SwitchListTile(
                       title: Row(children: [
-                        Flexible(child: Text(l.trustAllCertificates)),
-                        _infoIcon(l.trustAllCertificatesInfoTitle, l.trustAllCertificatesInfoContent),
-                      ]),
+                        Flexible(child: Text(l.trustAllCertificates),),
+                        _infoIcon(l.trustAllCertificatesInfoTitle, l.trustAllCertificatesInfoContent,),
+                      ],),
                       subtitle: Text(
                         _trustAllCerts
                             ? l.trustAllCertificatesOnSubtitle
                             : l.trustAllCertificatesOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                       value: _trustAllCerts,
                       onChanged: _loaded ? (v) async {
                         setState(() => _trustAllCerts = v);
-                        await PlayerSettings.setTrustAllCerts(v);
+                        await PlayerSettings.setTrustAllCerts(v,);
                         applyTrustAllCerts(v);
                       } : null,
                     ),
-                    if (Platform.isAndroid) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (AppPlatform.isAndroid) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: Row(children: [
                           Flexible(child: Text(l.mp3IndexSeeking)),
-                          _infoIcon(l.mp3IndexSeekingInfoTitle, l.mp3IndexSeekingInfoContent),
-                        ]),
+                          _infoIcon(l.mp3IndexSeekingInfoTitle, l.mp3IndexSeekingInfoContent,),
+                        ],),
                         subtitle: Text(
                           _mp3IndexSeeking
                               ? l.mp3IndexSeekingOnSubtitle
                               : l.mp3IndexSeekingOffSubtitle,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                         value: _mp3IndexSeeking,
                         onChanged: _loaded ? (v) {
                           setState(() => _mp3IndexSeeking = v);
@@ -3562,41 +4045,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                     if (_isGithubBuild) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: Row(children: [
                           Flexible(child: Text(l.includePreReleases)),
-                          _infoIcon(l.preReleaseUpdatesInfoTitle, l.preReleaseUpdatesInfoContent),
-                        ]),
+                          _infoIcon(l.preReleaseUpdatesInfoTitle, l.preReleaseUpdatesInfoContent,),
+                        ],),
                         subtitle: Text(
                           _includePreReleases
                               ? l.includePreReleasesOnSubtitle
                               : l.includePreReleasesOffSubtitle,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
                         value: _includePreReleases,
                         onChanged: _loaded ? (v) async {
                           setState(() => _includePreReleases = v);
-                          await PlayerSettings.setIncludePreReleases(v);
+                          await PlayerSettings.setIncludePreReleases(v,);
                         } : null,
                       ),
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
-                      leading: Icon(Icons.menu_book_rounded, color: cs.primary),
+                      leading: Icon(Icons.menu_book_rounded, color: cs.primary,),
                       title: Text(l.adminRmab),
                       subtitle: Text(
                         ((_rmabBaseUrl ?? '').isNotEmpty && (_rmabApiToken ?? '').isNotEmpty)
                             ? l.adminRmabConnected
                             : l.adminRmabAskAdmin,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                ),),
+                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5,
+                                ),),
                       onTap: _openRmabSheetFromSettings,
                     ),
                   ],
                 ),
+                        if (!isDesktopSettings || expandedSection == 'Advanced')
                 const SizedBox(height: 16),
 
                 // ── Support the Dev ──
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Issues & Support')
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
@@ -3604,92 +4093,111 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Card(
                         color: cs.surfaceContainerHigh,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),),
                         clipBehavior: Clip.antiAlias,
                         child: ListTile(
                           leading: Icon(Icons.coffee_rounded,
-                              color: Colors.amber.shade600),
+                              color: Colors.amber.shade600,),
                           title: Text(l.supportTheDev),
                           subtitle: Text(l.buyMeACoffee,
                               style: tt.bodySmall
-                                  ?.copyWith(color: cs.onSurfaceVariant)),
+                                  ?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                           trailing: Icon(Icons.favorite_rounded,
-                              size: 18, color: Colors.amber.shade600),
+                              size: 18, color: Colors.amber.shade600,),
                           onTap: () => launchUrl(
                               Uri.parse(
-                                  'https://www.buymeacoffee.com/BarnabasApps'),
-                              mode: LaunchMode.externalApplication),
+                                  'https://www.buymeacoffee.com/BarnabasApps',),
+                              mode: LaunchMode.externalApplication,),
                         ),
                       ),
                     ],
                   ),
                 ),
 
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Issues & Support')
+
                 const SizedBox(height: 16),
 
                 // ── Backup & Restore ──
+                        if (!isDesktopSettings || expandedSection == 'Advanced')
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Card(
                     elevation: 0,
                     color: cs.surfaceContainerHigh,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14),),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(children: [
-                            Icon(Icons.settings_backup_restore_rounded, color: cs.primary, size: 22),
+                            Icon(Icons.settings_backup_restore_rounded, color: cs.primary, size: 22,),
                             const SizedBox(width: 10),
-                            Text(l.backupAndRestore, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                          ]),
+                            Text(l.backupAndRestore, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600,
+                                          ),),
+                          ],),
                           const SizedBox(height: 4),
                           Text(l.backupAndRestoreSubtitle,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                      ),),
                           const SizedBox(height: 14),
                           Row(children: [
                             Expanded(child: FilledButton.tonalIcon(
-                              icon: const Icon(Icons.upload_rounded, size: 18),
+                              icon: const Icon(Icons.upload_rounded, size: 18,),
                               label: Text(l.backUp),
-                              onPressed: () => _backupSettings(context, cs, tt),
-                            )),
-                            const SizedBox(width: 10),
-                            Expanded(child: OutlinedButton.icon(
-                              icon: const Icon(Icons.download_rounded, size: 18),
-                              label: Text(l.restore),
-                              onPressed: () => _restoreSettings(context, cs, tt),
-                            )),
-                          ]),
+                              onPressed: () => _backupSettings(context, cs, tt,
+                                            ),
+                                          ),),
+                            if (!AppPlatform.isWeb) ...[
+                              const SizedBox(width: 10),
+                              Expanded(child: OutlinedButton.icon(
+                                icon: const Icon(Icons.download_rounded, size: 18,),
+                                label: Text(l.restore),
+                                onPressed: () => _restoreSettings(context, cs, tt,
+                                              ),
+                                            ),),
+                            ],
+                          ],),
                         ],
                       ),
                     ),
                   ),
                 ),
 
+                        if (!isDesktopSettings ||
+                            expandedSection == 'Advanced' ||
+                            expandedSection == 'Library')
+
                 const SizedBox(height: 10),
 
                 // ── All Bookmarks ──
+                        if (!isDesktopSettings || expandedSection == 'Library')
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Card(
                     elevation: 0,
                     color: cs.surfaceContainerHigh,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14),),
                     child: ListTile(
-                      leading: Icon(Icons.bookmarks_rounded, color: cs.primary),
+                      leading: Icon(Icons.bookmarks_rounded, color: cs.primary,),
                       title: Text(l.allBookmarks),
                       subtitle: Text(l.allBookmarksSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
+                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant,),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14),),
                       onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const BookmarksScreen())),
+                        MaterialPageRoute(builder: (_) => const BookmarksScreen(),
+                                  ),),
                     ),
                   ),
                 ),
 
                 // ── Version Info ──
+                        if (!isDesktopSettings || expandedSection == 'Advanced')
                 Center(child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -3697,43 +4205,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       // Flavor prefix is an Android distribution concept
                       // (GitHub / Play Store / F-Droid). iOS has no flavor, so
                       // it keeps the plain version.
-                      Platform.isIOS
+                      AppPlatform.isIOS || AppPlatform.isWeb
                           ? l.appVersionFormat(_appVersion)
                           : '$_flavorLabel - $_appVersion',
                       style: tt.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.4,
+                                    ),),
                     ),
                     const SizedBox(width: 4),
                     Icon(
                       _isGithubBuild ? Icons.code_rounded : Icons.store_rounded,
                       size: 14,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.3,),
                     ),
                     if (auth.serverVersion != null)
                       Text(
-                        l.appVersionServerSuffix(auth.serverVersion!),
+                        l.appVersionServerSuffix(auth.serverVersion!,),
                         style: tt.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.4,
+                                      ),),
                       ),
                   ],
-                )),
+                ),),
 
-                if (_isGithubBuild) ...[
+                if (_isGithubBuild && !AppPlatform.isWeb) ...[
                   const SizedBox(height: 4),
                   Center(child: TextButton.icon(
                     onPressed: () async {
-                      final info = await UpdateCheckerService.check(force: true, includePreReleases: _includePreReleases);
+                      final info = await UpdateCheckerService.check(force: true, includePreReleases: _includePreReleases,);
                       if (!mounted) return;
                       if (info == null || !info.hasUpdate) {
                         showOverlayToast(context, l.onLatestVersion,
-                            icon: Icons.check_circle_outline_rounded);
+                            icon: Icons.check_circle_outline_rounded,);
                         return;
                       }
                       await UpdateDialog.show(context, info);
                     },
-                    icon: const Icon(Icons.system_update_rounded, size: 16),
+                    icon: const Icon(Icons.system_update_rounded, size: 16,),
                     label: Text(l.checkForUpdate),
-                  )),
+                  ),),
                 ],
 
                 const SizedBox(height: 100),
@@ -3741,13 +4251,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+              );
+              return _SettingsAdaptiveFrame(
+                desktopMode: isDesktopSettings,
+                selectedSection: expandedSection,
+                destinations: destinations,
+                onSectionSelected: (section) {
+                  setState(() => _expandedSection = section);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted || !_settingsScrollController.hasClients) {
+                      return;
+                    }
+                    _settingsScrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                    );
+                  });
+                },
+                child: content,
+              );
+            },
       ),
       ),
       ),
     );
   }
 
-  List<Widget> _buildRewindPreviews(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+  List<Widget> _buildRewindPreviews(ColorScheme cs, TextTheme tt, AppLocalizations l,) {
     final s = _rewindSettings;
     final delay = s.activationDelay.round();
 
@@ -3788,7 +4319,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     for (final entry in durations.entries) {
       final rewind = AudioPlayerService.calculateAutoRewind(
         Duration(seconds: entry.key), s.minRewind, s.maxRewind,
-        activationDelay: s.activationDelay);
+        activationDelay: s.activationDelay,);
       rows.add(_rewindPreviewRow(entry.value, rewind, cs, tt, l));
     }
 
@@ -3796,7 +4327,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _rewindPreviewRow(
-      String label, double rewind, ColorScheme cs, TextTheme tt, AppLocalizations l) {
+      String label, double rewind, ColorScheme cs, TextTheme tt, AppLocalizations l,) {
     final isSkipped = rewind < 0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -3804,11 +4335,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: tt.bodySmall?.copyWith(
-            color: isSkipped ? cs.onSurfaceVariant.withValues(alpha: 0.4) : cs.onSurfaceVariant)),
+            color: isSkipped ? cs.onSurfaceVariant.withValues(alpha: 0.4) : cs.onSurfaceVariant,
+            ),),
           Text(isSkipped ? '→ ${l.rewindNoRewind}' : '→ ${l.rewindSeconds(rewind.toStringAsFixed(1))}',
             style: tt.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: isSkipped ? cs.onSurfaceVariant.withValues(alpha: 0.3) : cs.primary)),
+                color: isSkipped ? cs.onSurfaceVariant.withValues(alpha: 0.3) : cs.primary,
+            ),),
         ],
       ),
     );
@@ -3821,7 +4354,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
-  Future<void> _pickDownloadLocation(BuildContext context, ColorScheme cs, TextTheme tt) async {
+  Future<void> _pickDownloadLocation(BuildContext context, ColorScheme cs, TextTheme tt,) async {
     final l = AppLocalizations.of(context)!;
     final dl = DownloadService();
     final hasExistingDownloads = dl.downloadedItems.isNotEmpty;
@@ -3842,13 +4375,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(width: 40, height: 4,
               decoration: BoxDecoration(
                 color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2))),
+                borderRadius: BorderRadius.circular(2),
+              ),),
             const SizedBox(height: 16),
             Text(l.downloadLocationSheetTitle,
-              style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),),
             const SizedBox(height: 4),
             Text(l.downloadLocationSheetSubtitle,
-              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),),
             const SizedBox(height: 20),
 
             // Current location display
@@ -3869,15 +4403,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Text(l.currentLocation,
                         style: tt.labelSmall?.copyWith(
-                          color: cs.primary, fontWeight: FontWeight.w600)),
+                          color: cs.primary, fontWeight: FontWeight.w600,
+                          ),),
                       const SizedBox(height: 2),
                       Text(_downloadLocationLabel,
                         style: tt.bodySmall?.copyWith(color: cs.onSurface),
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                        maxLines: 2, overflow: TextOverflow.ellipsis,),
                     ],
                   ),
                 ),
-              ]),
+              ],),
             ),
             const SizedBox(height: 16),
 
@@ -3894,13 +4429,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      Icon(Icons.warning_amber_rounded, size: 18, color: cs.error),
+                      Icon(Icons.warning_amber_rounded, size: 18, color: cs.error,),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(l.legacyDownloadsNotice(legacyCount),
-                          style: tt.bodySmall?.copyWith(color: cs.onSurface)),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurface),),
                       ),
-                    ]),
+                    ],),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -3922,7 +4457,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   await dl.redownloadAllLegacy(api);
                                   if (mounted) {
                                     showOverlayToast(context, l.redownloadStarted,
-                                        icon: Icons.download_rounded);
+                                        icon: Icons.download_rounded,);
                                   }
                                 },
                           child: Text(l.redownload),
@@ -3940,23 +4475,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10,),
                   decoration: BoxDecoration(
                     color: cs.errorContainer.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: cs.error.withValues(alpha: 0.2)),
                   ),
                   child: Row(children: [
-                    Icon(Icons.info_outline_rounded, size: 16, color: cs.error),
+                    Icon(Icons.info_outline_rounded, size: 16, color: cs.error,),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         l.existingDownloadsWarning,
                         style: tt.bodySmall?.copyWith(
-                          color: cs.error.withValues(alpha: 0.8), fontSize: 11),
+                          color: cs.error.withValues(alpha: 0.8), fontSize: 11,),
                       ),
                     ),
-                  ]),
+                  ],),
                 ),
               ),
 
@@ -3979,7 +4514,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   } catch (e) {
                     if (mounted) {
                       showOverlayToast(context, l.cannotWriteToFolder,
-                          icon: Icons.error_outline_rounded);
+                          icon: Icons.error_outline_rounded,);
                     }
                     return;
                   }
@@ -3988,12 +4523,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   try {
                     final probe = await FileDownloader()
                         .uri
-                        .createDirectory(treeUri, '.absorb_write_test');
+                        .createDirectory(treeUri, '.absorb_write_test',);
                     await FileDownloader().uri.deleteFile(probe);
                   } catch (e) {
                     if (mounted) {
                       showOverlayToast(context, l.cannotWriteToFolder,
-                          icon: Icons.error_outline_rounded);
+                          icon: Icons.error_outline_rounded,);
                     }
                     return;
                   }
@@ -4002,7 +4537,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (mounted) {
                     setState(() => _downloadLocationLabel = label);
                     showOverlayToast(context, l.downloadLocationSetTo(label),
-                        icon: Icons.folder_outlined);
+                        icon: Icons.folder_outlined,);
                   }
                 },
               ),
@@ -4023,7 +4558,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (mounted) {
                       setState(() => _downloadLocationLabel = label);
                       showOverlayToast(context, l.resetToDefaultStorage,
-                          icon: Icons.restart_alt_rounded);
+                          icon: Icons.restart_alt_rounded,);
                     }
                   },
                 ),
@@ -4062,10 +4597,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _performBackup(BuildContext context, {required bool includeAccounts}) async {
+  Future<void> _performBackup(BuildContext context, {required bool includeAccounts,}) async {
     final l = AppLocalizations.of(context)!;
     try {
-      final data = await BackupService.exportSettings(includeAccounts: includeAccounts);
+      final data = await BackupService.exportSettings(includeAccounts: includeAccounts,);
       final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
       final now = DateTime.now();
       final datePart = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -4082,7 +4617,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (result != null) {
         // Desktop platforms need manual file write; mobile writes via bytes param
-        if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        if (AppPlatform.isDesktop) {
           await File(result).writeAsString(jsonStr);
         }
         if (mounted) {
@@ -4098,12 +4633,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (mounted) {
         showOverlayToast(context, l.backupFailed(e.toString()),
-            icon: Icons.error_outline_rounded);
+            icon: Icons.error_outline_rounded,);
       }
     }
   }
 
-  void _restoreSettings(BuildContext context, ColorScheme cs, TextTheme tt) async {
+  void _restoreSettings(BuildContext context, ColorScheme cs, TextTheme tt,) async {
     final l = AppLocalizations.of(context)!;
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.any);
@@ -4116,7 +4651,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (data['version'] == null) {
         if (mounted) {
           showOverlayToast(context, l.invalidBackupFile,
-              icon: Icons.error_outline_rounded);
+              icon: Icons.error_outline_rounded,);
         }
         return;
       }
@@ -4151,7 +4686,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Text(l.restoreBackupContent),
               if (details.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text(details, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+                Text(details, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),),
               ],
               if (hasAccounts || hasCustomHeaders) ...[
                 const SizedBox(height: 12),
@@ -4160,9 +4695,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   runSpacing: 8,
                   children: [
                     if (hasAccounts)
-                      _restoreChip(Icons.people_rounded, l.restoreAccountsChip(accounts.length), cs),
+                      _restoreChip(Icons.people_rounded, l.restoreAccountsChip(accounts.length), cs,),
                     if (hasCustomHeaders)
-                      _restoreChip(Icons.vpn_key_rounded, l.restoreCustomHeadersChip, cs),
+                      _restoreChip(Icons.vpn_key_rounded, l.restoreCustomHeadersChip, cs,),
                   ],
                 ),
               ],
@@ -4194,7 +4729,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (settings?['flatBackground'] is bool) applyFlatBackground(settings!['flatBackground'] as bool);
       if (settings?['colorSource'] is String) applyColorSource(settings!['colorSource'] as String);
       if (settings?['manualSeedColor'] is int) applyManualSeed(settings!['manualSeedColor'] as int);
-      if (settings?['gradientIntensity'] is num) applyGradientIntensity((settings!['gradientIntensity'] as num).toDouble());
+      if (settings?['gradientIntensity'] is num) applyGradientIntensity((settings!['gradientIntensity'] as num).toDouble(),);
       if (settings?['useColorEverywhere'] is bool) applyUseColorEverywhere(settings!['useColorEverywhere'] as bool);
       await applyOrientationLock();
 
@@ -4203,12 +4738,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (mounted) {
         showOverlayToast(context, l.settingsRestoredSuccessfully,
-            icon: Icons.check_circle_outline_rounded);
+            icon: Icons.check_circle_outline_rounded,);
       }
     } catch (e) {
       if (mounted) {
         showOverlayToast(context, l.restoreFailed(e.toString()),
-            icon: Icons.error_outline_rounded);
+            icon: Icons.error_outline_rounded,);
       }
     }
   }
@@ -4224,7 +4759,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Icon(icon, size: 16, color: cs.primary),
         const SizedBox(width: 8),
         Text(label, style: TextStyle(fontSize: 12, color: cs.primary)),
-      ]),
+      ],),
     );
   }
 
@@ -4236,7 +4771,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final lib = context.read<LibraryProvider>();
     final accounts = UserAccountService().accounts;
     final otherAccounts = accounts.where((a) =>
-      !(a.serverUrl == auth.serverUrl && a.username == auth.username)
+      !(a.serverUrl == auth.serverUrl && a.username == auth.username),
     ).toList();
     SavedAccount? activeAccount;
     for (final a in accounts) {
@@ -4250,81 +4785,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final userType = auth.isRoot ? l.rootAdmin : auth.isAdmin ? l.admin : l.userFallback;
     final libraryCount = lib.libraries.length;
 
-    showModalBottomSheet(
+    _showAdaptiveSettingsSurface<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: cs.surfaceContainerHigh,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
+      builder: (ctx, desktopMode) => SafeArea(
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
+              if (desktopMode)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: IconButton(
+                      tooltip: MaterialLocalizations.of(ctx).closeButtonTooltip,
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ),
+                )
+              else ...[
             Center(child: Container(margin: const EdgeInsets.only(top: 12), width: 36, height: 4,
-              decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(2)))),
+              decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),),
             const SizedBox(height: 16),
+              ],
           // Current user info
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(auth.username ?? l.userFallback, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(auth.username ?? l.userFallback, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700,
+                      ),),
               const SizedBox(height: 6),
               Row(children: [
-                Icon(Icons.dns_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                Icon(Icons.dns_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4),),
                 const SizedBox(width: 6),
                 Expanded(child: Text(shortServer, style: tt.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.5)), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),), maxLines: 1, overflow: TextOverflow.ellipsis,
+                          ),),
                 if (activeAccount != null)
                   InkResponse(
                     onTap: () { Navigator.pop(ctx); _editServerConnection(context, activeAccount!); },
                     radius: 22,
                     child: Padding(padding: const EdgeInsets.all(6),
-                      child: Icon(Icons.edit_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
+                      child: Icon(Icons.edit_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.7,
+                                ),
+                              ),),
                   ),
-              ]),
+              ],),
               const SizedBox(height: 3),
               Row(children: [
-                Icon(Icons.shield_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                Icon(Icons.shield_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4),),
                 const SizedBox(width: 6),
-                Text(userType, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5))),
+                Text(userType, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                          ),),
                 const SizedBox(width: 12),
-                Icon(Icons.library_books_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                Icon(Icons.library_books_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4),),
                 const SizedBox(width: 6),
                 Text(libraryCount == 1 ? l.libraryCountOne(libraryCount) : l.libraryCountOther(libraryCount),
-                  style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5))),
-              ]),
+                  style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                          ),),
+              ],),
               if (auth.serverVersion != null) ...[
                 const SizedBox(height: 3),
                 Row(children: [
-                  Icon(Icons.info_outline_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                  Icon(Icons.info_outline_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4),),
                   const SizedBox(width: 6),
                   Text(l.serverVersionLabel(auth.serverVersion!), style: tt.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.5))),
-                ]),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                            ),),
+                ],),
               ],
-            ]),
+            ],),
           ),
           const SizedBox(height: 12),
-          Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
+          Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06),),
           InkWell(
             onTap: () {
               Navigator.pop(ctx);
               Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const ChangePasswordScreen(),
-              ));
+              ),);
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12,),
               child: Row(children: [
-                Icon(Icons.password_rounded, size: 20, color: cs.onSurfaceVariant),
+                Icon(Icons.password_rounded, size: 20, color: cs.onSurfaceVariant,),
                 const SizedBox(width: 14),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(l.changePasswordTitle, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                  Text(l.changePasswordSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
-                ])),
-                Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant),
-              ]),
+                  Text(l.changePasswordTitle, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600,
+                              ),),
+                  Text(l.changePasswordSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant,
+                              ),),
+                ],
+                        ),),
+                Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant,),
+              ],),
             ),
           ),
           InkWell(
@@ -4332,22 +4887,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(ctx);
               Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const AuthSessionsScreen(),
-              ));
+              ),);
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12,),
               child: Row(children: [
-                Icon(Icons.devices_rounded, size: 20, color: cs.onSurfaceVariant),
+                Icon(Icons.devices_rounded, size: 20, color: cs.onSurfaceVariant,),
                 const SizedBox(width: 14),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(l.manageSessionsTitle, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                  Text(l.manageSessionsSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
-                ])),
-                Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant),
-              ]),
+                  Text(l.manageSessionsTitle, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600,
+                              ),),
+                  Text(l.manageSessionsSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant,
+                              ),),
+                ],
+                        ),),
+                Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant,),
+              ],),
             ),
           ),
-          Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
+          Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06),),
           // Other accounts
           if (otherAccounts.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -4355,7 +4913,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
               child: Align(alignment: Alignment.centerLeft,
                 child: Text(l.switchAccount, style: tt.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.4), fontWeight: FontWeight.w600, letterSpacing: 0.5))),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.4), fontWeight: FontWeight.w600, letterSpacing: 0.5,
+                      ),
+                    ),),
             ),
             ...otherAccounts.map((account) {
               final shortUrl = account.serverUrl
@@ -4365,49 +4925,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () { Navigator.pop(ctx); _switchAccount(context, account); },
                 onLongPress: () { Navigator.pop(ctx); _accountOptions(context, account); },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10,),
                   child: Row(children: [
-                    Icon(Icons.person_rounded, size: 20, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                    Icon(Icons.person_rounded, size: 20, color: cs.onSurfaceVariant.withValues(alpha: 0.4),),
                     const SizedBox(width: 12),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(account.username, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                      Text(shortUrl, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ])),
-                    Icon(Icons.swap_horiz_rounded, size: 18, color: cs.onSurface.withValues(alpha: 0.15)),
-                  ]),
+                      Text(account.username, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600,
+                                  ),),
+                      Text(shortUrl, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5,
+                                    ),),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,),
+                    ],
+                            ),),
+                    Icon(Icons.swap_horiz_rounded, size: 18, color: cs.onSurface.withValues(alpha: 0.15),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            tooltip: MaterialLocalizations.of(
+                              ctx,
+                            ).moreButtonTooltip,
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _accountOptions(context, account);
+                            },
+                            icon: const Icon(Icons.more_vert_rounded, size: 19),
+                            color: cs.onSurfaceVariant,),
+                  ],),
                 ),
               );
             }),
             const SizedBox(height: 4),
-            Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
+            Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06),),
           ],
           // Add account
           InkWell(
             onTap: () { Navigator.pop(ctx); _addAccount(context); },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12,),
               child: Row(children: [
-                Icon(Icons.person_add_rounded, size: 20, color: cs.primary),
+                Icon(Icons.person_add_rounded, size: 20, color: cs.primary,),
                 const SizedBox(width: 14),
-                Text(l.addAccount, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
-              ]),
+                Text(l.addAccount, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary,
+                        ),),
+              ],),
             ),
           ),
           // Sign out
           InkWell(
             onTap: () { Navigator.pop(ctx); _confirmLogout(context); },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12,),
               child: Row(children: [
                 Icon(Icons.logout_rounded, size: 20, color: cs.error),
                 const SizedBox(width: 14),
-                Text(l.signOut, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.error)),
-              ]),
+                Text(l.signOut, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.error,
+                        ),),
+              ],),
             ),
           ),
           const SizedBox(height: 12),
-        ]),
+        ],),
         ),
       ),
     );
@@ -4461,7 +5038,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(l.stay),
+            child: Text(l.stay)
           ),
           FilledButton(
             onPressed: () async {
@@ -4515,32 +5092,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _accountOptions(BuildContext context, SavedAccount account) {
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
-    showModalBottomSheet(
+    _showAdaptiveSettingsSurface<void>(
       context: context,
-      backgroundColor: cs.surfaceContainerHigh,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      maxWidth: 460,
+      builder: (ctx, desktopMode) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (desktopMode)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                  child: IconButton(
+                    tooltip: MaterialLocalizations.of(ctx).closeButtonTooltip,
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+              )
+            else ...[
         const SizedBox(height: 10),
         Center(child: Container(width: 36, height: 4,
-          decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(2)))),
+          decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(2),
+                  ),
+                ),),
         const SizedBox(height: 8),
+            ],
         ListTile(
           leading: Icon(Icons.dns_rounded, color: cs.primary),
           title: Text(l.editServerConnectionAction),
-          onTap: () { Navigator.pop(ctx); _editServerConnection(context, account); }),
+          onTap: () { Navigator.pop(ctx); _editServerConnection(context, account); },),
         ListTile(
           leading: Icon(Icons.delete_outline_rounded, color: cs.error),
-          title: Text(l.removeAccountAction, style: TextStyle(color: cs.error)),
-          onTap: () { Navigator.pop(ctx); _removeAccount(context, account); }),
+          title: Text(l.removeAccountAction, style: TextStyle(color: cs.error),),
+          onTap: () { Navigator.pop(ctx); _removeAccount(context, account); },),
         const SizedBox(height: 8),
-      ])),
+      ],
+        ),),
     );
   }
 
   /// Edit the URL and custom proxy headers for one saved account without
   /// losing its scoped data.
   Future<void> _editServerConnection(
-      BuildContext context, SavedAccount account) async {
+      BuildContext context, SavedAccount account,) async {
     final l = AppLocalizations.of(context)!;
     final result = await showDialog<ServerConnectionSettings>(
       context: context,
@@ -4583,21 +5176,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text(l.removeAccountContent(
           account.username,
           account.serverUrl.replaceAll(RegExp(r'^https?://'), ''),
-        )),
+        ),),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l.cancel)),
+            child: Text(l.cancel),),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error),
-            child: Text(l.remove)),
+              backgroundColor: Theme.of(ctx).colorScheme.error,),
+            child: Text(l.remove),),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await UserAccountService().removeAccount(account.serverUrl, account.username);
+    await UserAccountService().removeAccount(account.serverUrl, account.username,);
     if (context.mounted) setState(() {});
   }
 
@@ -4610,14 +5203,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text(l.switchAccountContent(
           account.username,
           account.serverUrl.replaceAll(RegExp(r'^https?://'), ''),
-        )),
+        ),),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l.cancel)),
+            child: Text(l.cancel),),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l.switchButton)),
+            child: Text(l.switchButton),),
         ],
       ),
     );

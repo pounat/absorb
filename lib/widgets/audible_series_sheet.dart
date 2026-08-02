@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,6 +7,7 @@ import '../services/player_settings.dart';
 import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/upcoming_releases_service.dart';
+import '../utils/app_platform.dart';
 import 'overlay_toast.dart';
 import 'rmab_book_detail_sheet.dart';
 import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey;
@@ -693,7 +693,7 @@ Future<void> _addToCalendar(BuildContext context, String title, String seriesNam
   final eventTitle = '$title - $seriesName';
   final description = l.audibleSeriesCalendarDescription(seriesName);
 
-  if (Platform.isAndroid) {
+  if (AppPlatform.isAndroid) {
     final begin = DateTime(date.year, date.month, date.day).millisecondsSinceEpoch;
     final end = DateTime(date.year, date.month, date.day, 23, 59).millisecondsSinceEpoch;
     final uri = Uri.parse(

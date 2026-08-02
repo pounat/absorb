@@ -11,6 +11,7 @@ import 'overlay_toast.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
+import '../utils/app_platform.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
@@ -622,7 +623,15 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
         const SizedBox(height: 12),
       ],
-      if (isEbookOnly && ebookFile != null && canReadEbook(ebookFile))
+      if (isEbookOnly && AppPlatform.isWeb)
+        SizedBox(height: 52, child: FilledButton.icon(
+          onPressed: null,
+          icon: const Icon(Icons.menu_book_rounded, size: 24),
+          label: Text(l.ebookOnlyNoAudio,
+            style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+        ))
+      else if (isEbookOnly && ebookFile != null && canReadEbook(ebookFile))
         SizedBox(height: 52, child: FilledButton.icon(
           onPressed: () => _openEbookReader(context, auth, ebookFile, title),
           icon: const Icon(Icons.menu_book_rounded, size: 24),
@@ -712,7 +721,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       // Primary action row: Download | Fully Absorb | Read (when ebook)
       const SizedBox(height: 12),
       Row(children: [
-        if (!isEbookOnly) ...[
+        if (!isEbookOnly && !AppPlatform.isWeb) ...[
           Expanded(child: DownloadWideButton(itemId: widget.itemId, coverUrl: _coverUrl, title: title, author: authorName, accent: accent)),
           const SizedBox(width: 8),
         ],
@@ -744,7 +753,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             ]),
           ),
         )),
-        if (ebookFile != null && canReadEbook(ebookFile)) ...[
+        if (!AppPlatform.isWeb && ebookFile != null && canReadEbook(ebookFile)) ...[
           const SizedBox(width: 8),
           // For ebook-only books the big button above is already "Read", so this
           // slot is the offline download (matching the audiobook download
@@ -1025,8 +1034,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         if (!isEbookOnly)
           Row(children: [
             Expanded(child: _quickAbsorbButton(context, cs, tt, auth, accent, onAccent, title, authorName, duration, chapters, isFinished)),
-            const SizedBox(width: 10),
-            Expanded(child: DownloadWideButton(itemId: widget.itemId, coverUrl: _coverUrl, title: title, author: authorName, accent: accent)),
+            if (!AppPlatform.isWeb) ...[
+              const SizedBox(width: 10),
+              Expanded(child: DownloadWideButton(itemId: widget.itemId, coverUrl: _coverUrl, title: title, author: authorName, accent: accent)),
+            ],
           ])
         else
           SizedBox(height: 44, child: Center(child: Text(l.ebookOnlyNoAudio,
@@ -1108,14 +1119,14 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         if (!lib.isOffline && !lib.isPodcastLibrary && auth.isAdmin) {
           add(Icons.collections_bookmark_rounded, l.addToCollection, () => CollectionPickerSheet.show(context, widget.itemId));
         }
-        if (ebookFile != null && canReadEbook(ebookFile)) {
+        if (!AppPlatform.isWeb && ebookFile != null && canReadEbook(ebookFile)) {
           add(Icons.menu_book_rounded, l.readEbook, () => _openEbookReader(context, auth, ebookFile, title));
         }
-        if (ebookFile != null) {
+        if (!AppPlatform.isWeb && ebookFile != null) {
           add(_ebookSaved ? Icons.download_done_rounded : Icons.save_alt_rounded,
             l.ebookSaveToDevice, () => _saveEbook(context, auth, ebookFile, title));
         }
-        if (ebookFile != null && auth.ereaderDevices.isNotEmpty) {
+        if (!AppPlatform.isWeb && ebookFile != null && auth.ereaderDevices.isNotEmpty) {
           add(Icons.send_to_mobile_rounded, l.sendToEreader, () => _sendToEreader(context, auth));
         }
         if (progress > 0 || isFinished) {

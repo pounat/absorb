@@ -20,6 +20,7 @@ import 'action_pill.dart';
 import 'books_sheet_shared.dart';
 import '../services/api_service.dart';
 import '../utils/duration_format.dart';
+import '../utils/app_platform.dart';
 
 /// Show a bottom sheet with all books in a series, sorted by sequence.
 /// Can be called from any screen.
@@ -748,13 +749,15 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
 
   Widget _buildOverflowMenu(ColorScheme cs) {
     final allDone = _allFinished;
-    final dl = DownloadService();
     int downloaded = 0;
-    for (final book in _books) {
-      final bookId = book['id'] as String? ?? '';
-      if (dl.isDownloaded(bookId)) downloaded++;
+    if (!AppPlatform.isWeb) {
+      final dl = DownloadService();
+      for (final book in _books) {
+        final bookId = book['id'] as String? ?? '';
+        if (dl.isDownloaded(bookId)) downloaded++;
+      }
     }
-    final allDownloaded = downloaded == _books.length;
+    final allDownloaded = !AppPlatform.isWeb && downloaded == _books.length;
     final hasSeriesId = widget.seriesId != null && widget.seriesId!.isNotEmpty;
 
     if (_isMarkingAll || _isDownloadingAll) {
@@ -789,7 +792,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
               Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
               ActionPillGrid(items: [
-                if (!allDownloaded)
+                if (!AppPlatform.isWeb && !allDownloaded)
                   ActionPillData(
                     icon: Icons.download_rounded,
                     label: downloaded > 0 ? l.downloadRemainingCount((_totalBooks > 0 ? _totalBooks : _books.length) - downloaded) : l.downloadAll,
@@ -827,7 +830,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                       if (confirmed == true) _markAllFinished();
                     }
                   }),
-                if (hasSeriesId)
+                if (!AppPlatform.isWeb && hasSeriesId)
                   ActionPillData(
                     icon: _autoDownloadEnabled ? Icons.downloading_rounded : Icons.download_outlined,
                     label: _autoDownloadEnabled ? l.turnAutoDownloadOff : l.turnAutoDownloadOn,
@@ -848,6 +851,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
   }
 
   Future<void> _downloadAll() async {
+    if (AppPlatform.isWeb) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -963,7 +967,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                       : base;
                 }(),
               ),
-              if (_autoDownloadEnabled) ...[
+              if (!AppPlatform.isWeb && _autoDownloadEnabled) ...[
                 const TextSpan(text: ' · '),
                 WidgetSpan(
                   alignment: PlaceholderAlignment.middle,
@@ -1099,9 +1103,15 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final progress = lib.getProgress(bookId);
     final isFinished = lib.getProgressData(bookId)?['isFinished'] == true;
-    final isDownloaded = DownloadService().isDownloaded(bookId);
-    final isDownloading = DownloadService().isDownloading(bookId);
-    final downloadPct = (DownloadService().downloadProgress(bookId) * 100).clamp(0, 100).round();
+    final isDownloaded =
+        !AppPlatform.isWeb && DownloadService().isDownloaded(bookId);
+    final isDownloading =
+        !AppPlatform.isWeb && DownloadService().isDownloading(bookId);
+    final downloadPct = AppPlatform.isWeb
+        ? 0
+        : (DownloadService().downloadProgress(bookId) * 100)
+            .clamp(0, 100)
+            .round();
     final coverUrl = lib.getCoverUrl(bookId);
     final isOnAbsorbing = lib.isOnAbsorbingList(bookId);
 
@@ -1152,7 +1162,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                   child: Stack(children: [
                     Positioned.fill(
                       child: coverUrl != null
-                          ? (coverUrl.startsWith('/')
+                          ? (!AppPlatform.isWeb && coverUrl.startsWith('/')
                               ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => _placeholder(cs))
                               : CachedNetworkImage(

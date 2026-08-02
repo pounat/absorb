@@ -13,6 +13,7 @@ class AbsorbPageHeader extends StatelessWidget {
   final Color? titleColor;
   final List<Widget>? actions;
   final Widget? trailing;
+  final bool showBranding;
   final EdgeInsetsGeometry padding;
 
   const AbsorbPageHeader({
@@ -22,6 +23,7 @@ class AbsorbPageHeader extends StatelessWidget {
     this.titleColor,
     this.actions,
     this.trailing,
+    this.showBranding = true,
     this.padding = const EdgeInsets.fromLTRB(20, 12, 20, 0),
   });
 
@@ -39,46 +41,51 @@ class AbsorbPageHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Branding row — ABSORB + optional actions
-          LayoutBuilder(
-            builder: (ctx, lc) {
-              return ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 32),
-                child: Row(
-                  children: [
-                    Text(
-                      l.appTitle,
-                      style: tt.labelSmall?.copyWith(
-                        color: bColor,
-                        letterSpacing: 4,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-                    if (trailing != null) ...[
-                      const SizedBox(width: 8),
-                      trailing!,
-                    ],
-                    const Spacer(),
-                    if (actions != null)
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: (lc.maxWidth - 140).clamp(0.0, double.infinity),
+          if (showBranding) ...[
+            LayoutBuilder(
+              builder: (ctx, lc) {
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 32),
+                  child: Row(
+                    children: [
+                      Text(
+                        l.appTitle,
+                        style: tt.labelSmall?.copyWith(
+                          color: bColor,
+                          letterSpacing: 4,
+                          fontWeight: FontWeight.w300,
                         ),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerRight,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            spacing: 8,
-                            children: actions!,
+                      ),
+                      if (trailing != null) ...[
+                        const SizedBox(width: 8),
+                        trailing!,
+                      ],
+                      const Spacer(),
+                      if (actions != null)
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: (lc.maxWidth - 140).clamp(
+                              0.0,
+                              double.infinity,
+                            ),
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              spacing: 8,
+                              children: actions!,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 4),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 4),
+          ],
           // Page title
           Text(
             title,

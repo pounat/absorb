@@ -16,6 +16,7 @@ import '../widgets/overlay_toast.dart';
 import '../widgets/setup_link_share_sheet.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/duration_format.dart';
+import '../utils/app_platform.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   final List<dynamic> users;
@@ -905,7 +906,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
     );
 
     if (result == null) return;
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    if (AppPlatform.isDesktop) {
       await File(result).writeAsString(jsonStr);
     }
     if (mounted) {

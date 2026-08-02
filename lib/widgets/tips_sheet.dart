@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
+import '../utils/app_platform.dart';
 
 void showTipsSheet(BuildContext context) {
   final cs = Theme.of(context).colorScheme;
@@ -51,11 +52,12 @@ void showTipsSheet(BuildContext context) {
               title: w.tipsSheetQuickAddAbsorbingTitle,
               desc: w.tipsSheetQuickAddAbsorbingDesc,
             ),
-            _tipCard(cs, tt,
-              icon: Icons.vibration_rounded,
-              title: l.tipsSheetShakeExtendSleepTitle,
-              desc: l.tipsSheetShakeExtendSleepDesc,
-            ),
+            if (!AppPlatform.isWeb)
+              _tipCard(cs, tt,
+                icon: Icons.vibration_rounded,
+                title: l.tipsSheetShakeExtendSleepTitle,
+                desc: l.tipsSheetShakeExtendSleepDesc,
+              ),
             _tipCard(cs, tt,
               icon: Icons.auto_stories_rounded,
               title: l.tipsSheetSeriesNavigationTitle,
@@ -91,21 +93,23 @@ void showTipsSheet(BuildContext context) {
               title: l.tipsSheetSeriesQueueModeTitle,
               desc: l.tipsSheetSeriesQueueModeDesc,
             ),
-            _tipCard(cs, tt,
-              icon: Icons.airplanemode_active_rounded,
-              title: l.tipsSheetOfflineModeTitle,
-              desc: l.tipsSheetOfflineModeDesc,
-            ),
+            if (!AppPlatform.isWeb)
+              _tipCard(cs, tt,
+                icon: Icons.airplanemode_active_rounded,
+                title: l.tipsSheetOfflineModeTitle,
+                desc: l.tipsSheetOfflineModeDesc,
+              ),
             _tipCard(cs, tt,
               icon: Icons.upcoming_rounded,
               title: l.tipsSheetUpcomingReleasesTitle,
               desc: l.tipsSheetUpcomingReleasesDesc,
             ),
-            _tipCard(cs, tt,
-              icon: Icons.equalizer_rounded,
-              title: l.tipsSheetPerBookEqTitle,
-              desc: l.tipsSheetPerBookEqDesc,
-            ),
+            if (!AppPlatform.isWeb)
+              _tipCard(cs, tt,
+                icon: Icons.equalizer_rounded,
+                title: l.tipsSheetPerBookEqTitle,
+                desc: l.tipsSheetPerBookEqDesc,
+              ),
             _tipCard(cs, tt,
               icon: Icons.speed_rounded,
               title: l.tipsSheetPerBookSpeedTitle,
@@ -121,11 +125,12 @@ void showTipsSheet(BuildContext context) {
               title: l.tipsSheetSleepFadeChimeTitle,
               desc: l.tipsSheetSleepFadeChimeDesc,
             ),
-            _tipCard(cs, tt,
-              icon: Icons.directions_car_rounded,
-              title: l.tipsSheetCarModeTitle,
-              desc: l.tipsSheetCarModeDesc,
-            ),
+            if (!AppPlatform.isWeb)
+              _tipCard(cs, tt,
+                icon: Icons.directions_car_rounded,
+                title: l.tipsSheetCarModeTitle,
+                desc: l.tipsSheetCarModeDesc,
+              ),
             _tipCard(cs, tt,
               icon: Icons.search_rounded,
               title: l.tipsSheetAudibleSeriesTitle,

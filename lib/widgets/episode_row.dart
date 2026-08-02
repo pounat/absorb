@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../services/download_service.dart';
+import '../utils/app_platform.dart';
 import 'episode_detail_sheet.dart';
 
 class EpisodeRow extends StatefulWidget {
@@ -175,7 +176,7 @@ class _EpisodeRowState extends State<EpisodeRow> {
                                 style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
                               ),
                             ),
-                          ListenableBuilder(
+                          if (!AppPlatform.isWeb) ListenableBuilder(
                             listenable: DownloadService(),
                             builder: (_, __) {
                               final downloaded = DownloadService().isDownloaded(dlKey);
@@ -197,7 +198,7 @@ class _EpisodeRowState extends State<EpisodeRow> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Download button (reactive)
-                    ListenableBuilder(
+                    if (!AppPlatform.isWeb) ListenableBuilder(
                       listenable: DownloadService(),
                       builder: (_, __) {
                         final dl = DownloadService();

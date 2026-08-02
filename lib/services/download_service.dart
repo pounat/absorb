@@ -15,6 +15,7 @@ import 'api_service.dart';
 import 'audio_player_service.dart';
 import 'ebook_cache.dart';
 import 'offline_source.dart';
+import '../utils/app_platform.dart';
 
 enum DownloadStatus { none, downloading, downloaded, error }
 
@@ -584,6 +585,10 @@ class DownloadService extends ChangeNotifier {
       _queue.map((q) => _downloads[q.itemId]).whereType<DownloadInfo>().toList();
 
   Future<void> init() {
+    if (AppPlatform.isWeb) {
+      _initialized = true;
+      return Future.value();
+    }
     if (_initialized) return Future.value();
     final inFlight = _initFuture;
     if (inFlight != null) return inFlight;
@@ -1266,6 +1271,9 @@ class DownloadService extends ChangeNotifier {
     String? libraryId,
     bool Function()? shouldStart,
   }) async {
+    if (AppPlatform.isWeb) {
+      return 'Downloads are not available in the browser.';
+    }
     if (shouldStart?.call() == false) return null;
     try {
       await init().timeout(const Duration(seconds: 8));

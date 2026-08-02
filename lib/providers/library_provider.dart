@@ -23,6 +23,7 @@ import '../services/book_search_index.dart';
 import '../services/home_widget_service.dart';
 import '../services/queue_download_policy.dart';
 import '../utils/absorbing_inclusion.dart';
+import '../utils/app_platform.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../widgets/overlay_toast.dart';
@@ -60,6 +61,7 @@ class LibraryProvider extends ChangeNotifier
     AudioPlayerService.setOnPeekNextItemCallback(peekNextQueueItemForPreBuffer);
     AudioPlayerService.setOnPlayStartedCallback((key, duration) async {
       await _prepareAbsorbingForPlayback(key, duration);
+      if (AppPlatform.isWeb) return;
       // Auto-download the book/episode you're listening to kicks off quickly so
       // it doesn't feel broken; the short wait still skips it if you stop or
       // switch right away. Rolling/queue look-ahead stays deferred to keep the
@@ -101,7 +103,7 @@ class LibraryProvider extends ChangeNotifier
   }
 
   void updateAuth(AuthProvider auth) {
-    if (!_listeningToDownloads) {
+    if (!AppPlatform.isWeb && !_listeningToDownloads) {
       _listeningToDownloads = true;
       DownloadService().addListener(_onDownloadsChanged);
     }
@@ -198,7 +200,7 @@ class LibraryProvider extends ChangeNotifier
 
         _buildProgressMap(auth);
 
-        if (!auth.serverReachable) {
+        if (!AppPlatform.isWeb && !auth.serverReachable) {
           debugPrint('[Library] Server not reachable — going offline');
           _networkOffline = true;
           _buildOfflineSections();
@@ -213,7 +215,7 @@ class LibraryProvider extends ChangeNotifier
           ProgressSyncService().flushPendingSync(api: _api!);
           ProgressSyncService().flushOfflineListeningTime(api: _api!);
           LocalSessionService().flushPending(api: _api!);
-          DownloadService().enrichMetadata(_api!);
+          if (!AppPlatform.isWeb) DownloadService().enrichMetadata(_api!);
           // Start proactive reachability verification so the cloud icon
           // reflects actual server state, not just the initial login result.
           _startHealthCheckTimer();
@@ -385,8 +387,10 @@ class LibraryProvider extends ChangeNotifier
     await _loadSectionPrefs();
     notifyListeners();
     await loadPersonalizedView(force: true);
-    AndroidAutoService().refresh(force: true);
-    CarPlayService().refreshTemplates();
+    if (!AppPlatform.isWeb) {
+      AndroidAutoService().refresh(force: true);
+      CarPlayService().refreshTemplates();
+    }
   }
 
   /// Library switch for the dedicated Podcasts tab flips. Never stops
@@ -405,8 +409,10 @@ class LibraryProvider extends ChangeNotifier
     await _loadSectionPrefs();
     notifyListeners();
     await loadPersonalizedView();
-    AndroidAutoService().refresh(force: true);
-    CarPlayService().refreshTemplates();
+    if (!AppPlatform.isWeb) {
+      AndroidAutoService().refresh(force: true);
+      CarPlayService().refreshTemplates();
+    }
   }
 
   bool isPodcastLibraryId(String libraryId) {

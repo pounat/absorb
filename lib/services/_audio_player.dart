@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'native_ios_audio_player.dart';
+import '../utils/app_platform.dart';
 
 // Re-export just_audio's data types so consumers don't need a second import.
 export 'package:just_audio/just_audio.dart'
@@ -25,7 +25,7 @@ class AudioPlayer {
     bool useProxyForRequestHeaders = true,
     ja.AudioLoadConfiguration? audioLoadConfiguration,
   }) {
-    if (Platform.isIOS) {
+    if (AppPlatform.isIOS) {
       _native = NativeIosAudioPlayer();
     } else {
       _ja = ja.AudioPlayer(

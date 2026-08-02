@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/chromecast_service.dart';
 import '../services/wording.dart';
+import '../utils/app_platform.dart';
 
 class CardButtonDef {
   final String id;
@@ -52,10 +52,16 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
 /// - F-Droid (GMS-free): Chromecast needs Google Play Services, so the stub
 ///   service reports castSupported=false and the button is dropped entirely.
 final Set<String> _hiddenButtons = {
-  if (Platform.isIOS) 'cast',
+  if (AppPlatform.isWeb || AppPlatform.isIOS) 'cast',
   if (!ChromecastService.castSupported) 'cast',
   // AirPlay is iOS-only (Chromecast covers Android).
-  if (!Platform.isIOS) 'airplay',
+  if (AppPlatform.isWeb || !AppPlatform.isIOS) 'airplay',
+  if (AppPlatform.isWeb) ...{
+    'car',
+    'download',
+    'ebook',
+    'equalizer',
+  },
 };
 
 const _allCardButtons = [

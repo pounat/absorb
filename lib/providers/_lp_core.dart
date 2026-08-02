@@ -123,6 +123,11 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   // ── Offline mode ──
 
   Future<void> setManualOffline(bool value) async {
+    if (AppPlatform.isWeb) {
+      _manualOffline = false;
+      _networkOffline = false;
+      return;
+    }
     debugPrint('[Library] setManualOffline($value)');
     _manualOffline = value;
     final prefs = await SharedPreferences.getInstance();
@@ -158,6 +163,11 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   Future<void> restoreOfflineMode() async {
+    if (AppPlatform.isWeb) {
+      _manualOffline = false;
+      _networkOffline = false;
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     _manualOffline = prefs.getBool('manual_offline_mode') ?? false;
   }
@@ -217,6 +227,11 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   void setNetworkOffline(bool offline) {
+    if (AppPlatform.isWeb) {
+      _networkOffline = false;
+      AudioPlayerService().setKnownOffline(false);
+      return;
+    }
     final wasOffline = _networkOffline;
     _networkOffline = offline;
     // Mirror into AudioPlayerService so playback start can skip server session
@@ -258,6 +273,12 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   void _buildOfflineSections() {
+    if (AppPlatform.isWeb) {
+      _personalizedSections = [];
+      _errorMessage = null;
+      _isLoading = false;
+      return;
+    }
     final isPodcast = isPodcastLibrary;
     final allDownloads = DownloadService().downloadedItems;
     final downloads = allDownloads.where((dl) {
@@ -377,6 +398,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   void _injectDownloadedSection() {
+    if (AppPlatform.isWeb) return;
     final isPodcast = isPodcastLibrary;
     final allDownloads = DownloadService().downloadedItems;
     final downloads = allDownloads.where((dl) {
@@ -1255,7 +1277,9 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       registerUpdatedAt(id, ts.toInt());
       // Mirror into AA/CarPlay so the next browse-tree refresh hands out a
       // ts-suffixed cover URI and the native cover cache can invalidate.
-      AndroidAutoService.notifyItemUpdated(id, ts.toInt());
+      if (!AppPlatform.isWeb) {
+        AndroidAutoService.notifyItemUpdated(id, ts.toInt());
+      }
     }
     if (id != null) {
       final coverPath = (data['media'] as Map<String, dynamic>?)?['coverPath'] as String?;
@@ -2111,7 +2135,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   Future<void> _downloadSubscribedEpisodes(String podcastId) async {
-    if (_api == null || isOffline) return;
+    if (AppPlatform.isWeb || _api == null || isOffline) return;
     final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
     if (wifiOnly) {
       final connectivity = await Connectivity().checkConnectivity();
@@ -2178,7 +2202,12 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   Future<void> catchUpSubscribedPodcasts() async {
-    if (_subscribedPodcasts.isEmpty || _api == null || isOffline) return;
+    if (AppPlatform.isWeb ||
+        _subscribedPodcasts.isEmpty ||
+        _api == null ||
+        isOffline) {
+      return;
+    }
     for (final podcastId in _subscribedPodcasts) {
       await _downloadSubscribedEpisodes(podcastId);
     }
@@ -2187,7 +2216,12 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   // ── Rolling auto-download ──
 
   void _catchUpRollingDownloads() async {
-    if (_api == null || isOffline || _rollingDownloadSeries.isEmpty) return;
+    if (AppPlatform.isWeb ||
+        _api == null ||
+        isOffline ||
+        _rollingDownloadSeries.isEmpty) {
+      return;
+    }
 
     final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
     if (wifiOnly) {
@@ -2233,6 +2267,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   void _checkRollingDownloads(String playingKey) async {
+    if (AppPlatform.isWeb) return;
     final api = _api;
     if (api == null || isOffline) return;
     // With the "auto series download" default on, a book in a series enables
@@ -2340,6 +2375,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   Future<void> _checkQueueAutoDownloads(String playingKey) async {
+    if (AppPlatform.isWeb) return;
     try {
       final self = this as LibraryProvider;
       final planGeneration = ++_queueDownloadPlanGeneration;
@@ -2565,6 +2601,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   Future<void> _catchUpQueueAutoDownloads() async {
+    if (AppPlatform.isWeb) return;
     final itemId = AudioPlayerService().currentItemId;
     if (itemId == null) {
       _queueDownloadPlanGeneration++;
@@ -2578,7 +2615,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   Future<void> syncQueueAutoDownloads() => _catchUpQueueAutoDownloads();
 
   void _checkAutoDownloadOnStream(String playingKey) async {
-    if (_api == null || isOffline) {
+    if (AppPlatform.isWeb || _api == null || isOffline) {
       return;
     }
     final enabled = await PlayerSettings.getAutoDownloadOnStream();
@@ -2611,6 +2648,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   Future<void> _rollingDownloadBook(String bookId, int count) async {
+    if (AppPlatform.isWeb) return;
     var data = _itemDataWithSeries(bookId);
     var (seriesId, currentSeq) =
         data != null ? _StateMixin._extractSeries(data) : (null, null);
@@ -2702,6 +2740,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   Future<void> _rollingDownloadPodcast(String compoundKey, int count) async {
+    if (AppPlatform.isWeb) return;
     final showId = compoundKey.substring(0, 36);
     final episodeId = compoundKey.substring(37);
 

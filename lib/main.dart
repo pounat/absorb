@@ -37,6 +37,7 @@ import 'services/log_service.dart';
 import 'services/quick_actions_service.dart';
 import 'services/setup_link_service.dart';
 import 'services/wording.dart';
+import 'utils/app_platform.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_shell.dart';
 import 'widgets/auth_loading_screen.dart';
@@ -147,6 +148,7 @@ void applyUseColorEverywhere(bool value) => useColorEverywhereNotifier.value = v
 /// pinned to portrait; otherwise all orientations are allowed (the default).
 /// Safe to call any time the setting changes.
 Future<void> applyOrientationLock() async {
+  if (AppPlatform.isWeb) return;
   final lock = await PlayerSettings.getLockPortrait();
   await SystemChrome.setPreferredOrientations(lock
       ? const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]
@@ -159,17 +161,19 @@ Future<void> applyOrientationLock() async {
 }
 
 void main() async {
-  HttpOverrides.global = _CertOverrides();
+  if (!AppPlatform.isWeb) HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  final appLinks = AppLinks();
+  final setupLinkStream = AppPlatform.isWeb ? null : AppLinks().uriLinkStream;
 
   // These calls use platform channels that require an Activity. When Android
   // Auto cold-starts the app for the MediaBrowserService, no Activity exists
   // and these calls can hang forever - blocking runApp() and freezing on the
   // splash screen. Wrap in try-catch with a timeout so we always reach runApp().
-  try {
-    FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  } catch (_) {}
+  if (!AppPlatform.isWeb) {
+    try {
+      FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+    } catch (_) {}
+  }
 
   try {
     await applyOrientationLock().timeout(const Duration(seconds: 2));
@@ -228,9 +232,11 @@ void main() async {
   };
 
   // Remove native splash — Flutter will render the AuthGate splash immediately
-  try {
-    FlutterNativeSplash.remove();
-  } catch (_) {}
+  if (!AppPlatform.isWeb) {
+    try {
+      FlutterNativeSplash.remove();
+    } catch (_) {}
+  }
 
   runApp(
     MultiProvider(
@@ -241,7 +247,7 @@ void main() async {
           update: (_, auth, lib) => lib!..updateAuth(auth),
         ),
       ],
-      child: AbsorbApp(setupLinkStream: appLinks.uriLinkStream),
+      child: AbsorbApp(setupLinkStream: setupLinkStream),
     ),
   );
 }
@@ -562,12 +568,12 @@ class _AuthGateState extends State<AuthGate> {
     // app version and device model instead of fallback values.
     await ApiService.initVersion();
     try {
-      if (Platform.isAndroid) {
+      if (AppPlatform.isAndroid) {
         final info = await DeviceInfoPlugin().androidInfo;
         ApiService.deviceManufacturer = info.manufacturer;
         ApiService.deviceModel = info.model;
         ApiService.deviceSdkInt = info.version.sdkInt;
-      } else if (Platform.isIOS) {
+      } else if (AppPlatform.isIOS) {
         final info = await DeviceInfoPlugin().iosInfo;
         ApiService.deviceManufacturer = 'Apple';
         ApiService.deviceModel = info.utsname.machine;
@@ -620,8 +626,10 @@ class _AuthGateState extends State<AuthGate> {
     } catch (_) {}
     // Background new-episode notifications: re-register the periodic job
     // (self-healing after OEM kills) and wire up notification taps.
-    EpisodeNotificationService.syncRegistration();
-    EpisodeNotificationService.initTapHandling();
+    if (!AppPlatform.isWeb) {
+      EpisodeNotificationService.syncRegistration();
+      EpisodeNotificationService.initTapHandling();
+    }
     // Restore cover seed color
     {
       final seedInt = await PlayerSettings.getCoverSeedColor();
@@ -652,13 +660,15 @@ class _AuthGateState extends State<AuthGate> {
 
     // Downloads must be loaded before the audio handler so getChildren()
     // can serve the Android Auto browse tree immediately.
-    debugPrint('[Init] DownloadService... (${sw.elapsedMilliseconds}ms)');
-    try {
-      await DownloadService().init().timeout(const Duration(seconds: 8));
-    } catch (e) {
-      debugPrint('[Init] DownloadService.init timed out or failed: $e');
+    if (!AppPlatform.isWeb) {
+      debugPrint('[Init] DownloadService... (${sw.elapsedMilliseconds}ms)');
+      try {
+        await DownloadService().init().timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('[Init] DownloadService.init timed out or failed: $e');
+      }
+      debugPrint('[Init] DownloadService done (${sw.elapsedMilliseconds}ms)');
     }
-    debugPrint('[Init] DownloadService done (${sw.elapsedMilliseconds}ms)');
 
     // Timeout guards against AudioService.init() hanging when Android killed
     // the app process but kept the MediaBrowserService alive.
@@ -672,18 +682,22 @@ class _AuthGateState extends State<AuthGate> {
     // the UI has bootstrapped the current item) through the existing
     // home-widget restore path. Registered as a static callback to avoid a
     // circular import between AudioPlayerService and HomeWidgetService.
-    AudioPlayerService.onColdStartPlayRequested =
-        HomeWidgetService().resumeLastPlayedIfAvailable;
+    if (!AppPlatform.isWeb) {
+      AudioPlayerService.onColdStartPlayRequested =
+          HomeWidgetService().resumeLastPlayedIfAvailable;
+    }
     debugPrint('[Init] AudioPlayerService done (${sw.elapsedMilliseconds}ms)');
 
-    try {
-      await Permission.notification.request();
-    } catch (e) {
-      debugPrint('[Init] Permission request failed: $e');
+    if (!AppPlatform.isWeb) {
+      try {
+        await Permission.notification.request();
+      } catch (e) {
+        debugPrint('[Init] Permission request failed: $e');
+      }
     }
 
     // Initialize Chromecast (Android only)
-    if (Platform.isAndroid) {
+    if (AppPlatform.isAndroid) {
       try {
         await ChromecastService().init();
       } catch (e) {
@@ -699,17 +713,17 @@ class _AuthGateState extends State<AuthGate> {
       // fold it into the offline ledger so the normal flush ships it.
       await ProgressSyncService().migrateOrphanStreamingTime();
       await LocalSessionService().init();
-      await EqualizerService().init();
+      if (!AppPlatform.isWeb) await EqualizerService().init();
       await SleepTimerService().loadAutoSleepSettings();
-      if (Platform.isAndroid) {
+      if (AppPlatform.isAndroid) {
         // Pre-populate Android Auto browse tree in background.
         Future.microtask(() => AndroidAutoService().refresh());
       }
-      if (Platform.isIOS) {
+      if (AppPlatform.isIOS) {
         // Initialize CarPlay browse tree.
         CarPlayService().init();
       }
-      if (Platform.isAndroid || Platform.isIOS) {
+      if (AppPlatform.isMobile) {
         // Initialize homescreen widget
         await HomeWidgetService().init();
       }
@@ -719,7 +733,7 @@ class _AuthGateState extends State<AuthGate> {
       // (so we get real UIKit system icon types like `.play`, `.search`).
       // Depends on AudioPlayerService + HomeWidgetService so they're ready
       // when the shortcut handler fires.
-      await QuickActionsService().init();
+      if (!AppPlatform.isWeb) await QuickActionsService().init();
     } catch (e) {
       debugPrint('[Init] Service init failed: $e');
     }

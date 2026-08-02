@@ -15,13 +15,19 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../main.dart'
-    show snappyTransitionsNotifier, coverSchemeNotifier, rootNavigatorKey, applyOrientationLock;
+    show
+        snappyTransitionsNotifier,
+        coverSchemeNotifier,
+        rootNavigatorKey,
+        applyOrientationLock;
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../services/android_auto_service.dart';
 import '../services/carplay_service.dart';
 import '../widgets/expanded_card.dart';
+import '../widgets/desktop_now_playing_bar.dart';
 import 'absorbing_screen.dart';
+import 'admin_screen.dart';
 import 'home_screen.dart';
 import 'library_screen.dart';
 import 'stats_screen.dart';
@@ -33,6 +39,7 @@ import '../services/review_service.dart';
 import '../services/update_checker_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/overlay_toast.dart';
+import '../utils/app_platform.dart';
 
 class AppShell extends StatefulWidget {
   final bool startOnAbsorbing;
@@ -325,7 +332,11 @@ class _AppShellState extends State<AppShell>
   void initState() {
     super.initState();
     _instance = this;
-    if (!widget.startOnAbsorbing) _loadStartScreen();
+    if (AppPlatform.isWeb) {
+      _currentIndex = 0;
+    } else if (!widget.startOnAbsorbing) {
+      _loadStartScreen();
+    }
     _ensurePageBuilt(_currentIndex);
     _playerHadBook = _player.hasBook;
     _wasPlaying = _player.isPlaying;
@@ -346,7 +357,7 @@ class _AppShellState extends State<AppShell>
     context.read<LibraryProvider>().addListener(_onLibraryChanged);
     _loadPodcastTabPrefs();
     PlayerSettings.settingsChanged.addListener(_loadPodcastTabPrefs);
-    WelcomeSheet.showIfNeeded(context);
+    if (!AppPlatform.isWeb) WelcomeSheet.showIfNeeded(context);
     _checkForUpdate();
   }
 
@@ -424,7 +435,7 @@ class _AppShellState extends State<AppShell>
   static const _isGithubBuild = bool.fromEnvironment('GITHUB_BUILD');
 
   void _checkForUpdate() async {
-    if (!_isGithubBuild) return;
+    if (AppPlatform.isWeb || !_isGithubBuild) return;
     final includePreReleases = await PlayerSettings.getIncludePreReleases();
     final info = await UpdateCheckerService.check(
       includePreReleases: includePreReleases,
@@ -544,12 +555,18 @@ class _AppShellState extends State<AppShell>
   }
 
   Future<void> _maybeAutoExpand() async {
+    if (AppPlatform.isWeb) return;
     // Only auto-open the full-screen player from the Absorbing tab - starting
     // playback from elsewhere (another tab, the nav long-press) shouldn't
     // yank the user into the player.
     if (_currentIndex != 2) return;
     final enabled = await PlayerSettings.getFullScreenPlayer();
-    if (!enabled || !mounted || !_player.hasBook) return;
+    if (!enabled) return;
+    await _openExpandedPlayer();
+  }
+
+  Future<void> _openExpandedPlayer() async {
+    if (!mounted || !_player.hasBook || _expandedIsOpen) return;
 
     // Synthesize item data from player state
     final itemId = _player.currentItemId;
@@ -647,8 +664,10 @@ class _AppShellState extends State<AppShell>
     context.read<LibraryProvider>().onAppForegrounded();
     SleepTimerService().onAppForegrounded();
     AudioPlayerService.onAppForegrounded();
-    HomeWidgetService().onAppForegrounded();
-    ReviewService.onAppForegrounded();
+    if (!AppPlatform.isWeb) {
+      HomeWidgetService().onAppForegrounded();
+      ReviewService.onAppForegrounded();
+    }
     _refreshDataForTab(_currentIndex);
     // Check auto sleep in case we resumed into the window
     SleepTimerService().checkAutoSleep();
@@ -661,7 +680,7 @@ class _AppShellState extends State<AppShell>
     context.read<LibraryProvider>().onAppBackgrounded();
     SleepTimerService().onAppBackgrounded();
     AudioPlayerService.onAppBackgrounded();
-    HomeWidgetService().onAppBackgrounded();
+    if (!AppPlatform.isWeb) HomeWidgetService().onAppBackgrounded();
   }
 
   @override
@@ -695,59 +714,337 @@ class _AppShellState extends State<AppShell>
       _lastRefresh = now;
       lib.refresh();
       // Keep Android Auto / CarPlay browse tree in sync
-      AndroidAutoService().refresh();
-      CarPlayService().refreshTemplates();
+      if (!AppPlatform.isWeb) {
+        AndroidAutoService().refresh();
+        CarPlayService().refreshTemplates();
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-
-        // If on Library tab with active search, clear search first
-        if (_currentIndex == 1 &&
-            _libraryKey.currentState?.isSearchActive == true) {
-          _libraryKey.currentState?.clearSearch();
-          return;
-        }
-
-        // If already on Absorbing tab, require double-back to exit
-        if (_currentIndex == 2) {
-          final now = DateTime.now();
-          if (_lastBackPress != null &&
-              now.difference(_lastBackPress!) < const Duration(seconds: 2)) {
-            SystemChannels.platform.invokeMethod('SystemNavigator.pop', true);
-            return;
-          }
-          _lastBackPress = now;
-          showOverlayToast(
-            context,
-            AppLocalizations.of(context)!.appShellPressBackToExit,
-            icon: Icons.exit_to_app_rounded,
-          );
-          return;
-        }
-
-        // From any other tab, go to Absorbing
-        _switchToAbsorbing();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useDesktopWorkspace =
+            AppPlatform.isWeb && constraints.maxWidth >= 960;
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: _handleBack,
+          child: useDesktopWorkspace
+              ? _buildDesktopWorkspace(context)
+              : Scaffold(
+                  body: _buildPageStack(context),
+                  bottomNavigationBar: _buildBottomNav(context),
+                ),
+        );
       },
-      child: Scaffold(
-        body: FadeTransition(
-          opacity: _fadeController,
-          child: IndexedStack(
-            index: _currentIndex,
-            children: List<Widget>.generate(
-              _pages.length,
-              (i) => _pages[i] ?? const SizedBox.shrink(),
-            ),
-          ),
+    );
+  }
+
+  void _handleBack(bool didPop, Object? _) {
+    if (didPop) return;
+
+    if (_currentIndex == 1 &&
+        _libraryKey.currentState?.isSearchActive == true) {
+      _libraryKey.currentState?.clearSearch();
+      return;
+    }
+
+    if (AppPlatform.isWeb) {
+      if (_currentIndex != 0) _navigateTo(0);
+      return;
+    }
+
+    if (_currentIndex == 2) {
+      final now = DateTime.now();
+      if (_lastBackPress != null &&
+          now.difference(_lastBackPress!) < const Duration(seconds: 2)) {
+        SystemChannels.platform.invokeMethod('SystemNavigator.pop', true);
+        return;
+      }
+      _lastBackPress = now;
+      showOverlayToast(
+        context,
+        AppLocalizations.of(context)!.appShellPressBackToExit,
+        icon: Icons.exit_to_app_rounded,
+      );
+      return;
+    }
+
+    _switchToAbsorbing();
+  }
+
+  Widget _buildPageStack(BuildContext context, {Size? viewportSize}) {
+    Widget stack = FadeTransition(
+      opacity: _fadeController,
+      child: IndexedStack(
+        index: _currentIndex,
+        children: List<Widget>.generate(
+          _pages.length,
+          (i) => _pages[i] ?? const SizedBox.shrink(),
         ),
-        bottomNavigationBar: _buildBottomNav(context),
       ),
     );
+    if (viewportSize != null) {
+      stack = MediaQuery(
+        data: MediaQuery.of(context).copyWith(size: viewportSize),
+        child: stack,
+      );
+    }
+    return stack;
+  }
+
+  Widget _buildDesktopWorkspace(BuildContext context) {
+    final lib = context.watch<LibraryProvider>();
+    final podcastsShown = _podcastsShown(lib);
+    final destinations = _buildDestinations(context, podcastsShown);
+
+    return Scaffold(
+      body: Row(
+        children: [
+          _buildDesktopSidebar(
+            context,
+            lib: lib,
+            podcastsShown: podcastsShown,
+            destinations: destinations,
+          ),
+          VerticalDivider(
+            width: 1,
+            thickness: 1,
+            color: Theme.of(
+              context,
+            ).colorScheme.outlineVariant.withValues(alpha: 0.45),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) => _buildPageStack(
+                context,
+                viewportSize: Size(constraints.maxWidth, constraints.maxHeight),
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: DesktopNowPlayingBar(
+        player: _player,
+        library: lib,
+        onOpenFullPlayer: _openExpandedPlayer,
+      ),
+    );
+  }
+
+  Widget _buildDesktopSidebar(
+    BuildContext context, {
+    required LibraryProvider lib,
+    required bool podcastsShown,
+    required List<NavigationDestination> destinations,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l = AppLocalizations.of(context)!;
+    final auth = context.watch<AuthProvider>();
+    final libraryName =
+        lib.selectedLibrary?['name'] as String? ?? l.libraryFallback;
+    final username = auth.username?.trim();
+    final accountName = username == null || username.isEmpty
+        ? 'Account'
+        : username;
+    final serverUrl = auth.serverUrl ?? '';
+    final parsedServer = Uri.tryParse(serverUrl);
+    final serverLabel = parsedServer?.host.isNotEmpty == true
+        ? parsedServer!.host
+        : serverUrl;
+
+    return SafeArea(
+      child: SizedBox(
+        width: 248,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: cs.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.graphic_eq_rounded,
+                      color: cs.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    l.appTitle,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+              child: Tooltip(
+                message: l.switchLibraryTooltip,
+                child: InkWell(
+                  onTap: lib.libraries.length > 1
+                      ? () => showLibraryPickerSheet(context, lib)
+                      : null,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: cs.outlineVariant.withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.library_books_rounded,
+                          size: 20,
+                          color: cs.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            libraryName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelLarge,
+                          ),
+                        ),
+                        if (lib.libraries.length > 1)
+                          const Icon(Icons.expand_more_rounded, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: FilledButton.tonalIcon(
+                onPressed: () {
+                  if (podcastsShown) _syncTabLibrary(1, true);
+                  _openSearch();
+                },
+                icon: const Icon(Icons.search_rounded, size: 20),
+                label: Text(l.search),
+                style: FilledButton.styleFrom(
+                  alignment: Alignment.centerLeft,
+                  minimumSize: const Size.fromHeight(44),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: NavigationRail(
+                extended: true,
+                minWidth: 72,
+                minExtendedWidth: 248,
+                groupAlignment: -1,
+                backgroundColor: Colors.transparent,
+                selectedIndex: _selectedDest(lib, podcastsShown),
+                onDestinationSelected: (dest) =>
+                    _selectDestination(dest, podcastsShown),
+                destinations: [
+                  for (final destination in destinations)
+                    NavigationRailDestination(
+                      icon: destination.icon,
+                      selectedIcon: destination.selectedIcon,
+                      label: Text(destination.label),
+                    ),
+                ],
+              ),
+            ),
+            if (auth.isAdmin)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AdminScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.admin_panel_settings_outlined),
+                  label: Text(l.serverAdmin),
+                  style: TextButton.styleFrom(
+                    alignment: Alignment.centerLeft,
+                    minimumSize: const Size.fromHeight(42),
+                  ),
+                ),
+              ),
+            Divider(
+              height: 1,
+              color: cs.outlineVariant.withValues(alpha: 0.45),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: cs.secondaryContainer,
+                    foregroundColor: cs.onSecondaryContainer,
+                    child: Text(accountName.characters.first.toUpperCase()),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          accountName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelLarge,
+                        ),
+                        if (serverLabel.isNotEmpty)
+                          Text(
+                            serverLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _selectDestination(int dest, bool podcastsShown) {
+    final lib = context.read<LibraryProvider>();
+    final page = _pageForDest(dest, podcastsShown);
+    if (page == 1 &&
+        _currentIndex == 1 &&
+        dest == _selectedDest(lib, podcastsShown) &&
+        _libraryKey.currentState?.isSearchActive == true) {
+      _libraryKey.currentState?.clearSearch();
+      return;
+    }
+    _syncTabLibrary(dest, podcastsShown);
+    _navigateTo(page);
+    if (page >= 0 && page <= 3) _refreshDataForTab(page);
   }
 
   Widget _buildBottomNav(BuildContext context) {
@@ -818,23 +1115,8 @@ class _AppShellState extends State<AppShell>
           labelBehavior: isPhoneLandscape
               ? NavigationDestinationLabelBehavior.alwaysHide
               : NavigationDestinationLabelBehavior.alwaysShow,
-          onDestinationSelected: (dest) {
-            final page = _pageForDest(dest, podcastsShown);
-            // Re-tapping the active library-ish destination clears search
-            if (page == 1 &&
-                _currentIndex == 1 &&
-                dest == _selectedDest(lib, podcastsShown) &&
-                _libraryKey.currentState?.isSearchActive == true) {
-              _libraryKey.currentState?.clearSearch();
-              return;
-            }
-            _syncTabLibrary(dest, podcastsShown);
-            _navigateTo(page);
-            // Refresh data on switching to Library, Home, Absorbing, or Stats
-            if (page == 0 || page == 1 || page == 2 || page == 3) {
-              _refreshDataForTab(page);
-            }
-          },
+          onDestinationSelected: (dest) =>
+              _selectDestination(dest, podcastsShown),
           destinations: destinations,
         ),
       ),

@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/download_service.dart';
 import '../services/playback_history_service.dart';
+import '../utils/app_platform.dart';
 import 'overlay_toast.dart';
 
 String dateLabel(DateTime dt, [AppLocalizations? l]) {
@@ -172,16 +173,26 @@ class DownloadWideButton extends StatefulWidget {
 }
 
 class _DownloadWideButtonState extends State<DownloadWideButton> {
-  final _dl = DownloadService();
+  DownloadService? _dl;
 
-  @override void initState() { super.initState(); _dl.addListener(_rebuild); }
-  @override void dispose() { _dl.removeListener(_rebuild); super.dispose(); }
+  @override void initState() {
+    super.initState();
+    if (!AppPlatform.isWeb) {
+      _dl = DownloadService()..addListener(_rebuild);
+    }
+  }
+  @override void dispose() {
+    _dl?.removeListener(_rebuild);
+    super.dispose();
+  }
   void _rebuild() { if (mounted) setState(() {}); }
 
   @override Widget build(BuildContext context) {
-    final downloading = _dl.isDownloading(widget.itemId);
-    final downloaded = _dl.isDownloaded(widget.itemId);
-    final progress = _dl.downloadProgress(widget.itemId);
+    final dl = _dl;
+    if (dl == null) return const SizedBox.shrink();
+    final downloading = dl.isDownloading(widget.itemId);
+    final downloaded = dl.isDownloaded(widget.itemId);
+    final progress = dl.downloadProgress(widget.itemId);
     final l = AppLocalizations.of(context)!;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -238,28 +249,30 @@ class _DownloadWideButtonState extends State<DownloadWideButton> {
   }
 
   void _handleTap(BuildContext context) async {
+    final dl = _dl;
+    if (dl == null) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
     final l = AppLocalizations.of(context)!;
-    if (_dl.isDownloaded(widget.itemId)) {
+    if (dl.isDownloaded(widget.itemId)) {
       showDialog(context: context, builder: (ctx) => AlertDialog(
         title: Text(l.removeDownloadQuestion),
         content: Text(l.removeDownloadContent),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
           TextButton(onPressed: () {
-            _dl.deleteDownload(widget.itemId);
+            dl.deleteDownload(widget.itemId);
             Navigator.pop(ctx);
             showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
           },
             child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
         ],
       ));
-    } else if (_dl.isDownloading(widget.itemId)) {
-      _dl.cancelDownload(widget.itemId);
+    } else if (dl.isDownloading(widget.itemId)) {
+      dl.cancelDownload(widget.itemId);
     } else {
-      final error = await _dl.downloadItem(api: api, itemId: widget.itemId, title: widget.title, author: widget.author, coverUrl: widget.coverUrl, libraryId: context.read<LibraryProvider>().selectedLibraryId);
+      final error = await dl.downloadItem(api: api, itemId: widget.itemId, title: widget.title, author: widget.author, coverUrl: widget.coverUrl, libraryId: context.read<LibraryProvider>().selectedLibraryId);
       if (error != null && context.mounted) {
         showOverlayToast(context, error, icon: Icons.error_outline_rounded);
       }

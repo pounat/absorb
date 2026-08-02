@@ -20,6 +20,7 @@ import '../services/audio_player_service.dart';
 import '../main.dart' show applyTrustAllCerts, flatNotifier;
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
+import '../utils/app_platform.dart';
 
 class LoginScreen extends StatefulWidget {
   final SavedAccount? prefillAccount;
@@ -150,10 +151,12 @@ class _LoginScreenState extends State<LoginScreen>
       final info = await PackageInfo.fromPlatform();
       if (mounted) setState(() => _appVersion = 'v${info.version}');
     } catch (_) {}
-    try {
-      final trust = await PlayerSettings.getTrustAllCerts();
-      if (mounted) setState(() => _trustAllCerts = trust);
-    } catch (_) {}
+    if (!AppPlatform.isWeb) {
+      try {
+        final trust = await PlayerSettings.getTrustAllCerts();
+        if (mounted) setState(() => _trustAllCerts = trust);
+      } catch (_) {}
+    }
   }
 
   @override
@@ -166,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen>
     _apiKeyController.dispose();
     _usernameFocus.dispose();
     for (final (k, v) in _headerControllers) { k.dispose(); v.dispose(); }
-    OidcService().cancel();
+    if (!AppPlatform.isWeb) OidcService().cancel();
     super.dispose();
   }
 
@@ -252,8 +255,7 @@ class _LoginScreenState extends State<LoginScreen>
         }
       });
 
-      if (ok) {
-        // Also check if OIDC is available
+      if (ok && !AppPlatform.isWeb) {
         OidcService.checkOidcEnabled(fullUrl, customHeaders: headers).then((config) {
           if (mounted && _serverController.text.trim() == text) {
             setState(() => _oidcConfig = config);
@@ -336,7 +338,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _handleOidcLogin() async {
-    if (!_serverValid) return;
+    if (AppPlatform.isWeb || !_serverValid) return;
 
     setState(() {
       _isOidcLoading = true;
@@ -418,14 +420,30 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         child: SafeArea(
           child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                children: [
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 720;
+              final horizontalPadding = isWide ? 40.0 : 28.0;
+              final verticalPadding = isWide ? 32.0 : 24.0;
+              final availableHeight =
+                  constraints.maxHeight - (verticalPadding * 2);
+              return SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: verticalPadding,
+                ),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 520,
+                      minHeight: availableHeight > 0 ? availableHeight : 0,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                   // ── Logo + Tagline ──
                   FadeTransition(
                     opacity: _fadeAnim,
@@ -703,32 +721,34 @@ class _LoginScreenState extends State<LoginScreen>
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    const Divider(height: 1),
-                                    const SizedBox(height: 4),
-                                    Text(l.loginSelfSignedCertificates, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            l.loginTrustAllCertificates,
-                                            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                                    if (!AppPlatform.isWeb) ...[
+                                      const SizedBox(height: 8),
+                                      const Divider(height: 1),
+                                      const SizedBox(height: 4),
+                                      Text(l.loginSelfSignedCertificates, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              l.loginTrustAllCertificates,
+                                              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                                            ),
                                           ),
-                                        ),
-                                        Transform.scale(
-                                          scale: 0.8,
-                                          child: Switch(
-                                            value: _trustAllCerts,
-                                            onChanged: (v) async {
-                                              setState(() => _trustAllCerts = v);
-                                              await PlayerSettings.setTrustAllCerts(v);
-                                              applyTrustAllCerts(v);
-                                              _revalidateServer();
-                                            },
+                                          Transform.scale(
+                                            scale: 0.8,
+                                            child: Switch(
+                                              value: _trustAllCerts,
+                                              onChanged: (v) async {
+                                                setState(() => _trustAllCerts = v);
+                                                await PlayerSettings.setTrustAllCerts(v);
+                                                applyTrustAllCerts(v);
+                                                _revalidateServer();
+                                              },
+                                            ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
+                                        ],
+                                      ),
+                                    ],
                                     const SizedBox(height: 8),
                                     const Divider(height: 1),
                                     const SizedBox(height: 8),
@@ -794,20 +814,21 @@ class _LoginScreenState extends State<LoginScreen>
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            ActionChip(
-                              avatar: Icon(Icons.restore_rounded, size: 16,
-                                color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
-                              label: Text(l.loginRestoreFromBackup,
-                                style: tt.labelSmall?.copyWith(
-                                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                                )),
-                              backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-                              side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.15)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                            if (!AppPlatform.isWeb)
+                              ActionChip(
+                                avatar: Icon(Icons.restore_rounded, size: 16,
+                                  color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                                label: Text(l.loginRestoreFromBackup,
+                                  style: tt.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                                  )),
+                                backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                                side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.15)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                onPressed: _restoreFromBackup,
                               ),
-                              onPressed: _restoreFromBackup,
-                            ),
                             ActionChip(
                               key: const Key('paste-login-link'),
                               avatar: Icon(Icons.content_paste_rounded, size: 16,
@@ -831,13 +852,16 @@ class _LoginScreenState extends State<LoginScreen>
 
                   // ── Saved accounts quick-switch ──
                   _buildSavedAccounts(cs, tt),
-                ],
-              ),
-            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -927,6 +951,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _restoreFromBackup() async {
+    if (AppPlatform.isWeb) return;
+
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.any);
       if (result == null || result.files.isEmpty) return;
@@ -1338,7 +1364,8 @@ class _LoginScreenState extends State<LoginScreen>
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
-          child: _serverValid && _oidcConfig != null && _oidcConfig!.enabled
+          child: !AppPlatform.isWeb &&
+                  _serverValid && _oidcConfig != null && _oidcConfig!.enabled
               ? _buildOidcButton(cs, tt)
               : const SizedBox.shrink(),
         ),

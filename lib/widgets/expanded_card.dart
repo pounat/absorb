@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
@@ -18,6 +19,7 @@ import 'ebook_router.dart';
 import 'overlay_toast.dart';
 import '../services/ebook_cache.dart';
 import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme;
+import '../utils/app_platform.dart';
 
 // ─── Custom route: slide-up + fade ────────────────────────────
 
@@ -175,10 +177,12 @@ class _ExpandedCardState extends State<ExpandedCard> {
   }
 
   String? get _coverUrl {
-    final episodeId = _episodeId;
-    final downloadKey = episodeId == null ? _itemId : '$_itemId-$episodeId';
-    final localCover = DownloadService().getInfo(downloadKey).localCoverPath;
-    if (localCover != null && File(localCover).existsSync()) return localCover;
+    if (!AppPlatform.isWeb) {
+      final episodeId = _episodeId;
+      final downloadKey = episodeId == null ? _itemId : '$_itemId-$episodeId';
+      final localCover = DownloadService().getInfo(downloadKey).localCoverPath;
+      if (localCover != null && File(localCover).existsSync()) return localCover;
+    }
 
     if (_isActive) {
       final playingCover = widget.player.currentCoverUrl;
@@ -188,7 +192,8 @@ class _ExpandedCardState extends State<ExpandedCard> {
     final lib = context.read<LibraryProvider>();
     return lib.getCoverUrl(_itemId, width: 800);
   }
-  bool get _isLocalCover => _coverUrl != null && _coverUrl!.startsWith('/');
+  bool get _isLocalCover =>
+      !AppPlatform.isWeb && _coverUrl != null && _coverUrl!.startsWith('/');
 
   @override
   void initState() {
@@ -509,7 +514,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     final url = _coverUrl;
     if (url == null) return;
     final ImageProvider provider;
-    if (url.startsWith('/')) {
+    if (!AppPlatform.isWeb && url.startsWith('/')) {
       provider = FileImage(File(url));
     } else {
       provider = CachedNetworkImageProvider(url, headers: context.read<LibraryProvider>().mediaHeaders);
@@ -541,7 +546,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
 
     try {
       final ImageProvider provider;
-      if (url.startsWith('/')) {
+      if (!AppPlatform.isWeb && url.startsWith('/')) {
         provider = FileImage(File(url));
       } else {
         final lib = context.read<LibraryProvider>();
@@ -634,7 +639,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
       bookProgress = progress;
     }
 
-    return GestureDetector(
+    final player = GestureDetector(
       onVerticalDragEnd: (details) {
         final vy = details.primaryVelocity ?? 0;
         if (vy > 300) _dismissExpanded(); // swipe down to collapse
@@ -690,8 +695,10 @@ class _ExpandedCardState extends State<ExpandedCard> {
                   child: LayoutBuilder(
                     builder: (context, outerConstraints) {
                     final compact = outerConstraints.maxHeight < 600;
-                    // Landscape: split into left (cover) + right (controls/info).
-                    final wide = outerConstraints.maxWidth > outerConstraints.maxHeight;
+                    final wide = AppPlatform.isWeb
+                        ? outerConstraints.maxWidth >= 900
+                        : outerConstraints.maxWidth >
+                            outerConstraints.maxHeight;
 
                     final statsRow = Padding(
                         padding: EdgeInsets.fromLTRB(24, compact ? 4 : 12, 24, 0),
@@ -730,7 +737,8 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                   coverH = s;
                                 }
                                 final dlKey = _episodeId != null ? '$_itemId-$_episodeId' : _itemId;
-                                final isDownloaded = DownloadService().isDownloaded(dlKey);
+                                final isDownloaded = !AppPlatform.isWeb &&
+                                    DownloadService().isDownloaded(dlKey);
                                 final castService = ChromecastService();
                                 final isCastingThis = castService.isCasting && castService.castingItemId == _itemId;
                                 final coverPlaying = isCastingThis ? castService.isPlaying : (_isActive && widget.player.isPlaying);
@@ -987,9 +995,37 @@ class _ExpandedCardState extends State<ExpandedCard> {
                     );
                   }),
                 ),
+                if (AppPlatform.isWeb)
+                  Positioned(
+                    top: 16,
+                    right: 20,
+                    child: Material(
+                      color: cs.surface.withValues(alpha: 0.9),
+                      elevation: 6,
+                      shape: CircleBorder(
+                        side: BorderSide(
+                          color: cs.outlineVariant.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      child: IconButton(
+                        tooltip:
+                            MaterialLocalizations.of(context).closeButtonTooltip,
+                        onPressed: _dismissExpanded,
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ),
+                  ),
               ],
             ),
     ),
+    );
+
+    if (!AppPlatform.isWeb) return player;
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.escape): _dismissExpanded,
+      },
+      child: Focus(autofocus: true, child: player),
     );
   }
 
@@ -1204,4 +1240,3 @@ class _ExpandedCardState extends State<ExpandedCard> {
 
   void _showMoreMenu(BuildContext context, Color accent, TextTheme tt) => _makeActions().showMoreMenu(accent, tt);
 }
-

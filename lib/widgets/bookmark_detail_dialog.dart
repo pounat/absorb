@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/bookmark_preview_player.dart';
 import '../services/download_service.dart';
+import '../utils/app_platform.dart';
 import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
 
@@ -105,7 +104,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     // iOS can't export from a streaming book, so prompt to download up front
     // rather than letting the user trim a clip and only fail at Save. Android
     // exports streamed clips fine, so it always opens the editor.
-    if (Platform.isIOS && !DownloadService().isDownloaded(widget.itemId)) {
+    if (AppPlatform.isIOS && !DownloadService().isDownloaded(widget.itemId)) {
       await _promptDownload();
       return;
     }
@@ -287,15 +286,17 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.content_cut_rounded, size: 18),
-                label: Text(l.clipExport),
-                onPressed: _saving ? null : _openClipEditor,
+            if (!AppPlatform.isWeb) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.content_cut_rounded, size: 18),
+                  label: Text(l.clipExport),
+                  onPressed: _saving ? null : _openClipEditor,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

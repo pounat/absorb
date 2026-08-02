@@ -20,6 +20,7 @@ import '../main.dart' show rootNavigatorKey;
 import 'stackable_sheet.dart';
 import 'episode_list_sheet.dart';
 import '../utils/duration_format.dart';
+import '../utils/app_platform.dart';
 
 class EpisodeDetailSheet extends StatefulWidget {
   static final Set<String> _openEpisodeKeys = <String>{};
@@ -195,6 +196,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
   }
 
   Future<void> _download() async {
+    if (AppPlatform.isWeb) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -398,8 +400,10 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
 
             // Download + Finished row
             Row(children: [
-              Expanded(child: _downloadCell(cs, l, dlKey)),
-              const SizedBox(width: 8),
+              if (!AppPlatform.isWeb) ...[
+                Expanded(child: _downloadCell(cs, l, dlKey)),
+                const SizedBox(width: 8),
+              ],
               Expanded(child: _finishedCell(cs, isFinished)),
               const SizedBox(width: 8),
               GestureDetector(
@@ -662,8 +666,10 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       _playButton(cs, tt, l, progress, isFinished),
       const SizedBox(height: 10),
       Row(children: [
-        Expanded(child: _downloadCell(cs, l, dlKey)),
-        const SizedBox(width: 8),
+        if (!AppPlatform.isWeb) ...[
+          Expanded(child: _downloadCell(cs, l, dlKey)),
+          const SizedBox(width: 8),
+        ],
         Expanded(child: _finishedCell(cs, isFinished)),
       ]),
       const SizedBox(height: 18),

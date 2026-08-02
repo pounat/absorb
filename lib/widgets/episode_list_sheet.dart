@@ -15,6 +15,7 @@ import '../services/chromecast_service.dart';
 import '../providers/auth_provider.dart';
 import '../screens/admin_podcasts_screen.dart';
 import '../services/socket_service.dart';
+import '../utils/app_platform.dart';
 import 'card_buttons.dart';
 import 'html_description.dart';
 import 'stackable_sheet.dart';
@@ -393,6 +394,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   }
 
   Future<void> _downloadEpisode(Map<String, dynamic> episode) async {
+    if (AppPlatform.isWeb) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -419,6 +421,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   }
 
   Future<void> _downloadAll() async {
+    if (AppPlatform.isWeb) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -469,14 +472,16 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   }
 
   Widget _buildOverflowMenu(ColorScheme cs) {
-    final dl = DownloadService();
     int downloaded = 0;
-    for (final ep in _episodes) {
-      final eid = ep['id'] as String? ?? '';
-      final key = '$_itemId-$eid';
-      if (dl.isDownloaded(key)) downloaded++;
+    if (!AppPlatform.isWeb) {
+      final dl = DownloadService();
+      for (final ep in _episodes) {
+        final eid = ep['id'] as String? ?? '';
+        final key = '$_itemId-$eid';
+        if (dl.isDownloaded(key)) downloaded++;
+      }
     }
-    final allDownloaded = downloaded == _episodes.length;
+    final allDownloaded = !AppPlatform.isWeb && downloaded == _episodes.length;
 
     if (_isDownloadingAll) {
       return Padding(
@@ -511,12 +516,12 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
               Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
               ActionPillGrid(items: [
-                if (!allDownloaded)
+                if (!AppPlatform.isWeb && !allDownloaded)
                   ActionPillData(
                     icon: Icons.download_rounded,
                     label: downloaded > 0 ? l.downloadRemainingCount(_episodes.length - downloaded) : l.downloadAll,
                     onTap: () { Navigator.pop(ctx); _downloadAll(); }),
-                if (_itemId.isNotEmpty)
+                if (!AppPlatform.isWeb && _itemId.isNotEmpty)
                   ActionPillData(
                     icon: _autoDownloadEnabled ? Icons.downloading_rounded : Icons.download_outlined,
                     label: _autoDownloadEnabled ? l.turnAutoDownloadOff : l.turnAutoDownloadOn,
@@ -743,7 +748,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                 return Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
                 if (!_isLoading) _chip(Icons.podcasts_rounded, l.episodeListEpisodeCount(_episodes.length)),
                 if (unfinishedCount > 0) _chip(Icons.fiber_new_rounded, l.episodeListUnfinishedCount(unfinishedCount), highlight: true),
-                if (_autoDownloadEnabled) _chip(Icons.downloading_rounded, l.episodeListAutoDownloadChip),
+                if (!AppPlatform.isWeb && _autoDownloadEnabled) _chip(Icons.downloading_rounded, l.episodeListAutoDownloadChip),
                 if (_subscribed) _chip(Icons.notifications_active_rounded, l.episodeListSubscribedChip, highlight: true),
                 ..._genres.take(3).map((g) => _chip(Icons.tag_rounded, g)),
                 ..._tags.take(5).map((t) => _chip(Icons.local_offer_outlined, t)),

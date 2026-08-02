@@ -18,6 +18,7 @@ import '../services/wear_auth_service.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../widgets/overlay_toast.dart';
+import '../utils/app_platform.dart';
 import '../utils/server_url.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -290,6 +291,7 @@ class AuthProvider extends ChangeNotifier {
   /// to call unconditionally — the service is a no-op on non-Android
   /// platforms and when no watch is connected.
   void _pushSessionToWear() {
+    if (AppPlatform.isWeb) return;
     final url = _serverUrl;
     final token = _accessToken;
     if (url == null || token == null) return;
@@ -465,6 +467,11 @@ class AuthProvider extends ChangeNotifier {
           );
         }
         _serverReachable = reachable;
+        if (AppPlatform.isWeb && !reachable) {
+          _accessToken = null;
+          _refreshToken = null;
+          _isLegacyToken = false;
+        }
 
         // Fetch full user info (needed for isAdmin, permissions, etc.)
         if (reachable) {
@@ -656,6 +663,7 @@ class AuthProvider extends ChangeNotifier {
     _isLegacyToken = tokens.isLegacy;
     _accessToken = tokens.token;
     _refreshToken = tokens.refreshToken;
+    _serverReachable = true;
     debugPrint('[Auth] Login response keys: ${result.keys.toList()}');
     debugPrint('[Auth] Login user keys: ${user.keys.toList()}');
     debugPrint(
@@ -721,11 +729,11 @@ class AuthProvider extends ChangeNotifier {
 
     await _onAccountActivated();
 
-    // Wipe any previous user's stats from the widget and pull this user's.
-    await HomeWidgetService().clearStats();
-    HomeWidgetService().refreshStats(force: true);
-
-    _pushSessionToWear();
+    if (!AppPlatform.isWeb) {
+      await HomeWidgetService().clearStats();
+      HomeWidgetService().refreshStats(force: true);
+      _pushSessionToWear();
+    }
     _startOnAbsorbingAfterAccountChange = true;
     _isLoading = false;
     notifyListeners();
@@ -778,6 +786,7 @@ class AuthProvider extends ChangeNotifier {
     _defaultLibraryId = null;
     _userJson = user;
     _serverSettings = null;
+    _serverReachable = true;
     _customHeaders = customHeaders;
 
     _fetchServerVersion(url);
@@ -812,10 +821,11 @@ class AuthProvider extends ChangeNotifier {
 
     await _onAccountActivated();
 
-    await HomeWidgetService().clearStats();
-    HomeWidgetService().refreshStats(force: true);
-
-    _pushSessionToWear();
+    if (!AppPlatform.isWeb) {
+      await HomeWidgetService().clearStats();
+      HomeWidgetService().refreshStats(force: true);
+      _pushSessionToWear();
+    }
     _startOnAbsorbingAfterAccountChange = true;
     _isLoading = false;
     notifyListeners();
@@ -921,11 +931,11 @@ class AuthProvider extends ChangeNotifier {
 
     await _onAccountActivated();
 
-    // Wipe any previous user's stats from the widget and pull this user's.
-    await HomeWidgetService().clearStats();
-    HomeWidgetService().refreshStats(force: true);
-
-    _pushSessionToWear();
+    if (!AppPlatform.isWeb) {
+      await HomeWidgetService().clearStats();
+      HomeWidgetService().refreshStats(force: true);
+      _pushSessionToWear();
+    }
     _startOnAbsorbingAfterAccountChange = true;
     _isLoading = false;
     notifyListeners();
@@ -954,7 +964,9 @@ class AuthProvider extends ChangeNotifier {
   /// local URL with the new account's token, producing 401s.
   Future<void> _onAccountActivated() async {
     PlayerSettings.notifySettingsChanged();
-    await EqualizerService().reloadForActiveAccount();
+    if (!AppPlatform.isWeb) {
+      await EqualizerService().reloadForActiveAccount();
+    }
 
     await _loadLocalServerSettings();
     _useLocalServer = false;
@@ -1072,15 +1084,15 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (_) {}
 
-    // Clear Android Auto / CarPlay browse tree cache so it doesn't show stale data
-    AndroidAutoService().clearCache();
-    CarPlayService().clearAndRefresh();
+    if (!AppPlatform.isWeb) {
+      AndroidAutoService().clearCache();
+      CarPlayService().clearAndRefresh();
+    }
 
     // Drop the per-library search index so the next account can't reuse it.
     BookSearchIndex().clear();
 
-    // Clear the stats widget so the previous user's numbers don't linger.
-    await HomeWidgetService().clearStats();
+    if (!AppPlatform.isWeb) await HomeWidgetService().clearStats();
 
     // Clear cached session metadata for this user (track URLs would be invalid
     // on next login anyway)
@@ -1145,8 +1157,7 @@ class AuthProvider extends ChangeNotifier {
       await prefs.remove('default_library_id');
     } catch (_) {}
 
-    // Sign the paired watch out too.
-    WearAuthService.instance.clear();
+    if (!AppPlatform.isWeb) WearAuthService.instance.clear();
 
     notifyListeners();
   }
@@ -1167,9 +1178,10 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (_) {}
 
-    // Clear Android Auto / CarPlay browse tree cache so it refreshes for the new user
-    AndroidAutoService().clearCache();
-    CarPlayService().clearAndRefresh();
+    if (!AppPlatform.isWeb) {
+      AndroidAutoService().clearCache();
+      CarPlayService().clearAndRefresh();
+    }
 
     // Set the new account as active in the account service. It may have been
     // removed since the caller loaded its saved-account row.
@@ -1195,7 +1207,9 @@ class AuthProvider extends ChangeNotifier {
     // Reload EQ settings from the new account's scope. Without this the
     // EqualizerService singleton keeps the previous account's in-memory
     // state and would write it back into the new scope on any change.
-    await EqualizerService().reloadForActiveAccount();
+    if (!AppPlatform.isWeb) {
+      await EqualizerService().reloadForActiveAccount();
+    }
 
     // Set credentials
     _serverUrl = selected.serverUrl;
@@ -1236,10 +1250,10 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (_) {}
 
-    // Clear the stats widget so the previous account's numbers don't linger
-    // while the new user's data is fetched, then force a refresh.
-    await HomeWidgetService().clearStats();
-    HomeWidgetService().refreshStats(force: true);
+    if (!AppPlatform.isWeb) {
+      await HomeWidgetService().clearStats();
+      HomeWidgetService().refreshStats(force: true);
+    }
 
     // Verify the token still works and get user info
     try {
