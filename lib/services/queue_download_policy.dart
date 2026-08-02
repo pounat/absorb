@@ -1,3 +1,19 @@
+bool resolveQueueAutoDownloadEnabled({
+  required String queueMode,
+  required bool globalEnabled,
+  required String? activeSourceId,
+  required bool activeSourceEnabled,
+}) {
+  if (queueMode == 'auto_next' && activeSourceId != null) {
+    return activeSourceEnabled;
+  }
+  return globalEnabled;
+}
+
+String queueItemKey({required String libraryItemId, String? episodeId}) {
+  return episodeId == null ? libraryItemId : '$libraryItemId-$episodeId';
+}
+
 List<T> queueTailFrom<T>({
   required List<T> items,
   required String currentKey,

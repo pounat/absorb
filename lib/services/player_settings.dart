@@ -55,6 +55,19 @@ class PlayerSettings {
   /// Notifier that fires when any player setting changes.
   /// Widgets can listen to this instead of polling SharedPreferences.
   static final ChangeNotifier settingsChanged = ChangeNotifier();
+  static Future<void> _queueModeMutation = Future.value();
+
+  static Future<T> _serializeQueueModeMutation<T>(
+    Future<T> Function() mutation,
+  ) {
+    final result = _queueModeMutation.then((_) => mutation());
+    _queueModeMutation = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return result;
+  }
+
   static void _notify() {
     // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
     settingsChanged.notifyListeners();
@@ -252,7 +265,10 @@ class PlayerSettings {
     final value = await ScopedPrefs.getString('bookQueueMode');
     return value ?? await getQueueMode();
   }
-  static Future<void> setBookQueueMode(String value) => _set('bookQueueMode', value, notify: true);
+  static Future<void> setBookQueueMode(String value) =>
+      _serializeQueueModeMutation(
+        () => _set('bookQueueMode', value, notify: true),
+      );
 
   static Future<bool> getShowUpNextLabel() => _get('showUpNextLabel', true);
   static Future<void> setShowUpNextLabel(bool value) =>
@@ -262,7 +278,10 @@ class PlayerSettings {
     final value = await ScopedPrefs.getString('podcastQueueMode');
     return value ?? await getQueueMode();
   }
-  static Future<void> setPodcastQueueMode(String value) => _set('podcastQueueMode', value, notify: true);
+  static Future<void> setPodcastQueueMode(String value) =>
+      _serializeQueueModeMutation(
+        () => _set('podcastQueueMode', value, notify: true),
+      );
 
   /// Per-show podcast auto-advance direction: 'oldest_first' (default) or
   /// 'newest_first'. Stored under a raw (un-scoped) key because the advance
@@ -295,32 +314,49 @@ class PlayerSettings {
     final s = await ScopedPrefs.getString('queuePlaylistId');
     return (s == null || s.isEmpty) ? null : s;
   }
-  static Future<void> setQueuePlaylistId(String? id) async {
-    if (id == null || id.isEmpty) {
-      await ScopedPrefs.remove('queuePlaylistId');
-    } else {
-      await ScopedPrefs.setString('queuePlaylistId', id);
-    }
-    _notify();
-  }
+  static Future<void> setQueuePlaylistId(String? id) =>
+      _serializeQueueModeMutation(() async {
+        if (id == null || id.isEmpty) {
+          await ScopedPrefs.remove('queuePlaylistId');
+        } else {
+          await ScopedPrefs.setString('queuePlaylistId', id);
+        }
+        _notify();
+      });
 
   /// Enter playlist queue mode atomically: both book and podcast modes flip to
   /// 'playlist' and the active playlist is set. Playlists can mix book and
   /// podcast items, so the two modes always agree when in playlist mode.
-  static Future<void> setQueueModePlaylist(String playlistId) async {
-    await ScopedPrefs.setString('bookQueueMode', 'playlist');
-    await ScopedPrefs.setString('podcastQueueMode', 'playlist');
-    await ScopedPrefs.setString('queuePlaylistId', playlistId);
-    _notify();
-  }
+  static Future<void> setQueueModePlaylist(String playlistId) =>
+      _serializeQueueModeMutation(() async {
+        await ScopedPrefs.setString('bookQueueMode', 'playlist');
+        await ScopedPrefs.setString('podcastQueueMode', 'playlist');
+        await ScopedPrefs.setString('queuePlaylistId', playlistId);
+        _notify();
+      });
 
   /// Exit playlist queue mode: both modes back to 'off' and active playlist cleared.
-  static Future<void> clearQueueModePlaylist() async {
-    await ScopedPrefs.setString('bookQueueMode', 'off');
-    await ScopedPrefs.setString('podcastQueueMode', 'off');
-    await ScopedPrefs.remove('queuePlaylistId');
-    _notify();
-  }
+  static Future<void> clearQueueModePlaylist() =>
+      _serializeQueueModeMutation(() async {
+        await ScopedPrefs.setString('bookQueueMode', 'off');
+        await ScopedPrefs.setString('podcastQueueMode', 'off');
+        await ScopedPrefs.remove('queuePlaylistId');
+        _notify();
+      });
+
+  static Future<bool> clearQueueModePlaylistIfActive(String playlistId) =>
+      _serializeQueueModeMutation(() async {
+        if (await getBookQueueMode() != 'playlist' ||
+            await getPodcastQueueMode() != 'playlist' ||
+            await getQueuePlaylistId() != playlistId) {
+          return false;
+        }
+        await ScopedPrefs.setString('bookQueueMode', 'off');
+        await ScopedPrefs.setString('podcastQueueMode', 'off');
+        await ScopedPrefs.remove('queuePlaylistId');
+        _notify();
+        return true;
+      });
 
   // ── Collection queue mode (books only) ──
   // Mirrors playlist queue mode but plays through a collection's books. Drives
@@ -335,24 +371,39 @@ class PlayerSettings {
   static Future<String?> getQueueCollectionName() =>
       ScopedPrefs.getString('queueCollectionName');
 
-  static Future<void> setQueueModeCollection(String collectionId, String name) async {
-    await ScopedPrefs.setString('bookQueueMode', 'collection');
-    await ScopedPrefs.setString('queueCollectionId', collectionId);
-    await ScopedPrefs.setString('queueCollectionName', name);
-    // Collection mode replaces any active playlist queue.
-    await ScopedPrefs.remove('queuePlaylistId');
-    if ((await ScopedPrefs.getString('podcastQueueMode')) == 'playlist') {
-      await ScopedPrefs.setString('podcastQueueMode', 'off');
-    }
-    _notify();
-  }
+  static Future<void> setQueueModeCollection(String collectionId, String name) =>
+      _serializeQueueModeMutation(() async {
+        await ScopedPrefs.setString('bookQueueMode', 'collection');
+        await ScopedPrefs.setString('queueCollectionId', collectionId);
+        await ScopedPrefs.setString('queueCollectionName', name);
+        // Collection mode replaces any active playlist queue.
+        await ScopedPrefs.remove('queuePlaylistId');
+        if ((await ScopedPrefs.getString('podcastQueueMode')) == 'playlist') {
+          await ScopedPrefs.setString('podcastQueueMode', 'off');
+        }
+        _notify();
+      });
 
-  static Future<void> clearQueueModeCollection() async {
-    await ScopedPrefs.setString('bookQueueMode', 'off');
-    await ScopedPrefs.remove('queueCollectionId');
-    await ScopedPrefs.remove('queueCollectionName');
-    _notify();
-  }
+  static Future<void> clearQueueModeCollection() =>
+      _serializeQueueModeMutation(() async {
+        await ScopedPrefs.setString('bookQueueMode', 'off');
+        await ScopedPrefs.remove('queueCollectionId');
+        await ScopedPrefs.remove('queueCollectionName');
+        _notify();
+      });
+
+  static Future<bool> clearQueueModeCollectionIfActive(String collectionId) =>
+      _serializeQueueModeMutation(() async {
+        if (await getBookQueueMode() != 'collection' ||
+            await getQueueCollectionId() != collectionId) {
+          return false;
+        }
+        await ScopedPrefs.setString('bookQueueMode', 'off');
+        await ScopedPrefs.remove('queueCollectionId');
+        await ScopedPrefs.remove('queueCollectionName');
+        _notify();
+        return true;
+      });
 
   /// One-time migration from the old boolean auto-play settings to queueMode.
   static Future<void> migrateQueueMode() async {

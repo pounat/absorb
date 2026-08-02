@@ -10,8 +10,14 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     _rollingDownloadSeries.add(seriesOrShowId);
     await _saveRollingDownloadSeries();
     notifyListeners();
-    final playingKey = AudioPlayerService().currentItemId;
-    if (playingKey != null) _checkRollingDownloads(playingKey);
+    final player = AudioPlayerService();
+    final itemId = player.currentItemId;
+    if (itemId != null) {
+      final episodeId = player.currentEpisodeId;
+      final playingKey = episodeId == null ? itemId : '$itemId-$episodeId';
+      _checkRollingDownloads(playingKey);
+      unawaited(_checkQueueAutoDownloads(playingKey));
+    }
   }
 
   Future<void> disableRollingDownload(String seriesOrShowId) async {
@@ -2242,7 +2248,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         : activeKey.length > 36
             ? await PlayerSettings.getPodcastQueueMode()
             : await PlayerSettings.getBookQueueMode();
-    final activeQueueOwnsWindow = activeQueueMode != 'off' &&
+    final globalQueueAutoDownload =
         await PlayerSettings.getQueueAutoDownload();
     if (_rollingDownloadSeries.isEmpty && !autoSeriesDefault) return;
     final count = await PlayerSettings.getRollingDownloadCount();
@@ -2252,16 +2258,19 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       final activeShowId = activeKey != null && activeKey.length > 36
           ? activeKey.substring(0, 36)
           : null;
+      final activeQueueOwnsWindow = activeQueueMode != 'off' &&
+          resolveQueueAutoDownloadEnabled(
+            queueMode: activeQueueMode,
+            globalEnabled: globalQueueAutoDownload,
+            activeSourceId: activeShowId,
+            activeSourceEnabled: activeShowId != null &&
+                _rollingDownloadSeries.contains(activeShowId),
+          );
       if (activeQueueOwnsWindow && activeShowId == showId) return;
       if (_rollingDownloadSeries.contains(showId)) {
         _rollingDownloadPodcast(playingKey, count);
       }
     } else {
-      if (activeQueueOwnsWindow &&
-          activeKey == playingKey &&
-          !autoSeriesDefault) {
-        return;
-      }
       var data = _itemDataWithSeries(playingKey);
       var (seriesId, _) = data != null ? _StateMixin._extractSeries(data) : (null, null);
       if (seriesId == null) {
@@ -2277,24 +2286,57 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         await _saveRollingDownloadSeries();
         notifyListeners();
       }
-      if (activeQueueOwnsWindow && activeKey != null && activeKey.length <= 36) {
-        if (activeKey == playingKey) return;
-        var activeData = _itemDataWithSeries(activeKey);
-        var (activeSeriesId, _) = activeData != null
-            ? _StateMixin._extractSeries(activeData)
-            : (null, null);
-        if (activeSeriesId == null) {
-          activeData = await api.getLibraryItem(activeKey);
-          if (activeData != null) {
-            (activeSeriesId, _) = _StateMixin._extractSeries(activeData);
+      String? activeSeriesId;
+      if (activeKey != null && activeKey.length <= 36) {
+        if (activeKey == playingKey) {
+          activeSeriesId = seriesId;
+        } else {
+          var activeData = _itemDataWithSeries(activeKey);
+          (activeSeriesId, _) = activeData != null
+              ? _StateMixin._extractSeries(activeData)
+              : (null, null);
+          if (activeSeriesId == null) {
+            activeData = await api.getLibraryItem(activeKey);
+            if (activeData != null) {
+              (activeSeriesId, _) = _StateMixin._extractSeries(activeData);
+            }
           }
         }
-        if (activeSeriesId == seriesId) return;
       }
+      final activeQueueOwnsWindow = activeQueueMode != 'off' &&
+          resolveQueueAutoDownloadEnabled(
+            queueMode: activeQueueMode,
+            globalEnabled: globalQueueAutoDownload,
+            activeSourceId: activeSeriesId,
+            activeSourceEnabled: activeSeriesId != null &&
+                _rollingDownloadSeries.contains(activeSeriesId),
+          );
+      if (activeQueueOwnsWindow && activeSeriesId == seriesId) return;
       if (_rollingDownloadSeries.contains(seriesId)) {
         _rollingDownloadBook(playingKey, count);
       }
     }
+  }
+
+  Future<String?> _queueAutoDownloadSourceId(
+    String playingKey,
+    String queueMode,
+    ApiService api,
+  ) async {
+    if (queueMode != 'auto_next') return null;
+    if (playingKey.length > 36) return playingKey.substring(0, 36);
+
+    var data = _itemDataWithSeries(playingKey);
+    var (seriesId, _) = data != null
+        ? _StateMixin._extractSeries(data)
+        : (null, null);
+    if (seriesId == null) {
+      data = await api.getLibraryItem(playingKey);
+      if (data != null) {
+        (seriesId, _) = _StateMixin._extractSeries(data);
+      }
+    }
+    return seriesId;
   }
 
   Future<void> _checkQueueAutoDownloads(String playingKey) async {
@@ -2338,7 +2380,18 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
               : null;
       if (isStale()) return;
 
-      final enabled = await PlayerSettings.getQueueAutoDownload();
+      final autoDownloadSourceId =
+          await _queueAutoDownloadSourceId(playingKey, queueMode, api);
+      if (isStale()) return;
+      final globalAutoDownload =
+          await PlayerSettings.getQueueAutoDownload();
+      final enabled = resolveQueueAutoDownloadEnabled(
+        queueMode: queueMode,
+        globalEnabled: globalAutoDownload,
+        activeSourceId: autoDownloadSourceId,
+        activeSourceEnabled: autoDownloadSourceId != null &&
+            _rollingDownloadSeries.contains(autoDownloadSourceId),
+      );
       if (!enabled || isStale()) return;
       final count = await PlayerSettings.getRollingDownloadCount();
       if (count <= 0 || isStale()) return;
@@ -2371,7 +2424,16 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
             isStale()) {
           return false;
         }
-        if (!await PlayerSettings.getQueueAutoDownload() || isStale()) {
+        final currentGlobalAutoDownload =
+            await PlayerSettings.getQueueAutoDownload();
+        if (isStale() ||
+            !resolveQueueAutoDownloadEnabled(
+              queueMode: queueMode,
+              globalEnabled: currentGlobalAutoDownload,
+              activeSourceId: autoDownloadSourceId,
+              activeSourceEnabled: autoDownloadSourceId != null &&
+                  _rollingDownloadSeries.contains(autoDownloadSourceId),
+            )) {
           return false;
         }
         if (await PlayerSettings.getRollingDownloadCount() != count ||
@@ -2414,9 +2476,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       String keyOf(Map<String, dynamic> item) {
         final libraryItemId = item['libraryItemId'] as String? ?? '';
         final episodeId = item['episodeId'] as String?;
-        return episodeId == null
-            ? libraryItemId
-            : '$libraryItemId-$episodeId';
+        return queueItemKey(
+          libraryItemId: libraryItemId,
+          episodeId: episodeId,
+        );
       }
       final pendingItems = queueItemsNeedingDownload(
         items: items.where((item) => keyOf(item).isNotEmpty),

@@ -7,6 +7,7 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
+import '../services/queue_download_policy.dart';
 import '../services/scoped_prefs.dart';
 import '../widgets/absorb_page_header.dart';
 import '../main.dart' show flatNotifier, gradientIntensityNotifier, rootNavigatorKey;
@@ -947,11 +948,12 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         expand: false,
         initialChildSize: needsMoreRoom ? 0.9 : 0.7,
         minChildSize: needsMoreRoom ? 0.85 : 0.5,
-        maxChildSize: 0.95,
-        builder: (_, __) => _ReorderAbsorbingSheet(
+        maxChildSize: 1.0,
+        builder: (_, scrollController) => _ReorderAbsorbingSheet(
           keys: keys,
           books: books,
           lib: lib,
+          scrollController: scrollController,
           absorbingKeyFn: _absorbingKey,
           queueMode: _queueMode,
           isMerged: _mergeLibraries,
@@ -1058,6 +1060,7 @@ class _ReorderAbsorbingSheet extends StatefulWidget {
   final List<String> keys;
   final List<Map<String, dynamic>> books;
   final LibraryProvider lib;
+  final ScrollController scrollController;
   final String Function(Map<String, dynamic>) absorbingKeyFn;
   final String queueMode;
   final bool isMerged;
@@ -1069,6 +1072,7 @@ class _ReorderAbsorbingSheet extends StatefulWidget {
     required this.keys,
     required this.books,
     required this.lib,
+    required this.scrollController,
     required this.absorbingKeyFn,
     required this.queueMode,
     required this.isMerged,
@@ -1104,17 +1108,6 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
     PlayerSettings.getShowUpNextLabel().then((v) {
       if (mounted) setState(() => _showUpNext = v);
     });
-    Future.wait([
-      PlayerSettings.getQueueAutoDownload(),
-      PlayerSettings.getRollingDownloadCount(),
-    ]).then((values) {
-      if (!mounted) return;
-      setState(() {
-        _queueAutoDownload = values[0] as bool;
-        _rollingDownloadCount = values[1] as int;
-        _queueDownloadSettingsLoaded = true;
-      });
-    });
     final showId = _currentPodcastShowId;
     if (showId != null) {
       PlayerSettings.getPodcastAdvanceDir(showId).then((v) {
@@ -1148,6 +1141,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
     if (!mounted || nextKey == _currentItemId) return;
     setState(() {
       _currentItemId = nextKey;
+      _queueDownloadSettingsLoaded = false;
       _seriesBooks = null;
       _seriesId = null;
       _seriesName = null;
@@ -1179,6 +1173,47 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
   bool get _currentIsPodcast =>
       _currentPodcastShowId != null ||
       (_currentItemId == null && widget.isPodcast);
+
+  String? get _activeAutoDownloadSourceId {
+    if (_queueMode != 'auto_next') return null;
+    return _currentPodcastShowId ?? _seriesId;
+  }
+
+  Future<void> _refreshQueueDownloadSettings() async {
+    final queueMode = _queueMode;
+    final sourceId = _activeAutoDownloadSourceId;
+    final globalEnabled = await PlayerSettings.getQueueAutoDownload();
+    final count = await PlayerSettings.getRollingDownloadCount();
+    if (!mounted ||
+        queueMode != _queueMode ||
+        sourceId != _activeAutoDownloadSourceId) return;
+    setState(() {
+      _queueAutoDownload = resolveQueueAutoDownloadEnabled(
+        queueMode: queueMode,
+        globalEnabled: globalEnabled,
+        activeSourceId: sourceId,
+        activeSourceEnabled:
+            sourceId != null && widget.lib.isRollingDownloadEnabled(sourceId),
+      );
+      _rollingDownloadCount = count;
+      _queueDownloadSettingsLoaded = true;
+    });
+  }
+
+  Future<void> _setQueueAutoDownload(bool value) async {
+    final sourceId = _activeAutoDownloadSourceId;
+    setState(() => _queueAutoDownload = value);
+    if (_queueMode == 'auto_next' && sourceId != null) {
+      if (value) {
+        await widget.lib.enableRollingDownload(sourceId);
+      } else {
+        await widget.lib.disableRollingDownload(sourceId);
+      }
+    } else {
+      await PlayerSettings.setQueueAutoDownload(value);
+    }
+    unawaited(widget.lib.syncQueueAutoDownloads());
+  }
 
   // Stage 3: mode-aware rendering. For auto_next we show the active series'
   // books; for playlist we show the active playlist's items. Cached here so
@@ -1216,6 +1251,8 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
     } else if (_queueMode == 'collection') {
       await _loadCollectionContent(generation);
     }
+    if (!mounted || generation != _modeContentGeneration) return;
+    await _refreshQueueDownloadSettings();
   }
 
   Future<void> _loadShowEpisodes(int generation) async {
@@ -1372,6 +1409,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
       setState(() {
         _queueMode = mode;
         _activeQueueSourceId = sourceId;
+        _queueDownloadSettingsLoaded = false;
         if (modeChanged || mode == 'playlist') {
           _playlistItems = null;
           _playlistId = null;
@@ -1402,7 +1440,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
       child: Column(children: [
         // Handle
         Center(child: Container(
-          margin: const EdgeInsets.only(top: 10),
+          margin: const EdgeInsets.only(top: 8),
           width: 32, height: 4,
           decoration: BoxDecoration(
             color: cs.onSurface.withValues(alpha: 0.2),
@@ -1411,7 +1449,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
         )),
         // Header
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
           child: Row(children: [
             Expanded(child: Text(l.absorbingManageQueue,
               style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600))),
@@ -1426,7 +1464,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
         ),
         // Queue mode toggle
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
           child: SegmentedButton<String>(
             segments: [
               ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 16), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff, maxLines: 1))),
@@ -1468,48 +1506,39 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
                     ),
                   ],
                 )),
+                if (_queueAutoDownload)
+                  Tooltip(
+                    message: l.keepNext,
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _rollingDownloadCount,
+                        isDense: true,
+                        items: const [2, 3, 4, 5]
+                            .map((count) => DropdownMenuItem(
+                                  value: count,
+                                  child: Text('$count'),
+                                ))
+                            .toList(),
+                        onChanged: _queueDownloadSettingsLoaded
+                            ? (value) async {
+                                if (value == null) return;
+                                setState(() => _rollingDownloadCount = value);
+                                await PlayerSettings.setRollingDownloadCount(value);
+                                unawaited(widget.lib.syncQueueAutoDownloads());
+                              }
+                            : null,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 4),
                 Switch(
                   value: _queueAutoDownload,
                   onChanged: _queueDownloadSettingsLoaded
-                      ? (value) async {
-                          setState(() => _queueAutoDownload = value);
-                          await PlayerSettings.setQueueAutoDownload(value);
-                          unawaited(widget.lib.syncQueueAutoDownloads());
-                        }
+                      ? _setQueueAutoDownload
                       : null,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ]),
-              if (_queueAutoDownload)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 4),
-                  child: Row(children: [
-                    Text(l.keepNext,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                    const SizedBox(width: 12),
-                    Expanded(child: SegmentedButton<int>(
-                      showSelectedIcon: false,
-                      segments: const [
-                        ButtonSegment(value: 2, label: Text('2')),
-                        ButtonSegment(value: 3, label: Text('3')),
-                        ButtonSegment(value: 4, label: Text('4')),
-                        ButtonSegment(value: 5, label: Text('5')),
-                      ],
-                      selected: {_rollingDownloadCount},
-                      onSelectionChanged: (values) async {
-                        if (values.isEmpty) return;
-                        final value = values.first;
-                        setState(() => _rollingDownloadCount = value);
-                        await PlayerSettings.setRollingDownloadCount(value);
-                        unawaited(widget.lib.syncQueueAutoDownloads());
-                      },
-                      style: const ButtonStyle(
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    )),
-                  ]),
-                ),
             ]),
           ),
         if (_queueMode != 'off')
@@ -1700,6 +1729,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
       );
     }
     return ListView.builder(
+      controller: widget.scrollController,
       padding: EdgeInsets.only(bottom: bottomInset + 16),
       itemCount: books.length,
       itemBuilder: (context, i) {
@@ -1732,6 +1762,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
         return newestFirst ? bt.compareTo(at) : at.compareTo(bt);
       });
     return ListView.builder(
+      controller: widget.scrollController,
       padding: EdgeInsets.only(bottom: bottomInset + 16),
       itemCount: sorted.length,
       itemBuilder: (context, i) {
@@ -1771,6 +1802,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
       return seqOf(a).compareTo(seqOf(b));
     });
     return ListView.builder(
+      controller: widget.scrollController,
       padding: EdgeInsets.only(bottom: bottomInset + 16),
       itemCount: books.length,
       itemBuilder: (context, i) {
@@ -1796,6 +1828,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
       );
     }
     return ListView.builder(
+      controller: widget.scrollController,
       padding: EdgeInsets.only(bottom: bottomInset + 16),
       itemCount: items.length,
       itemBuilder: (context, i) {
@@ -1975,6 +2008,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
 
   Widget _buildManualList(ColorScheme cs, TextTheme tt, AppLocalizations l, double bottomInset) {
     return ReorderableListView.builder(
+            scrollController: widget.scrollController,
             buildDefaultDragHandles: false,
             onReorderStart: (_) => HapticFeedback.mediumImpact(),
             padding: EdgeInsets.only(bottom: bottomInset + 16),

@@ -12,6 +12,7 @@ class EpisodeRow extends StatefulWidget {
   final String podcastTitle;
   final VoidCallback onPlay;
   final VoidCallback onDownload;
+  final String? sourcePlaylistId;
 
   const EpisodeRow({
     super.key,
@@ -21,6 +22,7 @@ class EpisodeRow extends StatefulWidget {
     required this.podcastTitle,
     required this.onPlay,
     required this.onDownload,
+    this.sourcePlaylistId,
   });
 
   @override
@@ -83,9 +85,19 @@ class _EpisodeRowState extends State<EpisodeRow> {
 
     return InkWell(
       onTap: () {
-        EpisodeDetailSheet.show(context, widget.podcastItem, ep);
+        EpisodeDetailSheet.show(
+          context,
+          widget.podcastItem,
+          ep,
+          sourcePlaylistId: widget.sourcePlaylistId,
+        );
       },
-      onLongPress: () => EpisodeDetailSheet.showQuick(context, widget.podcastItem, ep),
+      onLongPress: () => EpisodeDetailSheet.showQuick(
+        context,
+        widget.podcastItem,
+        ep,
+        sourcePlaylistId: widget.sourcePlaylistId,
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
         child: Column(

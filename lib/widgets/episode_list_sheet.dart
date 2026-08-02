@@ -27,17 +27,31 @@ export 'episode_detail_sheet.dart';
 class EpisodeListSheet extends StatefulWidget {
   final Map<String, dynamic> podcastItem;
   final ScrollController? scrollController;
+  final String? sourcePlaylistId;
+  final String? sourcePlaylistEpisodeId;
 
-  const EpisodeListSheet({super.key, required this.podcastItem})
+  const EpisodeListSheet({
+    super.key,
+    required this.podcastItem,
+    this.sourcePlaylistId,
+    this.sourcePlaylistEpisodeId,
+  })
       : scrollController = null;
 
   const EpisodeListSheet._({
     required this.podcastItem,
     required this.scrollController,
+    this.sourcePlaylistId,
+    this.sourcePlaylistEpisodeId,
   }) : super(key: null);
 
   /// Show the episode list as a modal bottom sheet.
-  static void show(BuildContext context, Map<String, dynamic> podcastItem) {
+  static void show(
+    BuildContext context,
+    Map<String, dynamic> podcastItem, {
+    String? sourcePlaylistId,
+    String? sourcePlaylistEpisodeId,
+  }) {
     showStackableSheet(
       context: context,
       useSafeArea: true,
@@ -46,6 +60,8 @@ class EpisodeListSheet extends StatefulWidget {
       builder: (_, scrollController) => EpisodeListSheet._(
         podcastItem: podcastItem,
         scrollController: scrollController,
+        sourcePlaylistId: sourcePlaylistId,
+        sourcePlaylistEpisodeId: sourcePlaylistEpisodeId,
       ),
     );
   }
@@ -241,6 +257,25 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     });
   }
 
+  String? _playlistSourceForEpisode(String episodeId) {
+    if (widget.sourcePlaylistEpisodeId != episodeId) return null;
+    return widget.sourcePlaylistId;
+  }
+
+  Future<void> _activateQueueSource(String episodeId) async {
+    final playlistId = _playlistSourceForEpisode(episodeId);
+    if (playlistId != null && playlistId.isNotEmpty) {
+      await PlayerSettings.setQueueModePlaylist(playlistId);
+    }
+  }
+
+  Future<void> _clearActivatedQueueSource(String episodeId) async {
+    final playlistId = _playlistSourceForEpisode(episodeId);
+    if (playlistId != null && playlistId.isNotEmpty) {
+      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+    }
+  }
+
   Future<void> _batchMarkFinished(bool finished) async {
     if (_selectedEpisodeIds.isEmpty) return;
     final auth = context.read<AuthProvider>();
@@ -327,6 +362,8 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       return;
     }
 
+    final lib = context.read<LibraryProvider>();
+    await _activateQueueSource(episodeId);
     final player = AudioPlayerService();
     final error = await player.playItem(
       api: api,
@@ -344,6 +381,11 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       // is fine: the player resolves it from the session/server.
       libraryId: _podcastItem['libraryId'] as String?,
     );
+    if (error == null) {
+      unawaited(lib.syncQueueAutoDownloads());
+    } else {
+      unawaited(_clearActivatedQueueSource(episodeId));
+    }
     if (mounted) {
       if (error != null) showErrorToast(context, error);
       Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
@@ -881,6 +923,8 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                                 podcastTitle: _title,
                                 onPlay: () => _playEpisode(ep),
                                 onDownload: () => _downloadEpisode(ep),
+                                sourcePlaylistId:
+                                    _playlistSourceForEpisode(epId),
                               ),
                             );
                           },

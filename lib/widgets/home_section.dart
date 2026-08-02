@@ -37,9 +37,19 @@ class HomeSection extends StatelessWidget {
 
     final isContinueListening = sectionId == 'continue-listening';
     final isPlaylistSection = sectionType == 'playlist';
+    final isCollectionSection = sectionType == 'collection';
     final isAuthorSection = sectionType == 'author' || sectionType == 'authors';
     final isSeriesSection = sectionType == 'series';
     final isEpisodeSection = sectionType == 'episode';
+    final sourcePlaylistId = isPlaylistSection
+        ? _sourceIdFromSectionId('playlist')
+        : null;
+    final sourceCollectionId = isCollectionSection
+        ? _sourceIdFromSectionId('collection')
+        : null;
+    final sourceCollectionName = sourceCollectionId == null
+        ? null
+        : _collectionNameFromTitle(title);
 
     // Check if any entities have recentEpisode (podcast episode sections)
     final hasEpisodeEntities = !isEpisodeSection && entities.isNotEmpty &&
@@ -102,12 +112,14 @@ class HomeSection extends StatelessWidget {
               itemCount: entities.length,
               itemBuilder: (context, index) {
                 var entity = entities[index];
+                String? sourcePlaylistEpisodeId;
 
                 // Playlist items nest actual item under 'libraryItem'
                 if (isPlaylistSection && entity is Map<String, dynamic>) {
                   final inner = entity['libraryItem'] as Map<String, dynamic>?;
                   if (inner != null) {
                     final episodeId = entity['episodeId'] as String?;
+                    sourcePlaylistEpisodeId = episodeId;
                     final episode = entity['episode'] as Map<String, dynamic>?;
                     entity = Map<String, dynamic>.from(inner);
                     if (episodeId != null && episode != null) {
@@ -134,7 +146,10 @@ class HomeSection extends StatelessWidget {
                 if (isEpisodeSection && entity is Map<String, dynamic>) {
                   return SizedBox(
                     width: cardWidth,
-                    child: _EpisodeCard(item: entity),
+                    child: _EpisodeCard(
+                      item: entity,
+                      sourcePlaylistId: sourcePlaylistId,
+                    ),
                   );
                 }
 
@@ -144,7 +159,10 @@ class HomeSection extends StatelessWidget {
                     entity['recentEpisode'] != null) {
                   return SizedBox(
                     width: cardWidth,
-                    child: _EpisodeCard(item: entity),
+                    child: _EpisodeCard(
+                      item: entity,
+                      sourcePlaylistId: sourcePlaylistId,
+                    ),
                   );
                 }
 
@@ -155,6 +173,10 @@ class HomeSection extends StatelessWidget {
                     showProgress: isContinueListening,
                     isWide: isContinueListening,
                     coverAspectRatio: isContinueListening ? 1.0 : coverAspectRatio,
+                    sourcePlaylistId: sourcePlaylistId,
+                    sourcePlaylistEpisodeId: sourcePlaylistEpisodeId,
+                    sourceCollectionId: sourceCollectionId,
+                    sourceCollectionName: sourceCollectionName,
                   ),
                 );
               },
@@ -163,6 +185,18 @@ class HomeSection extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String? _sourceIdFromSectionId(String type) {
+    final prefix = '$type:';
+    if (!sectionId.startsWith(prefix)) return null;
+    final id = sectionId.substring(prefix.length);
+    return id.isEmpty ? null : id;
+  }
+
+  String _collectionNameFromTitle(String value) {
+    const prefix = 'Server Collection - ';
+    return value.startsWith(prefix) ? value.substring(prefix.length) : value;
   }
 }
 
@@ -250,8 +284,12 @@ class _SnapScrollListState extends State<_SnapScrollList> {
 /// Shows the show cover with the episode title overlaid at the bottom.
 class _EpisodeCard extends StatelessWidget {
   final Map<String, dynamic> item;
+  final String? sourcePlaylistId;
 
-  const _EpisodeCard({required this.item});
+  const _EpisodeCard({
+    required this.item,
+    this.sourcePlaylistId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -277,14 +315,28 @@ class _EpisodeCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (episode != null) {
-          EpisodeDetailSheet.show(context, item, episode);
+          EpisodeDetailSheet.show(
+            context,
+            item,
+            episode,
+            sourcePlaylistId: sourcePlaylistId,
+          );
         } else {
-          EpisodeListSheet.show(context, item);
+          EpisodeListSheet.show(
+            context,
+            item,
+            sourcePlaylistId: sourcePlaylistId,
+          );
         }
       },
       // Long-press an episode card for its quick-actions sheet (shows stay as-is).
       onLongPress: episode == null ? null
-          : () => EpisodeDetailSheet.showQuick(context, item, episode),
+          : () => EpisodeDetailSheet.showQuick(
+                context,
+                item,
+                episode,
+                sourcePlaylistId: sourcePlaylistId,
+              ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

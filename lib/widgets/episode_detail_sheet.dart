@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -26,21 +27,33 @@ class EpisodeDetailSheet extends StatefulWidget {
   final Map<String, dynamic> podcastItem;
   final Map<String, dynamic> episode;
   final ScrollController? scrollController;
+  final String? sourcePlaylistId;
   /// Compact long-press layout: header + Play + Download + the action grid,
   /// skipping the description / chapters / all-episodes sections.
   final bool quick;
 
-  const EpisodeDetailSheet({super.key, required this.podcastItem, required this.episode})
+  const EpisodeDetailSheet({
+    super.key,
+    required this.podcastItem,
+    required this.episode,
+    this.sourcePlaylistId,
+  })
       : scrollController = null, quick = false;
 
   const EpisodeDetailSheet._({
     required this.podcastItem,
     required this.episode,
     required this.scrollController,
+    this.sourcePlaylistId,
     this.quick = false,
   }) : super(key: null);
 
-  static void show(BuildContext context, Map<String, dynamic> podcastItem, Map<String, dynamic> episode) {
+  static void show(
+    BuildContext context,
+    Map<String, dynamic> podcastItem,
+    Map<String, dynamic> episode, {
+    String? sourcePlaylistId,
+  }) {
     final itemKey = podcastItem['id'] ?? identityHashCode(podcastItem);
     final episodeKey = episode['id'] ?? identityHashCode(episode);
     final openKey = '$itemKey::$episodeKey';
@@ -55,12 +68,18 @@ class EpisodeDetailSheet extends StatefulWidget {
         podcastItem: podcastItem,
         episode: episode,
         scrollController: scrollController,
+        sourcePlaylistId: sourcePlaylistId,
       ),
     ).whenComplete(() => _openEpisodeKeys.remove(openKey));
   }
 
   /// Long-press shortcut: a compact quick-actions sheet for one episode.
-  static void showQuick(BuildContext context, Map<String, dynamic> podcastItem, Map<String, dynamic> episode) {
+  static void showQuick(
+    BuildContext context,
+    Map<String, dynamic> podcastItem,
+    Map<String, dynamic> episode, {
+    String? sourcePlaylistId,
+  }) {
     showStackableSheet(
       context: context,
       useSafeArea: true,
@@ -70,6 +89,7 @@ class EpisodeDetailSheet extends StatefulWidget {
         podcastItem: podcastItem,
         episode: episode,
         scrollController: scrollController,
+        sourcePlaylistId: sourcePlaylistId,
         quick: true,
       ),
     );
@@ -110,6 +130,20 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
 
   String get _rawDescription => widget.episode['description'] as String? ?? '';
 
+  Future<void> _activateQueueSource() async {
+    final playlistId = widget.sourcePlaylistId;
+    if (playlistId != null && playlistId.isNotEmpty) {
+      await PlayerSettings.setQueueModePlaylist(playlistId);
+    }
+  }
+
+  Future<void> _clearActivatedQueueSource() async {
+    final playlistId = widget.sourcePlaylistId;
+    if (playlistId != null && playlistId.isNotEmpty) {
+      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+    }
+  }
+
   Future<void> _play() async {
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
@@ -131,6 +165,12 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
     // collapsed after tab transition races with sheet pop animations.
     final rootNav = Navigator.of(context, rootNavigator: true);
     final rootContext = rootNav.context;
+    final lib = context.read<LibraryProvider>();
+    await _activateQueueSource();
+    if (!rootNav.mounted) {
+      await _clearActivatedQueueSource();
+      return;
+    }
     debugPrint('[PodcastPlay] Popping stacked sheets before playItem (item=$_itemId episode=$_episodeId)');
     rootNav.popUntil((route) => route.isFirst);
     debugPrint('[PodcastPlay] Sheets popped, calling playItem');
@@ -146,8 +186,11 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       libraryId: widget.podcastItem['libraryId'] as String?,
     );
     debugPrint('[PodcastPlay] playItem returned in ${DateTime.now().difference(t0).inMilliseconds}ms (error=${error ?? 'none'})');
-    if (error != null && rootContext.mounted) {
-      showErrorToast(rootContext, error);
+    if (error != null) {
+      unawaited(_clearActivatedQueueSource());
+      if (rootContext.mounted) showErrorToast(rootContext, error);
+    } else {
+      unawaited(lib.syncQueueAutoDownloads());
     }
   }
 
@@ -386,7 +429,12 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
             const SizedBox(height: 16),
             GestureDetector(
               onTap: () {
-                EpisodeListSheet.show(context, widget.podcastItem);
+                EpisodeListSheet.show(
+                  context,
+                  widget.podcastItem,
+                  sourcePlaylistId: widget.sourcePlaylistId,
+                  sourcePlaylistEpisodeId: _episodeId,
+                );
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -693,7 +741,14 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
           onTap: () {
             final rc = rootNavigatorKey.currentContext;
             Navigator.of(context).pop();
-            if (rc != null) EpisodeDetailSheet.show(rc, widget.podcastItem, widget.episode);
+            if (rc != null) {
+              EpisodeDetailSheet.show(
+                rc,
+                widget.podcastItem,
+                widget.episode,
+                sourcePlaylistId: widget.sourcePlaylistId,
+              );
+            }
           }),
     ];
   }

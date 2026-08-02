@@ -289,8 +289,16 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
         child: _editing
             ? _buildEditList(cs, tt, lib, l)
             : _gridView
-                ? _buildGrid(cs, tt, lib, books, l)
-                : _buildItemList(cs, tt, lib, books, l, canEditCollection: canEditCollection),
+                ? _buildGrid(cs, tt, lib, books, name, l)
+                : _buildItemList(
+                    cs,
+                    tt,
+                    lib,
+                    books,
+                    name,
+                    l,
+                    canEditCollection: canEditCollection,
+                  ),
       ),
       if (_editing && canDeleteCollection)
         Container(
@@ -346,7 +354,13 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                   AppShell.goToAbsorbingGlobal();
                   await PlayerSettings.setQueueModeCollection(id, name);
                   final started = await lib.playCollectionFromStart(id);
-                  if (started) unawaited(lib.syncQueueAutoDownloads());
+                  if (started) {
+                    unawaited(lib.syncQueueAutoDownloads());
+                  } else {
+                    unawaited(
+                      PlayerSettings.clearQueueModeCollectionIfActive(id),
+                    );
+                  }
                 }
               : null,
           icon: Icon(allFinished
@@ -409,7 +423,15 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     );
   }
 
-  Widget _buildItemList(ColorScheme cs, TextTheme tt, LibraryProvider lib, List<dynamic> books, AppLocalizations l, {required bool canEditCollection}) {
+  Widget _buildItemList(
+    ColorScheme cs,
+    TextTheme tt,
+    LibraryProvider lib,
+    List<dynamic> books,
+    String collectionName,
+    AppLocalizations l, {
+    required bool canEditCollection,
+  }) {
     return ListView.builder(
       controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4).copyWith(bottom: 40),
@@ -435,7 +457,12 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: () => showBookDetailSheet(context, itemId),
+              onTap: () => showBookDetailSheet(
+                context,
+                itemId,
+                sourceCollectionId: widget.collectionId,
+                sourceCollectionName: collectionName,
+              ),
               borderRadius: BorderRadius.circular(14),
               child: SizedBox(
                 height: 112,
@@ -574,7 +601,14 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     );
   }
 
-  Widget _buildGrid(ColorScheme cs, TextTheme tt, LibraryProvider lib, List<dynamic> books, AppLocalizations l) {
+  Widget _buildGrid(
+    ColorScheme cs,
+    TextTheme tt,
+    LibraryProvider lib,
+    List<dynamic> books,
+    String collectionName,
+    AppLocalizations l,
+  ) {
     return GridView.builder(
       controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4)
@@ -600,7 +634,12 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
         final isDownloaded = DownloadService().isDownloaded(itemId);
 
         return GestureDetector(
-          onTap: () => showBookDetailSheet(context, itemId),
+          onTap: () => showBookDetailSheet(
+            context,
+            itemId,
+            sourceCollectionId: widget.collectionId,
+            sourceCollectionName: collectionName,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

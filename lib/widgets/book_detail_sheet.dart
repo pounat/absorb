@@ -50,20 +50,39 @@ import '../utils/duration_format.dart';
 
 // ─── BOOK DETAIL BOTTOM SHEET ───────────────────────────────
 
-void showBookDetailSheet(BuildContext context, String itemId) {
+void showBookDetailSheet(
+  BuildContext context,
+  String itemId, {
+  String? sourcePlaylistId,
+  String? sourceCollectionId,
+  String? sourceCollectionName,
+}) {
   showStackableSheet(
     context: context,
     useSafeArea: true,
     initialChildSize: 0.85,
     maxChildSize: 0.95,
-    builder: (ctx, sc) => _BookDetailSheetContent(itemId: itemId, scrollController: sc),
+    builder: (ctx, sc) => _BookDetailSheetContent(
+      itemId: itemId,
+      scrollController: sc,
+      sourcePlaylistId: sourcePlaylistId,
+      sourceCollectionId: sourceCollectionId,
+      sourceCollectionName: sourceCollectionName,
+    ),
   );
 }
 
 /// Long-press shortcut: a compact sheet with Absorb + Download up top and the
 /// full set of book actions as pills, skipping the trip into the detail sheet.
 /// Pass [initialItem] (the tile's library-item map) so it renders instantly.
-void showQuickActionsSheet(BuildContext context, String itemId, {Map<String, dynamic>? initialItem}) {
+void showQuickActionsSheet(
+  BuildContext context,
+  String itemId, {
+  Map<String, dynamic>? initialItem,
+  String? sourcePlaylistId,
+  String? sourceCollectionId,
+  String? sourceCollectionName,
+}) {
   showStackableSheet(
     context: context,
     useSafeArea: true,
@@ -74,6 +93,9 @@ void showQuickActionsSheet(BuildContext context, String itemId, {Map<String, dyn
       scrollController: sc,
       quick: true,
       initialItem: initialItem,
+      sourcePlaylistId: sourcePlaylistId,
+      sourceCollectionId: sourceCollectionId,
+      sourceCollectionName: sourceCollectionName,
     ),
   );
 }
@@ -142,11 +164,17 @@ class _BookDetailSheetContent extends StatefulWidget {
   final ScrollController scrollController;
   final bool quick;
   final Map<String, dynamic>? initialItem;
+  final String? sourcePlaylistId;
+  final String? sourceCollectionId;
+  final String? sourceCollectionName;
   const _BookDetailSheetContent({
     required this.itemId,
     required this.scrollController,
     this.quick = false,
     this.initialItem,
+    this.sourcePlaylistId,
+    this.sourceCollectionId,
+    this.sourceCollectionName,
   });
   @override State<_BookDetailSheetContent> createState() => _BookDetailSheetContentState();
 }
@@ -633,7 +661,13 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
             return FilledButton.icon(
               onPressed: showAbsorbingState
-                  ? () {
+                  ? () async {
+                      if (isCurrentPlaying) {
+                        final lib = context.read<LibraryProvider>();
+                        await _activateQueueSource();
+                        unawaited(lib.syncQueueAutoDownloads());
+                      }
+                      if (!context.mounted) return;
                       Navigator.of(context).popUntil((route) => route.isFirst);
                       AppShell.goToAbsorbingGlobal();
                     }
@@ -1110,7 +1144,15 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           add(Icons.open_in_full_rounded, l.bookDetailsLabel, () {
             final rc = rootNavigatorKey.currentContext;
             Navigator.of(context).pop();
-            if (rc != null) showBookDetailSheet(rc, widget.itemId);
+            if (rc != null) {
+              showBookDetailSheet(
+                rc,
+                widget.itemId,
+                sourcePlaylistId: widget.sourcePlaylistId,
+                sourceCollectionId: widget.sourceCollectionId,
+                sourceCollectionName: widget.sourceCollectionName,
+              );
+            }
           });
         }
         // The full item (with ebookFile) loads after the sheet is already open,
@@ -1154,7 +1196,13 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         final showAbsorbingState = _isAbsorbing || isCurrentPlaying;
         return GestureDetector(
           onTap: showAbsorbingState
-              ? () {
+              ? () async {
+                  if (isCurrentPlaying) {
+                    final lib = context.read<LibraryProvider>();
+                    await _activateQueueSource();
+                    unawaited(lib.syncQueueAutoDownloads());
+                  }
+                  if (!context.mounted) return;
                   Navigator.of(context).popUntil((route) => route.isFirst);
                   AppShell.goToAbsorbingGlobal();
                 }
@@ -2036,6 +2084,29 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _activateQueueSource() async {
+    final playlistId = widget.sourcePlaylistId;
+    final collectionId = widget.sourceCollectionId;
+    if (playlistId != null && playlistId.isNotEmpty) {
+      await PlayerSettings.setQueueModePlaylist(playlistId);
+    } else if (collectionId != null && collectionId.isNotEmpty) {
+      await PlayerSettings.setQueueModeCollection(
+        collectionId,
+        widget.sourceCollectionName ?? '',
+      );
+    }
+  }
+
+  Future<void> _clearActivatedQueueSource() async {
+    final playlistId = widget.sourcePlaylistId;
+    final collectionId = widget.sourceCollectionId;
+    if (playlistId != null && playlistId.isNotEmpty) {
+      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+    } else if (collectionId != null && collectionId.isNotEmpty) {
+      await PlayerSettings.clearQueueModeCollectionIfActive(collectionId);
+    }
+  }
+
   Future<void> _startAbsorb(BuildContext context, {required AuthProvider auth, required String title, required String author, required String? coverUrl, required double duration, required List<dynamic> chapters}) async {
     // Discard, not stop: we're about to start playback ourselves, so briefly
     // resuming the previous book would just be an audible blip.
@@ -2043,9 +2114,12 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final player = AudioPlayerService();
     // Grab the root navigator before we pop the sheet
     final rootNav = Navigator.of(context, rootNavigator: true);
+    final lib = context.read<LibraryProvider>();
 
     if (player.currentItemId == widget.itemId) {
-      if (!player.isPlaying) player.play();
+      await _activateQueueSource();
+      if (!player.isPlaying) await player.play();
+      unawaited(lib.syncQueueAutoDownloads());
       rootNav.popUntil((route) => route.isFirst);
       Future.delayed(const Duration(milliseconds: 100), () {
         AppShell.goToAbsorbingGlobal();
@@ -2054,8 +2128,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
     final api = auth.apiService;
     if (api == null) return;
-
-    final lib = context.mounted ? context.read<LibraryProvider>() : null;
+    await _activateQueueSource();
 
     // Pop sheets and switch tab BEFORE starting playback. Otherwise the
     // auto-expand triggered by playItem pushes the expanded player on top
@@ -2065,11 +2138,14 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
     final error = await player.playItem(api: api, itemId: widget.itemId, title: title, author: author, coverUrl: coverUrl, totalDuration: duration, chapters: chapters, libraryId: _item?['libraryId'] as String?);
     if (error != null) {
+      unawaited(_clearActivatedQueueSource());
       final ctx = rootNavigatorKey.currentContext;
       if (ctx != null) showErrorToast(ctx, error);
+    } else {
+      unawaited(lib.syncQueueAutoDownloads());
     }
-    lib?.refreshLocalProgress();
-    lib?.refresh();
+    lib.refreshLocalProgress();
+    lib.refresh();
   }
 
   Future<void> _markFinished(BuildContext context, AuthProvider auth, double duration) async {

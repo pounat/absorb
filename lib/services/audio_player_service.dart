@@ -3067,9 +3067,10 @@ class AudioPlayerService extends ChangeNotifier {
       }
     }
 
-    // Auto-navigate to Absorbing tab when an episode starts playing
-    if (result == null && episodeId != null) {
-      _onEpisodePlayStartedCallback?.call();
+    if (result == null && playbackGeneration == _playbackGeneration) {
+      _onPlaybackStateChangedCallback?.call(true);
+      // Auto-navigate to Absorbing tab when an episode starts playing.
+      if (episodeId != null) _onEpisodePlayStartedCallback?.call();
     }
     return result;
   }

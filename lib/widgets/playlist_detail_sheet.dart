@@ -77,12 +77,26 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
     if (episodeId != null) {
       final ep = _findEpisode(playlistItem, libraryItem, episodeId);
       if (ep != null) {
-        EpisodeDetailSheet.show(context, libraryItem, ep);
+        EpisodeDetailSheet.show(
+          context,
+          libraryItem,
+          ep,
+          sourcePlaylistId: widget.playlistId,
+        );
       } else {
-        EpisodeListSheet.show(context, libraryItem);
+        EpisodeListSheet.show(
+          context,
+          libraryItem,
+          sourcePlaylistId: widget.playlistId,
+          sourcePlaylistEpisodeId: episodeId,
+        );
       }
     } else {
-      showBookDetailSheet(context, libraryItemId);
+      showBookDetailSheet(
+        context,
+        libraryItemId,
+        sourcePlaylistId: widget.playlistId,
+      );
     }
   }
 
@@ -468,7 +482,13 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                   AppShell.goToAbsorbingGlobal();
                   await PlayerSettings.setQueueModePlaylist(playlistId);
                   final started = await lib.playPlaylistFromStart(playlistId);
-                  if (started) unawaited(lib.syncQueueAutoDownloads());
+                  if (started) {
+                    unawaited(lib.syncQueueAutoDownloads());
+                  } else {
+                    unawaited(
+                      PlayerSettings.clearQueueModePlaylistIfActive(playlistId),
+                    );
+                  }
                 }
               : null,
           icon: Icon(allFinished
@@ -580,7 +600,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         final progressKey = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
         final progress = lib.getProgress(progressKey);
         final isFinished = lib.getProgressData(progressKey)?['isFinished'] == true;
-        final isDownloaded = DownloadService().isDownloaded(libraryItemId);
+        final isDownloaded = DownloadService().isDownloaded(progressKey);
 
         String? episodeTitle;
         if (episodeId != null) {
@@ -723,7 +743,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         final progressKey = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
         final progress = lib.getProgress(progressKey);
         final isFinished = lib.getProgressData(progressKey)?['isFinished'] == true;
-        final isDownloaded = DownloadService().isDownloaded(libraryItemId);
+        final isDownloaded = DownloadService().isDownloaded(progressKey);
 
         String? episodeTitle;
         if (episodeId != null) {

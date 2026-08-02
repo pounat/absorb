@@ -1,6 +1,8 @@
 part of 'library_provider.dart';
 
 mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
+  int _staleSourceCleanupGeneration = 0;
+
   bool _dedupeAbsorbingIds() {
     final seen = <String>{};
     final deduped = <String>[];
@@ -1099,7 +1101,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
   String _playlistItemKey(Map<String, dynamic> item) {
     final lid = item['libraryItemId'] as String? ?? '';
     final eid = item['episodeId'] as String?;
-    return eid != null ? '$lid-$eid' : lid;
+    return queueItemKey(libraryItemId: lid, episodeId: eid);
   }
 
   /// Index of the first playlist item that isn't marked finished. Returns -1
@@ -1197,23 +1199,38 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     return _playPlaylistItem(item);
   }
 
+  Future<bool?> _isInQueuePlaylist(
+    String playlistId,
+    String libraryItemId, {
+    String? episodeId,
+  }) async {
+    final pl = await _getPlaylistById(playlistId);
+    if (pl == null) return null;
+    final items = pl['items'];
+    if (items is! List) return null;
+    final target =
+        episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
+    for (final m in items) {
+      if (m is! Map<String, dynamic>) return null;
+      final key = _playlistItemKey(m);
+      if (key.isEmpty) return null;
+      if (key == target) return true;
+    }
+    return false;
+  }
+
   /// Returns true if [libraryItemId] (+ optional [episodeId]) appears in the
-  /// active queue playlist's items. Used to decide whether playing a given
-  /// item should keep playlist mode active or kick the user out of it.
+  /// active queue playlist's items.
   Future<bool> isInActiveQueuePlaylist(String libraryItemId,
       {String? episodeId}) async {
     final playlistId = await PlayerSettings.getQueuePlaylistId();
     if (playlistId == null) return false;
-    final pl = await _getPlaylistById(playlistId);
-    if (pl == null) return false;
-    final items = (pl['items'] as List<dynamic>?) ?? const [];
-    final target =
-        episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
-    for (final m in items) {
-      if (m is! Map<String, dynamic>) continue;
-      if (_playlistItemKey(m) == target) return true;
-    }
-    return false;
+    final membership = await _isInQueuePlaylist(
+      playlistId,
+      libraryItemId,
+      episodeId: episodeId,
+    );
+    return membership ?? false;
   }
 
   Future<void> _advanceInPlaylist(String finishedKey) async {
@@ -1225,7 +1242,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     final pl = await _getPlaylistById(playlistId);
     if (pl == null) {
       debugPrint('[AutoAdvance] Playlist $playlistId missing; exiting playlist queue mode');
-      await PlayerSettings.clearQueueModePlaylist();
+      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
       return;
     }
     final items = (pl['items'] as List<dynamic>?) ?? const [];
@@ -1531,18 +1548,116 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     return _playPlaylistItem(items[idx]);
   }
 
+  Future<bool?> _isInQueueCollection(
+    String collectionId,
+    String libraryItemId, {
+    String? episodeId,
+  }) async {
+    final c = await _getCollectionById(collectionId);
+    if (c == null) return null;
+    final books = c['books'];
+    if (books is! List) return null;
+    final target =
+        episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
+    for (final book in books) {
+      if (book is! Map<String, dynamic>) return null;
+      final id = book['id'] as String? ?? '';
+      if (id.isEmpty) return null;
+      if (id == target) return true;
+    }
+    return false;
+  }
+
   Future<bool> isInActiveQueueCollection(String libraryItemId,
       {String? episodeId}) async {
     final collectionId = await PlayerSettings.getQueueCollectionId();
     if (collectionId == null) return false;
-    final c = await _getCollectionById(collectionId);
-    if (c == null) return false;
-    final items = _collectionItems(c);
-    final target = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
-    for (final m in items) {
-      if (_playlistItemKey(m) == target) return true;
+    final membership = await _isInQueueCollection(
+      collectionId,
+      libraryItemId,
+      episodeId: episodeId,
+    );
+    return membership ?? false;
+  }
+
+  Future<void> _clearStaleSourceQueueModeForCurrentPlayback() async {
+    final cleanupGeneration = ++_staleSourceCleanupGeneration;
+    final player = AudioPlayerService();
+    final libraryItemId = player.currentItemId;
+    if (libraryItemId == null) return;
+    final episodeId = player.currentEpisodeId;
+
+    bool playerStillMatches() =>
+        cleanupGeneration == _staleSourceCleanupGeneration &&
+        player.currentItemId == libraryItemId &&
+        player.currentEpisodeId == episodeId;
+
+    final bookMode = await PlayerSettings.getBookQueueMode();
+    if (!playerStillMatches()) return;
+    final podcastMode = await PlayerSettings.getPodcastQueueMode();
+    if (!playerStillMatches()) return;
+    final activeMode = episodeId == null ? bookMode : podcastMode;
+
+    if (activeMode == 'playlist') {
+      if (bookMode != 'playlist' || podcastMode != 'playlist') return;
+      final playlistId = await PlayerSettings.getQueuePlaylistId();
+      if (playlistId == null || !playerStillMatches()) return;
+      final membership = await _isInQueuePlaylist(
+        playlistId,
+        libraryItemId,
+        episodeId: episodeId,
+      );
+      if (membership != false || !playerStillMatches()) return;
+
+      final latestBookMode = await PlayerSettings.getBookQueueMode();
+      if (!playerStillMatches()) return;
+      final latestPodcastMode = await PlayerSettings.getPodcastQueueMode();
+      if (!playerStillMatches()) return;
+      final latestPlaylistId = await PlayerSettings.getQueuePlaylistId();
+      if (!playerStillMatches() ||
+          latestBookMode != bookMode ||
+          latestPodcastMode != podcastMode ||
+          latestPlaylistId != playlistId) {
+        return;
+      }
+
+      final cleared =
+          await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+      if (!cleared) return;
+      if (!playerStillMatches()) return;
+      debugPrint(
+        '[Queue] Cleared playlist mode because $libraryItemId is outside $playlistId',
+      );
+      unawaited(_catchUpQueueAutoDownloads());
+      return;
     }
-    return false;
+
+    if (activeMode != 'collection' || episodeId != null) return;
+    final collectionId = await PlayerSettings.getQueueCollectionId();
+    if (collectionId == null || !playerStillMatches()) return;
+    final membership = await _isInQueueCollection(
+      collectionId,
+      libraryItemId,
+    );
+    if (membership != false || !playerStillMatches()) return;
+
+    final latestBookMode = await PlayerSettings.getBookQueueMode();
+    if (!playerStillMatches()) return;
+    final latestCollectionId = await PlayerSettings.getQueueCollectionId();
+    if (!playerStillMatches() ||
+        latestBookMode != bookMode ||
+        latestCollectionId != collectionId) {
+      return;
+    }
+
+    final cleared =
+        await PlayerSettings.clearQueueModeCollectionIfActive(collectionId);
+    if (!cleared) return;
+    if (!playerStillMatches()) return;
+    debugPrint(
+      '[Queue] Cleared collection mode because $libraryItemId is outside $collectionId',
+    );
+    unawaited(_catchUpQueueAutoDownloads());
   }
 
   Future<void> _advanceInCollection(String finishedKey) async {
@@ -1550,7 +1665,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     if (collectionId == null) return;
     final c = await _getCollectionById(collectionId);
     if (c == null) {
-      await PlayerSettings.clearQueueModeCollection();
+      await PlayerSettings.clearQueueModeCollectionIfActive(collectionId);
       return;
     }
     final items = _collectionItems(c);

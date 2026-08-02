@@ -16,6 +16,10 @@ class BookCard extends StatelessWidget {
   final bool showProgress;
   final bool isWide;
   final double coverAspectRatio;
+  final String? sourcePlaylistId;
+  final String? sourcePlaylistEpisodeId;
+  final String? sourceCollectionId;
+  final String? sourceCollectionName;
 
   const BookCard({
     super.key,
@@ -23,6 +27,10 @@ class BookCard extends StatelessWidget {
     this.showProgress = false,
     this.isWide = false,
     this.coverAspectRatio = 1.0,
+    this.sourcePlaylistId,
+    this.sourcePlaylistEpisodeId,
+    this.sourceCollectionId,
+    this.sourceCollectionName,
   });
 
   @override
@@ -66,12 +74,28 @@ class BookCard extends StatelessWidget {
     if (lib.isPodcastLibrary) {
       final episode = item['recentEpisode'] as Map<String, dynamic>?;
       if (episode != null) {
-        EpisodeDetailSheet.show(context, item, episode);
+        EpisodeDetailSheet.show(
+          context,
+          item,
+          episode,
+          sourcePlaylistId: sourcePlaylistId,
+        );
       } else {
-        EpisodeListSheet.show(context, item);
+        EpisodeListSheet.show(
+          context,
+          item,
+          sourcePlaylistId: sourcePlaylistId,
+          sourcePlaylistEpisodeId: sourcePlaylistEpisodeId,
+        );
       }
     } else {
-      showBookDetailSheet(context, itemId);
+      showBookDetailSheet(
+        context,
+        itemId,
+        sourcePlaylistId: sourcePlaylistId,
+        sourceCollectionId: sourceCollectionId,
+        sourceCollectionName: sourceCollectionName,
+      );
     }
   }
 
@@ -84,13 +108,25 @@ class BookCard extends StatelessWidget {
       // Episode card -> episode quick sheet; show cover -> keep current behaviour.
       final episode = item['recentEpisode'] as Map<String, dynamic>?;
       if (episode != null) {
-        EpisodeDetailSheet.showQuick(context, item, episode);
+        EpisodeDetailSheet.showQuick(
+          context,
+          item,
+          episode,
+          sourcePlaylistId: sourcePlaylistId,
+        );
       } else {
         _navigateToDetail(context);
       }
       return;
     }
-    showQuickActionsSheet(context, itemId, initialItem: item);
+    showQuickActionsSheet(
+      context,
+      itemId,
+      initialItem: item,
+      sourcePlaylistId: sourcePlaylistId,
+      sourceCollectionId: sourceCollectionId,
+      sourceCollectionName: sourceCollectionName,
+    );
   }
 
   /// Wide "continue listening" card with square cover + text side-by-side.
