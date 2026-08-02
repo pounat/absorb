@@ -1407,38 +1407,69 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
 
     if (mode == 'playlist') {
       final playlistId = queueSourceId;
-      if (playlistId == null) return const [];
+      if (playlistId == null) {
+        debugPrint('[QueueDL] playlist: no active playlist id');
+        return const [];
+      }
       Map<String, dynamic>? playlist = _playlists
           .whereType<Map<String, dynamic>>()
           .where((item) => item['id'] == playlistId)
           .firstOrNull;
+      final fromCache = playlist != null;
       playlist ??= await api.getPlaylist(playlistId);
-      if (playlist == null || isStale()) return const [];
+      if (playlist == null) {
+        debugPrint('[QueueDL] playlist: $playlistId not found (cache or api)');
+        return const [];
+      }
+      if (isStale()) return const [];
       final items = (playlist['items'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .toList();
-      return queueTailFrom(
+      final tail = queueTailFrom(
         items: items,
         currentKey: currentKey,
         keyOf: _playlistItemKey,
       );
+      debugPrint(
+          '[QueueDL] playlist $playlistId (${fromCache ? 'cached' : 'fetched'}): ${items.length} items, tail=${tail.length} from $currentKey');
+      if (tail.isEmpty && items.isNotEmpty) {
+        debugPrint(
+            '[QueueDL] playing item not in playlist - member keys: ${items.map(_playlistItemKey).join(', ')}');
+      }
+      return tail;
     }
 
     if (mode == 'collection') {
       final collectionId = queueSourceId;
-      if (collectionId == null) return const [];
+      if (collectionId == null) {
+        debugPrint('[QueueDL] collection: no active collection id');
+        return const [];
+      }
       Map<String, dynamic>? collection = _collections
           .whereType<Map<String, dynamic>>()
           .where((item) => item['id'] == collectionId)
           .firstOrNull;
+      final fromCache = collection != null;
       collection ??= await api.getCollection(collectionId);
-      if (collection == null || isStale()) return const [];
+      if (collection == null) {
+        debugPrint(
+            '[QueueDL] collection: $collectionId not found (cache or api)');
+        return const [];
+      }
+      if (isStale()) return const [];
       final items = _collectionItems(collection);
-      return queueTailFrom(
+      final tail = queueTailFrom(
         items: items,
         currentKey: currentKey,
         keyOf: _playlistItemKey,
       );
+      debugPrint(
+          '[QueueDL] collection $collectionId (${fromCache ? 'cached' : 'fetched'}): ${items.length} items, tail=${tail.length} from $currentKey');
+      if (tail.isEmpty && items.isNotEmpty) {
+        debugPrint(
+            '[QueueDL] playing item not in collection - member keys: ${items.map(_playlistItemKey).join(', ')}');
+      }
+      return tail;
     }
 
     if (mode != 'auto_next') return const [];

@@ -2339,13 +2339,27 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     return seriesId;
   }
 
+  // Alpha [QueueDL]: every exit from this function used to be silent, so a
+  // queue auto-download that never fired looked identical to one that never
+  // ran. Each return now names the gate that stopped it. Strip before beta.
   Future<void> _checkQueueAutoDownloads(String playingKey) async {
     try {
       final self = this as LibraryProvider;
       final planGeneration = ++_queueDownloadPlanGeneration;
       final api = _api;
-      if (api == null || isOffline) return;
+      if (api == null) {
+        debugPrint('[QueueDL] stop at entry: no api (key=$playingKey)');
+        return;
+      }
+      if (isOffline) {
+        debugPrint('[QueueDL] stop at entry: offline (key=$playingKey)');
+        return;
+      }
       final accountGeneration = self._accountLoadGeneration;
+      // `_api` builds a fresh ApiService on every read, so the session has to
+      // be identified by the server it points at - comparing instances is
+      // always unequal.
+      final sessionUrl = _auth?.activeServerUrl;
 
       String? activePlayerKey() {
         final player = AudioPlayerService();
@@ -2355,34 +2369,57 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         return episodeId == null ? itemId : '$itemId-$episodeId';
       }
 
-      bool isStale() {
-        return planGeneration != _queueDownloadPlanGeneration ||
-            accountGeneration != self._accountLoadGeneration ||
-            !identical(api, _api) ||
-            isOffline ||
-            activePlayerKey() != playingKey;
+      String? staleReason() {
+        if (planGeneration != _queueDownloadPlanGeneration) {
+          return 'a newer check superseded this one';
+        }
+        if (accountGeneration != self._accountLoadGeneration) {
+          return 'account reloaded';
+        }
+        if (_api == null) return 'signed out';
+        if (_auth?.activeServerUrl != sessionUrl) return 'server changed';
+        if (isOffline) return 'went offline';
+        final active = activePlayerKey();
+        if (active != playingKey) return 'now playing $active';
+        return null;
       }
 
-      if (isStale()) return;
+      bool isStale() => staleReason() != null;
+
+      bool stop(String stage) {
+        final reason = staleReason();
+        if (reason == null) return false;
+        debugPrint('[QueueDL] stop at $stage: $reason (key=$playingKey)');
+        return true;
+      }
+
+      debugPrint('[QueueDL] check start key=$playingKey');
+      if (stop('start')) return;
       final isPodcastKey = playingKey.length > 36;
       final bookMode = await PlayerSettings.getBookQueueMode();
-      if (isStale()) return;
+      if (stop('read book mode')) return;
       final podcastMode = await PlayerSettings.getPodcastQueueMode();
-      if (isStale()) return;
+      if (stop('read podcast mode')) return;
       final merged = await PlayerSettings.getMergeAbsorbingLibraries();
-      if (isStale()) return;
+      if (stop('read merge setting')) return;
       final queueMode = isPodcastKey ? podcastMode : bookMode;
-      if (queueMode == 'off') return;
+      if (queueMode == 'off') {
+        debugPrint(
+            '[QueueDL] stop: queue mode is off (isPodcastKey=$isPodcastKey book=$bookMode podcast=$podcastMode)');
+        return;
+      }
       final queueSourceId = queueMode == 'playlist'
           ? await PlayerSettings.getQueuePlaylistId()
           : queueMode == 'collection'
               ? await PlayerSettings.getQueueCollectionId()
               : null;
-      if (isStale()) return;
+      if (stop('read queue source')) return;
+      debugPrint(
+          '[QueueDL] mode=$queueMode sourceId=$queueSourceId merged=$merged');
 
       final autoDownloadSourceId =
           await _queueAutoDownloadSourceId(playingKey, queueMode, api);
-      if (isStale()) return;
+      if (stop('resolve auto-download source')) return;
       final globalAutoDownload =
           await PlayerSettings.getQueueAutoDownload();
       final enabled = resolveQueueAutoDownloadEnabled(
@@ -2392,21 +2429,32 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         activeSourceEnabled: autoDownloadSourceId != null &&
             _rollingDownloadSeries.contains(autoDownloadSourceId),
       );
-      if (!enabled || isStale()) return;
+      if (!enabled) {
+        debugPrint(
+            '[QueueDL] stop: auto-download disabled (mode=$queueMode global=$globalAutoDownload autoSourceId=$autoDownloadSourceId perSource=${autoDownloadSourceId != null && _rollingDownloadSeries.contains(autoDownloadSourceId)})');
+        return;
+      }
+      if (stop('resolve enabled')) return;
       final count = await PlayerSettings.getRollingDownloadCount();
-      if (count <= 0 || isStale()) return;
+      if (count <= 0) {
+        debugPrint('[QueueDL] stop: keep-next count is $count');
+        return;
+      }
+      if (stop('read keep-next count')) return;
       final podcastAdvanceDir = isPodcastKey && queueMode == 'auto_next'
           ? await PlayerSettings.getPodcastAdvanceDir(
               playingKey.substring(0, 36))
           : null;
-      if (isStale()) return;
+      if (stop('read podcast advance dir')) return;
 
       final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
-      if (isStale()) return;
+      if (stop('read wifi-only setting')) return;
       if (wifiOnly) {
         final connectivity = await Connectivity().checkConnectivity();
-        if (isStale() ||
-            !connectivity.contains(ConnectivityResult.wifi)) {
+        if (stop('check connectivity')) return;
+        if (!connectivity.contains(ConnectivityResult.wifi)) {
+          debugPrint(
+              '[QueueDL] stop: wifi-only downloads on, not on wifi ($connectivity)');
           return;
         }
       }
@@ -2469,7 +2517,16 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         podcastAdvanceDir: podcastAdvanceDir,
         isStale: isStale,
       );
-      if (items.isEmpty || !await settingsStillMatch()) return;
+      if (items.isEmpty) {
+        debugPrint(
+            '[QueueDL] stop: queue tail is empty (mode=$queueMode sourceId=$queueSourceId key=$playingKey) - the window starts at the playing item, so this means it was not found in the queue');
+        return;
+      }
+      if (!await settingsStillMatch()) {
+        debugPrint(
+            '[QueueDL] stop: settings changed while planning (${items.length} items found)');
+        return;
+      }
 
       final downloads = DownloadService();
       var newDownloads = 0;
@@ -2491,9 +2548,15 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           return downloads.isDownloaded(key) || downloads.isDownloading(key);
         },
       );
+      debugPrint(
+          '[QueueDL] plan: ${items.length} in tail, keep-next=$count, ${pendingItems.length} need downloading -> ${pendingItems.map(keyOf).join(', ')}');
+      if (pendingItems.isEmpty) {
+        debugPrint(
+            '[QueueDL] nothing to do - the next $count are already downloaded or finished');
+      }
 
       for (final item in pendingItems) {
-        if (isStale()) return;
+        if (stop('download loop')) return;
         final libraryItemId = item['libraryItemId'] as String? ?? '';
         if (libraryItemId.isEmpty) continue;
         final episodeId = item['episodeId'] as String?;
@@ -2567,6 +2630,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   Future<void> _catchUpQueueAutoDownloads() async {
     final itemId = AudioPlayerService().currentItemId;
     if (itemId == null) {
+      debugPrint(
+          '[QueueDL] stop: nothing is playing, so there is no queue position to download from');
       _queueDownloadPlanGeneration++;
       return;
     }
