@@ -9,8 +9,9 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/user_account_service.dart';
-import '../utils/app_platform.dart';
+import '../utils/desktop_workspace.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/finished_books_this_year_sheet.dart';
 import '../widgets/stats_charts.dart';
 import '../widgets/day_sessions_sheet.dart';
@@ -588,8 +589,7 @@ class _StatsScreenState extends State<StatsScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 900;
-        final isDesktopWorkspace =
-            AppPlatform.isWeb && constraints.maxWidth >= 960;
+        final desktopWorkspace = isDesktopWorkspace(context);
         final horizontalPadding = isWide ? 32.0 : 20.0;
         return ListView(
           controller: _scrollController,
@@ -606,7 +606,7 @@ class _StatsScreenState extends State<StatsScreen>
                   children: [
                     AbsorbPageHeader(
                       title: l.statsTitle,
-                      showBranding: !isDesktopWorkspace,
+                      showBranding: !desktopWorkspace,
                       padding: EdgeInsets.only(top: isWide ? 24 : 12),
                     ),
                     const SizedBox(height: 24),
@@ -1594,10 +1594,12 @@ class _StatsScreenState extends State<StatsScreen>
   }
 
   Future<void> _showDaySessions(DateTime day) async {
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showAdaptiveActionMenu<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       builder: (_) => DaySessionsSheet(
         initialDate: day,
         loadSessions: _loadSessionsForDay,
@@ -1617,10 +1619,12 @@ class _StatsScreenState extends State<StatsScreen>
     Map<String, dynamic> s, {
     bool refreshStats = true,
   }) async {
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showAdaptiveActionMenu<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       builder: (_) => SessionDetailsSheet(session: s),
     );
     if (changed == true && mounted && refreshStats) {

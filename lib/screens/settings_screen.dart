@@ -44,6 +44,8 @@ import '../widgets/tips_sheet.dart';
 import '../widgets/feature_hint.dart';
 import '../widgets/welcome_sheet.dart';
 import '../utils/app_platform.dart';
+import '../utils/desktop_workspace.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/rmab_config_sheet.dart';
 import '../widgets/server_connection_editor.dart';
 import '../widgets/server_admin_status_badges.dart';
@@ -62,39 +64,20 @@ Future<T?> _showAdaptiveSettingsSurface<T>({
   required Widget Function(BuildContext context, bool desktopMode) builder,
   double maxWidth = 620,
 }) {
-  final desktopMode =
-      AppPlatform.isWeb && MediaQuery.sizeOf(context).width >= 960;
   final cs = Theme.of(context).colorScheme;
-  if (desktopMode) {
-    return showDialog<T>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: cs.surfaceContainerHigh,
-        clipBehavior: Clip.antiAlias,
-        insetPadding: const EdgeInsets.all(24),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.4)),
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: maxWidth,
-            maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.86,
-          ),
-          child: builder(dialogContext, true),
-        ),
-      ),
-    );
-  }
-  return showModalBottomSheet<T>(
+  return showAdaptiveActionMenu<T>(
     context: context,
+    desktopWidth: maxWidth,
+    desktopMaxHeightFraction: 0.86,
+    desktopScrollWrap: false,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: cs.surfaceContainerHigh,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (sheetContext) => builder(sheetContext, false),);
+    builder: (ctx) => builder(ctx, ModalSurface.isDesktopOf(ctx)),
+  );
 }
 
 class _SettingsAdaptiveFrame extends StatelessWidget {
@@ -1405,8 +1388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final isDesktopSettings =
-                  AppPlatform.isWeb && constraints.maxWidth >= 960;
+              final isDesktopSettings = isDesktopWorkspace(context);
               final expandedSection = _expandedSection ??
                   (isDesktopSettings ? 'Account' : null);
               final destinations = <_SettingsSectionDestination>[
@@ -4246,7 +4228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),),
                 ],
 
-                const SizedBox(height: 100),
+                SizedBox(height: isDesktopSettings ? 24 : 100),
               ],
             ),
           ),
@@ -4361,7 +4343,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final api = context.read<AuthProvider>().apiService;
     final legacyCount = dl.legacyExternalDownloads.length;
 
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(

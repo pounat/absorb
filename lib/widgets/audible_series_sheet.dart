@@ -8,6 +8,7 @@ import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/upcoming_releases_service.dart';
 import '../utils/app_platform.dart';
+import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
 import 'rmab_book_detail_sheet.dart';
 import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey;
@@ -550,13 +551,14 @@ Future<String?> showAudibleRegionPicker(BuildContext context, {required String c
   final cs = Theme.of(context).colorScheme;
   final tt = Theme.of(context).textTheme;
   final l = AppLocalizations.of(context)!;
-  return showModalBottomSheet<String>(
+  return showAdaptiveActionMenu<String>(
     context: context,
     backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     isScrollControlled: true,
+    desktopScrollWrap: false,
     constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
     builder: (ctx) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -609,7 +611,7 @@ void showAudibleBookMenu(BuildContext context, {
   final asin = book['asin'] as String? ?? '';
   final releaseDate = book['releaseDate'] as String? ?? '';
 
-  showModalBottomSheet(
+  showAdaptiveActionMenu(
     context: context,
     backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
     shape: const RoundedRectangleBorder(

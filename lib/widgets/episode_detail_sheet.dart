@@ -16,6 +16,7 @@ import 'html_description.dart';
 import 'overlay_toast.dart';
 import 'playlist_picker_sheet.dart';
 import 'action_pill.dart';
+import 'adaptive_modal.dart';
 import '../main.dart' show rootNavigatorKey;
 import 'stackable_sheet.dart';
 import 'episode_list_sheet.dart';
@@ -761,7 +762,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
 
   void _showMoreSheet(BuildContext context, LibraryProvider lib, String dlKey, double progress, bool isFinished) {
     final cs = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(

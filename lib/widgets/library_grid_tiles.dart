@@ -11,6 +11,7 @@ import '../services/download_service.dart';
 import 'absorbing_shared.dart';
 import 'book_detail_sheet.dart';
 import 'episode_list_sheet.dart';
+import 'hover_cover_actions.dart';
 import 'series_books_sheet.dart';
 import 'author_books_sheet.dart';
 
@@ -68,7 +69,16 @@ class _GridBookTileState extends State<GridBookTile> {
     final unfinishedCount =
         lib.isPodcastLibrary ? lib.getUnfinishedEpisodeCount(widget.item) : 0;
 
-    return GestureDetector(
+    final canEdit = itemId.isNotEmpty &&
+        !lib.isPodcastLibrary &&
+        !lib.isOffline &&
+        context.watch<AuthProvider>().canUpdateMetadata;
+    return HoverCoverActions(
+      onMenu: (itemId.isNotEmpty && !lib.isPodcastLibrary)
+          ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
+          : null,
+      editItemId: canEdit ? itemId : null,
+      child: GestureDetector(
       // opaque so taps on the blank space below the title (the tile's tall
       // aspect ratio leaves a gap when the Column children stop short)
       // still trigger the onTap. Without this, taps in that blank strip
@@ -223,6 +233,7 @@ class _GridBookTileState extends State<GridBookTile> {
               ),
             ),
         ],
+      ),
       ),
     );
   }

@@ -40,6 +40,7 @@ import '../services/update_checker_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/overlay_toast.dart';
 import '../utils/app_platform.dart';
+import '../utils/desktop_workspace.dart';
 
 class AppShell extends StatefulWidget {
   final bool startOnAbsorbing;
@@ -174,6 +175,10 @@ class _AppShellState extends State<AppShell>
   // work until the user actually visits those tabs.
   final List<Widget?> _pages = List<Widget?>.filled(5, null, growable: false);
 
+  // Desktop workspace content-pane navigator: full-page pushes land here so
+  // the sidebar and now-playing bar stay visible around them.
+  final _paneNavigatorKey = GlobalKey<NavigatorState>();
+
   void _openSearch() {
     if (!mounted) return;
     // If the user triggered Search while a pushed route (Downloads, Bookmarks,
@@ -183,6 +188,7 @@ class _AppShellState extends State<AppShell>
     if (nav != null && nav.canPop()) {
       nav.popUntil((r) => r.isFirst);
     }
+    _paneNavigatorKey.currentState?.popUntil((r) => r.isFirst);
     _navigateTo(1);
     // Library tab may need a frame to mount its state before we can focus
     // the search field. Retry up to a few frames to cover fade transitions.
@@ -213,6 +219,8 @@ class _AppShellState extends State<AppShell>
   }
 
   void _navigateTo(int index) {
+    // A tab click while a pushed page fills the pane should reveal the tab.
+    _paneNavigatorKey.currentState?.popUntil((r) => r.isFirst);
     if (index == _currentIndex) {
       // Already on this tab — handle re-tap actions
       if (index == 2) {
@@ -332,6 +340,7 @@ class _AppShellState extends State<AppShell>
   void initState() {
     super.initState();
     _instance = this;
+    DesktopWorkspaceNavigator.register(() => _paneNavigatorKey.currentState);
     if (AppPlatform.isWeb) {
       _currentIndex = 0;
     } else if (!widget.startOnAbsorbing) {
@@ -455,7 +464,10 @@ class _AppShellState extends State<AppShell>
     try {
       context.read<LibraryProvider>().removeListener(_onLibraryChanged);
     } catch (_) {}
-    if (_instance == this) _instance = null;
+    if (_instance == this) {
+      _instance = null;
+      DesktopWorkspaceNavigator.unregister();
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -725,8 +737,8 @@ class _AppShellState extends State<AppShell>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useDesktopWorkspace =
-            AppPlatform.isWeb && constraints.maxWidth >= 960;
+        final useDesktopWorkspace = AppPlatform.isWeb &&
+            constraints.maxWidth >= kDesktopWorkspaceBreakpoint;
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: _handleBack,
@@ -751,6 +763,11 @@ class _AppShellState extends State<AppShell>
     }
 
     if (AppPlatform.isWeb) {
+      final pane = _paneNavigatorKey.currentState;
+      if (pane != null && pane.canPop()) {
+        pane.pop();
+        return;
+      }
       if (_currentIndex != 0) _navigateTo(0);
       return;
     }
@@ -774,8 +791,8 @@ class _AppShellState extends State<AppShell>
     _switchToAbsorbing();
   }
 
-  Widget _buildPageStack(BuildContext context, {Size? viewportSize}) {
-    Widget stack = FadeTransition(
+  Widget _buildPageStack(BuildContext context) {
+    return FadeTransition(
       opacity: _fadeController,
       child: IndexedStack(
         index: _currentIndex,
@@ -785,13 +802,6 @@ class _AppShellState extends State<AppShell>
         ),
       ),
     );
-    if (viewportSize != null) {
-      stack = MediaQuery(
-        data: MediaQuery.of(context).copyWith(size: viewportSize),
-        child: stack,
-      );
-    }
-    return stack;
   }
 
   Widget _buildDesktopWorkspace(BuildContext context) {
@@ -817,9 +827,23 @@ class _AppShellState extends State<AppShell>
           ),
           Expanded(
             child: LayoutBuilder(
-              builder: (context, constraints) => _buildPageStack(
-                context,
-                viewportSize: Size(constraints.maxWidth, constraints.maxHeight),
+              // The MediaQuery override sits outside the pane Navigator so
+              // pushed pages also lay out against the pane, not the window.
+              // The tab stack is a declarative page so it keeps rebuilding
+              // with this State; pushed routes stack on top imperatively.
+              builder: (context, constraints) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  size: Size(constraints.maxWidth, constraints.maxHeight),
+                ),
+                child: ClipRect(
+                  child: Navigator(
+                    key: _paneNavigatorKey,
+                    onDidRemovePage: (page) {},
+                    pages: [
+                      MaterialPage(child: _buildPageStack(context)),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -828,7 +852,7 @@ class _AppShellState extends State<AppShell>
       bottomNavigationBar: DesktopNowPlayingBar(
         player: _player,
         library: lib,
-        onOpenFullPlayer: _openExpandedPlayer,
+        onOpenNowPlaying: _switchToAbsorbing,
       ),
     );
   }
@@ -973,7 +997,7 @@ class _AppShellState extends State<AppShell>
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextButton.icon(
-                  onPressed: () => Navigator.of(context).push(
+                  onPressed: () => _paneNavigatorKey.currentState?.push(
                     MaterialPageRoute<void>(
                       builder: (_) => const AdminScreen(),
                     ),

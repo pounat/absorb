@@ -8,6 +8,7 @@ import '../services/bookmark_service.dart';
 import '../services/bookmark_preview_player.dart';
 import '../services/download_service.dart';
 import '../utils/app_platform.dart';
+import 'adaptive_modal.dart';
 import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
 
@@ -108,8 +109,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       await _promptDownload();
       return;
     }
-    await showModalBottomSheet<void>(
+    await showAdaptiveActionMenu<void>(
       context: context,
+      desktopWidth: 560,
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,

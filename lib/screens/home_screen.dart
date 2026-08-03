@@ -23,11 +23,13 @@ import '../widgets/playlist_detail_sheet.dart';
 import '../widgets/collection_detail_sheet.dart';
 import '../widgets/section_detail_sheet.dart';
 import '../widgets/feature_hint.dart';
+import '../widgets/hover_cover_actions.dart';
 import '../widgets/offline_status_icon.dart';
 import '../widgets/scroll_reveal.dart';
 import '../widgets/section_labels.dart';
 import 'app_shell.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/desktop_workspace.dart';
 import '../utils/duration_format.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -216,11 +218,34 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
     'downloaded-books': Icons.download_done_rounded,
   };
 
+  Widget _refreshWrapper({
+    required bool desktop,
+    required LibraryProvider lib,
+    required Widget child,
+  }) {
+    if (desktop) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: child,
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async {
+        await lib.refresh();
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final desktop = isDesktopWorkspace(context);
+    _revealDriver.setEnabled(!desktop);
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
     final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     final lib = context.watch<LibraryProvider>();
@@ -265,10 +290,9 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
               if (n is ScrollEndNotification) _revealDriver.settle();
               return false;
             },
-            child: RefreshIndicator(
-            onRefresh: () async {
-              await lib.refresh();
-            },
+            child: _refreshWrapper(
+            desktop: desktop,
+            lib: lib,
             child: CustomScrollView(
               controller: _scrollController,
               slivers: [
@@ -276,6 +300,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                 SliverToBoxAdapter(
                   child: AbsorbPageHeader(
                     title: l.homeTitle,
+                    showBranding: !desktop,
                     trailing: OfflineStatusIcon(
                       onTapWhenOnline: () {
                         lib.setManualOffline(true);
@@ -338,6 +363,22 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                                   ],
                                 ),
                               ),
+                            ),
+                          ),
+                        ),
+                      if (desktop && !lib.isOffline)
+                        Tooltip(
+                          message: l.refreshTooltip,
+                          child: GestureDetector(
+                            onTap: () => lib.refresh(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: cs.onSurface.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+                              ),
+                              child: SizedBox(height: 20, child: Icon(Icons.refresh_rounded, size: 18, color: cs.onSurfaceVariant)),
                             ),
                           ),
                         ),
@@ -481,34 +522,51 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                             ),
                           ),
                         ),
-                        const SliverToBoxAdapter(
-                          child: FeatureHint(
-                            prefKey: 'hint_continue_listening_gestures',
-                            message:
-                                'Tap a card to resume. Press and hold to see details.',
+                        if (!desktop)
+                          const SliverToBoxAdapter(
+                            child: FeatureHint(
+                              prefKey: 'hint_continue_listening_gestures',
+                              message:
+                                  'Tap a card to resume. Press and hold to see details.',
+                            ),
                           ),
-                        ),
                         SliverToBoxAdapter(
                           child: Padding(
                             padding: const EdgeInsets.only(top: 12),
                             child: SizedBox(
                               // Taller row when 2:3 covers are on; the card's
                               // cover alone is ~225 with rectangle covers.
-                              height: _rectangleCovers ? 320 : 250,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                physics: const BouncingScrollPhysics(),
-                                itemCount: clItems.length,
-                                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                                itemBuilder: (context, i) {
-                                  final item = clItems[i] as Map<String, dynamic>;
-                                  return RepaintBoundary(child: _ContinueListeningCard(
-                                    item: item, lib: lib, player: _player,
-                                    rectangleCovers: _rectangleCovers,
-                                  ));
-                                },
-                              ),
+                              height: (_rectangleCovers ? 320 : 250) *
+                                  (desktop ? 1.2 : 1.0),
+                              child: desktop
+                                  ? SnapScrollList(
+                                      cardWidth: 180,
+                                      desktop: true,
+                                      itemCount: clItems.length,
+                                      itemBuilder: (context, i) {
+                                        final item =
+                                            clItems[i] as Map<String, dynamic>;
+                                        return RepaintBoundary(
+                                            child: _ContinueListeningCard(
+                                          item: item, lib: lib, player: _player,
+                                          rectangleCovers: _rectangleCovers,
+                                        ));
+                                      },
+                                    )
+                                  : ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      physics: const BouncingScrollPhysics(),
+                                      itemCount: clItems.length,
+                                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                                      itemBuilder: (context, i) {
+                                        final item = clItems[i] as Map<String, dynamic>;
+                                        return RepaintBoundary(child: _ContinueListeningCard(
+                                          item: item, lib: lib, player: _player,
+                                          rectangleCovers: _rectangleCovers,
+                                        ));
+                                      },
+                                    ),
                             ),
                           ),
                         ),
@@ -575,7 +633,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                     ];
                   }),
 
-                const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+                SliverPadding(padding: EdgeInsets.only(bottom: desktop ? 24 : 100)),
               ],
             ),
           ),
@@ -809,7 +867,14 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
       }
     }
 
-    return Material(
+    final canEdit = !lib.isPodcastLibrary &&
+        !lib.isOffline &&
+        recentEpisode == null &&
+        context.watch<AuthProvider>().canUpdateMetadata;
+    return HoverCoverActions(
+      onMenu: openQuickActions,
+      editItemId: canEdit ? itemId : null,
+      child: Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
@@ -827,7 +892,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
           onLongPress: openQuickActions,
           borderRadius: BorderRadius.circular(14),
           child: SizedBox(
-            width: 150,
+            width: isDesktopWorkspace(context) ? 180 : 150,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -945,6 +1010,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
           ),
         ),
         ),
+      ),
       ),
     );
   }

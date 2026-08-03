@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/overlay_toast.dart';
 
 /// Mutable working copy of one chapter. [uid] is a stable identity that
@@ -681,12 +682,13 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
   Future<void> _openLookup() async {
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
-    final result = await showModalBottomSheet<_LookupResult>(
+    final result = await showAdaptiveActionMenu<_LookupResult>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      desktopScrollWrap: false,
       builder: (_) => _ChapterLookupSheet(api: api, initialAsin: _asin, mediaDuration: _duration),
     );
     if (result == null || !mounted) return;

@@ -14,6 +14,7 @@ import '../services/socket_service.dart';
 import '../services/download_service.dart';
 import '../services/audio_player_service.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/library_picker_sheet.dart';
 import '../widgets/library_search_results.dart';
 import '../widgets/podcast_episode_feed.dart';
@@ -38,11 +39,16 @@ import '../widgets/scroll_reveal.dart';
 import '../services/scoped_prefs.dart';
 import '../services/user_account_service.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/desktop_workspace.dart';
 
 /// Responsive grid column count based on available width.
-/// Returns 3 on phones, scales up on tablets/iPads.
+/// Returns 3 on phones, scales up on tablets/iPads. The desktop workspace
+/// targets larger ~200px tiles instead of packing phone-sized thumbnails.
 int responsiveGridCount(BuildContext context) {
   final width = MediaQuery.of(context).size.width;
+  if (isDesktopWorkspace(context)) {
+    return (width / 200).floor().clamp(3, 8);
+  }
   return (width / 130).floor().clamp(3, 10);
 }
 
@@ -51,8 +57,9 @@ int responsiveGridCount(BuildContext context) {
 /// `NavigationBar` once both reappear at the end of a scroll. When the bars
 /// hide-on-scroll then snap back, the viewport shrinks but the scroll offset
 /// stays put, so the bottom items end up closer to the pill than steady-state
-/// math would suggest. This value keeps a comfortable gap even in that case.
-const double libraryGridBottomPadding = 180;
+/// math would suggest. The desktop workspace has neither bar.
+double libraryGridBottomPadding(BuildContext context) =>
+    isDesktopWorkspace(context) ? 24 : 180;
 
 // ─── Sort modes ──────────────────────────────────────────────
 enum LibrarySort {
@@ -2213,11 +2220,13 @@ class LibraryScreenState extends State<LibraryScreen>
         currentSortAsc = _sortAsc;
         break;
     }
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 480,
+      desktopScrollWrap: false,
       builder: (ctx) => SortFilterSheet(
         currentSort: currentSort,
         sortAsc: currentSortAsc,
@@ -2357,6 +2366,8 @@ class LibraryScreenState extends State<LibraryScreen>
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final desktopWorkspace = isDesktopWorkspace(context);
+    _revealDriver.setEnabled(!desktopWorkspace);
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
     final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     // Watch LibraryProvider so this screen rebuilds when the active library
@@ -2458,7 +2469,7 @@ class LibraryScreenState extends State<LibraryScreen>
                     },
                   ),
                 ),
-                if (hasTabs && !_isInSearchMode)
+                if (hasTabs && !_isInSearchMode && !desktopWorkspace)
                   Positioned(
                     left: 0,
                     right: 0,
@@ -2481,7 +2492,7 @@ class LibraryScreenState extends State<LibraryScreen>
                       child: RepaintBoundary(child: _buildFloatingTabBar(cs)),
                     ),
                   ),
-                if (!hasTabs && !_isInSearchMode)
+                if (!hasTabs && !_isInSearchMode && !desktopWorkspace)
                   Positioned(
                     left: 0,
                     right: 0,
@@ -2579,9 +2590,11 @@ class LibraryScreenState extends State<LibraryScreen>
               ),
             ),
           );
+    final desktop = isDesktopWorkspace(context);
     return SliverAppBar(
-      floating: true,
-      snap: true,
+      floating: !desktop,
+      snap: !desktop,
+      pinned: desktop,
       // primary: false disables Material's automatic status
       // bar padding so the header doesn't get inset twice
       // (we already wrap the whole NestedScrollView in
@@ -2607,6 +2620,7 @@ class LibraryScreenState extends State<LibraryScreen>
               children: [
                 AbsorbPageHeader(
                   title: l.libraryTitle,
+                  showBranding: !isDesktopWorkspace(context),
                   trailing: OfflineStatusIcon(
                     onTapWhenOnline: () {
                       lib.setManualOffline(true);
@@ -2680,9 +2694,8 @@ class LibraryScreenState extends State<LibraryScreen>
                         ]
                       : null,
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: SearchBar(
+                Builder(builder: (context) {
+                  final searchBar = SearchBar(
                     // Same GlobalKey on whichever SearchBar gets the shared
                     // focus, so when _isInSearchMode toggles and the tree
                     // swaps from tabbed -> search results, Flutter re-parents
@@ -2722,8 +2735,53 @@ class LibraryScreenState extends State<LibraryScreen>
                     side: WidgetStatePropertyAll(
                       BorderSide(color: cs.onSurface.withValues(alpha: 0.08)),
                     ),
-                  ),
-                ),
+                  );
+                  if (!desktop) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: searchBar,
+                    );
+                  }
+                  final hasBookTabs =
+                      _tabController != null && !_isInSearchMode;
+                  final showsPodcastPill =
+                      !hasBookTabs && lib.isPodcastLibrary && !_isInSearchMode;
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 560),
+                            child: searchBar,
+                          ),
+                        ),
+                        if (hasBookTabs) ...[
+                          const SizedBox(width: 12),
+                          _buildFloatingTabBar(cs, floating: false),
+                        ],
+                        if (showsPodcastPill) ...[
+                          const SizedBox(width: 12),
+                          _buildPodcastViewPill(cs, floating: false),
+                          if (context.read<AuthProvider>().isAdmin) ...[
+                            const SizedBox(width: 8),
+                            _buildFloatingManageButton(cs),
+                          ],
+                        ],
+                        const Spacer(),
+                        if (!lib.isOffline)
+                          Tooltip(
+                            message: l.refreshTooltip,
+                            child: IconButton(
+                              onPressed: _refreshCurrentTab,
+                              icon: Icon(Icons.refresh_rounded,
+                                  color: cs.onSurfaceVariant),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }),
                 // Item count + filter badge row
                 if (!_isInSearchMode) _buildInfoRow(cs, tt, l),
               ],
@@ -2736,19 +2794,21 @@ class LibraryScreenState extends State<LibraryScreen>
 
   // Shows | Episodes switcher for podcast libraries, styled like the book
   // libraries' floating tab pills.
-  Widget _buildPodcastViewPill(ColorScheme cs) {
+  Widget _buildPodcastViewPill(ColorScheme cs, {bool floating = true}) {
     final l = AppLocalizations.of(context)!;
     final labels = [l.appShellShowsTab, l.libraryTabEpisodes];
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
+    final pill = Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: cs.surface.withValues(alpha: 0.6),
+            color: floating
+                ? cs.surface.withValues(alpha: 0.6)
+                : cs.surfaceContainerLow,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+            border: Border.all(
+              color: floating
+                  ? cs.primary.withValues(alpha: 0.25)
+                  : cs.outlineVariant.withValues(alpha: 0.45),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -2807,12 +2867,18 @@ class LibraryScreenState extends State<LibraryScreen>
               );
             }),
           ),
-        ),
+        );
+    if (!floating) return pill;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: pill,
       ),
     );
   }
 
-  Widget _buildFloatingTabBar(ColorScheme cs) {
+  Widget _buildFloatingTabBar(ColorScheme cs, {bool floating = true}) {
     final l = AppLocalizations.of(context)!;
     final labels = [
       l.libraryTabLibrary,
@@ -2821,6 +2887,84 @@ class LibraryScreenState extends State<LibraryScreen>
       l.libraryTabNarrators,
       if (_showLists) 'Lists',
     ];
+    final pill = Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: floating
+            ? cs.surface.withValues(alpha: 0.6)
+            : cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: floating
+              ? cs.primary.withValues(alpha: 0.25)
+              : cs.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(labels.length, (i) {
+            final active = _currentTab == i;
+            return GestureDetector(
+              onTap: () {
+                if (active) {
+                  _showSortFilterSheet(
+                    context,
+                    cs,
+                    Theme.of(context).textTheme,
+                  );
+                } else {
+                  _tabController?.animateTo(i);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                padding: EdgeInsets.symmetric(
+                  horizontal: active ? 14 : 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: active
+                      ? cs.primary.withValues(alpha: 0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      labels[i],
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: active
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: active
+                            ? cs.primary
+                            : cs.onSurfaceVariant,
+                      ),
+                    ),
+                    if (active) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.sort_rounded,
+                        size: 14,
+                        color: cs.primary,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+    if (!floating) return pill;
     return Center(
       child: Padding(
         // Inset from the screen edges; the FittedBox below scales the whole
@@ -2831,77 +2975,7 @@ class LibraryScreenState extends State<LibraryScreen>
           borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
             filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: cs.surface.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(labels.length, (i) {
-                    final active = _currentTab == i;
-                    return GestureDetector(
-                      onTap: () {
-                        if (active) {
-                          _showSortFilterSheet(
-                            context,
-                            cs,
-                            Theme.of(context).textTheme,
-                          );
-                        } else {
-                          _tabController?.animateTo(i);
-                        }
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: active ? 14 : 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: active
-                              ? cs.primary.withValues(alpha: 0.15)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              labels[i],
-                              maxLines: 1,
-                              softWrap: false,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: active
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: active
-                                    ? cs.primary
-                                    : cs.onSurfaceVariant,
-                              ),
-                            ),
-                            if (active) ...[
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.sort_rounded,
-                                size: 14,
-                                color: cs.primary,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ),
+            child: pill,
           ),
         ),
       ),
@@ -3121,6 +3195,22 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   // ── Pull-to-refresh ──
+  Future<void> _refreshCurrentTab() {
+    if (_tabController == null) return _refreshAll();
+    switch (_currentTab) {
+      case 1:
+        return _refreshSeries();
+      case 2:
+        return _refreshAuthors();
+      case 3:
+        return _refreshNarrators();
+      case 4:
+        return _refreshLists();
+      default:
+        return _refreshAll();
+    }
+  }
+
   Future<void> _refreshAll() async {
     final lib = context.read<LibraryProvider>();
     await lib.refresh();

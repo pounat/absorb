@@ -10,6 +10,8 @@ import '../widgets/absorb_page_header.dart';
 import '../widgets/rmab_config_sheet.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/desktop_workspace.dart';
+import '../widgets/desktop_page_body.dart';
 import 'admin_users_screen.dart';
 import 'admin_upload_screen.dart';
 import 'admin_podcasts_screen.dart';
@@ -170,10 +172,14 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-            : RefreshIndicator(
+            : DesktopPageBody(
+                child: RefreshIndicator(
                 onRefresh: _loadAll,
+                notificationPredicate: (n) =>
+                    !isDesktopWorkspace(context) && n.depth == 0,
                 child: ListView(
-                  padding: const EdgeInsets.only(bottom: 80),
+                  padding: EdgeInsets.only(
+                      bottom: isDesktopWorkspace(context) ? 24 : 80),
                   children: [
                     // ── Header ──
                     Padding(
@@ -187,6 +193,12 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
                             onPressed: () => showAdminTasksSheet(context, _taskTracker),
                           ),
                         ),
+                        if (isDesktopWorkspace(context))
+                          IconButton(
+                            tooltip: l.refreshTooltip,
+                            icon: Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),
+                            onPressed: _loadAll,
+                          ),
                         IconButton(icon: Icon(Icons.close_rounded, color: cs.onSurfaceVariant), onPressed: () => Navigator.pop(context)),
                       ]),
                     ),
@@ -349,6 +361,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
+              ),
               ),
       ),
     );

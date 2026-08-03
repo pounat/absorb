@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../utils/desktop_workspace.dart';
+import 'adaptive_modal.dart';
 
 const int maxSheetDepth = 3;
 final List<Route<dynamic>> _activeSheetRoutes = [];
@@ -8,6 +10,8 @@ final List<Route<dynamic>> _activeSheetRoutes = [];
 /// Drag to minimum size closes the current sheet only (revealing any sheet below).
 /// Back button / barrier tap also closes only the current sheet.
 /// Stack is capped at [maxSheetDepth] - opening beyond that evicts the oldest sheet.
+/// On the desktop workspace the sheet presents as a centered dialog instead;
+/// the stack cap applies across both presentations.
 Future<T?> showStackableSheet<T>({
   required BuildContext context,
   required Widget Function(BuildContext, ScrollController) builder,
@@ -17,6 +21,7 @@ Future<T?> showStackableSheet<T>({
   Color? backgroundColor,
   bool useSafeArea = false,
   bool showHandle = false,
+  double desktopWidth = 720,
 }) {
   FocusManager.instance.primaryFocus?.unfocus();
 
@@ -24,11 +29,22 @@ Future<T?> showStackableSheet<T>({
   if (_activeSheetRoutes.length >= maxSheetDepth) {
     final oldest = _activeSheetRoutes.first;
     try {
-      Navigator.of(context).removeRoute(oldest);
+      Navigator.of(context, rootNavigator: true).removeRoute(oldest);
     } catch (_) {
       // Route may already be disposed (e.g. rapid navigation)
       _activeSheetRoutes.remove(oldest);
     }
+  }
+
+  if (isDesktopWorkspace(context)) {
+    return showDesktopSheetDialog<T>(
+      context: context,
+      builder: builder,
+      maxWidth: desktopWidth,
+      backgroundColor: backgroundColor,
+      onRouteCaptured: _activeSheetRoutes.add,
+      onRouteDisposed: _activeSheetRoutes.remove,
+    );
   }
 
   return showModalBottomSheet<T>(

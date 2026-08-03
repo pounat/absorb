@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
 import 'absorbing_shared.dart';
 import 'book_detail_sheet.dart';
 import 'episode_list_sheet.dart';
+import 'hover_cover_actions.dart';
 
 class BookCard extends StatelessWidget {
   final Map<String, dynamic> item;
@@ -61,10 +63,19 @@ class BookCard extends StatelessWidget {
 
     final headers = lib.mediaHeaders;
 
-    if (isWide) {
-      return _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit);
-    }
-    return _buildCompactCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
+    final card = isWide
+        ? _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit)
+        : _buildCompactCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
+
+    final canEdit = itemId != null &&
+        !lib.isPodcastLibrary &&
+        !lib.isOffline &&
+        context.watch<AuthProvider>().canUpdateMetadata;
+    return HoverCoverActions(
+      onMenu: itemId == null ? null : () => _onLongPress(context),
+      editItemId: canEdit ? itemId : null,
+      child: card,
+    );
   }
 
   void _navigateToDetail(BuildContext context) {

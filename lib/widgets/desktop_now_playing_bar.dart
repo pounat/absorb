@@ -3,19 +3,24 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
+import '../services/sleep_timer_service.dart';
+import 'adaptive_modal.dart';
+import 'card_buttons.dart' show SimpleBookmarkSheet;
+import 'sleep_timer_sheet.dart';
 
 class DesktopNowPlayingBar extends StatefulWidget {
   final AudioPlayerService player;
   final LibraryProvider library;
-  final VoidCallback onOpenFullPlayer;
+  final VoidCallback onOpenNowPlaying;
 
   const DesktopNowPlayingBar({
     super.key,
     required this.player,
     required this.library,
-    required this.onOpenFullPlayer,
+    required this.onOpenNowPlaying,
   });
 
   @override
@@ -100,6 +105,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
     if (!player.hasBook) return const SizedBox.shrink();
 
     final cs = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context)!;
     final title = player.currentTitle?.trim();
     final author = player.currentAuthor?.trim();
     final displayTitle = title == null || title.isEmpty
@@ -109,6 +115,8 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
         ? 'Unknown author'
         : author;
     final totalSeconds = _safeTotalSeconds(player.totalDuration);
+    final hasChapters = player.chapters.isNotEmpty;
+    final chapterTitle = player.currentChapter?['title'] as String?;
 
     return Material(
       color: cs.surfaceContainerLow,
@@ -171,7 +179,8 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
                           mediaHeaders: widget.library.mediaHeaders,
                           title: displayTitle,
                           author: displayAuthor,
-                          onTap: widget.onOpenFullPlayer,
+                          chapter: chapterTitle,
+                          onTap: widget.onOpenNowPlaying,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -181,6 +190,16 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            if (hasChapters)
+                              Tooltip(
+                                message: l.previousChapterTooltip,
+                                child: IconButton(
+                                  onPressed: player.hasActiveSession
+                                      ? player.skipToPreviousChapter
+                                      : null,
+                                  icon: const Icon(Icons.skip_previous_rounded),
+                                ),
+                              ),
                             _SkipButton(
                               seconds: _backSkip,
                               forward: false,
@@ -228,6 +247,16 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
                                   ? () => player.skipForward(_forwardSkip)
                                   : null,
                             ),
+                            if (hasChapters)
+                              Tooltip(
+                                message: l.nextChapterTooltip,
+                                child: IconButton(
+                                  onPressed: player.hasActiveSession
+                                      ? player.skipToNextChapter
+                                      : null,
+                                  icon: const Icon(Icons.skip_next_rounded),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -237,6 +266,24 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            Tooltip(
+                              message: l.bookmarks,
+                              child: IconButton(
+                                onPressed: player.currentItemId == null
+                                    ? null
+                                    : _openBookmarks,
+                                icon: Icon(
+                                  Icons.bookmark_border_rounded,
+                                  size: 20,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            _SleepTimerButton(
+                              onPressed: () =>
+                                  showSleepTimerSheet(context, cs.primary),
+                            ),
+                            const SizedBox(width: 8),
                             _SpeedControl(
                               speed: player.speed,
                               presets: _speedPresets,
@@ -289,6 +336,28 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _openBookmarks() {
+    final itemId = widget.player.currentItemId;
+    if (itemId == null) return;
+    final accent = Theme.of(context).colorScheme.primary;
+    showAdaptiveSheetDialog(
+      context: context,
+      widthClass: DialogWidthClass.action,
+      initialChildSize: 0.6,
+      minChildSize: 0.05,
+      maxChildSize: 0.9,
+      snap: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx, sc) => SimpleBookmarkSheet(
+        itemId: itemId,
+        player: widget.player,
+        accent: accent,
+        scrollController: sc,
+        onChanged: () {},
       ),
     );
   }
@@ -410,6 +479,7 @@ class _NowPlayingIdentity extends StatelessWidget {
   final Map<String, String> mediaHeaders;
   final String title;
   final String author;
+  final String? chapter;
   final VoidCallback onTap;
 
   const _NowPlayingIdentity({
@@ -417,6 +487,7 @@ class _NowPlayingIdentity extends StatelessWidget {
     required this.mediaHeaders,
     required this.title,
     required this.author,
+    this.chapter,
     required this.onTap,
   });
 
@@ -424,6 +495,10 @@ class _NowPlayingIdentity extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+    final subtitle = chapter == null || chapter!.isEmpty
+        ? author
+        : '$author · $chapter';
     final placeholder = ColoredBox(
       color: cs.surfaceContainerHighest,
       child: Icon(
@@ -434,9 +509,9 @@ class _NowPlayingIdentity extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'Open full-screen player for $title',
+      label: '${l.openNowPlayingTooltip}: $title',
       child: Tooltip(
-        message: 'Open full-screen player',
+        message: l.openNowPlayingTooltip,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(10),
@@ -475,7 +550,7 @@ class _NowPlayingIdentity extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        author,
+                        subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: tt.bodySmall?.copyWith(
@@ -602,6 +677,49 @@ class _SpeedControl extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SleepTimerButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _SleepTimerButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context)!;
+    final service = SleepTimerService();
+    return ListenableBuilder(
+      listenable: service,
+      builder: (context, _) {
+        final active = service.isActive;
+        return Tooltip(
+          message: l.sleepTimer,
+          child: active
+              ? TextButton.icon(
+                  onPressed: onPressed,
+                  icon: Icon(Icons.bedtime_rounded, size: 18, color: cs.primary),
+                  label: Text(
+                    service.displayLabel,
+                    style: TextStyle(
+                      color: cs.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              : IconButton(
+                  onPressed: onPressed,
+                  icon: Icon(
+                    Icons.bedtime_outlined,
+                    size: 20,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+        );
+      },
     );
   }
 }

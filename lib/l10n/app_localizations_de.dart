@@ -3489,6 +3489,18 @@ class AppLocalizationsDe extends AppLocalizations {
   String get switchLibraryTooltip => 'Bibliothek wechseln';
 
   @override
+  String get refreshTooltip => 'Refresh';
+
+  @override
+  String get openNowPlayingTooltip => 'Open Now Playing';
+
+  @override
+  String get previousChapterTooltip => 'Previous chapter';
+
+  @override
+  String get nextChapterTooltip => 'Next chapter';
+
+  @override
   String get noBooksFound => 'Keine Bücher gefunden';
 
   @override

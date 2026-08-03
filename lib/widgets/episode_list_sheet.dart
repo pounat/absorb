@@ -21,6 +21,7 @@ import 'html_description.dart';
 import 'stackable_sheet.dart';
 import 'episode_row.dart';
 import 'action_pill.dart';
+import 'adaptive_modal.dart';
 export 'episode_detail_sheet.dart';
 
 /// Bottom sheet that shows a podcast's episode list.
@@ -502,7 +503,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   void _showPodcastMoreSheet(ColorScheme cs, bool allDownloaded, int downloaded) {
     final l = AppLocalizations.of(context)!;
     final isAdmin = context.read<AuthProvider>().isAdmin;
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
@@ -606,7 +607,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       'second': l.episodeListPositionSecond,
       'end': l.episodeListPositionEnd,
     };
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(

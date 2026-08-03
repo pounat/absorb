@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import 'adaptive_modal.dart';
 import 'section_labels.dart';
 
 class HomeCustomizeSheet extends StatefulWidget {
@@ -12,32 +13,24 @@ class HomeCustomizeSheet extends StatefulWidget {
   const HomeCustomizeSheet({super.key, this.scrollController});
 
   static void show(BuildContext context) {
-    showModalBottomSheet(
+    showAdaptiveSheetDialog(
       context: context,
-      isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      expand: true,
+      initialChildSize: 0.6,
+      minChildSize: 0.3,
+      maxChildSize: 0.85,
+      builder: (context, scrollController) {
         return GestureDetector(
-          onTap: () => Navigator.pop(context),
-          behavior: HitTestBehavior.opaque,
-          child: DraggableScrollableSheet(
-            initialChildSize: 0.6,
-            minChildSize: 0.3,
-            maxChildSize: 0.85,
-            builder: (context, scrollController) {
-              return GestureDetector(
-                onTap: () {}, // absorb taps on the sheet itself
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).bottomSheetTheme.backgroundColor ??
-                        Theme.of(context).colorScheme.surface,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                  child: HomeCustomizeSheet(scrollController: scrollController),
-                ),
-              );
-            },
+          onTap: () {}, // absorb taps on the sheet itself
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).bottomSheetTheme.backgroundColor ??
+                  Theme.of(context).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: HomeCustomizeSheet(scrollController: scrollController),
           ),
         );
       },
@@ -111,67 +104,62 @@ class _HomeCustomizeSheetState extends State<HomeCustomizeSheet> {
 
     if (!context.mounted) return;
     final l = AppLocalizations.of(context)!;
-    await showModalBottomSheet(
+    await showAdaptiveSheetDialog(
       context: context,
-      isScrollControlled: true,
+      widthClass: DialogWidthClass.action,
       useSafeArea: true,
       backgroundColor: cs.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.3,
-        maxChildSize: 0.85,
-        expand: false,
-        builder: (ctx, sc) => Column(children: [
-          const SizedBox(height: 8),
-          Center(child: Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.24),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          )),
-          const SizedBox(height: 16),
-          Text(l.homeCustomizeAddGenreTitle, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text(l.homeCustomizeAddGenreSubtitle,
-            style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
-          const SizedBox(height: 12),
-          Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.3), indent: 20, endIndent: 20),
-          Expanded(
-            child: genres.isEmpty
-                ? ListView(controller: sc, children: [
-                    const SizedBox(height: 60),
-                    Center(child: Text(l.noGenresFound, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant))),
-                  ])
-                : ListView.builder(
-                    controller: sc,
-                    padding: EdgeInsets.only(top: 8, bottom: MediaQuery.of(ctx).padding.bottom + 8),
-                    itemCount: genres.length,
-                    itemBuilder: (ctx, i) {
-                      final genre = genres[i];
-                      final added = alreadyAdded.contains(genre);
-                      return ListTile(
-                        dense: true,
-                        leading: Icon(Icons.label_outline_rounded, size: 18, color: cs.onSurfaceVariant),
-                        title: Text(genre, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                        trailing: added
-                            ? Icon(Icons.check_rounded, size: 18, color: cs.primary)
-                            : null,
-                        onTap: added ? null : () async {
-                          await lib.addGenreSection(genre);
-                          _initialized = false; // force re-init to pick up the new section
-                          if (ctx.mounted) Navigator.pop(ctx);
-                          if (mounted) setState(() {});
-                        },
-                      );
-                    },
-                  ),
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (ctx, sc) => Column(children: [
+        const SizedBox(height: 8),
+        Center(child: Container(
+          width: 40, height: 4,
+          decoration: BoxDecoration(
+            color: cs.onSurface.withValues(alpha: 0.24),
+            borderRadius: BorderRadius.circular(2),
           ),
-        ]),
-      ),
+        )),
+        const SizedBox(height: 16),
+        Text(l.homeCustomizeAddGenreTitle, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(l.homeCustomizeAddGenreSubtitle,
+          style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+        const SizedBox(height: 12),
+        Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.3), indent: 20, endIndent: 20),
+        Expanded(
+          child: genres.isEmpty
+              ? ListView(controller: sc, children: [
+                  const SizedBox(height: 60),
+                  Center(child: Text(l.noGenresFound, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant))),
+                ])
+              : ListView.builder(
+                  controller: sc,
+                  padding: EdgeInsets.only(top: 8, bottom: MediaQuery.of(ctx).padding.bottom + 8),
+                  itemCount: genres.length,
+                  itemBuilder: (ctx, i) {
+                    final genre = genres[i];
+                    final added = alreadyAdded.contains(genre);
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(Icons.label_outline_rounded, size: 18, color: cs.onSurfaceVariant),
+                      title: Text(genre, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                      trailing: added
+                          ? Icon(Icons.check_rounded, size: 18, color: cs.primary)
+                          : null,
+                      onTap: added ? null : () async {
+                        await lib.addGenreSection(genre);
+                        _initialized = false; // force re-init to pick up the new section
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) setState(() {});
+                      },
+                    );
+                  },
+                ),
+        ),
+      ]),
     );
   }
 

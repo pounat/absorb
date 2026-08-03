@@ -16,6 +16,7 @@ import '../services/progress_sync_service.dart';
 import '../services/reader_font_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/volume_key_service.dart';
+import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
 import 'card_buttons.dart' show CardSpeedSheet;
 
@@ -889,12 +890,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   void _showChapterList() {
     final cs = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      desktopScrollWrap: false,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -933,13 +935,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     // Live preview for the side-margin slider so the WebView only re-paginates
     // when the drag ends, not on every step.
     int hPreview = _marginH;
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       isScrollControlled: true,
+      desktopScrollWrap: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           final l = AppLocalizations.of(ctx)!;
@@ -1192,13 +1195,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final tt = Theme.of(context).textTheme;
     final svc = ReaderFontService();
     await svc.load();
-    await showModalBottomSheet(
+    await showAdaptiveActionMenu(
       context: context,
       backgroundColor: cs.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      desktopScrollWrap: false,
       builder: (ctx) => SafeArea(
         child: ListenableBuilder(
           listenable: svc,
@@ -1551,13 +1555,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final highlights = _annotations.where((a) => a.type == AnnotationType.highlight).toList();
     final bookmarks = _annotations.where((a) => a.type == AnnotationType.bookmark).toList();
 
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: cs.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      desktopScrollWrap: false,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.6,
@@ -1812,7 +1817,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                       minimumSize: const Size(0, 36),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    onPressed: () => showModalBottomSheet(
+                    onPressed: () => showAdaptiveActionMenu(
                       context: context,
                       backgroundColor: Theme.of(context).colorScheme.surface,
                       shape: const RoundedRectangleBorder(

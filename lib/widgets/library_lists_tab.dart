@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/library_screen.dart';
+import '../utils/desktop_workspace.dart';
 import 'library_grid_tiles.dart';
 
 /// Library "Lists" tab: a stacked-cover grid of all collections and playlists
@@ -89,7 +90,7 @@ class LibraryListsTab extends StatelessWidget {
         slivers: [
           ...headers,
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding(context)),
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: responsiveGridCount(context),
@@ -126,6 +127,8 @@ class LibraryListsTab extends StatelessWidget {
       );
     }
 
-    return RefreshIndicator(onRefresh: onRefresh, child: body);
+    return isDesktopWorkspace(context)
+        ? body
+        : RefreshIndicator(onRefresh: onRefresh, child: body);
   }
 }

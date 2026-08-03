@@ -365,6 +365,8 @@ class AbsorbApp extends StatelessWidget {
               navigatorKey: rootNavigatorKey,
               title: 'Absorb',
               debugShowCheckedModeBanner: false,
+              scrollBehavior:
+                  AppPlatform.isWeb ? const _AppScrollBehavior() : null,
               locale: overrideLocale,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
@@ -423,6 +425,9 @@ class AbsorbApp extends StatelessWidget {
                   shape: const RoundedRectangleBorder(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   ),
+                  constraints: AppPlatform.isWeb
+                      ? const BoxConstraints(maxWidth: 640)
+                      : null,
                 ),
                 snackBarTheme: SnackBarThemeData(
                   backgroundColor: lightScheme.inverseSurface,
@@ -479,6 +484,9 @@ class AbsorbApp extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   ),
+                  constraints: AppPlatform.isWeb
+                      ? const BoxConstraints(maxWidth: 640)
+                      : null,
                 ),
                 snackBarTheme: SnackBarThemeData(
                   backgroundColor: darkScheme.surfaceContainerHighest,
@@ -762,4 +770,18 @@ class _AuthGateState extends State<AuthGate> {
 
     return const LoginScreen();
   }
+}
+
+/// Web ships without mouse in the default drag devices, which leaves every
+/// horizontal list unscrollable with a mouse.
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
 }

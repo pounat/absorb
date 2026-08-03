@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../widgets/desktop_page_body.dart';
 import '../widgets/overlay_toast.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -95,7 +96,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final l = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(title: Text(l.changePasswordTitle)),
-      body: ListView(
+      body: DesktopPageBody(
+        maxWidth: 560,
+        child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Text(
@@ -143,6 +146,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             label: Text(l.changePasswordTitle),
           ),
         ],
+        ),
       ),
     );
   }

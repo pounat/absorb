@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/equalizer_service.dart';
+import 'adaptive_modal.dart';
 
 /// Show the equalizer & audio enhancements bottom sheet.
 ///
@@ -9,22 +10,20 @@ import '../services/equalizer_service.dart';
 /// in per-book EQ mode, the sheet uses them to show whether the displayed
 /// EQ belongs to that card's book or to whatever is currently playing.
 void showEqualizerSheet(BuildContext context, Color accent, {String? itemId, String? itemTitle}) {
-  showModalBottomSheet(
+  showAdaptiveSheetDialog(
     context: context,
-    isScrollControlled: true,
+    widthClass: DialogWidthClass.action,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.75,
-      minChildSize: 0.05, snap: true,
-      maxChildSize: 0.92,
-      builder: (ctx, sc) => _EqualizerSheetContent(
-        accent: accent,
-        scrollController: sc,
-        openedForItemId: itemId,
-        openedForItemTitle: itemTitle,
-      ),
+    expand: false,
+    initialChildSize: 0.75,
+    minChildSize: 0.05, snap: true,
+    maxChildSize: 0.92,
+    builder: (ctx, sc) => _EqualizerSheetContent(
+      accent: accent,
+      scrollController: sc,
+      openedForItemId: itemId,
+      openedForItemTitle: itemTitle,
     ),
   );
 }

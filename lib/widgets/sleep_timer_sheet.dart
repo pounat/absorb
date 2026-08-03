@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/audio_player_service.dart';
 import '../services/sleep_timer_service.dart';
+import 'adaptive_modal.dart';
 
 // ─── SHARED SLEEP TIMER SHEET ─────────────────────────────────
 void showSleepTimerSheet(BuildContext context, Color accent) {
-  showModalBottomSheet(
+  showAdaptiveActionMenu(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,

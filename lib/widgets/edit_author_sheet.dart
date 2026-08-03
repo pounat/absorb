@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
 
 /// Opens a full-screen editor for an author (root admin only).
@@ -26,27 +27,24 @@ void showEditAuthorSheet(
   required VoidCallback onUpdated,
   required void Function(String mergedIntoId, String mergedIntoName) onMerged,
 }) {
-  showModalBottomSheet(
+  showAdaptiveSheetDialog(
     context: context,
-    isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.85,
-      minChildSize: 0.3,
-      maxChildSize: 0.95,
-      snap: true,
-      builder: (ctx, sc) => _EditAuthorContent(
-        authorId: authorId,
-        currentName: currentName,
-        currentDescription: currentDescription,
-        currentAsin: currentAsin,
-        currentImageUrl: currentImageUrl,
-        scrollController: sc,
-        onUpdated: onUpdated,
-        onMerged: onMerged,
-      ),
+    expand: false,
+    initialChildSize: 0.85,
+    minChildSize: 0.3,
+    maxChildSize: 0.95,
+    snap: true,
+    builder: (ctx, sc) => _EditAuthorContent(
+      authorId: authorId,
+      currentName: currentName,
+      currentDescription: currentDescription,
+      currentAsin: currentAsin,
+      currentImageUrl: currentImageUrl,
+      scrollController: sc,
+      onUpdated: onUpdated,
+      onMerged: onMerged,
     ),
   );
 }

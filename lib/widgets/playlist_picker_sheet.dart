@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/library_provider.dart';
+import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
 
 class PlaylistPickerSheet extends StatefulWidget {
@@ -15,7 +16,7 @@ class PlaylistPickerSheet extends StatefulWidget {
   });
 
   static void show(BuildContext context, String libraryItemId, {String? episodeId}) {
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(

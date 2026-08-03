@@ -9,6 +9,8 @@ import '../l10n/app_localizations.dart';
 import '../screens/admin_rmab_screen.dart';
 import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
+import '../utils/desktop_workspace.dart';
+import 'adaptive_modal.dart';
 import 'rmab_request_status_chip.dart';
 import 'stackable_sheet.dart';
 
@@ -346,7 +348,11 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
       setState(() => _errorText = l.rmabConfigErrorInvalidUrl);
       return;
     }
-    Navigator.of(context).push(MaterialPageRoute(
+    final nav = contentNavigator(context);
+    if (isDesktopWorkspace(context)) {
+      Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+    }
+    nav.push(MaterialPageRoute(
       builder: (_) => AdminRmabScreen(url: target),
     ));
   }
@@ -1001,7 +1007,7 @@ class _MyRequestsTabState extends State<_MyRequestsTab>
   }
 
   void _openRequestDetail(RmabRequest req) {
-    showModalBottomSheet<void>(
+    showAdaptiveActionMenu<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -1009,6 +1015,7 @@ class _MyRequestsTabState extends State<_MyRequestsTab>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      desktopWidth: 560,
       builder: (_) => _RequestDetailSheet(request: req),
     );
   }

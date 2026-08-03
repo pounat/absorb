@@ -7,6 +7,7 @@ import '../screens/app_shell.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import 'absorbing_shared.dart';
+import 'adaptive_modal.dart';
 
 void showChaptersSheet({
   required BuildContext context,
@@ -33,12 +34,12 @@ void showChaptersSheet({
 
   final cast = ChromecastService();
 
-  showModalBottomSheet(
-    context: context, isScrollControlled: true, useSafeArea: true,
+  showAdaptiveSheetDialog(
+    context: context, useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false, initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9,
-      builder: (_, sc) {
+    widthClass: DialogWidthClass.action,
+    initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9,
+    builder: (ctx, sc) {
         if (currentIdx > 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final target = currentIdx * 48.0 - 48;
@@ -136,7 +137,6 @@ void showChaptersSheet({
           )),
         ]),
       );
-      },
-    ),
+    },
   );
 }

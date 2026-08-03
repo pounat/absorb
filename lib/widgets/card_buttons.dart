@@ -19,6 +19,7 @@ import '../services/scoped_prefs.dart';
 import '../services/sleep_timer_service.dart';
 import 'absorb_slider.dart';
 import 'absorbing_shared.dart';
+import 'adaptive_modal.dart';
 import 'book_detail_sheet.dart';
 import 'bookmark_detail_dialog.dart';
 import 'card_button_config.dart';
@@ -496,12 +497,10 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
   }
 
   void _showBookmarks(BuildContext context) {
-    showModalBottomSheet(
-      context: context, backgroundColor: Colors.transparent, isScrollControlled: true, useSafeArea: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
-        builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
-      ),
+    showAdaptiveSheetDialog(
+      context: context, widthClass: DialogWidthClass.action, backgroundColor: Colors.transparent, useSafeArea: true,
+      initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
+      builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
     );
   }
 }
@@ -578,7 +577,7 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
         }
         return Pressable(
           onTap: () {
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent,
+            showAdaptiveActionMenu(context: context, backgroundColor: Colors.transparent,
               useSafeArea: true,
               builder: (ctx) => CardSpeedSheet(player: widget.player, accent: widget.accent, itemId: widget.itemId));
           },
@@ -848,7 +847,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                       final hasNote = bm.note != null && bm.note!.isNotEmpty;
                       return InkWell(
                         onTap: () async {
-                          final result = await showModalBottomSheet<BookmarkDetailResult>(
+                          final result = await showAdaptiveActionMenu<BookmarkDetailResult>(
                             context: ctx,
                             isScrollControlled: true,
                             showDragHandle: true,
@@ -1681,7 +1680,7 @@ class CardActionDelegate {
           enabled: true,
           onTap: () {
             Navigator.pop(ctx);
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent, useSafeArea: true,
+            showAdaptiveActionMenu(context: context, backgroundColor: Colors.transparent, useSafeArea: true,
               builder: (_) => CardSpeedSheet(player: player, accent: accent, itemId: itemId));
           },
         );
@@ -1700,11 +1699,9 @@ class CardActionDelegate {
           enabled: isPlaybackActive,
           onTap: () {
             Navigator.pop(ctx);
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, useSafeArea: true,
-              builder: (_) => DraggableScrollableSheet(
-                initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
-                builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
-              ),
+            showAdaptiveSheetDialog(context: context, widthClass: DialogWidthClass.action, backgroundColor: Colors.transparent, useSafeArea: true,
+              initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
+              builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
             );
           },
         );
@@ -1839,8 +1836,10 @@ class CardActionDelegate {
   void showMoreMenu(Color accent, TextTheme tt) {
     final count = visibleButtonCount;
     final overflowIds = buttonOrder.skip(count).where((id) => id != '_more').toList();
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => MoreMenuSheet(
@@ -1887,7 +1886,7 @@ class CardActionDelegate {
     final auth = ctx.read<AuthProvider>();
     final api = auth.apiService;
     if (cast.isCasting && cast.castingItemId == itemId) {
-      showModalBottomSheet(
+      showAdaptiveActionMenu(
         context: ctx,
         backgroundColor: Theme.of(ctx).bottomSheetTheme.backgroundColor,
         shape: const RoundedRectangleBorder(
@@ -2021,29 +2020,27 @@ void showPlaybackHistorySheet(
           (episodeId == null ||
               resolvedPlayer.currentEpisodeId == episodeId));
   final theme = Theme.of(context);
-  showModalBottomSheet(
+  showAdaptiveSheetDialog(
     context: context,
-    isScrollControlled: true,
+    widthClass: DialogWidthClass.action,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.6,
-      minChildSize: 0.05,
-      snap: true,
-      maxChildSize: 0.9,
-      builder: (_, scrollController) => _PlaybackHistoryBody(
-        itemId: itemId,
-        episodeId: episodeId,
-        api: context.read<AuthProvider>().apiService,
-        accent: accent ?? theme.colorScheme.primary,
-        tt: textTheme ?? theme.textTheme,
-        isActive: resolvedIsActive,
-        player: resolvedPlayer,
-        parentCtx: context,
-        scrollController: scrollController,
-        initialTab: initialTab,
-      ),
+    expand: false,
+    initialChildSize: 0.6,
+    minChildSize: 0.05,
+    snap: true,
+    maxChildSize: 0.9,
+    builder: (_, scrollController) => _PlaybackHistoryBody(
+      itemId: itemId,
+      episodeId: episodeId,
+      api: context.read<AuthProvider>().apiService,
+      accent: accent ?? theme.colorScheme.primary,
+      tt: textTheme ?? theme.textTheme,
+      isActive: resolvedIsActive,
+      player: resolvedPlayer,
+      parentCtx: context,
+      scrollController: scrollController,
+      initialTab: initialTab,
     ),
   );
 }
@@ -2404,8 +2401,9 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
   Future<void> _showServerSessionDetails(
     Map<String, dynamic> session,
   ) async {
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showAdaptiveActionMenu<bool>(
       context: context,
+      desktopWidth: 520,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SessionDetailsSheet(

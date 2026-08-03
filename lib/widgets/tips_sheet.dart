@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../utils/app_platform.dart';
+import 'adaptive_modal.dart';
 
 void showTipsSheet(BuildContext context) {
   final cs = Theme.of(context).colorScheme;
   final tt = Theme.of(context).textTheme;
   final l = AppLocalizations.of(context)!;
   final w = Wording.of(context);
-  showModalBottomSheet(
-    context: context, isScrollControlled: true, useSafeArea: true,
+  showAdaptiveSheetDialog(
+    context: context, useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false, initialChildSize: 0.75, minChildSize: 0.05, maxChildSize: 0.95,
-      builder: (_, sc) => Container(
+    expand: false, initialChildSize: 0.75, minChildSize: 0.05, maxChildSize: 0.95,
+    builder: (_, sc) => Container(
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -139,7 +139,6 @@ void showTipsSheet(BuildContext context) {
           ],
         ),
       ),
-    ),
   );
 }
 

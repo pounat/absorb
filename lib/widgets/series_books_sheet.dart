@@ -17,6 +17,7 @@ import 'episode_list_sheet.dart';
 import 'stackable_sheet.dart';
 import 'audible_series_sheet.dart';
 import 'action_pill.dart';
+import 'adaptive_modal.dart';
 import 'books_sheet_shared.dart';
 import '../services/api_service.dart';
 import '../utils/duration_format.dart';
@@ -778,7 +779,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
 
   void _showSeriesMoreSheet(ColorScheme cs, bool allDownloaded, int downloaded, bool allDone, bool hasSeriesId) {
     final l = AppLocalizations.of(context)!;
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(

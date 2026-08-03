@@ -7,8 +7,10 @@ import '../services/download_service.dart';
 import 'absorbing_shared.dart';
 import 'book_card.dart';
 import 'author_card.dart';
+import 'hover_cover_actions.dart';
 import 'series_card.dart';
 import 'episode_list_sheet.dart';
+import '../utils/desktop_workspace.dart';
 
 class HomeSection extends StatelessWidget {
   final String title;
@@ -58,10 +60,12 @@ class HomeSection extends StatelessWidget {
     final effectiveEpisode = isEpisodeSection || hasEpisodeEntities;
 
     final bool isRectCover = coverAspectRatio < 1.0;
+    final desktop = isDesktopWorkspace(context);
+    final scale = desktop ? 1.2 : 1.0;
     final double cardWidth =
-        isContinueListening ? 300 : (isAuthorSection ? 120 : 140);
+        (isContinueListening ? 300 : (isAuthorSection ? 120 : 140)) * scale;
     final double cardHeight =
-        isContinueListening ? 120 : effectiveEpisode ? 200 : (isAuthorSection ? 170 : (isRectCover ? 260 : 200));
+        (isContinueListening ? 120 : effectiveEpisode ? 200 : (isAuthorSection ? 170 : (isRectCover ? 260 : 200))) * scale;
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -107,8 +111,9 @@ class HomeSection extends StatelessWidget {
           // Snap-scrolling horizontal list
           SizedBox(
             height: cardHeight,
-            child: _SnapScrollList(
+            child: SnapScrollList(
               cardWidth: cardWidth,
+              desktop: desktop,
               itemCount: entities.length,
               itemBuilder: (context, index) {
                 var entity = entities[index];
@@ -142,7 +147,7 @@ class HomeSection extends StatelessWidget {
                   );
                 }
 
-                // Podcast episode sections — show cover with episode title overlay
+                // Podcast episode sections - show cover with episode title overlay
                 if (isEpisodeSection && entity is Map<String, dynamic>) {
                   return SizedBox(
                     width: cardWidth,
@@ -200,29 +205,39 @@ class HomeSection extends StatelessWidget {
   }
 }
 
-/// A horizontal scrolling list with smooth snap-to-card behavior.
-class _SnapScrollList extends StatefulWidget {
+/// A horizontal scrolling list with smooth snap-to-card behavior. On the
+/// desktop workspace it adds hover paging arrows and clamping physics.
+class SnapScrollList extends StatefulWidget {
   final double cardWidth;
+  final bool desktop;
   final int itemCount;
   final Widget Function(BuildContext, int) itemBuilder;
 
-  const _SnapScrollList({
+  const SnapScrollList({
+    super.key,
     required this.cardWidth,
+    this.desktop = false,
     required this.itemCount,
     required this.itemBuilder,
   });
 
   @override
-  State<_SnapScrollList> createState() => _SnapScrollListState();
+  State<SnapScrollList> createState() => SnapScrollListState();
 }
 
-class _SnapScrollListState extends State<_SnapScrollList> {
+class SnapScrollListState extends State<SnapScrollList> {
   late final ScrollController _controller;
+  bool _hovering = false;
+  bool _canPageBack = false;
+  bool _canPageForward = false;
+
+  double get _itemExtent => widget.cardWidth + 12;
 
   @override
   void initState() {
     super.initState();
     _controller = ScrollController();
+    _controller.addListener(_updateArrows);
   }
 
   @override
@@ -231,11 +246,83 @@ class _SnapScrollListState extends State<_SnapScrollList> {
     super.dispose();
   }
 
+  void _updateArrows() {
+    if (!widget.desktop || !_controller.hasClients) return;
+    final canBack = _controller.offset > 1;
+    final canForward =
+        _controller.offset < _controller.position.maxScrollExtent - 1;
+    if (canBack != _canPageBack || canForward != _canPageForward) {
+      setState(() {
+        _canPageBack = canBack;
+        _canPageForward = canForward;
+      });
+    }
+  }
+
+  void _page(int direction) {
+    if (!_controller.hasClients) return;
+    final viewport = _controller.position.viewportDimension;
+    final cardsPerPage = (viewport ~/ _itemExtent).clamp(1, 50);
+    final step = cardsPerPage * _itemExtent;
+    final raw = _controller.offset + direction * step;
+    final maxExtent = _controller.position.maxScrollExtent;
+    var target = ((raw / _itemExtent).round() * _itemExtent)
+        .clamp(0.0, maxExtent);
+    if (target > maxExtent - _itemExtent) {
+      target = direction > 0 ? maxExtent : target;
+    }
+    _controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _arrow({required bool forward}) {
+    final cs = Theme.of(context).colorScheme;
+    final visible =
+        _hovering && (forward ? _canPageForward : _canPageBack);
+    return Positioned(
+      left: forward ? null : 4,
+      right: forward ? 4 : null,
+      top: 0,
+      bottom: 0,
+      child: Center(
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: const Duration(milliseconds: 120),
+          child: IgnorePointer(
+            ignoring: !visible,
+            child: Material(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.9),
+              shape: const CircleBorder(),
+              elevation: 2,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _page(forward ? 1 : -1),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    forward
+                        ? Icons.chevron_right_rounded
+                        : Icons.chevron_left_rounded,
+                    size: 24,
+                    color: cs.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final itemExtent = widget.cardWidth + 12;
+    final itemExtent = _itemExtent;
 
-    return NotificationListener<ScrollEndNotification>(
+    final list = NotificationListener<ScrollEndNotification>(
       onNotification: (notification) {
         final maxExtent = _controller.position.maxScrollExtent;
         final offset = _controller.offset;
@@ -271,10 +358,33 @@ class _SnapScrollListState extends State<_SnapScrollList> {
         controller: _controller,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        physics: const BouncingScrollPhysics(),
+        physics: widget.desktop
+            ? const ClampingScrollPhysics()
+            : const BouncingScrollPhysics(),
         itemCount: widget.itemCount,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: widget.itemBuilder,
+      ),
+    );
+
+    if (!widget.desktop) return list;
+    // Arrow visibility depends on maxScrollExtent, which only exists after
+    // the first layout; refresh once attached.
+    if (!_controller.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _updateArrows());
+    }
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _hovering = true);
+        _updateArrows();
+      },
+      onExit: (_) => setState(() => _hovering = false),
+      child: Stack(
+        children: [
+          list,
+          _arrow(forward: false),
+          _arrow(forward: true),
+        ],
       ),
     );
   }
@@ -312,7 +422,16 @@ class _EpisodeCard extends StatelessWidget {
     final isFinished = episodeId != null && lib.getEpisodeProgressData(itemId, episodeId)?['isFinished'] == true;
     final isDownloaded = episodeId != null && DownloadService().isDownloaded('$itemId-$episodeId');
 
-    return GestureDetector(
+    return HoverCoverActions(
+      onMenu: episode == null
+          ? null
+          : () => EpisodeDetailSheet.showQuick(
+                context,
+                item,
+                episode,
+                sourcePlaylistId: sourcePlaylistId,
+              ),
+      child: GestureDetector(
       onTap: () {
         if (episode != null) {
           EpisodeDetailSheet.show(
@@ -452,6 +571,7 @@ class _EpisodeCard extends StatelessWidget {
               ),
             ),
         ],
+      ),
       ),
     );
   }

@@ -3374,6 +3374,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get switchLibraryTooltip => '切换媒体库';
 
   @override
+  String get refreshTooltip => 'Refresh';
+
+  @override
+  String get openNowPlayingTooltip => 'Open Now Playing';
+
+  @override
+  String get previousChapterTooltip => 'Previous chapter';
+
+  @override
+  String get nextChapterTooltip => 'Next chapter';
+
+  @override
   String get noBooksFound => '未找到书籍';
 
   @override

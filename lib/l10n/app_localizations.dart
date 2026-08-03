@@ -6310,6 +6310,30 @@ abstract class AppLocalizations {
   /// **'Switch library'**
   String get switchLibraryTooltip;
 
+  /// No description provided for @refreshTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refreshTooltip;
+
+  /// No description provided for @openNowPlayingTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Now Playing'**
+  String get openNowPlayingTooltip;
+
+  /// No description provided for @previousChapterTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous chapter'**
+  String get previousChapterTooltip;
+
+  /// No description provided for @nextChapterTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Next chapter'**
+  String get nextChapterTooltip;
+
   /// No description provided for @noBooksFound.
   ///
   /// In en, this message translates to:

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/overlay_toast.dart';
 
 class AdminEmailScreen extends StatefulWidget {
@@ -160,13 +161,15 @@ class _AdminEmailScreenState extends State<AdminEmailScreen> {
       ...((existing?['users'] as List<dynamic>?) ?? []).cast<String>(),
     };
 
-    return showModalBottomSheet<Map<String, dynamic>>(
+    return showAdaptiveActionMenu<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      desktopWidth: 560,
+      desktopScrollWrap: false,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setSheet) {
           return SafeArea(

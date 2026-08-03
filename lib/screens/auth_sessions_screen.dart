@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/auth_session.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/desktop_page_body.dart';
 import '../widgets/overlay_toast.dart';
 
 class AuthSessionsScreen extends StatefulWidget {
@@ -129,7 +130,9 @@ class _AuthSessionsScreenState extends State<AuthSessionsScreen> {
       appBar: AppBar(title: Text(l.manageSessionsTitle)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+          : DesktopPageBody(
+              maxWidth: 720,
+              child: RefreshIndicator(
               onRefresh: _load,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -193,6 +196,7 @@ class _AuthSessionsScreenState extends State<AuthSessionsScreen> {
                     ),
                   ],
                 ],
+              ),
               ),
             ),
     );

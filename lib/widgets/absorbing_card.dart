@@ -21,6 +21,7 @@ import 'card_buttons.dart';
 import '../services/chromecast_service.dart';
 import 'expanded_card.dart';
 import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme;
+import '../utils/desktop_workspace.dart';
 import 'stable_cached_network_image.dart';
 
 class AbsorbingCard extends StatefulWidget {
@@ -1201,6 +1202,9 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   }
 
   void expandCard(BuildContext context) {
+    // The desktop workspace has no full-screen player; the Absorbing tab is
+    // the now-playing surface itself.
+    if (isDesktopWorkspace(context)) return;
     AppShell.setExpandedOpen(true);
     Navigator.of(context, rootNavigator: true).push(
       ExpandedCardRoute(

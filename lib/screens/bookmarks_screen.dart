@@ -14,6 +14,8 @@ import '../widgets/bookmark_detail_dialog.dart';
 import '../widgets/card_buttons.dart';
 import '../services/download_service.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/adaptive_modal.dart';
+import '../widgets/desktop_page_body.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 
@@ -242,7 +244,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   Future<void> _jumpToBookmark(String itemId, Bookmark bookmark, String bookTitle) async {
     final l = AppLocalizations.of(context)!;
     final api = context.read<AuthProvider>().apiService;
-    final result = await showModalBottomSheet<BookmarkDetailResult>(
+    final result = await showAdaptiveActionMenu<BookmarkDetailResult>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -250,6 +252,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      desktopWidth: 560,
+      desktopScrollWrap: false,
       builder: (ctx) => BookmarkDetailSheet(
         itemId: itemId,
         bookmark: bookmark,
@@ -343,7 +347,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : Column(
+            : DesktopPageBody(
+                child: Column(
                 children: [
                   // Header
                   Padding(
@@ -479,6 +484,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                       ),
                     ),
                 ],
+              ),
               ),
       ),
     );

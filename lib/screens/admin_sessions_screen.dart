@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/adaptive_modal.dart';
 import 'stats_screen.dart' show SessionDetailsSheet;
 
 /// Admin view of every user's listening sessions. View + delete any session;
@@ -91,10 +92,11 @@ class _AdminSessionsScreenState extends State<AdminSessionsScreen> {
     final myId = context.read<AuthProvider>().userId;
     final ownerId = s['userId'] as String? ??
         (s['user'] as Map<String, dynamic>?)?['id'] as String?;
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showAdaptiveActionMenu<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 520,
       builder: (_) =>
           SessionDetailsSheet(session: s, allowEdit: ownerId == myId),
     );

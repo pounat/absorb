@@ -12,6 +12,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../utils/app_platform.dart';
+import '../utils/desktop_workspace.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
@@ -45,6 +46,7 @@ import 'metadata_lookup_sheet.dart';
 import 'playlist_picker_sheet.dart';
 import 'collection_picker_sheet.dart';
 import 'absorb_wave_icon.dart';
+import 'adaptive_modal.dart';
 import 'stackable_sheet.dart';
 import 'ebook_router.dart';
 import '../utils/duration_format.dart';
@@ -89,6 +91,7 @@ void showQuickActionsSheet(
     useSafeArea: true,
     initialChildSize: 0.6,
     maxChildSize: 0.92,
+    desktopWidth: 520,
     builder: (ctx, sc) => _BookDetailSheetContent(
       itemId: itemId,
       scrollController: sc,
@@ -1321,9 +1324,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       if (id.isNotEmpty) bookSeriesIds.add(id);
     }
     final continueSeriesId = lib.continueSeriesShelfMatch(bookSeriesIds);
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       isScrollControlled: true,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1401,18 +1406,27 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final audioFiles = (media['audioFiles'] as List<dynamic>?) ?? const [];
     final libraryFiles = (_item!['libraryFiles'] as List<dynamic>?) ?? const [];
     final rel = _item!['relPath'] as String? ?? '';
-    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+    final itemId = widget.itemId;
+    final libraryId = _item!['libraryId'] as String?;
+    final isAdmin = auth.isAdmin;
+    final nav = contentNavigator(context);
+    // On desktop the detail surface is a root-navigator dialog while the
+    // editor lands in the content pane below it; close the dialogs first.
+    if (isDesktopWorkspace(context)) {
+      Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+    }
+    nav.push(MaterialPageRoute(
       builder: (_) => BookEditScreen(
-        itemId: widget.itemId,
+        itemId: itemId,
         bookTitle: title,
         metadata: meta,
         tags: mediaTags,
         audioFiles: audioFiles,
-          libraryFiles: libraryFiles,
-          relPath: rel,
+        libraryFiles: libraryFiles,
+        relPath: rel,
         isEbookOnly: isEbookOnly,
-        isAdmin: auth.isAdmin,
-        libraryId: _item!['libraryId'] as String?,
+        isAdmin: isAdmin,
+        libraryId: libraryId,
       ),
     ));
   }
@@ -1592,15 +1606,15 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       ..setBackgroundColor(cs.surface)
       ..loadRequest(Uri.parse(url));
 
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      desktopWidth: 720,
+      desktopScrollWrap: false,
       backgroundColor: Colors.transparent,
-      enableDrag: true,
-      builder: (ctx) => FractionallySizedBox(
-        heightFactor: 0.92,
-        child: Container(
+      builder: (ctx) {
+        final body = Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: cs.surface,
@@ -1641,8 +1655,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
               ),
             ),
           ]),
-        ),
-      ),
+        );
+        if (ModalSurface.isDesktopOf(ctx)) return body;
+        return FractionallySizedBox(heightFactor: 0.92, child: body);
+      },
     );
   }
 
@@ -2003,8 +2019,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       BuildContext context, List<Map<String, dynamic>> devices) {
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
-    return showModalBottomSheet<String>(
+    return showAdaptiveActionMenu<String>(
       context: context,
+      desktopScrollWrap: false,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -2299,31 +2316,29 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   void _openMetadataLookup(BuildContext context, AuthProvider auth, String title, String author) {
     final api = auth.apiService;
     if (api == null) return;
-    showModalBottomSheet(
+    showAdaptiveSheetDialog(
       context: context,
-      isScrollControlled: true,
+      useSafeArea: false,
       backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.85,
-        minChildSize: 0.05, snap: true,
-        maxChildSize: 0.95,
-        builder: (ctx, sc) => MetadataLookupSheet(
-          scrollController: sc,
-          itemId: widget.itemId,
-          api: api,
-          initialTitle: title,
-          initialAuthor: author,
-          currentMetadata: (_item?['media'] as Map<String, dynamic>?)?['metadata'] as Map<String, dynamic>?,
-          onApplied: () {
-            // Reload the item to show the new override, and repaint the
-            // library so the grid/absorbing card pick up the override cover.
-            _loadItem();
-            if (mounted) {
-              context.read<LibraryProvider>().notifyCoverOverridesChanged();
-            }
-          },
-        ),
+      expand: false,
+      initialChildSize: 0.85,
+      minChildSize: 0.05, snap: true,
+      maxChildSize: 0.95,
+      builder: (ctx, sc) => MetadataLookupSheet(
+        scrollController: sc,
+        itemId: widget.itemId,
+        api: api,
+        initialTitle: title,
+        initialAuthor: author,
+        currentMetadata: (_item?['media'] as Map<String, dynamic>?)?['metadata'] as Map<String, dynamic>?,
+        onApplied: () {
+          // Reload the item to show the new override, and repaint the
+          // library so the grid/absorbing card pick up the override cover.
+          _loadItem();
+          if (mounted) {
+            context.read<LibraryProvider>().notifyCoverOverridesChanged();
+          }
+        },
       ),
     );
   }

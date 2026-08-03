@@ -12,6 +12,7 @@ import '../services/backup_service.dart';
 import '../services/setup_link_service.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/absorb_wave_icon.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/setup_link_share_sheet.dart';
 import '../l10n/app_localizations.dart';
@@ -209,7 +210,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   void _showEditor(Map<String, dynamic>? user) {
-    showModalBottomSheet(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+    showAdaptiveActionMenu(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+      desktopWidth: 560, desktopScrollWrap: false,
       builder: (_) => _UserEditorSheet(user: user, libraries: widget.libraries, onSaved: _reload));
   }
 }
@@ -740,10 +742,12 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
   }
 
   void _showSessionDetails(Map<String, dynamic> session) {
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 560,
+      desktopScrollWrap: false,
       builder: (_) => _AdminSessionDetailsSheet(session: session),
     );
   }
@@ -780,7 +784,8 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
   );
 
   void _showEditor() {
-    showModalBottomSheet(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+    showAdaptiveActionMenu(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+      desktopWidth: 560, desktopScrollWrap: false,
       builder: (_) => _UserEditorSheet(user: widget.user, libraries: widget.libraries, onSaved: () {
         widget.onChanged();
         _load();
@@ -855,11 +860,13 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
       final setupLink = SetupLinkService.createLink(payload);
       if (!mounted) return;
 
-      await showModalBottomSheet<void>(
+      await showAdaptiveActionMenu<void>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
         showDragHandle: false,
+        desktopWidth: 560,
+        desktopScrollWrap: false,
         builder: (sheetContext) => SetupLinkShareSheet(
           username: username,
           setupLink: setupLink,

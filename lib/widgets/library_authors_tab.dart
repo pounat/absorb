@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/library_screen.dart';
+import '../utils/desktop_workspace.dart';
 import 'library_grid_tiles.dart';
 
 class LibraryAuthorsTab extends StatelessWidget {
@@ -72,7 +73,7 @@ class LibraryAuthorsTab extends StatelessWidget {
         slivers: [
           ...headers,
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding(context)),
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: responsiveGridCount(context),
@@ -90,6 +91,8 @@ class LibraryAuthorsTab extends StatelessWidget {
       );
     }
 
-    return RefreshIndicator(onRefresh: onRefresh, child: body);
+    return isDesktopWorkspace(context)
+        ? body
+        : RefreshIndicator(onRefresh: onRefresh, child: body);
   }
 }

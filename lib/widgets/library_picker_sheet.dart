@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../services/player_settings.dart';
+import 'adaptive_modal.dart';
 
 /// Bottom-sheet library switcher shared by the Home/Library headers and the
 /// bottom-nav long-press. When the dedicated Podcasts tab is enabled, its
@@ -25,35 +26,44 @@ Future<void> showLibraryPickerSheet(
       .where((library) => library['id'] != excludeLibraryId)
       .toList();
 
-  showModalBottomSheet(
+  showAdaptiveActionMenu(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
+    desktopScrollWrap: false,
     builder: (ctx) {
+      final desktop = ModalSurface.isDesktopOf(ctx);
       final bottomPad = MediaQuery.of(ctx).viewPadding.bottom;
       return Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(ctx).size.height * 0.6,
-        ),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+        constraints: desktop
+            ? null
+            : BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.6,
+              ),
+        decoration: desktop
+            ? null
+            : BoxDecoration(
+                color: cs.surface,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 12),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+            if (!desktop) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),

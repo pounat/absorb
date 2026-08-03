@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../services/socket_service.dart';
 import 'podcast_edit_screen.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/html_description.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
@@ -23,11 +24,13 @@ Future<void> showAddPodcastSheet(
   required VoidCallback onAdded,
   String initialQuery = '',
 }) {
-  return showModalBottomSheet<void>(
+  return showAdaptiveActionMenu<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
+    desktopWidth: 640,
+    desktopScrollWrap: false,
     builder: (_) => _PodcastSearchSheet(
       libraryId: libraryId,
       folderId: folderId,
@@ -2079,11 +2082,13 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
   }
 
   void _showMatchSheet(ColorScheme cs, TextTheme tt) {
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 640,
+      desktopScrollWrap: false,
       builder: (_) => _PodcastMatchSheet(
         podcastId: _podcastId,
         initialQuery: _title,
@@ -2097,11 +2102,13 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
 
   void _showEpisodeDetail(Map<String, dynamic> ep, bool alreadyDownloaded) {
     final canDownload = context.read<AuthProvider>().isAdmin;
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 640,
+      desktopScrollWrap: false,
       builder: (_) => _EpisodeDetailSheet(
         episode: ep,
         alreadyDownloaded: alreadyDownloaded,
@@ -2117,11 +2124,13 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
   void _showDownloadedEpisodeDetail(Map<String, dynamic> ep) {
     final epId = ep['id']?.toString() ?? '';
     final epTitle = ep['title']?.toString() ?? AppLocalizations.of(context)!.adminPodcastsEpisodeFallback;
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 640,
+      desktopScrollWrap: false,
       builder: (_) => _DownloadedEpisodeDetailSheet(
         episode: ep,
         isDeleting: _deleting.contains(epId),
