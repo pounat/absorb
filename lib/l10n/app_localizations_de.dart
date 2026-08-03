@@ -1792,6 +1792,15 @@ class AppLocalizationsDe extends AppLocalizations {
       'Pro Serie oder Podcast über deren Detailseiten aktivieren';
 
   @override
+  String get autoDownloadEnabledFor => 'Turned on for';
+
+  @override
+  String get autoDownloadEnabledForNone => 'Nothing yet';
+
+  @override
+  String get autoDownloadSourceUnnamed => 'Not loaded yet';
+
+  @override
   String get keepNext => 'Nächste behalten';
 
   @override

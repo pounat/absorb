@@ -35,6 +35,71 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
   }
 
+  /// Everything auto-download is currently turned on for, resolved to a name
+  /// where we can. The stored set is bare ids with no type, so entries we
+  /// can't match against the cached series/playlist/collection/show data are
+  /// still returned unnamed rather than hidden - a toggle you can't see is a
+  /// toggle you can't turn off.
+  List<Map<String, String>> enabledAutoDownloadSources() {
+    final sources = <Map<String, String>>[];
+    for (final id in _rollingDownloadSeries) {
+      String? name;
+      var kind = 'unknown';
+
+      for (final raw in _playlists) {
+        if (raw is Map<String, dynamic> && raw['id'] == id) {
+          name = raw['name'] as String?;
+          kind = 'playlist';
+          break;
+        }
+      }
+      if (name == null) {
+        for (final raw in _collections) {
+          if (raw is Map<String, dynamic> && raw['id'] == id) {
+            name = raw['name'] as String?;
+            kind = 'collection';
+            break;
+          }
+        }
+      }
+      if (name == null) {
+        for (final raw in _series) {
+          if (raw is Map<String, dynamic> && raw['id'] == id) {
+            name = raw['name'] as String?;
+            kind = 'series';
+            break;
+          }
+        }
+      }
+      if (name == null) {
+        for (final cached in _absorbingItemCache.values) {
+          if (cached['id'] != id) continue;
+          final media = cached['media'] as Map<String, dynamic>? ?? const {};
+          final metadata =
+              media['metadata'] as Map<String, dynamic>? ?? const {};
+          name = metadata['title'] as String?;
+          if (name != null) kind = 'podcast';
+          break;
+        }
+      }
+
+      sources.add({
+        'id': id,
+        'kind': kind,
+        if (name != null && name.isNotEmpty) 'name': name,
+      });
+    }
+    sources.sort((a, b) {
+      final an = a['name'];
+      final bn = b['name'];
+      if (an == null && bn == null) return a['id']!.compareTo(b['id']!);
+      if (an == null) return 1;
+      if (bn == null) return -1;
+      return an.toLowerCase().compareTo(bn.toLowerCase());
+    });
+    return sources;
+  }
+
   Future<void> _loadRollingDownloadSeries() async {
     _rollingDownloadSeries =
         (await ScopedPrefs.getStringList('rolling_download_series')).toSet();

@@ -1776,6 +1776,15 @@ class AppLocalizationsIt extends AppLocalizations {
       'Enable per series, podcast, playlist or collection from their detail pages';
 
   @override
+  String get autoDownloadEnabledFor => 'Turned on for';
+
+  @override
+  String get autoDownloadEnabledForNone => 'Nothing yet';
+
+  @override
+  String get autoDownloadSourceUnnamed => 'Not loaded yet';
+
+  @override
   String get keepNext => 'Keep next';
 
   @override

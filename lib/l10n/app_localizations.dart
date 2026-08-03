@@ -3310,6 +3310,24 @@ abstract class AppLocalizations {
   /// **'Enable per series, podcast, playlist or collection from their detail pages'**
   String get autoDownloadSubtitle;
 
+  /// No description provided for @autoDownloadEnabledFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Turned on for'**
+  String get autoDownloadEnabledFor;
+
+  /// No description provided for @autoDownloadEnabledForNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet'**
+  String get autoDownloadEnabledForNone;
+
+  /// No description provided for @autoDownloadSourceUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not loaded yet'**
+  String get autoDownloadSourceUnnamed;
+
   /// No description provided for @keepNext.
   ///
   /// In en, this message translates to:

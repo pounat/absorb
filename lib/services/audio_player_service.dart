@@ -1695,10 +1695,32 @@ class AudioPlayerService extends ChangeNotifier {
       final progressKey = next['episodeId'] != null
           ? '$nextItemId-${next['episodeId']}'
           : nextItemId;
+      double localS = 0;
       final saved = await _progressSync.getLocal(progressKey);
       if (saved != null && !(saved['isFinished'] as bool? ?? false)) {
-        startS = (saved['currentTime'] as num?)?.toDouble() ?? 0;
+        localS = (saved['currentTime'] as num?)?.toDouble() ?? 0;
       }
+      startS = localS;
+      // Local storage can be empty or behind when the progress lives on the
+      // server (another device, fresh install). Server-ahead wins, same as
+      // the playItem position pick.
+      double serverS = 0;
+      if (_api != null && !_isOfflineMode) {
+        try {
+          final server = await _api!
+              .getItemProgress(progressKey)
+              .timeout(const Duration(seconds: 5), onTimeout: () => null);
+          final serverTime = (server?['currentTime'] as num?)?.toDouble() ?? 0;
+          final serverFinished = server?['isFinished'] as bool? ?? false;
+          if (!serverFinished) serverS = serverTime;
+          if (serverS > startS) startS = serverS;
+        } catch (_) {}
+      }
+      debugPrint(
+        '[PreBuffer] Resume pick for $progressKey: '
+        'local=${localS.toStringAsFixed(1)}s server=${serverS.toStringAsFixed(1)}s '
+        '-> start=${startS.toStringAsFixed(1)}s',
+      );
       next['startS'] = startS;
 
       // Build audio source for the next item.
@@ -1765,7 +1787,8 @@ class AudioPlayerService extends ChangeNotifier {
       }
       _preloadedNextBook = next;
       debugPrint(
-        '[PreBuffer] Pre-loaded next item: ${next['title']} ($nextItemId)',
+        '[PreBuffer] Pre-loaded next item: ${next['title']} ($nextItemId) '
+        'start=${startS.toStringAsFixed(1)}s',
       );
 
       if (Platform.isIOS) {
@@ -1848,6 +1871,7 @@ class AudioPlayerService extends ChangeNotifier {
     _autoQueueAdvancing = true;
     _beginAdvanceBuffering();
     debugPrint('[PreBuffer] Auto-queue advanced to ${next['title']}');
+    final oldTrackCount = _currentBookTrackCount;
 
     final oldItemId = _currentItemId;
     final oldEpisodeId = _currentEpisodeId;
@@ -1873,6 +1897,12 @@ class AudioPlayerService extends ChangeNotifier {
     _playbackSessionId = null;
     final startS = (next['startS'] as num?)?.toDouble() ?? 0;
     _lastKnownPositionSec = startS;
+    final newKey = _currentEpisodeId != null
+        ? '$_currentItemId-$_currentEpisodeId'
+        : _currentItemId;
+    debugPrint(
+      '[PreBuffer] Promoted $oldKey -> $newKey start=${startS.toStringAsFixed(1)}s',
+    );
     _lastNotifiedChapterIndex = -1;
     _currentBookTrackCount = 1;
     _preloadedNextBook = null;
@@ -1900,6 +1930,8 @@ class AudioPlayerService extends ChangeNotifier {
 
     if (Platform.isIOS) {
       unawaited(_iosAutoAdvanceKick());
+    } else {
+      unawaited(_finalizeAndroidAutoAdvance(oldTrackCount, startS));
     }
 
     // Notify LibraryProvider via auto-queue-specific callback (skipAutoAdvance
@@ -1914,6 +1946,39 @@ class AudioPlayerService extends ChangeNotifier {
 
     notifyListeners();
     _autoQueueAdvancing = false;
+  }
+
+  /// ExoPlayer walks into the pre-buffered book at position 0 with the
+  /// finished item's tracks still in front of it in the concat, so absolute
+  /// seeks map into the dead item (and clamp at its end) and the saved resume
+  /// position is never applied. Drop the old tracks so the book becomes
+  /// index 0, restore single-file offsets, and jump to where the user left it.
+  Future<void> _finalizeAndroidAutoAdvance(
+    int oldTrackCount,
+    double startS,
+  ) async {
+    try {
+      final concat = _activeConcatSource;
+      if (concat != null &&
+          oldTrackCount > 0 &&
+          concat.length > oldTrackCount) {
+        await concat.removeRange(0, oldTrackCount);
+        debugPrint(
+          '[PreBuffer] Dropped $oldTrackCount finished track(s); concat now ${concat.length}',
+        );
+      }
+      _trackStartOffsets = [0.0];
+      _currentTrackIndex = 0;
+      if (startS > 0) {
+        await _seekAbsolute(startS);
+        clearSeekTarget();
+        debugPrint(
+          '[PreBuffer] Resumed advanced book at ${startS.toStringAsFixed(1)}s',
+        );
+      }
+    } catch (e) {
+      debugPrint('[PreBuffer] Android advance finalize failed: $e');
+    }
   }
 
   // Set when native commitAdvance swaps in a foreign AVPlayerItem. just_audio
@@ -2292,6 +2357,11 @@ class AudioPlayerService extends ChangeNotifier {
       final trackEnd = _trackStartOffsets[i + 1];
       if (absoluteSeconds < trackEnd || i == _trackStartOffsets.length - 2) {
         final localOffset = absoluteSeconds - trackStart;
+        debugPrint(
+          '[Player] Seek ${absoluteSeconds.toStringAsFixed(1)}s -> track $i '
+          'at ${localOffset.toStringAsFixed(1)}s '
+          '(${_trackStartOffsets.length - 1} tracks)',
+        );
         // Update index BEFORE seeking so positionStream events use the right offset
         _currentTrackIndex = i;
         await _player!.seek(

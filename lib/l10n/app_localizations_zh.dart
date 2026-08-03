@@ -1740,6 +1740,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoDownloadSubtitle => '在系列或播客详情页单独启用';
 
   @override
+  String get autoDownloadEnabledFor => 'Turned on for';
+
+  @override
+  String get autoDownloadEnabledForNone => 'Nothing yet';
+
+  @override
+  String get autoDownloadSourceUnnamed => 'Not loaded yet';
+
+  @override
   String get keepNext => '保留接下来';
 
   @override

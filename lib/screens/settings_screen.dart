@@ -1124,6 +1124,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
     localeNotifier.value = picked.isEmpty ? null : Locale(picked);
   }
 
+  IconData _autoDownloadSourceIcon(String? kind) {
+    switch (kind) {
+      case 'playlist':
+        return Icons.playlist_play_rounded;
+      case 'collection':
+        return Icons.collections_bookmark_rounded;
+      case 'series':
+        return Icons.auto_stories_rounded;
+      case 'podcast':
+        return Icons.podcasts_rounded;
+      default:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  /// Auto-download is switched on per source from that source's own page, so
+  /// without this there is nowhere to see what it's on for - a list left
+  /// enabled keeps stocking itself with nothing pointing at it.
+  Widget _buildAutoDownloadSources(
+      LibraryProvider lib, AppLocalizations l, ColorScheme cs, TextTheme tt) {
+    final sources = lib.enabledAutoDownloadSources();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.autoDownloadEnabledFor,
+              style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+          const SizedBox(height: 4),
+          if (sources.isEmpty)
+            Text(l.autoDownloadEnabledForNone,
+                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))
+          else
+            ...sources.map((source) {
+              final name = source['name'];
+              return Row(children: [
+                Icon(_autoDownloadSourceIcon(source['kind']),
+                    size: 18, color: cs.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    name ?? l.autoDownloadSourceUnnamed,
+                    style: tt.bodySmall?.copyWith(
+                        color: name == null ? cs.onSurfaceVariant : cs.onSurface,
+                        fontStyle: name == null ? FontStyle.italic : null),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  tooltip: l.turnAutoDownloadOff,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => lib.disableRollingDownload(source['id']!),
+                ),
+              ]);
+            }),
+        ],
+      ),
+    );
+  }
+
   Widget _infoIcon(String title, String content) {
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
@@ -2921,6 +2983,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                       leading: Icon(Icons.downloading_rounded, color: cs.primary),
                     ),
+                    _buildAutoDownloadSources(lib, l, cs, tt),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
