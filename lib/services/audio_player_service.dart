@@ -4776,6 +4776,12 @@ class AudioPlayerService extends ChangeNotifier {
         if (sec % 5 == 0 && sec != _lastSyncSecond && _currentItemId != null) {
           _lastSyncSecond = sec;
           _saveProgressLocal(absolutePos);
+          // Seeks emit position events while paused too (auto-rewind on
+          // resume, scrubbing), and such a tick must not accrue or sync -
+          // the clocks are stale from the pause, so it would credit the
+          // paused span as listening. The pause handler already banked the
+          // playing tail.
+          if (_player?.playing != true) return;
           // Bank listening to durable storage every tick, decoupled from the
           // server push below, so an abrupt kill loses at most one tick.
           await _accrueListening(absolutePos);
