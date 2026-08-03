@@ -1228,7 +1228,14 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
     setState(() => _queueAutoDownload = value);
     if (sourceId != null) {
       if (value) {
-        await widget.lib.enableRollingDownload(sourceId);
+        final kind = _queueMode == 'playlist'
+            ? 'playlist'
+            : _queueMode == 'collection'
+                ? 'collection'
+                : _currentPodcastShowId != null
+                    ? 'podcast'
+                    : 'series';
+        await widget.lib.enableRollingDownload(sourceId, kind: kind);
       } else {
         await widget.lib.disableRollingDownload(sourceId);
       }

@@ -2101,6 +2101,34 @@ class ApiService {
   /// Get a single series with its books (paginated).
   /// If [onPageLoaded] is provided, it's called after each page with the
   /// cumulative results and total so the UI can show books as they arrive.
+  /// Series metadata only, for ids stored without a name. Tries the direct
+  /// series endpoint first and falls back to the per-library one for servers
+  /// that don't expose it.
+  Future<Map<String, dynamic>?> getSeriesInfo(
+    String seriesId, {
+    List<String> libraryIds = const [],
+  }) async {
+    try {
+      final resp = await _authGet(
+        Uri.parse('$_cleanBaseUrl/api/series/$seriesId'),
+      );
+      if (resp.statusCode == 200) {
+        return jsonDecode(resp.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    for (final libraryId in libraryIds) {
+      try {
+        final resp = await _authGet(
+          Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/series/$seriesId'),
+        );
+        if (resp.statusCode == 200) {
+          return jsonDecode(resp.body) as Map<String, dynamic>;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>?> getSeries(String seriesId, {String? libraryId, void Function(List<dynamic> books, int total, {double? totalDuration})? onPageLoaded}) async {
     try {
       Map<String, dynamic>? seriesMeta;

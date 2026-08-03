@@ -1139,24 +1139,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  bool _autoDownloadSourcesExpanded = false;
+
   /// Auto-download is switched on per source from that source's own page, so
   /// without this there is nowhere to see what it's on for - a list left
   /// enabled keeps stocking itself with nothing pointing at it.
   Widget _buildAutoDownloadSources(
       LibraryProvider lib, AppLocalizations l, ColorScheme cs, TextTheme tt) {
     final sources = lib.enabledAutoDownloadSources();
+    // Entries enabled before names were stored resolve against the server.
+    if (sources.any((s) => s['name'] == null)) {
+      lib.resolveAutoDownloadSourceNames();
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l.autoDownloadEnabledFor,
-              style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+          InkWell(
+            onTap: sources.isEmpty
+                ? null
+                : () => setState(() => _autoDownloadSourcesExpanded =
+                    !_autoDownloadSourcesExpanded),
+            child: Row(
+              children: [
+                Text(
+                    sources.isEmpty
+                        ? l.autoDownloadEnabledFor
+                        : '${l.autoDownloadEnabledFor} (${sources.length})',
+                    style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                if (sources.isNotEmpty)
+                  AnimatedRotation(
+                    turns: _autoDownloadSourcesExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 150),
+                    child: Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 20, color: cs.onSurfaceVariant),
+                  ),
+              ],
+            ),
+          ),
           const SizedBox(height: 4),
           if (sources.isEmpty)
             Text(l.autoDownloadEnabledForNone,
                 style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))
-          else
+          else if (_autoDownloadSourcesExpanded)
             ...sources.map((source) {
               final name = source['name'];
               return Row(children: [

@@ -264,7 +264,8 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
               lib.isRollingDownloadEnabled(widget.collectionId)
                   ? Icons.downloading_rounded
                   : Icons.download_outlined,
-              () => lib.toggleRollingDownload(widget.collectionId),
+              () => lib.toggleRollingDownload(widget.collectionId,
+                  name: name, kind: 'collection'),
               tooltip: lib.isRollingDownloadEnabled(widget.collectionId)
                   ? l.turnAutoDownloadOff
                   : l.turnAutoDownloadOn),

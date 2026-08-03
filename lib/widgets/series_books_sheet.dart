@@ -834,7 +834,8 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                     onTap: () async {
                       Navigator.pop(ctx);
                       final lib = context.read<LibraryProvider>();
-                      await lib.toggleRollingDownload(widget.seriesId!);
+                      await lib.toggleRollingDownload(widget.seriesId!,
+                          name: widget.seriesName, kind: 'series');
                       setState(() => _autoDownloadEnabled = lib.isRollingDownloadEnabled(widget.seriesId!));
                     }),
                 ActionPillData(icon: Icons.search_rounded, label: l.seriesBooksFindMissingTitle,
@@ -869,7 +870,8 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       );
       if (enable == true && mounted) {
         final lib = context.read<LibraryProvider>();
-        await lib.enableRollingDownload(seriesId);
+        await lib.enableRollingDownload(seriesId,
+            name: widget.seriesName, kind: 'series');
         setState(() => _autoDownloadEnabled = true);
       }
     }

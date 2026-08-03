@@ -395,7 +395,8 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
               lib.isRollingDownloadEnabled(widget.playlistId)
                   ? Icons.downloading_rounded
                   : Icons.download_outlined,
-              () => lib.toggleRollingDownload(widget.playlistId),
+              () => lib.toggleRollingDownload(widget.playlistId,
+                  name: name, kind: 'playlist'),
               tooltip: lib.isRollingDownloadEnabled(widget.playlistId)
                   ? l.turnAutoDownloadOff
                   : l.turnAutoDownloadOn),

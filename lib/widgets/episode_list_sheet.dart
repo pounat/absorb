@@ -441,7 +441,8 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       );
       if (enable == true && mounted) {
         final lib = context.read<LibraryProvider>();
-        await lib.enableRollingDownload(_itemId);
+        await lib.enableRollingDownload(_itemId,
+            name: _title, kind: 'podcast');
         setState(() => _autoDownloadEnabled = true);
       }
     }
@@ -525,7 +526,8 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                     onTap: () async {
                       Navigator.pop(ctx);
                       final lib = context.read<LibraryProvider>();
-                      await lib.toggleRollingDownload(_itemId);
+                      await lib.toggleRollingDownload(_itemId,
+                          name: _title, kind: 'podcast');
                       setState(() => _autoDownloadEnabled = lib.isRollingDownloadEnabled(_itemId));
                     }),
                 if (_itemId.isNotEmpty)

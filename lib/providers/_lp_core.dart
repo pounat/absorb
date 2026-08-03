@@ -6,8 +6,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   bool isRollingDownloadEnabled(String seriesOrShowId) =>
       _rollingDownloadSeries.contains(seriesOrShowId);
 
-  Future<void> enableRollingDownload(String seriesOrShowId) async {
+  Future<void> enableRollingDownload(String seriesOrShowId,
+      {String? name, String? kind}) async {
     _rollingDownloadSeries.add(seriesOrShowId);
+    _rememberRollingDownloadSource(seriesOrShowId, name: name, kind: kind);
     await _saveRollingDownloadSeries();
     notifyListeners();
     final player = AudioPlayerService();
@@ -23,17 +25,35 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
   Future<void> disableRollingDownload(String seriesOrShowId) async {
     _rollingDownloadSeries.remove(seriesOrShowId);
+    _rollingDownloadSourceNames.remove(seriesOrShowId);
+    unawaited(_saveRollingDownloadSourceNames());
     await _saveRollingDownloadSeries();
     notifyListeners();
   }
 
-  Future<void> toggleRollingDownload(String seriesOrShowId) async {
+  Future<void> toggleRollingDownload(String seriesOrShowId,
+      {String? name, String? kind}) async {
     if (_rollingDownloadSeries.contains(seriesOrShowId)) {
       await disableRollingDownload(seriesOrShowId);
     } else {
-      await enableRollingDownload(seriesOrShowId);
+      await enableRollingDownload(seriesOrShowId, name: name, kind: kind);
     }
   }
+
+  void _rememberRollingDownloadSource(String id, {String? name, String? kind}) {
+    final existing = _rollingDownloadSourceNames[id];
+    final mergedName =
+        (name != null && name.isNotEmpty) ? name : existing?['name'];
+    _rollingDownloadSourceNames[id] = {
+      if (mergedName != null) 'name': mergedName,
+      'kind': kind ?? existing?['kind'] ?? 'unknown',
+    };
+    unawaited(_saveRollingDownloadSourceNames());
+  }
+
+  Future<void> _saveRollingDownloadSourceNames() => ScopedPrefs.setString(
+      'rolling_download_source_names',
+      jsonEncode(_rollingDownloadSourceNames));
 
   /// Everything auto-download is currently turned on for, resolved to a name
   /// where we can. The stored set is bare ids with no type, so entries we
@@ -46,11 +66,21 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       String? name;
       var kind = 'unknown';
 
-      for (final raw in _playlists) {
-        if (raw is Map<String, dynamic> && raw['id'] == id) {
-          name = raw['name'] as String?;
-          kind = 'playlist';
-          break;
+      // Names stored at enable time (or by an earlier resolve) win; the
+      // live caches below only cover the currently selected library.
+      final stored = _rollingDownloadSourceNames[id];
+      if (stored != null) {
+        name = stored['name'];
+        kind = stored['kind'] ?? 'unknown';
+      }
+
+      if (name == null) {
+        for (final raw in _playlists) {
+          if (raw is Map<String, dynamic> && raw['id'] == id) {
+            name = raw['name'] as String?;
+            kind = 'playlist';
+            break;
+          }
         }
       }
       if (name == null) {
@@ -83,6 +113,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         }
       }
 
+      if (name != null && name.isNotEmpty && stored?['name'] == null) {
+        _rememberRollingDownloadSource(id, name: name, kind: kind);
+      }
+
       sources.add({
         'id': id,
         'kind': kind,
@@ -103,9 +137,95 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   Future<void> _loadRollingDownloadSeries() async {
     _rollingDownloadSeries =
         (await ScopedPrefs.getStringList('rolling_download_series')).toSet();
+    _rollingDownloadSourceNames = {};
+    final namesJson =
+        await ScopedPrefs.getString('rolling_download_source_names');
+    if (namesJson != null && namesJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(namesJson);
+        if (decoded is Map<String, dynamic>) {
+          for (final entry in decoded.entries) {
+            final value = entry.value;
+            if (value is Map) {
+              _rollingDownloadSourceNames[entry.key] = {
+                for (final e in value.entries)
+                  if (e.value is String) e.key.toString(): e.value as String,
+              };
+            }
+          }
+        }
+      } catch (_) {}
+    }
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey('rollingDownload')) {
       await prefs.remove('rollingDownload');
+    }
+  }
+
+  bool _resolvingAutoDownloadNames = false;
+
+  /// Fetch names for auto-download ids enabled before names were stored.
+  /// The set holds bare UUIDs with no type, so try each endpoint until one
+  /// answers: playlist, collection, series, then podcast item.
+  Future<void> resolveAutoDownloadSourceNames() async {
+    final api = _api;
+    if (api == null || isOffline || _resolvingAutoDownloadNames) return;
+    final unknown = _rollingDownloadSeries
+        .where((id) => _rollingDownloadSourceNames[id]?['name'] == null)
+        .toList();
+    if (unknown.isEmpty) return;
+    _resolvingAutoDownloadNames = true;
+    try {
+      final bookLibraryIds = <String>[];
+      for (final l in _libraries) {
+        if (l is Map && (l['mediaType'] as String? ?? 'book') != 'podcast') {
+          final libraryId = l['id'];
+          if (libraryId is String) bookLibraryIds.add(libraryId);
+        }
+      }
+      var resolvedAny = false;
+      for (final id in unknown) {
+        String? name;
+        String? kind;
+        final playlist = await api.getPlaylist(id);
+        if (playlist != null) {
+          name = playlist['name'] as String?;
+          kind = 'playlist';
+        }
+        if (name == null) {
+          final collection = await api.getCollection(id);
+          if (collection != null) {
+            name = collection['name'] as String?;
+            kind = 'collection';
+          }
+        }
+        if (name == null) {
+          final series =
+              await api.getSeriesInfo(id, libraryIds: bookLibraryIds);
+          if (series != null) {
+            name = series['name'] as String?;
+            kind = 'series';
+          }
+        }
+        if (name == null) {
+          final item = await api.getLibraryItem(id);
+          if (item != null) {
+            final media = item['media'] as Map<String, dynamic>? ?? const {};
+            final metadata =
+                media['metadata'] as Map<String, dynamic>? ?? const {};
+            name = metadata['title'] as String?;
+            kind = item['mediaType'] == 'podcast' ? 'podcast' : 'unknown';
+          }
+        }
+        if (name != null && name.isNotEmpty) {
+          debugPrint('[AutoDL] Resolved $id -> $kind "$name"');
+          _rememberRollingDownloadSource(id, name: name, kind: kind);
+          resolvedAny = true;
+        }
+      }
+      if (resolvedAny) notifyListeners();
+    } finally {
+      _resolvingAutoDownloadNames = false;
     }
   }
 
