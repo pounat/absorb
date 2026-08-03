@@ -269,10 +269,11 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     }
   }
 
-  Future<void> _clearActivatedQueueSource(String episodeId) async {
+  Future<void> _restoreActivatedQueueSource(
+      String episodeId, QueueModeSnapshot backup) async {
     final playlistId = _playlistSourceForEpisode(episodeId);
     if (playlistId != null && playlistId.isNotEmpty) {
-      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+      await PlayerSettings.restoreQueueModeIfPlaylistActive(playlistId, backup);
     }
   }
 
@@ -363,6 +364,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     }
 
     final lib = context.read<LibraryProvider>();
+    final queueModeBackup = await PlayerSettings.queueModeSnapshot();
     await _activateQueueSource(episodeId);
     final player = AudioPlayerService();
     final error = await player.playItem(
@@ -384,7 +386,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     if (error == null) {
       unawaited(lib.syncQueueAutoDownloads());
     } else {
-      unawaited(_clearActivatedQueueSource(episodeId));
+      unawaited(_restoreActivatedQueueSource(episodeId, queueModeBackup));
     }
     if (mounted) {
       if (error != null) showErrorToast(context, error);

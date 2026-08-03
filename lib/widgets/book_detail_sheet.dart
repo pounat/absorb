@@ -2097,13 +2097,14 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
   }
 
-  Future<void> _clearActivatedQueueSource() async {
+  Future<void> _restoreActivatedQueueSource(QueueModeSnapshot backup) async {
     final playlistId = widget.sourcePlaylistId;
     final collectionId = widget.sourceCollectionId;
     if (playlistId != null && playlistId.isNotEmpty) {
-      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+      await PlayerSettings.restoreQueueModeIfPlaylistActive(playlistId, backup);
     } else if (collectionId != null && collectionId.isNotEmpty) {
-      await PlayerSettings.clearQueueModeCollectionIfActive(collectionId);
+      await PlayerSettings.restoreQueueModeIfCollectionActive(
+          collectionId, backup);
     }
   }
 
@@ -2128,6 +2129,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
     final api = auth.apiService;
     if (api == null) return;
+    final queueModeBackup = await PlayerSettings.queueModeSnapshot();
     await _activateQueueSource();
 
     // Pop sheets and switch tab BEFORE starting playback. Otherwise the
@@ -2138,7 +2140,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
     final error = await player.playItem(api: api, itemId: widget.itemId, title: title, author: author, coverUrl: coverUrl, totalDuration: duration, chapters: chapters, libraryId: _item?['libraryId'] as String?);
     if (error != null) {
-      unawaited(_clearActivatedQueueSource());
+      unawaited(_restoreActivatedQueueSource(queueModeBackup));
       final ctx = rootNavigatorKey.currentContext;
       if (ctx != null) showErrorToast(ctx, error);
     } else {

@@ -3089,11 +3089,12 @@ class AudioPlayerService extends ChangeNotifier {
     final wasPlaying = _player!.playing;
     final currentAbsolutePos = position; // use absolute position getter
     final currentSpeed = _player!.speed;
-    final reportingCutoverAt = DateTime.now();
-    final finalStreamingSeconds = reportingCutoverAt
-        .difference(_lastServerSync)
-        .inSeconds
-        .clamp(0, 300);
+    // Paused means the pause sync already reported the tail and the span
+    // since then is idle time, not listening (same phantom-time hazard the
+    // resume path defends against by resetting _lastServerSync).
+    final finalStreamingSeconds = !wasPlaying
+        ? 0
+        : DateTime.now().difference(_lastServerSync).inSeconds.clamp(0, 300);
 
     debugPrint(
       '[Player] Hot-swapping to local files at ${currentAbsolutePos.inSeconds}s',

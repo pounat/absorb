@@ -4,6 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'scoped_prefs.dart';
 import '../widgets/card_button_config.dart';
 
+typedef QueueModeSnapshot = ({
+  String bookMode,
+  String podcastMode,
+  String? playlistId,
+  String? collectionId,
+  String? collectionName,
+});
+
 // ─── Auto-rewind settings ───
 
 class AutoRewindSettings {
@@ -404,6 +412,54 @@ class PlayerSettings {
         _notify();
         return true;
       });
+
+  /// Snapshot of the queue-mode settings, taken before a play activates a
+  /// playlist/collection queue so a failed play can put them back.
+  static Future<QueueModeSnapshot> queueModeSnapshot() async => (
+        bookMode: await getBookQueueMode(),
+        podcastMode: await getPodcastQueueMode(),
+        playlistId: await ScopedPrefs.getString('queuePlaylistId'),
+        collectionId: await ScopedPrefs.getString('queueCollectionId'),
+        collectionName: await ScopedPrefs.getString('queueCollectionName'),
+      );
+
+  /// Restore a [queueModeSnapshot] if the given playlist queue is still the
+  /// active one - same guard as [clearQueueModePlaylistIfActive], so a mode
+  /// the user changed again in the meantime is left alone.
+  static Future<bool> restoreQueueModeIfPlaylistActive(
+          String playlistId, QueueModeSnapshot snapshot) =>
+      _serializeQueueModeMutation(() async {
+        if (await getBookQueueMode() != 'playlist' ||
+            await getPodcastQueueMode() != 'playlist' ||
+            await getQueuePlaylistId() != playlistId) {
+          return false;
+        }
+        await _applyQueueModeSnapshot(snapshot);
+        return true;
+      });
+
+  static Future<bool> restoreQueueModeIfCollectionActive(
+          String collectionId, QueueModeSnapshot snapshot) =>
+      _serializeQueueModeMutation(() async {
+        if (await getBookQueueMode() != 'collection' ||
+            await getQueueCollectionId() != collectionId) {
+          return false;
+        }
+        await _applyQueueModeSnapshot(snapshot);
+        return true;
+      });
+
+  static Future<void> _applyQueueModeSnapshot(QueueModeSnapshot s) async {
+    Future<void> put(String key, String? value) => value == null
+        ? ScopedPrefs.remove(key)
+        : ScopedPrefs.setString(key, value);
+    await put('bookQueueMode', s.bookMode);
+    await put('podcastQueueMode', s.podcastMode);
+    await put('queuePlaylistId', s.playlistId);
+    await put('queueCollectionId', s.collectionId);
+    await put('queueCollectionName', s.collectionName);
+    _notify();
+  }
 
   /// One-time migration from the old boolean auto-play settings to queueMode.
   static Future<void> migrateQueueMode() async {

@@ -1214,9 +1214,14 @@ class LibraryScreenState extends State<LibraryScreen>
   void _loadOfflinePage(LibraryProvider lib) {
     final l = AppLocalizations.of(context)!;
     final isPodcast = lib.isPodcastLibrary;
-    final downloads = DownloadService().downloadedItems
-        .where((dl) => (dl.itemId.length > 36) == isPodcast)
-        .toList();
+    final selectedId = lib.selectedLibraryId;
+    final downloads = DownloadService().downloadedItems.where((dl) {
+      final libraryId = dl.libraryId;
+      if (libraryId != null && libraryId.isNotEmpty && selectedId != null) {
+        return libraryId == selectedId;
+      }
+      return (dl.itemId.length > 36) == isPodcast;
+    }).toList();
 
     final items = <Map<String, dynamic>>[];
     for (final dl in downloads) {

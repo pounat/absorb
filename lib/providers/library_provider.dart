@@ -145,6 +145,7 @@ class LibraryProvider extends ChangeNotifier
 
       if (isNewUser || isFreshLogin) {
         _libraries = [];
+        _librariesFromCache = false;
         _selectedLibraryId = null;
         _personalizedSections = [];
         _series = [];
@@ -255,6 +256,7 @@ class LibraryProvider extends ChangeNotifier
       _lastAuthKey = null;
       _lastUseLocalServer = null;
       _libraries = [];
+      _librariesFromCache = false;
       _personalizedSections = [];
       _series = [];
       _progressMap = {};
@@ -294,18 +296,22 @@ class LibraryProvider extends ChangeNotifier
     notifyListeners();
 
     try {
-      _libraries = await _api!.getLibraries();
-      debugPrint(
-          '[Library] loadLibraries: got ${_libraries.length} libraries');
-      await LibraryCache.save(_libraries);
+      final fetched = await _api!.getLibraries();
+      debugPrint('[Library] loadLibraries: got ${fetched.length} libraries');
 
-      if (_libraries.isNotEmpty) {
+      if (fetched.isNotEmpty) {
+        _libraries = fetched;
+        _librariesFromCache = false;
+        await LibraryCache.save(fetched);
         await _restoreSelectedLibrary();
 
         await _loadSectionPrefs();
         await loadPersonalizedView(force: true);
       } else {
-        _selectedLibraryId = null;
+        // getLibraries swallows network/auth failures and returns an empty
+        // list, so empty is indistinguishable from a failed fetch. Keep the
+        // current list, cache, and selection instead of wiping them.
+        await _restoreCachedLibraries();
       }
     } catch (e) {
       if (_isLikelyNetworkError(e)) {
@@ -328,6 +334,7 @@ class LibraryProvider extends ChangeNotifier
     final cached = await LibraryCache.load();
     if (cached.isEmpty) return;
     _libraries = cached;
+    _librariesFromCache = true;
     await _restoreSelectedLibrary();
     debugPrint(
         '[Library] Restored ${_libraries.length} cached libraries for offline use');

@@ -18,6 +18,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       _checkRollingDownloads(playingKey);
       unawaited(_checkQueueAutoDownloads(playingKey));
     }
+    unawaited(_catchUpListRollingDownloads(onlyListId: seriesOrShowId));
   }
 
   Future<void> disableRollingDownload(String seriesOrShowId) async {
@@ -146,7 +147,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         ProgressSyncService().flushOfflineListeningTime(api: _api!);
         LocalSessionService().flushPending(api: _api!);
       }
-      if (_selectedLibraryId == null) {
+      if (_selectedLibraryId == null || _librariesFromCache) {
         (this as LibraryProvider).loadLibraries();
       } else {
         (this as LibraryProvider).refresh();
@@ -247,7 +248,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         ProgressSyncService().flushOfflineListeningTime(api: _api!);
         LocalSessionService().flushPending(api: _api!);
       }
-      if (_selectedLibraryId == null) {
+      if (_selectedLibraryId == null || _librariesFromCache) {
         (this as LibraryProvider).loadLibraries();
       } else {
         (this as LibraryProvider).refresh();
@@ -1226,7 +1227,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         : player.currentItemId;
     if (key == playingKey && player.hasBook) {
       if (mp['isFinished'] == true && !_resetItems.contains(key)) {
-        (this as _AbsorbingMixin).markFinishedLocally(key, skipAutoAdvance: true);
+        (this as _AbsorbingMixin)
+            .markFinishedLocally(key, skipAutoAdvance: true, fromRemote: true);
       } else if (mp['isFinished'] != true) {
         _progressMap[key] = mp;
         _localProgressOverrides.remove(key);
@@ -2230,6 +2232,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         _checkRollingDownloads(latestBookKey);
       }
     }
+
+    await _catchUpListRollingDownloads();
   }
 
   void _checkRollingDownloads(String playingKey) async {
@@ -2259,7 +2263,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       final activeShowId = activeKey != null && activeKey.length > 36
           ? activeKey.substring(0, 36)
           : null;
-      final activeQueueOwnsWindow = activeQueueMode != 'off' &&
+      // Only an auto_next queue follows this same show; playlist and
+      // collection queues plan their own list's window instead, so they
+      // must not suppress the show's rolling download.
+      final activeQueueOwnsWindow = activeQueueMode == 'auto_next' &&
           resolveQueueAutoDownloadEnabled(
             queueMode: activeQueueMode,
             globalEnabled: globalQueueAutoDownload,
@@ -2304,7 +2311,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           }
         }
       }
-      final activeQueueOwnsWindow = activeQueueMode != 'off' &&
+      final activeQueueOwnsWindow = activeQueueMode == 'auto_next' &&
           resolveQueueAutoDownloadEnabled(
             queueMode: activeQueueMode,
             globalEnabled: globalQueueAutoDownload,
@@ -2369,8 +2376,13 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       return episodeId == null ? itemId : '$itemId-$episodeId';
     }
 
+    // Plans anchored to live playback abort when the user moves on; plans
+    // from catch-up or an idle toggle have no playback to go stale against.
+    final anchoredToPlayback = playingNow() == playingKey;
     bool isStale() =>
-        _api == null || isOffline || playingNow() != playingKey;
+        _api == null ||
+        isOffline ||
+        (anchoredToPlayback && playingNow() != playingKey);
     Future<bool> settingsStillMatch() async =>
         !isStale() && await PlayerSettings.getRollingDownloadCount() == count;
 
@@ -2404,9 +2416,72 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         count: count,
         api: api,
         isStale: isStale,
-        settingsStillMatch: settingsStillMatch,
+        settingsStillMatch: () async =>
+            await settingsStillMatch() &&
+            _rollingDownloadSeries.contains(source.id),
         logLabel: '${source.kind}=${source.id}',
       );
+    }
+  }
+
+  /// Plan list windows without a playback anchor: on launch/reconnect and
+  /// when a list's toggle is turned on while idle. Anchors at the member
+  /// with the most recent unfinished progress, or the first unfinished
+  /// member of a list that was never started. A list whose member is
+  /// currently playing is skipped - the playback-anchored check owns it.
+  Future<void> _catchUpListRollingDownloads({String? onlyListId}) async {
+    if (_api == null || isOffline || _rollingDownloadSeries.isEmpty) return;
+    final count = await PlayerSettings.getRollingDownloadCount();
+    if (count <= 0) return;
+    final self = this as LibraryProvider;
+
+    final player = AudioPlayerService();
+    final playingItemId = player.currentItemId;
+    final playingKey = playingItemId == null
+        ? null
+        : player.currentEpisodeId == null
+            ? playingItemId
+            : '$playingItemId-${player.currentEpisodeId}';
+
+    final anchors = <String>{};
+    void collectAnchor(String? id, List<Map<String, dynamic>> items) {
+      if (id == null || !_rollingDownloadSeries.contains(id)) return;
+      if (onlyListId != null && id != onlyListId) return;
+      String? latestKey;
+      num latestUpdate = -1;
+      String? firstUnfinishedKey;
+      for (final item in items) {
+        final key = self._playlistItemKey(item);
+        if (key.isEmpty) continue;
+        if (key == playingKey) return;
+        final progress = _progressMap[key];
+        if (progress?['isFinished'] == true) continue;
+        firstUnfinishedKey ??= key;
+        final lastUpdate = progress?['lastUpdate'] as num? ?? 0;
+        if (progress != null && lastUpdate > latestUpdate) {
+          latestUpdate = lastUpdate;
+          latestKey = key;
+        }
+      }
+      final anchor = latestKey ?? firstUnfinishedKey;
+      if (anchor != null) anchors.add(anchor);
+    }
+
+    for (final raw in _playlists) {
+      if (raw is! Map<String, dynamic>) continue;
+      collectAnchor(
+          raw['id'] as String?,
+          (raw['items'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .toList());
+    }
+    for (final raw in _collections) {
+      if (raw is! Map<String, dynamic>) continue;
+      collectAnchor(raw['id'] as String?, self._collectionItems(raw));
+    }
+
+    for (final anchor in anchors) {
+      await _checkListRollingDownloads(anchor, count);
     }
   }
 

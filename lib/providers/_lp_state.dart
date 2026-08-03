@@ -5,6 +5,7 @@ mixin _StateMixin on ChangeNotifier {
   ApiService? get _api => _auth?.apiService;
 
   List<dynamic> _libraries = [];
+  bool _librariesFromCache = false;
   String? _selectedLibraryId;
   List<dynamic> _personalizedSections = [];
   List<dynamic> _series = [];

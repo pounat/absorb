@@ -527,7 +527,9 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
   }
 
   void markFinishedLocally(String itemId,
-      {bool skipRefresh = false, bool skipAutoAdvance = false}) {
+      {bool skipRefresh = false,
+      bool skipAutoAdvance = false,
+      bool fromRemote = false}) {
     _resetItems.remove(itemId);
     final existing = _progressMap[itemId] ?? {};
     if (itemId.length > 36 && existing['isFinished'] != true) {
@@ -577,7 +579,9 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     _checkRollingDownloads(itemId);
     unawaited(_catchUpQueueAutoDownloads());
 
-    if (DownloadService().isDownloaded(itemId)) {
+    // The delete-absorbed-downloads setting promises that finishing an item
+    // on the web or another device never deletes the download on this one.
+    if (!fromRemote && DownloadService().isDownloaded(itemId)) {
       PlayerSettings.getRollingDownloadDeleteFinished().then((delete) {
         if (!delete) return;
         DownloadService().deleteDownload(itemId, skipStopCheck: true);
