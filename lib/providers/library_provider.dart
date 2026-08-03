@@ -333,7 +333,10 @@ class LibraryProvider extends ChangeNotifier
     if (_libraries.isNotEmpty) return;
     final cached = await LibraryCache.load();
     if (cached.isEmpty) return;
-    _libraries = cached;
+    // Widened copy: handing the cache's List<Map> to the List<dynamic> field
+    // directly would tighten the runtime type and blow up firstWhere calls
+    // whose orElse returns null.
+    _libraries = List<dynamic>.from(cached);
     _librariesFromCache = true;
     await _restoreSelectedLibrary();
     debugPrint(
@@ -417,12 +420,12 @@ class LibraryProvider extends ChangeNotifier
   }
 
   bool isPodcastLibraryId(String libraryId) {
-    final library = _libraries.firstWhere(
-      (l) => l['id'] == libraryId,
-      orElse: () => null,
-    );
-    if (library is! Map<String, dynamic>) return false;
-    return (library['mediaType'] as String? ?? 'book') == 'podcast';
+    for (final l in _libraries) {
+      if (l is Map && l['id'] == libraryId) {
+        return (l['mediaType'] as String? ?? 'book') == 'podcast';
+      }
+    }
+    return false;
   }
 
   /// Track the last non-podcast library so the Home/Library tabs know where
