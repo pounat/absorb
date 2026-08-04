@@ -276,6 +276,14 @@ class AuthProvider extends ChangeNotifier {
         serverUrl: sessionServer,
         username: sessionUsername,
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+          'token_saved_at', DateTime.now().millisecondsSinceEpoch);
+      debugPrint(
+        '[Auth] Rotated tokens persisted: '
+        'access=${ApiService.tokenFp(_accessToken)} '
+        'refresh=${ApiService.tokenFp(_refreshToken)}',
+      );
     } catch (e) {
       debugPrint('[Auth] Failed to persist refreshed tokens: $e');
     }
@@ -333,7 +341,20 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
     _authExpiryInProgress = true;
-    debugPrint('[Auth] Token refresh failed, forcing re-login');
+    debugPrint(
+      '[Auth] Token refresh failed, forcing re-login '
+      '(access=${ApiService.tokenFp(_accessToken)} '
+      'refresh=${ApiService.tokenFp(_refreshToken)})',
+    );
+    unawaited(SharedPreferences.getInstance().then((prefs) {
+      final savedAt = prefs.getInt('token_saved_at');
+      if (savedAt != null) {
+        final age = Duration(
+            milliseconds: DateTime.now().millisecondsSinceEpoch - savedAt);
+        debugPrint(
+            '[Auth] Expired session tokens were last persisted ${age.inHours}h ago');
+      }
+    }));
     // Show a message to the user
     final ctx = rootNavigatorKey.currentContext;
     final l = ctx != null ? AppLocalizations.of(ctx) : null;
@@ -373,8 +394,13 @@ class AuthProvider extends ChangeNotifier {
       // return them, so without this they'd stay empty until next login.
       await _restoreEreaderDevices();
 
+      final tokenSavedAt = prefs.getInt('token_saved_at');
+      final tokenAge = tokenSavedAt == null
+          ? 'unknown'
+          : '${Duration(milliseconds: DateTime.now().millisecondsSinceEpoch - tokenSavedAt).inHours}h';
       debugPrint(
-        '[Auth] saved credentials: url=${savedUrl != null}, token=${savedToken != null}, refreshToken=${savedRefreshToken != null}',
+        '[Auth] saved credentials: url=${savedUrl != null}, token=${savedToken != null}, refreshToken=${savedRefreshToken != null} '
+        '(access=${ApiService.tokenFp(savedToken)}, refresh=${ApiService.tokenFp(savedRefreshToken)}, saved $tokenAge ago)',
       );
 
       if (savedUrl != null && savedToken != null) {

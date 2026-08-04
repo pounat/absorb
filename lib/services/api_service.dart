@@ -239,6 +239,14 @@ class ApiService {
     return _httpClient?.delete(url, headers: headers) ?? http.delete(url, headers: headers);
   }
 
+  /// Loggable token identity: length plus the signature tail, enough to tell
+  /// token A from token B across a log without exposing the credential.
+  static String tokenFp(String? token) {
+    if (token == null || token.isEmpty) return 'none';
+    final tail = token.length <= 8 ? token : token.substring(token.length - 8);
+    return '${token.length}:$tail';
+  }
+
   Future<bool> _adoptPersistedTokens() async {
     final loader = loadPersistedTokens;
     if (loader == null) return false;
@@ -254,6 +262,10 @@ class ApiService {
       }
       final adopted = _accessToken != previousAccess;
       if (adopted) {
+        debugPrint(
+          '[API] Adopted persisted tokens: access=${tokenFp(_accessToken)} '
+          'refresh=${tokenFp(_refreshToken)}',
+        );
         await _notifyTokensRefreshed();
       }
       return adopted;
@@ -266,6 +278,10 @@ class ApiService {
   Future<void> _notifyTokensRefreshed() async {
     try {
       await onTokensRefreshed?.call(_accessToken, _refreshToken);
+      debugPrint(
+        '[API] Tokens handed to persistence: access=${tokenFp(_accessToken)} '
+        'refresh=${tokenFp(_refreshToken)}',
+      );
     } catch (e) {
       debugPrint('[API] Failed to persist refreshed tokens: $e');
     }
@@ -299,13 +315,23 @@ class ApiService {
           if (!kIsWeb) 'User-Agent': userAgent,
         },
       ).timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) return false;
+      if (response.statusCode != 200) {
+        debugPrint(
+          '[API] Proactive token refresh failed: ${response.statusCode} '
+          '(refresh=${tokenFp(refreshToken)})',
+        );
+        return false;
+      }
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final tokens = AuthTokens.fromResponse(data);
       if (tokens.accessToken == null || tokens.refreshToken == null) return false;
       _accessToken = tokens.accessToken!;
       _refreshToken = tokens.refreshToken!;
       await _notifyTokensRefreshed();
+      debugPrint(
+        '[API] Proactive token refresh ok -> '
+        'refresh=${tokenFp(_refreshToken)}',
+      );
       return true;
     } catch (_) {
       return false;
@@ -322,8 +348,15 @@ class ApiService {
     }
 
     // If a refresh is already in progress, wait for it
-    if (_refreshCompleter != null) return _refreshCompleter!.future;
+    if (_refreshCompleter != null) {
+      debugPrint('[API] Token refresh joining in-flight attempt');
+      return _refreshCompleter!.future;
+    }
 
+    debugPrint(
+      '[API] Token refresh start: access=${tokenFp(_accessToken)} '
+      'refresh=${tokenFp(_refreshToken)}',
+    );
     _refreshCompleter = Completer<_RefreshOutcome>();
     final mutationLock = await _acquireTokenMutationLock();
     try {
@@ -358,7 +391,11 @@ class ApiService {
               _accessToken = newAccess;
               if (newRefresh != null) _refreshToken = newRefresh;
               await _notifyTokensRefreshed();
-              debugPrint('[API] Token refreshed successfully');
+              debugPrint(
+                '[API] Token refreshed successfully -> '
+                'access=${tokenFp(newAccess)} refresh=${tokenFp(newRefresh)} '
+                'rotated=${newRefresh != null && newRefresh != refreshTokenSent}',
+              );
               _refreshCompleter!.complete(_RefreshOutcome.refreshed);
               return _RefreshOutcome.refreshed;
             }
@@ -370,7 +407,10 @@ class ApiService {
               return _RefreshOutcome.refreshed;
             }
             if (_refreshToken != refreshTokenSent && attempt == 0) continue;
-            debugPrint('[API] Token refresh rejected: ${response.statusCode}');
+            debugPrint(
+              '[API] Token refresh rejected: ${response.statusCode} '
+              '(sent refresh=${tokenFp(refreshTokenSent)})',
+            );
             _refreshCompleter!.complete(_RefreshOutcome.rejected);
             return _RefreshOutcome.rejected;
           }
