@@ -2223,22 +2223,6 @@
   "adminMissingBadge": "Fehlend",
   "adminInvalidBadge": "Ungültig",
   "adminMissingDeleteTitle": "Eintrag entfernen",
-  "adminMissingDeleteOneContent": "\"{title}\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.",
-  "@adminMissingDeleteOneContent": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
-  "adminMissingDeleteManyContent": "\"{count}\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.",
-  "@adminMissingDeleteManyContent": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "adminMissingDeleteCount": "\"{count}\" löschen?",
   "@adminMissingDeleteCount": {
     "placeholders": {
