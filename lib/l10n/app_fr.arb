@@ -918,7 +918,6 @@
   "autoDownload": "Téléchargement automatique",
   "keepNext": "Garder le suivant",
   "keepNextInfoTitle": "Garder le suivant",
-  "keepNextInfoContent": "Le nombre d’éléments à conserver téléchargés, y compris celui que vous écoutez actuellement. Par exemple, « Garder les 3 suivants » signifie que le livre en cours plus les 2 suivants dans la série ou le podcast resteront téléchargés.",
   "deleteAbsorbedDownloads": "Supprimer les téléchargements absorbés",
   "deleteAbsorbedDownloadsInfoTitle": "Supprimer les téléchargements absorbés",
   "deleteAbsorbedOnSubtitle": "Les éléments achevés sont supprimés pour libérer de l'espace",
