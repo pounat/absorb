@@ -43,6 +43,7 @@ import 'html_description.dart';
 import 'metadata_lookup_sheet.dart';
 import 'playlist_picker_sheet.dart';
 import 'collection_picker_sheet.dart';
+import 'delete_confirm_dialog.dart';
 import 'absorb_wave_icon.dart';
 import 'stackable_sheet.dart';
 import 'ebook_router.dart';
@@ -1139,6 +1140,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         }
         if (auth.canUpdateMetadata && !lib.isOffline) {
           add(Icons.edit_rounded, l.edit, () => _openEditPage(auth, title, isEbookOnly));
+        }
+        if (auth.canDelete && !lib.isOffline) {
+          add(Icons.delete_outline_rounded, l.deleteFromServerAction,
+            () => _deleteFromServer(context, auth, lib, title), tint: cs.error);
         }
         if (includeOpenDetails) {
           add(Icons.open_in_full_rounded, l.bookDetailsLabel, () {
@@ -2270,6 +2275,42 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         serverSuccess ? l.progressResetFreshStart : l.resetMayNotHaveSynced,
         icon: serverSuccess ? Icons.restart_alt_rounded : Icons.warning_amber_rounded,
       );
+    }
+  }
+
+  /// Delete the item on the server, optionally taking its files with it.
+  /// Needs the `delete` permission — the server answers 403 without it.
+  Future<void> _deleteFromServer(BuildContext context, AuthProvider auth,
+      LibraryProvider lib, String title) async {
+    final l = AppLocalizations.of(context)!;
+    final api = auth.apiService;
+    if (api == null) return;
+    final choice = await showDeleteConfirmDialog(
+      context,
+      title: l.deleteFromServerTitle,
+      message: l.deleteFromServerContent(title),
+    );
+    if (choice == null || !mounted) return;
+    // Grab these before the sheet goes: the toast needs an overlay that
+    // outlives it, and the pop needs the navigator the sheet sits on.
+    final navigator = Navigator.of(context);
+    final rootNavigator = rootNavigatorKey.currentState;
+    final status = await api.deleteLibraryItem(widget.itemId, hard: choice.hardDelete);
+    if (!mounted) return;
+    if (status == 200) {
+      final player = AudioPlayerService();
+      if (player.currentItemId == widget.itemId) {
+        await player.stopWithoutSaving();
+      }
+      await lib.removeFromAbsorbing(widget.itemId);
+      if (navigator.canPop()) navigator.pop();
+      await lib.refresh();
+      showNavigatorOverlayToast(rootNavigator, l.deletedFromServer(title),
+        icon: Icons.delete_outline_rounded);
+    } else if (status == 403) {
+      showOverlayToast(context, l.deletePermissionRequired, icon: Icons.lock_outline_rounded);
+    } else {
+      showOverlayToast(context, l.deleteFromServerFailed, icon: Icons.error_outline_rounded);
     }
   }
 

@@ -156,6 +156,12 @@ class PlayerSettings {
   static Future<bool> getUpcomingReleasesSortByDate() => _get('upcomingReleasesSortByDate', false);
   static Future<void> setUpcomingReleasesSortByDate(bool value) => _set('upcomingReleasesSortByDate', value);
 
+  /// Last state of the "delete files from the server" checkbox in the delete
+  /// confirm. Starts ticked and remembers what you picked, same as the web UI
+  /// (which keeps `softDeleteDefault` in localStorage).
+  static Future<bool> getDeleteFromFileSystem() => _get('deleteFromFileSystem', true);
+  static Future<void> setDeleteFromFileSystem(bool value) => _set('deleteFromFileSystem', value);
+
   static Future<bool> getWifiOnlyDownloads() => _get('wifiOnlyDownloads', false);
   static Future<void> setWifiOnlyDownloads(bool value) => _set('wifiOnlyDownloads', value);
 

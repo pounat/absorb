@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../services/socket_service.dart';
 import 'podcast_edit_screen.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/delete_confirm_dialog.dart';
 import '../widgets/html_description.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
@@ -1076,15 +1077,15 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
 
   Future<void> _removeShow() async {
     final l = AppLocalizations.of(context)!;
-    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(l.adminPodcastsRemoveShowTitle),
-      content: Text(l.adminPodcastsRemoveShowContent(_title)),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
-        TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.remove, style: TextStyle(color: Colors.red.shade300)))],
-    ));
-    if (yes != true) return;
+    final choice = await showDeleteConfirmDialog(
+      context,
+      title: l.adminPodcastsRemoveShowTitle,
+      message: l.adminPodcastsRemoveShowContent(_title),
+      confirmLabel: l.remove,
+    );
+    if (choice == null || !mounted) return;
     final api = context.read<AuthProvider>().apiService; if (api == null) return;
-    final status = await api.deleteLibraryItem(_podcastId);
+    final status = await api.deleteLibraryItem(_podcastId, hard: choice.hardDelete);
     if (mounted) {
       final l2 = AppLocalizations.of(context)!;
       if (status == 200) { _msg(l2.adminPodcastsRemovedShow(_title)); widget.onChanged(); Navigator.pop(context); }
@@ -1189,16 +1190,15 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
 
   Future<void> _deleteEpisode(String episodeId, String epTitle) async {
     final l = AppLocalizations.of(context)!;
-    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(l.adminPodcastsDeleteEpisodeTitle),
-      content: Text(l.adminPodcastsDeleteEpisodeContent(epTitle)),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
-        TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.delete, style: TextStyle(color: Colors.red.shade300)))],
-    ));
-    if (yes != true) return;
+    final choice = await showDeleteConfirmDialog(
+      context,
+      title: l.adminPodcastsDeleteEpisodeTitle,
+      message: l.adminPodcastsDeleteEpisodeContent(epTitle),
+    );
+    if (choice == null || !mounted) return;
     final api = context.read<AuthProvider>().apiService; if (api == null) return;
     setState(() => _deleting.add(episodeId));
-    final status = await api.deletePodcastEpisode(_podcastId, episodeId);
+    final status = await api.deletePodcastEpisode(_podcastId, episodeId, hard: choice.hardDelete);
     if (mounted) {
       final l2 = AppLocalizations.of(context)!;
       setState(() => _deleting.remove(episodeId));
@@ -1328,22 +1328,19 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
     if (_selectedDownloadedIds.isEmpty) return;
     final count = _selectedDownloadedIds.length;
     final l = AppLocalizations.of(context)!;
-    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(l.adminPodcastsDeleteEpisodesTitle),
-      content: Text(l.adminPodcastsDeleteEpisodesContent(count)),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
-        TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.delete, style: TextStyle(color: Colors.red.shade300))),
-      ],
-    ));
-    if (yes != true) return;
+    final choice = await showDeleteConfirmDialog(
+      context,
+      title: l.adminPodcastsDeleteEpisodesTitle,
+      message: l.adminPodcastsDeleteEpisodesContent(count),
+    );
+    if (choice == null || !mounted) return;
     final api = context.read<AuthProvider>().apiService; if (api == null) return;
     final ids = Set<String>.from(_selectedDownloadedIds);
     setState(() => _selectedDownloadedIds.clear());
     int deleted = 0;
     bool forbidden = false;
     for (final id in ids) {
-      final status = await api.deletePodcastEpisode(_podcastId, id);
+      final status = await api.deletePodcastEpisode(_podcastId, id, hard: choice.hardDelete);
       if (status == 200) deleted++;
       else if (status == 403) { forbidden = true; break; }
     }

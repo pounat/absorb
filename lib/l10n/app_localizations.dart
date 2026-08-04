@@ -6124,6 +6124,54 @@ abstract class AppLocalizations {
   /// **'Delete permission required. Ask the root admin to grant you the delete permission.'**
   String get deletePermissionRequired;
 
+  /// No description provided for @deleteFilesCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Also delete the files on the server'**
+  String get deleteFilesCheckbox;
+
+  /// No description provided for @deleteFilesCheckedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The files are deleted from the server for good.'**
+  String get deleteFilesCheckedHint;
+
+  /// No description provided for @deleteFilesUncheckedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The files stay on the server, so the next library scan can add this back.'**
+  String get deleteFilesUncheckedHint;
+
+  /// No description provided for @deleteFromServerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete from Server'**
+  String get deleteFromServerAction;
+
+  /// No description provided for @deleteFromServerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete from server'**
+  String get deleteFromServerTitle;
+
+  /// No description provided for @deleteFromServerContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\" from Audiobookshelf?'**
+  String deleteFromServerContent(String title);
+
+  /// No description provided for @deletedFromServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted \"{title}\"'**
+  String deletedFromServer(String title);
+
+  /// No description provided for @deleteFromServerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete that. Check the server logs.'**
+  String get deleteFromServerFailed;
+
   /// No description provided for @playlistNotFound.
   ///
   /// In en, this message translates to:
@@ -7367,13 +7415,13 @@ abstract class AppLocalizations {
   /// No description provided for @adminMissingDeleteOneContent.
   ///
   /// In en, this message translates to:
-  /// **'Remove \"{title}\" from Audiobookshelf? The files on disk are not deleted.'**
+  /// **'Remove \"{title}\" from Audiobookshelf?'**
   String adminMissingDeleteOneContent(String title);
 
   /// No description provided for @adminMissingDeleteManyContent.
   ///
   /// In en, this message translates to:
-  /// **'Remove {count} entries from Audiobookshelf? The files on disk are not deleted.'**
+  /// **'Remove {count} entries from Audiobookshelf?'**
   String adminMissingDeleteManyContent(int count);
 
   /// No description provided for @adminMissingDeleteCount.

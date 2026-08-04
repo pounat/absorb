@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../services/socket_service.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/delete_confirm_dialog.dart';
 import '../widgets/overlay_toast.dart';
 
 /// Admin cleanup screen: lists the items a library has flagged as "issues" -
@@ -102,14 +103,14 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
   Future<void> _deleteOne(Map<String, dynamic> item) async {
     final l = AppLocalizations.of(context)!;
     final title = _titleOf(item);
-    final yes = await _confirm(l.adminMissingDeleteTitle, l.adminMissingDeleteOneContent(title));
-    if (yes != true) return;
+    final choice = await _confirm(l.adminMissingDeleteTitle, l.adminMissingDeleteOneContent(title));
+    if (choice == null || !mounted) return;
     final id = item['id'] as String? ?? '';
     if (id.isEmpty) return;
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
     setState(() => _deleting.add(id));
-    final status = await api.deleteLibraryItem(id);
+    final status = await api.deleteLibraryItem(id, hard: choice.hardDelete);
     if (!mounted) return;
     setState(() => _deleting.remove(id));
     if (status == 200) {
@@ -129,8 +130,8 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
     if (_selected.isEmpty) return;
     final l = AppLocalizations.of(context)!;
     final count = _selected.length;
-    final yes = await _confirm(l.adminMissingDeleteTitle, l.adminMissingDeleteManyContent(count));
-    if (yes != true) return;
+    final choice = await _confirm(l.adminMissingDeleteTitle, l.adminMissingDeleteManyContent(count));
+    if (choice == null || !mounted) return;
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
     final ids = Set<String>.from(_selected);
@@ -141,7 +142,7 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
     int deleted = 0;
     bool forbidden = false;
     for (final id in ids) {
-      final status = await api.deleteLibraryItem(id);
+      final status = await api.deleteLibraryItem(id, hard: choice.hardDelete);
       if (status == 200) {
         deleted++;
         _items.removeWhere((it) => (it as Map)['id'] == id);
@@ -160,20 +161,8 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
     }
   }
 
-  Future<bool?> _confirm(String title, String content) => showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(title),
-          content: Text(content),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(context)!.cancel)),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(AppLocalizations.of(context)!.delete, style: TextStyle(color: Colors.red.shade300)),
-            ),
-          ],
-        ),
-      );
+  Future<DeleteChoice?> _confirm(String title, String content) =>
+      showDeleteConfirmDialog(context, title: title, message: content);
 
   @override
   Widget build(BuildContext context) {

@@ -3390,6 +3390,37 @@ class AppLocalizationsDe extends AppLocalizations {
       'Löschberechtigung erforderlich. Bitte wende dich hierzu an den Administrator.';
 
   @override
+  String get deleteFilesCheckbox => 'Also delete the files on the server';
+
+  @override
+  String get deleteFilesCheckedHint =>
+      'The files are deleted from the server for good.';
+
+  @override
+  String get deleteFilesUncheckedHint =>
+      'The files stay on the server, so the next library scan can add this back.';
+
+  @override
+  String get deleteFromServerAction => 'Delete from Server';
+
+  @override
+  String get deleteFromServerTitle => 'Delete from server';
+
+  @override
+  String deleteFromServerContent(String title) {
+    return 'Delete \"$title\" from Audiobookshelf?';
+  }
+
+  @override
+  String deletedFromServer(String title) {
+    return 'Deleted \"$title\"';
+  }
+
+  @override
+  String get deleteFromServerFailed =>
+      'Couldn\'t delete that. Check the server logs.';
+
+  @override
   String get playlistNotFound => 'Playlist nicht gefunden';
 
   @override

@@ -3562,10 +3562,12 @@ class ApiService {
   /// Returns the HTTP status code (0 on exception). 200 = success;
   /// 403 = caller lacks the `delete` permission flag on the server. Callers
   /// should surface 403 with a "needs delete permission" message.
-  Future<int> deletePodcastEpisode(String podcastId, String episodeId) async {
+  /// [hard] true also deletes the episode's audio file from the server's disk;
+  /// false leaves the file and only drops the episode from the database.
+  Future<int> deletePodcastEpisode(String podcastId, String episodeId, {bool hard = false}) async {
     try {
       final r = await _authDelete(
-        Uri.parse('$_cleanBaseUrl/api/podcasts/$podcastId/episode/$episodeId'),
+        Uri.parse('$_cleanBaseUrl/api/podcasts/$podcastId/episode/$episodeId?hard=${hard ? 1 : 0}'),
       );
       return r.statusCode;
     } catch (e) { debugPrint('deletePodcastEpisode error: $e'); }
@@ -3573,10 +3575,13 @@ class ApiService {
   }
 
   /// Delete a library item (e.g. remove a podcast show). See [deletePodcastEpisode] for status semantics.
-  Future<int> deleteLibraryItem(String itemId) async {
+  ///
+  /// [hard] true deletes the item's folder from the server's disk as well;
+  /// false keeps the files, so a later library scan can pick the item back up.
+  Future<int> deleteLibraryItem(String itemId, {bool hard = false}) async {
     try {
       final r = await _authDelete(
-        Uri.parse('$_cleanBaseUrl/api/items/$itemId'),
+        Uri.parse('$_cleanBaseUrl/api/items/$itemId?hard=${hard ? 1 : 0}'),
       );
       return r.statusCode;
     } catch (e) { debugPrint('deleteLibraryItem error: $e'); }

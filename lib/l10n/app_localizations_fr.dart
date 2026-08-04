@@ -3369,6 +3369,37 @@ class AppLocalizationsFr extends AppLocalizations {
       'Delete permission required. Ask the root admin to grant you the delete permission.';
 
   @override
+  String get deleteFilesCheckbox => 'Also delete the files on the server';
+
+  @override
+  String get deleteFilesCheckedHint =>
+      'The files are deleted from the server for good.';
+
+  @override
+  String get deleteFilesUncheckedHint =>
+      'The files stay on the server, so the next library scan can add this back.';
+
+  @override
+  String get deleteFromServerAction => 'Delete from Server';
+
+  @override
+  String get deleteFromServerTitle => 'Delete from server';
+
+  @override
+  String deleteFromServerContent(String title) {
+    return 'Delete \"$title\" from Audiobookshelf?';
+  }
+
+  @override
+  String deletedFromServer(String title) {
+    return 'Deleted \"$title\"';
+  }
+
+  @override
+  String get deleteFromServerFailed =>
+      'Couldn\'t delete that. Check the server logs.';
+
+  @override
   String get playlistNotFound => 'Playlist not found';
 
   @override
@@ -4101,12 +4132,12 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String adminMissingDeleteOneContent(String title) {
-    return 'Remove \"$title\" from Audiobookshelf? The files on disk are not deleted.';
+    return 'Remove \"$title\" from Audiobookshelf?';
   }
 
   @override
   String adminMissingDeleteManyContent(int count) {
-    return 'Remove $count entries from Audiobookshelf? The files on disk are not deleted.';
+    return 'Remove $count entries from Audiobookshelf?';
   }
 
   @override
