@@ -149,8 +149,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _useColorEverywhere = false;
   String _language = '';
   int _startScreen = 2;
-  String _statsGoalType = 'off';
-  int _statsGoalMinutes = 30;
+  final Map<String, int> _statsGoalMinutes = {
+    for (final p in PlayerSettings.statsGoalPeriods) p: 0
+  };
   int _statsBookGoal = 0;
   String _statsChartStyle = 'bar';
   int _statsChartRange = 7;
@@ -466,9 +467,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           width: 72,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Text(value,
-                textAlign: TextAlign.center,
-                style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(value,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            ),
           ),
         ),
       ),
@@ -487,8 +492,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return h > 0 ? l.statsScreenDurationHm(h, m) : l.statsScreenDurationM(m);
   }
 
+  /// Stepper granularity, scaled so the longer periods aren't hundreds of taps
+  /// wide. Tapping the value still takes an exact number.
+  int _statsGoalStepMinutes(String period) => switch (period) {
+        'weekly' => 30,
+        'monthly' => 60,
+        _ => 5,
+      };
+
+  String _statsGoalLabel(AppLocalizations l, String period) => switch (period) {
+        'weekly' => l.statsGoalWeekly,
+        'monthly' => l.statsGoalMonthly,
+        _ => l.statsGoalDaily,
+      };
+
+  Widget _statsGoalRow(
+      ColorScheme cs, TextTheme tt, AppLocalizations l, String period) {
+    final minutes = _statsGoalMinutes[period]!;
+    final step = _statsGoalStepMinutes(period);
+    final max = PlayerSettings.maxStatsGoalMinutes(period);
+    return _statsStepperRow(
+        cs, tt, _statsGoalLabel(l, period), _statsMinutesLabel(l, minutes),
+        onTapValue: () => _editStatsTimeTarget(period),
+        onMinus: minutes > step
+            ? () => _setStatsGoalMinutes(period, minutes - step)
+            : null,
+        onPlus:
+            minutes < max ? () => _setStatsGoalMinutes(period, minutes + step) : null);
+  }
+
   /// Accepts plain minutes ("90") or h:mm ("1:30").
-  int? _parseGoalMinutes(String input) {
+  int? _parseGoalMinutes(String input, String period) {
     final t = input.trim();
     if (t.isEmpty) return null;
     int? minutes;
@@ -503,7 +537,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       minutes = int.tryParse(t);
     }
     if (minutes == null || minutes < 1) return null;
-    return minutes.clamp(1, 1440);
+    return minutes.clamp(1, PlayerSettings.maxStatsGoalMinutes(period));
   }
 
   Future<String?> _promptStatsValue(String hint, TextInputType keyboard) async {
@@ -528,14 +562,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _editStatsTimeTarget() async {
+  Future<void> _editStatsTimeTarget(String period) async {
     final l = AppLocalizations.of(context)!;
     final input = await _promptStatsValue(l.statsGoalEnterTimeHint, TextInputType.datetime);
     if (input == null) return;
-    final minutes = _parseGoalMinutes(input);
+    final minutes = _parseGoalMinutes(input, period);
     if (minutes == null) return;
-    setState(() => _statsGoalMinutes = minutes);
-    PlayerSettings.setStatsGoalMinutes(minutes);
+    _setStatsGoalMinutes(period, minutes);
+  }
+
+  void _setStatsGoalMinutes(String period, int minutes) {
+    final clamped = minutes.clamp(0, PlayerSettings.maxStatsGoalMinutes(period));
+    setState(() => _statsGoalMinutes[period] = clamped);
+    PlayerSettings.setStatsGoalMinutesFor(period, clamped);
+  }
+
+  /// Switching a period on reinstates whatever target it last held, so the
+  /// stored value has to come back from the store rather than being assumed.
+  Future<void> _toggleStatsGoal(String period, bool on) async {
+    await PlayerSettings.setStatsGoalEnabled(period, on);
+    final minutes = await PlayerSettings.getStatsGoalMinutesFor(period);
+    if (!mounted) return;
+    setState(() => _statsGoalMinutes[period] = minutes);
   }
 
   Future<void> _editStatsBookTarget() async {
@@ -781,8 +829,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final manualSeed = await PlayerSettings.getManualSeedColor();
     final gradientIntensity = await PlayerSettings.getGradientIntensity();
     final useColorEverywhere = await PlayerSettings.getUseColorEverywhere();
-    final statsGoalType = await PlayerSettings.getStatsGoalType();
-    final statsGoalMinutes = await PlayerSettings.getStatsGoalMinutes();
+    final statsGoalMinutes = <String, int>{
+      for (final p in PlayerSettings.statsGoalPeriods)
+        p: await PlayerSettings.getStatsGoalMinutesFor(p)
+    };
     final statsBookGoal = await PlayerSettings.getStatsBookGoal();
     final statsChartStyle = await PlayerSettings.getStatsChartStyle();
     final statsChartRange = await PlayerSettings.getStatsChartRange();
@@ -928,8 +978,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _shakeSensitivity = shakeSens;
       _language = language;
       _canPickDownloadLocation = true;
-      _statsGoalType = statsGoalType;
-      _statsGoalMinutes = statsGoalMinutes;
+      _statsGoalMinutes
+        ..clear()
+        ..addAll(statsGoalMinutes);
       _statsBookGoal = statsBookGoal;
       _statsChartStyle = statsChartStyle;
       _statsChartRange = statsChartRange;
@@ -1744,36 +1795,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             width: double.infinity,
                             child: SegmentedButton<String>(
                               showSelectedIcon: false,
+                              multiSelectionEnabled: true,
+                              emptySelectionAllowed: true,
                               segments: [
-                                ButtonSegment(value: 'off', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalOff, maxLines: 1))),
-                                ButtonSegment(value: 'daily', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalDaily, maxLines: 1))),
-                                ButtonSegment(value: 'weekly', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalWeekly, maxLines: 1))),
-                                ButtonSegment(value: 'monthly', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.statsGoalMonthly, maxLines: 1))),
+                                for (final p in PlayerSettings.statsGoalPeriods)
+                                  ButtonSegment(
+                                      value: p,
+                                      label: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(_statsGoalLabel(l, p), maxLines: 1))),
                               ],
-                              selected: {_statsGoalType},
+                              selected: {
+                                for (final e in _statsGoalMinutes.entries)
+                                  if (e.value > 0) e.key
+                              },
                               onSelectionChanged: _loaded ? (selected) {
-                                setState(() => _statsGoalType = selected.first);
-                                PlayerSettings.setStatsGoalType(_statsGoalType);
+                                for (final p in PlayerSettings.statsGoalPeriods) {
+                                  final on = selected.contains(p);
+                                  if (on == (_statsGoalMinutes[p]! > 0)) continue;
+                                  _toggleStatsGoal(p, on);
+                                }
                               } : null,
                               style: const ButtonStyle(visualDensity: VisualDensity.compact),
                             ),
                           ),
-                          if (_statsGoalType != 'off')
-                            _statsStepperRow(cs, tt, l.statsGoalTarget,
-                                _statsMinutesLabel(l, _statsGoalMinutes),
-                                onTapValue: _editStatsTimeTarget,
-                                onMinus: _statsGoalMinutes > 5
-                                    ? () {
-                                        setState(() => _statsGoalMinutes -= 5);
-                                        PlayerSettings.setStatsGoalMinutes(_statsGoalMinutes);
-                                      }
-                                    : null,
-                                onPlus: _statsGoalMinutes < 600
-                                    ? () {
-                                        setState(() => _statsGoalMinutes += 5);
-                                        PlayerSettings.setStatsGoalMinutes(_statsGoalMinutes);
-                                      }
-                                    : null),
+                          if (_statsGoalMinutes.values.every((m) => m == 0))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(l.statsGoalOff,
+                                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            ),
+                          for (final p in PlayerSettings.statsGoalPeriods)
+                            if (_statsGoalMinutes[p]! > 0)
+                              _statsGoalRow(cs, tt, l, p),
                         ],
                       ),
                     ),

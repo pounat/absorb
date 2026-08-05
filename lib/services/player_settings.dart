@@ -213,13 +213,69 @@ class PlayerSettings {
   static Future<void> setMaxConcurrentDownloads(int value) => _set('maxConcurrentDownloads', value);
 
   // ── Stats page ──
-  // Goal period shown on the stats page: 'off' | 'daily' | 'weekly' | 'monthly'.
-  static Future<String> getStatsGoalType() => _get('stats_goal_type', 'off');
-  static Future<void> setStatsGoalType(String value) => _set('stats_goal_type', value, notify: true);
+  /// Listening goal periods, in the order they're shown.
+  static const statsGoalPeriods = ['daily', 'weekly', 'monthly'];
 
-  /// Target listening minutes for the active goal period.
-  static Future<int> getStatsGoalMinutes() => _get('stats_goal_minutes', 30);
-  static Future<void> setStatsGoalMinutes(int value) => _set('stats_goal_minutes', value, notify: true);
+  static String _statsGoalKey(String period) => 'stats_goal_${period}_minutes';
+  static String _statsGoalOnKey(String period) => 'stats_goal_${period}_on';
+
+  /// Target used when a period is first switched on, so the goal card starts
+  /// somewhere sensible instead of at 0%.
+  static int defaultStatsGoalMinutes(String period) => switch (period) {
+        'weekly' => 7 * 60,
+        'monthly' => 30 * 60,
+        _ => 60,
+      };
+
+  /// The most a period's target can be: all the time that period holds. These
+  /// match the rolling windows the stats page actually sums (7 and 30 days
+  /// back from today), not calendar weeks or months.
+  static int maxStatsGoalMinutes(String period) => switch (period) {
+        'weekly' => 7 * 24 * 60,
+        'monthly' => 30 * 24 * 60,
+        _ => 24 * 60,
+      };
+
+  /// Target listening minutes for one goal period, or 0 when that goal is
+  /// switched off. All three periods can be on at once. The target survives
+  /// being switched off, so turning a goal back on restores the number you
+  /// set instead of dropping back to the default.
+  static Future<int> getStatsGoalMinutesFor(String period) async {
+    await _migrateStatsGoals();
+    if (!await _get(_statsGoalOnKey(period), false)) return 0;
+    return _get(_statsGoalKey(period), defaultStatsGoalMinutes(period));
+  }
+
+  static Future<void> setStatsGoalMinutesFor(String period, int minutes) async {
+    await _migrateStatsGoals();
+    if (minutes <= 0) {
+      await _set(_statsGoalOnKey(period), false, notify: true);
+      return;
+    }
+    await _set(_statsGoalKey(period), minutes.clamp(1, maxStatsGoalMinutes(period)));
+    await _set(_statsGoalOnKey(period), true, notify: true);
+  }
+
+  /// Switch a period's goal on or off without disturbing its target.
+  static Future<void> setStatsGoalEnabled(String period, bool on) async {
+    await _migrateStatsGoals();
+    await _set(_statsGoalOnKey(period), on, notify: true);
+  }
+
+  /// One-time migration from the single active-period goal to per-period
+  /// targets, so an existing goal survives the upgrade. Runs per account,
+  /// which is why it hangs off the getters instead of app start.
+  static Future<void> _migrateStatsGoals() async {
+    if (await ScopedPrefs.containsKey('stats_goal_migrated')) return;
+    final oldPeriod = await _get('stats_goal_type', 'off');
+    if (statsGoalPeriods.contains(oldPeriod)) {
+      final oldMinutes = await _get('stats_goal_minutes', 30);
+      await _set(_statsGoalKey(oldPeriod),
+          oldMinutes.clamp(1, maxStatsGoalMinutes(oldPeriod)));
+      await _set(_statsGoalOnKey(oldPeriod), true);
+    }
+    await _set('stats_goal_migrated', true);
+  }
 
   /// Yearly book-challenge target. 0 = off.
   static Future<int> getStatsBookGoal() => _get('stats_book_goal', 0);

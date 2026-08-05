@@ -117,8 +117,9 @@ class BackupService {
       'progressTextScale': await PlayerSettings.getProgressTextScale(),
       'lockPortrait': await PlayerSettings.getLockPortrait(),
       'autoSeriesDownloadDefault': await PlayerSettings.getAutoSeriesDownloadDefault(),
-      'statsGoalType': await PlayerSettings.getStatsGoalType(),
-      'statsGoalMinutes': await PlayerSettings.getStatsGoalMinutes(),
+      'statsGoalDailyMinutes': await PlayerSettings.getStatsGoalMinutesFor('daily'),
+      'statsGoalWeeklyMinutes': await PlayerSettings.getStatsGoalMinutesFor('weekly'),
+      'statsGoalMonthlyMinutes': await PlayerSettings.getStatsGoalMinutesFor('monthly'),
       'statsBookGoal': await PlayerSettings.getStatsBookGoal(),
       'statsChartStyle': await PlayerSettings.getStatsChartStyle(),
       'statsChartRange': await PlayerSettings.getStatsChartRange(),
@@ -555,8 +556,20 @@ class BackupService {
     if (s['progressTextScale'] != null) await PlayerSettings.setProgressTextScale((s['progressTextScale'] as num).toDouble());
     if (s['lockPortrait'] != null) await PlayerSettings.setLockPortrait(s['lockPortrait'] as bool);
     if (s['autoSeriesDownloadDefault'] != null) await PlayerSettings.setAutoSeriesDownloadDefault(s['autoSeriesDownloadDefault'] as bool);
-    if (s['statsGoalType'] != null) await PlayerSettings.setStatsGoalType(s['statsGoalType'] as String);
-    if (s['statsGoalMinutes'] != null) await PlayerSettings.setStatsGoalMinutes(s['statsGoalMinutes'] as int);
+    for (final p in PlayerSettings.statsGoalPeriods) {
+      final key = 'statsGoal${p[0].toUpperCase()}${p.substring(1)}Minutes';
+      if (s[key] != null) await PlayerSettings.setStatsGoalMinutesFor(p, s[key] as int);
+    }
+    // Backups from before goals went per-period carried one target plus the
+    // period it applied to.
+    if (s['statsGoalDailyMinutes'] == null &&
+        s['statsGoalWeeklyMinutes'] == null &&
+        s['statsGoalMonthlyMinutes'] == null &&
+        s['statsGoalMinutes'] != null &&
+        PlayerSettings.statsGoalPeriods.contains(s['statsGoalType'])) {
+      await PlayerSettings.setStatsGoalMinutesFor(
+          s['statsGoalType'] as String, s['statsGoalMinutes'] as int);
+    }
     if (s['statsBookGoal'] != null) await PlayerSettings.setStatsBookGoal(s['statsBookGoal'] as int);
     if (s['statsChartStyle'] != null) await PlayerSettings.setStatsChartStyle(s['statsChartStyle'] as String);
     if (s['statsChartRange'] != null) await PlayerSettings.setStatsChartRange(s['statsChartRange'] as int);

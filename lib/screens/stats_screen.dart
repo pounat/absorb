@@ -34,8 +34,9 @@ class _StatsScreenState extends State<StatsScreen>
   int _episodesFinished = 0;
   int _booksFinishedThisYear = 0;
   int _episodesFinishedThisYear = 0;
-  String _goalType = 'off';
-  int _goalMinutes = 30;
+  final Map<String, int> _goalMinutes = {
+    for (final p in PlayerSettings.statsGoalPeriods) p: 0
+  };
   int _bookGoal = 0;
   String _chartStyle = 'bar';
   int _chartRange = 7;
@@ -125,8 +126,10 @@ class _StatsScreenState extends State<StatsScreen>
   void _onSettingsChanged() => _loadGoalSettings();
 
   Future<void> _loadGoalSettings() async {
-    final type = await PlayerSettings.getStatsGoalType();
-    final minutes = await PlayerSettings.getStatsGoalMinutes();
+    final minutes = <String, int>{
+      for (final p in PlayerSettings.statsGoalPeriods)
+        p: await PlayerSettings.getStatsGoalMinutesFor(p)
+    };
     final books = await PlayerSettings.getStatsBookGoal();
     final chartStyle = await PlayerSettings.getStatsChartStyle();
     final chartRange = await PlayerSettings.getStatsChartRange();
@@ -140,8 +143,9 @@ class _StatsScreenState extends State<StatsScreen>
         _selectedDayKey = null;
         _selectedSection = null;
       }
-      _goalType = type;
-      _goalMinutes = minutes;
+      _goalMinutes
+        ..clear()
+        ..addAll(minutes);
       _bookGoal = books;
       _chartStyle = chartStyle;
       _chartRange = chartRange;
@@ -475,7 +479,7 @@ class _StatsScreenState extends State<StatsScreen>
         const SizedBox(height: 16),
       ],
       'goals': [
-        if (_goalType != 'off' || _bookGoal > 0) ...[
+        if (_goalMinutes.values.any((m) => m > 0) || _bookGoal > 0) ...[
           _goalCard(cs, tt, l, today, thisWeek, thisMonth),
           const SizedBox(height: 16),
         ],
@@ -990,28 +994,74 @@ class _StatsScreenState extends State<StatsScreen>
 
   // --- GOAL CARD ---
 
+  Widget _timeGoalRow(ColorScheme cs, TextTheme tt, AppLocalizations l,
+      String period, double elapsedSeconds, double ringSize, Color doneColor) {
+    final targetSeconds = _goalMinutes[period]! * 60.0;
+    final progress = targetSeconds > 0
+        ? (elapsedSeconds / targetSeconds).clamp(0.0, 1.0).toDouble()
+        : 0.0;
+    final reached = targetSeconds > 0 && elapsedSeconds >= targetSeconds;
+    final label = switch (period) {
+      'weekly' => l.statsWeeklyGoal,
+      'monthly' => l.statsMonthlyGoal,
+      _ => l.statsDailyGoal,
+    };
+    final big = ringSize >= 56;
+    return Row(children: [
+      SizedBox(
+        width: ringSize,
+        height: ringSize,
+        child: Stack(alignment: Alignment.center, children: [
+          SizedBox(
+            width: ringSize,
+            height: ringSize,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: big ? 5 : 4,
+              backgroundColor: cs.onSurface.withValues(alpha: 0.08),
+              valueColor: AlwaysStoppedAnimation(reached ? doneColor : cs.primary),
+            ),
+          ),
+          if (reached)
+            Icon(Icons.check_rounded, color: doneColor, size: ringSize * 0.43)
+          else
+            Text('${(progress * 100).round()}%',
+                style: (big ? tt.labelMedium : tt.labelSmall)
+                    ?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
+        ]),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: tt.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
+        const SizedBox(height: 2),
+        Text(
+          l.statsGoalProgress(
+              _formatDuration(elapsedSeconds), _formatDuration(targetSeconds)),
+          style:
+              tt.bodySmall?.copyWith(color: reached ? doneColor : cs.onSurfaceVariant),
+        ),
+      ])),
+    ]);
+  }
+
   Widget _goalCard(ColorScheme cs, TextTheme tt, AppLocalizations l,
       double today, double thisWeek, double thisMonth) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final doneColor = isDark ? Colors.greenAccent[400]! : Colors.green.shade700;
 
-    final hasTimeGoal = _goalType != 'off';
     final hasBookGoal = _bookGoal > 0;
 
-    final periodSeconds = _goalType == 'weekly'
-        ? thisWeek
-        : _goalType == 'monthly'
-            ? thisMonth
-            : today;
-    final targetSeconds = _goalMinutes * 60.0;
-    final double timeProgress =
-        targetSeconds > 0 ? (periodSeconds / targetSeconds).clamp(0.0, 1.0).toDouble() : 0.0;
-    final timeReached = hasTimeGoal && periodSeconds >= targetSeconds;
-    final goalLabel = _goalType == 'weekly'
-        ? l.statsWeeklyGoal
-        : _goalType == 'monthly'
-            ? l.statsMonthlyGoal
-            : l.statsDailyGoal;
+    final elapsed = {'daily': today, 'weekly': thisWeek, 'monthly': thisMonth};
+    final activeGoals = [
+      for (final p in PlayerSettings.statsGoalPeriods)
+        if (_goalMinutes[p]! > 0) p
+    ];
+    // Shrink the ring once more than one goal is on, so three still sit
+    // comfortably in the card.
+    final ringSize = activeGoals.length > 1 ? 44.0 : 56.0;
 
     final double bookProgress =
         hasBookGoal ? (_booksFinishedThisYear / _bookGoal).clamp(0.0, 1.0).toDouble() : 0.0;
@@ -1031,46 +1081,12 @@ class _StatsScreenState extends State<StatsScreen>
         border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
       ),
       child: Column(children: [
-        if (hasTimeGoal)
-          Row(children: [
-            SizedBox(
-              width: 56,
-              height: 56,
-              child: Stack(alignment: Alignment.center, children: [
-                SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: CircularProgressIndicator(
-                    value: timeProgress,
-                    strokeWidth: 5,
-                    backgroundColor: cs.onSurface.withValues(alpha: 0.08),
-                    valueColor: AlwaysStoppedAnimation(timeReached ? doneColor : cs.primary),
-                  ),
-                ),
-                if (timeReached)
-                  Icon(Icons.check_rounded, color: doneColor, size: 24)
-                else
-                  Text('${(timeProgress * 100).round()}%',
-                      style: tt.labelMedium
-                          ?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
-              ]),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(goalLabel,
-                  style: tt.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
-              const SizedBox(height: 2),
-              Text(
-                l.statsGoalProgress(
-                    _formatDuration(periodSeconds), _formatDuration(targetSeconds)),
-                style: tt.bodySmall
-                    ?.copyWith(color: timeReached ? doneColor : cs.onSurfaceVariant),
-              ),
-            ])),
-          ]),
-        if (hasTimeGoal && hasBookGoal) const SizedBox(height: 16),
+        for (var i = 0; i < activeGoals.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          _timeGoalRow(cs, tt, l, activeGoals[i], elapsed[activeGoals[i]]!,
+              ringSize, doneColor),
+        ],
+        if (activeGoals.isNotEmpty && hasBookGoal) const SizedBox(height: 16),
         if (hasBookGoal)
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
