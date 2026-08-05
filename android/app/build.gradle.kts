@@ -123,7 +123,13 @@ android {
                     variant.versionCode
                 }
             }
-            val packageKind = abi ?: "universal"
+            // "all-universal" rather than "universal" so the every-ABI APK sorts
+            // above arm64-v8a/armeabi-v7a in the release asset list. Updaters
+            // built before 1.9.3+228 just take the first .apk they find, so the
+            // one that installs anywhere has to be the one they land on. The
+            // word "universal" stays in the name because newer updaters match it
+            // as a token when no per-ABI build fits.
+            val packageKind = abi ?: "all-universal"
             output.outputFileName =
                 "absorb-${variant.versionName}-${variant.versionCode}-$packageKind.apk"
         }
