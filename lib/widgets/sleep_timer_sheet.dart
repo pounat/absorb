@@ -736,6 +736,16 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                   color: cs.onSurface.withValues(alpha: 0.3), fontSize: 11)),
         ]),
       ),
+      if (isEnabled)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(28, 2, 12, 0),
+          child: Text(
+            l.sleepRewindUndoNote(
+                SleepTimerService.sleepRewindUndoWindow.inMinutes),
+            style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.45), fontSize: 11),
+          ),
+        ),
     ]);
   }
 

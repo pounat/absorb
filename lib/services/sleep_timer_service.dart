@@ -118,6 +118,15 @@ class SleepTimerService extends ChangeNotifier {
   int _targetChapterIndex = -1;
   double _targetEndSeconds = -1;
   StreamSubscription? _positionSub;
+
+  // Where a sleep rewind put us, so hitting play again shortly after can undo
+  // it. Falling asleep is what the rewind is for; coming straight back means
+  // you were awake for it and shouldn't have to listen through it again.
+  static const sleepRewindUndoWindow = Duration(minutes: 5);
+  DateTime? _sleepRewoundAt;
+  String? _sleepRewoundItemId;
+  Duration? _sleepRewoundFrom; // position the timer fired at
+  Duration? _sleepRewoundTo; // position after the rewind
   
   // Shake detection
   String _shakeMode = 'addTime'; // 'off', 'addTime', 'resetTimer'
@@ -492,7 +501,12 @@ class SleepTimerService extends ChangeNotifier {
         // Auto-rewind so the user resumes from a few seconds back
         final rewindSeconds = await PlayerSettings.getEffectiveSleepRewindSeconds(_player.currentItemId);
         if (rewindSeconds > 0) {
+          final from = _player.position;
           await _player.sleepTimerRewind(rewindSeconds);
+          _sleepRewoundAt = DateTime.now();
+          _sleepRewoundItemId = _player.currentItemId;
+          _sleepRewoundFrom = from;
+          _sleepRewoundTo = _player.position;
           debugPrint('[SleepTimer] Rewound ${rewindSeconds}s');
         }
       }
@@ -501,6 +515,48 @@ class SleepTimerService extends ChangeNotifier {
     } finally {
       _isTriggeringSleep = false;
     }
+  }
+
+  /// Position to jump back to when playback resumes soon after a sleep rewind,
+  /// or null if there's nothing to undo. Consumed on read, so it only ever
+  /// applies once.
+  ///
+  /// Deliberately separate from the ordinary auto-rewind-on-pause: this only
+  /// reverses the extra jump the sleep timer made. Whatever auto-rewind wants
+  /// to do afterwards still applies from the restored position.
+  Duration? takeSleepRewindUndo(String? itemId, Duration currentPosition) {
+    final at = _sleepRewoundAt;
+    final from = _sleepRewoundFrom;
+    final to = _sleepRewoundTo;
+    if (at == null || from == null || to == null) return null;
+
+    void forget() {
+      _sleepRewoundAt = null;
+      _sleepRewoundItemId = null;
+      _sleepRewoundFrom = null;
+      _sleepRewoundTo = null;
+    }
+
+    if (DateTime.now().difference(at) > sleepRewindUndoWindow) {
+      debugPrint('[SleepTimer] Sleep rewind too old to undo');
+      forget();
+      return null;
+    }
+    if (itemId == null || itemId != _sleepRewoundItemId) {
+      debugPrint('[SleepTimer] Different item since the sleep rewind - not undoing');
+      forget();
+      return null;
+    }
+    // Moved since we rewound (a manual seek, or resuming somewhere else), so
+    // the rewind is no longer the thing that put us here.
+    if ((currentPosition - to).abs() > const Duration(seconds: 2)) {
+      debugPrint('[SleepTimer] Position moved since the sleep rewind - not undoing');
+      forget();
+      return null;
+    }
+    forget();
+    debugPrint('[SleepTimer] Undoing sleep rewind - back to ${from.inSeconds}s');
+    return from;
   }
 
   void cancel() {

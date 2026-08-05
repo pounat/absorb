@@ -10815,6 +10815,12 @@ abstract class AppLocalizations {
   /// **'Still notified and downloaded'**
   String get episodeListPositionNoneDesc;
 
+  /// No description provided for @sleepRewindUndoNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Hit play within {minutes} minutes and the rewind is undone'**
+  String sleepRewindUndoNote(int minutes);
+
   /// No description provided for @lpQueueDownloadingItems.
   ///
   /// In en, this message translates to:

@@ -5552,6 +5552,16 @@ class AudioPlayerService extends ChangeNotifier {
         false; // User explicitly resumed — allow interrupt-resume again
     _handler?._noisyPauseAt = null; // Clear noisy suppression window
     _lastAutoRewindAmount = 0;
+    // Coming back within a few minutes of the sleep timer firing means you were
+    // awake for it, so put back what its rewind took. Done before the ordinary
+    // auto-rewind below so that still applies from the restored position.
+    if (_player != null) {
+      final undoTo = SleepTimerService()
+          .takeSleepRewindUndo(_currentItemId, position);
+      if (undoTo != null) {
+        await seekTo(undoTo, logDetail: 'sleep rewind undone');
+      }
+    }
     // Auto-rewind on resume if enabled
     if (_lastPauseTime != null && _player != null) {
       final settings = await AutoRewindSettings.load();

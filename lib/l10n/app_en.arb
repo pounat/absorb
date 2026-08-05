@@ -3700,6 +3700,14 @@
   "episodeListPositionEnd": "End of queue",
   "episodeListPositionNone": "Don't add to queue",
   "episodeListPositionNoneDesc": "Still notified and downloaded",
+  "sleepRewindUndoNote": "Hit play within {minutes} minutes and the rewind is undone",
+  "@sleepRewindUndoNote": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "lpQueueDownloadingItems": "{count, plural, =1{Queue: downloading 1 item} other{Queue: downloading {count} items}}",
   "@lpQueueDownloadingItems": {
     "placeholders": {

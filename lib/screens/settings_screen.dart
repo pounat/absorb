@@ -2784,6 +2784,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
+                    if (_sleepRewindSeconds > 0)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 0, 28, 10),
+                        child: Text(
+                          l.sleepRewindUndoNote(
+                              SleepTimerService.sleepRewindUndoWindow.inMinutes),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                      ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     SwitchListTile(
                       title: Text(l.fadeVolumeBeforeSleep),

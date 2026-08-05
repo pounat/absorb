@@ -6284,6 +6284,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episodeListPositionNoneDesc => 'Still notified and downloaded';
 
   @override
+  String sleepRewindUndoNote(int minutes) {
+    return 'Hit play within $minutes minutes and the rewind is undone';
+  }
+
+  @override
   String lpQueueDownloadingItems(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
