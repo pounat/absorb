@@ -111,9 +111,12 @@ class SleepTimerService extends ChangeNotifier {
   Duration _initialDuration = Duration.zero;
   Timer? _timer;
   
-  // Chapter mode
+  // Chapter mode. We stop at the END of _targetChapterIndex, and it's
+  // _targetEndSeconds that actually drives the trigger - comparing chapter
+  // indices alone dies whenever the position can't be resolved to a chapter.
   int _chaptersRemaining = 0;
-  int _targetChapterIndex = -1; // chapter index where we stop
+  int _targetChapterIndex = -1;
+  double _targetEndSeconds = -1;
   StreamSubscription? _positionSub;
   
   // Shake detection
@@ -301,49 +304,85 @@ class SleepTimerService extends ChangeNotifier {
 
   // ── Chapter-based sleep ──
 
+  /// Pause this many seconds before the target chapter ends. On the final
+  /// chapter that stops the player from ever "completing" and handing off to
+  /// the next book.
+  static const _chapterEndGuardSec = 2.5;
+
+  /// A chapter with less than this left isn't worth stopping at - the timer
+  /// would expire almost the moment it started - so aim at the next one.
+  static const _minChapterRemainingSec = 60;
+
   void setChapterSleep(int numChapters) {
     cancel();
-    _mode = SleepTimerMode.chapters;
-    _chaptersRemaining = numChapters;
-    
-    // Calculate the target chapter index
+
+    final chapters = _chapterList();
     final currentIdx = _getCurrentChapterIndex();
-    if (currentIdx >= 0) {
-      _targetChapterIndex = currentIdx + numChapters;
-      debugPrint('[SleepTimer] Set chapter sleep: $numChapters chapters '
-          '(current=$currentIdx, target=$_targetChapterIndex)');
-    } else {
-      _targetChapterIndex = -1;
-      debugPrint('[SleepTimer] Set chapter sleep: $numChapters chapters (no current chapter)');
+    if (chapters.isEmpty || currentIdx < 0 || _positionStream() == null) {
+      // Arming here would leave a timer that reads as active but can never
+      // fire, and an active timer blocks auto sleep from ever retrying. Stay
+      // off instead so the next resume or foreground check has another go.
+      debugPrint('[SleepTimer] Chapter sleep not started: '
+          '${chapters.isEmpty ? "no chapters loaded" : currentIdx < 0 ? "position is outside every chapter" : "no position stream"}');
+      return;
     }
-    
+
+    // numChapters counts the current chapter, so stop at the end of
+    // current + numChapters - 1.
+    var target = (currentIdx + numChapters - 1).clamp(0, chapters.length - 1);
+
+    // Resuming right after a sleep can leave the position all but on top of
+    // the boundary we stopped at, and aiming there again would sleep within
+    // seconds. Judged on how much is actually left to hear, not on whether we
+    // slept here: sleep-rewind can be anything up to two hours, and a 15
+    // minute rewind leaves a real 15 minutes to listen, so that should still
+    // stop at this same boundary rather than running on into the next chapter.
+    final pos = _currentPositionSeconds();
+    while (target + 1 < chapters.length &&
+        _chapterEnd(target) - pos < _minChapterRemainingSec) {
+      target += 1;
+      debugPrint('[SleepTimer] Under ${_minChapterRemainingSec}s left here - '
+          'targeting chapter $target instead');
+    }
+
+    _mode = SleepTimerMode.chapters;
+    _targetChapterIndex = target;
+    _targetEndSeconds = _chapterEnd(target);
+    _chaptersRemaining = (target - currentIdx + 1).clamp(0, 999);
+    debugPrint('[SleepTimer] Set chapter sleep: current=$currentIdx '
+        'target=$target end=${_targetEndSeconds.toStringAsFixed(0)}s');
+
     _startChapterMonitor();
     _startShakeDetection();
     notifyListeners();
   }
 
+  /// Cast position stream when casting, local player stream otherwise. Null
+  /// only while casting without a stream attached.
+  Stream<Duration>? _positionStream() =>
+      _cast.isCasting ? _cast.castPositionStream : _player.positionStream;
+
   void _startChapterMonitor() {
     _positionSub?.cancel();
-    // Use cast position stream when casting, local player stream otherwise
-    final stream = _cast.isCasting
-        ? _cast.castPositionStream
-        : _player.positionStream;
+    final stream = _positionStream();
     if (stream == null) return;
     _positionSub = stream.listen((pos) {
       if (!_isPlaybackActive) return;
+      if (_targetEndSeconds <= 0) return;
+
+      // Trigger off the position, not the chapter index: a position that lands
+      // in a gap between chapters resolves to no index at all.
+      if (_currentPositionSeconds() >= _targetEndSeconds - _chapterEndGuardSec) {
+        unawaited(_triggerSleep());
+        return;
+      }
 
       final currentIdx = _getCurrentChapterIndex();
       if (currentIdx < 0) return;
-
-      // Update chapters remaining
-      if (_targetChapterIndex >= 0) {
-        _chaptersRemaining = (_targetChapterIndex - currentIdx).clamp(0, 999);
+      final remaining = (_targetChapterIndex - currentIdx + 1).clamp(0, 999);
+      if (remaining != _chaptersRemaining) {
+        _chaptersRemaining = remaining;
         notifyListeners();
-
-        // Check if we've reached the end of the target chapter
-        if (currentIdx >= _targetChapterIndex) {
-          unawaited(_triggerSleep());
-        }
       }
     });
   }
@@ -351,8 +390,14 @@ class SleepTimerService extends ChangeNotifier {
   /// Add a chapter (used by shake reset in chapter mode, or manual add)
   void addChapter() {
     if (_mode != SleepTimerMode.chapters) return;
-    _chaptersRemaining++;
+    final chapters = _chapterList();
+    if (_targetChapterIndex + 1 >= chapters.length) {
+      debugPrint('[SleepTimer] Already targeting the last chapter — nothing to add');
+      return;
+    }
     _targetChapterIndex++;
+    _targetEndSeconds = _chapterEnd(_targetChapterIndex);
+    _chaptersRemaining++;
     notifyListeners();
     debugPrint('[SleepTimer] Added 1 chapter — now $_chaptersRemaining remaining');
   }
@@ -393,20 +438,36 @@ class SleepTimerService extends ChangeNotifier {
 
   // ── Common ──
 
+  List<dynamic> _chapterList() =>
+      _cast.isCasting ? _cast.castingChapters : _player.chapters;
+
+  double _currentPositionSeconds() => _cast.isCasting
+      ? _cast.castPosition.inMilliseconds / 1000.0
+      : _player.position.inMilliseconds / 1000.0;
+
+  double _chapterEnd(int index) {
+    final chapters = _chapterList();
+    if (index < 0 || index >= chapters.length) return -1;
+    final ch = chapters[index] as Map<String, dynamic>;
+    return (ch['end'] as num?)?.toDouble() ?? -1;
+  }
+
   int _getCurrentChapterIndex() {
-    final casting = _cast.isCasting;
-    final chapters = casting ? _cast.castingChapters : _player.chapters;
+    final chapters = _chapterList();
     if (chapters.isEmpty) return -1;
-    final pos = casting
-        ? _cast.castPosition.inMilliseconds / 1000.0
-        : _player.position.inMilliseconds / 1000.0;
+    final pos = _currentPositionSeconds();
+    // Falls back to the last chapter that has started, so a position sitting in
+    // a gap between chapters or past the final end still resolves instead of
+    // reporting "no chapter" and stalling everything downstream.
+    int started = -1;
     for (int i = 0; i < chapters.length; i++) {
       final ch = chapters[i] as Map<String, dynamic>;
       final start = (ch['start'] as num?)?.toDouble() ?? 0;
       final end = (ch['end'] as num?)?.toDouble() ?? 0;
       if (pos >= start && pos < end) return i;
+      if (pos >= start) started = i;
     }
-    return -1;
+    return started;
   }
 
   bool _isFadingOut = false;
@@ -456,6 +517,7 @@ class SleepTimerService extends ChangeNotifier {
     _timeRemaining = Duration.zero;
     _chaptersRemaining = 0;
     _targetChapterIndex = -1;
+    _targetEndSeconds = -1;
     _warningSent = false;
     _autoStarted = false;
     // Restore volume if cancelled during fade-out
