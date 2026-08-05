@@ -601,10 +601,17 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   void _showNewEpisodePositionPicker() {
     final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    final options = <String, String>{
-      'start': l.episodeListPositionTop,
-      'second': l.episodeListPositionSecond,
-      'end': l.episodeListPositionEnd,
+    // 'none' keeps everything else about the subscription - new-episode
+    // detection, the notification, the download - and only skips the queue,
+    // for people subscribed to enough shows that it buries the rest.
+    final options = <String, ({String title, String? subtitle})>{
+      'start': (title: l.episodeListPositionTop, subtitle: null),
+      'second': (title: l.episodeListPositionSecond, subtitle: null),
+      'end': (title: l.episodeListPositionEnd, subtitle: null),
+      'none': (
+        title: l.episodeListPositionNone,
+        subtitle: l.episodeListPositionNoneDesc
+      ),
     };
     showModalBottomSheet(
       context: context,
@@ -634,7 +641,14 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                       : Icons.radio_button_unchecked_rounded,
                   color: _newEpisodePosition == entry.key ? cs.primary : cs.onSurfaceVariant,
                 ),
-                title: Text(entry.value),
+                title: Text(entry.value.title),
+                subtitle: entry.value.subtitle == null
+                    ? null
+                    : Text(entry.value.subtitle!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: cs.onSurfaceVariant)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await PlayerSettings.setPodcastNewEpisodePosition(_itemId, entry.key);

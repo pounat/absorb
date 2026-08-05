@@ -10773,6 +10773,12 @@ abstract class AppLocalizations {
   /// **'{showTitle} added to the end of your queue'**
   String lpSubscribedEpisodeAddedEnd(String showTitle);
 
+  /// No description provided for @lpSubscribedEpisodeDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'New {showTitle} episode downloaded'**
+  String lpSubscribedEpisodeDownloaded(String showTitle);
+
   /// No description provided for @episodeListNewEpisodePosition.
   ///
   /// In en, this message translates to:
@@ -10796,6 +10802,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'End of queue'**
   String get episodeListPositionEnd;
+
+  /// No description provided for @episodeListPositionNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t add to queue'**
+  String get episodeListPositionNone;
+
+  /// No description provided for @episodeListPositionNoneDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Still notified and downloaded'**
+  String get episodeListPositionNoneDesc;
 
   /// No description provided for @lpQueueDownloadingItems.
   ///

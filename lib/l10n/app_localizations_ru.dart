@@ -6183,6 +6183,11 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String lpSubscribedEpisodeDownloaded(String showTitle) {
+    return 'New $showTitle episode downloaded';
+  }
+
+  @override
   String get episodeListNewEpisodePosition => 'New episode position';
 
   @override
@@ -6193,6 +6198,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get episodeListPositionEnd => 'End of queue';
+
+  @override
+  String get episodeListPositionNone => 'Don\'t add to queue';
+
+  @override
+  String get episodeListPositionNoneDesc => 'Still notified and downloaded';
 
   @override
   String lpQueueDownloadingItems(int count) {

@@ -3686,10 +3686,20 @@
       }
     }
   },
+  "lpSubscribedEpisodeDownloaded": "New {showTitle} episode downloaded",
+  "@lpSubscribedEpisodeDownloaded": {
+    "placeholders": {
+      "showTitle": {
+        "type": "String"
+      }
+    }
+  },
   "episodeListNewEpisodePosition": "New episode position",
   "episodeListPositionTop": "Top of queue",
   "episodeListPositionSecond": "Second in queue",
   "episodeListPositionEnd": "End of queue",
+  "episodeListPositionNone": "Don't add to queue",
+  "episodeListPositionNoneDesc": "Still notified and downloaded",
   "lpQueueDownloadingItems": "{count, plural, =1{Queue: downloading 1 item} other{Queue: downloading {count} items}}",
   "@lpQueueDownloadingItems": {
     "placeholders": {

@@ -2232,8 +2232,17 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       // the same library instead (otherwise an item from another library at
       // index 0 would push this to visible-first). 'start'/'end' are the list
       // extremes and read correctly in both modes, so they need no adjustment.
+      // 'none' subscribes without queueing: the episode is still detected,
+      // notified and downloaded, it just never lands on the absorbing list.
+      final queueless = position == 'none';
       final merged = await PlayerSettings.getMergeAbsorbingLibraries();
       final libId = item['libraryId'] as String?;
+      // The download step normally rediscovers episodes by scanning the
+      // absorbing queue, which finds nothing for a queue-less show, so the
+      // keys and their metadata have to be carried over explicitly.
+      final freshKeys = <String>[];
+      final freshMeta = <String, Map<String, dynamic>>{};
+      final freshEpIds = <String>[];
       // For 'start', remember the front-most new episode so the absorbing
       // screen's keep-on-top pins yield to it (otherwise a paused/last-finished
       // item gets pulled above it and it shows 2nd).
@@ -2243,24 +2252,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         final epId = epMap['id'] as String;
         final key = '$itemId-$epId';
 
-        switch (position) {
-          case 'end':
-            _absorbingIdsAdd(key, atFront: false);
-            break;
-          case 'second':
-            if (merged) {
-              _absorbingIdsAdd(key, atIndex: 1);
-            } else {
-              final firstSameLib = _absorbingBookIds.indexWhere(
-                  (k) => _absorbingItemCache[k]?['libraryId'] == libId);
-              _absorbingIdsAdd(key, atIndex: firstSameLib >= 0 ? firstSameLib + 1 : 0);
-            }
-            break;
-          default:
-            _absorbingIdsAdd(key, atFront: true);
-            startFrontKey = key;
-        }
-        _absorbingItemCache[key] = {
+        final entry = {
           'id': itemId,
           'libraryId': item['libraryId'] as String?,
           'mediaType': 'podcast',
@@ -2268,9 +2260,34 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           'recentEpisode': epMap,
           'media': media,
         };
-        _manualAbsorbAdds.add(key);
-        _manualAbsorbRemoves.remove(key);
-        knownIds.add(epId);
+        freshKeys.add(key);
+        freshMeta[key] = entry;
+
+        if (!queueless) {
+          switch (position) {
+            case 'end':
+              _absorbingIdsAdd(key, atFront: false);
+              break;
+            case 'second':
+              if (merged) {
+                _absorbingIdsAdd(key, atIndex: 1);
+              } else {
+                final firstSameLib = _absorbingBookIds.indexWhere(
+                    (k) => _absorbingItemCache[k]?['libraryId'] == libId);
+                _absorbingIdsAdd(key, atIndex: firstSameLib >= 0 ? firstSameLib + 1 : 0);
+              }
+              break;
+            default:
+              _absorbingIdsAdd(key, atFront: true);
+              startFrontKey = key;
+          }
+          // Only cache what the queue will render. A queue-less show would
+          // otherwise grow this cache with entries nothing ever reads.
+          _absorbingItemCache[key] = entry;
+          _manualAbsorbAdds.add(key);
+          _manualAbsorbRemoves.remove(key);
+        }
+        freshEpIds.add(epId);
         queued++;
       }
 
@@ -2278,10 +2295,28 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         if (startFrontKey != null) {
           (this as _AbsorbingMixin).setFreshQueuedFront(startFrontKey);
         }
-        _saveKnownEpisodeIds(itemId);
-        (this as _AbsorbingMixin)._saveManualAbsorbing();
-        notifyListeners();
-        _downloadSubscribedEpisodes(itemId);
+        if (!queueless) {
+          knownIds.addAll(freshEpIds);
+          _saveKnownEpisodeIds(itemId);
+          (this as _AbsorbingMixin)._saveManualAbsorbing();
+          notifyListeners();
+          _downloadSubscribedEpisodes(itemId, keys: freshKeys, meta: freshMeta);
+        } else {
+          // Nothing queue-less lands on the absorbing list, so the catch-up
+          // pass has no way to rediscover these. Only mark them seen once the
+          // download is actually enqueued - if it was deferred for WiFi,
+          // leaving them unseen makes the next check retry instead of losing
+          // the episode entirely.
+          final started = await _downloadSubscribedEpisodes(itemId,
+              keys: freshKeys, meta: freshMeta);
+          if (started) {
+            knownIds.addAll(freshEpIds);
+            _saveKnownEpisodeIds(itemId);
+          } else {
+            debugPrint('[Subscription] $itemId download deferred - leaving '
+                '${freshEpIds.length} episode(s) unseen so the next check retries');
+          }
+        }
       }
     }
   }
@@ -2297,26 +2332,43 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
   }
 
-  Future<void> _downloadSubscribedEpisodes(String podcastId) async {
-    if (_api == null || isOffline) return;
+  /// Downloads a subscribed show's episodes. [keys] names the exact episodes
+  /// (with [meta] carrying their details); without it the absorbing queue is
+  /// scanned instead, which is what the catch-up pass does. A queue-less show
+  /// must pass [keys] - its episodes never enter the queue, so a scan would
+  /// come back empty and silently download nothing.
+  ///
+  /// Returns false when it bailed before enqueueing anything (offline, or
+  /// holding out for WiFi), so a caller that can't rely on the catch-up pass
+  /// knows the episodes still need retrying.
+  Future<bool> _downloadSubscribedEpisodes(
+    String podcastId, {
+    List<String>? keys,
+    Map<String, Map<String, dynamic>>? meta,
+  }) async {
+    if (_api == null || isOffline) return false;
     final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
     if (wifiOnly) {
       final connectivity = await Connectivity().checkConnectivity();
       if (!connectivity.contains(ConnectivityResult.wifi)) {
         debugPrint('[Subscription] Skipping download (not on WiFi) - will retry on WiFi');
-        return;
+        return false;
       }
     }
 
     final dl = DownloadService();
     int downloaded = 0;
 
-    for (final key in _absorbingBookIds) {
-      if (!key.startsWith(podcastId)) continue;
+    final targets = keys ??
+        [for (final k in _absorbingBookIds) if (k.startsWith(podcastId)) k];
+
+    for (final key in targets) {
       if (dl.isDownloaded(key) || dl.isDownloading(key)) continue;
 
-      final cached = _absorbingItemCache[key];
-      final epId = key.substring(37);
+      final cached = meta?[key] ?? _absorbingItemCache[key];
+      // key is '<podcastId>-<episodeId>', so the offset follows the show id
+      // rather than assuming every id is a 36-char UUID.
+      final epId = key.substring(podcastId.length + 1);
       final ep = cached?['recentEpisode'] as Map<String, dynamic>?;
       final media = cached?['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
@@ -2334,10 +2386,13 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
 
     if (downloaded > 0) {
-      final cached = _absorbingItemCache.values.firstWhere(
-        (c) => (c['id'] as String?) == podcastId,
-        orElse: () => {},
-      );
+      // A queue-less show has nothing in the absorbing cache, so fall back to
+      // the metadata that came in with this batch.
+      final cached = meta?.values.firstOrNull ??
+          _absorbingItemCache.values.firstWhere(
+            (c) => (c['id'] as String?) == podcastId,
+            orElse: () => {},
+          );
       final media = cached['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
       final showTitle = metadata['title'] as String? ?? 'Podcast';
@@ -2345,6 +2400,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       final l = _l();
       final String message;
       switch (position) {
+        case 'none':
+          message = l?.lpSubscribedEpisodeDownloaded(showTitle)
+              ?? 'New $showTitle episode downloaded';
+          break;
         case 'end':
           message = l?.lpSubscribedEpisodeAddedEnd(showTitle)
               ?? '$showTitle added to the end of your queue';
@@ -2359,9 +2418,14 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       }
       final ctx = rootNavigatorKey.currentContext;
       if (ctx != null) {
-        showOverlayToast(ctx, message, icon: Icons.playlist_add_rounded);
+        showOverlayToast(ctx,
+            message,
+            icon: position == 'none'
+                ? Icons.download_done_rounded
+                : Icons.playlist_add_rounded);
       }
     }
+    return true;
   }
 
   Future<void> catchUpSubscribedPodcasts() async {
