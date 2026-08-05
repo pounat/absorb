@@ -52,7 +52,8 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     // Clamp a stray negative position to 0 so it shows 0:00 (not "59:59") and
     // self-heals to 0 if the user saves.
     _seconds = widget.bookmark.positionSeconds < 0 ? 0.0 : widget.bookmark.positionSeconds;
-    _preview = BookmarkPreviewPlayer(itemId: widget.itemId, api: widget.api)
+    _preview = BookmarkPreviewPlayer(
+        itemId: widget.itemId, api: widget.api, label: 'bookmark')
       ..clipLength = const Duration(seconds: 60)
       ..addListener(_onPreview);
   }
@@ -89,7 +90,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     try {
       await _preview.toggleAt(_seconds);
     } catch (e) {
-      debugPrint('[BookmarkPreview] toggle failed: $e');
+      debugPrint('[Preview] bookmark ${widget.itemId}: toggle failed: $e');
       // stop() resumes the main book we paused and resets for a retry.
       await _preview.stop();
       if (!mounted) return;

@@ -188,6 +188,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _chaptersExpanded = false;
   bool _bookmarksExpanded = false;
   BookmarkPreviewPlayer? _preview;
+  bool? _loggedPreviewVisible;
   List<Bookmark> _bookmarks = [];
   bool _isAbsorbing = false;
   bool _hasLocalOverride = false;
@@ -537,6 +538,16 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     // lag local playback.
     final showPreview = !isEbookOnly && !isFinished && currentTime < 60 &&
         progress * duration < 60 && duration > 0;
+    // Deduped on the value so this fires once per change, not once per rebuild.
+    // "I don't have a preview button" needs the inputs, not just the outcome.
+    if (showPreview != _loggedPreviewVisible) {
+      _loggedPreviewVisible = showPreview;
+      debugPrint('[Preview] book ${widget.itemId}: button ${showPreview ? "shown" : "hidden"} '
+          '(ebookOnly=$isEbookOnly finished=$isFinished '
+          'currentTime=${currentTime.toStringAsFixed(0)}s '
+          'played=${(progress * duration).toStringAsFixed(0)}s '
+          'duration=${duration.toStringAsFixed(0)}s)');
+    }
 
     return ListView(controller: widget.scrollController, padding: EdgeInsets.fromLTRB(20, 8, 20, 32 + MediaQuery.of(context).viewPadding.bottom), children: [
       Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
@@ -2042,41 +2053,70 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   /// is always short, so the first chapter long enough to be real prose is the
   /// sample point - capped to the first 10% of the book so a preview can never
   /// spoil. Books without a usable chapter land shortly past the credits.
-  double _previewStartSeconds(List<dynamic> chapters, double duration) {
+  /// Returns the start point and the rule that produced it. Every branch here
+  /// can land on the same number, so the reason has to be logged alongside it
+  /// or a "preview started somewhere odd" report is undiagnosable.
+  ({double seconds, String why}) _previewStartSeconds(
+      List<dynamic> chapters, double duration) {
     const minRealChapter = 300.0;
     const fallback = 90.0;
     final clampedFallback = duration * 0.25 < fallback ? duration * 0.25 : fallback;
     final spoilerCap = duration * 0.10;
+    var index = -1;
     for (final c in chapters) {
+      index++;
       if (c is! Map<String, dynamic>) continue;
       final start = (c['start'] as num?)?.toDouble() ?? 0;
       final end = (c['end'] as num?)?.toDouble() ?? 0;
       if (end - start >= minRealChapter && start <= spoilerCap) {
         // A qualifying chapter at 0:00 means the credits are baked into it
         // (single-file books) - nudge past them instead.
-        return start == 0 ? clampedFallback : start;
+        if (start == 0) {
+          return (
+            seconds: clampedFallback,
+            why: 'chapter[$index] qualifies but starts at 0:00, nudged past credits'
+          );
+        }
+        return (
+          seconds: start,
+          why: 'chapter[$index] is ${(end - start).toStringAsFixed(0)}s long '
+              'and starts at ${start.toStringAsFixed(0)}s (cap ${spoilerCap.toStringAsFixed(0)}s)'
+        );
       }
     }
-    return clampedFallback;
+    return (
+      seconds: clampedFallback,
+      why: 'no chapter >=${minRealChapter.toInt()}s starting within the first '
+          '${spoilerCap.toStringAsFixed(0)}s, fell back'
+    );
   }
 
   Future<void> _togglePreview(BuildContext context, List<dynamic> chapters, double duration) async {
     final l = AppLocalizations.of(context)!;
-    if (_preview?.isLoading ?? false) return;
+    if (_preview?.isLoading ?? false) {
+      // Every tap is a no-op while loading, which reads as a dead button if the
+      // audio never finishes buffering.
+      debugPrint('[Preview] book ${widget.itemId}: tap ignored, still loading');
+      return;
+    }
     if (_preview?.isPlaying ?? false) {
       await _preview!.stop();
       return;
     }
-    _preview ??= BookmarkPreviewPlayer(itemId: widget.itemId, api: context.read<AuthProvider>().apiService)
+    _preview ??= BookmarkPreviewPlayer(
+        itemId: widget.itemId,
+        api: context.read<AuthProvider>().apiService,
+        label: 'book')
       ..clipLength = const Duration(minutes: 5)
       ..stopOnClipEnd = true
       ..addListener(_onPreviewChanged);
-    final startAt = _previewStartSeconds(chapters, duration);
-    debugPrint('[BookDetail] preview start at ${startAt.toStringAsFixed(1)}s of ${duration.toStringAsFixed(0)}s');
+    final pick = _previewStartSeconds(chapters, duration);
+    debugPrint('[Preview] book ${widget.itemId}: start ${pick.seconds.toStringAsFixed(1)}s '
+        'of ${duration.toStringAsFixed(0)}s across ${chapters.length} chapters - ${pick.why}');
     try {
-      await _preview!.toggleAt(startAt);
+      await _preview!.toggleAt(pick.seconds);
     } catch (e) {
-      debugPrint('[BookDetail] preview failed: $e');
+      debugPrint('[Preview] book ${widget.itemId}: failed: $e');
       // stop() resumes the main book we paused and resets for a retry.
       await _preview?.stop();
       if (mounted) {

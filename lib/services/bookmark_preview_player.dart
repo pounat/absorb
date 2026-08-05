@@ -13,10 +13,16 @@ import 'offline_source.dart';
 /// (per-file URLs built on demand). Pauses the main player while auditioning and
 /// restores it on stop/dispose. Owned by the bookmark detail dialog.
 class BookmarkPreviewPlayer extends ChangeNotifier {
-  BookmarkPreviewPlayer({required this.itemId, this.api});
+  BookmarkPreviewPlayer({required this.itemId, this.api, this.label = 'preview'});
 
   final String itemId;
   final ApiService? api;
+
+  /// Which surface is auditioning, so the shared [Preview] log lines from the
+  /// book sample and the bookmark clip can be told apart.
+  final String label;
+
+  String get _tag => '[Preview] $label $itemId';
 
   AudioPlayer? _player;
   StreamSubscription<PlayerState>? _stateSub;
@@ -82,7 +88,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
     final tracks = await _resolveTracks();
     if (_disposed) return;
     if (tracks == null || tracks.isEmpty) {
-      debugPrint('[BookmarkPreview] $itemId: no tracks resolved');
+      debugPrint('$_tag: no tracks resolved');
       _loading = false;
       notifyListeners();
       throw StateError('no audio for $itemId');
@@ -91,8 +97,9 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
     final hit = BookTrackResolver.mapGlobal(tracks, globalSeconds);
     final track = hit.track;
     final local = hit.localOffset;
-    debugPrint('[BookmarkPreview] $itemId: play ${globalSeconds.toStringAsFixed(1)}s -> '
-        'track[${hit.index}] ${track.local ? "local" : "stream"} @${local.toStringAsFixed(1)}s');
+    debugPrint('$_tag: play ${globalSeconds.toStringAsFixed(1)}s -> '
+        'track[${hit.index}] ${track.local ? "local" : "stream"} @${local.toStringAsFixed(1)}s '
+        'clip=${clipLength.inSeconds}s');
 
     try {
       await _disposePlayer();
@@ -132,7 +139,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
       _startAutoStop();
       await player.play();
     } catch (e) {
-      debugPrint('[BookmarkPreview] $itemId: playback error: $e');
+      debugPrint('$_tag: playback error: $e');
       if (_disposed) return;
       _loading = false;
       notifyListeners();
@@ -152,19 +159,11 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
     if (main.isPlaying) await main.pause();
   }
 
-  /// Resume the main player only if the book we paused is still the loaded
-  /// one and nothing else started playing meanwhile (the notification or
-  /// Android Auto can change both while an audition runs).
-  bool get _canResumeMain =>
-      _mainWasPlaying == true &&
-      !AudioPlayerService().isPlaying &&
-      AudioPlayerService().currentItemId == _mainWasItemId;
-
   void _startAutoStop() {
     _autoStop?.cancel();
     _autoStop = Timer(clipLength, () {
       if (_disposed) return;
-      debugPrint('[BookmarkPreview] auto-stop after ${clipLength.inSeconds}s');
+      debugPrint('$_tag: auto-stop after ${clipLength.inSeconds}s');
       if (stopOnClipEnd) {
         unawaited(stop());
       } else {
@@ -186,8 +185,27 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
       try {
         await p.stop();
         await p.dispose();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('$_tag: teardown error: $e');
+      }
     }
+  }
+
+  /// Resume the main player only if the book we paused is still the loaded one
+  /// and nothing else started playing meanwhile (the notification or Android
+  /// Auto can change both while an audition runs). Logged on every audition
+  /// end: "preview stopped my book and never brought it back" is otherwise
+  /// invisible, since all three inputs can shift underneath us.
+  bool _resumeDecision(String from) {
+    final main = AudioPlayerService();
+    final wasPlaying = _mainWasPlaying == true;
+    final mainIdle = !main.isPlaying;
+    final sameItem = main.currentItemId == _mainWasItemId;
+    final resume = wasPlaying && mainIdle && sameItem;
+    debugPrint('$_tag: $from resume=$resume (pausedMain=$wasPlaying '
+        'mainIdle=$mainIdle sameItem=$sameItem was=$_mainWasItemId '
+        'now=${main.currentItemId})');
+    return resume;
   }
 
   /// Stop the audition and resume the main player if we had paused it.
@@ -195,7 +213,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
     await _disposePlayer();
     // Reset the snapshot even when it's false, or a sheet-lifetime player's
     // second audition would pause the main book and never resume it.
-    final shouldResume = _canResumeMain;
+    final shouldResume = _resumeDecision('stop');
     _mainWasPlaying = null;
     _mainWasItemId = null;
     if (shouldResume) await AudioPlayerService().play();
@@ -213,7 +231,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
 
   @override
   void dispose() {
-    final shouldResume = _canResumeMain;
+    final shouldResume = _resumeDecision('dispose');
     _disposed = true;
     _autoStop?.cancel();
     _stateSub?.cancel();
