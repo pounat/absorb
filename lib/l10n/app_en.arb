@@ -3694,6 +3694,7 @@
       }
     }
   },
+  "statsWeekStartsOn": "Week starts on",
   "episodeListNewEpisodePosition": "New episode position",
   "episodeListPositionTop": "Top of queue",
   "episodeListPositionSecond": "Second in queue",

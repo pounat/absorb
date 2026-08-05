@@ -38,6 +38,7 @@ class _StatsScreenState extends State<StatsScreen>
     for (final p in PlayerSettings.statsGoalPeriods) p: 0
   };
   int _bookGoal = 0;
+  int _weekStart = 1;
   String _chartStyle = 'bar';
   int _chartRange = 7;
   List<String> _statsOrder = [];
@@ -131,6 +132,7 @@ class _StatsScreenState extends State<StatsScreen>
         p: await PlayerSettings.getStatsGoalMinutesFor(p)
     };
     final books = await PlayerSettings.getStatsBookGoal();
+    final weekStart = await PlayerSettings.getStatsWeekStart();
     final chartStyle = await PlayerSettings.getStatsChartStyle();
     final chartRange = await PlayerSettings.getStatsChartRange();
     final order = await PlayerSettings.getStatsSectionOrder();
@@ -147,6 +149,7 @@ class _StatsScreenState extends State<StatsScreen>
         ..clear()
         ..addAll(minutes);
       _bookGoal = books;
+      _weekStart = weekStart;
       _chartStyle = chartStyle;
       _chartRange = chartRange;
       _statsOrder = order;
@@ -1628,13 +1631,16 @@ class _StatsScreenState extends State<StatsScreen>
   double _todaySeconds(Map<String, dynamic> dailyMap) =>
       _daySeconds(dailyMap, _dateKey(DateTime.now()));
 
-  /// Sunday through today, so the week total resets on Sunday morning instead
-  /// of sliding. Days are built from year/month/day rather than by subtracting
-  /// Durations, or a DST change would repeat or skip a date key.
+  /// The start of the week through today, so the total resets on the chosen
+  /// day instead of sliding. Days are built from year/month/day rather than by
+  /// subtracting Durations, or a DST change would repeat or skip a date key.
   double _weekSeconds(Map<String, dynamic> dailyMap) {
     final now = DateTime.now();
+    // DateTime.weekday is 1=Mon..7=Sun; %7 puts it in the 0=Sun..6=Sat space
+    // the week-start setting uses.
+    final daysIn = (now.weekday % 7 - _weekStart + 7) % 7;
     double total = 0;
-    for (int i = now.weekday % 7; i >= 0; i--) {
+    for (int i = daysIn; i >= 0; i--) {
       total += _daySeconds(
           dailyMap, _dateKey(DateTime(now.year, now.month, now.day - i)));
     }

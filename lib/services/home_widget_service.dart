@@ -852,7 +852,9 @@ class HomeWidgetService {
 
       final dailyMap = _extractDailyMap(stats);
       final today = _todaySeconds(dailyMap).round();
-      final week = _weekSeconds(dailyMap).round();
+      final week =
+          _weekSeconds(dailyMap, await PlayerSettings.getStatsWeekStart())
+              .round();
       final streak = _currentStreak(dailyMap);
       final hidden = (await ScopedPrefs.getStringList(
         'year_hidden_ids',
@@ -996,12 +998,15 @@ class HomeWidgetService {
   double _todaySeconds(Map<String, dynamic> dailyMap) =>
       _daySeconds(dailyMap, _dateKey(DateTime.now()));
 
-  /// Sunday through today. Must match `_weekSeconds` on the stats page, or the
-  /// widget and the app disagree about the same "This week" number.
-  double _weekSeconds(Map<String, dynamic> dailyMap) {
+  /// Start of the week through today. Must match `_weekSeconds` on the stats
+  /// page, or the widget and the app disagree about the same "This week"
+  /// number. There's no BuildContext here, which is why the week start is a
+  /// stored setting rather than read from MaterialLocalizations.
+  double _weekSeconds(Map<String, dynamic> dailyMap, int weekStart) {
     final now = DateTime.now();
+    final daysIn = (now.weekday % 7 - weekStart + 7) % 7;
     double total = 0;
-    for (int i = now.weekday % 7; i >= 0; i--) {
+    for (int i = daysIn; i >= 0; i--) {
       total += _daySeconds(
           dailyMap, _dateKey(DateTime(now.year, now.month, now.day - i)));
     }

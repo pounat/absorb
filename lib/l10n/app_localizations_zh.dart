@@ -6095,6 +6095,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get statsWeekStartsOn => 'Week starts on';
+
+  @override
   String get episodeListNewEpisodePosition => 'New episode position';
 
   @override

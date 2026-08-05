@@ -153,6 +153,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     for (final p in PlayerSettings.statsGoalPeriods) p: 0
   };
   int _statsBookGoal = 0;
+  int _statsWeekStart = 1;
   String _statsChartStyle = 'bar';
   int _statsChartRange = 7;
   List<String> _statsSectionOrder = [];
@@ -834,6 +835,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         p: await PlayerSettings.getStatsGoalMinutesFor(p)
     };
     final statsBookGoal = await PlayerSettings.getStatsBookGoal();
+    final statsWeekStart = await PlayerSettings.getStatsWeekStart();
     final statsChartStyle = await PlayerSettings.getStatsChartStyle();
     final statsChartRange = await PlayerSettings.getStatsChartRange();
     final statsSectionOrder = await PlayerSettings.getStatsSectionOrder();
@@ -982,6 +984,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ..clear()
         ..addAll(statsGoalMinutes);
       _statsBookGoal = statsBookGoal;
+      _statsWeekStart = statsWeekStart;
       _statsChartStyle = statsChartStyle;
       _statsChartRange = statsChartRange;
       _statsSectionOrder = statsSectionOrder;
@@ -1830,6 +1833,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               _statsGoalRow(cs, tt, l, p),
                         ],
                       ),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Row(children: [
+                        Expanded(
+                            child: Text(l.statsWeekStartsOn,
+                                style: tt.bodyMedium
+                                    ?.copyWith(color: cs.onSurfaceVariant))),
+                        DropdownButton<int>(
+                          value: _statsWeekStart,
+                          underline: const SizedBox.shrink(),
+                          items: [
+                            DropdownMenuItem(value: 0, child: Text(l.absorbingSharedSunday)),
+                            DropdownMenuItem(value: 1, child: Text(l.absorbingSharedMonday)),
+                            DropdownMenuItem(value: 6, child: Text(l.absorbingSharedSaturday)),
+                          ],
+                          onChanged: _loaded
+                              ? (v) {
+                                  if (v == null) return;
+                                  setState(() => _statsWeekStart = v);
+                                  PlayerSettings.setStatsWeekStart(v);
+                                }
+                              : null,
+                        ),
+                      ]),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(

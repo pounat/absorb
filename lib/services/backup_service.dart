@@ -121,6 +121,7 @@ class BackupService {
       'statsGoalWeeklyMinutes': await PlayerSettings.getStatsGoalMinutesFor('weekly'),
       'statsGoalMonthlyMinutes': await PlayerSettings.getStatsGoalMinutesFor('monthly'),
       'statsBookGoal': await PlayerSettings.getStatsBookGoal(),
+      'statsWeekStart': await PlayerSettings.getStatsWeekStart(),
       'statsChartStyle': await PlayerSettings.getStatsChartStyle(),
       'statsChartRange': await PlayerSettings.getStatsChartRange(),
       'statsSectionOrder': await PlayerSettings.getStatsSectionOrder(),
@@ -571,6 +572,7 @@ class BackupService {
           s['statsGoalType'] as String, s['statsGoalMinutes'] as int);
     }
     if (s['statsBookGoal'] != null) await PlayerSettings.setStatsBookGoal(s['statsBookGoal'] as int);
+    if (s['statsWeekStart'] != null) await PlayerSettings.setStatsWeekStart(s['statsWeekStart'] as int);
     if (s['statsChartStyle'] != null) await PlayerSettings.setStatsChartStyle(s['statsChartStyle'] as String);
     if (s['statsChartRange'] != null) await PlayerSettings.setStatsChartRange(s['statsChartRange'] as int);
     if (s['statsSectionOrder'] is List) await PlayerSettings.setStatsSectionOrder((s['statsSectionOrder'] as List).cast<String>());

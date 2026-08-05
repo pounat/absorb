@@ -6266,6 +6266,9 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get statsWeekStartsOn => 'Week starts on';
+
+  @override
   String get episodeListNewEpisodePosition => 'Position neuer Folgen';
 
   @override

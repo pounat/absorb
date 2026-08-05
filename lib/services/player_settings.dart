@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -276,6 +278,39 @@ class PlayerSettings {
     }
     await _set('stats_goal_migrated', true);
   }
+
+  /// Territories that start the week on Sunday or Saturday, from CLDR.
+  /// Everywhere else starts on Monday, which is most of the world.
+  static const _sundayFirstCountries = {
+    'AG', 'AS', 'BD', 'BR', 'BS', 'BT', 'BW', 'BZ', 'CA', 'CN', 'CO', 'DM',
+    'DO', 'ET', 'GT', 'GU', 'HK', 'HN', 'ID', 'IL', 'IN', 'JM', 'JP', 'KE',
+    'KH', 'KR', 'LA', 'MH', 'MM', 'MO', 'MT', 'MX', 'MZ', 'NI', 'NP', 'PA',
+    'PE', 'PH', 'PK', 'PR', 'PY', 'SA', 'SG', 'SV', 'TH', 'TT', 'TW', 'UM',
+    'US', 'VE', 'VI', 'WS', 'YE', 'ZA', 'ZW',
+  };
+  static const _saturdayFirstCountries = {
+    'AE', 'AF', 'BH', 'DJ', 'DZ', 'EG', 'IQ', 'IR', 'JO', 'KW', 'LY', 'OM',
+    'QA', 'SD', 'SY',
+  };
+
+  /// Day the stats week starts on: 0 = Sunday, 1 = Monday, 6 = Saturday. Same
+  /// numbering as `MaterialLocalizations.firstDayOfWeekIndex`.
+  ///
+  /// Defaults from the DEVICE locale's country rather than the app's language
+  /// setting - the language picker stores a bare language code with no region,
+  /// so an English UI would otherwise report Sunday for the whole world.
+  static int defaultStatsWeekStart() {
+    final country = ui.PlatformDispatcher.instance.locale.countryCode?.toUpperCase();
+    if (country == null) return 1;
+    if (_sundayFirstCountries.contains(country)) return 0;
+    if (_saturdayFirstCountries.contains(country)) return 6;
+    return 1;
+  }
+
+  static Future<int> getStatsWeekStart() async =>
+      await ScopedPrefs.getInt('stats_week_start') ?? defaultStatsWeekStart();
+  static Future<void> setStatsWeekStart(int day) =>
+      _set('stats_week_start', day, notify: true);
 
   /// Yearly book-challenge target. 0 = off.
   static Future<int> getStatsBookGoal() => _get('stats_book_goal', 0);

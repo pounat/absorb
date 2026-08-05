@@ -10779,6 +10779,12 @@ abstract class AppLocalizations {
   /// **'New {showTitle} episode downloaded'**
   String lpSubscribedEpisodeDownloaded(String showTitle);
 
+  /// No description provided for @statsWeekStartsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Week starts on'**
+  String get statsWeekStartsOn;
+
   /// No description provided for @episodeListNewEpisodePosition.
   ///
   /// In en, this message translates to:
