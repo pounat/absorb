@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'overlay_toast.dart';
+import 'swipe_action.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -896,30 +897,25 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                             final absorbKey = '$_itemId-$epId';
                             final isOnAbsorbing = lib.isOnAbsorbingList(absorbKey);
                             final epTitle = ep['title'] as String? ?? l.episodeListEpisodeFallback;
-                            return Dismissible(
+                            return SwipeAction(
                               key: ValueKey('absorb-$absorbKey'),
-                              direction: isOnAbsorbing ? DismissDirection.none : DismissDirection.startToEnd,
-                              confirmDismiss: (_) async {
-                                await lib.addToAbsorbingQueue(absorbKey);
-                                final cached = Map<String, dynamic>.from(_podcastItem);
-                                cached['recentEpisode'] = Map<String, dynamic>.from(ep);
-                                cached['_absorbingKey'] = absorbKey;
-                                lib.absorbingItemCache[absorbKey] = cached;
-                                HapticFeedback.mediumImpact();
-                                if (context.mounted) {
-                                  showOverlayToast(context, Wording.of(context).episodeListAddedToAbsorbing(epTitle), icon: Icons.add_circle_outline_rounded);
-                                }
-                                return false;
-                              },
-                              background: Container(
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 20),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Icon(Icons.add_circle_outline_rounded, color: Theme.of(context).colorScheme.primary),
-                              ),
+                              onStartToEnd: isOnAbsorbing
+                                  ? null
+                                  : SwipeActionSpec(
+                                      icon: Icons.add_circle_outline_rounded,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      onTrigger: () async {
+                                        await lib.addToAbsorbingQueue(absorbKey);
+                                        final cached = Map<String, dynamic>.from(_podcastItem);
+                                        cached['recentEpisode'] = Map<String, dynamic>.from(ep);
+                                        cached['_absorbingKey'] = absorbKey;
+                                        lib.absorbingItemCache[absorbKey] = cached;
+                                        HapticFeedback.mediumImpact();
+                                        if (context.mounted) {
+                                          showOverlayToast(context, Wording.of(context).episodeListAddedToAbsorbing(epTitle), icon: Icons.add_circle_outline_rounded);
+                                        }
+                                      },
+                                    ),
                               child: EpisodeRow(
                                 episode: ep,
                                 podcastItem: _podcastItem,

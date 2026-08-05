@@ -12,6 +12,7 @@ import '../services/download_service.dart';
 import 'book_detail_sheet.dart';
 import 'episode_detail_sheet.dart';
 import 'overlay_toast.dart';
+import 'swipe_action.dart';
 import 'stackable_sheet.dart';
 
 /// Open the right detail sheet for a section entity: episode detail for
@@ -218,30 +219,23 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
           ),
         );
 
-        return Dismissible(
+        return SwipeAction(
           key: ValueKey('absorb-$itemId'),
-          direction: isOnAbsorbing
-              ? DismissDirection.none
-              : DismissDirection.startToEnd,
-          confirmDismiss: (_) async {
-            await lib.addToAbsorbingQueue(itemId);
-            lib.absorbingItemCache[itemId] = Map<String, dynamic>.from(item);
-            HapticFeedback.mediumImpact();
-            if (context.mounted) {
-              showOverlayToast(context, Wording.of(context).sectionDetailAddedToAbsorbing(title),
-                  icon: Icons.add_circle_outline_rounded);
-            }
-            return false;
-          },
-          background: Container(
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.only(left: 20),
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(Icons.add_circle_outline_rounded, color: cs.primary),
-          ),
+          onStartToEnd: isOnAbsorbing
+              ? null
+              : SwipeActionSpec(
+                  icon: Icons.add_circle_outline_rounded,
+                  color: cs.primary,
+                  onTrigger: () async {
+                    await lib.addToAbsorbingQueue(itemId);
+                    lib.absorbingItemCache[itemId] = Map<String, dynamic>.from(item);
+                    HapticFeedback.mediumImpact();
+                    if (context.mounted) {
+                      showOverlayToast(context, Wording.of(context).sectionDetailAddedToAbsorbing(title),
+                          icon: Icons.add_circle_outline_rounded);
+                    }
+                  },
+                ),
           child: card,
         );
       },
