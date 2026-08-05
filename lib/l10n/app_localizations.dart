@@ -3478,6 +3478,24 @@ abstract class AppLocalizations {
   /// **'Off - all library items shown'**
   String get hideEbookOnlyOffSubtitle;
 
+  /// No description provided for @hideFinishedInCarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide finished in CarPlay & Android Auto'**
+  String get hideFinishedInCarTitle;
+
+  /// No description provided for @hideFinishedInCarOnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished books and episodes are hidden while browsing in the car (Continue is unaffected)'**
+  String get hideFinishedInCarOnSubtitle;
+
+  /// No description provided for @hideFinishedInCarOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Off - finished items shown in the car'**
+  String get hideFinishedInCarOffSubtitle;
+
   /// No description provided for @showGoodreadsButton.
   ///
   /// In en, this message translates to:

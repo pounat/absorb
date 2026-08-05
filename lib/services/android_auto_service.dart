@@ -208,6 +208,7 @@ class AndroidAutoService {
   factory AndroidAutoService() => _instance;
   AndroidAutoService._() {
     DownloadService().addListener(_onDownloadsChanged);
+    PlayerSettings.settingsChanged.addListener(_onSettingsChanged);
   }
 
   Timer? _downloadsRefreshDebounce;
@@ -251,11 +252,107 @@ class AndroidAutoService {
   List<AutoBookEntry> _downloaded = [];
   List<AutoLibraryEntry> _libraries = [];
 
-  /// Public read-only access to cached data (used by CarPlayService)
+  /// Public read-only access to cached data (used by CarPlayService).
+  /// Continue is intentionally never filtered by "hide finished": a finished
+  /// book the user re-started must stay resumable from the car.
   List<AutoBookEntry> get continueListening => _continueListening;
-  List<AutoBookEntry> get recentlyAdded => _recentlyAdded;
-  List<AutoBookEntry> get downloaded => _downloaded;
+  List<AutoBookEntry> get recentlyAdded => _withoutFinished(_recentlyAdded);
+  List<AutoBookEntry> get downloaded => _withoutFinished(_downloaded);
   List<AutoLibraryEntry> get libraries => _libraries;
+
+  // ── Hide-finished filtering (CarPlay / Android Auto only) ──
+  //
+  // When the "hide finished in car" setting is on, browse lists exclude items
+  // whose mediaProgress is finished, so the user isn't scrolling past already
+  // heard books while driving. Keys match AutoBookEntry.id: the ABS library
+  // item id for books, "<showId>-<episodeId>" for podcast episodes. Caches
+  // (_allBooksCache, _childrenCache values) always hold UNFILTERED data;
+  // filtering happens at return time so toggling the setting doesn't force a
+  // full refetch.
+  bool _hideFinished = false;
+  bool _hideFinishedLoaded = false;
+  Set<String> _finishedKeys = {};
+  DateTime? _finishedKeysAt;
+  static const _finishedKeysTtl = Duration(minutes: 5);
+
+  Future<void> _ensureHideFinishedLoaded() async {
+    if (_hideFinishedLoaded) return;
+    _hideFinished = await PlayerSettings.getHideFinishedInCar();
+    _hideFinishedLoaded = true;
+  }
+
+  /// Refresh the set of finished progress keys from the server, merged with
+  /// local download progress so the Downloads tab also filters offline.
+  Future<void> _ensureFinishedKeys({bool force = false}) async {
+    if (!_hideFinished) return;
+    if (!force &&
+        _finishedKeysAt != null &&
+        DateTime.now().difference(_finishedKeysAt!) < _finishedKeysTtl) {
+      return;
+    }
+    final keys = <String>{};
+    try {
+      final api = await getApi();
+      final progress = api == null ? null : await api.getAllProgress();
+      if (progress != null) {
+        for (final p in progress) {
+          if (p['isFinished'] != true) continue;
+          final itemId = p['libraryItemId'] as String? ?? '';
+          if (itemId.isEmpty) continue;
+          final episodeId = p['episodeId'] as String? ?? '';
+          keys.add(episodeId.isNotEmpty ? '$itemId-$episodeId' : itemId);
+        }
+      }
+    } catch (e) {
+      debugPrint('[AutoBrowse] Error fetching finished progress: $e');
+    }
+    final psync = ProgressSyncService();
+    for (final dl in DownloadService().downloadedItems) {
+      try {
+        final local = await psync.getLocal(dl.itemId);
+        if (local?['isFinished'] == true) keys.add(dl.itemId);
+      } catch (_) {}
+    }
+    _finishedKeys = keys;
+    _finishedKeysAt = DateTime.now();
+  }
+
+  List<AutoBookEntry> _withoutFinished(List<AutoBookEntry> entries) =>
+      _hideFinished
+          ? entries.where((e) => !_finishedKeys.contains(e.id)).toList()
+          : entries;
+
+  List<MediaItem> _withoutFinishedMedia(List<MediaItem> items) {
+    if (!_hideFinished) return items;
+    return items.where((m) {
+      final key = AutoMediaIds.absItemId(m.id);
+      return key == null || !_finishedKeys.contains(key);
+    }).toList();
+  }
+
+  void _onSettingsChanged() {
+    unawaited(() async {
+      final value = await PlayerSettings.getHideFinishedInCar();
+      if (_hideFinishedLoaded && value == _hideFinished) return;
+      _hideFinished = value;
+      _hideFinishedLoaded = true;
+      _finishedKeysAt = null;
+      await _ensureFinishedKeys();
+      _childrenCache.clear();
+      _childrenInFlight.clear();
+      if (Platform.isAndroid) {
+        for (final id in _refreshSensitiveParents) {
+          try {
+            // ignore: deprecated_member_use
+            await AudioServiceBackground.notifyChildrenChanged(id);
+          } catch (_) {}
+        }
+      }
+      try {
+        onServerDataChanged?.call();
+      } catch (_) {}
+    }());
+  }
 
   DateTime? _lastRefresh;
   bool _isRefreshing = false;
@@ -279,6 +376,11 @@ class AndroidAutoService {
     _isRefreshing = false;
     _childrenCache.clear();
     _childrenInFlight.clear();
+    // hideFinishedInCar is a ScopedPrefs (per-account) setting; reload both
+    // it and the finished set for the new account.
+    _hideFinishedLoaded = false;
+    _finishedKeys = {};
+    _finishedKeysAt = null;
     debugPrint('[AutoBrowse] Cache cleared (user switch/logout)');
   }
 
@@ -363,6 +465,7 @@ class AndroidAutoService {
   static void Function()? onServerDataChanged;
 
   Future<void> refresh({bool force = false}) async {
+    await _ensureHideFinishedLoaded();
     // Always populate downloads immediately — no server needed.
     // This ensures Android Auto / CarPlay can show the Downloads tab even
     // if the server is unreachable (e.g. no remote access, offline-only
@@ -401,6 +504,7 @@ class AndroidAutoService {
   Future<void> _refreshServerInBackground() async {
     try {
       await _refreshDownloaded(); // re-fetch in case downloads changed
+      await _ensureFinishedKeys(force: true);
       await _refreshFromServer();
       _lastRefresh = DateTime.now();
       debugPrint('[AutoBrowse] Refresh done: '
@@ -960,6 +1064,7 @@ class AndroidAutoService {
   }
 
   Future<List<MediaItem>> _computeChildren(String parentMediaId) async {
+    await _ensureHideFinishedLoaded();
     // Ensure downloads are always populated before returning root.
     // This is instant (no network) so Android Auto never waits on a server.
     if (!_downloadsReady) {
@@ -998,10 +1103,12 @@ class AndroidAutoService {
           debugPrint('[AutoBrowse] On-demand recent fetch failed: $e');
         }
       }
-      return _recentlyAdded.map((e) => e.toMediaItem()).toList();
+      await _ensureFinishedKeys();
+      return recentlyAdded.map((e) => e.toMediaItem()).toList();
     }
     if (parentMediaId == AutoMediaIds.downloads) {
-      return _downloaded.map((e) => e.toMediaItem()).toList();
+      await _ensureFinishedKeys();
+      return downloaded.map((e) => e.toMediaItem()).toList();
     }
 
     // ── Library list ──
@@ -1160,20 +1267,8 @@ class AndroidAutoService {
   }
 
   Future<List<MediaItem>> _fetchSeriesBooks(String seriesId, String libraryId) async {
-    final api = await getApi();
-    if (api == null) return [];
-
-    try {
-      final results = await api.getBooksBySeries(libraryId, seriesId);
-      return _sortBySeriesSequence(results, seriesId)
-          .map((item) => _libraryItemToEntry(item, api))
-          .whereType<AutoBookEntry>()
-          .map((e) => e.toMediaItem())
-          .toList();
-    } catch (e) {
-      debugPrint('[AutoBrowse] Error fetching series books: $e');
-      return [];
-    }
+    final entries = await fetchSeriesBooksData(seriesId, libraryId);
+    return entries.map((e) => e.toMediaItem()).toList();
   }
 
   /// Sort raw library items by their sequence within the given series.
@@ -1209,21 +1304,8 @@ class AndroidAutoService {
   }
 
   Future<List<MediaItem>> _fetchAuthorBooks(String authorId, String libraryId) async {
-    final api = await getApi();
-    if (api == null) return [];
-
-    try {
-      final results = await api.getBooksByAuthor(libraryId, authorId);
-      return results
-          .whereType<Map<String, dynamic>>()
-          .map((item) => _libraryItemToEntry(item, api))
-          .whereType<AutoBookEntry>()
-          .map((e) => e.toMediaItem())
-          .toList();
-    } catch (e) {
-      debugPrint('[AutoBrowse] Error fetching author books: $e');
-      return [];
-    }
+    final entries = await fetchAuthorBooksData(authorId, libraryId);
+    return entries.map((e) => e.toMediaItem()).toList();
   }
 
   /// Fetch all podcast shows in a library. Shows are browsable, not playable.
@@ -1282,6 +1364,8 @@ class AndroidAutoService {
 
   /// Fetch episodes for a podcast show. Sorted newest-first.
   Future<List<MediaItem>> _fetchShowEpisodes(String showId, String libraryId) async {
+    await _ensureHideFinishedLoaded();
+    await _ensureFinishedKeys();
     final api = await getApi();
     if (api == null) return [];
 
@@ -1325,7 +1409,7 @@ class AndroidAutoService {
       }
 
       debugPrint('[AutoBrowse] Fetched ${items.length} episodes for "$showTitle"');
-      return items;
+      return _withoutFinishedMedia(items);
     } catch (e) {
       debugPrint('[AutoBrowse] Error fetching show episodes: $e');
     }
@@ -1376,9 +1460,11 @@ class AndroidAutoService {
   /// Fetch every book in the library (no cap), title-sorted. Cached for
   /// [_booksCacheTtl]. Shared by CarPlay and Android Auto.
   Future<List<AutoBookEntry>> fetchAllBooks(String libraryId) async {
+    await _ensureHideFinishedLoaded();
+    await _ensureFinishedKeys();
     final cached = _allBooksCache[libraryId];
     if (cached != null && DateTime.now().difference(cached.at) < _booksCacheTtl) {
-      return cached.books;
+      return _withoutFinished(cached.books);
     }
     final api = await getApi();
     final books = <AutoBookEntry>[];
@@ -1402,7 +1488,7 @@ class AndroidAutoService {
     } catch (e) {
       debugPrint('[AutoBrowse] Error fetching all books: $e');
     }
-    return books;
+    return _withoutFinished(books);
   }
 
   /// Resolve a browse level for [prefix] (empty = top). Returns either the leaf
@@ -1545,14 +1631,16 @@ class AndroidAutoService {
 
   /// Fetch books in a series, returning raw entries.
   Future<List<AutoBookEntry>> fetchSeriesBooksData(String seriesId, String libraryId) async {
+    await _ensureHideFinishedLoaded();
+    await _ensureFinishedKeys();
     final api = await getApi();
     if (api == null) return [];
     try {
       final results = await api.getBooksBySeries(libraryId, seriesId);
-      return _sortBySeriesSequence(results, seriesId)
+      return _withoutFinished(_sortBySeriesSequence(results, seriesId)
           .map((item) => _libraryItemToEntry(item, api))
           .whereType<AutoBookEntry>()
-          .toList();
+          .toList());
     } catch (e) {
       debugPrint('[AutoBrowse] Error fetching series books data: $e');
       return [];
@@ -1561,15 +1649,17 @@ class AndroidAutoService {
 
   /// Fetch books by an author, returning raw entries.
   Future<List<AutoBookEntry>> fetchAuthorBooksData(String authorId, String libraryId) async {
+    await _ensureHideFinishedLoaded();
+    await _ensureFinishedKeys();
     final api = await getApi();
     if (api == null) return [];
     try {
       final results = await api.getBooksByAuthor(libraryId, authorId);
-      return results
+      return _withoutFinished(results
           .whereType<Map<String, dynamic>>()
           .map((item) => _libraryItemToEntry(item, api))
           .whereType<AutoBookEntry>()
-          .toList();
+          .toList());
     } catch (e) {
       debugPrint('[AutoBrowse] Error fetching author books data: $e');
       return [];
@@ -1616,6 +1706,8 @@ class AndroidAutoService {
 
   /// Fetch episodes for a podcast show, returning raw entries.
   Future<List<AutoBookEntry>> fetchShowEpisodesData(String showId, String libraryId) async {
+    await _ensureHideFinishedLoaded();
+    await _ensureFinishedKeys();
     final api = await getApi();
     if (api == null) return [];
     try {
@@ -1650,7 +1742,7 @@ class AndroidAutoService {
           libraryId: fullItem['libraryId'] as String? ?? libraryId,
         ));
       }
-      return entries;
+      return _withoutFinished(entries);
     } catch (e) {
       debugPrint('[AutoBrowse] Error fetching show episodes data: $e');
       return [];
@@ -1660,6 +1752,8 @@ class AndroidAutoService {
   // ─── Search ────────────────────────────────────────────────────────
 
   Future<List<MediaItem>> search(String query) async {
+    await _ensureHideFinishedLoaded();
+    await _ensureFinishedKeys();
     final api = await getApi();
     final libId = await getDefaultLibraryId();
     if (api == null || libId == null) return [];
@@ -1681,7 +1775,9 @@ class AndroidAutoService {
               .map((hit) => _libraryItemToEntry(hit.item, api)?.toMediaItem())
               .whereType<MediaItem>()
               .toList();
-          if (library?.isBook == true || hits.isNotEmpty) return hits;
+          if (library?.isBook == true || hits.isNotEmpty) {
+            return _withoutFinishedMedia(hits);
+          }
         }
       }
 
@@ -1723,7 +1819,7 @@ class AndroidAutoService {
           }
         }
       }
-      return items;
+      return _withoutFinishedMedia(items);
     } catch (e) {
       debugPrint('[AutoBrowse] Search error: $e');
       return [];

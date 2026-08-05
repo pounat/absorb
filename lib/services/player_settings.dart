@@ -673,6 +673,9 @@ class PlayerSettings {
   static Future<bool> getHideEbookOnly() => _get('hideEbookOnly', false);
   static Future<void> setHideEbookOnly(bool value) => _set('hideEbookOnly', value, notify: true);
 
+  static Future<bool> getHideFinishedInCar() => _get('hideFinishedInCar', false);
+  static Future<void> setHideFinishedInCar(bool value) => _set('hideFinishedInCar', value, notify: true);
+
   static Future<bool> getCollapseSeries() => _get('collapseSeries', false);
   static Future<void> setCollapseSeries(bool value) => _set('collapseSeries', value, notify: true);
 
