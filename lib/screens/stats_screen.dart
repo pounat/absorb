@@ -1628,11 +1628,15 @@ class _StatsScreenState extends State<StatsScreen>
   double _todaySeconds(Map<String, dynamic> dailyMap) =>
       _daySeconds(dailyMap, _dateKey(DateTime.now()));
 
+  /// Sunday through today, so the week total resets on Sunday morning instead
+  /// of sliding. Days are built from year/month/day rather than by subtracting
+  /// Durations, or a DST change would repeat or skip a date key.
   double _weekSeconds(Map<String, dynamic> dailyMap) {
     final now = DateTime.now();
     double total = 0;
-    for (int i = 0; i < 7; i++) {
-      total += _daySeconds(dailyMap, _dateKey(now.subtract(Duration(days: i))));
+    for (int i = now.weekday % 7; i >= 0; i--) {
+      total += _daySeconds(
+          dailyMap, _dateKey(DateTime(now.year, now.month, now.day - i)));
     }
     return total;
   }
