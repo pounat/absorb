@@ -290,7 +290,7 @@
   "hasEbook": "A un eBook",
   "noEbook": "Aucun eBook",
   "hasSupplementaryEbook": "A un eBook supplémentaire",
-  "noSupplementaryEbook": "Pas de livre électronique supplémentaire",
+  "noSupplementaryEbook": "Pas de eBook supplémentaire",
   "noSeries": "Pas de série",
   "publishedDecade": "Décennie de publication",
   "tracks": "Pistes",
@@ -1050,10 +1050,14 @@
   },
   "backupAndRestore": "Sauvegarder & Restaurer",
   "backupAndRestoreSubtitle": "Sauvegarder ou restaurer tous vos paramètres dans un fichier",
+  "backUp": "Sauvegarder",
+  "restore": "Restaurer",
   "allBookmarks": "Tous les signets",
+  "allBookmarksSubtitle": "Voir les signets de tous les livres",
   "switchAccount": "Changer de compte",
   "addAccount": "Ajouter un compte",
   "logOut": "Se déconnecter",
+  "includeLoginInfoTitle": "Inclure les informations de connexion ?",
   "includeLoginInfoContent": "Souhaitez‑vous inclure les identifiants de connexion de tous vos comptes enregistrés dans la sauvegarde ?\n\nCela facilite la restauration sur un nouvel appareil, mais le fichier contiendra vos jetons d’authentification.",
   "noSettingsOnly": "Non, paramètres uniquement",
   "yesIncludeAccounts": "Oui, inclure les comptes",
@@ -1069,20 +1073,92 @@
   },
   "restoreBackupTitle": "Restaurer la sauvegarde ?",
   "restoreBackupContent": "Tous vos paramètres actuels seront remplacés par ceux de la sauvegarde.",
+  "fromAbsorbVersion": "Depuis Absorb v{version}",
+  "@fromAbsorbVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "restoreAccountsChip": "{count} compte(s)",
+  "@restoreAccountsChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "restoreBookmarksChip": "Signets pour {count} livre(s)",
+  "@restoreBookmarksChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "restoreCustomHeadersChip": "En-têtes personnalisés",
+  "invalidBackupFile": "Fichier de sauvegarde invalide",
+  "settingsRestoredSuccessfully": "Les paramètres ont été restaurés avec succès",
+  "restoreFailed": "Échec de la restauration : {error}",
+  "@restoreFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "logOutTitle": "Se déconnecter ?",
   "logOutContent": "Cela vous déconnectera. Vos téléchargements resteront sur cet appareil.",
   "signOut": "Se déconnecter",
+  "changePasswordTitle": "Modifier le mot de passe",
+  "changePasswordSubtitle": "Mettre à jour votre mot de passe de lecture audio en toute sécurité",
   "currentPassword": "Mot de passe actuel",
   "newPassword": "Nouveau mot de passe",
   "confirmNewPassword": "Confirmez le nouveau mot de passe",
   "passwordChangeEffect": "La modification de votre mot de passe déconnecte vos autres sessions d'Audiobookshelf. Cet appareil reste connecté.",
+  "passwordFieldsRequired": "Remplir tous les champs de mot de passe",
+  "passwordsDoNotMatch": "Les nouveaux mots de passe ne correspondent pas",
+  "passwordChanged": "Mot de passe modifié. Les autres appareils connectés ont été déconnectés.",
   "passwordInvalid": "Le mot de passe actuel est incorrect",
+  "passwordChangeUnsupported": "Cette version du serveur ne prend pas en charge les changements de mot de passe sécurisés dans Absorb",
+  "passwordChangeFailed": "Impossible de changer votre mot de passe",
+  "otherUserPasswordResetWarning": "La modification de ce mot de passe déconnecte l'utilisateur sur tous les autres appareils.",
+  "manageSessionsTitle": "Appareils connectés",
+  "manageSessionsSubtitle": "Examiner et supprimer les sessions Audiobookshelf",
   "sessionsCurrent": "Appareil actuel",
   "sessionsUnknownDevice": "Appareil inconnu",
+  "sessionsLastActive": "Dernière activité le {date}",
+  "@sessionsLastActive": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "sessionsNone": "Aucune session active",
+  "sessionsLoadMore": "Charger plus",
+  "sessionsUnsupported": "La gestion des sessions nécessite Audiobookshelf 2.36 ou plus récentes.",
+  "sessionsLoadFailed": "Impossible de charger les appareils connectés",
+  "sessionsLegacyNotice": "Cette connexion n'a pas de session d'actualisation, donc Absorb ne peut pas identifier cet appareil dans la liste.",
+  "sessionsRemove": "Déconnecter l'appareil",
+  "sessionsRemoveTitle": "Déconnecter cet appareil ?",
   "sessionsRemoveContent": "Cela supprime sa session de rafraîchissement. Son accès actuel peut continuer à fonctionner jusqu'à l'expiration de ce jeton de courte durée.",
+  "sessionsRemoved": "Appareil déconnecté",
+  "sessionsRemoveFailed": "Impossible de déconnecter cet appareil",
+  "sessionsSignOutAll": "Déconnecter tous les appareils",
+  "sessionsSignOutAllTitle": "Déconnexion partout ?",
   "sessionsSignOutAllContent": "Cela supprime toutes les sessions de rafraîchissement, y compris cet appareil. Les jetons d'accès existants peuvent fonctionner jusqu'à ce qu'ils expirent.",
+  "podcastScheduleServerTime": "Le calendrier utilise l'heure du serveur ({timeZone})",
+  "@podcastScheduleServerTime": {
+    "placeholders": {
+      "timeZone": {
+        "type": "String"
+      }
+    }
+  },
+  "podcastScheduleServerTimeUnknown": "Le calendrier utilise l'heure du serveur",
+  "editServerAddressTitle": "Modifier l'adresse du serveur",
   "editServerAddressSubtitle": "Mettre à jour l'adresse de {username}. Utilisez ceci si l'adresse de votre serveur a changé - c'est toujours le même serveur, juste une nouvelle URL. Vos statistiques et vos téléchargements sont conservés.",
   "@editServerAddressSubtitle": {
     "placeholders": {
@@ -1175,6 +1251,7 @@
   "adminRmabUrlHint": "https://rmab.example.com/?token=...",
   "adminRmabReload": "Recharger",
   "adminRmabConnected": "Connecté",
+  "adminRmabUrlHelpUser": "Obtenir une URL de connexion depuis l'administrateur de votre serveur. Ils en génèrent une dans RMAB > Admin > Utilisateurs.",
   "adminRmabSettingsInfo": "ReadMeABook est un service auto-hébergé pour demander et télécharger des livres audio. Il doit être installé et configuré par l'administrateur de votre serveur.",
   "rmabConfigTitle": "Connecter ReadMeABook",
   "rmabConfigExplainerAdmin": "ReadMeABook est un service auto-hébergé pour demander des livres audio. Générez un jeton d'API dans RMAB sous Tableau de bord Admin > Paramètres > API, puis collez l'URL du serveur et le jeton ci-dessous. Absorb n'héberge ni ne télécharge aucun contenu, il envoie simplement des requêtes à votre serveur.",
@@ -1184,11 +1261,13 @@
   "rmabConfigBaseUrlHint": "https://rmab.exemple.com",
   "rmabConfigTokenLabel": "Jeton d'API",
   "rmabConfigTokenHint": "rmab_...",
+  "rmabConfigLegacyUrlLabel": "URL de connexion à l'interface Web (facultatif)",
   "rmabConfigLegacyUrlHint": "https://rmab.exemple.com/?token=...",
   "rmabConfigLegacyUrlHelp": "Collez votre URL de connexion automatique pour que vous soyez connecté dans \"Ouvrir dans la vue du navigateur\". Laissez vide pour utiliser une connexion normale.",
   "rmabConfigHeadersHelp": "En-têtes supplémentaires envoyés avec chaque requête ReadMeABook pour les proxy inversés comme Cloudflare Access.",
   "rmabConfigConnect": "Connecter",
   "rmabConfigDisconnect": "Déconnecter",
+  "rmabConfigOpenWebView": "Ouvrir dans la vue du navigateur",
   "rmabConfigConnectedAs": "Connecté en tant que {name}",
   "@rmabConfigConnectedAs": {
     "placeholders": {
@@ -1197,10 +1276,21 @@
       }
     }
   },
+  "rmabConfigErrorInvalidUrl": "Entrez une URL http(s) valide",
+  "rmabConfigErrorMissingToken": "Entrez votre jeton API",
+  "rmabConfigErrorUnauthorized": "Jeton rejeté par le serveur",
+  "rmabConfigErrorForbidden": "Ce jeton n'est pas autorisé pour cette action",
+  "rmabConfigErrorNetwork": "Impossible d'accéder à RMAB. Vérifiez l'URL.",
   "rmabConfigErrorGeneric": "Connexion impossible",
   "rmabConfigSavedSnackbar": "ReadMeABook connecté",
   "rmabConfigDisconnectedSnackbar": "ReadMeABook déconnecté",
+  "rmabRequestCta": "Demander via ReadMeABook",
+  "rmabSearchHeader": "Demander via ReadMeABook",
   "rmabSearchHint": "Rechercher par titre ou auteur",
+  "rmabSearchEmpty": "Aucune correspondance sur votre serveur ReadMeABook",
+  "rmabSearchError": "Impossible de rechercher dans ReadMeABook",
+  "rmabSearchPrompt": "Tapez un titre ou un auteur à rechercher",
+  "rmabSearchFooterPrompt": "Vous cherchez autre chose ?",
   "rmabSearchFooterCta": "Rechercher \"{query}\" sur ReadMeABook",
   "@rmabSearchFooterCta": {
     "placeholders": {
@@ -1212,8 +1302,13 @@
   "rmabBookDetailExplainer": "Cette demande sera envoyée via votre serveur ReadMeABook. L'administrateur l'examinera et la traitera. Vous pouvez suivre son évolution dans « Mes demandes » dans la section ReadMeABook.",
   "rmabBookAlreadyAvailable": "Déjà dans votre bibliothèque",
   "rmabBookAlreadyRequested": "Déjà demandé",
+  "rmabRequestSubmitting": "Soumission…",
   "rmabRequestSent": "Demande envoyée",
   "rmabRequestErrorAlreadyAvailable": "Déjà dans votre bibliothèque",
+  "rmabRequestErrorBeingProcessed": "Déjà traitée",
+  "rmabRequestErrorDuplicate": "Vous avez déjà demandé ceci",
+  "rmabRequestErrorValidation": "Impossible d'envoyer la requête",
+  "rmabRequestErrorUserNotFound": "Le jeton utilisateur n'existe plus. Reconnectez ReadMeABook.",
   "rmabMyRequestsTab": "Mes demandes",
   "rmabSetupTab": "Configuration",
   "rmabMyRequestsRefresh": "Actualiser",
