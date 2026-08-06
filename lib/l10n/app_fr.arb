@@ -735,6 +735,10 @@
   "queueModeBooks": "Livres",
   "queueModePodcasts": "Podcasts",
   "autoDownloadQueue": "File de téléchargement automatique",
+  "autoDownloadThisSeriesLabel": "Télécharger automatiquement cette série",
+  "autoDownloadThisShowLabel": "Télécharger automatiquement ce podcast",
+  "autoDownloadThisPlaylistLabel": "Télécharger automatiquement cette playlist",
+  "autoDownloadThisCollectionLabel": "Télécharger automatiquement cette collection",
   "autoDownloadQueueOnSubtitle": "Garder les {count} prochains éléments téléchargés",
   "@autoDownloadQueueOnSubtitle": {
     "placeholders": {
