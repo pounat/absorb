@@ -41,6 +41,7 @@ A modern audiobookshelf client with a card-based player experience.
 - **Android Auto & Apple CarPlay** — browse and listen from your car
 - **Chromecast** — cast playback to Google Cast devices (Android only)
 - **Custom headers** — add custom HTTP headers for reverse proxy setups
+- **Client certificates (mTLS)** — present a PKCS#12 client certificate to servers that require one
 - **OIDC/SSO login** — OpenID Connect support alongside standard auth
 - **Server admin** — manage users, backups, and podcasts from the app
 - **Listening stats** — track your listening history

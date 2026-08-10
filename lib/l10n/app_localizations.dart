@@ -15476,6 +15476,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Playing this passage in the audiobook'**
   String get findInAudiobookPlaying;
+
+  /// No description provided for @mtlsCertificate.
+  ///
+  /// In en, this message translates to:
+  /// **'Client certificate'**
+  String get mtlsCertificate;
+
+  /// No description provided for @mtlsNoCertificate.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get mtlsNoCertificate;
+
+  /// No description provided for @mtlsServerRequiresCertTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This server requires a client certificate'**
+  String get mtlsServerRequiresCertTitle;
+
+  /// No description provided for @mtlsServerRequiresCertBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Import the .p12 or .pfx bundle you were given, then connect again.'**
+  String get mtlsServerRequiresCertBody;
+
+  /// No description provided for @mtlsSelectCertificate.
+  ///
+  /// In en, this message translates to:
+  /// **'Select certificate'**
+  String get mtlsSelectCertificate;
+
+  /// No description provided for @mtlsChangeCertificate.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get mtlsChangeCertificate;
+
+  /// No description provided for @mtlsSelectAndRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Select certificate & retry'**
+  String get mtlsSelectAndRetry;
+
+  /// No description provided for @mtlsImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import client certificate'**
+  String get mtlsImportTitle;
+
+  /// No description provided for @mtlsImportBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the PKCS#12 bundle (.p12 or .pfx) for this server and enter the password that protects it.'**
+  String get mtlsImportBody;
+
+  /// No description provided for @mtlsPickFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose file'**
+  String get mtlsPickFile;
+
+  /// No description provided for @mtlsPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Certificate password'**
+  String get mtlsPassword;
+
+  /// No description provided for @mtlsImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get mtlsImport;
+
+  /// No description provided for @mtlsImportFailedPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password, or this is not a valid PKCS#12 bundle.'**
+  String get mtlsImportFailedPassword;
+
+  /// No description provided for @mtlsImportFailedRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not use that file.'**
+  String get mtlsImportFailedRead;
+
+  /// No description provided for @mtlsImportFailedStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the certificate on this device.'**
+  String get mtlsImportFailedStore;
+
+  /// No description provided for @mtlsImportSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Client certificate imported'**
+  String get mtlsImportSucceeded;
+
+  /// No description provided for @mtlsRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Client certificate removed'**
+  String get mtlsRemoved;
+
+  /// No description provided for @mtlsRemoveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove client certificate?'**
+  String get mtlsRemoveConfirmTitle;
+
+  /// No description provided for @mtlsRemoveConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This account will stop presenting a certificate. If the server requires one, it will no longer connect.'**
+  String get mtlsRemoveConfirmBody;
+
+  /// No description provided for @mtlsUnsupportedFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a .p12 or .pfx file.'**
+  String get mtlsUnsupportedFile;
+
+  /// No description provided for @mtlsImportedWithoutPlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Client certificate imported, but this device\'s player would not load it. Server requests work, playback and downloads may not.'**
+  String get mtlsImportedWithoutPlayback;
+
+  /// No description provided for @mtlsCertificateInfoContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Some servers, or the reverse proxy in front of them, only accept clients that present a certificate of their own. Import the PKCS#12 bundle (.p12 or .pfx) you were given and Absorb will present it to this server for requests, playback and downloads.\n\nThe bundle is stored per account in Absorb\'s private storage, together with its password, because it has to be loaded again every time the app starts. It is kept out of device backups, so it has to be imported again on a new device.\n\nThis does not change how the server\'s own certificate is checked. A self-signed server still needs Trust all certificates.'**
+  String get mtlsCertificateInfoContent;
 }
 
 class _AppLocalizationsDelegate

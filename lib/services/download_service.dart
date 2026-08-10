@@ -12,6 +12,7 @@ import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
+import '../utils/icloud_backup.dart';
 import '../widgets/overlay_toast.dart';
 import 'api_service.dart';
 import 'audio_player_service.dart';
@@ -472,22 +473,6 @@ class DownloadService extends ChangeNotifier {
   /// [_iosAppGroupAudioBase] and cleared if the lookup fails so we retry
   /// (the app group entitlement may roll in mid-session).
   String? _iosAppGroupContainerPath;
-
-  /// Stops iCloud from backing up an audio file. Audiobooks are large and
-  /// re-downloadable from the user's ABS server, so eating their iCloud
-  /// quota would only cause problems (system backup breaks once quota is
-  /// hit). iOS-only no-op elsewhere.
-  Future<void> _excludeFromBackup(String path) async {
-    if (!Platform.isIOS) return;
-    try {
-      await _widgetChannel.invokeMethod<bool>(
-        'excludeFromBackup',
-        {'path': path},
-      );
-    } catch (e) {
-      debugPrint('[Download] excludeFromBackup failed for $path: $e');
-    }
-  }
 
   /// Returns the iOS app group's audio directory (`<group>/audio/downloads`),
   /// or null on Android / when the app group entitlement isn't available.
@@ -958,7 +943,7 @@ class DownloadService extends ChangeNotifier {
             try { newFile.deleteSync(); } catch (_) {}
           }
           await oldFile.rename(newPath);
-          await _excludeFromBackup(newPath);
+          await excludeFromICloudBackup(newPath);
           newPaths.add(newPath);
           needsUpdate = true;
           moved++;
@@ -1497,7 +1482,7 @@ class DownloadService extends ChangeNotifier {
       ApiService api, String itemId, Map<String, dynamic> ebookFile, String title) async {
     try {
       final f = await fetchEbookToCache(api, itemId, ebookFile, title);
-      await _excludeFromBackup(f.path);
+      await excludeFromICloudBackup(f.path);
       debugPrint('[Download] cached ebook for offline: $itemId');
     } catch (e) {
       debugPrint('[Download] ebook offline cache failed for $itemId: $e');
@@ -2252,7 +2237,7 @@ class DownloadService extends ChangeNotifier {
       }
     } else if (Platform.isIOS) {
       for (final path in localPaths) {
-        await _excludeFromBackup(path);
+        await excludeFromICloudBackup(path);
       }
     }
 

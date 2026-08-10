@@ -8894,4 +8894,78 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get findInAudiobookPlaying => 'Playing this passage in the audiobook';
+
+  @override
+  String get mtlsCertificate => 'Client certificate';
+
+  @override
+  String get mtlsNoCertificate => 'None';
+
+  @override
+  String get mtlsServerRequiresCertTitle =>
+      'This server requires a client certificate';
+
+  @override
+  String get mtlsServerRequiresCertBody =>
+      'Import the .p12 or .pfx bundle you were given, then connect again.';
+
+  @override
+  String get mtlsSelectCertificate => 'Select certificate';
+
+  @override
+  String get mtlsChangeCertificate => 'Change';
+
+  @override
+  String get mtlsSelectAndRetry => 'Select certificate & retry';
+
+  @override
+  String get mtlsImportTitle => 'Import client certificate';
+
+  @override
+  String get mtlsImportBody =>
+      'Choose the PKCS#12 bundle (.p12 or .pfx) for this server and enter the password that protects it.';
+
+  @override
+  String get mtlsPickFile => 'Choose file';
+
+  @override
+  String get mtlsPassword => 'Certificate password';
+
+  @override
+  String get mtlsImport => 'Import';
+
+  @override
+  String get mtlsImportFailedPassword =>
+      'Wrong password, or this is not a valid PKCS#12 bundle.';
+
+  @override
+  String get mtlsImportFailedRead => 'Could not use that file.';
+
+  @override
+  String get mtlsImportFailedStore =>
+      'Could not save the certificate on this device.';
+
+  @override
+  String get mtlsImportSucceeded => 'Client certificate imported';
+
+  @override
+  String get mtlsRemoved => 'Client certificate removed';
+
+  @override
+  String get mtlsRemoveConfirmTitle => 'Remove client certificate?';
+
+  @override
+  String get mtlsRemoveConfirmBody =>
+      'This account will stop presenting a certificate. If the server requires one, it will no longer connect.';
+
+  @override
+  String get mtlsUnsupportedFile => 'Pick a .p12 or .pfx file.';
+
+  @override
+  String get mtlsImportedWithoutPlayback =>
+      'Client certificate imported, but this device\'s player would not load it. Server requests work, playback and downloads may not.';
+
+  @override
+  String get mtlsCertificateInfoContent =>
+      'Some servers, or the reverse proxy in front of them, only accept clients that present a certificate of their own. Import the PKCS#12 bundle (.p12 or .pfx) you were given and Absorb will present it to this server for requests, playback and downloads.\n\nThe bundle is stored per account in Absorb\'s private storage, together with its password, because it has to be loaded again every time the app starts. It is kept out of device backups, so it has to be imported again on a new device.\n\nThis does not change how the server\'s own certificate is checked. A self-signed server still needs Trust all certificates.';
 }

@@ -35,6 +35,7 @@ import 'services/chromecast_service.dart';
 import 'services/episode_notification_service.dart';
 import 'services/home_widget_service.dart';
 import 'services/log_service.dart';
+import 'services/mtls_service.dart';
 import 'services/quick_actions_service.dart';
 import 'services/setup_link_service.dart';
 import 'services/wording.dart';
@@ -116,10 +117,14 @@ bool trustAllCerts = false;
 /// BoringSSL ignores it, so we override badCertificateCallback globally.
 /// Installed once at startup; checks [trustAllCerts] at HttpClient creation time
 /// so that CachedNetworkImage / flutter_cache_manager pick up the setting.
+///
+/// Also where the mTLS client certificate enters Dart's HTTP stack. Unlike
+/// [trustAllCerts] the context is read at creation time, so a service holding a
+/// cached client keeps the certificate it started with.
 class _CertOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    final client = super.createHttpClient(context);
+    final client = super.createHttpClient(context ?? MtlsService().securityContext);
     // Always install the callback so it works even for HttpClient instances
     // created before trustAllCerts is loaded from SharedPreferences.
     // flutter_cache_manager (CachedNetworkImage) caches its HttpClient, so
@@ -698,6 +703,9 @@ class _AuthGateState extends State<AuthGate> {
     // One-time migration: copy any settings that were written under unscoped
     // keys (before scope was active) to the current user's scoped keys.
     await ScopedPrefs.migrateToScope();
+
+    // Before anything makes a request: the services below cache HttpClients.
+    await MtlsService().loadForActiveAccount();
 
     // Reload settings that were read in main() before scope was active
     var scopedTheme = await PlayerSettings.getThemeMode();

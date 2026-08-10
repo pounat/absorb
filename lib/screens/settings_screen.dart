@@ -15,6 +15,7 @@ import '../services/episode_notification_service.dart';
 import '../services/sleep_timer_service.dart';
 import '../services/user_account_service.dart';
 import '../services/log_service.dart';
+import '../services/mtls_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/socket_service.dart';
 import '../screens/login_screen.dart';
@@ -22,6 +23,7 @@ import '../screens/app_shell.dart';
 import '../build_info.dart';
 import '../services/update_checker_service.dart';
 import '../services/audiobookshelf_update_service.dart';
+import '../widgets/mtls_certificate_sheet.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/nav_hold_options.dart';
 import '../screens/admin_screen.dart';
@@ -1478,6 +1480,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  /// Removes the account's client certificate after confirming — losing it
+  /// locks the user out of an mTLS-only server until they re-import it.
+  Future<void> _removeClientCertificate(AppLocalizations l) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.mtlsRemoveConfirmTitle),
+        content: Text(l.mtlsRemoveConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.remove),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await MtlsService().clear();
+    if (!mounted) return;
+    showOverlayToast(context, l.mtlsRemoved, icon: Icons.check_circle_rounded);
   }
 
   Widget _infoIcon(String title, String content) {
@@ -4134,6 +4162,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         applyTrustAllCerts(v);
                       } : null,
                     ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    ValueListenableBuilder<int>(
+                      valueListenable: MtlsService().revision,
+                      builder: (context, _, __) {
+                        final active = MtlsService().isConfigured;
+                        final label = MtlsService().label;
+                        return ListTile(
+                          leading: Icon(
+                            active ? Icons.verified_user_outlined : Icons.badge_outlined,
+                            color: active ? cs.primary : cs.onSurfaceVariant,
+                          ),
+                          title: Row(children: [
+                            Flexible(child: Text(l.mtlsCertificate)),
+                            _infoIcon(l.mtlsCertificate, l.mtlsCertificateInfoContent),
+                          ]),
+                          subtitle: Text(
+                            label ?? l.mtlsNoCertificate,
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                          ),
+                          trailing: !active
+                              ? const Icon(Icons.chevron_right)
+                              : IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: l.remove,
+                                  onPressed: () => _removeClientCertificate(l),
+                                ),
+                          onTap: () async {
+                            final imported = await showMtlsCertificateSheet(context);
+                            if (imported && mounted) {
+                              final covered = MtlsService().platformCovered;
+                              showOverlayToast(
+                                context,
+                                covered ? l.mtlsImportSucceeded : l.mtlsImportedWithoutPlayback,
+                                icon: covered
+                                    ? Icons.check_circle_rounded
+                                    : Icons.warning_amber_rounded,
+                              );
+                            }
+                          },
+                        );
+                      },
+                    ),
                     if (Platform.isAndroid) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       SwitchListTile(
@@ -5065,6 +5135,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (confirmed != true || !context.mounted) return;
     await UserAccountService().removeAccount(account.serverUrl, account.username);
+    // Signing out also goes through removeAccount, and there the certificate has
+    // to survive so the user can sign back in. Here they mean gone.
+    await MtlsService().clear(scope: account.scopeKey);
     if (context.mounted) setState(() {});
   }
 

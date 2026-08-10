@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'auth_tokens.dart';
+import 'mtls_service.dart';
 import '../models/auth_session.dart';
 import '../utils/server_url.dart';
 
@@ -780,7 +781,9 @@ class ApiService {
   /// connect in the app - usually a proxy/CDN treating the app's request
   /// differently than a browser. Kept separate so the connectivity hot paths
   /// keep their lean bool + short timeouts. [detail] is null on success.
-  static Future<({bool ok, String? detail})> pingServerDetailed(
+  /// `needsClientCert` is true when the failure looks like a server asking for a
+  /// client certificate, so the caller can offer the import.
+  static Future<({bool ok, String? detail, bool needsClientCert})> pingServerDetailed(
     String serverUrl, {
     Map<String, String> customHeaders = const {},
   }) async {
@@ -789,10 +792,32 @@ class ApiService {
       final response = await http
           .get(Uri.parse(url), headers: customHeaders.isNotEmpty ? customHeaders : null)
           .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) return (ok: true, detail: null);
-      return (ok: false, detail: 'Server returned HTTP ${response.statusCode} instead of 200.');
+      if (response.statusCode == 200) {
+        return (ok: true, detail: null, needsClientCert: false);
+      }
+      // Proxies that reject at the HTTP layer never reach the catch below.
+      final demandsCert =
+          MtlsService.responseDemandsClientCert(response.statusCode, response.body);
+      // 403 suggests, but does not explain: an auth proxy answers that way too.
+      final explainCert = demandsCert && response.statusCode != 403;
+      return (
+        ok: false,
+        detail: explainCert
+            ? 'The server accepted the connection but rejected the request with HTTP ${response.statusCode}. A proxy configured for mutual TLS answers this way when no client certificate is presented.'
+            : 'Server returned HTTP ${response.statusCode} instead of 200.',
+        needsClientCert: demandsCert,
+      );
     } catch (e) {
-      return (ok: false, detail: _describePingError(e));
+      final demandsCert = MtlsService.looksLikeClientCertRequired(e);
+      return (
+        ok: false,
+        // _describePingError would point at Trust all certificates, which is
+        // about the server's own certificate.
+        detail: demandsCert
+            ? 'The secure connection (TLS) failed in a way that can mean the server wants a client certificate. Other handshake problems look the same, so check the message. ($e)'
+            : _describePingError(e),
+        needsClientCert: demandsCert,
+      );
     }
   }
 
