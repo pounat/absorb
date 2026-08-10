@@ -92,11 +92,9 @@ class LibraryListsTab extends StatelessWidget {
           SliverPadding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding(context)),
             sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: responsiveGridCount(context),
+              gridDelegate: libraryGridDelegate(
+                context,
                 childAspectRatio: coverAspectRatio < 1 ? 0.48 : 0.68,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {

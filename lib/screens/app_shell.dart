@@ -737,13 +737,16 @@ class _AppShellState extends State<AppShell>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useDesktopWorkspace = AppPlatform.isWeb &&
-            constraints.maxWidth >= kDesktopWorkspaceBreakpoint;
+        final workspaceTier = AppPlatform.isWeb
+            ? workspaceLayoutTierForWidth(constraints.maxWidth)
+            : WorkspaceLayoutTier.mobile;
+        final useDesktopWorkspace =
+            workspaceTier != WorkspaceLayoutTier.mobile;
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: _handleBack,
           child: useDesktopWorkspace
-              ? _buildDesktopWorkspace(context)
+              ? _buildDesktopWorkspace(context, workspaceTier)
               : Scaffold(
                   body: _buildPageStack(context),
                   bottomNavigationBar: _buildBottomNav(context),
@@ -804,7 +807,10 @@ class _AppShellState extends State<AppShell>
     );
   }
 
-  Widget _buildDesktopWorkspace(BuildContext context) {
+  Widget _buildDesktopWorkspace(
+    BuildContext context,
+    WorkspaceLayoutTier workspaceTier,
+  ) {
     final lib = context.watch<LibraryProvider>();
     final podcastsShown = _podcastsShown(lib);
     final destinations = _buildDestinations(context, podcastsShown);
@@ -817,6 +823,7 @@ class _AppShellState extends State<AppShell>
             lib: lib,
             podcastsShown: podcastsShown,
             destinations: destinations,
+            workspaceTier: workspaceTier,
           ),
           VerticalDivider(
             width: 1,
@@ -862,6 +869,7 @@ class _AppShellState extends State<AppShell>
     required LibraryProvider lib,
     required bool podcastsShown,
     required List<NavigationDestination> destinations,
+    required WorkspaceLayoutTier workspaceTier,
   }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -878,16 +886,40 @@ class _AppShellState extends State<AppShell>
     final serverLabel = parsedServer?.host.isNotEmpty == true
         ? parsedServer!.host
         : serverUrl;
+    final extended = usesExtendedDesktopSidebar(workspaceTier);
+
+    void openSearch() {
+      if (podcastsShown) _syncTabLibrary(1, true);
+      _openSearch();
+    }
+
+    void openAdmin() {
+      _paneNavigatorKey.currentState?.push(
+        MaterialPageRoute<void>(builder: (_) => const AdminScreen()),
+      );
+    }
+
+    final accountAvatar = CircleAvatar(
+      radius: 18,
+      backgroundColor: cs.secondaryContainer,
+      foregroundColor: cs.onSecondaryContainer,
+      child: Text(accountName.characters.first.toUpperCase()),
+    );
 
     return SafeArea(
       child: SizedBox(
-        width: 248,
+        width: desktopSidebarWidth(workspaceTier),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+              padding: extended
+                  ? const EdgeInsets.fromLTRB(20, 18, 16, 12)
+                  : const EdgeInsets.fromLTRB(12, 18, 12, 12),
               child: Row(
+                mainAxisAlignment: extended
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.center,
                 children: [
                   Container(
                     width: 38,
@@ -901,14 +933,16 @@ class _AppShellState extends State<AppShell>
                       color: cs.onPrimaryContainer,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    l.appTitle,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
+                  if (extended) ...[
+                    const SizedBox(width: 12),
+                    Text(
+                      l.appTitle,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -934,23 +968,28 @@ class _AppShellState extends State<AppShell>
                       ),
                     ),
                     child: Row(
+                      mainAxisAlignment: extended
+                          ? MainAxisAlignment.start
+                          : MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.library_books_rounded,
                           size: 20,
                           color: cs.primary,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            libraryName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelLarge,
+                        if (extended) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              libraryName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelLarge,
+                            ),
                           ),
-                        ),
-                        if (lib.libraries.length > 1)
-                          const Icon(Icons.expand_more_rounded, size: 20),
+                          if (lib.libraries.length > 1)
+                            const Icon(Icons.expand_more_rounded, size: 20),
+                        ],
                       ],
                     ),
                   ),
@@ -959,23 +998,28 @@ class _AppShellState extends State<AppShell>
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: FilledButton.tonalIcon(
-                onPressed: () {
-                  if (podcastsShown) _syncTabLibrary(1, true);
-                  _openSearch();
-                },
-                icon: const Icon(Icons.search_rounded, size: 20),
-                label: Text(l.search),
-                style: FilledButton.styleFrom(
-                  alignment: Alignment.centerLeft,
-                  minimumSize: const Size.fromHeight(44),
-                ),
-              ),
+              child: extended
+                  ? FilledButton.tonalIcon(
+                      onPressed: openSearch,
+                      icon: const Icon(Icons.search_rounded, size: 20),
+                      label: Text(l.search),
+                      style: FilledButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        minimumSize: const Size.fromHeight(44),
+                      ),
+                    )
+                  : Tooltip(
+                      message: l.search,
+                      child: IconButton.filledTonal(
+                        onPressed: openSearch,
+                        icon: const Icon(Icons.search_rounded, size: 20),
+                      ),
+                    ),
             ),
             const SizedBox(height: 8),
             Expanded(
               child: NavigationRail(
-                extended: true,
+                extended: extended,
                 minWidth: 72,
                 minExtendedWidth: 248,
                 groupAlignment: -1,
@@ -996,19 +1040,25 @@ class _AppShellState extends State<AppShell>
             if (auth.isAdmin)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: TextButton.icon(
-                  onPressed: () => _paneNavigatorKey.currentState?.push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const AdminScreen(),
-                    ),
-                  ),
-                  icon: const Icon(Icons.admin_panel_settings_outlined),
-                  label: Text(l.serverAdmin),
-                  style: TextButton.styleFrom(
-                    alignment: Alignment.centerLeft,
-                    minimumSize: const Size.fromHeight(42),
-                  ),
-                ),
+                child: extended
+                    ? TextButton.icon(
+                        onPressed: openAdmin,
+                        icon: const Icon(Icons.admin_panel_settings_outlined),
+                        label: Text(l.serverAdmin),
+                        style: TextButton.styleFrom(
+                          alignment: Alignment.centerLeft,
+                          minimumSize: const Size.fromHeight(42),
+                        ),
+                      )
+                    : Tooltip(
+                        message: l.serverAdmin,
+                        child: IconButton(
+                          onPressed: openAdmin,
+                          icon: const Icon(
+                            Icons.admin_panel_settings_outlined,
+                          ),
+                        ),
+                      ),
               ),
             Divider(
               height: 1,
@@ -1016,39 +1066,41 @@ class _AppShellState extends State<AppShell>
             ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: cs.secondaryContainer,
-                    foregroundColor: cs.onSecondaryContainer,
-                    child: Text(accountName.characters.first.toUpperCase()),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              child: extended
+                  ? Row(
                       children: [
-                        Text(
-                          accountName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelLarge,
-                        ),
-                        if (serverLabel.isNotEmpty)
-                          Text(
-                            serverLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
+                        accountAvatar,
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                accountName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelLarge,
+                              ),
+                              if (serverLabel.isNotEmpty)
+                                Text(
+                                  serverLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                            ],
                           ),
+                        ),
                       ],
+                    )
+                  : Tooltip(
+                      message: serverLabel.isEmpty
+                          ? accountName
+                          : '$accountName\n$serverLabel',
+                      child: Center(child: accountAvatar),
                     ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),

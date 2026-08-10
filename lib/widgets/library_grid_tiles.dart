@@ -14,6 +14,8 @@ import 'episode_list_sheet.dart';
 import 'hover_cover_actions.dart';
 import 'series_books_sheet.dart';
 import 'author_books_sheet.dart';
+import '../utils/app_platform.dart';
+import '../utils/media_card_gesture_policy.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // Grid book tile (cover + title + author)
@@ -54,6 +56,7 @@ class _GridBookTileState extends State<GridBookTile> {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
+    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.isWeb);
 
     final itemId = widget.item['id'] as String? ?? '';
     final media = widget.item['media'] as Map<String, dynamic>? ?? {};
@@ -94,7 +97,9 @@ class _GridBookTileState extends State<GridBookTile> {
         }
       },
       // Long-press a book cover for the quick-actions sheet (podcasts skipped).
-      onLongPress: (itemId.isNotEmpty && !lib.isPodcastLibrary)
+      onLongPress: (gesturePolicy.allowsLongPressShortcuts &&
+              itemId.isNotEmpty &&
+              !lib.isPodcastLibrary)
           ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
           : null,
       child: Column(

@@ -31,6 +31,8 @@ import 'app_shell.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/desktop_workspace.dart';
 import '../utils/duration_format.dart';
+import '../utils/app_platform.dart';
+import '../utils/media_card_gesture_policy.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -522,7 +524,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                             ),
                           ),
                         ),
-                        if (!desktop)
+                        if (!desktop && !AppPlatform.isWeb)
                           const SliverToBoxAdapter(
                             child: FeatureHint(
                               prefKey: 'hint_continue_listening_gestures',
@@ -761,6 +763,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.isWeb);
 
     final item = widget.item;
     final lib = widget.lib;
@@ -888,8 +891,12 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
           ),
         ),
         child: InkWell(
-          onTap: resume,
-          onLongPress: openQuickActions,
+          onTap: gesturePolicy.continueListeningTapOpensDetails
+              ? openDetails
+              : resume,
+          onLongPress: gesturePolicy.allowsLongPressShortcuts
+              ? openQuickActions
+              : null,
           borderRadius: BorderRadius.circular(14),
           child: SizedBox(
             width: isDesktopWorkspace(context) ? 180 : 150,

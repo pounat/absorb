@@ -41,15 +41,38 @@ import '../services/user_account_service.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/desktop_workspace.dart';
 
-/// Responsive grid column count based on available width.
-/// Returns 3 on phones, scales up on tablets/iPads. The desktop workspace
-/// targets larger ~200px tiles instead of packing phone-sized thumbnails.
-int responsiveGridCount(BuildContext context) {
-  final width = MediaQuery.of(context).size.width;
-  if (isDesktopWorkspace(context)) {
-    return (width / 200).floor().clamp(3, 8);
+const double kDesktopLibraryTileMaxExtent = 220;
+
+SliverGridDelegate libraryGridDelegateForWidth(
+  double width, {
+  required bool desktopWorkspace,
+  required double childAspectRatio,
+}) {
+  if (desktopWorkspace) {
+    return SliverGridDelegateWithMaxCrossAxisExtent(
+      maxCrossAxisExtent: kDesktopLibraryTileMaxExtent,
+      childAspectRatio: childAspectRatio,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+    );
   }
-  return (width / 130).floor().clamp(3, 10);
+  return SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: (width / 130).floor().clamp(3, 10),
+    childAspectRatio: childAspectRatio,
+    crossAxisSpacing: 10,
+    mainAxisSpacing: 10,
+  );
+}
+
+SliverGridDelegate libraryGridDelegate(
+  BuildContext context, {
+  required double childAspectRatio,
+}) {
+  return libraryGridDelegateForWidth(
+    MediaQuery.sizeOf(context).width,
+    desktopWorkspace: isDesktopWorkspace(context),
+    childAspectRatio: childAspectRatio,
+  );
 }
 
 /// Bottom padding for the library tab grids/lists so the last row clears the

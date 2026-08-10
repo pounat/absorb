@@ -12,6 +12,7 @@ import 'absorbing_shared.dart';
 import 'book_detail_sheet.dart';
 import 'episode_list_sheet.dart';
 import 'hover_cover_actions.dart';
+import '../utils/app_platform.dart';
 
 class BookCard extends StatelessWidget {
   final Map<String, dynamic> item;
@@ -41,7 +42,6 @@ class BookCard extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
-
     final itemId = item['id'] as String?;
     final media = item['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
@@ -161,7 +161,7 @@ class BookCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _navigateToDetail(context),
-        onLongPress: () => _onLongPress(context),
+        onLongPress: AppPlatform.isWeb ? null : () => _onLongPress(context),
         borderRadius: BorderRadius.circular(16),
         child: Row(
           children: [
@@ -281,7 +281,7 @@ class BookCard extends StatelessWidget {
           aspectRatio: coverAspectRatio,
           child: _PressableCard(
             onTap: () => _navigateToDetail(context),
-            onLongPress: () => _onLongPress(context),
+            onLongPress: AppPlatform.isWeb ? null : () => _onLongPress(context),
             borderRadius: 12,
             child: Card(
               elevation: 0,

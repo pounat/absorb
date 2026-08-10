@@ -2,6 +2,29 @@ import 'package:flutter/widgets.dart';
 import 'app_platform.dart';
 
 const double kDesktopWorkspaceBreakpoint = 960;
+const double kStandardWorkspaceBreakpoint = 1200;
+const double kWideWorkspaceBreakpoint = 1440;
+
+enum WorkspaceLayoutTier { mobile, compact, standard, wide }
+
+WorkspaceLayoutTier workspaceLayoutTierForWidth(double width) {
+  if (width < kDesktopWorkspaceBreakpoint) {
+    return WorkspaceLayoutTier.mobile;
+  }
+  if (width < kStandardWorkspaceBreakpoint) {
+    return WorkspaceLayoutTier.compact;
+  }
+  if (width < kWideWorkspaceBreakpoint) {
+    return WorkspaceLayoutTier.standard;
+  }
+  return WorkspaceLayoutTier.wide;
+}
+
+bool usesExtendedDesktopSidebar(WorkspaceLayoutTier tier) =>
+    tier == WorkspaceLayoutTier.standard || tier == WorkspaceLayoutTier.wide;
+
+double desktopSidebarWidth(WorkspaceLayoutTier tier) =>
+    usesExtendedDesktopSidebar(tier) ? 248 : 72;
 
 /// Registration point for the desktop workspace's content-pane navigator.
 /// AppShell registers a resolver on mount; anything that pushes full pages
@@ -29,6 +52,6 @@ bool isDesktopWorkspace(BuildContext context) {
   // Subscribe to size changes so callers rebuild on window resize.
   MediaQuery.sizeOf(context);
   final view = View.of(context);
-  return view.physicalSize.width / view.devicePixelRatio >=
-      kDesktopWorkspaceBreakpoint;
+  final width = view.physicalSize.width / view.devicePixelRatio;
+  return workspaceLayoutTierForWidth(width) != WorkspaceLayoutTier.mobile;
 }

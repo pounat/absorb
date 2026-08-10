@@ -12,6 +12,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../utils/app_platform.dart';
+import '../utils/audible_url.dart';
 import '../utils/desktop_workspace.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -1577,34 +1578,23 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     return stars;
   }
 
-  static String get _audibleDomain {
-    final code = (ui.PlatformDispatcher.instance.locale.countryCode ?? 'US').toUpperCase();
-    const domains = {
-      'US': 'audible.com',
-      'GB': 'audible.co.uk',
-      'AU': 'audible.com.au',
-      'CA': 'audible.ca',
-      'DE': 'audible.de',
-      'FR': 'audible.fr',
-      'IT': 'audible.it',
-      'ES': 'audible.es',
-      'JP': 'audible.co.jp',
-      'IN': 'audible.in',
-      'BR': 'audible.com.br',
-    };
-    return domains[code] ?? 'audible.com';
-  }
-
   void _showAudibleReviews(BuildContext context) {
     final asin = _asin;
     if (asin == null) return;
-    final url = 'https://www.$_audibleDomain/pd/$asin#customer-reviews';
+    final uri = audibleReviewsUri(
+      asin,
+      countryCode: ui.PlatformDispatcher.instance.locale.countryCode,
+    );
+    if (AppPlatform.isWeb) {
+      unawaited(_launchAudibleReviews(context, uri));
+      return;
+    }
     final cs = Theme.of(context).colorScheme;
 
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(cs.surface)
-      ..loadRequest(Uri.parse(url));
+      ..loadRequest(uri);
 
     showAdaptiveActionMenu(
       context: context,
@@ -1660,6 +1650,20 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         return FractionallySizedBox(heightFactor: 0.92, child: body);
       },
     );
+  }
+
+  Future<void> _launchAudibleReviews(BuildContext context, Uri uri) async {
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, webOnlyWindowName: '_blank');
+    } catch (_) {}
+    if (!opened && context.mounted) {
+      showOverlayToast(
+        context,
+        AppLocalizations.of(context)!.audibleSeriesCouldNotOpenAudible,
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
   Widget _buildAuthorLinks(BuildContext context, Map<String, dynamic> metadata, ColorScheme cs, TextTheme tt, Color accent) {

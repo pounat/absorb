@@ -11,6 +11,8 @@ import 'hover_cover_actions.dart';
 import 'series_card.dart';
 import 'episode_list_sheet.dart';
 import '../utils/desktop_workspace.dart';
+import '../utils/app_platform.dart';
+import '../utils/media_card_gesture_policy.dart';
 
 class HomeSection extends StatelessWidget {
   final String title;
@@ -406,6 +408,7 @@ class _EpisodeCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final lib = context.watch<LibraryProvider>();
+    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.isWeb);
 
     final itemId = item['id'] as String? ?? '';
     final media = item['media'] as Map<String, dynamic>? ?? {};
@@ -449,7 +452,7 @@ class _EpisodeCard extends StatelessWidget {
         }
       },
       // Long-press an episode card for its quick-actions sheet (shows stay as-is).
-      onLongPress: episode == null ? null
+      onLongPress: episode == null || !gesturePolicy.allowsLongPressShortcuts ? null
           : () => EpisodeDetailSheet.showQuick(
                 context,
                 item,

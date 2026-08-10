@@ -2563,10 +2563,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         GestureDetector(
                           onTap: () => showDialog(
                             context: context,
-                            builder: (_) => AlertDialog(
+                            builder: (dialogContext) => AlertDialog(
                               title: Text(l.chapterBarrierInfoTitle),
                               content: Text(l.chapterBarrierInfoContent,),
-                              actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l.gotIt),
+                              actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(l.gotIt),
                                           ),],
                             ),
                           ),
@@ -2753,10 +2753,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           GestureDetector(
                             onTap: () => showDialog(
                               context: context,
-                              builder: (_) => AlertDialog(
+                              builder: (dialogContext) => AlertDialog(
                                 title: Text(l.rewindOnSessionStart),
                                 content: Text(l.rewindOnSessionStartInfoContent,),
-                                actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l.gotIt),
+                                actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(l.gotIt),
                                             ),],
                               ),
                             ),

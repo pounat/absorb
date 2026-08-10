@@ -23,6 +23,14 @@ import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../utils/desktop_workspace.dart';
 
+const double kAbsorbingQueuePaneBreakpoint = 1180;
+
+bool shouldEmbedAbsorbingQueue(double paneWidth) =>
+    paneWidth >= kAbsorbingQueuePaneBreakpoint;
+
+double absorbingQueuePaneWidth(double paneWidth) =>
+    (paneWidth * 0.32).clamp(340.0, 400.0).toDouble();
+
 class AbsorbingScreen extends StatefulWidget {
   const AbsorbingScreen({super.key});
 
@@ -659,6 +667,8 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         child: SafeArea(
         child: Builder(builder: (context) {
           final desktopWorkspace = isDesktopWorkspace(context);
+          final embedDesktopQueue = desktopWorkspace &&
+              shouldEmbedAbsorbingQueue(MediaQuery.sizeOf(context).width);
           final offlineIcon = OfflineStatusIcon(
             onTapWhenOnline: () {
               lib.setManualOffline(true);
@@ -720,7 +730,8 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                       : Icon(Icons.refresh_rounded, size: 18, color: muted),
                 ),
               ),
-            if (!desktopWorkspace && books.isNotEmpty) ...[
+            if ((!desktopWorkspace || !embedDesktopQueue) &&
+                books.isNotEmpty) ...[
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => _showReorderSheet(context, lib, books),
@@ -806,8 +817,12 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                               strokeWidth: 2,
                               color: cs.onSurface.withValues(alpha: 0.24)))
                       : LayoutBuilder(builder: (context, constraints) {
-                          final queueWidth =
-                              (constraints.maxWidth * 0.34).clamp(340.0, 420.0);
+                          final showQueue = shouldEmbedAbsorbingQueue(
+                            constraints.maxWidth,
+                          );
+                          final queueWidth = absorbingQueuePaneWidth(
+                            constraints.maxWidth,
+                          );
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -835,30 +850,33 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                                         ),
                                       ),
                               ),
-                              VerticalDivider(
-                                width: 1,
-                                thickness: 1,
-                                color:
-                                    cs.outlineVariant.withValues(alpha: 0.45),
-                              ),
-                              SizedBox(
-                                width: queueWidth,
-                                child: _AbsorbingQueuePanel(
-                                  embedded: true,
-                                  keys: books.map(_absorbingKey).toList(),
-                                  books: books,
-                                  lib: lib,
-                                  scrollController:
-                                      _desktopQueueScrollController,
-                                  absorbingKeyFn: _absorbingKey,
-                                  queueMode: _queueMode,
-                                  isMerged: _mergeLibraries,
-                                  isPodcast: lib.isPodcastLibrary,
-                                  currentItemId: _currentPlayerKey,
-                                  onQueueModeChanged: (mode) =>
-                                      _handleQueueModeChanged(lib, mode),
+                              if (showQueue) ...[
+                                VerticalDivider(
+                                  width: 1,
+                                  thickness: 1,
+                                  color: cs.outlineVariant.withValues(
+                                    alpha: 0.45,
+                                  ),
                                 ),
-                              ),
+                                SizedBox(
+                                  width: queueWidth,
+                                  child: _AbsorbingQueuePanel(
+                                    embedded: true,
+                                    keys: books.map(_absorbingKey).toList(),
+                                    books: books,
+                                    lib: lib,
+                                    scrollController:
+                                        _desktopQueueScrollController,
+                                    absorbingKeyFn: _absorbingKey,
+                                    queueMode: _queueMode,
+                                    isMerged: _mergeLibraries,
+                                    isPodcast: lib.isPodcastLibrary,
+                                    currentItemId: _currentPlayerKey,
+                                    onQueueModeChanged: (mode) =>
+                                        _handleQueueModeChanged(lib, mode),
+                                  ),
+                                ),
+                              ],
                             ],
                           );
                         }),
