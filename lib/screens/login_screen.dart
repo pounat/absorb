@@ -21,6 +21,7 @@ import '../main.dart' show applyTrustAllCerts, flatNotifier;
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../utils/app_platform.dart';
+import '../utils/server_url.dart';
 
 class LoginScreen extends StatefulWidget {
   final SavedAccount? prefillAccount;
@@ -100,6 +101,14 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
       final account = widget.prefillAccount;
+      if (AppPlatform.isWeb) {
+        final serverUrl = serverUrlFromWebOrigin(Uri.base);
+        if (serverUrl != null) {
+          _setInitialHeaders(account?.customHeaders ?? auth.customHeaders);
+          _prefillLogin(serverUrl, account?.username ?? auth.username ?? '');
+          return;
+        }
+      }
       if (account != null) {
         _setInitialHeaders(account.customHeaders);
         _prefillLogin(account.serverUrl, account.username);
@@ -119,14 +128,17 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _prefillLogin(String serverUrl, String username) {
-    final uri = Uri.tryParse(serverUrl);
+    final resolvedServerUrl = AppPlatform.isWeb
+        ? serverUrlFromWebOrigin(Uri.base) ?? serverUrl
+        : serverUrl;
+    final uri = Uri.tryParse(resolvedServerUrl);
     final protocol = uri?.scheme == 'http' || uri?.scheme == 'https'
         ? '${uri!.scheme}://'
         : _protocol;
     setState(() => _protocol = protocol);
-    _serverController.text = serverUrl.startsWith(protocol)
-        ? serverUrl.substring(protocol.length)
-        : serverUrl;
+    _serverController.text = resolvedServerUrl.startsWith(protocol)
+        ? resolvedServerUrl.substring(protocol.length)
+        : resolvedServerUrl;
     _usernameController.text = username;
   }
 
@@ -175,9 +187,19 @@ class _LoginScreenState extends State<LoginScreen>
 
   String _lastValidatedServer = '';
 
+  String get _resolvedServerUrl {
+    if (AppPlatform.isWeb) {
+      return serverUrlFromWebOrigin(Uri.base) ?? '';
+    }
+
+    final serverText = _serverController.text.trim();
+    final cleanUrl = serverText.replaceAll(RegExp(r'^https?://'), '');
+    return '$_protocol$cleanUrl';
+  }
+
   /// Re-trigger server validation when custom headers change.
   void _revalidateServer() {
-    if (_serverController.text.trim().isEmpty) return;
+    if (_resolvedServerUrl.isEmpty) return;
     _lastValidatedServer = ''; // Force re-check
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 800), () => _checkServer());
@@ -198,8 +220,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     // Only invalidate if the server text actually changed from what we validated
-    final cleanUrl = text.replaceAll(RegExp(r'^https?://'), '');
-    final fullUrl = '$_protocol$cleanUrl';
+    final fullUrl = _resolvedServerUrl;
     if (fullUrl != _lastValidatedServer) {
       setState(() {
         _serverValid = false;
@@ -229,18 +250,15 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkServer() async {
-    final text = _serverController.text.trim();
-    if (text.isEmpty) return;
-
-    final cleanUrl = text.replaceAll(RegExp(r'^https?://'), '');
-    final fullUrl = '$_protocol$cleanUrl';
+    final fullUrl = _resolvedServerUrl;
+    if (fullUrl.isEmpty) return;
 
     try {
       final headers = _collectHeaders();
       final result = await ApiService.pingServerDetailed(fullUrl, customHeaders: headers);
       final ok = result.ok;
       if (!mounted) return;
-      if (_serverController.text.trim() != text) return;
+      if (_resolvedServerUrl != fullUrl) return;
 
       setState(() {
         _serverChecking = false;
@@ -257,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (ok && !AppPlatform.isWeb) {
         OidcService.checkOidcEnabled(fullUrl, customHeaders: headers).then((config) {
-          if (mounted && _serverController.text.trim() == text) {
+          if (mounted && _resolvedServerUrl == fullUrl) {
             setState(() => _oidcConfig = config);
           }
         });
@@ -298,9 +316,7 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     final auth = context.read<AuthProvider>();
-    final serverText = _serverController.text.trim();
-    final cleanUrl = serverText.replaceAll(RegExp(r'^https?://'), '');
-    final fullUrl = '$_protocol$cleanUrl';
+    final fullUrl = _resolvedServerUrl;
 
     final headers = _collectHeaders();
 
@@ -345,9 +361,7 @@ class _LoginScreenState extends State<LoginScreen>
       _loginError = null;
     });
 
-    final serverText = _serverController.text.trim();
-    final cleanUrl = serverText.replaceAll(RegExp(r'^https?://'), '');
-    final fullUrl = '$_protocol$cleanUrl';
+    final fullUrl = _resolvedServerUrl;
 
     final headers = _collectHeaders();
     final oidc = OidcService();
@@ -533,7 +547,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   Padding(
                                     padding: const EdgeInsets.only(left: 4, bottom: 16),
                                     child: Text(
-                                      l.loginConnectToServer,
+                                      AppPlatform.isWeb ? l.loginSignIn : l.loginConnectToServer,
                                       style: tt.titleSmall?.copyWith(
                                         color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                                         fontWeight: FontWeight.w500,
@@ -542,7 +556,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
 
                                   // Server URL
-                                  _buildInputField(
+                                  if (!AppPlatform.isWeb) _buildInputField(
                                     controller: _serverController,
                                     label: l.loginServerAddress,
                                     hint: l.loginServerHint,

@@ -8,3 +8,12 @@ String normalizeServerUrl(String value) {
 
   return url.replaceAll(RegExp(r'/+$'), '');
 }
+
+String? serverUrlFromWebOrigin(Uri pageUri) {
+  final scheme = pageUri.scheme.toLowerCase();
+  if ((scheme != 'http' && scheme != 'https') || pageUri.host.isEmpty) {
+    return null;
+  }
+
+  return pageUri.origin;
+}
