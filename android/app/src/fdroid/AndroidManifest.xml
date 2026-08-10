@@ -10,6 +10,7 @@
 
     <!-- Only needed for the Cast SDK's own reconnection service, below -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" tools:node="remove"/>
 
     <application>
         <!-- Chromecast (GMS) -->

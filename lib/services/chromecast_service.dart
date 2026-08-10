@@ -284,7 +284,13 @@ class ChromecastService extends ChangeNotifier {
     _reconnectTimer = Timer(delay, () async {
       if (!_reconnecting || isConnected) return;
       try {
-        await GoogleCastSessionManager.instance.endSession();
+        // The plugin's Android handler runs endSession but never posts a
+        // MethodChannel reply, so awaiting it bare hangs forever. The end
+        // itself takes effect immediately; the timeout just keeps this chain
+        // moving whether or not a reply ever shows up.
+        await GoogleCastSessionManager.instance
+            .endSession()
+            .timeout(const Duration(milliseconds: 500));
       } catch (_) {}
       if (!_reconnecting) return;
       try {

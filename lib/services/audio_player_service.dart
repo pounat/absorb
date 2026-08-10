@@ -4612,6 +4612,12 @@ class AudioPlayerService extends ChangeNotifier {
       return;
     }
 
+    // A stream error usually means the cached-session URLs went bad (expired
+    // baked token, dead public session). Drop the cache entry so the rebuild
+    // takes the fresh-session path - tokenless public URLs with a
+    // known-good credential - instead of re-baking whatever just failed.
+    await SessionCache.clear(itemId: itemId, episodeId: episodeId);
+
     debugPrint('[Player] Retrying playback at ${retryPos.toStringAsFixed(1)}s');
     final ok = await playItem(
       api: api,
