@@ -409,6 +409,7 @@ class DownloadService extends ChangeNotifier {
 
   /// Calculate total size of all downloaded files.
   Future<int> get totalDownloadSize async {
+    await hydrateEbookCacheDir();
     int total = 0;
     for (final info in _downloads.values) {
       if (info.status == DownloadStatus.downloaded) {
@@ -421,6 +422,7 @@ class DownloadService extends ChangeNotifier {
             }
           } catch (_) {}
         }
+        total += cachedEbookBytesSync(info.itemId);
       }
     }
     return total;
@@ -440,7 +442,7 @@ class DownloadService extends ChangeNotifier {
         }
       } catch (_) {}
     }
-    return total;
+    return total + cachedEbookBytesSync(itemId);
   }
 
   static const _storageChannel = MethodChannel('com.absorb.storage');
@@ -1414,10 +1416,31 @@ class DownloadService extends ChangeNotifier {
   Future<void> _cacheEbookForOffline(
       ApiService api, String itemId, Map<String, dynamic> ebookFile, String title) async {
     try {
-      await fetchEbookToCache(api, itemId, ebookFile, title);
+      final f = await fetchEbookToCache(api, itemId, ebookFile, title);
+      await _excludeFromBackup(f.path);
       debugPrint('[Download] cached ebook for offline: $itemId');
     } catch (e) {
       debugPrint('[Download] ebook offline cache failed for $itemId: $e');
+    }
+  }
+
+  /// Re-fetch any companion ebooks whose fire-and-forget download never landed
+  /// (killed mid-transfer, offline at the time). Called when the app comes up
+  /// with a working connection; cheap when everything is already cached.
+  Future<void> catchUpEbookCaches(ApiService api) async {
+    for (final info in _downloads.values.toList()) {
+      if (info.status != DownloadStatus.downloaded) continue;
+      if (info.sessionData == null) continue;
+      try {
+        final session = jsonDecode(info.sessionData!) as Map<String, dynamic>;
+        final ebookFile =
+            resolveEbookFile(session['libraryItem'] as Map<String, dynamic>?);
+        if (ebookFile == null) continue;
+        final apiItemId = session['libraryItemId'] as String? ?? info.itemId;
+        if (await isEbookCached(apiItemId, ebookFile)) continue;
+        await _cacheEbookForOffline(
+            api, apiItemId, ebookFile, info.title ?? apiItemId);
+      } catch (_) {}
     }
   }
 
@@ -1509,8 +1532,27 @@ class DownloadService extends ChangeNotifier {
 
       final localCoverPath = await _cacheCover(api, itemId, coverUrl);
 
-      // Strip the bulky libraryItem before persisting the session for offline use.
-      final slimSession = Map<String, dynamic>.from(sessionData)..remove('libraryItem');
+      // Keep a trimmed libraryItem in the persisted session: metadata, chapters
+      // and the ebook info survive for offline Read, while the bulky episode
+      // and audio file lists are dropped (mirrors _stripLibraryItem).
+      // libraryFiles shrinks to just the resolved ebook entry, which covers
+      // audiobooks-only libraries where every ebook is supplementary and
+      // media.ebookFile is never set.
+      final slimSession = Map<String, dynamic>.from(sessionData);
+      final fullItem = sessionData['libraryItem'] as Map<String, dynamic>?;
+      if (fullItem == null) {
+        slimSession.remove('libraryItem');
+      } else {
+        final slimItem = Map<String, dynamic>.from(fullItem);
+        final media = slimItem['media'] as Map<String, dynamic>?;
+        if (media != null) {
+          slimItem['media'] = Map<String, dynamic>.from(media)
+            ..remove('episodes')
+            ..remove('audioFiles');
+        }
+        slimItem['libraryFiles'] = [if (ebookFile != null) ebookFile];
+        slimSession['libraryItem'] = slimItem;
+      }
       final sessionId = sessionData['id'] as String?;
       if (sessionId != null) unawaited(api.closePlaybackSession(sessionId));
 
@@ -2388,6 +2430,10 @@ class DownloadService extends ChangeNotifier {
     } else {
       _activeDownloadIds.remove(itemId);
     }
+
+    // Drop a companion ebook the fire-and-forget fetch may have already
+    // landed, so a cancelled download doesn't orphan it.
+    unawaited(deleteCachedEbook(itemId));
 
     // Instant UI feedback (cleanup paths also notify).
     _downloads.remove(itemId);

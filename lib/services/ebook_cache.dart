@@ -49,11 +49,58 @@ Map<String, dynamic>? resolveEbookFile(Map<String, dynamic>? item) {
   return firstReadable ?? firstEbook;
 }
 
+Directory? _ebookCacheDirHandle;
+
 Future<Directory> _ebookCacheDir() async {
   final base = await getApplicationSupportDirectory();
   final dir = Directory('${base.path}/ebook_cache');
   if (!dir.existsSync()) dir.createSync(recursive: true);
+  _ebookCacheDirHandle = dir;
   return dir;
+}
+
+/// Warms the synchronous directory handle so [cachedEbookBytesSync] can see
+/// cached ebooks from sync code (e.g. download size accounting).
+Future<void> hydrateEbookCacheDir() => _ebookCacheDir();
+
+/// Size in bytes of the cached ebook for [itemId], or 0 when there is none or
+/// the directory handle hasn't been warmed yet.
+int cachedEbookBytesSync(String itemId) {
+  final dir = _ebookCacheDirHandle;
+  if (dir == null || !dir.existsSync()) return 0;
+  try {
+    for (final f in dir.listSync()) {
+      if (f is File && f.uri.pathSegments.last.startsWith('$itemId.')) {
+        return f.lengthSync();
+      }
+    }
+  } catch (_) {}
+  return 0;
+}
+
+/// Synthesizes an ebookFile map from a cached file on disk, so a downloaded
+/// book can open its ebook offline even when no ebook metadata survived (old
+/// downloads persisted before the trimmed libraryItem was kept). The format
+/// comes from the cached file's extension, which [ebookCacheFileFor] derived
+/// from the real ebookFile at download time, so the reader routing (EPUB vs
+/// PDF vs foliate) stays correct. Returns null when nothing is cached.
+Future<Map<String, dynamic>?> cachedEbookFileFor(String itemId) async {
+  try {
+    final dir = await _ebookCacheDir();
+    for (final f in dir.listSync()) {
+      if (f is! File) continue;
+      final name = f.uri.pathSegments.last;
+      if (!name.startsWith('$itemId.')) continue;
+      if (await f.length() <= 0) continue;
+      final ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
+      if (!allEbookFormats.contains(ext)) continue;
+      return {
+        'ebookFormat': ext,
+        'metadata': {'filename': name},
+      };
+    }
+  } catch (_) {}
+  return null;
 }
 
 /// Persistent cache path for an item's ebook, keyed by itemId so it's stable
@@ -92,9 +139,13 @@ Future<File> fetchEbookToCache(
   final cleanBase = api.baseUrl.endsWith('/')
       ? api.baseUrl.substring(0, api.baseUrl.length - 1)
       : api.baseUrl;
-  final url = '$cleanBase/api/items/$itemId/file/$ino';
+  // Auth travels both ways: the Authorization header (re-attached across the
+  // manual redirect hops below) plus `?token=` in the URL, because some
+  // reverse proxies strip the header - the same reason audio file downloads
+  // use the token form (see ApiService.buildFileUrl).
+  final url = '$cleanBase/api/items/$itemId/file/$ino?token=${api.token}';
 
-  debugPrint('[EbookCache] downloading item=$itemId url=$url');
+  debugPrint('[EbookCache] downloading item=$itemId path=/api/items/$itemId/file/$ino');
   final startedAt = DateTime.now();
   final partFile = File('${cachedFile.path}.part');
   final request = http.Request('GET', Uri.parse(url));

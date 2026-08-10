@@ -327,6 +327,10 @@ class LibraryProvider extends ChangeNotifier
     _catchUpRollingDownloads();
     unawaited(_catchUpQueueAutoDownloads());
     catchUpSubscribedPodcasts();
+    final ebookApi = _api;
+    if (ebookApi != null) {
+      unawaited(DownloadService().catchUpEbookCaches(ebookApi));
+    }
   }
 
   Future<void> _restoreCachedLibraries() async {

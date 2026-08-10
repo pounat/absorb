@@ -201,6 +201,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _isUpdatingProgressDate = false;
   bool _speedAdjustedTime = true;
   double _savedSpeed = 1.0;
+  // Ebook synthesized from the offline reader cache, for downloads whose
+  // persisted metadata predates the trimmed-libraryItem fix. Read-only
+  // surfaces fall back to it; Save/Send still need the server's file entry.
+  Map<String, dynamic>? _cachedEbookFallback;
   ColorScheme? _rawCoverScheme;
   String? _coverSchemeUrl; // URL the current scheme was derived from
 
@@ -244,6 +248,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       if (mounted && list.contains(widget.itemId)) {
         setState(() => _ebookSaved = true);
       }
+    });
+    cachedEbookFileFor(widget.itemId).then((f) {
+      if (mounted && f != null) setState(() => _cachedEbookFallback = f);
     });
   }
 
@@ -542,7 +549,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final progressData = lib.getProgressData(widget.itemId);
     final isFinished = progressData?['isFinished'] == true;
     final currentTime = (progressData?['currentTime'] as num?)?.toDouble() ?? 0;
-    final ebookFile = resolveEbookFile(_item);
+    final ebookFile = resolveEbookFile(_item) ?? _cachedEbookFallback;
 
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
     // Preview only makes sense before the book has been started. The 60s
@@ -999,7 +1006,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final title = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
     final duration = (media['duration'] as num?)?.toDouble() ?? 0;
-    final ebookFile = resolveEbookFile(_item);
+    final ebookFile = resolveEbookFile(_item) ?? _cachedEbookFallback;
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
 
     final lib = context.watch<LibraryProvider>();
@@ -1136,11 +1143,14 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         if (ebookFile != null && canReadEbook(ebookFile)) {
           add(Icons.menu_book_rounded, l.readEbook, () => _openEbookReader(context, auth, ebookFile, title));
         }
-        if (ebookFile != null) {
+        // Save/Send push the file elsewhere, which needs the server's own file
+        // entry (with ino) - the cache-synthesized fallback can't serve them.
+        final serverEbookFile = resolveEbookFile(_item);
+        if (serverEbookFile != null) {
           add(_ebookSaved ? Icons.download_done_rounded : Icons.save_alt_rounded,
-            l.ebookSaveToDevice, () => _saveEbook(context, auth, ebookFile, title));
+            l.ebookSaveToDevice, () => _saveEbook(context, auth, serverEbookFile, title));
         }
-        if (ebookFile != null && auth.ereaderDevices.isNotEmpty) {
+        if (serverEbookFile != null && auth.ereaderDevices.isNotEmpty) {
           add(Icons.send_to_mobile_rounded, l.sendToEreader, () => _sendToEreader(context, auth));
         }
         if (progress > 0 || isFinished) {

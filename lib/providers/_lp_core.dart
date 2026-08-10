@@ -1070,6 +1070,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           if (_rollingDownloadSeries.isNotEmpty) _catchUpRollingDownloads();
           unawaited(_catchUpQueueAutoDownloads());
           (this as LibraryProvider).catchUpSubscribedPodcasts();
+          final ebookApi = _api;
+          if (ebookApi != null) {
+            unawaited(DownloadService().catchUpEbookCaches(ebookApi));
+          }
         } else {
           debugPrint('[Library] Connectivity changed but server unreachable — starting ping timer');
           if (_networkOffline) {

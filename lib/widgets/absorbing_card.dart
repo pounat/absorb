@@ -1138,6 +1138,11 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
   void _openEbookReader() async {
     var ebookFile = _ebookFile;
+    // A downloaded book's ebook may already sit in the reader cache - check
+    // that before any network retry, so offline Read opens instantly instead
+    // of waiting out a timeout. The reader opens from this same cached file
+    // either way.
+    ebookFile ??= await cachedEbookFileFor(_itemId);
     if (ebookFile == null) {
       // The initState fetch is one-shot and can fail silently (network blip),
       // so give it another chance before declaring there's no ebook.
@@ -1146,7 +1151,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     }
     if (!mounted) return;
     if (ebookFile == null) {
-      showOverlayToast(context, 'No ebook file for this book', icon: Icons.menu_book_outlined);
+      showOverlayToast(context, AppLocalizations.of(context)!.noEbookFileFound, icon: Icons.menu_book_outlined);
       return;
     }
     openEbookReader(context, itemId: _itemId, title: _title, ebookFile: ebookFile);
