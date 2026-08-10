@@ -133,6 +133,24 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Apply the serverSettings (and, if present, version) carried on an
+  /// /api/authorize response - the same shape /login and /login/oidc return,
+  /// used on every session-restore path (tryRestoreSession, ensureUserInfo,
+  /// switchToAccount). Those paths never call login(), so without this the
+  /// version cache stayed empty for a process that only ever restored a
+  /// session - stream URLs would fall back to the tokened form even on a
+  /// server whose version had already been learned in an earlier process.
+  void _applyAuthorizeServerInfo(Map<String, dynamic> auth, String serverUrl) {
+    final sSettings = auth['serverSettings'] as Map<String, dynamic>?;
+    if (sSettings != null) _serverSettings = sSettings;
+    final version =
+        auth['serverVersion'] as String? ?? (sSettings?['version'] as String?);
+    if (version != null && version.isNotEmpty) {
+      _serverVersion = version;
+      ApiService.cacheServerVersion(serverUrl, version);
+    }
+  }
+
   /// Re-cache server settings after an admin saves them via PATCH /api/settings
   /// (which echoes the updated serverSettings). Keeps cached values and the
   /// shown server version fresh without forcing a re-login.
@@ -522,8 +540,7 @@ class AuthProvider extends ChangeNotifier {
                 _ereaderDevices = devicesRaw.cast<Map<String, dynamic>>();
                 await _persistEreaderDevices();
               }
-              final sSettings = auth['serverSettings'] as Map<String, dynamic>?;
-              if (sSettings != null) _serverSettings = sSettings;
+              _applyAuthorizeServerInfo(auth, activeServerUrl!);
               final defaultLib = auth['userDefaultLibraryId'] as String?;
               if (defaultLib != null) _defaultLibraryId = defaultLib;
             } else {
@@ -600,8 +617,7 @@ class AuthProvider extends ChangeNotifier {
           _ereaderDevices = devicesRaw.cast<Map<String, dynamic>>();
           await _persistEreaderDevices();
         }
-        final sSettings = auth['serverSettings'] as Map<String, dynamic>?;
-        if (sSettings != null) _serverSettings = sSettings;
+        _applyAuthorizeServerInfo(auth, activeServerUrl!);
         final defaultLib = auth['userDefaultLibraryId'] as String?;
         if (defaultLib != null) _defaultLibraryId = defaultLib;
       } else {
@@ -1293,6 +1309,7 @@ class AuthProvider extends ChangeNotifier {
           _ereaderDevices = devicesRaw.cast<Map<String, dynamic>>();
           await _persistEreaderDevices();
         }
+        _applyAuthorizeServerInfo(auth, _serverUrl!);
       } else {
         final me = await api.getMe();
         if (me != null) {
