@@ -4004,11 +4004,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get deleteBookmarkQuestion => 'Lesezeichen löschen?';
 
   @override
-  String bookmarkAtPosition(String position) {
-    return 'Lesezeichen bei $position';
-  }
-
-  @override
   String get cardIconsOnlyChip => 'Nur Symbole';
 
   @override

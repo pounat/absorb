@@ -47,6 +47,7 @@ class _CarModeScreenState extends State<CarModeScreen>
   int _backSkip = 10;
   int _forwardSkip = 30;
   bool _preferChapterBar = false;
+  bool _speedAdjustedTime = true;
   late AnimationController _playPauseController;
   Timer? _displayTimer;
 
@@ -60,6 +61,9 @@ class _CarModeScreenState extends State<CarModeScreen>
     );
     _loadSkipSettings();
     PlayerSettings.settingsChanged.addListener(_loadSkipSettings);
+    PlayerSettings.getSpeedAdjustedTime().then((v) {
+      if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
+    });
     widget.player.addListener(_onPlayerChanged);
     // Tick every second so the speed-adjusted time display updates smoothly
     // even when the position stream fires less often (e.g. at 0.5x speed).
@@ -163,7 +167,7 @@ class _CarModeScreenState extends State<CarModeScreen>
     final chapters = widget.player.chapters;
     if (chapters.isEmpty) return (0, Duration.zero, Duration.zero);
     final pos = widget.player.position.inSeconds.toDouble();
-    final speed = widget.player.speed;
+    final speed = _speedAdjustedTime ? widget.player.speed : 1.0;
     for (final ch in chapters) {
       final start = (ch['start'] as num?)?.toDouble() ?? 0;
       final end = (ch['end'] as num?)?.toDouble() ?? 0;
@@ -254,7 +258,7 @@ class _CarModeScreenState extends State<CarModeScreen>
                 builder: (context, _) {
                   final pos = player.position;
                   final total = Duration(seconds: player.totalDuration.round());
-                  final speed = player.speed;
+                  final speed = _speedAdjustedTime ? player.speed : 1.0;
                   final bookProgress = total.inMilliseconds > 0
                       ? (pos.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0)
                       : 0.0;

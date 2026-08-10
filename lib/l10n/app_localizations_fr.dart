@@ -3977,11 +3977,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get deleteBookmarkQuestion => 'Delete bookmark?';
 
   @override
-  String bookmarkAtPosition(String position) {
-    return 'Bookmark at $position';
-  }
-
-  @override
   String get cardIconsOnlyChip => 'Icons only';
 
   @override
@@ -5924,7 +5919,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tipsSheetSpeedAdjustedTimeDesc =>
-      'Time remaining and chapter times automatically adjust based on your playback speed. Listening at 1.5x? The time shown reflects how long it\'ll actually take you.';
+      'Every time shown - position, remaining, chapters, bookmarks - adjusts to your playback speed. Listening at 1.5x? The times shown reflect how long they\'ll actually take you.';
 
   @override
   String get tipsSheetPlaybackHistoryTitle => 'Playback History';

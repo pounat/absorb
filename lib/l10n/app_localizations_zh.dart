@@ -3876,11 +3876,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deleteBookmarkQuestion => 'Delete bookmark?';
 
   @override
-  String bookmarkAtPosition(String position) {
-    return 'Bookmark at $position';
-  }
-
-  @override
   String get cardIconsOnlyChip => '仅图标';
 
   @override

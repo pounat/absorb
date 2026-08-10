@@ -2455,7 +2455,7 @@ abstract class AppLocalizations {
   /// No description provided for @speedAdjustedTimeOnSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'On - remaining time reflects playback speed'**
+  /// **'On - all times reflect your playback speed'**
   String get speedAdjustedTimeOnSubtitle;
 
   /// No description provided for @speedAdjustedTimeOffSubtitle.
@@ -7172,12 +7172,6 @@ abstract class AppLocalizations {
   /// **'Delete bookmark?'**
   String get deleteBookmarkQuestion;
 
-  /// No description provided for @bookmarkAtPosition.
-  ///
-  /// In en, this message translates to:
-  /// **'Bookmark at {position}'**
-  String bookmarkAtPosition(String position);
-
   /// No description provided for @cardIconsOnlyChip.
   ///
   /// In en, this message translates to:
@@ -10350,7 +10344,7 @@ abstract class AppLocalizations {
   /// No description provided for @tipsSheetSpeedAdjustedTimeDesc.
   ///
   /// In en, this message translates to:
-  /// **'Time remaining and chapter times automatically adjust based on your playback speed. Listening at 1.5x? The time shown reflects how long it\'ll actually take you.'**
+  /// **'Every time shown - position, remaining, chapters, bookmarks - adjusts to your playback speed. Listening at 1.5x? The times shown reflect how long they\'ll actually take you.'**
   String get tipsSheetSpeedAdjustedTimeDesc;
 
   /// No description provided for @tipsSheetPlaybackHistoryTitle.

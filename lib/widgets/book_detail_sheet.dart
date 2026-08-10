@@ -199,8 +199,16 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _narratorsExpanded = false;
   bool _squareCovers = false;
   bool _isUpdatingProgressDate = false;
+  bool _speedAdjustedTime = true;
+  double _savedSpeed = 1.0;
   ColorScheme? _rawCoverScheme;
   String? _coverSchemeUrl; // URL the current scheme was derived from
+
+  double get _displaySpeed {
+    if (!_speedAdjustedTime) return 1.0;
+    final player = AudioPlayerService();
+    return player.currentItemId == widget.itemId ? player.speed : _savedSpeed;
+  }
 
   /// The cover-derived scheme, unless the user has chosen a manual app color
   /// and opted to use it everywhere - then book pages wear that color too.
@@ -227,6 +235,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     SocketService().addItemUpdatedListener(_onSocketItemUpdated);
     PlayerSettings.getRectangleCovers().then((v) { if (mounted) setState(() => _squareCovers = !v); });
     PlayerSettings.getShowGoodreadsButton().then((v) { if (mounted) setState(() => _showGoodreads = v); });
+    PlayerSettings.getSpeedAdjustedTime().then((v) { if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v); });
+    PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
+      final speed = s ?? await PlayerSettings.getDefaultSpeed();
+      if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
+    });
     ScopedPrefs.getStringList('saved_ebooks').then((list) {
       if (mounted && list.contains(widget.itemId)) {
         setState(() => _ebookSaved = true);
@@ -948,7 +961,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
               child: Row(children: [
                 SizedBox(width: 28, child: Text('${e.key + 1}', style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
                 Expanded(child: Text(ch['title'] as String? ?? l.chapterNumber(e.key + 1), maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6)))),
-                Text(formatHm(((ch['end'] as num?)?.toDouble() ?? 0) - ((ch['start'] as num?)?.toDouble() ?? 0)), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))),
+                Text(formatHm((((ch['end'] as num?)?.toDouble() ?? 0) - ((ch['start'] as num?)?.toDouble() ?? 0)) / _displaySpeed), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))),
               ]));
           })]],
       if (_bookmarks.isNotEmpty) ...[const SizedBox(height: 16),
@@ -961,7 +974,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             final hasNote = bm.note != null && bm.note!.isNotEmpty;
             return Padding(padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SizedBox(width: 56, child: Text(bm.formattedPosition, style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
+                SizedBox(width: 56, child: Text(bm.formattedAt(_displaySpeed), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(bm.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
                   if (hasNote)

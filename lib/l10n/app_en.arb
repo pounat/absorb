@@ -613,7 +613,7 @@
   "cardScrubbersChapterSubtitle": "Only the chapter bar can seek",
   "cardScrubbersLockedSubtitle": "Progress is shown without seeking",
   "speedAdjustedTime": "Speed-adjusted time",
-  "speedAdjustedTimeOnSubtitle": "On - remaining time reflects playback speed",
+  "speedAdjustedTimeOnSubtitle": "On - all times reflect your playback speed",
   "speedAdjustedTimeOffSubtitle": "Off - showing raw audio duration",
   "buttonLayout": "Button layout",
   "buttonLayoutSubtitle": "How action buttons are arranged on the card",
@@ -2050,14 +2050,6 @@
     }
   },
   "deleteBookmarkQuestion": "Delete bookmark?",
-  "bookmarkAtPosition": "Bookmark at {position}",
-  "@bookmarkAtPosition": {
-    "placeholders": {
-      "position": {
-        "type": "String"
-      }
-    }
-  },
   "cardIconsOnlyChip": "Icons only",
   "cardMoreInGridChip": "\"More\" in grid",
   "cardLayoutHidden": "Hidden",
@@ -3497,7 +3489,7 @@
   "tipsSheetTapToSeekTitle": "Tap to Seek",
   "tipsSheetTapToSeekDesc": "Tap anywhere on the chapter or book progress bar to jump directly to that position. You can also drag the bars for fine-grained control.",
   "tipsSheetSpeedAdjustedTimeTitle": "Speed-Adjusted Time",
-  "tipsSheetSpeedAdjustedTimeDesc": "Time remaining and chapter times automatically adjust based on your playback speed. Listening at 1.5x? The time shown reflects how long it'll actually take you.",
+  "tipsSheetSpeedAdjustedTimeDesc": "Every time shown - position, remaining, chapters, bookmarks - adjusts to your playback speed. Listening at 1.5x? The times shown reflect how long they'll actually take you.",
   "tipsSheetPlaybackHistoryTitle": "Playback History",
   "tipsSheetPlaybackHistoryDesc": "Tap the History button on any card to see a timeline of every play, pause, seek, and speed change. Tap any event to jump back to that position.",
   "tipsSheetAutoRewindTitle": "Auto-Rewind",
