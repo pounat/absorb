@@ -30,6 +30,16 @@ class ChromecastService extends ChangeNotifier {
   bool get isCasting => isConnected && _playbackState != CastPlaybackState.idle;
   bool get isPlaying => _playbackState == CastPlaybackState.playing;
 
+  /// True while a backstop reconnect is being attempted after the sender lost
+  /// its connection but the receiver was actively playing (see [_tryReconnect]).
+  bool get isReconnecting => _reconnecting;
+
+  /// A cast session that's either live or actively trying to recover from a
+  /// dropped sender connection - the sleep timer and other liveness checks
+  /// use this instead of [isCasting] so a transient disconnect doesn't read
+  /// as "casting stopped" while a backstop reconnect is still in flight.
+  bool get isCastEngaged => isCasting || _reconnecting;
+
   String? _castingItemId, _castingEpisodeId, _castingTitle, _castingAuthor, _castingCoverUrl;
   double _castingDuration = 0;
   List<dynamic> _castingChapters = [];
@@ -39,6 +49,19 @@ class ChromecastService extends ChangeNotifier {
   String? _playbackSessionId;
   int? _castPlayMethod;
   DateTime _lastSyncTime = DateTime.now();
+
+  // Backstop reconnect (GH #338). The Cast SDK has its own session-resume
+  // machinery, and the manifest now lets it actually run - this only kicks in
+  // when that still isn't enough (e.g. the network was down longer than the
+  // SDK's own resumption window).
+  GoogleCastDevice? _lastConnectedDevice;
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  bool _reconnecting = false;
+  // Set when the sleep timer fires while a backstop reconnect is in flight,
+  // so the pause it wanted to apply lands the instant we're back instead of
+  // silently no-oping because nothing was connected at the time.
+  bool _pendingSleepPause = false;
 
   // Multi-track fallback state (when queueLoadItems fails)
   List<dynamic>? _fallbackTracks;
@@ -163,9 +186,18 @@ class ChromecastService extends ChangeNotifier {
             _disconnectDebounceTimer?.cancel();
             _disconnectDebounceTimer = null;
           }
+          // Whether this arrived via the SDK's own resumption or our backstop
+          // retry, we're back - stop retrying.
+          if (_reconnecting) {
+            debugPrint('[Cast] Reconnect backstop succeeded');
+            _reconnecting = false;
+            _reconnectTimer?.cancel();
+            _reconnectTimer = null;
+          }
           final wasConnected = _connectionState == CastConnectionState.connected;
           _connectionState = CastConnectionState.connected;
           _connectedDeviceName = session?.device?.friendlyName;
+          _lastConnectedDevice = session?.device ?? _lastConnectedDevice;
           debugPrint('[Cast] ✓ CONNECTED to: $_connectedDeviceName');
           _listenToMediaStatus();
           _listenToPosition();
@@ -175,14 +207,19 @@ class ChromecastService extends ChangeNotifier {
           if (!wasConnected || _castingItemId == null) {
             _rehydrateFromRemoteMedia();
           }
+          if (_pendingSleepPause) {
+            _pendingSleepPause = false;
+            debugPrint('[Cast] Applying the sleep-timer pause that was waiting on reconnect');
+            unawaited(pause());
+          }
         } else if (state == GoogleCastConnectState.disconnected) {
-          debugPrint('[Cast] ✗ DISCONNECTED (scheduling wipe in ${_disconnectGrace.inSeconds}s)');
+          debugPrint('[Cast] ✗ DISCONNECTED (scheduling grace ${_disconnectGrace.inSeconds}s before deciding to reconnect or wipe)');
           // Debounce: transient wifi/session blips can emit disconnected then
-          // reconnect shortly after. Only wipe state if it sticks.
+          // reconnect shortly after. Only act if it sticks.
           _disconnectDebounceTimer?.cancel();
           _disconnectDebounceTimer = Timer(_disconnectGrace, () {
-            debugPrint('[Cast] Disconnect grace expired - wiping state');
-            _onDisconnected();
+            debugPrint('[Cast] Disconnect grace expired');
+            _beginReconnectOrWipe();
           });
           // Reflect "connecting" in the UI so controls aren't fully dead but
           // also aren't claiming a live connection.
@@ -197,6 +234,84 @@ class ChromecastService extends ChangeNotifier {
       onDone: () => debugPrint('[Cast] Session stream DONE (closed)'),
     );
     debugPrint('[Cast] Session stream subscription active');
+  }
+
+  static const _reconnectMaxAttempts = 3;
+  static const _reconnectBaseDelay = Duration(seconds: 3);
+
+  /// Decide whether a disconnect that's stuck past the grace period is worth
+  /// fighting for: only if something was actually playing and we know which
+  /// device to go back to. Otherwise there's nothing to reconnect for -
+  /// fall straight through to the normal wipe.
+  void _beginReconnectOrWipe() {
+    final device = _lastConnectedDevice;
+    final wasEngaged =
+        _castingItemId != null && _playbackState != CastPlaybackState.idle;
+    if (device == null || !wasEngaged) {
+      _onDisconnected();
+      return;
+    }
+    debugPrint('[Cast] Attempting backstop reconnect to ${device.friendlyName} before giving up');
+    _reconnecting = true;
+    _reconnectAttempts = 0;
+    notifyListeners();
+    _tryReconnect(device);
+  }
+
+  /// One attempt in a short, bounded backoff (3s, 6s, 12s). Each attempt
+  /// clears whatever zombie sender-side session the SDK's own resumption may
+  /// have left behind - startSessionWithDevice refuses to run while one is
+  /// still established, even a dead one - then asks to reconnect. The actual
+  /// outcome is driven by the session stream, same as any other connect; this
+  /// just keeps trying it until that stream reports success or we run out of
+  /// attempts, at which point it's a real disconnect and gets wiped normally.
+  void _tryReconnect(GoogleCastDevice device) {
+    _reconnectTimer?.cancel();
+    if (!_reconnecting) return;
+    if (isConnected) {
+      _reconnecting = false;
+      return;
+    }
+    if (_reconnectAttempts >= _reconnectMaxAttempts) {
+      debugPrint('[Cast] Reconnect backstop exhausted after $_reconnectAttempts attempts - giving up');
+      _reconnecting = false;
+      _onDisconnected();
+      return;
+    }
+    _reconnectAttempts++;
+    final delay = _reconnectBaseDelay * (1 << (_reconnectAttempts - 1));
+    debugPrint('[Cast] Reconnect backstop attempt $_reconnectAttempts/$_reconnectMaxAttempts in ${delay.inSeconds}s');
+    _reconnectTimer = Timer(delay, () async {
+      if (!_reconnecting || isConnected) return;
+      try {
+        await GoogleCastSessionManager.instance.endSession();
+      } catch (_) {}
+      if (!_reconnecting) return;
+      try {
+        debugPrint('[Cast] Reconnect backstop: connecting to ${device.friendlyName}');
+        await GoogleCastSessionManager.instance.startSessionWithDevice(device);
+      } catch (e) {
+        debugPrint('[Cast] Reconnect backstop attempt failed: $e');
+      }
+      _tryReconnect(device);
+    });
+  }
+
+  /// Pauses the cast session now if connected, or - if a backstop reconnect
+  /// is in flight - remembers to pause the instant it succeeds instead of
+  /// silently doing nothing. True no-op only when there's no live or
+  /// recovering session left to pause.
+  Future<void> pauseNowOrOnReconnect() async {
+    if (isConnected) {
+      await pause();
+      return;
+    }
+    if (_reconnecting) {
+      debugPrint('[Cast] Sleep timer fired mid-reconnect - will pause once reconnected');
+      _pendingSleepPause = true;
+      return;
+    }
+    debugPrint('[Cast] Sleep timer fired with no live or recovering cast session - nothing to pause');
   }
 
   void _onDisconnected() {
@@ -217,7 +332,10 @@ class ChromecastService extends ChangeNotifier {
     _syncTimer?.cancel();
     _idleDebounceTimer?.cancel();
     _disconnectDebounceTimer?.cancel();
-
+    _reconnecting = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _pendingSleepPause = false;
 
     _onPlaybackStateChangedCallback?.call(false);
     notifyListeners();
@@ -448,6 +566,12 @@ class ChromecastService extends ChangeNotifier {
       try { await _api!.closePlaybackSession(_playbackSessionId!); } catch (_) {}
       _playbackSessionId = null;
     }
+    // User-initiated - don't let the disconnect event this triggers attempt a
+    // backstop reconnect back to the device they just chose to leave.
+    _lastConnectedDevice = null;
+    _reconnecting = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     await _setForegroundService(false);
     try {
       await GoogleCastSessionManager.instance.endSessionAndStopCasting();
@@ -473,7 +597,9 @@ class ChromecastService extends ChangeNotifier {
     final localPlayer = AudioPlayerService();
     if (localPlayer.hasBook) {
       debugPrint('[Cast] Stopping local player');
-      await localPlayer.stop();
+      // Keep a sleep timer armed on local playback running - it should track
+      // the cast session that's about to start, not vanish on the handoff.
+      await localPlayer.stop(keepSleepTimer: true);
     }
 
     _api = api;
@@ -1090,6 +1216,7 @@ class ChromecastService extends ChangeNotifier {
     _syncTimer?.cancel();
     _idleDebounceTimer?.cancel();
     _disconnectDebounceTimer?.cancel();
+    _reconnectTimer?.cancel();
     super.dispose();
   }
 }

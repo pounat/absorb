@@ -101,7 +101,12 @@ class SleepTimerService extends ChangeNotifier {
   final _player = AudioPlayerService();
   final _cast = ChromecastService();
 
-  bool get _isPlaybackActive => _player.isPlaying || _cast.isPlaying;
+  // Counts a backstop cast reconnect (GH #338) as active too, so a transient
+  // sender disconnect doesn't freeze the countdown - the receiver is almost
+  // certainly still playing, and _triggerSleep's cast branch below knows how
+  // to apply the pause once the reconnect lands.
+  bool get _isPlaybackActive =>
+      _player.isPlaying || _cast.isPlaying || _cast.isReconnecting;
 
   // ── State ──
   SleepTimerMode _mode = SleepTimerMode.off;
@@ -215,13 +220,17 @@ class SleepTimerService extends ChangeNotifier {
     try {
       if (_mode != SleepTimerMode.time) return;
       final isPlaying = _isPlaybackActive;
-      final pauseRequested = !_cast.isCasting && _player.isPauseRequested;
+      final pauseRequested = !_cast.isCastEngaged && _player.isPauseRequested;
       var action = sleepTimerTickAction(
         timeRemaining: _timeRemaining,
         isPlaybackActive: isPlaying,
         isPauseRequested: pauseRequested,
       );
       if (action == SleepTimerTickAction.wait) {
+        if (_wasPlaying) {
+          debugPrint('[SleepTimer] Playback went inactive - holding at ${_timeRemaining.inSeconds}s '
+              '(cast=${_cast.isCasting}, reconnecting=${_cast.isReconnecting})');
+        }
         _wasPlaying = false;
         return;
       }
@@ -246,9 +255,13 @@ class SleepTimerService extends ChangeNotifier {
       action = sleepTimerTickAction(
         timeRemaining: _timeRemaining,
         isPlaybackActive: _isPlaybackActive,
-        isPauseRequested: !_cast.isCasting && _player.isPauseRequested,
+        isPauseRequested: !_cast.isCastEngaged && _player.isPauseRequested,
       );
       if (action == SleepTimerTickAction.wait) {
+        if (_wasPlaying) {
+          debugPrint('[SleepTimer] Playback went inactive - holding at ${_timeRemaining.inSeconds}s '
+              '(cast=${_cast.isCasting}, reconnecting=${_cast.isReconnecting})');
+        }
         _wasPlaying = false;
         return;
       }
@@ -269,7 +282,7 @@ class SleepTimerService extends ChangeNotifier {
         _warningSent = true;
         onToast?.call('Sleep timer ending soon...');
         final fadeEnabled = await PlayerSettings.getSleepFadeOut();
-        if (fadeEnabled && !_cast.isCasting) {
+        if (fadeEnabled && !_cast.isCastEngaged) {
           _isFadingOut = true;
           _fadeStartVolume = _player.volume;
           debugPrint('[SleepTimer] Warning: ${_timeRemaining.inSeconds}s remaining - starting fade (${_fadeThreshold.inSeconds}s)');
@@ -282,7 +295,7 @@ class SleepTimerService extends ChangeNotifier {
       }
 
       // Gradually lower volume during the fade period
-      if (_isFadingOut && _timeRemaining.inSeconds > 0 && !_cast.isCasting) {
+      if (_isFadingOut && _timeRemaining.inSeconds > 0 && !_cast.isCastEngaged) {
         final fraction = _timeRemaining.inSeconds / _fadeThreshold.inSeconds;
         _player.setVolume((_fadeStartVolume * fraction).clamp(0.0, 1.0));
       }
@@ -484,7 +497,7 @@ class SleepTimerService extends ChangeNotifier {
 
   Future<void> _triggerSleep() async {
     if (_isTriggeringSleep) return;
-    final pauseRequested = !_cast.isCasting && _player.isPauseRequested;
+    final pauseRequested = !_cast.isCastEngaged && _player.isPauseRequested;
     if (!_isPlaybackActive || pauseRequested) {
       _wasPlaying = false;
       return;
@@ -492,8 +505,8 @@ class SleepTimerService extends ChangeNotifier {
     _isTriggeringSleep = true;
     debugPrint('[SleepTimer] Triggering sleep — pausing playback');
     try {
-      if (_cast.isCasting) {
-        await _cast.pause();
+      if (_cast.isCastEngaged) {
+        await _cast.pauseNowOrOnReconnect();
       } else {
         await _player.pause();
         // Restore volume so next playback starts at normal level

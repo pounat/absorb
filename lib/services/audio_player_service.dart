@@ -6120,7 +6120,7 @@ class AudioPlayerService extends ChangeNotifier {
     return null;
   }
 
-  Future<void> stop() async {
+  Future<void> stop({bool keepSleepTimer = false}) async {
     _pauseStopTimer?.cancel();
     _pauseStopTimer = null;
     _endAdvanceBuffering();
@@ -6179,8 +6179,10 @@ class AudioPlayerService extends ChangeNotifier {
     _clearState();
     _chapters = [];
     _handler?.updateChaptersQueue(const []);
-    // Cancel sleep timer when playback is stopped
-    if (SleepTimerService().isActive) {
+    // Cancel sleep timer when playback is stopped - unless the caller is
+    // handing off to Chromecast, where an armed timer should keep running
+    // against the cast session rather than vanish (GH #338).
+    if (!keepSleepTimer && SleepTimerService().isActive) {
       SleepTimerService().cancel();
     }
     // Release audio focus so other apps can use it - but not during casting,
