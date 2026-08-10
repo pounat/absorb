@@ -221,6 +221,9 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           debugPrint('[AutoDL] Resolved $id -> $kind "$name"');
           _rememberRollingDownloadSource(id, name: name, kind: kind);
           resolvedAny = true;
+        } else {
+          debugPrint(
+              '[AutoDL] Unresolved $id (stored kind: ${_rollingDownloadSourceNames[id]?['kind'] ?? 'none'}) - no playlist/collection/series/item answered');
         }
       }
       if (resolvedAny) notifyListeners();
