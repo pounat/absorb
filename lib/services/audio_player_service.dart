@@ -2275,15 +2275,32 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// Phase 1.7: snapshot the URLs and HTTP headers used to build the
   /// streaming AudioSource so the iOS native widget core can hit the same
-  /// endpoints if Flutter dies. Token is already in the URL; custom headers
-  /// (Cloudflare Access etc.) ride along for reverse-proxy auth.
-  void _captureStreamUrls(List<dynamic> audioTracks, ApiService api) {
+  /// endpoints if Flutter dies. Auth is in the URL (session id or token);
+  /// custom headers (Cloudflare Access etc.) ride along for reverse-proxy auth.
+  void _captureStreamUrls(
+    List<dynamic> audioTracks,
+    ApiService api, {
+    String? sessionId,
+    int? playMethod,
+  }) {
     final urls = <String>[];
     for (final t in audioTracks) {
       final track = t as Map<String, dynamic>;
       final contentUrl = track['contentUrl'] as String? ?? '';
       if (contentUrl.isEmpty) continue;
-      urls.add(api.buildTrackUrl(contentUrl));
+      urls.add(api.buildTrackUrl(
+        contentUrl,
+        sessionId: sessionId,
+        trackIndex: (track['index'] as num?)?.toInt(),
+        playMethod: playMethod,
+      ));
+    }
+    if (urls.isNotEmpty) {
+      final u = Uri.parse(urls.first);
+      final form = u.path.contains('/public/session/')
+          ? 'public session'
+          : (u.queryParameters.containsKey('token') ? 'tokened' : 'other');
+      debugPrint('[Player] Stream URL form: $form (${u.path})');
     }
     _activeStreamUrls = urls;
     _activeStreamHeaders = Map<String, String>.from(api.playbackSessionHeaders);
@@ -3898,6 +3915,7 @@ class AudioPlayerService extends ChangeNotifier {
     _lastServerSync = DateTime.now();
     _logEvent(PlaybackEventType.sessionStart, detail: 'stream');
     var audioTracks = sessionData['audioTracks'] as List<dynamic>?;
+    var sessionPlayMethod = (sessionData['playMethod'] as num?)?.toInt();
     if (audioTracks == null || audioTracks.isEmpty) {
       _clearState();
       return 'No audio files found - this item may be missing on the server';
@@ -3943,6 +3961,7 @@ class AudioPlayerService extends ChangeNotifier {
         }
         _playbackSessionId = retrySession['id'] as String?;
         audioTracks = retrySession['audioTracks'] as List<dynamic>? ?? [];
+        sessionPlayMethod = (retrySession['playMethod'] as num?)?.toInt();
         if (audioTracks.isEmpty) {
           _clearState();
           return 'No audio files in transcoded session';
@@ -4058,12 +4077,22 @@ class AudioPlayerService extends ChangeNotifier {
 
       // Build audio source - one source per track file
       _buildTrackOffsets(audioTracks);
-      _captureStreamUrls(audioTracks, api);
+      _captureStreamUrls(
+        audioTracks,
+        api,
+        sessionId: _playbackSessionId,
+        playMethod: sessionPlayMethod,
+      );
       final trackSources = <AudioSource>[];
       for (final t in audioTracks) {
         final track = t as Map<String, dynamic>;
         final contentUrl = track['contentUrl'] as String? ?? '';
-        final fullUrl = api.buildTrackUrl(contentUrl);
+        final fullUrl = api.buildTrackUrl(
+          contentUrl,
+          sessionId: _playbackSessionId,
+          trackIndex: (track['index'] as num?)?.toInt(),
+          playMethod: sessionPlayMethod,
+        );
         trackSources.add(
           AudioSource.uri(
             Uri.parse(fullUrl),

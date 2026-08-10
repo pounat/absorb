@@ -139,7 +139,11 @@ class AuthProvider extends ChangeNotifier {
   void applyServerSettings(Map<String, dynamic> settings) {
     _serverSettings = settings;
     final v = settings['version'] as String?;
-    if (v != null && v.isNotEmpty) _serverVersion = v;
+    if (v != null && v.isNotEmpty) {
+      _serverVersion = v;
+      final url = activeServerUrl;
+      if (url != null) ApiService.cacheServerVersion(url, v);
+    }
     notifyListeners();
   }
 
@@ -707,6 +711,7 @@ class AuthProvider extends ChangeNotifier {
         (_serverSettings?['version'] as String?);
     if (loginVersion != null && loginVersion.isNotEmpty) {
       _serverVersion = loginVersion;
+      ApiService.cacheServerVersion(url, loginVersion);
     } else {
       _fetchServerVersion(url);
     }
@@ -907,6 +912,7 @@ class AuthProvider extends ChangeNotifier {
         (_serverSettings?['version'] as String?);
     if (oidcVersion != null && oidcVersion.isNotEmpty) {
       _serverVersion = oidcVersion;
+      ApiService.cacheServerVersion(url, oidcVersion);
     } else {
       _fetchServerVersion(url);
     }

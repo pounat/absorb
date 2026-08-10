@@ -191,7 +191,9 @@ class ApiService {
         _refreshToken = refreshToken,
         _isLegacyToken = isLegacyToken,
         _refreshRetryDelay = refreshRetryDelay,
-        _httpClient = httpClient;
+        _httpClient = httpClient {
+    _loadCachedServerVersion(baseUrl);
+  }
 
   /// Current access token (for external use like cover URLs, socket auth).
   String get token => _accessToken;
@@ -644,10 +646,77 @@ class ApiService {
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return data['serverVersion'] as String?;
+        final version = data['serverVersion'] as String?;
+        cacheServerVersion(serverUrl, version);
+        return version;
       }
     } catch (_) {}
     return null;
+  }
+
+  // Last-known version per server origin. Stream URL shape depends on the
+  // server's capabilities, and buildTrackUrl is synchronous, so the version
+  // has to already be in memory by the time playback starts. Persisted per
+  // origin and re-hydrated on construction to cover cold starts where the
+  // /status fetch hasn't answered yet.
+  static final Map<String, String> _serverVersions = {};
+  static final Set<String> _serverVersionLoads = {};
+
+  static String? _originOf(String url) {
+    try {
+      return Uri.parse(normalizeServerUrl(url)).origin;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Remember [version] for the server at [serverUrl], in memory and in prefs.
+  /// Called from every place a version is learned: login responses, /status,
+  /// and admin settings saves.
+  static void cacheServerVersion(String serverUrl, String? version) {
+    if (version == null || version.isEmpty) return;
+    final origin = _originOf(serverUrl);
+    if (origin == null) return;
+    _serverVersionLoads.add(origin);
+    if (_serverVersions[origin] == version) return;
+    _serverVersions[origin] = version;
+    unawaited(
+      SharedPreferences.getInstance()
+          .then((p) => p.setString('server_version_$origin', version))
+          .catchError((Object _) => false),
+    );
+  }
+
+  static void _loadCachedServerVersion(String serverUrl) {
+    final origin = _originOf(serverUrl);
+    if (origin == null || !_serverVersionLoads.add(origin)) return;
+    unawaited(
+      SharedPreferences.getInstance().then((p) {
+        final v = p.getString('server_version_$origin');
+        if (v != null && v.isNotEmpty) {
+          _serverVersions.putIfAbsent(origin, () => v);
+        }
+      }).catchError((Object _) {}),
+    );
+  }
+
+  /// True when [version] parses as `major.minor[.patch]` (optionally with a
+  /// leading `v`) and is at least [major].[minor]. Unparseable = false.
+  static bool serverVersionAtLeast(String? version, int major, int minor) {
+    final m = RegExp(r'^\s*v?(\d+)\.(\d+)').firstMatch(version ?? '');
+    if (m == null) return false;
+    final vMajor = int.parse(m.group(1)!);
+    if (vMajor != major) return vMajor > major;
+    return int.parse(m.group(2)!) >= minor;
+  }
+
+  /// Whether this server has the tokenless public session track endpoint
+  /// (added in Audiobookshelf v2.22.0). False while the version is unknown,
+  /// which safely degrades to the tokened URL form.
+  bool get _hasPublicSessionTracks {
+    final origin = _originOf(_cleanBaseUrl);
+    if (origin == null) return false;
+    return serverVersionAtLeast(_serverVersions[origin], 2, 22);
   }
 
   /// Get all libraries.
@@ -1417,8 +1486,19 @@ class ApiService {
     return null;
   }
 
-  /// Build a full audio track URL from a contentUrl returned by the play session.
-  String buildTrackUrl(String contentUrl) {
+  /// Build a full audio track URL from a contentUrl returned by the play
+  /// session. When the caller passes the session context ([sessionId], the
+  /// track's own [trackIndex], [playMethod]) and the session is direct play
+  /// on a server with the public session endpoint, the URL is synthesized
+  /// with no token in it at all - the unguessable session id is the
+  /// credential, so token rotation can't 401 a stream mid-book. Everything
+  /// else keeps the contentUrl-based forms.
+  String buildTrackUrl(
+    String contentUrl, {
+    String? sessionId,
+    int? trackIndex,
+    int? playMethod,
+  }) {
     // ABS servers with ROUTER_BASE_PATH set return contentUrls that already
     // include the base path (e.g. "/abs/public/session/.../track/0"). If the
     // user's server URL also includes that base path, blindly concatenating
@@ -1450,6 +1530,17 @@ class ApiService {
     }
 
     if (isAbsolute) return contentUrl;
+
+    // playMethod 0 = direct play. Transcode sessions must keep their HLS
+    // contentUrl, and pre-2.22 servers lack the endpoint but hand out legacy
+    // tokens that never expire, so both fall through safely.
+    if (sessionId != null &&
+        sessionId.isNotEmpty &&
+        trackIndex != null &&
+        playMethod == 0 &&
+        _hasPublicSessionTracks) {
+      return '$_cleanBaseUrl/public/session/$sessionId/track/$trackIndex';
+    }
 
     // No per-track logging here: this runs in a hot loop over every track, and
     // books with thousands of files would flood (and roll over) the log buffer.

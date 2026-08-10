@@ -37,6 +37,7 @@ class ChromecastService extends ChangeNotifier {
   Duration _castPosition = Duration.zero;
   String? _connectedDeviceName;
   String? _playbackSessionId;
+  int? _castPlayMethod;
   DateTime _lastSyncTime = DateTime.now();
 
   // Multi-track fallback state (when queueLoadItems fails)
@@ -526,6 +527,7 @@ class ChromecastService extends ChangeNotifier {
       }
 
       _playbackSessionId = sessionData['id'] as String?;
+      _castPlayMethod = (sessionData['playMethod'] as num?)?.toInt();
       _lastSyncTime = DateTime.now();
       // Promote Absorb's process to foreground so Doze doesn't throttle the
       // per-15s sync timer when the user locks their screen. See GH #184.
@@ -571,7 +573,12 @@ class ChromecastService extends ChangeNotifier {
   Future<bool> _loadSingleTrack(ApiService api, dynamic track, String title,
       String author, String? coverUrl, double totalDuration, double startTime) async {
     final m = track as Map<String, dynamic>;
-    final fullUrl = api.buildTrackUrl(m['contentUrl'] as String? ?? '');
+    final fullUrl = api.buildTrackUrl(
+      m['contentUrl'] as String? ?? '',
+      sessionId: _playbackSessionId,
+      trackIndex: (m['index'] as num?)?.toInt(),
+      playMethod: _castPlayMethod,
+    );
     debugPrint('[Cast] Loading single track URL: $fullUrl');
     final subtitle = _buildSubtitle(author, startTime);
     try {
@@ -624,7 +631,12 @@ class ChromecastService extends ChangeNotifier {
       final items = <GoogleCastQueueItem>[];
       for (int i = 0; i < tracks.length; i++) {
         final m = tracks[i] as Map<String, dynamic>;
-        final fullUrl = api.buildTrackUrl(m['contentUrl'] as String? ?? '');
+        final fullUrl = api.buildTrackUrl(
+          m['contentUrl'] as String? ?? '',
+          sessionId: _playbackSessionId,
+          trackIndex: (m['index'] as num?)?.toInt(),
+          playMethod: _castPlayMethod,
+        );
         debugPrint('[Cast] Track $i URL: $fullUrl');
         items.add(GoogleCastQueueItem(
           mediaInformation: GoogleCastMediaInformation(
@@ -678,7 +690,12 @@ class ChromecastService extends ChangeNotifier {
       List<double> offsets, int trackIdx, double localStart,
       String title, String author, String? coverUrl, double totalDuration) async {
     final m = tracks[trackIdx] as Map<String, dynamic>;
-    final fallbackUrl = api.buildTrackUrl(m['contentUrl'] as String? ?? '');
+    final fallbackUrl = api.buildTrackUrl(
+      m['contentUrl'] as String? ?? '',
+      sessionId: _playbackSessionId,
+      trackIndex: (m['index'] as num?)?.toInt(),
+      playMethod: _castPlayMethod,
+    );
     final trackDur = (m['duration'] as num?)?.toDouble() ?? totalDuration;
     debugPrint('[Cast] Fallback: loading track $trackIdx/${tracks.length} at ${localStart}s');
     await GoogleCastRemoteMediaClient.instance.loadMedia(
