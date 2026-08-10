@@ -1440,6 +1440,7 @@ class AudioPlayerService extends ChangeNotifier {
         if (v == _duckBriefInterruptions) return;
         final previousVolume = _volumeBeforeInterruptionDuck;
         _volumeBeforeInterruptionDuck = null;
+        _clearDuckWatchdog();
         if (previousVolume != null) {
           await _player?.setVolume(previousVolume);
         }
@@ -2497,6 +2498,33 @@ class AudioPlayerService extends ChangeNotifier {
   static bool _wasOnBluetooth = false;
   static bool _duckBriefInterruptions = false;
   static double? _volumeBeforeInterruptionDuck;
+  // Safety net for a duck whose matching "end" event never arrives - a known
+  // flaky spot on Android, more so over Bluetooth where focus changes route
+  // through an extra AVRCP arbitration layer. A duck is supposed to be brief
+  // (a notification chime, a voice prompt); if it's still down after this
+  // long with nothing having restored it, force it back rather than leaving
+  // playback parked at 35% volume for the rest of the session.
+  static Timer? _duckWatchdogTimer;
+  static const _duckWatchdogTimeout = Duration(seconds: 4);
+
+  static void _armDuckWatchdog() {
+    _duckWatchdogTimer?.cancel();
+    _duckWatchdogTimer = Timer(_duckWatchdogTimeout, () {
+      final stuckVolume = _volumeBeforeInterruptionDuck;
+      if (stuckVolume == null) return;
+      _volumeBeforeInterruptionDuck = null;
+      debugPrint(
+        '[AudioSession] Duck watchdog: no end event after '
+        '${_duckWatchdogTimeout.inSeconds}s - forcing volume back to $stuckVolume',
+      );
+      unawaited(_instance._player?.setVolume(stuckVolume));
+    });
+  }
+
+  static void _clearDuckWatchdog() {
+    _duckWatchdogTimer?.cancel();
+    _duckWatchdogTimer = null;
+  }
   // Last time the app entered the foreground. Used by [ClickDebug] to see
   // whether a MediaSession click's 400ms debounce window overlapped with
   // an app-foreground event — the fingerprint of an Android Auto disconnect
@@ -2577,6 +2605,7 @@ class AudioPlayerService extends ChangeNotifier {
                 await service._player?.setVolume(
                   (currentVolume * 0.35).clamp(0.0, 1.0).toDouble(),
                 );
+                _armDuckWatchdog();
                 debugPrint(
                   '[AudioSession] Interrupted (${event.type}) — ducking',
                 );
@@ -2587,6 +2616,7 @@ class AudioPlayerService extends ChangeNotifier {
             final duckedVolume = _volumeBeforeInterruptionDuck;
             if (duckedVolume != null) {
               _volumeBeforeInterruptionDuck = null;
+              _clearDuckWatchdog();
               await service._player?.setVolume(duckedVolume);
             }
             if (service.isPlaying) {
@@ -2610,6 +2640,7 @@ class AudioPlayerService extends ChangeNotifier {
                 _duckBriefInterruptions) {
               final previousVolume = _volumeBeforeInterruptionDuck;
               _volumeBeforeInterruptionDuck = null;
+              _clearDuckWatchdog();
               if (previousVolume != null) {
                 await service._player?.setVolume(previousVolume);
                 debugPrint(
