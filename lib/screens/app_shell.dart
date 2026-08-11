@@ -856,11 +856,13 @@ class _AppShellState extends State<AppShell>
           ),
         ],
       ),
-      bottomNavigationBar: DesktopNowPlayingBar(
-        player: _player,
-        library: lib,
-        onOpenNowPlaying: _switchToAbsorbing,
-      ),
+      bottomNavigationBar: shouldShowDesktopNowPlayingBar(_currentIndex)
+          ? DesktopNowPlayingBar(
+              player: _player,
+              library: lib,
+              onOpenNowPlaying: _switchToAbsorbing,
+            )
+          : null,
     );
   }
 

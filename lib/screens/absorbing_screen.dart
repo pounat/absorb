@@ -13,6 +13,7 @@ import '../services/scoped_prefs.dart';
 import '../widgets/absorb_page_header.dart';
 import '../main.dart' show flatNotifier, gradientIntensityNotifier, rootNavigatorKey;
 import '../widgets/absorbing_card.dart';
+import '../widgets/card_chapters_sheet.dart';
 import '../widgets/offline_status_icon.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/series_books_sheet.dart';
@@ -23,13 +24,15 @@ import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../utils/desktop_workspace.dart';
 
-const double kAbsorbingQueuePaneBreakpoint = 1180;
+const double kAbsorbingSidePanelOpenBreakpoint = 1180;
 
-bool shouldEmbedAbsorbingQueue(double paneWidth) =>
-    paneWidth >= kAbsorbingQueuePaneBreakpoint;
+bool shouldOpenAbsorbingSidePanelByDefault(double paneWidth) =>
+    paneWidth >= kAbsorbingSidePanelOpenBreakpoint;
 
 double absorbingQueuePaneWidth(double paneWidth) =>
     (paneWidth * 0.32).clamp(340.0, 400.0).toDouble();
+
+enum DesktopAbsorbingPanelTab { chapters, queue }
 
 class AbsorbingScreen extends StatefulWidget {
   const AbsorbingScreen({super.key});
@@ -193,6 +196,15 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
   }
 
   final _desktopQueueScrollController = ScrollController();
+  bool? _desktopPanelOpen;
+  DesktopAbsorbingPanelTab _desktopPanelTab = DesktopAbsorbingPanelTab.chapters;
+  AbsorbingChapterData? _desktopChapterData;
+  String? _desktopVisibleItemKey;
+
+  void _handleDesktopChapterData(AbsorbingChapterData data) {
+    if (!mounted || data.itemKey != _desktopVisibleItemKey) return;
+    setState(() => _desktopChapterData = data);
+  }
 
   String? _lastPlayingId;
   String? _lastPlayingEpisodeId;
@@ -667,8 +679,6 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         child: SafeArea(
         child: Builder(builder: (context) {
           final desktopWorkspace = isDesktopWorkspace(context);
-          final embedDesktopQueue = desktopWorkspace &&
-              shouldEmbedAbsorbingQueue(MediaQuery.sizeOf(context).width);
           final offlineIcon = OfflineStatusIcon(
             onTapWhenOnline: () {
               lib.setManualOffline(true);
@@ -730,8 +740,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                       : Icon(Icons.refresh_rounded, size: 18, color: muted),
                 ),
               ),
-            if ((!desktopWorkspace || !embedDesktopQueue) &&
-                books.isNotEmpty) ...[
+            if (!desktopWorkspace && books.isNotEmpty) ...[
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => _showReorderSheet(context, lib, books),
@@ -817,66 +826,98 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                               strokeWidth: 2,
                               color: cs.onSurface.withValues(alpha: 0.24)))
                       : LayoutBuilder(builder: (context, constraints) {
-                          final showQueue = shouldEmbedAbsorbingQueue(
-                            constraints.maxWidth,
-                          );
-                          final queueWidth = absorbingQueuePaneWidth(
-                            constraints.maxWidth,
-                          );
+                          if (books.isEmpty) {
+                            _desktopVisibleItemKey = null;
+                            return _emptyState(cs, tt, effectiveOffline, l);
+                          }
+
+                          final currentKey = _absorbingKey(books[0]);
+                          _desktopVisibleItemKey = currentKey;
+                          final panelOpen = _desktopPanelOpen ??=
+                              shouldOpenAbsorbingSidePanelByDefault(constraints.maxWidth);
+                          final panelWidth = absorbingQueuePaneWidth(constraints.maxWidth);
+                          final chapterData = _desktopChapterData?.itemKey == currentKey
+                              ? _desktopChapterData
+                              : null;
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(
-                                child: books.isEmpty
-                                    ? _emptyState(cs, tt, effectiveOffline, l)
-                                    : Center(
-                                        child: ConstrainedBox(
-                                          constraints: const BoxConstraints(
-                                              maxWidth: 980),
-                                          child: SizedBox.expand(
-                                            child: Padding(
-                                              padding: const EdgeInsets.fromLTRB(
-                                                  12, 8, 12, 16),
-                                              child: RepaintBoundary(
-                                                child: AbsorbingCard(
-                                                  key: _cardKey(
-                                                      _absorbingKey(books[0])),
-                                                  item: books[0],
-                                                  player: _player,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                                  child: RepaintBoundary(
+                                    child: AbsorbingCard(
+                                      key: _cardKey(currentKey),
+                                      item: books[0],
+                                      player: _player,
+                                      presentation: AbsorbingCardPresentation.desktop,
+                                      onChapterDataChanged: _handleDesktopChapterData,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              if (showQueue) ...[
-                                VerticalDivider(
-                                  width: 1,
-                                  thickness: 1,
-                                  color: cs.outlineVariant.withValues(
-                                    alpha: 0.45,
+                              VerticalDivider(
+                                width: 1,
+                                thickness: 1,
+                                color: cs.outlineVariant.withValues(alpha: 0.45),
+                              ),
+                              SizedBox(
+                                width: 48,
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: IconButton(
+                                      key: const ValueKey('desktop-absorbing-panel-toggle'),
+                                      tooltip: panelOpen
+                                          ? MaterialLocalizations.of(context).closeButtonTooltip
+                                          : l.absorbingManageQueue,
+                                      onPressed: () => setState(
+                                        () => _desktopPanelOpen = !panelOpen,
+                                      ),
+                                      icon: Icon(
+                                        panelOpen
+                                            ? Icons.chevron_right_rounded
+                                            : Icons.chevron_left_rounded,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                SizedBox(
-                                  width: queueWidth,
-                                  child: _AbsorbingQueuePanel(
-                                    embedded: true,
-                                    keys: books.map(_absorbingKey).toList(),
-                                    books: books,
-                                    lib: lib,
-                                    scrollController:
-                                        _desktopQueueScrollController,
-                                    absorbingKeyFn: _absorbingKey,
-                                    queueMode: _queueMode,
-                                    isMerged: _mergeLibraries,
-                                    isPodcast: lib.isPodcastLibrary,
-                                    currentItemId: _currentPlayerKey,
-                                    onQueueModeChanged: (mode) =>
-                                        _handleQueueModeChanged(lib, mode),
+                              ),
+                              TweenAnimationBuilder<double>(
+                                tween: Tween(end: panelOpen ? 1 : 0),
+                                duration: const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                                builder: (context, widthFactor, child) => ClipRect(
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    widthFactor: widthFactor,
+                                    child: child,
                                   ),
                                 ),
-                              ],
+                                child: SizedBox(
+                                  width: panelWidth,
+                                  child: _buildDesktopSidePanel(
+                                    context,
+                                    chapterData: chapterData,
+                                    queuePanel: _AbsorbingQueuePanel(
+                                      embedded: true,
+                                      showHeader: false,
+                                      keys: books.map(_absorbingKey).toList(),
+                                      books: books,
+                                      lib: lib,
+                                      scrollController: _desktopQueueScrollController,
+                                      absorbingKeyFn: _absorbingKey,
+                                      queueMode: _queueMode,
+                                      isMerged: _mergeLibraries,
+                                      isPodcast: lib.isPodcastLibrary,
+                                      currentItemId: _currentPlayerKey,
+                                      onQueueModeChanged: (mode) =>
+                                          _handleQueueModeChanged(lib, mode),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           );
                         }),
@@ -1066,6 +1107,97 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
       ? '${_player.currentItemId}-${_player.currentEpisodeId}'
       : _player.currentItemId;
 
+  Widget _buildDesktopSidePanel(
+    BuildContext context, {
+    required AbsorbingChapterData? chapterData,
+    required Widget queuePanel,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context)!;
+    final chaptersPanel = chapterData == null
+        ? Center(child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: cs.onSurface.withValues(alpha: 0.24),
+          ))
+        : chapterData.chapters.isEmpty
+            ? Center(child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  chapterData.episodeId == null ? l.noChaptersBook : l.noChaptersPodcast,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ))
+            : CardChaptersList(
+                accent: cs.primary,
+                chapters: chapterData.chapters,
+                totalDuration: chapterData.totalDuration,
+                currentPosition: chapterData.currentPosition,
+                isPlaybackActive: chapterData.isPlaybackActive,
+                isCastingThis: chapterData.isCastingThis,
+                displaySpeed: chapterData.displaySpeed,
+                player: _player,
+                itemId: chapterData.itemId,
+              );
+
+    return ColoredBox(
+      color: cs.surface.withValues(alpha: 0.72),
+      child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<DesktopAbsorbingPanelTab>(
+              key: const ValueKey('desktop-absorbing-panel-tabs'),
+              segments: [
+                ButtonSegment(
+                  value: DesktopAbsorbingPanelTab.chapters,
+                  icon: const Icon(Icons.format_list_numbered_rounded),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(l.chapters, maxLines: 1),
+                  ),
+                ),
+                ButtonSegment(
+                  value: DesktopAbsorbingPanelTab.queue,
+                  icon: const Icon(Icons.queue_music_rounded),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(l.absorbingManageQueue, maxLines: 1),
+                  ),
+                ),
+              ],
+              selected: {_desktopPanelTab},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) {
+                if (selection.isEmpty) return;
+                setState(() => _desktopPanelTab = selection.first);
+              },
+            ),
+          ),
+        ),
+        Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.45)),
+        Expanded(
+          child: IndexedStack(
+            index: _desktopPanelTab.index,
+            children: [
+              KeyedSubtree(
+                key: const ValueKey('desktop-absorbing-chapters-panel'),
+                child: chaptersPanel,
+              ),
+              KeyedSubtree(
+                key: const ValueKey('desktop-absorbing-queue-panel'),
+                child: queuePanel,
+              ),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
   void _showReorderSheet(BuildContext context, LibraryProvider lib, List<Map<String, dynamic>> books) {
     final keys = books.map((b) => _absorbingKey(b)).toList();
     final media = MediaQuery.of(context);
@@ -1171,6 +1303,7 @@ class _AbsorbingQueuePanel extends StatefulWidget {
   /// True when the panel lives inline in the desktop workspace instead of a
   /// bottom sheet: no sheet chrome, no self-pops, reorders commit instantly.
   final bool embedded;
+  final bool showHeader;
 
   const _AbsorbingQueuePanel({
     required this.keys,
@@ -1184,6 +1317,7 @@ class _AbsorbingQueuePanel extends StatefulWidget {
     required this.onQueueModeChanged,
     required this.currentItemId,
     this.embedded = false,
+    this.showHeader = true,
   });
 
   @override
@@ -1570,6 +1704,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
             ),
           )),
         // Header
+        if (widget.showHeader)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
           child: Row(children: [

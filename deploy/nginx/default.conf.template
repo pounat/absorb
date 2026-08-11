@@ -16,6 +16,19 @@ server {
     root /usr/share/nginx/html;
     client_max_body_size 10240M;
 
+    gzip on;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_vary on;
+    gzip_types
+        application/javascript
+        application/json
+        application/manifest+json
+        application/wasm
+        image/svg+xml
+        text/css;
+
     location = /absorb {
         return 308 /absorb/;
     }
