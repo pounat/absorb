@@ -10,6 +10,7 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/home_widget_service.dart';
+import '../services/server_task_tracker.dart';
 import '../services/sleep_timer_service.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -29,6 +30,7 @@ import '../widgets/expanded_card.dart';
 import '../widgets/desktop_account_button.dart';
 import '../widgets/desktop_collapsible_sidebar.dart';
 import '../widgets/desktop_now_playing_bar.dart';
+import '../widgets/admin_task_indicator.dart';
 import 'absorbing_screen.dart';
 import 'admin_screen.dart';
 import 'home_screen.dart';
@@ -65,6 +67,9 @@ class AppShell extends StatefulWidget {
   static void setExpandedOpen(bool open) {
     _AppShellState._instance?._expandedIsOpen = open;
   }
+
+  static ServerTaskTracker? serverTaskTrackerOf(BuildContext context) =>
+      context.findAncestorStateOfType<_AppShellState>()?._serverTaskTracker;
 
   /// Switch to the Library tab and focus the search bar. Used by the
   /// app-icon "Search" shortcut. Returns false when the shell isn't mounted
@@ -111,6 +116,36 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
+class _PaneNavigatorObserver extends NavigatorObserver {
+  _PaneNavigatorObserver(this.onStackChanged);
+
+  final VoidCallback onStackChanged;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    onStackChanged();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    onStackChanged();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    onStackChanged();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    onStackChanged();
+  }
+}
+
 class _AppShellState extends State<AppShell>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   static _AppShellState? _instance;
@@ -155,12 +190,20 @@ class _AppShellState extends State<AppShell>
   // Desktop workspace content-pane navigator: full-page pushes land here so
   // the sidebar and now-playing bar stay visible around them.
   final _paneNavigatorKey = GlobalKey<NavigatorState>();
+  late final _PaneNavigatorObserver _paneNavigatorObserver;
+  bool _paneRouteOpen = false;
   bool _adminRouteOpen = false;
   bool _desktopWorkspaceWasActive = false;
   bool _desktopCollapseAllowed = false;
   bool _desktopCollapseCheckScheduled = false;
   bool _desktopSidebarPinned = false;
   int _desktopSidebarPreferenceGeneration = 0;
+  ServerTaskTracker? _serverTaskTracker;
+  Timer? _serverTaskRefreshTimer;
+  bool _refreshingServerTasks = false;
+  Object? _serverTaskPollingApi;
+  bool _serverTaskPollingEnabled = false;
+  bool _serverTaskPollingSyncScheduled = false;
 
   Future<void> _loadDesktopSidebarPreference() async {
     final generation = _desktopSidebarPreferenceGeneration;
@@ -184,6 +227,58 @@ class _AppShellState extends State<AppShell>
   Future<void> _saveDesktopSidebarPreference(bool pinned) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_desktopSidebarPinnedKey, pinned);
+  }
+
+  void _startServerTaskRefreshTimer() {
+    _serverTaskRefreshTimer?.cancel();
+    _serverTaskRefreshTimer = null;
+    if (!mounted || !AppPlatform.isWeb) return;
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAdmin || auth.apiService == null || _serverTaskTracker == null) {
+      return;
+    }
+    unawaited(_refreshServerTasks());
+    _serverTaskRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      unawaited(_refreshServerTasks());
+    });
+  }
+
+  void _syncServerTaskPolling({
+    required bool isAdmin,
+    required Object? api,
+  }) {
+    final enabled = isAdmin && api != null && _serverTaskTracker != null;
+    if (enabled == _serverTaskPollingEnabled &&
+        identical(api, _serverTaskPollingApi)) {
+      return;
+    }
+    _serverTaskPollingEnabled = enabled;
+    _serverTaskPollingApi = api;
+    if (_serverTaskPollingSyncScheduled) return;
+    _serverTaskPollingSyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _serverTaskPollingSyncScheduled = false;
+      if (!mounted) return;
+      if (_serverTaskPollingEnabled && !_lifecycleBackgrounded) {
+        _startServerTaskRefreshTimer();
+      } else {
+        _serverTaskRefreshTimer?.cancel();
+        _serverTaskRefreshTimer = null;
+      }
+    });
+  }
+
+  Future<void> _refreshServerTasks() async {
+    if (!mounted || _refreshingServerTasks) return;
+    final tracker = _serverTaskTracker;
+    final api = context.read<AuthProvider>().apiService;
+    if (tracker == null || api == null) return;
+    _refreshingServerTasks = true;
+    try {
+      await tracker.refresh(api);
+    } finally {
+      _refreshingServerTasks = false;
+    }
   }
 
   void _openSearch() => unawaited(_openSearchAfterPaneReset());
@@ -404,6 +499,10 @@ class _AppShellState extends State<AppShell>
   void initState() {
     super.initState();
     _instance = this;
+    if (AppPlatform.isWeb) {
+      _serverTaskTracker = ServerTaskTracker();
+    }
+    _paneNavigatorObserver = _PaneNavigatorObserver(_syncPaneRouteState);
     DesktopWorkspaceNavigator.register(() => _paneNavigatorKey.currentState);
     DesktopWorkspaceNavigator.exitGuardChanges.addListener(
       _onDesktopExitGuardChanged,
@@ -528,6 +627,8 @@ class _AppShellState extends State<AppShell>
     _navBarAnimController.dispose();
     _player.removeListener(_onPlayerChanged);
     _cast.removeListener(_onCastChanged);
+    _serverTaskRefreshTimer?.cancel();
+    _serverTaskTracker?.dispose();
     PlayerSettings.settingsChanged.removeListener(_loadPodcastTabPrefs);
     try {
       context.read<LibraryProvider>().removeListener(_onLibraryChanged);
@@ -734,6 +835,7 @@ class _AppShellState extends State<AppShell>
   void _handleAppForegrounded() {
     if (!_lifecycleBackgrounded) return;
     _lifecycleBackgrounded = false;
+    _startServerTaskRefreshTimer();
     // The rotation lock lives on the Activity, and Android can recreate the
     // activity over the still-running cached engine (swipe away from recents
     // while playback keeps the service alive). main() doesn't re-run then, so
@@ -760,6 +862,8 @@ class _AppShellState extends State<AppShell>
   void _handleAppBackgrounded() {
     if (_lifecycleBackgrounded) return;
     _lifecycleBackgrounded = true;
+    _serverTaskRefreshTimer?.cancel();
+    _serverTaskRefreshTimer = null;
     context.read<LibraryProvider>().onAppBackgrounded();
     SleepTimerService().onAppBackgrounded();
     AudioPlayerService.onAppBackgrounded();
@@ -780,6 +884,16 @@ class _AppShellState extends State<AppShell>
       return;
     }
     _scheduleDesktopWorkspaceCollapseCheck();
+  }
+
+  void _syncPaneRouteState() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final paneRouteOpen = _paneNavigatorKey.currentState?.canPop() ?? false;
+      if (paneRouteOpen != _paneRouteOpen) {
+        setState(() => _paneRouteOpen = paneRouteOpen);
+      }
+    });
   }
 
   void _scheduleDesktopWorkspaceCollapseCheck() {
@@ -840,6 +954,12 @@ class _AppShellState extends State<AppShell>
 
   @override
   Widget build(BuildContext context) {
+    if (AppPlatform.isWeb) {
+      final taskAccess = context.select<AuthProvider, (bool, Object?)>(
+        (auth) => (auth.isAdmin, auth.apiService),
+      );
+      _syncServerTaskPolling(isAdmin: taskAccess.$1, api: taskAccess.$2);
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final workspaceTier = AppPlatform.isWeb
@@ -964,6 +1084,7 @@ class _AppShellState extends State<AppShell>
               child: ClipRect(
                 child: Navigator(
                   key: _paneNavigatorKey,
+                  observers: [_paneNavigatorObserver],
                   onDidRemovePage: (page) {},
                   pages: [
                     MaterialPage(child: _buildPageStack(context)),
@@ -974,7 +1095,10 @@ class _AppShellState extends State<AppShell>
           ),
         ),
       ),
-      bottomNavigationBar: shouldShowDesktopNowPlayingBar(_currentIndex)
+      bottomNavigationBar: shouldShowDesktopNowPlayingBar(
+        _currentIndex,
+        paneRouteOpen: _paneRouteOpen,
+      )
           ? DesktopNowPlayingBar(
               player: _player,
               library: lib,
@@ -1006,7 +1130,56 @@ class _AppShellState extends State<AppShell>
     final serverLabel = parsedServer?.host.isNotEmpty == true
         ? parsedServer!.host
         : serverUrl;
+    final taskTracker = _serverTaskTracker;
     void openSearch() => _openSearch();
+
+    Widget buildBranding(List<ServerTask> tasks) {
+      final showTasks = auth.isAdmin && tasks.isNotEmpty && taskTracker != null;
+      return Row(
+        mainAxisAlignment: extended
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.center,
+        children: [
+          if (!extended && showTasks)
+            AdminTaskIndicator(
+              tasks: tasks,
+              onPressed: () => showAdminTasksSheet(context, taskTracker),
+            )
+          else
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.graphic_eq_rounded,
+                color: cs.onPrimaryContainer,
+              ),
+            ),
+          if (extended) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l.appTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ),
+            if (showTasks)
+              AdminTaskIndicator(
+                tasks: tasks,
+                onPressed: () => showAdminTasksSheet(context, taskTracker),
+              ),
+          ],
+        ],
+      );
+    }
 
     void openAdmin() {
       if (_adminRouteOpen) return;
@@ -1014,7 +1187,9 @@ class _AppShellState extends State<AppShell>
       if (navigator == null) return;
       _adminRouteOpen = true;
       unawaited(navigator
-          .push(MaterialPageRoute<void>(builder: (_) => const AdminScreen()))
+          .push(MaterialPageRoute<void>(
+            builder: (_) => AdminScreen(taskTracker: _serverTaskTracker),
+          ))
           .whenComplete(() => _adminRouteOpen = false));
     }
 
@@ -1057,35 +1232,14 @@ class _AppShellState extends State<AppShell>
               padding: extended
                   ? const EdgeInsets.fromLTRB(20, 18, 60, 12)
                   : const EdgeInsets.fromLTRB(12, 18, 12, 12),
-              child: Row(
-                mainAxisAlignment: extended
-                    ? MainAxisAlignment.start
-                    : MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: cs.primaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.graphic_eq_rounded,
-                      color: cs.onPrimaryContainer,
-                    ),
-                  ),
-                  if (extended) ...[
-                    const SizedBox(width: 12),
-                    Text(
-                      l.appTitle,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4,
+              child: auth.isAdmin && taskTracker != null
+                  ? ListenableBuilder(
+                      listenable: taskTracker,
+                      builder: (_, __) => buildBranding(
+                        taskTracker.visibleTasks,
                       ),
-                    ),
-                  ],
-                ],
-              ),
+                    )
+                  : buildBranding(const []),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),

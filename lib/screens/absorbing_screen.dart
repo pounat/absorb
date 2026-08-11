@@ -24,13 +24,28 @@ import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../utils/desktop_workspace.dart';
 
-const double kAbsorbingSidePanelOpenBreakpoint = 1180;
-
-bool shouldOpenAbsorbingSidePanelByDefault(double paneWidth) =>
-    paneWidth >= kAbsorbingSidePanelOpenBreakpoint;
+const double _kAbsorbingDesktopPanelRailWidth = 48;
+const double _kAbsorbingDesktopPanelDividerWidth = 1;
+const double _kAbsorbingDesktopPlayerHorizontalPadding = 24;
 
 double absorbingQueuePaneWidth(double paneWidth) =>
     (paneWidth * 0.32).clamp(340.0, 400.0).toDouble();
+
+double absorbingDesktopPlayerLayoutWidth(double paneWidth) =>
+    (paneWidth -
+            absorbingQueuePaneWidth(paneWidth) -
+            _kAbsorbingDesktopPanelRailWidth -
+            _kAbsorbingDesktopPanelDividerWidth -
+            _kAbsorbingDesktopPlayerHorizontalPadding)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+
+bool shouldOverlayAbsorbingSidePanel(double paneWidth) =>
+    absorbingDesktopPlayerLayoutWidth(paneWidth) <
+    kAbsorbingDesktopRowLayoutWidth;
+
+bool shouldOpenAbsorbingSidePanelByDefault(double paneWidth) =>
+    !shouldOverlayAbsorbingSidePanel(paneWidth);
 
 enum DesktopAbsorbingPanelTab { chapters, queue }
 
@@ -662,22 +677,32 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
 
     return Scaffold(
       backgroundColor: scaffoldBg,
-      body: Container(
-        decoration: flatNotifier.value ? null : BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.0, 0.22, 0.72, 1.0],
-            colors: [
-              cs.primary.withValues(alpha: gradientIntensityNotifier.value),
-              cs.surface,
-              lowerFade,
-              scaffoldBg,
-            ],
-          ),
-        ),
-        child: SafeArea(
-        child: Builder(builder: (context) {
+      body: Stack(
+        children: [
+          if (!flatNotifier.value)
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.0, 0.22, 0.72, 1.0],
+                      colors: [
+                        cs.primary.withValues(
+                          alpha: gradientIntensityNotifier.value,
+                        ),
+                        cs.surface,
+                        lowerFade,
+                        scaffoldBg,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          SafeArea(
+            child: Builder(builder: (context) {
           final desktopWorkspace = isDesktopWorkspace(context);
           final offlineIcon = OfflineStatusIcon(
             onTapWhenOnline: () {
@@ -836,89 +861,132 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                           final panelOpen = _desktopPanelOpen ??=
                               shouldOpenAbsorbingSidePanelByDefault(constraints.maxWidth);
                           final panelWidth = absorbingQueuePaneWidth(constraints.maxWidth);
+                          final playerLayoutWidth =
+                              absorbingDesktopPlayerLayoutWidth(constraints.maxWidth);
+                          final overlayPanel = shouldOverlayAbsorbingSidePanel(
+                            constraints.maxWidth,
+                          );
                           final chapterData = _desktopChapterData?.itemKey == currentKey
                               ? _desktopChapterData
                               : null;
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                                  child: RepaintBoundary(
-                                    child: AbsorbingCard(
-                                      key: _cardKey(currentKey),
-                                      item: books[0],
-                                      player: _player,
-                                      presentation: AbsorbingCardPresentation.desktop,
-                                      onChapterDataChanged: _handleDesktopChapterData,
-                                    ),
+                          final playerPane = Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                _kAbsorbingDesktopPlayerHorizontalPadding / 2,
+                                8,
+                                _kAbsorbingDesktopPlayerHorizontalPadding / 2,
+                                16,
+                              ),
+                              child: AbsorbingCard(
+                                key: _cardKey(currentKey),
+                                item: books[0],
+                                player: _player,
+                                presentation: AbsorbingCardPresentation.desktop,
+                                spaciousDesktopLayout: playerLayoutWidth >=
+                                    kAbsorbingSpaciousDesktopLayoutWidth,
+                                onChapterDataChanged: _handleDesktopChapterData,
+                              ),
+                            ),
+                          );
+                          final panelRail = SizedBox(
+                            width: _kAbsorbingDesktopPanelRailWidth,
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: IconButton(
+                                  key: const ValueKey(
+                                    'desktop-absorbing-panel-toggle',
+                                  ),
+                                  tooltip: panelOpen
+                                      ? MaterialLocalizations.of(context)
+                                          .closeButtonTooltip
+                                      : l.absorbingManageQueue,
+                                  onPressed: () => setState(
+                                    () => _desktopPanelOpen = !panelOpen,
+                                  ),
+                                  icon: Icon(
+                                    panelOpen
+                                        ? Icons.chevron_right_rounded
+                                        : Icons.chevron_left_rounded,
                                   ),
                                 ),
                               ),
-                              VerticalDivider(
-                                width: 1,
-                                thickness: 1,
-                                color: cs.outlineVariant.withValues(alpha: 0.45),
-                              ),
-                              SizedBox(
-                                width: 48,
-                                child: Align(
-                                  alignment: Alignment.topCenter,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: IconButton(
-                                      key: const ValueKey('desktop-absorbing-panel-toggle'),
-                                      tooltip: panelOpen
-                                          ? MaterialLocalizations.of(context).closeButtonTooltip
-                                          : l.absorbingManageQueue,
-                                      onPressed: () => setState(
-                                        () => _desktopPanelOpen = !panelOpen,
+                            ),
+                          );
+                          return TweenAnimationBuilder<double>(
+                            tween: Tween(end: panelOpen ? panelWidth : 0),
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, animatedWidth, child) {
+                              final devicePixelRatio =
+                                  MediaQuery.devicePixelRatioOf(context);
+                              final visibleWidth =
+                                  (animatedWidth * devicePixelRatio).round() /
+                                      devicePixelRatio;
+                              final playerRow = Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  playerPane,
+                                  if (!overlayPanel)
+                                    SizedBox(width: visibleWidth),
+                                  VerticalDivider(
+                                    width:
+                                        _kAbsorbingDesktopPanelDividerWidth,
+                                    thickness: 1,
+                                    color: cs.outlineVariant
+                                        .withValues(alpha: 0.45),
+                                  ),
+                                  panelRail,
+                                ],
+                              );
+                              return Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  playerRow,
+                                  Positioned(
+                                    top: 0,
+                                    bottom: 0,
+                                    right: _kAbsorbingDesktopPanelRailWidth +
+                                        _kAbsorbingDesktopPanelDividerWidth,
+                                    child: Offstage(
+                                      offstage: visibleWidth == 0,
+                                      child: SizedBox(
+                                        width: visibleWidth,
+                                        child: ClipRect(
+                                          child: OverflowBox(
+                                            minWidth: panelWidth,
+                                            maxWidth: panelWidth,
+                                            alignment: Alignment.centerRight,
+                                            child: child,
+                                          ),
+                                        ),
                                       ),
-                                      icon: Icon(
-                                        panelOpen
-                                            ? Icons.chevron_right_rounded
-                                            : Icons.chevron_left_rounded,
-                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
+                              );
+                            },
+                            child: _buildDesktopSidePanel(
+                              context,
+                              opaque: overlayPanel,
+                              chapterData: chapterData,
+                              queuePanel: _AbsorbingQueuePanel(
+                                embedded: true,
+                                showHeader: false,
+                                keys: books.map(_absorbingKey).toList(),
+                                books: books,
+                                lib: lib,
+                                scrollController: _desktopQueueScrollController,
+                                absorbingKeyFn: _absorbingKey,
+                                queueMode: _queueMode,
+                                isMerged: _mergeLibraries,
+                                isPodcast: lib.isPodcastLibrary,
+                                currentItemId: _currentPlayerKey,
+                                onQueueModeChanged: (mode) =>
+                                    _handleQueueModeChanged(lib, mode),
                               ),
-                              TweenAnimationBuilder<double>(
-                                tween: Tween(end: panelOpen ? 1 : 0),
-                                duration: const Duration(milliseconds: 220),
-                                curve: Curves.easeOutCubic,
-                                builder: (context, widthFactor, child) => ClipRect(
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    widthFactor: widthFactor,
-                                    child: child,
-                                  ),
-                                ),
-                                child: SizedBox(
-                                  width: panelWidth,
-                                  child: _buildDesktopSidePanel(
-                                    context,
-                                    chapterData: chapterData,
-                                    queuePanel: _AbsorbingQueuePanel(
-                                      embedded: true,
-                                      showHeader: false,
-                                      keys: books.map(_absorbingKey).toList(),
-                                      books: books,
-                                      lib: lib,
-                                      scrollController: _desktopQueueScrollController,
-                                      absorbingKeyFn: _absorbingKey,
-                                      queueMode: _queueMode,
-                                      isMerged: _mergeLibraries,
-                                      isPodcast: lib.isPodcastLibrary,
-                                      currentItemId: _currentPlayerKey,
-                                      onQueueModeChanged: (mode) =>
-                                          _handleQueueModeChanged(lib, mode),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           );
                         }),
                 ),
@@ -1041,8 +1109,9 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
             ),
           ],
         );
-        }),
-      ),
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -1109,6 +1178,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
 
   Widget _buildDesktopSidePanel(
     BuildContext context, {
+    required bool opaque,
     required AbsorbingChapterData? chapterData,
     required Widget queuePanel,
   }) {
@@ -1143,7 +1213,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
               );
 
     return ColoredBox(
-      color: cs.surface.withValues(alpha: 0.72),
+      color: opaque ? cs.surface : cs.surface.withValues(alpha: 0.72),
       child: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),

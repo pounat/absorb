@@ -43,6 +43,65 @@ import '../utils/desktop_workspace.dart';
 
 const double kDesktopLibraryTileMaxExtent = 220;
 
+LinearGradient _libraryBackgroundGradient(
+  ColorScheme colorScheme,
+  Color scaffoldBackground,
+) {
+  final lowerFade =
+      Color.lerp(colorScheme.surface, scaffoldBackground, 0.55) ??
+      scaffoldBackground;
+  return LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    stops: const [0.0, 0.22, 0.72, 1.0],
+    colors: [
+      colorScheme.primary.withValues(
+        alpha: gradientIntensityNotifier.value,
+      ),
+      colorScheme.surface,
+      lowerFade,
+      scaffoldBackground,
+    ],
+  );
+}
+
+class _LibraryHeaderGradientPainter extends CustomPainter {
+  const _LibraryHeaderGradientPainter({
+    required this.backgroundColor,
+    required this.gradient,
+    required this.topInset,
+    required this.screenHeight,
+  });
+
+  final Color backgroundColor;
+  final LinearGradient gradient;
+  final double topInset;
+  final double screenHeight;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paintBounds = Offset.zero & size;
+    canvas.drawRect(paintBounds, Paint()..color = backgroundColor);
+    final shaderBounds = Rect.fromLTWH(
+      0,
+      -topInset,
+      size.width,
+      screenHeight,
+    );
+    canvas.drawRect(
+      paintBounds,
+      Paint()..shader = gradient.createShader(shaderBounds),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_LibraryHeaderGradientPainter oldDelegate) =>
+      backgroundColor != oldDelegate.backgroundColor ||
+      gradient != oldDelegate.gradient ||
+      topInset != oldDelegate.topInset ||
+      screenHeight != oldDelegate.screenHeight;
+}
+
 SliverGridDelegate libraryGridDelegateForWidth(
   double width, {
   required bool desktopWorkspace,
@@ -2392,7 +2451,6 @@ class LibraryScreenState extends State<LibraryScreen>
     final desktopWorkspace = isDesktopWorkspace(context);
     _revealDriver.setEnabled(!desktopWorkspace);
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
-    final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     // Watch LibraryProvider so this screen rebuilds when the active library
     // or its data changes; the actual lib object is consumed inside
     // _buildHeaderSliver via context.watch.
@@ -2419,27 +2477,11 @@ class LibraryScreenState extends State<LibraryScreen>
       body: Stack(
         children: [
           if (!flatNotifier.value)
-            OverflowBox(
-              maxHeight: MediaQuery.of(context).size.height,
-              alignment: Alignment.topCenter,
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height,
-                width: double.infinity,
+            Positioned.fill(
+              child: RepaintBoundary(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.22, 0.72, 1.0],
-                      colors: [
-                        cs.primary.withValues(
-                          alpha: gradientIntensityNotifier.value,
-                        ),
-                        cs.surface,
-                        lowerFade,
-                        scaffoldBg,
-                      ],
-                    ),
+                    gradient: _libraryBackgroundGradient(cs, scaffoldBg),
                   ),
                 ),
               ),
@@ -2571,7 +2613,6 @@ class LibraryScreenState extends State<LibraryScreen>
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
-    final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     final lib = context.watch<LibraryProvider>();
     final allLibraries = lib.libraries;
     final hasMultipleLibraries = allLibraries.length > 1;
@@ -2581,36 +2622,12 @@ class LibraryScreenState extends State<LibraryScreen>
     final screenH = MediaQuery.of(context).size.height;
     final headerBackground = flatNotifier.value
         ? ColoredBox(color: scaffoldBg)
-        : ClipRect(
-            child: OverflowBox(
-              maxHeight: screenH,
-              minHeight: 0,
-              alignment: Alignment.topCenter,
-              child: Transform.translate(
-                offset: Offset(0, -topInset),
-                child: SizedBox(
-                  height: screenH,
-                  width: double.infinity,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: scaffoldBg,
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        stops: const [0.0, 0.22, 0.72, 1.0],
-                        colors: [
-                          cs.primary.withValues(
-                            alpha: gradientIntensityNotifier.value,
-                          ),
-                          cs.surface,
-                          lowerFade,
-                          scaffoldBg,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+        : CustomPaint(
+            painter: _LibraryHeaderGradientPainter(
+              backgroundColor: scaffoldBg,
+              gradient: _libraryBackgroundGradient(cs, scaffoldBg),
+              topInset: topInset,
+              screenHeight: screenH,
             ),
           );
     final desktop = isDesktopWorkspace(context);
@@ -2629,7 +2646,7 @@ class LibraryScreenState extends State<LibraryScreen>
                     _seriesFilter != SeriesFilter.none)
                 ? 196
                 : 184),
-      backgroundColor: scaffoldBg,
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,

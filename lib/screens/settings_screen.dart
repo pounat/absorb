@@ -49,6 +49,7 @@ import '../widgets/adaptive_modal.dart';
 import '../widgets/rmab_config_sheet.dart';
 import '../widgets/server_connection_editor.dart';
 import '../widgets/server_admin_status_badges.dart';
+import '../widgets/desktop_wheel_scroll_region.dart';
 import '../l10n/app_localizations.dart';
 
 class _SettingsSectionDestination {
@@ -85,6 +86,7 @@ class _SettingsAdaptiveFrame extends StatelessWidget {
   final String? selectedSection;
   final List<_SettingsSectionDestination> destinations;
   final ValueChanged<String> onSectionSelected;
+  final ScrollController scrollController;
   final Widget child;
 
   const _SettingsAdaptiveFrame({
@@ -92,6 +94,7 @@ class _SettingsAdaptiveFrame extends StatelessWidget {
     required this.selectedSection,
     required this.destinations,
     required this.onSectionSelected,
+    required this.scrollController,
     required this.child,
   });
 
@@ -178,10 +181,12 @@ class _SettingsAdaptiveFrame extends StatelessWidget {
           thickness: 1,
           color: cs.outlineVariant.withValues(alpha: 0.35),
         ),
-        Expanded(child: Align(
+        Expanded(child: DesktopWheelScrollRegion(
+            controller: scrollController,
+            child: Align(
             alignment: Alignment.topCenter, child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 880),
-              child: SizedBox.expand(child: child),
+              child: SizedBox.expand(child: child),),
             ),
           ),),
       ],
@@ -1587,8 +1592,10 @@ class SettingsScreenState extends State<SettingsScreen> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: () async {
+                                  final taskTracker =
+                                      AppShell.serverTaskTrackerOf(context);
                           await Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => const AdminScreen(),
+                            builder: (_) => AdminScreen(taskTracker: taskTracker),
                           ),);
                           _loadAdminIssueCount();
                         },
@@ -2113,7 +2120,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                           PlayerSettings.setFullScreenPlayer(v);
                         } : null,
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                     ],
                     SwitchListTile(
                       title: Text(l.coverPlayPause),
@@ -2158,7 +2165,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                                       ),),
                         ],),
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                     ],
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 14,),
@@ -2224,11 +2231,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ),
                         value: _notifChapterProgress,
                         onChanged: _loaded ? (v) {
-                          setState(() => _notifChapterProgress = v);
-                          PlayerSettings.setNotificationChapterProgress(v);
+                          setState(() => _notifChapterProgress = v,);
+                          PlayerSettings.setNotificationChapterProgress(v,);
                         } : null,
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                     ],
                     ValueListenableBuilder<bool>(
                       valueListenable: classicWordingNotifier,
@@ -2255,7 +2262,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                           onChanged: (_loaded && !_podcastTabEnabled) ? (v) async {
                             setState(() => _mergeAbsorbingLibraries = v,);
                             await PlayerSettings.setMergeAbsorbingLibraries(v,);
-                            unawaited(lib.syncQueueAutoDownloads());
+                            unawaited(lib.syncQueueAutoDownloads(),);
                           } : null,
                         );
                       },
@@ -2398,7 +2405,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                             onChanged: _loaded ? (v) async {
                               setState(() => _queueAutoDownload = v,);
                               await PlayerSettings.setQueueAutoDownload(v,);
-                              unawaited(lib.syncQueueAutoDownloads());
+                              unawaited(lib.syncQueueAutoDownloads(),);
                             } : null,
                             dense: true,
                             contentPadding: EdgeInsets.zero,
@@ -2870,11 +2877,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                                 ),),
                       value: _notifChapterProgress,
                       onChanged: _loaded ? (v) {
-                        setState(() => _notifChapterProgress = v);
+                        setState(() => _notifChapterProgress = v,);
                         PlayerSettings.setNotificationChapterProgress(v,);
                       } : null,
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     // Cross-platform: drops the seek action so the scrubber in the
                     // notification / lockscreen / car can't be dragged.
                     SwitchListTile(
@@ -2918,7 +2925,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                                   ),),
                         value: _notifSpeedBookmark,
                         onChanged: _loaded ? (v) {
-                          setState(() => _notifSpeedBookmark = v);
+                          setState(() => _notifSpeedBookmark = v,);
                           PlayerSettings.setMediaControlsSpeedBookmark(v,);
                         } : null,
                       ),
@@ -3401,7 +3408,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                               setState(() => _rollingDownloadCount = v.first,);
                               await PlayerSettings.setRollingDownloadCount(v.first,);
                               if (_queueAutoDownload) {
-                                unawaited(lib.syncQueueAutoDownloads());
+                                unawaited(lib.syncQueueAutoDownloads(),);
                               }
                             },
                           ),),
@@ -4026,14 +4033,14 @@ class SettingsScreenState extends State<SettingsScreen> {
                         const Divider(height: 1, indent: 16, endIndent: 16,),
                         ListTile(
                           leading: Icon(Icons.check_circle_rounded, color: Colors.greenAccent.shade400,),
-                          title: Text(l.localServerOnConnectedSubtitle),
+                          title: Text(l.localServerOnConnectedSubtitle,),
                           subtitle: Text(_localServerUrl,
                             style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
                                     ),),
                         ),
                       ],
                     ],
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16,),
                     ],
                     if (!AppPlatform.isWeb)
                       SwitchListTile(
@@ -4096,7 +4103,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                     if (!AppPlatform.isWeb || _isGithubBuild)
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1, indent: 16, endIndent: 16,),
                     ListTile(
                       leading: Icon(Icons.menu_book_rounded, color: cs.primary,),
                       title: Text(l.adminRmab),
@@ -4288,6 +4295,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                 desktopMode: isDesktopSettings,
                 selectedSection: expandedSection,
                 destinations: destinations,
+                scrollController: _settingsScrollController,
                 onSectionSelected: (section) {
                   setState(() => _expandedSection = section);
                   WidgetsBinding.instance.addPostFrameCallback((_) {

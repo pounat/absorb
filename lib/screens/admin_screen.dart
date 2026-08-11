@@ -59,7 +59,9 @@ class _AdminNavigatorObserver extends NavigatorObserver {
 }
 
 class AdminScreen extends StatefulWidget {
-  const AdminScreen({super.key});
+  final ServerTaskTracker? taskTracker;
+
+  const AdminScreen({super.key, this.taskTracker});
   @override State<AdminScreen> createState() => _AdminScreenState();
 }
 
@@ -84,6 +86,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
   bool _creatingBackup = false;
   bool _purgingCache = false;
   late final ServerTaskTracker _taskTracker;
+  late final bool _ownsTaskTracker;
 
   Timer? _issuesDebounce;
   Timer? _taskRefreshTimer;
@@ -111,8 +114,9 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _desktopNavigatorObserver = _AdminNavigatorObserver(_onDesktopStackChanged);
     DesktopWorkspaceNavigator.registerExitGuard(this, _prepareForDesktopPaneReset);
-    _taskTracker = ServerTaskTracker();
-    _startTaskRefreshTimer();
+    _ownsTaskTracker = widget.taskTracker == null;
+    _taskTracker = widget.taskTracker ?? ServerTaskTracker();
+    if (_ownsTaskTracker) _startTaskRefreshTimer();
     _loadAll();
     SocketService().addItemsChangedListener(_onItemsChanged);
   }
@@ -130,12 +134,13 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     SocketService().removeItemsChangedListener(_onItemsChanged);
     _issuesDebounce?.cancel();
     _taskRefreshTimer?.cancel();
-    _taskTracker.dispose();
+    if (_ownsTaskTracker) _taskTracker.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_ownsTaskTracker) return;
     if (state == AppLifecycleState.resumed) {
       _startTaskRefreshTimer();
       unawaited(_refreshServerTasks());
@@ -531,13 +536,6 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
               child: Row(children: [
                 Expanded(child: AbsorbPageHeader(title: l.adminTitle, padding: EdgeInsets.zero)),
-                ListenableBuilder(
-                  listenable: _taskTracker,
-                  builder: (_, __) => AdminTaskIndicator(
-                    tasks: _taskTracker.visibleTasks,
-                    onPressed: () => showAdminTasksSheet(pageContext, _taskTracker),
-                  ),
-                ),
                 IconButton(
                   tooltip: l.refreshTooltip,
                   icon: Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),

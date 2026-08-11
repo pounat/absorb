@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'desktop_wheel_scroll_region.dart';
 
 class AdminSectionDestination {
   final String id;
@@ -123,16 +124,21 @@ class AdminAdaptiveFrame extends StatelessWidget {
             ),
             Expanded(
               key: const Key('admin-desktop-content'),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1040),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => MediaQuery(
-                      data: MediaQuery.of(context).copyWith(
-                        size: Size(constraints.maxWidth, constraints.maxHeight),
+              child: DesktopWheelScrollRegion(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1040),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => MediaQuery(
+                        data: MediaQuery.of(context).copyWith(
+                          size: Size(
+                            constraints.maxWidth,
+                            constraints.maxHeight,
+                          ),
+                        ),
+                        child: ClipRect(child: SizedBox.expand(child: child)),
                       ),
-                      child: ClipRect(child: SizedBox.expand(child: child)),
                     ),
                   ),
                 ),

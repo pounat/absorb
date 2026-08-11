@@ -10,4 +10,7 @@ bool shouldRestoreBookLibrary({
       selectedLibraryId == podcastLibraryId;
 }
 
-bool shouldShowDesktopNowPlayingBar(int pageIndex) => pageIndex != 2;
+bool shouldShowDesktopNowPlayingBar(
+  int pageIndex, {
+  bool paneRouteOpen = false,
+}) => pageIndex != 2 || paneRouteOpen;

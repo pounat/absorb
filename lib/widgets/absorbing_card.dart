@@ -26,6 +26,9 @@ import 'stable_cached_network_image.dart';
 
 enum AbsorbingCardPresentation { card, desktop }
 
+const double kAbsorbingDesktopRowLayoutWidth = 760;
+const double kAbsorbingSpaciousDesktopLayoutWidth = 1280;
+
 @immutable
 class AbsorbingChapterData {
   final String itemKey;
@@ -55,12 +58,14 @@ class AbsorbingCard extends StatefulWidget {
   final Map<String, dynamic> item;
   final AudioPlayerService player;
   final AbsorbingCardPresentation presentation;
+  final bool? spaciousDesktopLayout;
   final ValueChanged<AbsorbingChapterData>? onChapterDataChanged;
   const AbsorbingCard({
     super.key,
     required this.item,
     required this.player,
     this.presentation = AbsorbingCardPresentation.card,
+    this.spaciousDesktopLayout,
     this.onChapterDataChanged,
   });
 
@@ -857,7 +862,10 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
           builder: (context, cardConstraints) {
           final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.5);
           final compact = cardConstraints.maxHeight < 600 * textScale;
-          final spaciousDesktop = desktopPresentation && cardConstraints.maxWidth >= 1280;
+          final spaciousDesktop = desktopPresentation &&
+              (widget.spaciousDesktopLayout ??
+                  cardConstraints.maxWidth >=
+                      kAbsorbingSpaciousDesktopLayoutWidth);
           // In landscape the card is wider than tall — switch to a two-pane
           // layout with the cover on the left and everything else on the right.
           final wide = cardConstraints.maxWidth > cardConstraints.maxHeight;
@@ -1290,7 +1298,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
               );
             }
 
-            if (cardConstraints.maxWidth >= 760) {
+            if (cardConstraints.maxWidth >=
+                kAbsorbingDesktopRowLayoutWidth) {
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
