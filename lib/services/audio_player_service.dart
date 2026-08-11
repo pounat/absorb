@@ -1300,6 +1300,7 @@ class AudioPlayerService extends ChangeNotifier {
   StreamSubscription? _syncSub;
   StreamSubscription? _completionSub;
   StreamSubscription? _nativeAutoAdvanceSub;
+  StreamSubscription<Object>? _audioServiceErrorSub;
 
   // ── Pre-buffer next book in queue (iOS background auto-advance fix) ──
   // iOS denies background audio output to freshly-loaded AVPlayerItems.
@@ -2338,6 +2339,9 @@ class AudioPlayerService extends ChangeNotifier {
       );
       // Bind service so handler routes play/pause through service (for auto-rewind)
       _handler!.bindService(_instance);
+      _instance._audioServiceErrorSub ??= AudioService.asyncError.listen(
+        (error) => debugPrint('[AudioService] Platform error: $error'),
+      );
       // Wire the EQ service's skip-silence toggle through to just_audio.
       // Android-only: just_audio's setSkipSilenceEnabled is a no-op on iOS.
       if (AppPlatform.isAndroid) {
@@ -4310,14 +4314,16 @@ class AudioPlayerService extends ChangeNotifier {
     // screen shows artwork even when the user is offline. Fall back to the
     // remote HTTP URL when there's no local cover (streaming).
     String? effectiveCoverUrl;
-    if (AppPlatform.isIOS) {
+    if (AppPlatform.isWeb) {
+      effectiveCoverUrl = coverUrl;
+    } else if (AppPlatform.isIOS) {
       final localCover = DownloadService().getInfo(itemId).localCoverPath;
       if (localCover != null && localCover.isNotEmpty) {
         effectiveCoverUrl = Uri.file(localCover).toString();
       } else {
         effectiveCoverUrl = coverUrl;
       }
-    } else {
+    } else if (AppPlatform.isAndroid) {
       effectiveCoverUrl = 'content://$_coverAuthority/cover/$itemId';
       if (coverCacheBust != null) effectiveCoverUrl += '?cb=$coverCacheBust';
       // Streamed cover (no local file) won't be cached on first play - schedule
@@ -4328,6 +4334,8 @@ class AudioPlayerService extends ChangeNotifier {
         _coverRepushItem = itemId;
         _scheduleStreamedCoverRepush(itemId);
       }
+    } else {
+      effectiveCoverUrl = coverUrl;
     }
     _updateNotificationMediaItem(
       itemId,
@@ -6123,6 +6131,7 @@ class AudioPlayerService extends ChangeNotifier {
     _stuckCheckTimer?.cancel();
     _playVerifyTimer?.cancel();
     _indexSub?.cancel();
+    _audioServiceErrorSub?.cancel();
     _player?.dispose();
     super.dispose();
   }

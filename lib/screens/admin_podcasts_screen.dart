@@ -254,7 +254,7 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
   // ─── Show Detail ────────────────────────────────────────────
 
   void _openShowDetail(Map<String, dynamic> item) {
-    contentNavigator(context).push(MaterialPageRoute(
+    Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => _PodcastDetailScreen(item: item, libraryId: _libraryId, onChanged: _loadShows)));
   }
 }
@@ -2079,7 +2079,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
 
   void _openEditInfo() {
     final tags = (_media['tags'] as List<dynamic>?)?.whereType<String>().toList() ?? <String>[];
-    contentNavigator(context).push(MaterialPageRoute(
+    Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => PodcastEditScreen(
         itemId: _podcastId,
         metadata: Map<String, dynamic>.from(_metadata),

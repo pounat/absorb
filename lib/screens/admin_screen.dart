@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../services/scoped_prefs.dart';
 import '../services/server_task_tracker.dart';
 import '../services/socket_service.dart';
+import '../widgets/admin_adaptive_frame.dart';
 import '../widgets/admin_task_indicator.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/rmab_config_sheet.dart';
@@ -23,13 +24,50 @@ import 'admin_server_settings_screen.dart';
 import 'admin_stats_screen.dart';
 import 'admin_sessions_screen.dart';
 
+class _AdminNavigatorObserver extends NavigatorObserver {
+  final VoidCallback onStackChanged;
+  int routeDepth = 0;
+
+  _AdminNavigatorObserver(this.onStackChanged);
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    routeDepth++;
+    onStackChanged();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    routeDepth--;
+    onStackChanged();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    routeDepth--;
+    onStackChanged();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    onStackChanged();
+  }
+}
+
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
   @override State<AdminScreen> createState() => _AdminScreenState();
 }
 
 class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
+  static const _overviewSection = 'overview';
+
   bool _loading = true;
+  bool _loadedOnce = false;
   List<dynamic> _users = [];
   List<dynamic> _onlineUsers = [];
   List<dynamic> _libraries = [];
@@ -50,11 +88,29 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
   Timer? _issuesDebounce;
   Timer? _taskRefreshTimer;
   bool _refreshingTasks = false;
+  final GlobalKey<NavigatorState> _desktopNavigatorKey = GlobalKey<NavigatorState>();
+  late final _AdminNavigatorObserver _desktopNavigatorObserver;
+  String _desktopSection = _overviewSection;
+  bool _desktopNavigatorCanPop = false;
+  bool _desktopNavigationChanging = false;
+  int _desktopNavigationSerial = 0;
+  bool _desktopUsersDirty = false;
+  bool _desktopLibrariesDirty = false;
+  bool _desktopOverviewDirty = false;
+  int _desktopUsersDirtyGeneration = 0;
+  int _desktopLibrariesDirtyGeneration = 0;
+  int _desktopOverviewDirtyGeneration = 0;
+  bool _desktopOverviewRefreshActive = false;
+  Future<void>? _desktopUsersRefresh;
+  Future<void>? _desktopLibrariesRefresh;
+  bool? _desktopPresentation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _desktopNavigatorObserver = _AdminNavigatorObserver(_onDesktopStackChanged);
+    DesktopWorkspaceNavigator.registerExitGuard(this, _prepareForDesktopPaneReset);
     _taskTracker = ServerTaskTracker();
     _startTaskRefreshTimer();
     _loadAll();
@@ -62,8 +118,15 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _desktopPresentation ??= isDesktopWorkspace(context);
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    DesktopWorkspaceNavigator.unregisterExitGuard(this);
     SocketService().removeItemsChangedListener(_onItemsChanged);
     _issuesDebounce?.cancel();
     _taskRefreshTimer?.cancel();
@@ -121,15 +184,19 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadAll() async {
+    final usersGeneration = _desktopUsersDirtyGeneration;
+    final librariesGeneration = _desktopLibrariesDirtyGeneration;
+    final overviewGeneration = _desktopOverviewDirtyGeneration;
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
-    setState(() => _loading = true);
+    if (!_loadedOnce) setState(() => _loading = true);
 
     final taskRefresh = _refreshServerTasks();
     final futures = await Future.wait([
       api.getUsers(), api.getOnlineUsers(), api.getLibraries(), api.getBackups(), api.getAllSessions(limit: 10),
     ]);
     await taskRefresh;
+    if (!mounted) return;
     _users = futures[0];
     _onlineUsers = futures[1];
     _libraries = futures[2];
@@ -141,13 +208,30 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       final id = lib['id'] as String? ?? '';
       if (id.isNotEmpty) {
         final stats = await api.getLibraryStats(id);
+        if (!mounted) return;
         if (stats != null) _libraryStats[id] = stats;
         _libraryIssues[id] = await api.getIssueItemCount(id);
+        if (!mounted) return;
       }
     }
     _rmabBaseUrl = await ScopedPrefs.getString(kRmabBaseUrlKey);
+    if (!mounted) return;
     _rmabApiToken = await ScopedPrefs.getString(kRmabApiTokenKey);
-    if (mounted) setState(() => _loading = false);
+    if (!mounted) return;
+    if (_desktopUsersDirtyGeneration == usersGeneration) {
+      _desktopUsersDirty = false;
+    }
+    if (_desktopLibrariesDirtyGeneration == librariesGeneration) {
+      _desktopLibrariesDirty = false;
+    }
+    if (_desktopOverviewDirtyGeneration == overviewGeneration) {
+      _desktopOverviewDirty = false;
+    }
+    setState(() {
+      _loadedOnce = true;
+      _loading = false;
+    });
+    _leaveUnavailablePodcastSection();
   }
 
   bool get _hasRmab =>
@@ -167,6 +251,11 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
 
+    final desktopPresentation = _desktopPresentation ?? false;
+    if (desktopPresentation) {
+      return _buildDesktopScaffold(context, l);
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -175,11 +264,10 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
             : DesktopPageBody(
                 child: RefreshIndicator(
                 onRefresh: _loadAll,
-                notificationPredicate: (n) =>
-                    !isDesktopWorkspace(context) && n.depth == 0,
+                notificationPredicate: (n) => !desktopPresentation && n.depth == 0,
                 child: ListView(
                   padding: EdgeInsets.only(
-                      bottom: isDesktopWorkspace(context) ? 24 : 80),
+                      bottom: desktopPresentation ? 24 : 80),
                   children: [
                     // ── Header ──
                     Padding(
@@ -193,7 +281,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
                             onPressed: () => showAdminTasksSheet(context, _taskTracker),
                           ),
                         ),
-                        if (isDesktopWorkspace(context))
+                        if (desktopPresentation)
                           IconButton(
                             tooltip: l.refreshTooltip,
                             icon: Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),
@@ -369,6 +457,449 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
 
   // ─── Shared Widgets ─────────────────────────────────────────
 
+  Widget _buildDesktopScaffold(BuildContext context, AppLocalizations l) {
+    final outerNavigator = Navigator.of(context);
+    final destinations = <AdminSectionDestination>[
+      AdminSectionDestination(_overviewSection, Icons.dashboard_rounded, l.adminServer),
+      AdminSectionDestination('users', Icons.people_rounded, l.adminUsers),
+      AdminSectionDestination('upload', Icons.cloud_upload_rounded, l.adminUploadTitle),
+      if (_hasPodcastLibrary || _desktopSection == 'podcasts')
+        AdminSectionDestination('podcasts', Icons.podcasts_rounded, l.adminPodcasts),
+      AdminSectionDestination('email', Icons.email_rounded, l.adminEmail),
+      AdminSectionDestination('api-keys', Icons.vpn_key_rounded, l.adminApiKeys),
+      AdminSectionDestination('libraries', Icons.library_books_rounded, l.adminLibrariesManage),
+      AdminSectionDestination('server-settings', Icons.tune_rounded, l.adminServerSettings),
+      AdminSectionDestination('stats', Icons.bar_chart_rounded, l.adminStats),
+      AdminSectionDestination('sessions', Icons.history_rounded, l.adminAllSessions),
+    ];
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            : PopScope(
+                canPop: !_desktopNavigatorCanPop,
+                onPopInvokedWithResult: (didPop, result) {
+                  if (didPop) return;
+                  final navigator = _desktopNavigatorKey.currentState;
+                  if (navigator != null) unawaited(navigator.maybePop(result));
+                },
+                child: AdminAdaptiveFrame(
+                  desktopMode: true,
+                  title: l.adminTitle,
+                  selectedSection: _desktopSection,
+                  destinations: destinations,
+                  onSectionSelected: (section) => unawaited(_selectDesktopSection(section)),
+                  child: Navigator(
+                    key: _desktopNavigatorKey,
+                    observers: [_desktopNavigatorObserver],
+                    onDidRemovePage: (_) {},
+                    pages: [
+                      MaterialPage<void>(
+                        key: const ValueKey('admin-overview-page'),
+                        name: '/admin/overview',
+                        child: Builder(
+                          builder: (pageContext) => _buildDesktopOverview(
+                            pageContext,
+                            onClose: () => outerNavigator.pop(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopOverview(BuildContext pageContext, {required VoidCallback onClose}) {
+    final cs = Theme.of(pageContext).colorScheme;
+    final tt = Theme.of(pageContext).textTheme;
+    final l = AppLocalizations.of(pageContext)!;
+
+    return DesktopPageBody(
+      maxWidth: 1040,
+      child: RefreshIndicator(
+        onRefresh: _loadAll,
+        notificationPredicate: (_) => false,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
+              child: Row(children: [
+                Expanded(child: AbsorbPageHeader(title: l.adminTitle, padding: EdgeInsets.zero)),
+                ListenableBuilder(
+                  listenable: _taskTracker,
+                  builder: (_, __) => AdminTaskIndicator(
+                    tasks: _taskTracker.visibleTasks,
+                    onPressed: () => showAdminTasksSheet(pageContext, _taskTracker),
+                  ),
+                ),
+                IconButton(
+                  tooltip: l.refreshTooltip,
+                  icon: Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),
+                  onPressed: _loadAll,
+                ),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, color: cs.onSurfaceVariant),
+                  onPressed: onClose,
+                ),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            _section(cs, tt, l.adminServer),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: _cardDeco(cs),
+                child: Row(children: [
+                  _stat(tt, cs, Icons.dns_rounded, _serverVersion ?? '–', l.adminVersion),
+                  _stat(tt, cs, Icons.people_rounded, '${_users.length}', l.adminUsers),
+                  _stat(tt, cs, Icons.wifi_rounded, '${_onlineUsers.length}', l.adminOnline),
+                  _stat(tt, cs, Icons.backup_rounded, '${_backups.length}', l.adminBackupsLabel),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(children: [
+                Expanded(child: _actionBtn(cs, tt, Icons.backup_rounded, l.adminBackup, _creatingBackup, _createBackup)),
+                const SizedBox(width: 10),
+                Expanded(child: _actionBtn(cs, tt, Icons.cleaning_services_rounded, l.adminPurgeCache, _purgingCache, _purgeCache)),
+              ]),
+            ),
+            const SizedBox(height: 28),
+            _section(cs, tt, l.adminRmab),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _hasRmab ? _rmabTile(cs, tt) : _rmabAddRow(cs, tt),
+            ),
+            const SizedBox(height: 28),
+            if (_activeSessions.isNotEmpty) ...[
+              _section(cs, tt, l.adminListeningNow),
+              ..._activeSessions.map((session) => _sessionCard(cs, tt, session)),
+              const SizedBox(height: 18),
+            ],
+            _section(cs, tt, l.adminLibraries),
+            ListenableBuilder(
+              listenable: _taskTracker,
+              builder: (_, __) => Column(
+                children: _libraries.map((library) => _libraryCard(cs, tt, library)).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onDesktopStackChanged() {
+    DesktopWorkspaceNavigator.notifyExitGuardChanged();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final canPop = _desktopNavigatorKey.currentState?.canPop() ?? false;
+      if (canPop != _desktopNavigatorCanPop) {
+        setState(() => _desktopNavigatorCanPop = canPop);
+      }
+    });
+  }
+
+  Future<void> _selectDesktopSection(String section) async {
+    final navigator = _desktopNavigatorKey.currentState;
+    if (navigator == null || _desktopNavigationChanging) return;
+    if (section == _desktopSection &&
+        (section != _overviewSection || !navigator.canPop())) return;
+
+    final previousSection = _desktopSection;
+    final previousSerial = _desktopNavigationSerial;
+    _desktopNavigationChanging = true;
+    final navigationSerial = ++_desktopNavigationSerial;
+
+    try {
+      if (!await _popDesktopNavigatorToOverview(navigator)) {
+        _desktopNavigationSerial = previousSerial;
+        return;
+      }
+      if (!mounted || _desktopNavigatorKey.currentState != navigator) return;
+      _markDesktopSectionDirty(previousSection);
+
+      if (section == _overviewSection) {
+        if (_desktopSection != _overviewSection || _desktopNavigatorCanPop) {
+          setState(() {
+            _desktopSection = _overviewSection;
+            _desktopNavigatorCanPop = false;
+          });
+        }
+        unawaited(_refreshDesktopOverviewIfNeeded());
+        return;
+      }
+
+      setState(() {
+        _desktopSection = section;
+        _desktopNavigatorCanPop = true;
+      });
+      final sectionPreparation = _prepareDesktopSectionInputs(section);
+      final route = MaterialPageRoute<void>(
+        settings: RouteSettings(name: '/admin/$section'),
+        builder: (routeContext) => _buildPreparedDesktopSectionPage(
+          routeContext,
+          section,
+          sectionPreparation,
+        ),
+      );
+      unawaited(navigator.push(route).then((_) {
+        if (!mounted || navigationSerial != _desktopNavigationSerial) return;
+        setState(() {
+          _desktopSection = _overviewSection;
+          _desktopNavigatorCanPop = false;
+        });
+        _markDesktopSectionDirty(section);
+        unawaited(_refreshDesktopOverviewIfNeeded());
+      }));
+    } finally {
+      _desktopNavigationChanging = false;
+    }
+  }
+
+  Future<bool> _prepareForDesktopPaneReset() async {
+    if (!mounted || _desktopPresentation != true) return true;
+    final navigator = _desktopNavigatorKey.currentState;
+    if (navigator == null || !navigator.canPop()) return true;
+    if (_desktopNavigationChanging) return false;
+
+    final previousSerial = _desktopNavigationSerial;
+    _desktopNavigationChanging = true;
+    _desktopNavigationSerial++;
+    try {
+      if (!await _popDesktopNavigatorToOverview(navigator)) {
+        _desktopNavigationSerial = previousSerial;
+        return false;
+      }
+      if (mounted) {
+        setState(() {
+          _desktopSection = _overviewSection;
+          _desktopNavigatorCanPop = false;
+        });
+      }
+      return true;
+    } finally {
+      _desktopNavigationChanging = false;
+    }
+  }
+
+  Future<bool> _popDesktopNavigatorToOverview(
+    NavigatorState navigator,
+  ) async {
+    while (navigator.canPop()) {
+      final routeDepth = _desktopNavigatorObserver.routeDepth;
+      await navigator.maybePop();
+      if (_desktopNavigatorObserver.routeDepth >= routeDepth) return false;
+    }
+    return true;
+  }
+
+  void _markDesktopSectionDirty(String section) {
+    if (section == 'users') {
+      _desktopUsersDirty = true;
+      _desktopUsersDirtyGeneration++;
+      _desktopOverviewDirty = true;
+      _desktopOverviewDirtyGeneration++;
+    } else if (section == 'libraries') {
+      _desktopLibrariesDirty = true;
+      _desktopLibrariesDirtyGeneration++;
+      _desktopOverviewDirty = true;
+      _desktopOverviewDirtyGeneration++;
+    } else if (section == 'sessions') {
+      _desktopOverviewDirty = true;
+      _desktopOverviewDirtyGeneration++;
+    }
+  }
+
+  Future<void> _refreshDesktopOverviewIfNeeded() async {
+    if (!_desktopOverviewDirty || _desktopOverviewRefreshActive) return;
+    _desktopOverviewRefreshActive = true;
+    try {
+      do {
+        await _loadAll();
+      } while (mounted && _desktopOverviewDirty);
+    } catch (error) {
+      debugPrint('[Admin] Could not refresh overview: $error');
+    } finally {
+      _desktopOverviewRefreshActive = false;
+    }
+  }
+
+  Future<void>? _prepareDesktopSectionInputs(String nextSection) {
+    if (_desktopUsersDirty &&
+        (nextSection == 'email' ||
+            nextSection == 'api-keys' ||
+            nextSection == 'sessions')) {
+      return _refreshDesktopUsers();
+    }
+    if (_desktopLibrariesDirty &&
+        (nextSection == 'users' ||
+            nextSection == 'upload' ||
+            nextSection == 'podcasts')) {
+      return _refreshDesktopLibraries();
+    }
+    return null;
+  }
+
+  Future<void> _refreshDesktopUsers() {
+    final activeRefresh = _desktopUsersRefresh;
+    if (activeRefresh != null) return activeRefresh;
+    final refresh = _runDesktopUsersRefresh();
+    _desktopUsersRefresh = refresh;
+    unawaited(refresh.whenComplete(() {
+      if (identical(_desktopUsersRefresh, refresh)) {
+        _desktopUsersRefresh = null;
+      }
+    }));
+    return refresh;
+  }
+
+  Future<void> _runDesktopUsersRefresh() async {
+    if (!mounted) return;
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    try {
+      do {
+        final generation = _desktopUsersDirtyGeneration;
+        final results = await Future.wait([
+          api.getUsers(),
+          api.getOnlineUsers(),
+        ]);
+        if (!mounted) return;
+        setState(() {
+          _users = results[0];
+          _onlineUsers = results[1];
+          if (_desktopUsersDirtyGeneration == generation) {
+            _desktopUsersDirty = false;
+          }
+        });
+      } while (mounted && _desktopUsersDirty);
+    } catch (error) {
+      debugPrint('[Admin] Could not refresh users: $error');
+    }
+  }
+
+  Future<void> _refreshDesktopLibraries() {
+    final activeRefresh = _desktopLibrariesRefresh;
+    if (activeRefresh != null) return activeRefresh;
+    final refresh = _runDesktopLibrariesRefresh();
+    _desktopLibrariesRefresh = refresh;
+    unawaited(refresh.whenComplete(() {
+      if (identical(_desktopLibrariesRefresh, refresh)) {
+        _desktopLibrariesRefresh = null;
+      }
+    }));
+    return refresh;
+  }
+
+  Future<void> _runDesktopLibrariesRefresh() async {
+    if (!mounted) return;
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    try {
+      do {
+        final generation = _desktopLibrariesDirtyGeneration;
+        final libraries = await api.getLibraries();
+        if (!mounted) return;
+        setState(() {
+          _libraries = libraries;
+          if (_desktopLibrariesDirtyGeneration == generation) {
+            _desktopLibrariesDirty = false;
+          }
+        });
+      } while (mounted && _desktopLibrariesDirty);
+      _leaveUnavailablePodcastSection();
+    } catch (error) {
+      debugPrint('[Admin] Could not refresh libraries: $error');
+    }
+  }
+
+  void _leaveUnavailablePodcastSection() {
+    if (_desktopPresentation != true ||
+        _desktopSection != 'podcasts' ||
+        _hasPodcastLibrary) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _desktopSection != 'podcasts' ||
+          _hasPodcastLibrary) {
+        return;
+      }
+      unawaited(_selectDesktopSection(_overviewSection));
+    });
+  }
+
+  Widget _buildPreparedDesktopSectionPage(
+    BuildContext routeContext,
+    String section,
+    Future<void>? preparation,
+  ) {
+    if (preparation == null) {
+      return _buildDesktopSectionPage(routeContext, section);
+    }
+    return FutureBuilder<void>(
+      future: preparation,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+        return _buildDesktopSectionPage(context, section);
+      },
+    );
+  }
+
+  Widget _buildDesktopSectionPage(BuildContext routeContext, String section) {
+    switch (section) {
+      case 'users':
+        return AdminUsersScreen(users: _users, onlineUsers: _onlineUsers, libraries: _libraries);
+      case 'upload':
+        return AdminUploadScreen(
+          libraries: _libraries,
+          initialLibraryId: routeContext.read<AuthProvider>().defaultLibraryId,
+          apiService: routeContext.read<AuthProvider>().apiService,
+          onNavigationGuardChanged:
+              DesktopWorkspaceNavigator.notifyExitGuardChanged,
+        );
+      case 'podcasts':
+        final podcastLibrary = _libraries.firstWhere(
+          (library) => library['mediaType'] == 'podcast',
+          orElse: () => null,
+        );
+        return podcastLibrary == null
+            ? const SizedBox.shrink()
+            : AdminPodcastsScreen(library: podcastLibrary);
+      case 'email':
+        return AdminEmailScreen(users: _users);
+      case 'api-keys':
+        return AdminApiKeysScreen(users: _users);
+      case 'libraries':
+        return AdminLibrariesScreen(libraries: _libraries);
+      case 'server-settings':
+        return const AdminServerSettingsScreen();
+      case 'stats':
+        return const AdminStatsScreen();
+      case 'sessions':
+        return AdminSessionsScreen(users: _users);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   Widget _section(ColorScheme cs, TextTheme tt, String t) => Padding(
     padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
     child: Text(t, style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6), fontWeight: FontWeight.w600, letterSpacing: 0.5)));
@@ -520,7 +1051,8 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     final l = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: () async {
-        await Navigator.push(context, MaterialPageRoute(
+        final navigator = _desktopNavigatorKey.currentState ?? Navigator.of(context);
+        await navigator.push(MaterialPageRoute(
           builder: (_) => AdminMissingItemsScreen(library: Map<String, dynamic>.from(lib as Map))));
         _loadAll();
       },

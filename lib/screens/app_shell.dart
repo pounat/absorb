@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
@@ -26,6 +27,7 @@ import '../services/android_auto_service.dart';
 import '../services/carplay_service.dart';
 import '../widgets/expanded_card.dart';
 import '../widgets/desktop_account_button.dart';
+import '../widgets/desktop_collapsible_sidebar.dart';
 import '../widgets/desktop_now_playing_bar.dart';
 import 'absorbing_screen.dart';
 import 'admin_screen.dart';
@@ -91,35 +93,7 @@ class AppShell extends StatefulWidget {
   ) {
     final inst = _AppShellState._instance;
     if (inst == null) return false;
-    // If the full-screen expanded player is on top of the shell, pop it
-    // first. Otherwise switching to the Library tab leaves the player
-    // covering the filtered library underneath. Caller (e.g. the book
-    // detail sheet) has already popped its own modal route at this point.
-    if (inst._expandedIsOpen && inst.mounted) {
-      Navigator.of(inst.context, rootNavigator: true).maybePop();
-    }
-    inst._navigateTo(1);
-    // The retry budget has to survive the fade transition (~200ms by
-    // default, see `_fadeController` and `_navigateTo`) plus the library
-    // widget's own mount + first build. On cold start that easily takes
-    // 300-500ms before `_libraryKey.currentState` becomes non-null. ~3s
-    // worth of frames is generous enough to cover slow devices and stingy
-    // enough to give up if something is genuinely broken.
-    const maxAttempts = 180; // ~3s at 60fps
-    var attempts = 0;
-    void tryApply() {
-      if (!inst.mounted) return;
-      final state = inst._libraryKey.currentState;
-      if (state != null) {
-        apply(state);
-        return;
-      }
-      if (++attempts < maxAttempts) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => tryApply());
-      }
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => tryApply());
+    unawaited(inst._applyLibraryFilterAfterPaneReset(apply));
     return true;
   }
 
@@ -140,6 +114,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   static _AppShellState? _instance;
+  static const _desktopSidebarPinnedKey = 'desktop_sidebar_pinned';
 
   // Tabs: 0=Home, 1=Library, 2=Absorbing (default), 3=Stats, 4=Settings
   int _currentIndex = 2; // overridden by user preference in initState
@@ -180,9 +155,41 @@ class _AppShellState extends State<AppShell>
   // Desktop workspace content-pane navigator: full-page pushes land here so
   // the sidebar and now-playing bar stay visible around them.
   final _paneNavigatorKey = GlobalKey<NavigatorState>();
+  bool _adminRouteOpen = false;
+  bool _desktopWorkspaceWasActive = false;
+  bool _desktopCollapseAllowed = false;
+  bool _desktopCollapseCheckScheduled = false;
+  bool _desktopSidebarPinned = false;
+  int _desktopSidebarPreferenceGeneration = 0;
 
-  void _openSearch() {
-    if (!mounted) return;
+  Future<void> _loadDesktopSidebarPreference() async {
+    final generation = _desktopSidebarPreferenceGeneration;
+    final prefs = await SharedPreferences.getInstance();
+    final pinned = prefs.getBool(_desktopSidebarPinnedKey) ?? false;
+    if (!mounted ||
+        generation != _desktopSidebarPreferenceGeneration ||
+        pinned == _desktopSidebarPinned) {
+      return;
+    }
+    setState(() => _desktopSidebarPinned = pinned);
+  }
+
+  void _setDesktopSidebarPinned(bool pinned) {
+    _desktopSidebarPreferenceGeneration++;
+    if (pinned == _desktopSidebarPinned) return;
+    setState(() => _desktopSidebarPinned = pinned);
+    unawaited(_saveDesktopSidebarPreference(pinned));
+  }
+
+  Future<void> _saveDesktopSidebarPreference(bool pinned) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_desktopSidebarPinnedKey, pinned);
+  }
+
+  void _openSearch() => unawaited(_openSearchAfterPaneReset());
+
+  Future<void> _openSearchAfterPaneReset() async {
+    if (!await _preparePaneForNavigation()) return;
     // If the user triggered Search while a pushed route (Downloads, Bookmarks,
     // Settings pages, etc.) is on top of the shell, pop back so the shell's
     // Library tab actually becomes visible.
@@ -190,8 +197,10 @@ class _AppShellState extends State<AppShell>
     if (nav != null && nav.canPop()) {
       nav.popUntil((r) => r.isFirst);
     }
-    _paneNavigatorKey.currentState?.popUntil((r) => r.isFirst);
-    _navigateTo(1);
+    final lib = context.read<LibraryProvider>();
+    final podcastsShown = _podcastsShown(lib);
+    if (podcastsShown) _syncTabLibrary(1, true);
+    _navigateToPrepared(1);
     // Library tab may need a frame to mount its state before we can focus
     // the search field. Retry up to a few frames to cover fade transitions.
     int attempts = 0;
@@ -210,19 +219,36 @@ class _AppShellState extends State<AppShell>
     WidgetsBinding.instance.addPostFrameCallback((_) => tryFocus());
   }
 
-  void _switchToAbsorbing() {
-    if (mounted) {
-      _navigateTo(2);
-      // Scroll to the currently playing book after the tab switch
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        AbsorbingScreen.scrollToActive();
-      });
-    }
+  void _switchToAbsorbing() => unawaited(_switchToAbsorbingAfterPaneReset());
+
+  Future<void> _switchToAbsorbingAfterPaneReset() async {
+    if (!mounted || !await _navigateToAfterPaneReset(2)) return;
+    // Scroll to the currently playing book after the tab switch
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AbsorbingScreen.scrollToActive();
+    });
   }
 
-  void _navigateTo(int index) {
+  void _navigateTo(int index) => unawaited(_navigateToAfterPaneReset(index));
+
+  Future<bool> _preparePaneForNavigation() async {
+    if (!mounted ||
+        !await DesktopWorkspaceNavigator.prepareForPaneReset() ||
+        !mounted) {
+      return false;
+    }
     // A tab click while a pushed page fills the pane should reveal the tab.
     _paneNavigatorKey.currentState?.popUntil((r) => r.isFirst);
+    return true;
+  }
+
+  Future<bool> _navigateToAfterPaneReset(int index) async {
+    if (!await _preparePaneForNavigation()) return false;
+    _navigateToPrepared(index);
+    return true;
+  }
+
+  void _navigateToPrepared(int index) {
     if (index == _currentIndex) {
       // Already on this tab — handle re-tap actions
       if (index == 2) {
@@ -244,6 +270,42 @@ class _AppShellState extends State<AppShell>
         _fadeController.forward();
       });
     }
+  }
+
+  Future<void> _applyLibraryFilterAfterPaneReset(
+    void Function(LibraryScreenState) apply,
+  ) async {
+    if (!await _preparePaneForNavigation()) return;
+    // If the full-screen expanded player is on top of the shell, pop it
+    // first. Otherwise switching to the Library tab leaves the player
+    // covering the filtered library underneath. Caller (e.g. the book
+    // detail sheet) has already popped its own modal route at this point.
+    if (_expandedIsOpen && mounted) {
+      await Navigator.of(context, rootNavigator: true).maybePop();
+      if (!mounted) return;
+    }
+    _navigateToPrepared(1);
+    // The retry budget has to survive the fade transition (~200ms by
+    // default, see `_fadeController` and `_navigateTo`) plus the library
+    // widget's own mount + first build. On cold start that easily takes
+    // 300-500ms before `_libraryKey.currentState` becomes non-null. ~3s
+    // worth of frames is generous enough to cover slow devices and stingy
+    // enough to give up if something is genuinely broken.
+    const maxAttempts = 180; // ~3s at 60fps
+    var attempts = 0;
+    void tryApply() {
+      if (!mounted) return;
+      final state = _libraryKey.currentState;
+      if (state != null) {
+        apply(state);
+        return;
+      }
+      if (++attempts < maxAttempts) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => tryApply());
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => tryApply());
   }
 
   /// Subscribe to the active screen's barsRevealNotifier when on Home or
@@ -343,6 +405,10 @@ class _AppShellState extends State<AppShell>
     super.initState();
     _instance = this;
     DesktopWorkspaceNavigator.register(() => _paneNavigatorKey.currentState);
+    DesktopWorkspaceNavigator.exitGuardChanges.addListener(
+      _onDesktopExitGuardChanged,
+    );
+    unawaited(_loadDesktopSidebarPreference());
     if (AppPlatform.isWeb) {
       _currentIndex = 0;
     } else if (!widget.startOnAbsorbing) {
@@ -466,6 +532,9 @@ class _AppShellState extends State<AppShell>
     try {
       context.read<LibraryProvider>().removeListener(_onLibraryChanged);
     } catch (_) {}
+    DesktopWorkspaceNavigator.exitGuardChanges.removeListener(
+      _onDesktopExitGuardChanged,
+    );
     if (_instance == this) {
       _instance = null;
       DesktopWorkspaceNavigator.unregister();
@@ -706,6 +775,40 @@ class _AppShellState extends State<AppShell>
     _libraryKey.currentState?.resetReveal();
   }
 
+  void _onDesktopExitGuardChanged() {
+    if (!mounted || !_desktopWorkspaceWasActive || _desktopCollapseAllowed) {
+      return;
+    }
+    _scheduleDesktopWorkspaceCollapseCheck();
+  }
+
+  void _scheduleDesktopWorkspaceCollapseCheck() {
+    if (_desktopCollapseCheckScheduled) return;
+    _desktopCollapseCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_checkDesktopWorkspaceCollapse());
+    });
+  }
+
+  Future<void> _checkDesktopWorkspaceCollapse() async {
+    if (!mounted) return;
+    final view = View.of(context);
+    final width = view.physicalSize.width / view.devicePixelRatio;
+    if (width >= kDesktopWorkspaceBreakpoint) {
+      _desktopCollapseCheckScheduled = false;
+      return;
+    }
+    final allowed = await DesktopWorkspaceNavigator.prepareForPaneReset();
+    if (!mounted) return;
+    _desktopCollapseCheckScheduled = false;
+    final currentView = View.of(context);
+    final currentWidth =
+        currentView.physicalSize.width / currentView.devicePixelRatio;
+    if (allowed && currentWidth < kDesktopWorkspaceBreakpoint) {
+      setState(() => _desktopCollapseAllowed = true);
+    }
+  }
+
   DateTime? _lastRefresh;
   static const _refreshCooldown = Duration(minutes: 1);
 
@@ -742,13 +845,27 @@ class _AppShellState extends State<AppShell>
         final workspaceTier = AppPlatform.isWeb
             ? workspaceLayoutTierForWidth(constraints.maxWidth)
             : WorkspaceLayoutTier.mobile;
-        final useDesktopWorkspace =
-            workspaceTier != WorkspaceLayoutTier.mobile;
+        final desktopRequested = workspaceTier != WorkspaceLayoutTier.mobile;
+        var useDesktopWorkspace = desktopRequested;
+        if (desktopRequested) {
+          _desktopWorkspaceWasActive = true;
+          _desktopCollapseAllowed = false;
+        } else if (_desktopWorkspaceWasActive && !_desktopCollapseAllowed) {
+          useDesktopWorkspace = true;
+          _scheduleDesktopWorkspaceCollapseCheck();
+        } else {
+          _desktopWorkspaceWasActive = false;
+          _desktopCollapseAllowed = false;
+        }
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: _handleBack,
           child: useDesktopWorkspace
-              ? _buildDesktopWorkspace(context, workspaceTier)
+              ? _buildDesktopWorkspace(
+                  context,
+                  allowPinnedSidebar: desktopRequested &&
+                      usesExtendedDesktopSidebar(workspaceTier),
+                )
               : Scaffold(
                   body: _buildPageStack(context),
                   bottomNavigationBar: _buildBottomNav(context),
@@ -761,19 +878,24 @@ class _AppShellState extends State<AppShell>
   void _handleBack(bool didPop, Object? _) {
     if (didPop) return;
 
-    if (_currentIndex == 1 &&
-        _libraryKey.currentState?.isSearchActive == true) {
-      _libraryKey.currentState?.clearSearch();
-      return;
-    }
-
     if (AppPlatform.isWeb) {
       final pane = _paneNavigatorKey.currentState;
       if (pane != null && pane.canPop()) {
-        pane.pop();
+        unawaited(pane.maybePop());
+        return;
+      }
+      if (_currentIndex == 1 &&
+          _libraryKey.currentState?.isSearchActive == true) {
+        _libraryKey.currentState?.clearSearch();
         return;
       }
       if (_currentIndex != 0) _navigateTo(0);
+      return;
+    }
+
+    if (_currentIndex == 1 &&
+        _libraryKey.currentState?.isSearchActive == true) {
+      _libraryKey.currentState?.clearSearch();
       return;
     }
 
@@ -810,53 +932,47 @@ class _AppShellState extends State<AppShell>
   }
 
   Widget _buildDesktopWorkspace(
-    BuildContext context,
-    WorkspaceLayoutTier workspaceTier,
-  ) {
+    BuildContext context, {
+    required bool allowPinnedSidebar,
+  }) {
     final lib = context.watch<LibraryProvider>();
     final podcastsShown = _podcastsShown(lib);
     final destinations = _buildDestinations(context, podcastsShown);
+    final sidebarPinned = allowPinnedSidebar && _desktopSidebarPinned;
 
     return Scaffold(
-      body: Row(
-        children: [
-          _buildDesktopSidebar(
-            context,
-            lib: lib,
-            podcastsShown: podcastsShown,
-            destinations: destinations,
-            workspaceTier: workspaceTier,
-          ),
-          VerticalDivider(
-            width: 1,
-            thickness: 1,
-            color: Theme.of(
-              context,
-            ).colorScheme.outlineVariant.withValues(alpha: 0.45),
-          ),
-          Expanded(
-            child: LayoutBuilder(
-              // The MediaQuery override sits outside the pane Navigator so
-              // pushed pages also lay out against the pane, not the window.
-              // The tab stack is a declarative page so it keeps rebuilding
-              // with this State; pushed routes stack on top imperatively.
-              builder: (context, constraints) => MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  size: Size(constraints.maxWidth, constraints.maxHeight),
-                ),
-                child: ClipRect(
-                  child: Navigator(
-                    key: _paneNavigatorKey,
-                    onDidRemovePage: (page) {},
-                    pages: [
-                      MaterialPage(child: _buildPageStack(context)),
-                    ],
-                  ),
+      body: DesktopSidebarLayout(
+        pinned: sidebarPinned,
+        canPin: allowPinnedSidebar,
+        onPinnedChanged: _setDesktopSidebarPinned,
+        sidebarBuilder: (sidebarContext, extended) => _buildDesktopSidebar(
+          sidebarContext,
+          lib: lib,
+          podcastsShown: podcastsShown,
+          destinations: destinations,
+          extended: extended,
+        ),
+        child: LayoutBuilder(
+          // The MediaQuery override sits outside the pane Navigator so pushed
+          // pages also lay out against the pane, not the window. The tab stack
+          // is declarative so it keeps rebuilding below imperative routes.
+          builder: (context, constraints) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              size: Size(constraints.maxWidth, constraints.maxHeight),
+            ),
+            child: DesktopWorkspaceScope(
+              child: ClipRect(
+                child: Navigator(
+                  key: _paneNavigatorKey,
+                  onDidRemovePage: (page) {},
+                  pages: [
+                    MaterialPage(child: _buildPageStack(context)),
+                  ],
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
       bottomNavigationBar: shouldShowDesktopNowPlayingBar(_currentIndex)
           ? DesktopNowPlayingBar(
@@ -873,7 +989,7 @@ class _AppShellState extends State<AppShell>
     required LibraryProvider lib,
     required bool podcastsShown,
     required List<NavigationDestination> destinations,
-    required WorkspaceLayoutTier workspaceTier,
+    required bool extended,
   }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -890,17 +1006,16 @@ class _AppShellState extends State<AppShell>
     final serverLabel = parsedServer?.host.isNotEmpty == true
         ? parsedServer!.host
         : serverUrl;
-    final extended = usesExtendedDesktopSidebar(workspaceTier);
-
-    void openSearch() {
-      if (podcastsShown) _syncTabLibrary(1, true);
-      _openSearch();
-    }
+    void openSearch() => _openSearch();
 
     void openAdmin() {
-      _paneNavigatorKey.currentState?.push(
-        MaterialPageRoute<void>(builder: (_) => const AdminScreen()),
-      );
+      if (_adminRouteOpen) return;
+      final navigator = _paneNavigatorKey.currentState;
+      if (navigator == null) return;
+      _adminRouteOpen = true;
+      unawaited(navigator
+          .push(MaterialPageRoute<void>(builder: (_) => const AdminScreen()))
+          .whenComplete(() => _adminRouteOpen = false));
     }
 
     void openAccountMenu() {
@@ -932,13 +1047,15 @@ class _AppShellState extends State<AppShell>
 
     return SafeArea(
       child: SizedBox(
-        width: desktopSidebarWidth(workspaceTier),
+        width: extended
+            ? DesktopCollapsibleSidebar.expandedWidth
+            : DesktopCollapsibleSidebar.collapsedWidth,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
               padding: extended
-                  ? const EdgeInsets.fromLTRB(20, 18, 16, 12)
+                  ? const EdgeInsets.fromLTRB(20, 18, 60, 12)
                   : const EdgeInsets.fromLTRB(12, 18, 12, 12),
               child: Row(
                 mainAxisAlignment: extended
@@ -1100,7 +1217,14 @@ class _AppShellState extends State<AppShell>
     );
   }
 
-  void _selectDestination(int dest, bool podcastsShown) {
+  void _selectDestination(int dest, bool podcastsShown) =>
+      unawaited(_selectDestinationAfterPaneReset(dest, podcastsShown));
+
+  Future<void> _selectDestinationAfterPaneReset(
+    int dest,
+    bool podcastsShown,
+  ) async {
+    if (!await _preparePaneForNavigation()) return;
     final lib = context.read<LibraryProvider>();
     final page = _pageForDest(dest, podcastsShown);
     if (page == 1 &&
@@ -1111,7 +1235,7 @@ class _AppShellState extends State<AppShell>
       return;
     }
     _syncTabLibrary(dest, podcastsShown);
-    _navigateTo(page);
+    _navigateToPrepared(page);
     if (page >= 0 && page <= 3) _refreshDataForTab(page);
   }
 

@@ -305,28 +305,39 @@ class _DesktopDialogBodyState extends State<_DesktopDialogBody> {
       child: Builder(builder: widget.builder),
     );
     if (!widget.closeButton) return content;
-    return Stack(
-      children: [
-        content,
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Material(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.85),
-            shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: IconButton(
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                Icons.close_rounded,
-                size: 20,
-                color: cs.onSurfaceVariant,
+    return ModalSurface(
+      desktop: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            key: const ValueKey('desktop-dialog-chrome'),
+            height: 48,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Material(
+                  color: cs.surfaceContainerHighest.withValues(alpha: 0.85),
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: IconButton(
+                    key: const ValueKey('desktop-dialog-close-button'),
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: cs.onSurfaceVariant,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
               ),
-              onPressed: () => Navigator.of(context).pop(),
             ),
           ),
-        ),
-      ],
+          Flexible(child: Builder(builder: widget.builder)),
+        ],
+      ),
     );
   }
 }

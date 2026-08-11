@@ -118,6 +118,10 @@ dev_dependencies:
   rename_app: ^1.6.5
   mocktail: ^1.0.4
 
+dependency_overrides:
+  audio_service_web:
+    path: packages/audio_service_web
+
 flutter:
   generate: true
   uses-material-design: true

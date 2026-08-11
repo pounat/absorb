@@ -857,6 +857,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
           builder: (context, cardConstraints) {
           final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.5);
           final compact = cardConstraints.maxHeight < 600 * textScale;
+          final spaciousDesktop = desktopPresentation && cardConstraints.maxWidth >= 1280;
           // In landscape the card is wider than tall — switch to a two-pane
           // layout with the cover on the left and everything else on the right.
           final wide = cardConstraints.maxWidth > cardConstraints.maxHeight;
@@ -930,7 +931,9 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                     listenable: Listenable.merge([ChromecastService(), widget.player]),
                     builder: (context, _) => LayoutBuilder(
                     builder: (context, constraints) {
-                      final maxW = constraints.maxWidth * 0.75;
+                      final maxW = spaciousDesktop
+                          ? (constraints.maxWidth * 0.9).clamp(0.0, 780.0).toDouble()
+                          : constraints.maxWidth * 0.75;
                       final rawH = constraints.maxHeight.isFinite ? constraints.maxHeight : maxW;
                       final maxH = rawH - 24;
                       double coverW, coverH;
@@ -987,6 +990,9 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                           }
                         } : null,
                         child: Container(
+                          key: desktopPresentation
+                              ? const ValueKey('desktop-player-cover')
+                              : null,
                           width: coverW,
                           height: coverH,
                           decoration: BoxDecoration(
@@ -1136,7 +1142,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                     builder: (context, buttonsConstraints) => FittedBox(
                     fit: BoxFit.scaleDown,
                     child: SizedBox(
-                      width: buttonsConstraints.maxWidth - 40,
+                      width: buttonsConstraints.maxWidth,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1225,7 +1231,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 640),
+                  key: const ValueKey('desktop-player-details'),
+                  constraints: BoxConstraints(maxWidth: spaciousDesktop ? 760 : 640),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1234,7 +1241,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                         primaryTitle,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.w700, height: 1.12),
+                        style: (spaciousDesktop ? tt.headlineMedium : tt.headlineSmall)
+                            ?.copyWith(fontWeight: FontWeight.w700, height: 1.12),
                       ),
                       if (contextLine.isNotEmpty) ...[
                         const SizedBox(height: 8),
@@ -1259,6 +1267,28 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                 ),
               ),
             );
+
+            if (spaciousDesktop) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1680),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(flex: 10, child: coverArea),
+                          const SizedBox(width: 48),
+                          Expanded(flex: 9, child: details),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
 
             if (cardConstraints.maxWidth >= 760) {
               return Padding(
