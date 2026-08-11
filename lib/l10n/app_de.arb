@@ -683,7 +683,6 @@
   "cardScrubbersChapterSubtitle": "Nur die Kapitelleiste kann suchen",
   "cardScrubbersLockedSubtitle": "Fortschritt wird angezeigt, ohne zu suchen",
   "speedAdjustedTime": "Geschwindigkeitsangepasste Zeit",
-  "speedAdjustedTimeOnSubtitle": "An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit",
   "speedAdjustedTimeOffSubtitle": "Aus - zeigt die reine Audiodauer",
   "buttonLayout": "Button-Anordnung",
   "buttonLayoutSubtitle": "Wie die Aktions-Buttons auf der Karte angeordnet sind",
@@ -2092,14 +2091,6 @@
     }
   },
   "deleteBookmarkQuestion": "Lesezeichen löschen?",
-  "bookmarkAtPosition": "Lesezeichen bei {position}",
-  "@bookmarkAtPosition": {
-    "placeholders": {
-      "position": {
-        "type": "String"
-      }
-    }
-  },
   "cardIconsOnlyChip": "Nur Symbole",
   "cardMoreInGridChip": "\"Mehr\" im Raster",
   "cardLayoutHidden": "Ausgeblendet",
@@ -3525,7 +3516,6 @@
   "tipsSheetTapToSeekTitle": "Tippen zum Spulen",
   "tipsSheetTapToSeekDesc": "Tippe irgendwo auf den Kapitel- oder Buchfortschrittsbalken, um direkt zu dieser Stelle zu springen. Du kannst die Balken auch ziehen, um feiner zu steuern.",
   "tipsSheetSpeedAdjustedTimeTitle": "Geschwindigkeitsangepasste Zeit",
-  "tipsSheetSpeedAdjustedTimeDesc": "Restzeit und Kapitelzeiten passen sich automatisch deiner Wiedergabegeschwindigkeit an. Hörst du mit 1,5x? Die angezeigte Zeit zeigt, wie lange es tatsächlich dauert.",
   "tipsSheetPlaybackHistoryTitle": "Wiedergabe-Verlauf",
   "tipsSheetPlaybackHistoryDesc": "Tippe auf einer Karte auf den Verlaufs-Button, um eine Zeitleiste mit jeder Wiedergabe, Pause, Sprung und Geschwindigkeitsänderung zu sehen. Tippe auf ein Ereignis, um zu dieser Stelle zurückzuspringen.",
   "tipsSheetAutoRewindTitle": "Auto-Zurückspulen",
@@ -4372,12 +4362,5 @@
         "type": "String"
       }
     }
-  },
-  "autoDownloadSubtitle": "Pro Serie oder Podcast über deren Detailseiten aktivieren",
-  "keepNextInfoContent": "Die Anzahl der Elemente, die heruntergeladen bleiben sollen, einschließlich des Elements, das du gerade hörst. Beispiel: \"Nächste 3 behalten\" bedeutet, das aktuelle Buch plus die nächsten 2 in der Serie oder im Podcast bleiben heruntergeladen.",
-  "deleteAbsorbedDownloadsInfoContent": "Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von diesem Gerät gelöscht, nachdem du sie in Absorb zu Ende gehört hast. Wenn du einen Titel im Web oder auf einem anderen Gerät beendest, bleibt der Download hier erhalten.",
-  "adminMissingDeleteOneContent": "\"{title}\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.",
-  "@adminMissingDeleteOneContent": {"placeholders": {"title": {"type": "String"}}},
-  "adminMissingDeleteManyContent": "\"{count}\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.",
-  "@adminMissingDeleteManyContent": {"placeholders": {"count": {"type": "int"}}}
+  }
 }
