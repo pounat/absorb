@@ -34,6 +34,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
     PlayerSettings.defaultSpeedPresets,
   );
   bool _speedAdjustedTime = true;
+  bool _chapterProgress = false;
   String? _lastItemId;
   String? _lastLibraryId;
   double? _dragPositionSeconds;
@@ -92,6 +93,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
       PlayerSettings.getEffectiveForwardSkip(libraryId: libraryId),
       PlayerSettings.getSpeedPresets(),
       PlayerSettings.getSpeedAdjustedTime(),
+      PlayerSettings.getNotificationChapterProgress(),
     ]);
     if (!mounted) return;
     setState(() {
@@ -99,6 +101,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
       _forwardSkip = results[1] as int;
       _speedPresets = results[2] as List<double>;
       _speedAdjustedTime = results[3] as bool;
+      _chapterProgress = results[4] as bool;
     });
   }
 
@@ -146,22 +149,36 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
                       streamSeconds,
                       totalSeconds,
                     );
-                    return _PositionControl(
-                      positionSeconds: positionSeconds,
+                    final progressWindow = _DesktopProgressWindow.fromChapter(
                       totalSeconds: totalSeconds,
+                      chapter: _chapterProgress ? player.currentChapter : null,
+                    );
+                    final rangePosition = progressWindow.relativePosition(
+                      positionSeconds,
+                    );
+                    double absolutePosition(double value) =>
+                        progressWindow.absolutePosition(value);
+                    return _PositionControl(
+                      positionSeconds: rangePosition,
+                      totalSeconds: progressWindow.durationSeconds,
                       displaySpeed: _speedAdjustedTime ? player.speed : 1.0,
-                      enabled: totalSeconds > 0,
+                      enabled: progressWindow.durationSeconds > 0,
                       accent: cs.primary,
                       onChangeStart: (value) {
-                        setState(() => _dragPositionSeconds = value);
+                        setState(
+                          () => _dragPositionSeconds = absolutePosition(value),
+                        );
                       },
                       onChanged: (value) {
-                        setState(() => _dragPositionSeconds = value);
+                        setState(
+                          () => _dragPositionSeconds = absolutePosition(value),
+                        );
                       },
                       onChangeEnd: (value) async {
-                        setState(() => _dragPositionSeconds = value);
+                        final seekSeconds = absolutePosition(value);
+                        setState(() => _dragPositionSeconds = seekSeconds);
                         await player.seekTo(
-                          Duration(milliseconds: (value * 1000).round()),
+                          Duration(milliseconds: (seekSeconds * 1000).round()),
                         );
                         if (mounted) {
                           setState(() => _dragPositionSeconds = null);
@@ -402,6 +419,56 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
   void _toggleMute() {
     _setVolume(_volume <= 0 ? _volumeBeforeMute : 0);
   }
+}
+
+class _DesktopProgressWindow {
+  final double startSeconds;
+  final double durationSeconds;
+
+  const _DesktopProgressWindow({
+    required this.startSeconds,
+    required this.durationSeconds,
+  });
+
+  factory _DesktopProgressWindow.fromChapter({
+    required double totalSeconds,
+    required Map<String, dynamic>? chapter,
+  }) {
+    if (totalSeconds <= 0 || chapter == null) {
+      return _DesktopProgressWindow(
+        startSeconds: 0,
+        durationSeconds: totalSeconds,
+      );
+    }
+
+    final rawStart = (chapter['start'] as num?)?.toDouble() ?? 0;
+    final rawEnd = (chapter['end'] as num?)?.toDouble() ?? totalSeconds;
+    if (!rawStart.isFinite || !rawEnd.isFinite || rawEnd <= rawStart) {
+      return _DesktopProgressWindow(
+        startSeconds: 0,
+        durationSeconds: totalSeconds,
+      );
+    }
+
+    final start = rawStart.clamp(0.0, totalSeconds).toDouble();
+    final end = rawEnd.clamp(start, totalSeconds).toDouble();
+    if (end <= start) {
+      return _DesktopProgressWindow(
+        startSeconds: 0,
+        durationSeconds: totalSeconds,
+      );
+    }
+    return _DesktopProgressWindow(
+      startSeconds: start,
+      durationSeconds: end - start,
+    );
+  }
+
+  double relativePosition(double absoluteSeconds) =>
+      (absoluteSeconds - startSeconds).clamp(0.0, durationSeconds).toDouble();
+
+  double absolutePosition(double relativeSeconds) =>
+      startSeconds + relativeSeconds.clamp(0.0, durationSeconds).toDouble();
 }
 
 class _PositionControl extends StatelessWidget {

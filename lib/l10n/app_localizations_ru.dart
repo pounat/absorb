@@ -636,6 +636,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get absorbingManageQueue => 'Manage Queue';
 
   @override
+  String get desktopAbsorbingQueueHint =>
+      'Use Add to Absorbing on a book or episode to put it here. Items play in this order.';
+
+  @override
   String get absorbingDone => 'Done';
 
   @override
@@ -1265,7 +1269,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fullBookScrubberOffSubtitle => 'Off - progress bar only';
 
   @override
-  String get cardScrubbers => 'Card scrubbers';
+  String get cardScrubbers => 'Progress bars';
 
   @override
   String get cardScrubbersBoth => 'Both';
@@ -1532,6 +1536,18 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get chapterProgressOnSubtitleIos =>
       'Вкл. - блокировка экрана и CarPlay покажут прогресс главы';
+
+  @override
+  String get chapterProgressInNowPlayingBar =>
+      'Chapter progress in now playing bar';
+
+  @override
+  String get chapterProgressInNowPlayingBarOnSubtitle =>
+      'On - the bottom player shows current chapter progress';
+
+  @override
+  String get chapterProgressInNowPlayingBarOffSubtitle =>
+      'Off - the bottom player shows full book progress';
 
   @override
   String get speedBookmarkInControls =>
@@ -1912,7 +1928,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get enableLoggingOnSubtitle =>
-      'On - logs saved to file (restart to apply)';
+      'On - logs are being captured (restart to apply)';
 
   @override
   String get enableLoggingOffSubtitle => 'Off - no logs captured';
@@ -1926,14 +1942,14 @@ class AppLocalizationsRu extends AppLocalizations {
       'Logging disabled - restart app to stop capturing';
 
   @override
-  String get sendLogs => 'Send logs';
+  String get sendLogs => 'Export logs';
 
   @override
-  String get sendLogsSubtitle => 'Share log file as attachment';
+  String get sendLogsSubtitle => 'Download or share the .txt log file';
 
   @override
   String failedToShare(String error) {
-    return 'Failed to share: $error';
+    return 'Failed to export: $error';
   }
 
   @override

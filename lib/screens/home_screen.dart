@@ -225,14 +225,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
     required LibraryProvider lib,
     required Widget child,
   }) {
-    if (desktop) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: child,
-        ),
-      );
-    }
+    if (desktop) return child;
     return RefreshIndicator(
       onRefresh: () async {
         await lib.refresh();

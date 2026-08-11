@@ -944,6 +944,12 @@ class AuthProvider extends ChangeNotifier {
 
   /// Load local server settings from PlayerSettings.
   Future<void> _loadLocalServerSettings() async {
+    if (AppPlatform.isWeb) {
+      _localServerEnabled = false;
+      _localServerUrl = '';
+      _useLocalServer = false;
+      return;
+    }
     _localServerEnabled = await PlayerSettings.getLocalServerEnabled();
     final savedUrl = await PlayerSettings.getLocalServerUrl();
     _localServerUrl = normalizeServerUrl(savedUrl);
@@ -988,6 +994,7 @@ class AuthProvider extends ChangeNotifier {
   /// Check if the configured local server is reachable.
   /// Called on WiFi connectivity changes by LibraryProvider.
   Future<void> checkLocalServer() async {
+    if (AppPlatform.isWeb) return;
     if (!_localServerEnabled || _localServerUrl.isEmpty || _serverUrl == null)
       return;
     final wasLocal = _useLocalServer;
@@ -1044,6 +1051,7 @@ class AuthProvider extends ChangeNotifier {
     required bool enabled,
     required String url,
   }) async {
+    if (AppPlatform.isWeb) return;
     final normalizedUrl = normalizeServerUrl(url);
     _localServerEnabled = enabled;
     _localServerUrl = normalizedUrl;

@@ -1745,6 +1745,20 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
             ),
           ),
         ),
+        if (widget.embedded && _queueMode == 'manual')
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                Wording.of(context).desktopManualQueueHint,
+                style: tt.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ),
         if (_queueMode != 'off')
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),

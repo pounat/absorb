@@ -1437,10 +1437,26 @@ class CardActionDelegate {
     7: [3, 4], 8: [4, 4], 9: [3, 3, 3],
   };
 
-  List<Widget> buildButtonGrid(Color accent, TextTheme tt) {
+  static List<int> _balancedRows(int count, int maxPerRow) {
+    final rowCount = (count / maxPerRow).ceil();
+    final baseSize = count ~/ rowCount;
+    final largerRows = count % rowCount;
+    return <int>[
+      for (int row = 0; row < rowCount; row++)
+        row < rowCount - largerRows ? baseSize : baseSize + 1,
+    ];
+  }
+
+  List<Widget> buildButtonGrid(
+    Color accent,
+    TextTheme tt, {
+    bool showAll = false,
+  }) {
     final count = visibleButtonCount;
     final ids = buttonOrder
-        .take(count)
+        .take(showAll ? buttonOrder.length : count)
+        .where((id) => !showAll || id != '_more')
+        .where((id) => !showAll || buttonDefById(id) != null)
         .where((id) => showChaptersAction || id != 'chapters')
         .toList();
     final n = ids.length;
@@ -1450,7 +1466,9 @@ class CardActionDelegate {
     final short = iconsOnly || n >= 3;
 
     final table = iconsOnly ? _iconRows : _labelRows;
-    final rowSizes = table[n] ?? _labelRows[n] ?? [n];
+    final rowSizes = showAll
+        ? _balancedRows(n, iconsOnly ? 5 : 3)
+        : table[n] ?? _labelRows[n] ?? [n];
 
     final rows = <Widget>[];
     int offset = 0;
@@ -1463,9 +1481,25 @@ class CardActionDelegate {
       Widget row = Row(children: [
         for (int c = 0; c < rowSlots.length; c++) ...[
           if (c > 0) const SizedBox(width: 8),
-          Expanded(child: rowSlots[c] == '_more'
-              ? _buildInlineMoreButton(accent, compact: compact, short: short)
-              : buildCardButton(rowSlots[c], accent, tt, compact: compact, short: short, iconsOnly: iconsOnly)),
+          Expanded(
+            child: KeyedSubtree(
+              key: ValueKey('card-action-${rowSlots[c]}'),
+              child: rowSlots[c] == '_more'
+                  ? _buildInlineMoreButton(
+                      accent,
+                      compact: compact,
+                      short: short,
+                    )
+                  : buildCardButton(
+                      rowSlots[c],
+                      accent,
+                      tt,
+                      compact: compact,
+                      short: short,
+                      iconsOnly: iconsOnly,
+                    ),
+            ),
+          ),
         ],
       ]);
 

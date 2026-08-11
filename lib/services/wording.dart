@@ -47,17 +47,17 @@ class Wording {
 
   // ── Unified Absorbing page setting ──
   String get mergeLibraries =>
-      classic ? 'Unified Now Playing page' : _l.mergeLibraries;
+      classic ? 'Unified Now Playing' : _l.mergeLibraries;
   String get mergeLibrariesInfoTitle =>
-      classic ? 'Unified Now Playing Page' : _l.mergeLibrariesInfoTitle;
+      classic ? 'Unified Now Playing' : _l.mergeLibrariesInfoTitle;
   String get mergeLibrariesInfoContent => classic
-      ? 'When enabled, the Now Playing screen shows all your in-progress books and podcasts from every library in a single view. When disabled, only items from the library you currently have selected are shown.'
+      ? 'When enabled, Now Playing shows and queues books and podcast episodes from every library together. When disabled, the page and Manual queue stay within the current library or media type.'
       : _l.mergeLibrariesInfoContent;
   String get mergeLibrariesOnSubtitle => classic
-      ? 'Now Playing page shows items from all libraries'
+      ? 'Show and queue items from all libraries together'
       : _l.mergeLibrariesOnSubtitle;
   String get mergeLibrariesOffSubtitle => classic
-      ? 'Now Playing page shows current library only'
+      ? 'Keep the page and Manual queue in the current library'
       : _l.mergeLibrariesOffSubtitle;
 
   // ── Empty / placeholder ──
@@ -93,6 +93,10 @@ class Wording {
 
   // ── Queue mode info popup ──
   String get queueModeInfoManualDesc => classic
-      ? 'Your Now Playing list acts as a playlist. When one finishes, the next non-finished item auto-plays. Add items with the "Add to Now Playing" button on a book or episode and reorder from the Now Playing screen.'
+      ? 'Items in Now Playing are your manual queue. When one finishes, the next unfinished item plays. Use Add to Now Playing on a book or episode, then reorder it in the Queue panel.'
       : _l.queueModeInfoManualDesc;
+
+  String get desktopManualQueueHint => classic
+      ? 'Use Add to Now Playing on a book or episode to put it here. Items play in this order.'
+      : _l.desktopAbsorbingQueueHint;
 }

@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/text_file_download.dart';
 import 'api_service.dart';
 
 class LogService {
@@ -20,6 +22,8 @@ class LogService {
   static const _createdAtKey = 'log_created_at';
 
   File? _logFile;
+  final List<String> _webLogEntries = [];
+  int _webLogSizeBytes = 0;
   bool _enabled = false;
   DebugPrintCallback? _originalDebugPrint;
   int _writeCount = 0;
@@ -31,6 +35,17 @@ class LogService {
   Future<void> init(bool loggingEnabled) async {
     _enabled = loggingEnabled;
     if (!_enabled) return;
+
+    if (kIsWeb) {
+      _resetWebLogs();
+      final now = DateTime.now().toIso8601String();
+      _appendWebLog(
+        '\n=== Session started $now (App Version: ${ApiService.appVersionFull}) ===\n',
+      );
+      _originalDebugPrint = debugPrint;
+      debugPrint = _interceptedDebugPrint;
+      return;
+    }
 
     final dir = await getApplicationDocumentsDirectory();
     _logFile = File('${dir.path}/absorb_logs.txt');
@@ -44,7 +59,9 @@ class LogService {
       try {
         final createdMs = int.tryParse(createdAtFile.readAsStringSync().trim());
         if (createdMs != null) {
-          final age = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(createdMs));
+          final age = DateTime.now().difference(
+            DateTime.fromMillisecondsSinceEpoch(createdMs),
+          );
           if (age.inHours >= 24) shouldClear = true;
         }
       } catch (_) {
@@ -57,13 +74,19 @@ class LogService {
       final header = StringBuffer()
         ..writeln('=== Absorb Log ===')
         ..writeln('App Version: ${ApiService.appVersionFull}')
-        ..writeln('Device: ${ApiService.deviceManufacturer} ${ApiService.deviceModel}')
-        ..writeln('OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}')
+        ..writeln(
+          'Device: ${ApiService.deviceManufacturer} ${ApiService.deviceModel}',
+        )
+        ..writeln(
+          'OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+        )
         ..writeln('Created: ${DateTime.now().toIso8601String()}')
         ..writeln('==================')
         ..writeln();
       await _logFile!.writeAsString(header.toString());
-      createdAtFile.writeAsStringSync(DateTime.now().millisecondsSinceEpoch.toString());
+      createdAtFile.writeAsStringSync(
+        DateTime.now().millisecondsSinceEpoch.toString(),
+      );
     }
 
     // Rotate on startup if needed
@@ -85,28 +108,73 @@ class LogService {
 
   void _interceptedDebugPrint(String? message, {int? wrapWidth}) {
     _originalDebugPrint?.call(message, wrapWidth: wrapWidth);
-    if (_logFile != null && message != null) {
-      final ts = DateTime.now().toIso8601String();
-      final sanitized = _sanitize(message);
-      _logFile!.writeAsStringSync(
-        '[$ts] $sanitized\n',
-        mode: FileMode.append,
-      );
+    if (message == null) return;
+    final ts = DateTime.now().toIso8601String();
+    final sanitized = _sanitize(message);
+    final entry = '[$ts] $sanitized\n';
+    if (kIsWeb) {
+      _appendWebLog(entry);
+    } else if (_logFile != null) {
+      _logFile!.writeAsStringSync(entry, mode: FileMode.append);
       _maybeRotate();
     }
   }
 
   /// Write a log entry directly (for error handlers that bypass debugPrint).
   void log(String message) {
-    if (_logFile != null) {
-      final ts = DateTime.now().toIso8601String();
-      final sanitized = _sanitize(message);
-      _logFile!.writeAsStringSync(
-        '[$ts] $sanitized\n',
-        mode: FileMode.append,
-      );
+    final ts = DateTime.now().toIso8601String();
+    final sanitized = _sanitize(message);
+    final entry = '[$ts] $sanitized\n';
+    if (kIsWeb) {
+      if (_enabled) _appendWebLog(entry);
+    } else if (_logFile != null) {
+      _logFile!.writeAsStringSync(entry, mode: FileMode.append);
       _maybeRotate();
     }
+  }
+
+  void _appendWebLog(String entry) {
+    var storedEntry = entry;
+    var entryBytes = utf8.encode(storedEntry);
+    if (entryBytes.length > _keepSize) {
+      storedEntry = utf8.decode(
+        entryBytes.sublist(entryBytes.length - _keepSize),
+        allowMalformed: true,
+      );
+      entryBytes = utf8.encode(storedEntry);
+    }
+
+    _webLogEntries.add(storedEntry);
+    _webLogSizeBytes += entryBytes.length;
+    if (_webLogSizeBytes <= _maxSize) return;
+
+    while (_webLogEntries.length > 1 && _webLogSizeBytes > _keepSize) {
+      final removed = _webLogEntries.removeAt(0);
+      _webLogSizeBytes -= utf8.encode(removed).length;
+    }
+  }
+
+  String _logHeader() {
+    final os = kIsWeb
+        ? 'Web browser'
+        : '${Platform.operatingSystem} ${Platform.operatingSystemVersion}';
+    return (StringBuffer()
+          ..writeln('=== Absorb Log ===')
+          ..writeln('App Version: ${ApiService.appVersionFull}')
+          ..writeln(
+            'Device: ${ApiService.deviceManufacturer} ${ApiService.deviceModel}',
+          )
+          ..writeln('OS: $os')
+          ..writeln('Created: ${DateTime.now().toIso8601String()}')
+          ..writeln('==================')
+          ..writeln())
+        .toString();
+  }
+
+  void _resetWebLogs() {
+    _webLogEntries.clear();
+    _webLogSizeBytes = 0;
+    _appendWebLog(_logHeader());
   }
 
   /// Periodic runtime rotation - check file size every [_rotateCheckInterval]
@@ -143,14 +211,22 @@ class LogService {
   }
 
   Future<void> clearLogs() async {
+    if (kIsWeb) {
+      _resetWebLogs();
+      return;
+    }
     if (_logFile != null && await _logFile!.exists()) {
       // Write a fresh header immediately so logs shared in the same session
       // still have device info (don't wait for next init/restart).
       final header = StringBuffer()
         ..writeln('=== Absorb Log ===')
         ..writeln('App Version: ${ApiService.appVersionFull}')
-        ..writeln('Device: ${ApiService.deviceManufacturer} ${ApiService.deviceModel}')
-        ..writeln('OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}')
+        ..writeln(
+          'Device: ${ApiService.deviceManufacturer} ${ApiService.deviceModel}',
+        )
+        ..writeln(
+          'OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+        )
         ..writeln('Created: ${DateTime.now().toIso8601String()}')
         ..writeln('==================')
         ..writeln();
@@ -160,7 +236,8 @@ class LogService {
         final dir = _logFile!.parent;
         final createdAtFile = File('${dir.path}/$_createdAtKey');
         createdAtFile.writeAsStringSync(
-            DateTime.now().millisecondsSinceEpoch.toString());
+          DateTime.now().millisecondsSinceEpoch.toString(),
+        );
       } catch (_) {}
     }
   }
@@ -169,7 +246,9 @@ class LogService {
   String _deviceInfo({String? serverVersion}) {
     final buf = StringBuffer()
       ..writeln('App Version: ${ApiService.appVersionFull}')
-      ..writeln('Device: ${ApiService.deviceManufacturer} ${ApiService.deviceModel}')
+      ..writeln(
+        'Device: ${ApiService.deviceManufacturer} ${ApiService.deviceModel}',
+      )
       ..writeln('Device ID: ${ApiService.deviceId}');
     if (serverVersion != null) {
       buf.writeln('Server Version: $serverVersion');
@@ -191,7 +270,10 @@ class LogService {
     // Mask standalone sensitive key=value pairs not inside URLs
     // (e.g. "token=abc123" in non-URL context)
     result = result.replaceAllMapped(
-      RegExp(r'(token|secret|password|authorization|bearer|\w*key)\s*[=:]\s*(?!null\b|\*\*\*|true\b|false\b)\S+', caseSensitive: false),
+      RegExp(
+        r'(token|secret|password|authorization|bearer|\w*key)\s*[=:]\s*(?!null\b|\*\*\*|true\b|false\b)\S+',
+        caseSensitive: false,
+      ),
       (m) => '${m.group(1)}=***',
     );
     return result;
@@ -243,12 +325,14 @@ class LogService {
   /// Keep query param names but mask values of sensitive ones.
   static String _maskQuery(Uri uri) {
     if (uri.queryParameters.isEmpty) return '';
-    final masked = uri.queryParameters.entries.map((e) {
-      if (_sensitiveParamPattern.hasMatch(e.key)) {
-        return '${e.key}=***';
-      }
-      return '${e.key}=${e.value}';
-    }).join('&');
+    final masked = uri.queryParameters.entries
+        .map((e) {
+          if (_sensitiveParamPattern.hasMatch(e.key)) {
+            return '${e.key}=***';
+          }
+          return '${e.key}=${e.value}';
+        })
+        .join('&');
     return '?$masked';
   }
 
@@ -258,17 +342,33 @@ class LogService {
     final a = int.tryParse(parts[0]);
     final b = int.tryParse(parts[1]);
     if (a == null || b == null) return false;
-    return a == 10 || (a == 172 && b >= 16 && b <= 31) || (a == 192 && b == 168);
+    return a == 10 ||
+        (a == 172 && b >= 16 && b <= 31) ||
+        (a == 192 && b == 168);
   }
 
   /// Share log file as attachment via share sheet with device info.
   ///
   /// [sharePositionOrigin] is required on iPad for the share popover anchor.
-  Future<void> shareLogs({String? serverVersion, Rect? sharePositionOrigin}) async {
+  Future<void> shareLogs({
+    String? serverVersion,
+    Rect? sharePositionOrigin,
+  }) async {
     final info = _deviceInfo(serverVersion: serverVersion);
 
+    if (kIsWeb) {
+      final logs = _webLogEntries.join();
+      final content = logs.isNotEmpty
+          ? '${_sanitizeUrls(logs)}\n=== Report Info ===\n$info'
+          : '=== Absorb Log Report ===\n$info\n(No log data found — is logging enabled?)\n';
+      await downloadTextFile(fileName: 'absorb_logs.txt', content: content);
+      return;
+    }
+
     final hasFile =
-        _logFile != null && await _logFile!.exists() && await _logFile!.length() > 0;
+        _logFile != null &&
+        await _logFile!.exists() &&
+        await _logFile!.length() > 0;
 
     if (hasFile) {
       // Write sanitized copy to share instead of raw logs
@@ -299,10 +399,7 @@ class LogService {
     final uri = Uri(
       scheme: 'mailto',
       path: supportEmail,
-      query: _encodeMailtoQuery({
-        'subject': 'Absorb Feedback',
-        'body': info,
-      }),
+      query: _encodeMailtoQuery({'subject': 'Absorb Feedback', 'body': info}),
     );
     await launchUrl(uri);
   }

@@ -1270,6 +1270,12 @@ abstract class AppLocalizations {
   /// **'Manage Queue'**
   String get absorbingManageQueue;
 
+  /// No description provided for @desktopAbsorbingQueueHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Add to Absorbing on a book or episode to put it here. Items play in this order.'**
+  String get desktopAbsorbingQueueHint;
+
   /// No description provided for @absorbingDone.
   ///
   /// In en, this message translates to:
@@ -2407,7 +2413,7 @@ abstract class AppLocalizations {
   /// No description provided for @cardScrubbers.
   ///
   /// In en, this message translates to:
-  /// **'Card scrubbers'**
+  /// **'Progress bars'**
   String get cardScrubbers;
 
   /// No description provided for @cardScrubbersBoth.
@@ -2515,31 +2521,31 @@ abstract class AppLocalizations {
   /// No description provided for @mergeLibraries.
   ///
   /// In en, this message translates to:
-  /// **'Unified Absorbing page'**
+  /// **'Unified Absorbing'**
   String get mergeLibraries;
 
   /// No description provided for @mergeLibrariesInfoTitle.
   ///
   /// In en, this message translates to:
-  /// **'Unified Absorbing Page'**
+  /// **'Unified Absorbing'**
   String get mergeLibrariesInfoTitle;
 
   /// No description provided for @mergeLibrariesInfoContent.
   ///
   /// In en, this message translates to:
-  /// **'When enabled, the Absorbing screen shows all your in-progress books and podcasts from every library in a single view. When disabled, only items from the library you currently have selected are shown.'**
+  /// **'When enabled, Absorbing shows and queues books and podcast episodes from every library together. When disabled, the page and Manual queue stay within the current library or media type.'**
   String get mergeLibrariesInfoContent;
 
   /// No description provided for @mergeLibrariesOnSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Absorbing page shows items from all libraries'**
+  /// **'Show and queue items from all libraries together'**
   String get mergeLibrariesOnSubtitle;
 
   /// No description provided for @mergeLibrariesOffSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Absorbing page shows current library only'**
+  /// **'Keep the page and Manual queue in the current library'**
   String get mergeLibrariesOffSubtitle;
 
   /// No description provided for @queueMode.
@@ -2575,7 +2581,7 @@ abstract class AppLocalizations {
   /// No description provided for @queueModeInfoManualDesc.
   ///
   /// In en, this message translates to:
-  /// **'Your absorbing cards act as a playlist. When one finishes, the next non-finished card auto-plays. Add items with the \"Add to Absorbing\" button on a book or episode and reorder from the absorbing screen.'**
+  /// **'Items in Absorbing are your manual queue. When one finishes, the next unfinished item plays. Use Add to Absorbing on a book or episode, then reorder it in the Queue panel.'**
   String get queueModeInfoManualDesc;
 
   /// No description provided for @queueModeOff.
@@ -2883,6 +2889,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'On - lock screen & CarPlay show chapter progress'**
   String get chapterProgressOnSubtitleIos;
+
+  /// No description provided for @chapterProgressInNowPlayingBar.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter progress in now playing bar'**
+  String get chapterProgressInNowPlayingBar;
+
+  /// No description provided for @chapterProgressInNowPlayingBarOnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On - the bottom player shows current chapter progress'**
+  String get chapterProgressInNowPlayingBarOnSubtitle;
+
+  /// No description provided for @chapterProgressInNowPlayingBarOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Off - the bottom player shows full book progress'**
+  String get chapterProgressInNowPlayingBarOffSubtitle;
 
   /// No description provided for @speedBookmarkInControls.
   ///
@@ -3547,7 +3571,7 @@ abstract class AppLocalizations {
   /// No description provided for @enableLoggingOnSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'On - logs saved to file (restart to apply)'**
+  /// **'On - logs are being captured (restart to apply)'**
   String get enableLoggingOnSubtitle;
 
   /// No description provided for @enableLoggingOffSubtitle.
@@ -3571,19 +3595,19 @@ abstract class AppLocalizations {
   /// No description provided for @sendLogs.
   ///
   /// In en, this message translates to:
-  /// **'Send logs'**
+  /// **'Export logs'**
   String get sendLogs;
 
   /// No description provided for @sendLogsSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Share log file as attachment'**
+  /// **'Download or share the .txt log file'**
   String get sendLogsSubtitle;
 
   /// No description provided for @failedToShare.
   ///
   /// In en, this message translates to:
-  /// **'Failed to share: {error}'**
+  /// **'Failed to export: {error}'**
   String failedToShare(String error);
 
   /// No description provided for @clearLogs.

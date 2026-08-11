@@ -1393,8 +1393,16 @@ class SettingsScreenState extends State<SettingsScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isDesktopSettings = isDesktopWorkspace(context);
-              final expandedSection = _expandedSection ??
-                  (isDesktopSettings ? 'Appearance' : null);
+              final requestedSection = _expandedSection;
+              final expandedSection = isDesktopSettings &&
+                      (requestedSection == null ||
+                          requestedSection == 'Account' ||
+                          requestedSection == 'Media Controls')
+                  ? 'Appearance'
+                  : requestedSection;
+              final absorbingSectionLabel = isDesktopSettings
+                  ? Wording.of(context).absorbingTitle
+                  : Wording.of(context).sectionAbsorbingCards;
               final destinations = <_SettingsSectionDestination>[
                 if (!isDesktopSettings)
                   _SettingsSectionDestination(
@@ -1415,18 +1423,19 @@ class SettingsScreenState extends State<SettingsScreen> {
                 _SettingsSectionDestination(
                   'Absorbing Cards',
                   Icons.style_rounded,
-                  Wording.of(context).sectionAbsorbingCards,
+                  absorbingSectionLabel,
                 ),
                 _SettingsSectionDestination(
                   'Playback',
                   Icons.play_circle_outline_rounded,
                   l.sectionPlayback,
                 ),
-                _SettingsSectionDestination(
-                  'Media Controls',
-                  Icons.dvr_rounded,
-                  l.sectionMediaControls,
-                ),
+                if (!isDesktopSettings)
+                  _SettingsSectionDestination(
+                    'Media Controls',
+                    Icons.dvr_rounded,
+                    l.sectionMediaControls,
+                  ),
                 _SettingsSectionDestination(
                   'Sleep Timer',
                   Icons.bedtime_outlined,
@@ -2085,25 +2094,27 @@ class SettingsScreenState extends State<SettingsScreen> {
                 CollapsibleSection(
                   key: _keyFor('Absorbing Cards'),
                   icon: Icons.style_rounded,
-                  title: Wording.of(context).sectionAbsorbingCards,
+                  title: absorbingSectionLabel,
                   cs: cs,
                   isExpanded: expandedSection == 'Absorbing Cards',
                           desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Absorbing Cards', v),
                   children: [
-                    SwitchListTile(
-                      title: Text(l.fullScreenPlayer),
-                      subtitle: Text(
-                        _fullScreenPlayer ? l.fullScreenPlayerOnSubtitle : l.fullScreenPlayerOffSubtitle,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
-                                ),),
-                      value: _fullScreenPlayer,
-                      onChanged: _loaded ? (v) {
-                        setState(() => _fullScreenPlayer = v);
-                        PlayerSettings.setFullScreenPlayer(v);
-                      } : null,
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (!AppPlatform.isWeb) ...[
+                      SwitchListTile(
+                        title: Text(l.fullScreenPlayer),
+                        subtitle: Text(
+                          _fullScreenPlayer ? l.fullScreenPlayerOnSubtitle : l.fullScreenPlayerOffSubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
+                                  ),),
+                        value: _fullScreenPlayer,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _fullScreenPlayer = v);
+                          PlayerSettings.setFullScreenPlayer(v);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    ],
                     SwitchListTile(
                       title: Text(l.coverPlayPause),
                       subtitle: Text(
@@ -2117,36 +2128,38 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12,),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(l.cardBackground, style: tt.bodyMedium?.copyWith(color: cs.onSurface,
-                                    ),),
-                        const SizedBox(height: 8),
-                        SizedBox(width: double.infinity, child: SegmentedButton<String>(
-                          showSelectedIcon: false,
-                          segments: [
-                            ButtonSegment(value: 'blurred', icon: const Icon(Icons.blur_on_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundBlurred,
-                                            ),
-                                          ),),
-                            ButtonSegment(value: 'gradient', icon: const Icon(Icons.gradient_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundGradient,
-                                            ),
-                                          ),),
-                            ButtonSegment(value: 'off', icon: const Icon(Icons.block_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.off),
-                                          ),),
-                          ],
-                          selected: {_cardBackground},
-                          onSelectionChanged: _loaded ? (s) {
-                            if (s.isEmpty) return;
-                            setState(() => _cardBackground = s.first,);
-                            PlayerSettings.setCardBackground(s.first,);
-                          } : null,
-                          style: const ButtonStyle(visualDensity: VisualDensity.compact,
-                                      ),
-                                    ),),
-                      ],),
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (!isDesktopSettings) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12,),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(l.cardBackground, style: tt.bodyMedium?.copyWith(color: cs.onSurface,
+                                      ),),
+                          const SizedBox(height: 8),
+                          SizedBox(width: double.infinity, child: SegmentedButton<String>(
+                            showSelectedIcon: false,
+                            segments: [
+                              ButtonSegment(value: 'blurred', icon: const Icon(Icons.blur_on_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundBlurred,
+                                              ),
+                                            ),),
+                              ButtonSegment(value: 'gradient', icon: const Icon(Icons.gradient_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundGradient,
+                                              ),
+                                            ),),
+                              ButtonSegment(value: 'off', icon: const Icon(Icons.block_rounded, size: 18,), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.off),
+                                            ),),
+                            ],
+                            selected: {_cardBackground},
+                            onSelectionChanged: _loaded ? (s) {
+                              if (s.isEmpty) return;
+                              setState(() => _cardBackground = s.first,);
+                              PlayerSettings.setCardBackground(s.first,);
+                            } : null,
+                            style: const ButtonStyle(visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),),
+                        ],),
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    ],
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 14,),
                       child: Column(
@@ -2198,6 +2211,25 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (isDesktopSettings) ...[
+                      SwitchListTile(
+                        title: Text(l.chapterProgressInNowPlayingBar),
+                        subtitle: Text(
+                          _notifChapterProgress
+                              ? l.chapterProgressInNowPlayingBarOnSubtitle
+                              : l.chapterProgressInNowPlayingBarOffSubtitle,
+                          style: tt.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                        value: _notifChapterProgress,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _notifChapterProgress = v);
+                          PlayerSettings.setNotificationChapterProgress(v);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    ],
                     ValueListenableBuilder<bool>(
                       valueListenable: classicWordingNotifier,
                       builder: (context, _, __) {
@@ -2814,6 +2846,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 16),
 
                 // ── Media Controls ──
+                if (!isDesktopSettings) ...[
                 CollapsibleSection(
                   key: _keyFor('Media Controls'),
                   icon: Icons.dvr_rounded,
@@ -2892,9 +2925,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ],
                 ),
-                        if (!isDesktopSettings ||
-                            expandedSection == 'Media Controls')
                 const SizedBox(height: 16),
+                ],
 
                 // ── Sleep Timer ──
                 CollapsibleSection(
@@ -3880,12 +3912,21 @@ class SettingsScreenState extends State<SettingsScreen> {
                     if (_loggingEnabled && LogService().enabled) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16,),
                       ListTile(
-                        leading: Icon(Icons.attach_file_rounded, color: cs.primary,),
+                        leading: Icon(
+                          AppPlatform.isWeb
+                              ? Icons.download_rounded
+                              : Icons.attach_file_rounded,
+                          color: cs.primary,
+                        ),
                         title: Text(l.sendLogs),
                         subtitle: Text(l.sendLogsSubtitle,
                           style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant,
                                   ),),
-                        trailing: const Icon(Icons.chevron_right_rounded,),
+                        trailing: Icon(
+                          AppPlatform.isWeb
+                              ? Icons.download_rounded
+                              : Icons.chevron_right_rounded,
+                        ),
                         onTap: () async {
                           try {
                             final box = context.findRenderObject() as RenderBox?;
@@ -3936,6 +3977,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                           desktopMode: isDesktopSettings,
                   onExpansionChanged: (v) => _onSectionExpanded('Advanced', v),
                   children: [
+                    if (!AppPlatform.isWeb) ...[
                     SwitchListTile(
                       title: Row(children: [
                         Flexible(child: Text(l.localServer)),
@@ -3992,6 +4034,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
+                    ],
                     if (!AppPlatform.isWeb)
                       SwitchListTile(
                       title: Row(children: [
@@ -4032,7 +4075,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                     if (_isGithubBuild) ...[
-                      const Divider(height: 1, indent: 16, endIndent: 16,),
+                      if (!AppPlatform.isWeb)
+                        const Divider(height: 1, indent: 16, endIndent: 16,),
                       SwitchListTile(
                         title: Row(children: [
                           Flexible(child: Text(l.includePreReleases)),
@@ -4051,7 +4095,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                         } : null,
                       ),
                     ],
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (!AppPlatform.isWeb || _isGithubBuild)
+                      const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
                       leading: Icon(Icons.menu_book_rounded, color: cs.primary,),
                       title: Text(l.adminRmab),

@@ -641,6 +641,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get absorbingManageQueue => 'Warteschlange verwalten';
 
   @override
+  String get desktopAbsorbingQueueHint =>
+      'Use Add to Absorbing on a book or episode to put it here. Items play in this order.';
+
+  @override
   String get absorbingDone => 'Fertig';
 
   @override
@@ -1274,7 +1278,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get fullBookScrubberOffSubtitle => 'Aus - nur Fortschrittsbalken';
 
   @override
-  String get cardScrubbers => 'Card scrubbers';
+  String get cardScrubbers => 'Progress bars';
 
   @override
   String get cardScrubbersBoth => 'Both';
@@ -1542,6 +1546,18 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get chapterProgressOnSubtitleIos =>
       'An - Sperrbildschirm & CarPlay zeigen Kapitel Fortschritt';
+
+  @override
+  String get chapterProgressInNowPlayingBar =>
+      'Chapter progress in now playing bar';
+
+  @override
+  String get chapterProgressInNowPlayingBarOnSubtitle =>
+      'On - the bottom player shows current chapter progress';
+
+  @override
+  String get chapterProgressInNowPlayingBarOffSubtitle =>
+      'Off - the bottom player shows full book progress';
 
   @override
   String get speedBookmarkInControls =>

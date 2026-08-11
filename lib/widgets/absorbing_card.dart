@@ -1140,8 +1140,12 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          ..._buildButtonGrid(accent, tt),
-                          if (!_moreInline) ...[
+                          ..._buildButtonGrid(
+                            accent,
+                            tt,
+                            showAll: desktopPresentation,
+                          ),
+                          if (!desktopPresentation && !_moreInline) ...[
                           const SizedBox(height: 6),
                           Center(
                             child: ListenableBuilder(
@@ -1213,6 +1217,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                   totalChapters: totalChapters,
                   itemId: _itemId,
                   compact: compact,
+                  showBookPercentage: true,
                 ),
               ),
             );
@@ -1492,7 +1497,11 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
   int get _visibleButtonCount => _buttonVisibleCount;
 
-  List<Widget> _buildButtonGrid(Color accent, TextTheme tt) => _makeActions().buildButtonGrid(accent, tt);
+  List<Widget> _buildButtonGrid(
+    Color accent,
+    TextTheme tt, {
+    bool showAll = false,
+  }) => _makeActions().buildButtonGrid(accent, tt, showAll: showAll);
 
   void _showMoreMenu(BuildContext context, Color accent, TextTheme tt) => _makeActions().showMoreMenu(accent, tt);
 

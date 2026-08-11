@@ -641,6 +641,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get absorbingManageQueue => 'Gérer la file d\'attente';
 
   @override
+  String get desktopAbsorbingQueueHint =>
+      'Use Add to Absorbing on a book or episode to put it here. Items play in this order.';
+
+  @override
   String get absorbingDone => 'Fait';
 
   @override
@@ -1274,7 +1278,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Désactivé - barre de progression uniquement';
 
   @override
-  String get cardScrubbers => 'Card scrubbers';
+  String get cardScrubbers => 'Progress bars';
 
   @override
   String get cardScrubbersBoth => 'Both';
@@ -1344,7 +1348,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get mergeLibrariesOnSubtitle =>
-      'Absorbing page shows items from all libraries';
+      'Show and queue items from all libraries together';
 
   @override
   String get mergeLibrariesOffSubtitle =>
@@ -1368,7 +1372,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get queueModeInfoManualDesc =>
-      'Your absorbing cards act as a playlist. When one finishes, the next non-finished card auto-plays. Add items with the \"Add to Absorbing\" button on a book or episode and reorder from the absorbing screen.';
+      'Items in Absorbing are your manual queue. When one finishes, the next unfinished item plays. Use Add to Absorbing on a book or episode, then reorder it in the Queue panel.';
 
   @override
   String get queueModeOff => 'Désactivé';
@@ -1541,6 +1545,18 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get chapterProgressOnSubtitleIos =>
       'On - lock screen & CarPlay show chapter progress';
+
+  @override
+  String get chapterProgressInNowPlayingBar =>
+      'Chapter progress in now playing bar';
+
+  @override
+  String get chapterProgressInNowPlayingBarOnSubtitle =>
+      'On - the bottom player shows current chapter progress';
+
+  @override
+  String get chapterProgressInNowPlayingBarOffSubtitle =>
+      'Off - the bottom player shows full book progress';
 
   @override
   String get speedBookmarkInControls => 'Speed & bookmark in media controls';
@@ -1939,14 +1955,14 @@ class AppLocalizationsFr extends AppLocalizations {
       'Logging disabled - restart app to stop capturing';
 
   @override
-  String get sendLogs => 'Send logs';
+  String get sendLogs => 'Export logs';
 
   @override
-  String get sendLogsSubtitle => 'Share log file as attachment';
+  String get sendLogsSubtitle => 'Download or share the .txt log file';
 
   @override
   String failedToShare(String error) {
-    return 'Failed to share: $error';
+    return 'Failed to export: $error';
   }
 
   @override
