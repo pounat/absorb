@@ -1077,10 +1077,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episodeFeedEmpty => 'Keine Folgen entsprechen diesem Filter';
 
   @override
-  String get podcastFilterUpNext => 'Up Next';
+  String get podcastFilterUpNext => 'Als Nächstes';
 
   @override
-  String get podcastFilterNew => 'New';
+  String get podcastFilterNew => 'Neu';
 
   @override
   String get settingsPodcastTab => 'Podcast-Tab';
@@ -1274,25 +1274,28 @@ class AppLocalizationsDe extends AppLocalizations {
   String get fullBookScrubberOffSubtitle => 'Aus - nur Fortschrittsbalken';
 
   @override
-  String get cardScrubbers => 'Card scrubbers';
+  String get cardScrubbers => 'Karten scrubber';
 
   @override
-  String get cardScrubbersBoth => 'Both';
+  String get cardScrubbersBoth => 'Beides';
 
   @override
-  String get cardScrubbersChapter => 'Chapter';
+  String get cardScrubbersChapter => 'Kapitel';
 
   @override
-  String get cardScrubbersLocked => 'Locked';
+  String get cardScrubbersLocked => 'Gesperrt';
 
   @override
-  String get cardScrubbersBothSubtitle => 'Full book and chapter bars can seek';
+  String get cardScrubbersBothSubtitle =>
+      'Vollständige Buch- und Kapitelleisten können suchen';
 
   @override
-  String get cardScrubbersChapterSubtitle => 'Only the chapter bar can seek';
+  String get cardScrubbersChapterSubtitle =>
+      'Nur die Kapitelleiste kann suchen';
 
   @override
-  String get cardScrubbersLockedSubtitle => 'Progress is shown without seeking';
+  String get cardScrubbersLockedSubtitle =>
+      'Fortschritt wird angezeigt, ohne zu suchen';
 
   @override
   String get speedAdjustedTime => 'Geschwindigkeitsangepasste Zeit';
@@ -2049,21 +2052,21 @@ class AppLocalizationsDe extends AppLocalizations {
   String get trustAllCertificatesInfoTitle => 'Selbstsignierte Zertifikate';
 
   @override
-  String get mp3IndexSeeking => 'MP3 index seeking';
+  String get mp3IndexSeeking => 'MP3-Indexsuche';
 
   @override
-  String get mp3IndexSeekingInfoTitle => 'MP3 Index Seeking';
+  String get mp3IndexSeekingInfoTitle => 'MP3-Indexsuche';
 
   @override
   String get mp3IndexSeekingInfoContent =>
-      'Only enable this if you have MP3 files that don\'t seek to the right position. Inaccurate seeking usually comes from variable bitrate (VBR) MP3s. Index seeking builds an exact time map as the file is read, so jumping near the end of a large MP3 can take a moment - especially when streaming, since the file has to be read up to that point. Takes effect the next time a book or podcast episode starts.';
+      'Aktivieren dies nur, wenn deine MP3-Dateien nicht an die richtige Stelle springen. Dies ist gewöhnlicherweise eine Auswirkung von variablen Bitraten (VBR) MP3s. Die Indexsuche erstellt eine exakte Zeitkarte beim Wiedergeben der Datei, so dass ein Sprung ans Ende einer großen MP3 einen Moment dauern kann - vor allem beim Streamen, da die Datei bis zu diesem Punkt gelesen werden muss. Die Aktivierung wird erst beim nächsten Start eines Buches oder einer Podcast-Episode wirksam.';
 
   @override
   String get mp3IndexSeekingOnSubtitle =>
-      'On - exact seeking for VBR MP3 files';
+      'An - exakte Suche bei VBR MP3 Dateien';
 
   @override
-  String get mp3IndexSeekingOffSubtitle => 'Off - normal seeking';
+  String get mp3IndexSeekingOffSubtitle => 'Aus - normale Suche';
 
   @override
   String get trustAllCertificatesInfoContent =>
@@ -2194,117 +2197,121 @@ class AppLocalizationsDe extends AppLocalizations {
   String get signOut => 'Abmelden';
 
   @override
-  String get changePasswordTitle => 'Change Password';
+  String get changePasswordTitle => 'Passwort ändern';
 
   @override
   String get changePasswordSubtitle =>
-      'Update your Audiobookshelf password safely';
+      'Aktualisiere sicher dein Audiobookshelf Passwort';
 
   @override
-  String get currentPassword => 'Current password';
+  String get currentPassword => 'Aktuelles Passwort';
 
   @override
-  String get newPassword => 'New password';
+  String get newPassword => 'Neues Passwort';
 
   @override
-  String get confirmNewPassword => 'Confirm new password';
+  String get confirmNewPassword => 'Neues Passwort bestätigen';
 
   @override
   String get passwordChangeEffect =>
-      'Changing your password signs out your other Audiobookshelf sessions. This device stays signed in.';
+      'Das Ändern deines Passworts meldet dich von allen anderen Audiobookshelf Sitzungen ab. Dieses Gerät bleibt angemeldet.';
 
   @override
-  String get passwordFieldsRequired => 'Fill in all password fields';
+  String get passwordFieldsRequired => 'Alle Passwortfelder ausfüllen';
 
   @override
-  String get passwordsDoNotMatch => 'New passwords do not match';
+  String get passwordsDoNotMatch =>
+      'Die neuen Passwörter stimmen nicht überein';
 
   @override
   String get passwordChanged =>
-      'Password changed. Other signed-in devices were disconnected.';
+      'Passwort geändert. Andere angemeldete Geräte wurden getrennt.';
 
   @override
-  String get passwordInvalid => 'The current password is incorrect';
+  String get passwordInvalid => 'Das aktuelle Kennwort ist falsch';
 
   @override
   String get passwordChangeUnsupported =>
-      'This server version does not support safe password changes in Absorb';
+      'Diese Server-Version unterstützt keine sicheren Passwortänderungen in Absorb';
 
   @override
-  String get passwordChangeFailed => 'Could not change your password';
+  String get passwordChangeFailed =>
+      'Dein Passwort konnte nicht geändert werden';
 
   @override
   String get otherUserPasswordResetWarning =>
-      'Changing this password signs the user out on every device.';
+      'Das Ändern dieses Passworts meldet den Benutzer auf allen Geräten ab.';
 
   @override
-  String get manageSessionsTitle => 'Signed-in Devices';
+  String get manageSessionsTitle => 'Angemeldete Geräte';
 
   @override
   String get manageSessionsSubtitle =>
-      'Review and remove Audiobookshelf sessions';
+      'Audiobookshelf Sitzungen überprüfen und entfernen';
 
   @override
-  String get sessionsCurrent => 'Current device';
+  String get sessionsCurrent => 'Aktuelles Gerät';
 
   @override
-  String get sessionsUnknownDevice => 'Unknown device';
+  String get sessionsUnknownDevice => 'Unbekanntes Gerät';
 
   @override
   String sessionsLastActive(String date) {
-    return 'Last active $date';
+    return 'Zuletzt aktiv $date';
   }
 
   @override
-  String get sessionsNone => 'No active sessions';
+  String get sessionsNone => 'Keine aktiven Sitzungen';
 
   @override
-  String get sessionsLoadMore => 'Load more';
+  String get sessionsLoadMore => 'Mehr laden';
 
   @override
   String get sessionsUnsupported =>
-      'Session management requires Audiobookshelf 2.36 or newer.';
+      'Das Session-Management benötigt Audiobookshelf 2.36 oder neuer.';
 
   @override
-  String get sessionsLoadFailed => 'Could not load signed-in devices';
+  String get sessionsLoadFailed =>
+      'Angemeldete Geräte konnten nicht geladen werden';
 
   @override
   String get sessionsLegacyNotice =>
-      'This login does not have a refresh session, so Absorb cannot identify this device in the list.';
+      'Dieser Login hat keine Sitzungsaktualisierung, daher kann Absorb dieses Gerät nicht in der Liste identifizieren.';
 
   @override
-  String get sessionsRemove => 'Sign out device';
+  String get sessionsRemove => 'Gerät abmelden';
 
   @override
-  String get sessionsRemoveTitle => 'Sign out this device?';
+  String get sessionsRemoveTitle => 'Dieses Gerät abmelden?';
 
   @override
   String get sessionsRemoveContent =>
-      'This removes its refresh session. Its current access may keep working until that short-lived token expires.';
+      'Dies entfernt die Sitzungsaktualisierung. Der aktuelle Zugriff funktioniert eventuell weiter, bis das kurzlebige Token abläuft.';
 
   @override
-  String get sessionsRemoved => 'Device signed out';
+  String get sessionsRemoved => 'Gerät abgemeldet';
 
   @override
-  String get sessionsRemoveFailed => 'Could not sign out that device';
+  String get sessionsRemoveFailed => 'Das Gerät konnte nicht abgemeldet werden';
 
   @override
-  String get sessionsSignOutAll => 'Sign out all devices';
+  String get sessionsSignOutAll => 'Alle Geräte abmelden';
 
   @override
-  String get sessionsSignOutAllTitle => 'Sign out everywhere?';
+  String get sessionsSignOutAllTitle => 'Überall abmelden?';
 
   @override
   String get sessionsSignOutAllContent =>
-      'This removes every refresh session, including this device. Existing access tokens may work until they expire.';
+      'Dies entfernt jede Sitzungsaktualisierung, einschließlich dieses Geräts. Vorhandene Zugriffs-Token können bis zum Ablauf funktionieren.';
 
   @override
   String podcastScheduleServerTime(String timeZone) {
-    return 'Schedule uses server time ($timeZone)';
+    return 'Zeitplan verwendet die Serverzeit ($timeZone)';
   }
 
   @override
-  String get podcastScheduleServerTimeUnknown => 'Schedule uses server time';
+  String get podcastScheduleServerTimeUnknown =>
+      'Zeitplan verwendet die Serverzeit';
 
   @override
   String get editServerAddressTitle => 'Serveradresse bearbeiten';
@@ -2328,25 +2335,26 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editServerAddressAction => 'Serveradresse bearbeiten';
 
   @override
-  String get editServerConnectionTitle => 'Edit Server Connection';
+  String get editServerConnectionTitle => 'Server-Verbindung bearbeiten';
 
   @override
   String editServerConnectionSubtitle(String username) {
-    return 'Update the server address and custom headers for $username. Your stats and downloads are kept.';
+    return 'Aktualisieren die Serveradresse und die benutzerdefinierten Header für $username. Deine Statistiken und Downloads werden beibehalten.';
   }
 
   @override
-  String get editServerConnectionAction => 'Edit server connection';
+  String get editServerConnectionAction => 'Server-Verbindung bearbeiten';
 
   @override
-  String get editServerConnectionUpdated => 'Server connection updated';
+  String get editServerConnectionUpdated => 'Serververbindung aktualisiert';
 
   @override
-  String get editServerConnectionFailed => 'Couldn\'t update server connection';
+  String get editServerConnectionFailed =>
+      'Serververbindung konnte nicht aktualisiert werden';
 
   @override
   String get editCustomHeadersDescription =>
-      'Used for Cloudflare tunnels or reverse proxies. These headers apply only to this saved account.';
+      'Wird für Cloudflare Tunnel oder Reverse Proxies verwendet. Diese Header gelten nur für dieses gespeicherte Konto.';
 
   @override
   String get removeAccountAction => 'Konto entfernen';
@@ -2627,7 +2635,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get rmabConfigHeadersHelp =>
-      'Extra headers sent with every ReadMeABook request, for reverse proxies like Cloudflare Access.';
+      'Zusätzliche Header, die mit jeder ReadMeABook-Anfrage gesendet werden, für Reverse Proxies wie Cloudflare Access.';
 
   @override
   String get rmabConfigConnect => 'Verbinden';
@@ -2886,7 +2894,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editServerDetails => 'Server-Details bearbeiten';
 
   @override
-  String get encodeTab => 'Kodieren';
+  String get encodeTab => 'Verschlüsseln';
 
   @override
   String get codec => 'Codec';
@@ -2945,12 +2953,12 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String audioTracksCount(int count) {
-    return 'Audio Tracks ($count)';
+    return 'Audio-Tracks ($count)';
   }
 
   @override
   String libraryFilesCount(int count) {
-    return 'Library Files ($count)';
+    return 'Bibliotheks-Dateien ($count)';
   }
 
   @override
@@ -3189,7 +3197,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get selectAll => 'Alle auswählen';
 
   @override
-  String get deselectAll => 'Deselect All';
+  String get deselectAll => 'Alle abwählen';
 
   @override
   String get autoDownloadThisPodcast =>
@@ -3482,7 +3490,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get welcomeAbsorbingIntro =>
-      'Wir verwenden \"Absorb\" anstelle von \"abspielen\" und \"hören\". Du bevorzugst die klassischen Begriffe? Das kannst du in den Einstellungen umstellen.';
+      'Wir verwenden \"Absorb\" anstelle von \"abspielen\" und \"hören\".';
 
   @override
   String get welcomeAbsorbingTabBullet => 'Absorbing-Tab - was du gerade hörst';
@@ -3561,7 +3569,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String serverUpdateAvailable(String version) {
-    return 'Server update $version available';
+    return 'Serverupdate $version verfügbar';
   }
 
   @override

@@ -1,3 +1,16 @@
 {
-  "@@locale": "it"
+  "@@locale": "it",
+  "appTitle": "A B S O R B",
+  "loginHeaderName": "Nome intestazione",
+  "loginTrustAllCertificates": "Fidati di tutti i certificati (per le impostazioni CA auto-firmate / personalizzate)",
+  "adminSetupFileNoteWithHeaders": "Una chiave API dedicata e le tue intestazioni personalizzate saranno incluse in modo che possano raggiungere il server. Trattare il link come una password.",
+  "setupLinkShareDescription": "Invia questo link privato o scansiona il codice QR per accedere come {username}.",
+  "@setupLinkShareDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSessionExpired": "Impostazioni ripristinate. Sessione scaduta - accedi per continuare."
 }
