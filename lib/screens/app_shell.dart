@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
@@ -12,6 +13,7 @@ import '../services/chromecast_service.dart';
 import '../services/home_widget_service.dart';
 import '../services/server_task_tracker.dart';
 import '../services/sleep_timer_service.dart';
+import '../services/audiobookshelf_update_service.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
@@ -204,6 +206,8 @@ class _AppShellState extends State<AppShell>
   Object? _serverTaskPollingApi;
   bool _serverTaskPollingEnabled = false;
   bool _serverTaskPollingSyncScheduled = false;
+  final AudiobookshelfUpdateController _serverUpdateController =
+      AudiobookshelfUpdateController.instance;
 
   Future<void> _loadDesktopSidebarPreference() async {
     final generation = _desktopSidebarPreferenceGeneration;
@@ -501,6 +505,7 @@ class _AppShellState extends State<AppShell>
     _instance = this;
     if (AppPlatform.isWeb) {
       _serverTaskTracker = ServerTaskTracker();
+      _serverUpdateController.addListener(_onServerUpdateChanged);
     }
     _paneNavigatorObserver = _PaneNavigatorObserver(_syncPaneRouteState);
     DesktopWorkspaceNavigator.register(() => _paneNavigatorKey.currentState);
@@ -620,6 +625,10 @@ class _AppShellState extends State<AppShell>
     await UpdateDialog.show(context, info);
   }
 
+  void _onServerUpdateChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _fadeController.dispose();
@@ -629,6 +638,9 @@ class _AppShellState extends State<AppShell>
     _cast.removeListener(_onCastChanged);
     _serverTaskRefreshTimer?.cancel();
     _serverTaskTracker?.dispose();
+    if (AppPlatform.isWeb) {
+      _serverUpdateController.removeListener(_onServerUpdateChanged);
+    }
     PlayerSettings.settingsChanged.removeListener(_loadPodcastTabPrefs);
     try {
       context.read<LibraryProvider>().removeListener(_onLibraryChanged);
@@ -1130,54 +1142,47 @@ class _AppShellState extends State<AppShell>
     final serverLabel = parsedServer?.host.isNotEmpty == true
         ? parsedServer!.host
         : serverUrl;
+    final serverVersion = auth.serverVersion?.trim();
+    if (serverVersion != null &&
+        serverVersion.isNotEmpty &&
+        _serverUpdateController.shouldCheck(serverVersion)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(
+            _serverUpdateController.check(currentVersion: serverVersion),
+          );
+        }
+      });
+    }
     final taskTracker = _serverTaskTracker;
     void openSearch() => _openSearch();
 
     Widget buildBranding(List<ServerTask> tasks) {
       final showTasks = auth.isAdmin && tasks.isNotEmpty && taskTracker != null;
-      return Row(
-        mainAxisAlignment: extended
-            ? MainAxisAlignment.start
-            : MainAxisAlignment.center,
-        children: [
-          if (!extended && showTasks)
-            AdminTaskIndicator(
-              tasks: tasks,
-              onPressed: () => showAdminTasksSheet(context, taskTracker),
-            )
-          else
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: cs.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.graphic_eq_rounded,
-                color: cs.onPrimaryContainer,
-              ),
-            ),
-          if (extended) ...[
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                l.appTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.4,
-                ),
-              ),
-            ),
-            if (showTasks)
-              AdminTaskIndicator(
+      return DesktopSidebarBranding(
+        extended: extended,
+        leading: showTasks
+            ? AdminTaskIndicator(
                 tasks: tasks,
                 onPressed: () => showAdminTasksSheet(context, taskTracker),
+              )
+            : Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.graphic_eq_rounded,
+                  color: cs.onPrimaryContainer,
+                ),
               ),
-          ],
-        ],
+        title: l.appTitle,
+        titleStyle: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
       );
     }
 
@@ -1230,8 +1235,8 @@ class _AppShellState extends State<AppShell>
           children: [
             Padding(
               padding: extended
-                  ? const EdgeInsets.fromLTRB(20, 18, 60, 12)
-                  : const EdgeInsets.fromLTRB(12, 18, 12, 12),
+                  ? const EdgeInsets.fromLTRB(12, 13, 60, 7)
+                  : const EdgeInsets.fromLTRB(12, 13, 12, 7),
               child: auth.isAdmin && taskTracker != null
                   ? ListenableBuilder(
                       listenable: taskTracker,
@@ -1355,6 +1360,12 @@ class _AppShellState extends State<AppShell>
                         ),
                       ),
               ),
+            if (serverVersion != null && serverVersion.isNotEmpty)
+              _buildDesktopServerVersion(
+                context,
+                version: serverVersion,
+                extended: extended,
+              ),
             Divider(
               height: 1,
               color: cs.outlineVariant.withValues(alpha: 0.45),
@@ -1366,6 +1377,154 @@ class _AppShellState extends State<AppShell>
               onPressed: openAccountMenu,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopServerVersion(
+    BuildContext context, {
+    required String version,
+    required bool extended,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l = AppLocalizations.of(context)!;
+    final checkedFor = _serverUpdateController.checkedFor;
+    final isCurrentVersion = checkedFor == version;
+    final update = isCurrentVersion ? _serverUpdateController.update : null;
+    final isChecking = isCurrentVersion && _serverUpdateController.isChecking;
+    final versionLabel = l.serverVersionLabel(version);
+    final updateLabel = update == null
+        ? null
+        : l.serverUpdateAvailable(update.latestVersion);
+    final tooltip = updateLabel == null
+        ? versionLabel
+        : '$versionLabel\n$updateLabel';
+
+    void openUpdate() {
+      if (update == null) return;
+      unawaited(
+        launchUrl(
+          Uri.parse(update.releaseUrl),
+          mode: LaunchMode.externalApplication,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: update == null
+              ? Colors.transparent
+              : cs.primaryContainer.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: update == null ? null : openUpdate,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: extended
+                  ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+                  : const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
+              child: extended
+                  ? Row(
+                      children: [
+                        Icon(
+                          update == null
+                              ? Icons.dns_outlined
+                              : Icons.system_update_alt_rounded,
+                          size: 18,
+                          color: update == null
+                              ? cs.onSurfaceVariant
+                              : cs.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                versionLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
+                              if (updateLabel != null)
+                                Text(
+                                  updateLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (isChecking)
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          )
+                        else if (update != null)
+                          Icon(
+                            Icons.open_in_new_rounded,
+                            size: 16,
+                            color: cs.primary,
+                          ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isChecking)
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          )
+                        else
+                          Icon(
+                            update == null
+                                ? Icons.dns_outlined
+                                : Icons.system_update_alt_rounded,
+                            size: 18,
+                            color: update == null
+                                ? cs.onSurfaceVariant
+                                : cs.primary,
+                          ),
+                        const SizedBox(height: 3),
+                        Text(
+                          version,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: update == null
+                                ? cs.onSurfaceVariant
+                                : cs.primary,
+                            fontSize: 10,
+                            fontWeight: update == null
+                                ? FontWeight.w500
+                                : FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
         ),
       ),
     );

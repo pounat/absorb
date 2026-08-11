@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../services/api_service.dart';
+import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/bookmark_preview_player.dart';
 import '../services/download_service.dart';
@@ -43,6 +44,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
   late double _seconds;
   late final BookmarkPreviewPlayer _preview;
   bool _saving = false;
+  // Display-only speed division (speed-adjusted-time setting). _seconds stays
+  // raw book time throughout - preview, clip export, jump and save all use it.
+  double _displaySpeed = 1.0;
 
   @override
   void initState() {
@@ -52,9 +56,23 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     // Clamp a stray negative position to 0 so it shows 0:00 (not "59:59") and
     // self-heals to 0 if the user saves.
     _seconds = widget.bookmark.positionSeconds < 0 ? 0.0 : widget.bookmark.positionSeconds;
-    _preview = BookmarkPreviewPlayer(itemId: widget.itemId, api: widget.api)
+    _preview = BookmarkPreviewPlayer(
+        itemId: widget.itemId, api: widget.api, label: 'bookmark')
       ..clipLength = const Duration(seconds: 60)
       ..addListener(_onPreview);
+    _loadDisplaySpeed();
+  }
+
+  Future<void> _loadDisplaySpeed() async {
+    if (!await PlayerSettings.getSpeedAdjustedTime()) return;
+    final player = AudioPlayerService();
+    final speed = player.currentItemId == widget.itemId
+        ? player.speed
+        : (await PlayerSettings.getBookSpeed(widget.itemId) ??
+            await PlayerSettings.getDefaultSpeed());
+    if (mounted && speed > 0 && speed != _displaySpeed) {
+      setState(() => _displaySpeed = speed);
+    }
   }
 
   void _onPreview() {
@@ -89,7 +107,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     try {
       await _preview.toggleAt(_seconds);
     } catch (e) {
-      debugPrint('[BookmarkPreview] toggle failed: $e');
+      debugPrint('[Preview] bookmark ${widget.itemId}: toggle failed: $e');
       // stop() resumes the main book we paused and resets for a retry.
       await _preview.stop();
       if (!mounted) return;
@@ -227,7 +245,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                 Text(l.editBookmark, style: tt.titleLarge),
                 const Spacer(),
                 Text(
-                  _fmt(_seconds),
+                  _fmt(_seconds / _displaySpeed),
                   style: tt.titleMedium?.copyWith(
                     color: cs.primary,
                     fontWeight: FontWeight.w600,
@@ -257,12 +275,14 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
             ),
             const SizedBox(height: 16),
             Row(children: [
-              _nudgeBtn('-5', _saving ? null : () => _nudge(-5)),
-              _nudgeBtn('-1', _saving ? null : () => _nudge(-1)),
+              // Nudges move the DISPLAYED time by the button amount, so the
+              // raw delta is scaled up by the display speed.
+              _nudgeBtn('-5', _saving ? null : () => _nudge(-5 * _displaySpeed)),
+              _nudgeBtn('-1', _saving ? null : () => _nudge(-1 * _displaySpeed)),
               Expanded(
                 child: Center(
                   child: Text(
-                    _fmt(_seconds),
+                    _fmt(_seconds / _displaySpeed),
                     style: tt.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       fontFeatures: [const FontFeature.tabularFigures()],
@@ -270,8 +290,8 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                   ),
                 ),
               ),
-              _nudgeBtn('+1', _saving ? null : () => _nudge(1)),
-              _nudgeBtn('+5', _saving ? null : () => _nudge(5)),
+              _nudgeBtn('+1', _saving ? null : () => _nudge(1 * _displaySpeed)),
+              _nudgeBtn('+5', _saving ? null : () => _nudge(5 * _displaySpeed)),
             ]),
             const SizedBox(height: 4),
             Center(

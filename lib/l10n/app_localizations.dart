@@ -2461,7 +2461,7 @@ abstract class AppLocalizations {
   /// No description provided for @speedAdjustedTimeOnSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'On - remaining time reflects playback speed'**
+  /// **'On - all times reflect your playback speed'**
   String get speedAdjustedTimeOnSubtitle;
 
   /// No description provided for @speedAdjustedTimeOffSubtitle.
@@ -2721,6 +2721,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto-download queue'**
   String get autoDownloadQueue;
+
+  /// No description provided for @autoDownloadThisSeriesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download this series'**
+  String get autoDownloadThisSeriesLabel;
+
+  /// No description provided for @autoDownloadThisShowLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download this podcast'**
+  String get autoDownloadThisShowLabel;
+
+  /// No description provided for @autoDownloadThisPlaylistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download this playlist'**
+  String get autoDownloadThisPlaylistLabel;
+
+  /// No description provided for @autoDownloadThisCollectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download this collection'**
+  String get autoDownloadThisCollectionLabel;
 
   /// No description provided for @autoDownloadQueueOnSubtitle.
   ///
@@ -3307,8 +3331,26 @@ abstract class AppLocalizations {
   /// No description provided for @autoDownloadSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Enable per series or podcast from their detail pages'**
+  /// **'Enable per series, podcast, playlist or collection from their detail pages'**
   String get autoDownloadSubtitle;
+
+  /// No description provided for @autoDownloadEnabledFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Turned on for'**
+  String get autoDownloadEnabledFor;
+
+  /// No description provided for @autoDownloadEnabledForNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet'**
+  String get autoDownloadEnabledForNone;
+
+  /// No description provided for @autoDownloadSourceUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not loaded yet'**
+  String get autoDownloadSourceUnnamed;
 
   /// No description provided for @keepNext.
   ///
@@ -3325,7 +3367,7 @@ abstract class AppLocalizations {
   /// No description provided for @keepNextInfoContent.
   ///
   /// In en, this message translates to:
-  /// **'The number of items to keep downloaded, including the one you\'re currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in the series or podcast will stay downloaded.'**
+  /// **'The number of items to keep downloaded, including the one you\'re currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in that series, podcast, playlist or collection will stay downloaded. This applies to every auto-download you turn on.'**
   String get keepNextInfoContent;
 
   /// No description provided for @deleteAbsorbedDownloads.
@@ -6106,6 +6148,54 @@ abstract class AppLocalizations {
   /// **'Delete permission required. Ask the root admin to grant you the delete permission.'**
   String get deletePermissionRequired;
 
+  /// No description provided for @deleteFilesCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Also delete the files on the server'**
+  String get deleteFilesCheckbox;
+
+  /// No description provided for @deleteFilesCheckedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The files are deleted from the server for good.'**
+  String get deleteFilesCheckedHint;
+
+  /// No description provided for @deleteFilesUncheckedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The files stay on the server, so the next library scan can add this back.'**
+  String get deleteFilesUncheckedHint;
+
+  /// No description provided for @deleteFromServerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete from Server'**
+  String get deleteFromServerAction;
+
+  /// No description provided for @deleteFromServerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete from server'**
+  String get deleteFromServerTitle;
+
+  /// No description provided for @deleteFromServerContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\" from Audiobookshelf?'**
+  String deleteFromServerContent(String title);
+
+  /// No description provided for @deletedFromServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted \"{title}\"'**
+  String deletedFromServer(String title);
+
+  /// No description provided for @deleteFromServerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete that. Check the server logs.'**
+  String get deleteFromServerFailed;
+
   /// No description provided for @playlistNotFound.
   ///
   /// In en, this message translates to:
@@ -7130,12 +7220,6 @@ abstract class AppLocalizations {
   /// **'Delete bookmark?'**
   String get deleteBookmarkQuestion;
 
-  /// No description provided for @bookmarkAtPosition.
-  ///
-  /// In en, this message translates to:
-  /// **'Bookmark at {position}'**
-  String bookmarkAtPosition(String position);
-
   /// No description provided for @cardIconsOnlyChip.
   ///
   /// In en, this message translates to:
@@ -7373,13 +7457,13 @@ abstract class AppLocalizations {
   /// No description provided for @adminMissingDeleteOneContent.
   ///
   /// In en, this message translates to:
-  /// **'Remove \"{title}\" from Audiobookshelf? The files on disk are not deleted.'**
+  /// **'Remove \"{title}\" from Audiobookshelf?'**
   String adminMissingDeleteOneContent(String title);
 
   /// No description provided for @adminMissingDeleteManyContent.
   ///
   /// In en, this message translates to:
-  /// **'Remove {count} entries from Audiobookshelf? The files on disk are not deleted.'**
+  /// **'Remove {count} entries from Audiobookshelf?'**
   String adminMissingDeleteManyContent(int count);
 
   /// No description provided for @adminMissingDeleteCount.
@@ -10308,7 +10392,7 @@ abstract class AppLocalizations {
   /// No description provided for @tipsSheetSpeedAdjustedTimeDesc.
   ///
   /// In en, this message translates to:
-  /// **'Time remaining and chapter times automatically adjust based on your playback speed. Listening at 1.5x? The time shown reflects how long it\'ll actually take you.'**
+  /// **'Every time shown - position, remaining, chapters, bookmarks - adjusts to your playback speed. Listening at 1.5x? The times shown reflect how long they\'ll actually take you.'**
   String get tipsSheetSpeedAdjustedTimeDesc;
 
   /// No description provided for @tipsSheetPlaybackHistoryTitle.
@@ -10731,6 +10815,18 @@ abstract class AppLocalizations {
   /// **'{showTitle} added to the end of your queue'**
   String lpSubscribedEpisodeAddedEnd(String showTitle);
 
+  /// No description provided for @lpSubscribedEpisodeDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'New {showTitle} episode downloaded'**
+  String lpSubscribedEpisodeDownloaded(String showTitle);
+
+  /// No description provided for @statsWeekStartsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Week starts on'**
+  String get statsWeekStartsOn;
+
   /// No description provided for @episodeListNewEpisodePosition.
   ///
   /// In en, this message translates to:
@@ -10754,6 +10850,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'End of queue'**
   String get episodeListPositionEnd;
+
+  /// No description provided for @episodeListPositionNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t add to queue'**
+  String get episodeListPositionNone;
+
+  /// No description provided for @episodeListPositionNoneDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Still notified and downloaded'**
+  String get episodeListPositionNoneDesc;
+
+  /// No description provided for @sleepRewindUndoNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Hit play within {minutes} minutes and the rewind is undone'**
+  String sleepRewindUndoNote(int minutes);
 
   /// No description provided for @lpQueueDownloadingItems.
   ///

@@ -757,7 +757,27 @@ class SimpleBookmarkSheet extends StatefulWidget {
 class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
   List<Bookmark>? _bookmarks;
   String _sort = 'newest';
-  @override void initState() { super.initState(); _loadSort(); }
+  bool _speedAdjustedTime = true;
+  double _savedSpeed = 1.0;
+  @override void initState() {
+    super.initState();
+    _loadSort();
+    PlayerSettings.getSpeedAdjustedTime().then((v) {
+      if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
+    });
+    PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
+      final speed = s ?? await PlayerSettings.getDefaultSpeed();
+      if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
+    });
+  }
+
+  double get _displaySpeed {
+    if (!_speedAdjustedTime) return 1.0;
+    if (_isCasting) return ChromecastService().castSpeed;
+    return widget.player.currentItemId == widget.itemId
+        ? widget.player.speed
+        : _savedSpeed;
+  }
   Future<void> _loadSort() async {
     _sort = await PlayerSettings.getBookmarkSort();
     // Show the local bookmarks first so the sheet never hangs on a slow or
@@ -896,7 +916,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                               Text(bm.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: tt.bodyMedium?.copyWith(color: cs.onSurface.withValues(alpha: 0.7))),
                               const SizedBox(height: 2),
-                              Text(bm.formattedPosition, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                              Text(bm.formattedAt(_displaySpeed), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
                               if (hasNote) ...[
                                 const SizedBox(height: 4),
                                 Container(
@@ -943,7 +963,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
         title: Text(l.deleteBookmarkQuestion),
         content: Text(l.bookmarksJumpShortContent(
           bookmark.title,
-          bookmark.formattedPosition,
+          bookmark.formattedAt(_displaySpeed),
         )),
         actions: [
           TextButton(
@@ -1001,12 +1021,13 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final pos = _isCasting
         ? cast.castPosition.inMilliseconds / 1000.0
         : widget.player.position.inMilliseconds / 1000.0;
-    final h = pos ~/ 3600; final m = (pos % 3600) ~/ 60; final s = pos.toInt() % 60;
-    final posStr = h > 0 ? '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}' : '$m:${s.toString().padLeft(2, '0')}';
 
-    // Find current chapter name for default title
+    // Default title is the current chapter name, or a plain "Bookmark". No
+    // timestamp in the title: the stored raw time would disagree with the
+    // speed-adjusted display here, and an adjusted one would disagree with the
+    // ABS web UI, which only knows raw times.
     final chapters = _isCasting ? cast.castingChapters : widget.player.chapters;
-    String defaultTitle = l.bookmarkAtPosition(posStr);
+    String defaultTitle = l.bookmark;
     for (final ch in chapters) {
       final cm = ch as Map<String, dynamic>;
       final cs = (cm['start'] as num?)?.toDouble() ?? 0;
@@ -2126,10 +2147,24 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
   late final TabController _tabController;
   late final Future<List<PlaybackEvent>> _localFuture;
   Future<List<Map<String, dynamic>>?>? _serverFuture;
+  bool _speedAdjustedTime = true;
+  double _savedSpeed = 1.0;
+
+  double get _displaySpeed {
+    if (!_speedAdjustedTime) return 1.0;
+    return widget.isActive ? widget.player.speed : _savedSpeed;
+  }
 
   @override
   void initState() {
     super.initState();
+    PlayerSettings.getSpeedAdjustedTime().then((v) {
+      if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
+    });
+    PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
+      final speed = s ?? await PlayerSettings.getDefaultSpeed();
+      if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
+    });
     _selectedTab = widget.initialTab.index;
     _tabController = TabController(
       length: 2,
@@ -2338,7 +2373,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
             lastDate = eventDate;
             items.add(_dateHeader(eventDate));
           }
-          final positionLabel = fmtTime(event.positionSeconds);
+          final positionLabel = fmtTime(event.positionSeconds / _displaySpeed);
           final isAdvancedEvent =
               kAdvancedHistoryEvents.contains(event.type);
           items.add(ListTile(

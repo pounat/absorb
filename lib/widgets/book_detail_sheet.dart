@@ -46,6 +46,7 @@ import 'html_description.dart';
 import 'metadata_lookup_sheet.dart';
 import 'playlist_picker_sheet.dart';
 import 'collection_picker_sheet.dart';
+import 'delete_confirm_dialog.dart';
 import 'absorb_wave_icon.dart';
 import 'adaptive_modal.dart';
 import 'stackable_sheet.dart';
@@ -192,6 +193,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _chaptersExpanded = false;
   bool _bookmarksExpanded = false;
   BookmarkPreviewPlayer? _preview;
+  bool? _loggedPreviewVisible;
   List<Bookmark> _bookmarks = [];
   bool _isAbsorbing = false;
   bool _hasLocalOverride = false;
@@ -202,8 +204,20 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   bool _narratorsExpanded = false;
   bool _squareCovers = false;
   bool _isUpdatingProgressDate = false;
+  bool _speedAdjustedTime = true;
+  double _savedSpeed = 1.0;
+  // Ebook synthesized from the offline reader cache, for downloads whose
+  // persisted metadata predates the trimmed-libraryItem fix. Read-only
+  // surfaces fall back to it; Save/Send still need the server's file entry.
+  Map<String, dynamic>? _cachedEbookFallback;
   ColorScheme? _rawCoverScheme;
   String? _coverSchemeUrl; // URL the current scheme was derived from
+
+  double get _displaySpeed {
+    if (!_speedAdjustedTime) return 1.0;
+    final player = AudioPlayerService();
+    return player.currentItemId == widget.itemId ? player.speed : _savedSpeed;
+  }
 
   /// The cover-derived scheme, unless the user has chosen a manual app color
   /// and opted to use it everywhere - then book pages wear that color too.
@@ -230,10 +244,18 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     SocketService().addItemUpdatedListener(_onSocketItemUpdated);
     PlayerSettings.getRectangleCovers().then((v) { if (mounted) setState(() => _squareCovers = !v); });
     PlayerSettings.getShowGoodreadsButton().then((v) { if (mounted) setState(() => _showGoodreads = v); });
+    PlayerSettings.getSpeedAdjustedTime().then((v) { if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v); });
+    PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
+      final speed = s ?? await PlayerSettings.getDefaultSpeed();
+      if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
+    });
     ScopedPrefs.getStringList('saved_ebooks').then((list) {
       if (mounted && list.contains(widget.itemId)) {
         setState(() => _ebookSaved = true);
       }
+    });
+    cachedEbookFileFor(widget.itemId).then((f) {
+      if (mounted && f != null) setState(() => _cachedEbookFallback = f);
     });
   }
 
@@ -532,7 +554,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final progressData = lib.getProgressData(widget.itemId);
     final isFinished = progressData?['isFinished'] == true;
     final currentTime = (progressData?['currentTime'] as num?)?.toDouble() ?? 0;
-    final ebookFile = resolveEbookFile(_item);
+    final ebookFile = resolveEbookFile(_item) ?? _cachedEbookFallback;
 
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
     // Preview only makes sense before the book has been started. The 60s
@@ -541,6 +563,16 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     // lag local playback.
     final showPreview = !isEbookOnly && !isFinished && currentTime < 60 &&
         progress * duration < 60 && duration > 0;
+    // Deduped on the value so this fires once per change, not once per rebuild.
+    // "I don't have a preview button" needs the inputs, not just the outcome.
+    if (showPreview != _loggedPreviewVisible) {
+      _loggedPreviewVisible = showPreview;
+      debugPrint('[Preview] book ${widget.itemId}: button ${showPreview ? "shown" : "hidden"} '
+          '(ebookOnly=$isEbookOnly finished=$isFinished '
+          'currentTime=${currentTime.toStringAsFixed(0)}s '
+          'played=${(progress * duration).toStringAsFixed(0)}s '
+          'duration=${duration.toStringAsFixed(0)}s)');
+    }
 
     return ListView(controller: widget.scrollController, padding: EdgeInsets.fromLTRB(20, 8, 20, 32 + MediaQuery.of(context).viewPadding.bottom), children: [
       Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
@@ -949,7 +981,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
               child: Row(children: [
                 SizedBox(width: 28, child: Text('${e.key + 1}', style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
                 Expanded(child: Text(ch['title'] as String? ?? l.chapterNumber(e.key + 1), maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6)))),
-                Text(formatHm(((ch['end'] as num?)?.toDouble() ?? 0) - ((ch['start'] as num?)?.toDouble() ?? 0)), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))),
+                Text(formatHm((((ch['end'] as num?)?.toDouble() ?? 0) - ((ch['start'] as num?)?.toDouble() ?? 0)) / _displaySpeed), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))),
               ]));
           })]],
       if (_bookmarks.isNotEmpty) ...[const SizedBox(height: 16),
@@ -962,7 +994,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             final hasNote = bm.note != null && bm.note!.isNotEmpty;
             return Padding(padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SizedBox(width: 56, child: Text(bm.formattedPosition, style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
+                SizedBox(width: 56, child: Text(bm.formattedAt(_displaySpeed), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(bm.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
                   if (hasNote)
@@ -987,7 +1019,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final title = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
     final duration = (media['duration'] as num?)?.toDouble() ?? 0;
-    final ebookFile = resolveEbookFile(_item);
+    final ebookFile = resolveEbookFile(_item) ?? _cachedEbookFallback;
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
 
     final lib = context.watch<LibraryProvider>();
@@ -1126,11 +1158,16 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         if (!AppPlatform.isWeb && ebookFile != null && canReadEbook(ebookFile)) {
           add(Icons.menu_book_rounded, l.readEbook, () => _openEbookReader(context, auth, ebookFile, title));
         }
-        if (!AppPlatform.isWeb && ebookFile != null) {
+        // Save/Send push the file elsewhere, which needs the server's own file
+        // entry (with ino) - the cache-synthesized fallback can't serve them.
+        final serverEbookFile = resolveEbookFile(_item);
+        if (!AppPlatform.isWeb && serverEbookFile != null) {
           add(_ebookSaved ? Icons.download_done_rounded : Icons.save_alt_rounded,
-            l.ebookSaveToDevice, () => _saveEbook(context, auth, ebookFile, title));
+            l.ebookSaveToDevice, () => _saveEbook(context, auth, serverEbookFile, title));
         }
-        if (!AppPlatform.isWeb && ebookFile != null && auth.ereaderDevices.isNotEmpty) {
+        if (!AppPlatform.isWeb &&
+            serverEbookFile != null &&
+            auth.ereaderDevices.isNotEmpty) {
           add(Icons.send_to_mobile_rounded, l.sendToEreader, () => _sendToEreader(context, auth));
         }
         if (progress > 0 || isFinished) {
@@ -1154,6 +1191,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         }
         if (auth.canUpdateMetadata && !lib.isOffline) {
           add(Icons.edit_rounded, l.edit, () => _openEditPage(auth, title, isEbookOnly));
+        }
+        if (auth.canDelete && !lib.isOffline) {
+          add(Icons.delete_outline_rounded, l.deleteFromServerAction,
+            () => _deleteFromServer(context, auth, lib, title), tint: cs.error);
         }
         if (includeOpenDetails) {
           add(Icons.open_in_full_rounded, l.bookDetailsLabel, () {
@@ -2069,41 +2110,70 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   /// is always short, so the first chapter long enough to be real prose is the
   /// sample point - capped to the first 10% of the book so a preview can never
   /// spoil. Books without a usable chapter land shortly past the credits.
-  double _previewStartSeconds(List<dynamic> chapters, double duration) {
+  /// Returns the start point and the rule that produced it. Every branch here
+  /// can land on the same number, so the reason has to be logged alongside it
+  /// or a "preview started somewhere odd" report is undiagnosable.
+  ({double seconds, String why}) _previewStartSeconds(
+      List<dynamic> chapters, double duration) {
     const minRealChapter = 300.0;
     const fallback = 90.0;
     final clampedFallback = duration * 0.25 < fallback ? duration * 0.25 : fallback;
     final spoilerCap = duration * 0.10;
+    var index = -1;
     for (final c in chapters) {
+      index++;
       if (c is! Map<String, dynamic>) continue;
       final start = (c['start'] as num?)?.toDouble() ?? 0;
       final end = (c['end'] as num?)?.toDouble() ?? 0;
       if (end - start >= minRealChapter && start <= spoilerCap) {
         // A qualifying chapter at 0:00 means the credits are baked into it
         // (single-file books) - nudge past them instead.
-        return start == 0 ? clampedFallback : start;
+        if (start == 0) {
+          return (
+            seconds: clampedFallback,
+            why: 'chapter[$index] qualifies but starts at 0:00, nudged past credits'
+          );
+        }
+        return (
+          seconds: start,
+          why: 'chapter[$index] is ${(end - start).toStringAsFixed(0)}s long '
+              'and starts at ${start.toStringAsFixed(0)}s (cap ${spoilerCap.toStringAsFixed(0)}s)'
+        );
       }
     }
-    return clampedFallback;
+    return (
+      seconds: clampedFallback,
+      why: 'no chapter >=${minRealChapter.toInt()}s starting within the first '
+          '${spoilerCap.toStringAsFixed(0)}s, fell back'
+    );
   }
 
   Future<void> _togglePreview(BuildContext context, List<dynamic> chapters, double duration) async {
     final l = AppLocalizations.of(context)!;
-    if (_preview?.isLoading ?? false) return;
+    if (_preview?.isLoading ?? false) {
+      // Every tap is a no-op while loading, which reads as a dead button if the
+      // audio never finishes buffering.
+      debugPrint('[Preview] book ${widget.itemId}: tap ignored, still loading');
+      return;
+    }
     if (_preview?.isPlaying ?? false) {
       await _preview!.stop();
       return;
     }
-    _preview ??= BookmarkPreviewPlayer(itemId: widget.itemId, api: context.read<AuthProvider>().apiService)
+    _preview ??= BookmarkPreviewPlayer(
+        itemId: widget.itemId,
+        api: context.read<AuthProvider>().apiService,
+        label: 'book')
       ..clipLength = const Duration(minutes: 5)
       ..stopOnClipEnd = true
       ..addListener(_onPreviewChanged);
-    final startAt = _previewStartSeconds(chapters, duration);
-    debugPrint('[BookDetail] preview start at ${startAt.toStringAsFixed(1)}s of ${duration.toStringAsFixed(0)}s');
+    final pick = _previewStartSeconds(chapters, duration);
+    debugPrint('[Preview] book ${widget.itemId}: start ${pick.seconds.toStringAsFixed(1)}s '
+        'of ${duration.toStringAsFixed(0)}s across ${chapters.length} chapters - ${pick.why}');
     try {
-      await _preview!.toggleAt(startAt);
+      await _preview!.toggleAt(pick.seconds);
     } catch (e) {
-      debugPrint('[BookDetail] preview failed: $e');
+      debugPrint('[Preview] book ${widget.itemId}: failed: $e');
       // stop() resumes the main book we paused and resets for a retry.
       await _preview?.stop();
       if (mounted) {
@@ -2129,13 +2199,14 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
   }
 
-  Future<void> _clearActivatedQueueSource() async {
+  Future<void> _restoreActivatedQueueSource(QueueModeSnapshot backup) async {
     final playlistId = widget.sourcePlaylistId;
     final collectionId = widget.sourceCollectionId;
     if (playlistId != null && playlistId.isNotEmpty) {
-      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+      await PlayerSettings.restoreQueueModeIfPlaylistActive(playlistId, backup);
     } else if (collectionId != null && collectionId.isNotEmpty) {
-      await PlayerSettings.clearQueueModeCollectionIfActive(collectionId);
+      await PlayerSettings.restoreQueueModeIfCollectionActive(
+          collectionId, backup);
     }
   }
 
@@ -2160,6 +2231,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
     final api = auth.apiService;
     if (api == null) return;
+    final queueModeBackup = await PlayerSettings.queueModeSnapshot();
     await _activateQueueSource();
 
     // Pop sheets and switch tab BEFORE starting playback. Otherwise the
@@ -2170,7 +2242,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
     final error = await player.playItem(api: api, itemId: widget.itemId, title: title, author: author, coverUrl: coverUrl, totalDuration: duration, chapters: chapters, libraryId: _item?['libraryId'] as String?);
     if (error != null) {
-      unawaited(_clearActivatedQueueSource());
+      unawaited(_restoreActivatedQueueSource(queueModeBackup));
       final ctx = rootNavigatorKey.currentContext;
       if (ctx != null) showErrorToast(ctx, error);
     } else {
@@ -2300,6 +2372,42 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         serverSuccess ? l.progressResetFreshStart : l.resetMayNotHaveSynced,
         icon: serverSuccess ? Icons.restart_alt_rounded : Icons.warning_amber_rounded,
       );
+    }
+  }
+
+  /// Delete the item on the server, optionally taking its files with it.
+  /// Needs the `delete` permission — the server answers 403 without it.
+  Future<void> _deleteFromServer(BuildContext context, AuthProvider auth,
+      LibraryProvider lib, String title) async {
+    final l = AppLocalizations.of(context)!;
+    final api = auth.apiService;
+    if (api == null) return;
+    final choice = await showDeleteConfirmDialog(
+      context,
+      title: l.deleteFromServerTitle,
+      message: l.deleteFromServerContent(title),
+    );
+    if (choice == null || !mounted) return;
+    // Grab these before the sheet goes: the toast needs an overlay that
+    // outlives it, and the pop needs the navigator the sheet sits on.
+    final navigator = Navigator.of(context);
+    final rootNavigator = rootNavigatorKey.currentState;
+    final status = await api.deleteLibraryItem(widget.itemId, hard: choice.hardDelete);
+    if (!mounted) return;
+    if (status == 200) {
+      final player = AudioPlayerService();
+      if (player.currentItemId == widget.itemId) {
+        await player.stopWithoutSaving();
+      }
+      await lib.removeFromAbsorbing(widget.itemId);
+      if (navigator.canPop()) navigator.pop();
+      await lib.refresh();
+      showNavigatorOverlayToast(rootNavigator, l.deletedFromServer(title),
+        icon: Icons.delete_outline_rounded);
+    } else if (status == 403) {
+      showOverlayToast(context, l.deletePermissionRequired, icon: Icons.lock_outline_rounded);
+    } else {
+      showOverlayToast(context, l.deleteFromServerFailed, icon: Icons.error_outline_rounded);
     }
   }
 

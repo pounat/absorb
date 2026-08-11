@@ -48,10 +48,17 @@ class ProgressSyncService {
     required double speed,
     bool? isFinished,
   }) async {
+    final existing = await getLocal(itemId);
     // Preserve existing isFinished flag if not explicitly provided
-    if (isFinished == null) {
-      final existing = await getLocal(itemId);
-      isFinished = existing?['isFinished'] as bool? ?? false;
+    isFinished ??= existing?['isFinished'] as bool? ?? false;
+    // Tripwire for the progress-loss family: a save that moves an item
+    // backward by minutes is almost always a bug upstream, not listening.
+    final previous = (existing?['currentTime'] as num?)?.toDouble();
+    if (previous != null && previous - currentTime > 300) {
+      debugPrint(
+        '[ProgressDiag] $itemId local save drops '
+        '${previous.toStringAsFixed(1)}s -> ${currentTime.toStringAsFixed(1)}s',
+      );
     }
     final data = {
       'itemId': itemId,

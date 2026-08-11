@@ -98,11 +98,15 @@ android {
     }
 }
 
-    // F-Droid builds one APK per ABI. Put the ABI in the lowest digit of the
-    // version code so a newer version always outranks an older one on every
-    // ABI (Flutter's own split scheme puts the ABI in the highest digit, which
-    // breaks F-Droid's update ordering). Universal builds have no ABI filter
-    // and keep the plain version code.
+    // F-Droid builds one APK per ABI and its recipe declares each build's code
+    // as versionCode * 10 + abiCode, so that scheme has to stay exactly as it
+    // is: flattening it would fail F-Droid's build and strand everyone already
+    // installed on a higher code, since F-Droid never offers a lower one.
+    // (Flutter's own split scheme puts the ABI in the highest digit, which
+    // breaks F-Droid's update ordering, hence the override in the first place.)
+    //
+    // Everywhere else every APK keeps the plain build number, so the universal
+    // APK and the per-ABI ones install over each other in either direction.
     val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
     applicationVariants.all {
         val variant = this
@@ -111,9 +115,21 @@ android {
             val abi = output.filters.find { it.filterType == "ABI" }?.identifier
             val abiCode = abiCodes[abi]
             if (abiCode != null) {
-                output.versionCodeOverride = variant.versionCode * 10 + abiCode
+                output.versionCodeOverride = if (variant.flavorName == "fdroid") {
+                    variant.versionCode * 10 + abiCode
+                } else {
+                    // Flutter's split plugin already set abi * 1000 + code here,
+                    // so the plain build number has to be written back over it.
+                    variant.versionCode
+                }
             }
-            val packageKind = abi ?: "universal"
+            // "all-universal" rather than "universal" so the every-ABI APK sorts
+            // above arm64-v8a/armeabi-v7a in the release asset list. Updaters
+            // built before 1.9.3+228 just take the first .apk they find, so the
+            // one that installs anywhere has to be the one they land on. The
+            // word "universal" stays in the name because newer updaters match it
+            // as a token when no per-ABI build fits.
+            val packageKind = abi ?: "all-universal"
             output.outputFileName =
                 "absorb-${variant.versionName}-${variant.versionCode}-$packageKind.apk"
         }

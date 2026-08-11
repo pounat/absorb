@@ -23,6 +23,9 @@ class BookCard extends StatelessWidget {
   final String? sourcePlaylistEpisodeId;
   final String? sourceCollectionId;
   final String? sourceCollectionName;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback? onSelectionToggle;
 
   const BookCard({
     super.key,
@@ -34,6 +37,9 @@ class BookCard extends StatelessWidget {
     this.sourcePlaylistEpisodeId,
     this.sourceCollectionId,
     this.sourceCollectionName,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelectionToggle,
   });
 
   @override
@@ -53,29 +59,70 @@ class BookCard extends StatelessWidget {
     // Progress from LibraryProvider (fetched via /api/me, same source as book detail)
     final progress = lib.getProgress(itemId);
     final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
-    final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
+    final isExplicit =
+        PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final isDownloaded = DownloadService().isDownloaded(itemId ?? '');
     // Only compute for podcast shows that aren't being rendered as an episode
     // (an episode card shows the recentEpisode payload, not show-level info).
-    final unfinishedCount = (lib.isPodcastLibrary && item['recentEpisode'] == null)
+    final unfinishedCount =
+        (lib.isPodcastLibrary && item['recentEpisode'] == null)
         ? lib.getUnfinishedEpisodeCount(item)
         : 0;
 
     final headers = lib.mediaHeaders;
 
     final card = isWide
-        ? _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit)
-        : _buildCompactCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
+        ? _buildWideCard(
+            context,
+            cs,
+            tt,
+            l,
+            title,
+            authorName,
+            coverUrl,
+            progress,
+            headers,
+            isExplicit: isExplicit,
+          )
+        : _buildCompactCard(
+            context,
+            cs,
+            tt,
+            l,
+            title,
+            authorName,
+            coverUrl,
+            progress,
+            headers,
+            isFinished: isFinished,
+            isDownloaded: isDownloaded,
+            isExplicit: isExplicit,
+            unfinishedCount: unfinishedCount,
+          );
 
-    final canEdit = itemId != null &&
+    final canEdit =
+        itemId != null &&
         !lib.isPodcastLibrary &&
         !lib.isOffline &&
         context.watch<AuthProvider>().canUpdateMetadata;
     return HoverCoverActions(
-      onMenu: itemId == null ? null : () => _onLongPress(context),
-      editItemId: canEdit ? itemId : null,
+      onMenu: itemId == null || selectionMode
+          ? null
+          : () => _onLongPress(context),
+      editItemId: canEdit && !selectionMode ? itemId : null,
+      selectionMode: selectionMode,
+      selected: selected,
+      onSelectionToggle: onSelectionToggle,
       child: card,
     );
+  }
+
+  void _handleTap(BuildContext context) {
+    if (selectionMode && onSelectionToggle != null) {
+      onSelectionToggle!();
+      return;
+    }
+    _navigateToDetail(context);
   }
 
   void _navigateToDetail(BuildContext context) {
@@ -160,8 +207,10 @@ class BookCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _navigateToDetail(context),
-        onLongPress: AppPlatform.isWeb ? null : () => _onLongPress(context),
+        onTap: () => _handleTap(context),
+        onLongPress: AppPlatform.isWeb || selectionMode
+            ? null
+            : () => _onLongPress(context),
         borderRadius: BorderRadius.circular(16),
         child: Row(
           children: [
@@ -171,23 +220,51 @@ class BookCard extends StatelessWidget {
               height: 120,
               child: Stack(
                 children: [
-                  _CoverImage(coverUrl: coverUrl, cs: cs, fit: BoxFit.contain, httpHeaders: headers),
+                  _CoverImage(
+                    coverUrl: coverUrl,
+                    cs: cs,
+                    fit: BoxFit.contain,
+                    httpHeaders: headers,
+                  ),
                   if (isExplicit)
                     Positioned(
-                      top: 4, right: DownloadService().isDownloaded(item['id'] as String? ?? '') ? 30 : 4,
+                      top: 4,
+                      right:
+                          DownloadService().isDownloaded(
+                            item['id'] as String? ?? '',
+                          )
+                          ? 30
+                          : 4,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(l.bookCardExplicitBadge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                        child: Text(
+                          l.bookCardExplicitBadge,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ),
-                  if (DownloadService().isDownloaded(item['id'] as String? ?? ''))
+                  if (DownloadService().isDownloaded(
+                    item['id'] as String? ?? '',
+                  ))
                     const Positioned(
-                      left: 0, right: 0, bottom: 0,
-                      child: CoverStateBadges(isDownloaded: true, isFinished: false),
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: CoverStateBadges(
+                        isDownloaded: true,
+                        isFinished: false,
+                      ),
                     ),
                 ],
               ),
@@ -195,7 +272,10 @@ class BookCard extends StatelessWidget {
             // Info section
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -280,8 +360,10 @@ class BookCard extends StatelessWidget {
         AspectRatio(
           aspectRatio: coverAspectRatio,
           child: _PressableCard(
-            onTap: () => _navigateToDetail(context),
-            onLongPress: AppPlatform.isWeb ? null : () => _onLongPress(context),
+            onTap: () => _handleTap(context),
+            onLongPress: AppPlatform.isWeb || selectionMode
+                ? null
+                : () => _onLongPress(context),
             borderRadius: 12,
             child: Card(
               elevation: 0,
@@ -294,7 +376,12 @@ class BookCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _CoverImage(coverUrl: coverUrl, cs: cs, httpHeaders: headers, coverAspectRatio: coverAspectRatio),
+                  _CoverImage(
+                    coverUrl: coverUrl,
+                    cs: cs,
+                    httpHeaders: headers,
+                    coverAspectRatio: coverAspectRatio,
+                  ),
                   if (progress > 0 && !isFinished)
                     Positioned(
                       left: 0,
@@ -317,12 +404,22 @@ class BookCard extends StatelessWidget {
                       top: unfinishedCount > 0 ? 26 : 4,
                       right: 4,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(l.bookCardExplicitBadge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                        child: Text(
+                          l.bookCardExplicitBadge,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ),
                   if (unfinishedCount > 0)
@@ -331,7 +428,9 @@ class BookCard extends StatelessWidget {
                       right: 4,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: cs.primary,
                           borderRadius: BorderRadius.circular(10),
@@ -348,11 +447,15 @@ class BookCard extends StatelessWidget {
                     ),
                   if (isFinished || isDownloaded)
                     Positioned(
-                      left: 0, right: 0, bottom: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
                       child: CoverStateBadges(
                         isDownloaded: isDownloaded,
                         isFinished: isFinished,
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(12),
+                        ),
                       ),
                     ),
                 ],
@@ -381,9 +484,7 @@ class BookCard extends StatelessWidget {
               authorName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: tt.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
             ),
           ),
       ],
@@ -399,7 +500,13 @@ class _CoverImage extends StatelessWidget {
   final Map<String, String> httpHeaders;
   final double coverAspectRatio;
 
-  const _CoverImage({required this.coverUrl, required this.cs, this.fit = BoxFit.cover, this.httpHeaders = const {}, this.coverAspectRatio = 1.0});
+  const _CoverImage({
+    required this.coverUrl,
+    required this.cs,
+    this.fit = BoxFit.cover,
+    this.httpHeaders = const {},
+    this.coverAspectRatio = 1.0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -416,8 +523,16 @@ class _CoverImage extends StatelessWidget {
       if (file.existsSync()) {
         return BlurPaddedCover(
           enabled: isSquare,
-          blurChild: Image.file(file, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-          child: Image.file(file, fit: effectiveFit, errorBuilder: (_, __, ___) => _placeholder()),
+          blurChild: Image.file(
+            file,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+          child: Image.file(
+            file,
+            fit: effectiveFit,
+            errorBuilder: (_, __, ___) => _placeholder(),
+          ),
         );
       }
       return _placeholder();
@@ -486,9 +601,10 @@ class _PressableCardState extends State<_PressableCard>
       duration: const Duration(milliseconds: 100),
       reverseDuration: const Duration(milliseconds: 200),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.96).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.96,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -512,10 +628,7 @@ class _PressableCardState extends State<_PressableCard>
               _controller.reverse();
               widget.onLongPress!();
             },
-      child: ScaleTransition(
-        scale: _scale,
-        child: widget.child,
-      ),
+      child: ScaleTransition(scale: _scale, child: widget.child),
     );
   }
 }

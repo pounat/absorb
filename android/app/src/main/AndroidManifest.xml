@@ -6,6 +6,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
+    <!-- Android 14+ only allows a connectedDevice foreground service to start
+         when the app also holds one of a short list of device-adjacent
+         permissions. This is the least invasive of them: install-time, no
+         user prompt, and cast discovery is mDNS multicast anyway. Needed so
+         the Cast SDK's ReconnectionService (below) can actually run. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
@@ -114,6 +121,17 @@
             android:name=".CastForegroundService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!-- The Cast SDK's own session-resume service ships with no
+             foregroundServiceType, so startForeground() throws on API 34+ and
+             a background cast session that drops (e.g. an overnight WiFi
+             blip) can never auto-reconnect. Declaring the type here restores
+             the resume behavior AbsorbCastOptionsProvider already asks for
+             via setEnableReconnectionService(true). Fixes GH #338. -->
+        <service
+            android:name="com.google.android.gms.cast.framework.ReconnectionService"
+            android:foregroundServiceType="connectedDevice"
+            tools:node="merge" />
 
         <!-- FileProvider for share_plus file sharing -->
         <provider

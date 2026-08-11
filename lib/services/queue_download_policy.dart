@@ -1,10 +1,14 @@
+/// Modes that play through a named source - a series/show, a playlist, or a
+/// collection - use that source's own auto-download toggle. The manual queue
+/// has no source of its own, so it falls back to the global setting.
 bool resolveQueueAutoDownloadEnabled({
   required String queueMode,
   required bool globalEnabled,
   required String? activeSourceId,
   required bool activeSourceEnabled,
 }) {
-  if (queueMode == 'auto_next' && activeSourceId != null) {
+  const sourceModes = {'auto_next', 'playlist', 'collection'};
+  if (sourceModes.contains(queueMode) && activeSourceId != null) {
     return activeSourceEnabled;
   }
   return globalEnabled;

@@ -1220,6 +1220,11 @@ class _ExpandedCardState extends State<ExpandedCard> {
 
   void _openReader() async {
     var ef = _ebookFile;
+    // A downloaded book's ebook may already sit in the reader cache - check
+    // that before any network retry, so offline Read opens instantly instead
+    // of waiting out a timeout. The reader opens from this same cached file
+    // either way.
+    ef ??= await cachedEbookFileFor(_itemId);
     if (ef == null) {
       // The initState fetch is one-shot and can fail silently (network blip),
       // so give it another chance before declaring there's no ebook.
@@ -1228,7 +1233,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     }
     if (!mounted) return;
     if (ef == null) {
-      showOverlayToast(context, 'No ebook file for this book', icon: Icons.menu_book_outlined);
+      showOverlayToast(context, AppLocalizations.of(context)!.noEbookFileFound, icon: Icons.menu_book_outlined);
       return;
     }
     openEbookReader(context, itemId: _itemId, title: _title, ebookFile: ef);

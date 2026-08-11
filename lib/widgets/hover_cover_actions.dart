@@ -12,6 +12,9 @@ import '../utils/desktop_workspace.dart';
 class HoverCoverActions extends StatefulWidget {
   final Widget child;
   final VoidCallback? onMenu;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback? onSelectionToggle;
 
   /// Item id to open in the book editor; null hides the edit shortcut.
   /// Callers gate this on `auth.canUpdateMetadata && !lib.isOffline`.
@@ -22,6 +25,9 @@ class HoverCoverActions extends StatefulWidget {
     required this.child,
     this.onMenu,
     this.editItemId,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelectionToggle,
   });
 
   @override
@@ -48,20 +54,22 @@ class _HoverCoverActionsState extends State<HoverCoverActions> {
     final tags = ((media['tags'] as List<dynamic>?) ?? const []).cast<String>();
     final audioFiles = (media['audioFiles'] as List<dynamic>?) ?? const [];
     final libraryFiles = (item['libraryFiles'] as List<dynamic>?) ?? const [];
-    contentNavigator(context).push(MaterialPageRoute(
-      builder: (_) => BookEditScreen(
-        itemId: itemId,
-        bookTitle: meta['title'] as String? ?? '',
-        metadata: meta,
-        tags: tags,
-        audioFiles: audioFiles,
-        libraryFiles: libraryFiles,
-        relPath: item['relPath'] as String? ?? '',
-        isEbookOnly: audioFiles.isEmpty && media['ebookFile'] != null,
-        isAdmin: auth.isAdmin,
-        libraryId: item['libraryId'] as String?,
+    contentNavigator(context).push(
+      MaterialPageRoute(
+        builder: (_) => BookEditScreen(
+          itemId: itemId,
+          bookTitle: meta['title'] as String? ?? '',
+          metadata: meta,
+          tags: tags,
+          audioFiles: audioFiles,
+          libraryFiles: libraryFiles,
+          relPath: item['relPath'] as String? ?? '',
+          isEbookOnly: audioFiles.isEmpty && media['ebookFile'] != null,
+          isAdmin: auth.isAdmin,
+          libraryId: item['libraryId'] as String?,
+        ),
       ),
-    ));
+    );
   }
 
   Widget _actionButton({
@@ -85,7 +93,9 @@ class _HoverCoverActionsState extends State<HoverCoverActions> {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : Icon(icon, size: 16, color: Colors.white),
           ),
@@ -97,10 +107,14 @@ class _HoverCoverActionsState extends State<HoverCoverActions> {
   @override
   Widget build(BuildContext context) {
     if (!isDesktopWorkspace(context)) return widget.child;
-    if (widget.onMenu == null && widget.editItemId == null) {
+    if (widget.onMenu == null &&
+        widget.editItemId == null &&
+        widget.onSelectionToggle == null) {
       return widget.child;
     }
     final l = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final showSelection = widget.selectionMode || widget.selected;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
@@ -108,14 +122,45 @@ class _HoverCoverActionsState extends State<HoverCoverActions> {
         fit: StackFit.passthrough,
         children: [
           widget.child,
+          if (widget.selected)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: cs.primary, width: 3),
+                    color: cs.primary.withValues(alpha: 0.08),
+                  ),
+                ),
+              ),
+            ),
+          if (widget.onSelectionToggle != null)
+            Positioned(
+              top: 4,
+              left: 4,
+              child: AnimatedOpacity(
+                opacity: _hovering || showSelection ? 1 : 0,
+                duration: const Duration(milliseconds: 120),
+                child: IgnorePointer(
+                  ignoring: !_hovering && !showSelection,
+                  child: _actionButton(
+                    icon: widget.selected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    tooltip: widget.selected ? 'Deselect' : 'Select',
+                    onTap: widget.onSelectionToggle!,
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             top: 4,
             right: 4,
             child: AnimatedOpacity(
-              opacity: _hovering ? 1 : 0,
+              opacity: _hovering && !widget.selectionMode ? 1 : 0,
               duration: const Duration(milliseconds: 120),
               child: IgnorePointer(
-                ignoring: !_hovering,
+                ignoring: !_hovering || widget.selectionMode,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

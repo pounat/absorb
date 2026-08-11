@@ -139,10 +139,10 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
     }
   }
 
-  Future<void> _clearActivatedQueueSource() async {
+  Future<void> _restoreActivatedQueueSource(QueueModeSnapshot backup) async {
     final playlistId = widget.sourcePlaylistId;
     if (playlistId != null && playlistId.isNotEmpty) {
-      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+      await PlayerSettings.restoreQueueModeIfPlaylistActive(playlistId, backup);
     }
   }
 
@@ -168,9 +168,10 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
     final rootNav = Navigator.of(context, rootNavigator: true);
     final rootContext = rootNav.context;
     final lib = context.read<LibraryProvider>();
+    final queueModeBackup = await PlayerSettings.queueModeSnapshot();
     await _activateQueueSource();
     if (!rootNav.mounted) {
-      await _clearActivatedQueueSource();
+      await _restoreActivatedQueueSource(queueModeBackup);
       return;
     }
     debugPrint('[PodcastPlay] Popping stacked sheets before playItem (item=$_itemId episode=$_episodeId)');
@@ -189,7 +190,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
     );
     debugPrint('[PodcastPlay] playItem returned in ${DateTime.now().difference(t0).inMilliseconds}ms (error=${error ?? 'none'})');
     if (error != null) {
-      unawaited(_clearActivatedQueueSource());
+      unawaited(_restoreActivatedQueueSource(queueModeBackup));
       if (rootContext.mounted) showErrorToast(rootContext, error);
     } else {
       unawaited(lib.syncQueueAutoDownloads());

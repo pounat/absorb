@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'overlay_toast.dart';
+import 'swipe_action.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -271,10 +272,11 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     }
   }
 
-  Future<void> _clearActivatedQueueSource(String episodeId) async {
+  Future<void> _restoreActivatedQueueSource(
+      String episodeId, QueueModeSnapshot backup) async {
     final playlistId = _playlistSourceForEpisode(episodeId);
     if (playlistId != null && playlistId.isNotEmpty) {
-      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+      await PlayerSettings.restoreQueueModeIfPlaylistActive(playlistId, backup);
     }
   }
 
@@ -365,6 +367,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     }
 
     final lib = context.read<LibraryProvider>();
+    final queueModeBackup = await PlayerSettings.queueModeSnapshot();
     await _activateQueueSource(episodeId);
     final player = AudioPlayerService();
     final error = await player.playItem(
@@ -386,7 +389,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     if (error == null) {
       unawaited(lib.syncQueueAutoDownloads());
     } else {
-      unawaited(_clearActivatedQueueSource(episodeId));
+      unawaited(_restoreActivatedQueueSource(episodeId, queueModeBackup));
     }
     if (mounted) {
       if (error != null) showErrorToast(context, error);
@@ -443,7 +446,8 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       );
       if (enable == true && mounted) {
         final lib = context.read<LibraryProvider>();
-        await lib.enableRollingDownload(_itemId);
+        await lib.enableRollingDownload(_itemId,
+            name: _title, kind: 'podcast');
         setState(() => _autoDownloadEnabled = true);
       }
     }
@@ -529,7 +533,8 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                     onTap: () async {
                       Navigator.pop(ctx);
                       final lib = context.read<LibraryProvider>();
-                      await lib.toggleRollingDownload(_itemId);
+                      await lib.toggleRollingDownload(_itemId,
+                          name: _title, kind: 'podcast');
                       setState(() => _autoDownloadEnabled = lib.isRollingDownloadEnabled(_itemId));
                     }),
                 if (_itemId.isNotEmpty)
@@ -602,10 +607,17 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   void _showNewEpisodePositionPicker() {
     final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    final options = <String, String>{
-      'start': l.episodeListPositionTop,
-      'second': l.episodeListPositionSecond,
-      'end': l.episodeListPositionEnd,
+    // 'none' keeps everything else about the subscription - new-episode
+    // detection, the notification, the download - and only skips the queue,
+    // for people subscribed to enough shows that it buries the rest.
+    final options = <String, ({String title, String? subtitle})>{
+      'start': (title: l.episodeListPositionTop, subtitle: null),
+      'second': (title: l.episodeListPositionSecond, subtitle: null),
+      'end': (title: l.episodeListPositionEnd, subtitle: null),
+      'none': (
+        title: l.episodeListPositionNone,
+        subtitle: l.episodeListPositionNoneDesc
+      ),
     };
     showAdaptiveActionMenu(
       context: context,
@@ -635,7 +647,14 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                       : Icons.radio_button_unchecked_rounded,
                   color: _newEpisodePosition == entry.key ? cs.primary : cs.onSurfaceVariant,
                 ),
-                title: Text(entry.value),
+                title: Text(entry.value.title),
+                subtitle: entry.value.subtitle == null
+                    ? null
+                    : Text(entry.value.subtitle!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: cs.onSurfaceVariant)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await PlayerSettings.setPodcastNewEpisodePosition(_itemId, entry.key);
@@ -898,30 +917,25 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                             final absorbKey = '$_itemId-$epId';
                             final isOnAbsorbing = lib.isOnAbsorbingList(absorbKey);
                             final epTitle = ep['title'] as String? ?? l.episodeListEpisodeFallback;
-                            return Dismissible(
+                            return SwipeAction(
                               key: ValueKey('absorb-$absorbKey'),
-                              direction: isOnAbsorbing ? DismissDirection.none : DismissDirection.startToEnd,
-                              confirmDismiss: (_) async {
-                                await lib.addToAbsorbingQueue(absorbKey);
-                                final cached = Map<String, dynamic>.from(_podcastItem);
-                                cached['recentEpisode'] = Map<String, dynamic>.from(ep);
-                                cached['_absorbingKey'] = absorbKey;
-                                lib.absorbingItemCache[absorbKey] = cached;
-                                HapticFeedback.mediumImpact();
-                                if (context.mounted) {
-                                  showOverlayToast(context, Wording.of(context).episodeListAddedToAbsorbing(epTitle), icon: Icons.add_circle_outline_rounded);
-                                }
-                                return false;
-                              },
-                              background: Container(
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 20),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Icon(Icons.add_circle_outline_rounded, color: Theme.of(context).colorScheme.primary),
-                              ),
+                              onStartToEnd: isOnAbsorbing
+                                  ? null
+                                  : SwipeActionSpec(
+                                      icon: Icons.add_circle_outline_rounded,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      onTrigger: () async {
+                                        await lib.addToAbsorbingQueue(absorbKey);
+                                        final cached = Map<String, dynamic>.from(_podcastItem);
+                                        cached['recentEpisode'] = Map<String, dynamic>.from(ep);
+                                        cached['_absorbingKey'] = absorbKey;
+                                        lib.absorbingItemCache[absorbKey] = cached;
+                                        HapticFeedback.mediumImpact();
+                                        if (context.mounted) {
+                                          showOverlayToast(context, Wording.of(context).episodeListAddedToAbsorbing(epTitle), icon: Icons.add_circle_outline_rounded);
+                                        }
+                                      },
+                                    ),
                               child: EpisodeRow(
                                 episode: ep,
                                 podcastItem: _podcastItem,

@@ -63,10 +63,16 @@ class Bookmark {
     );
   }
 
-  String get formattedPosition {
+  String get formattedPosition => formattedAt(1.0);
+
+  /// Position formatted for display at [speed] (stored seconds / speed), so
+  /// lists can honor the speed-adjusted-time setting. The stored position and
+  /// everything sent to the server stay raw book seconds.
+  String formattedAt(double speed) {
+    final div = speed > 0 ? speed : 1.0;
     // Guard against a negative stored position (e.g. a stray -1): Dart's modulo
     // on negatives would otherwise render -1s as "59:59".
-    final p = positionSeconds < 0 ? 0.0 : positionSeconds;
+    final p = positionSeconds < 0 ? 0.0 : positionSeconds / div;
     final h = p ~/ 3600;
     final m = (p % 3600) ~/ 60;
     final s = p.toInt() % 60;

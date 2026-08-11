@@ -16,6 +16,7 @@ import 'add_books_search_sheet.dart';
 import 'book_detail_sheet.dart';
 import 'editable_sheet_item.dart';
 import 'stackable_sheet.dart';
+import 'swipe_action.dart';
 import '../screens/app_shell.dart';
 
 class CollectionDetailSheet extends StatefulWidget {
@@ -51,10 +52,6 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
   List<Map<String, dynamic>>? _editItems;
   final Set<String> _selectedItemIds = {};
   bool _isRemovingSelected = false;
-
-  Future<void> _removeItem(LibraryProvider lib, String libraryItemId) async {
-    await lib.removeFromCollection(widget.collectionId, libraryItemId);
-  }
 
   void _openAddBooks(LibraryProvider lib, Map<String, dynamic> collection,
       String name, List<dynamic> books) {
@@ -260,6 +257,15 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
             if (canEditCollection)
               _headerIconButton(cs, Icons.library_add_rounded,
                 () => _openAddBooks(lib, collection, name, books)),
+            _headerIconButton(cs,
+              lib.isRollingDownloadEnabled(widget.collectionId)
+                  ? Icons.downloading_rounded
+                  : Icons.download_outlined,
+              () => lib.toggleRollingDownload(widget.collectionId,
+                  name: name, kind: 'collection'),
+              tooltip: lib.isRollingDownloadEnabled(widget.collectionId)
+                  ? l.turnAutoDownloadOff
+                  : l.turnAutoDownloadOn),
             _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
               () => setState(() => _gridView = !_gridView)),
@@ -538,63 +544,24 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
 
         final isOnAbsorbing = lib.isOnAbsorbingList(itemId);
 
-        if (!canEditCollection) {
-          return Dismissible(
-            key: ValueKey('absorb-$itemId'),
-            direction: isOnAbsorbing ? DismissDirection.none : DismissDirection.startToEnd,
-            confirmDismiss: (_) async {
-              await lib.addToAbsorbingQueue(itemId);
-              lib.absorbingItemCache[itemId] = Map<String, dynamic>.from(book);
-              HapticFeedback.mediumImpact();
-              if (context.mounted) {
-                showOverlayToast(context, Wording.of(context).collectionDetailAddedToAbsorbing(title), icon: Icons.add_circle_outline_rounded);
-              }
-              return false;
-            },
-            background: Container(
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.only(left: 20),
-              decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(Icons.add_circle_outline_rounded, color: cs.primary),
-            ),
-            child: card,
-          );
-        }
-
-        return Dismissible(
-          key: ValueKey(itemId),
-          direction: isOnAbsorbing ? DismissDirection.endToStart : DismissDirection.horizontal,
-          confirmDismiss: (direction) async {
-            if (direction == DismissDirection.startToEnd) {
-              await lib.addToAbsorbingQueue(itemId);
-              lib.absorbingItemCache[itemId] = Map<String, dynamic>.from(book);
-              HapticFeedback.mediumImpact();
-              if (context.mounted) {
-                showOverlayToast(context, Wording.of(context).collectionDetailAddedToAbsorbing(title), icon: Icons.add_circle_outline_rounded);
-              }
-              return false;
-            }
-            _removeItem(lib, itemId);
-            return true;
-          },
-          background: Container(
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.only(left: 20),
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(Icons.add_circle_outline_rounded, color: cs.primary),
-          ),
-          secondaryBackground: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            color: cs.error.withValues(alpha: 0.1),
-            child: Icon(Icons.delete_rounded, color: cs.error),
-          ),
+        // Removing an item lives in the edit mode. It used to be a left swipe,
+        // which put an un-undoable server change one stray scroll away.
+        return SwipeAction(
+          key: ValueKey('absorb-$itemId'),
+          onStartToEnd: isOnAbsorbing
+              ? null
+              : SwipeActionSpec(
+                  icon: Icons.add_circle_outline_rounded,
+                  color: cs.primary,
+                  onTrigger: () async {
+                    await lib.addToAbsorbingQueue(itemId);
+                    lib.absorbingItemCache[itemId] = Map<String, dynamic>.from(book);
+                    HapticFeedback.mediumImpact();
+                    if (context.mounted) {
+                      showOverlayToast(context, Wording.of(context).collectionDetailAddedToAbsorbing(title), icon: Icons.add_circle_outline_rounded);
+                    }
+                  },
+                ),
           child: card,
         );
       },

@@ -5,6 +5,7 @@ mixin _StateMixin on ChangeNotifier {
   ApiService? get _api => _auth?.apiService;
 
   List<dynamic> _libraries = [];
+  bool _librariesFromCache = false;
   String? _selectedLibraryId;
   List<dynamic> _personalizedSections = [];
   List<dynamic> _series = [];
@@ -70,6 +71,8 @@ mixin _StateMixin on ChangeNotifier {
   final Map<String, Map<String, dynamic>> _subSeriesCache = {};
 
   Set<String> _rollingDownloadSeries = {};
+  // id -> {name, kind} for the settings list; the set above is bare ids.
+  Map<String, Map<String, String>> _rollingDownloadSourceNames = {};
   Set<String> _subscribedPodcasts = {};
   // Book ids the user hid from the local "finished this year" stats list.
   // Purely local; the server's finished date is left untouched.

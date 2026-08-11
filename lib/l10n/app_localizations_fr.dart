@@ -1450,6 +1450,18 @@ class AppLocalizationsFr extends AppLocalizations {
   String get autoDownloadQueue => 'Auto-download queue';
 
   @override
+  String get autoDownloadThisSeriesLabel => 'Auto-download this series';
+
+  @override
+  String get autoDownloadThisShowLabel => 'Auto-download this podcast';
+
+  @override
+  String get autoDownloadThisPlaylistLabel => 'Auto-download this playlist';
+
+  @override
+  String get autoDownloadThisCollectionLabel => 'Auto-download this collection';
+
+  @override
   String autoDownloadQueueOnSubtitle(int count) {
     return 'Keep next $count items downloaded';
   }
@@ -1789,7 +1801,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get autoDownloadSubtitle =>
-      'Enable per series or podcast from their detail pages';
+      'Enable per series, podcast, playlist or collection from their detail pages';
+
+  @override
+  String get autoDownloadEnabledFor => 'Turned on for';
+
+  @override
+  String get autoDownloadEnabledForNone => 'Nothing yet';
+
+  @override
+  String get autoDownloadSourceUnnamed => 'Not loaded yet';
 
   @override
   String get keepNext => 'Keep next';
@@ -3364,6 +3385,37 @@ class AppLocalizationsFr extends AppLocalizations {
       'Delete permission required. Ask the root admin to grant you the delete permission.';
 
   @override
+  String get deleteFilesCheckbox => 'Also delete the files on the server';
+
+  @override
+  String get deleteFilesCheckedHint =>
+      'The files are deleted from the server for good.';
+
+  @override
+  String get deleteFilesUncheckedHint =>
+      'The files stay on the server, so the next library scan can add this back.';
+
+  @override
+  String get deleteFromServerAction => 'Delete from Server';
+
+  @override
+  String get deleteFromServerTitle => 'Delete from server';
+
+  @override
+  String deleteFromServerContent(String title) {
+    return 'Delete \"$title\" from Audiobookshelf?';
+  }
+
+  @override
+  String deletedFromServer(String title) {
+    return 'Deleted \"$title\"';
+  }
+
+  @override
+  String get deleteFromServerFailed =>
+      'Couldn\'t delete that. Check the server logs.';
+
+  @override
   String get playlistNotFound => 'Playlist not found';
 
   @override
@@ -3953,11 +4005,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get deleteBookmarkQuestion => 'Delete bookmark?';
 
   @override
-  String bookmarkAtPosition(String position) {
-    return 'Bookmark at $position';
-  }
-
-  @override
   String get cardIconsOnlyChip => 'Icons only';
 
   @override
@@ -4108,12 +4155,12 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String adminMissingDeleteOneContent(String title) {
-    return 'Remove \"$title\" from Audiobookshelf? The files on disk are not deleted.';
+    return 'Remove \"$title\" from Audiobookshelf?';
   }
 
   @override
   String adminMissingDeleteManyContent(int count) {
-    return 'Remove $count entries from Audiobookshelf? The files on disk are not deleted.';
+    return 'Remove $count entries from Audiobookshelf?';
   }
 
   @override
@@ -5900,7 +5947,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tipsSheetSpeedAdjustedTimeDesc =>
-      'Time remaining and chapter times automatically adjust based on your playback speed. Listening at 1.5x? The time shown reflects how long it\'ll actually take you.';
+      'Every time shown - position, remaining, chapters, bookmarks - adjusts to your playback speed. Listening at 1.5x? The times shown reflect how long they\'ll actually take you.';
 
   @override
   String get tipsSheetPlaybackHistoryTitle => 'Playback History';
@@ -6175,6 +6222,14 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String lpSubscribedEpisodeDownloaded(String showTitle) {
+    return 'New $showTitle episode downloaded';
+  }
+
+  @override
+  String get statsWeekStartsOn => 'Week starts on';
+
+  @override
   String get episodeListNewEpisodePosition => 'New episode position';
 
   @override
@@ -6185,6 +6240,17 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get episodeListPositionEnd => 'End of queue';
+
+  @override
+  String get episodeListPositionNone => 'Don\'t add to queue';
+
+  @override
+  String get episodeListPositionNoneDesc => 'Still notified and downloaded';
+
+  @override
+  String sleepRewindUndoNote(int minutes) {
+    return 'Hit play within $minutes minutes and the rewind is undone';
+  }
 
   @override
   String lpQueueDownloadingItems(int count) {

@@ -54,6 +54,10 @@ class HomeWidgetService {
   int _weekBase = 0;
   int _localAddedToday = 0;
   int _localAddedWeek = 0;
+  // Date the bases were captured on. Ticking local seconds onto a base from a
+  // previous day (or, since the week is Sun-Sat, a previous week) shows a total
+  // that should have reset.
+  String? _statsBaseDay;
 
   /// Call after AudioPlayerService is initialized to start pushing state.
   Future<void> init() async {
@@ -848,7 +852,9 @@ class HomeWidgetService {
 
       final dailyMap = _extractDailyMap(stats);
       final today = _todaySeconds(dailyMap).round();
-      final week = _weekSeconds(dailyMap).round();
+      final week =
+          _weekSeconds(dailyMap, await PlayerSettings.getStatsWeekStart())
+              .round();
       final streak = _currentStreak(dailyMap);
       final hidden = (await ScopedPrefs.getStringList(
         'year_hidden_ids',
@@ -863,6 +869,7 @@ class HomeWidgetService {
       _weekBase = week;
       _localAddedToday = 0;
       _localAddedWeek = 0;
+      _statsBaseDay = _dateKey(DateTime.now());
 
       await HomeWidget.saveWidgetData<int>('widget_stats_today', today);
       await HomeWidget.saveWidgetData<int>('widget_stats_week', week);
@@ -886,6 +893,16 @@ class HomeWidgetService {
   /// the 15-min stats timer is throttled by Android Doze.
   Future<void> addLocalListeningSeconds(int seconds) async {
     if (seconds <= 0) return;
+    // Crossed midnight since the bases were taken: they belong to yesterday's
+    // "today" and possibly last week. Drop the tick and let a refresh reset
+    // them - not forced, so an offline night can't turn every sync into an
+    // unthrottled fetch. Worst case the widget stops ticking until the 15-min
+    // timer lands, which beats showing a total that should have reset.
+    if (_statsBaseDay != null && _statsBaseDay != _dateKey(DateTime.now())) {
+      debugPrint('[StatsWidget] Base is from $_statsBaseDay, refreshing before tick');
+      await refreshStats();
+      return;
+    }
     _localAddedToday += seconds;
     _localAddedWeek += seconds;
     try {
@@ -981,11 +998,17 @@ class HomeWidgetService {
   double _todaySeconds(Map<String, dynamic> dailyMap) =>
       _daySeconds(dailyMap, _dateKey(DateTime.now()));
 
-  double _weekSeconds(Map<String, dynamic> dailyMap) {
+  /// Start of the week through today. Must match `_weekSeconds` on the stats
+  /// page, or the widget and the app disagree about the same "This week"
+  /// number. There's no BuildContext here, which is why the week start is a
+  /// stored setting rather than read from MaterialLocalizations.
+  double _weekSeconds(Map<String, dynamic> dailyMap, int weekStart) {
     final now = DateTime.now();
+    final daysIn = (now.weekday % 7 - weekStart + 7) % 7;
     double total = 0;
-    for (int i = 0; i < 7; i++) {
-      total += _daySeconds(dailyMap, _dateKey(now.subtract(Duration(days: i))));
+    for (int i = daysIn; i >= 0; i--) {
+      total += _daySeconds(
+          dailyMap, _dateKey(DateTime(now.year, now.month, now.day - i)));
     }
     return total;
   }

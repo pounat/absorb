@@ -147,6 +147,7 @@ class LibraryProvider extends ChangeNotifier
 
       if (isNewUser || isFreshLogin) {
         _libraries = [];
+        _librariesFromCache = false;
         _selectedLibraryId = null;
         _personalizedSections = [];
         _series = [];
@@ -257,6 +258,7 @@ class LibraryProvider extends ChangeNotifier
       _lastAuthKey = null;
       _lastUseLocalServer = null;
       _libraries = [];
+      _librariesFromCache = false;
       _personalizedSections = [];
       _series = [];
       _progressMap = {};
@@ -296,18 +298,22 @@ class LibraryProvider extends ChangeNotifier
     notifyListeners();
 
     try {
-      _libraries = await _api!.getLibraries();
-      debugPrint(
-          '[Library] loadLibraries: got ${_libraries.length} libraries');
-      await LibraryCache.save(_libraries);
+      final fetched = await _api!.getLibraries();
+      debugPrint('[Library] loadLibraries: got ${fetched.length} libraries');
 
-      if (_libraries.isNotEmpty) {
+      if (fetched.isNotEmpty) {
+        _libraries = fetched;
+        _librariesFromCache = false;
+        await LibraryCache.save(fetched);
         await _restoreSelectedLibrary();
 
         await _loadSectionPrefs();
         await loadPersonalizedView(force: true);
       } else {
-        _selectedLibraryId = null;
+        // getLibraries swallows network/auth failures and returns an empty
+        // list, so empty is indistinguishable from a failed fetch. Keep the
+        // current list, cache, and selection instead of wiping them.
+        await _restoreCachedLibraries();
       }
     } catch (e) {
       if (_isLikelyNetworkError(e)) {
@@ -323,13 +329,21 @@ class LibraryProvider extends ChangeNotifier
     _catchUpRollingDownloads();
     unawaited(_catchUpQueueAutoDownloads());
     catchUpSubscribedPodcasts();
+    final ebookApi = _api;
+    if (ebookApi != null) {
+      unawaited(DownloadService().catchUpEbookCaches(ebookApi));
+    }
   }
 
   Future<void> _restoreCachedLibraries() async {
     if (_libraries.isNotEmpty) return;
     final cached = await LibraryCache.load();
     if (cached.isEmpty) return;
-    _libraries = cached;
+    // Widened copy: handing the cache's List<Map> to the List<dynamic> field
+    // directly would tighten the runtime type and blow up firstWhere calls
+    // whose orElse returns null.
+    _libraries = List<dynamic>.from(cached);
+    _librariesFromCache = true;
     await _restoreSelectedLibrary();
     debugPrint(
         '[Library] Restored ${_libraries.length} cached libraries for offline use');
@@ -416,12 +430,12 @@ class LibraryProvider extends ChangeNotifier
   }
 
   bool isPodcastLibraryId(String libraryId) {
-    final library = _libraries.firstWhere(
-      (l) => l['id'] == libraryId,
-      orElse: () => null,
-    );
-    if (library is! Map<String, dynamic>) return false;
-    return (library['mediaType'] as String? ?? 'book') == 'podcast';
+    for (final l in _libraries) {
+      if (l is Map && l['id'] == libraryId) {
+        return (l['mediaType'] as String? ?? 'book') == 'podcast';
+      }
+    }
+    return false;
   }
 
   /// Track the last non-podcast library so the Home/Library tabs know where

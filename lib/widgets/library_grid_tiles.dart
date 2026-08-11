@@ -24,8 +24,19 @@ class GridBookTile extends StatefulWidget {
   final Map<String, dynamic> item;
   final double coverAspectRatio;
   final String? sequenceBadge;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback? onSelectionToggle;
 
-  const GridBookTile({super.key, required this.item, this.coverAspectRatio = 1.0, this.sequenceBadge});
+  const GridBookTile({
+    super.key,
+    required this.item,
+    this.coverAspectRatio = 1.0,
+    this.sequenceBadge,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelectionToggle,
+  });
 
   @override
   State<GridBookTile> createState() => _GridBookTileState();
@@ -65,210 +76,293 @@ class _GridBookTileState extends State<GridBookTile> {
     final author = metadata['authorName'] as String? ?? '';
     final coverUrl = lib.getCoverUrl(itemId);
     final progress = lib.getProgress(itemId);
-    final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
+    final isExplicit =
+        PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final isDownloaded = _dl.isDownloaded(itemId);
     final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
-    final isSubscribed = lib.isPodcastLibrary && lib.isPodcastSubscribed(itemId);
-    final unfinishedCount =
-        lib.isPodcastLibrary ? lib.getUnfinishedEpisodeCount(widget.item) : 0;
+    final isSubscribed =
+        lib.isPodcastLibrary && lib.isPodcastSubscribed(itemId);
+    final unfinishedCount = lib.isPodcastLibrary
+        ? lib.getUnfinishedEpisodeCount(widget.item)
+        : 0;
 
-    final canEdit = itemId.isNotEmpty &&
+    final canEdit =
+        itemId.isNotEmpty &&
         !lib.isPodcastLibrary &&
         !lib.isOffline &&
         context.watch<AuthProvider>().canUpdateMetadata;
     return HoverCoverActions(
-      onMenu: (itemId.isNotEmpty && !lib.isPodcastLibrary)
-          ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
+      onMenu:
+          (!widget.selectionMode && itemId.isNotEmpty && !lib.isPodcastLibrary)
+          ? () =>
+                showQuickActionsSheet(context, itemId, initialItem: widget.item)
           : null,
-      editItemId: canEdit ? itemId : null,
+      editItemId: canEdit && !widget.selectionMode ? itemId : null,
+      selectionMode: widget.selectionMode,
+      selected: widget.selected,
+      onSelectionToggle: widget.onSelectionToggle,
       child: GestureDetector(
-      // opaque so taps on the blank space below the title (the tile's tall
-      // aspect ratio leaves a gap when the Column children stop short)
-      // still trigger the onTap. Without this, taps in that blank strip
-      // miss the Column's hit test and nothing happens.
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (itemId.isNotEmpty) {
-          if (lib.isPodcastLibrary) {
-            EpisodeListSheet.show(context, widget.item);
-          } else {
-            showBookDetailSheet(context, itemId);
+        // opaque so taps on the blank space below the title (the tile's tall
+        // aspect ratio leaves a gap when the Column children stop short)
+        // still trigger the onTap. Without this, taps in that blank strip
+        // miss the Column's hit test and nothing happens.
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (widget.selectionMode && widget.onSelectionToggle != null) {
+            widget.onSelectionToggle!();
+            return;
           }
-        }
-      },
-      // Long-press a book cover for the quick-actions sheet (podcasts skipped).
-      onLongPress: (gesturePolicy.allowsLongPressShortcuts &&
-              itemId.isNotEmpty &&
-              !lib.isPodcastLibrary)
-          ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
-          : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Cover
-          AspectRatio(
-            aspectRatio: widget.coverAspectRatio,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Cover image
-                  coverUrl != null
-                      ? _blurCover(coverUrl, lib.mediaHeaders, cs, widget.coverAspectRatio, title, author)
-                      : CoverPlaceholder(title: title, author: author),
+          if (itemId.isNotEmpty) {
+            if (lib.isPodcastLibrary) {
+              EpisodeListSheet.show(context, widget.item);
+            } else {
+              showBookDetailSheet(context, itemId);
+            }
+          }
+        },
+        // Long-press a book cover for the quick-actions sheet (podcasts skipped).
+        onLongPress:
+            (!widget.selectionMode &&
+                gesturePolicy.allowsLongPressShortcuts &&
+                itemId.isNotEmpty &&
+                !lib.isPodcastLibrary)
+            ? () => showQuickActionsSheet(
+                context,
+                itemId,
+                initialItem: widget.item,
+              )
+            : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cover
+            AspectRatio(
+              aspectRatio: widget.coverAspectRatio,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Cover image
+                    coverUrl != null
+                        ? _blurCover(
+                            coverUrl,
+                            lib.mediaHeaders,
+                            cs,
+                            widget.coverAspectRatio,
+                            title,
+                            author,
+                          )
+                        : CoverPlaceholder(title: title, author: author),
 
-                  // Progress bar at bottom of cover
-                  if (progress > 0 && !isFinished)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: LinearProgressIndicator(
-                        value: progress.clamp(0.0, 1.0),
-                        minHeight: 3,
-                        backgroundColor: Colors.black38,
-                        valueColor: AlwaysStoppedAnimation(cs.primary),
-                      ),
-                    ),
-
-                  // Unplayed-episode count badge (podcasts only)
-                  if (unfinishedCount > 0)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: cs.primary,
-                          borderRadius: BorderRadius.circular(10),
+                    // Progress bar at bottom of cover
+                    if (progress > 0 && !isFinished)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: LinearProgressIndicator(
+                          value: progress.clamp(0.0, 1.0),
+                          minHeight: 3,
+                          backgroundColor: Colors.black38,
+                          valueColor: AlwaysStoppedAnimation(cs.primary),
                         ),
-                        child: Text(
-                          '$unfinishedCount',
-                          style: TextStyle(
-                            color: cs.onPrimary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
+                      ),
+
+                    // Unplayed-episode count badge (podcasts only)
+                    if (unfinishedCount > 0)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.primary,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$unfinishedCount',
+                            style: TextStyle(
+                              color: cs.onPrimary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                  // Subscribed bell (sits below unplayed badge when both show)
-                  if (isSubscribed)
-                    Positioned(
-                      top: unfinishedCount > 0 ? 26 : 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
+                    // Subscribed bell (sits below unplayed badge when both show)
+                    if (isSubscribed)
+                      Positioned(
+                        top: unfinishedCount > 0 ? 26 : 4,
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.notifications_rounded,
+                            size: 11,
+                            color: Colors.white,
+                          ),
                         ),
-                        child: const Icon(Icons.notifications_rounded,
-                            size: 11, color: Colors.white),
                       ),
-                    ),
 
-                  // Explicit badge
-                  if (isExplicit)
-                    Positioned(
-                      top: (unfinishedCount > 0 ? 26 : 4) + (isSubscribed ? 22 : 0),
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(4),
+                    // Explicit badge
+                    if (isExplicit)
+                      Positioned(
+                        top:
+                            (unfinishedCount > 0 ? 26 : 4) +
+                            (isSubscribed ? 22 : 0),
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            l.libraryGridTilesExplicitBadge,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
-                        child: Text(l.libraryGridTilesExplicitBadge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
                       ),
-                    ),
 
-                  // Sequence badge
-                  if (widget.sequenceBadge != null)
-                    Positioned(
-                      top: 4, left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(6),
+                    // Sequence badge
+                    if (widget.sequenceBadge != null)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            l.libraryGridTilesSequence(widget.sequenceBadge!),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                        child: Text(l.libraryGridTilesSequence(widget.sequenceBadge!),
-                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
                       ),
-                    ),
 
-                  // ── State badges (downloaded / finished) ──
-                  if (isFinished || isDownloaded)
-                    Positioned(
-                      left: 0, right: 0, bottom: 0,
-                      child: CoverStateBadges(
-                        isDownloaded: isDownloaded,
-                        isFinished: isFinished,
+                    // ── State badges (downloaded / finished) ──
+                    if (isFinished || isDownloaded)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: CoverStateBadges(
+                          isDownloaded: isDownloaded,
+                          isFinished: isFinished,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 5),
-          // Title
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: tt.labelSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: cs.onSurface,
-              fontSize: 11,
-            ),
-          ),
-          // Author
-          if (author.isNotEmpty)
+            const SizedBox(height: 5),
+            // Title
             Text(
-              author,
+              title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: tt.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface,
+                fontSize: 11,
               ),
             ),
-        ],
-      ),
+            // Author
+            if (author.isNotEmpty)
+              Text(
+                author,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: tt.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontSize: 10,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _blurCover(String coverUrl, Map<String, String> headers, ColorScheme cs, double aspectRatio, String title, String author) {
+  Widget _blurCover(
+    String coverUrl,
+    Map<String, String> headers,
+    ColorScheme cs,
+    double aspectRatio,
+    String title,
+    String author,
+  ) {
     final placeholder = CoverPlaceholder(title: title, author: author);
     final isSquare = (aspectRatio - 1.0).abs() < 0.01;
     if (!isSquare) {
       if (coverUrl.startsWith('/')) {
-        return Image.file(File(coverUrl), fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => placeholder);
+        return Image.file(
+          File(coverUrl),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => placeholder,
+        );
       }
-      return CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
-          httpHeaders: headers, placeholder: (_, __) => placeholder,
-          errorWidget: (_, __, ___) => placeholder);
+      return CachedNetworkImage(
+        imageUrl: coverUrl,
+        fit: BoxFit.cover,
+        httpHeaders: headers,
+        placeholder: (_, __) => placeholder,
+        errorWidget: (_, __, ___) => placeholder,
+      );
     }
     if (coverUrl.startsWith('/')) {
       return BlurPaddedCover(
-        blurChild: Image.file(File(coverUrl), fit: BoxFit.cover,
-            errorBuilder: (_, __ ,___) => const SizedBox.shrink()),
-        child: Image.file(File(coverUrl), fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => placeholder),
+        blurChild: Image.file(
+          File(coverUrl),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+        child: Image.file(
+          File(coverUrl),
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => placeholder,
+        ),
       );
     }
     return BlurPaddedCover(
-      blurChild: CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
-          httpHeaders: headers, errorWidget: (_, __, ___) => const SizedBox.shrink()),
-      child: CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.contain,
-          httpHeaders: headers, placeholder: (_, __) => placeholder,
-          errorWidget: (_, __, ___) => placeholder),
+      blurChild: CachedNetworkImage(
+        imageUrl: coverUrl,
+        fit: BoxFit.cover,
+        httpHeaders: headers,
+        errorWidget: (_, __, ___) => const SizedBox.shrink(),
+      ),
+      child: CachedNetworkImage(
+        imageUrl: coverUrl,
+        fit: BoxFit.contain,
+        httpHeaders: headers,
+        placeholder: (_, __) => placeholder,
+        errorWidget: (_, __, ___) => placeholder,
+      ),
     );
   }
 }
@@ -310,96 +404,113 @@ class _StackedCovers extends StatelessWidget {
       aspectRatio: coverAspectRatio,
       child: RepaintBoundary(
         child: Stack(
-        children: [
-          // Back covers (furthest back first so front paints on top). Drop
-          // the per-back-cover BoxShadow blur — front cover's shadow is
-          // enough visual depth and blurred shadows are expensive.
-          for (int i = count - 1; i > 0; i--)
+          children: [
+            // Back covers (furthest back first so front paints on top). Drop
+            // the per-back-cover BoxShadow blur — front cover's shadow is
+            // enough visual depth and blurred shadows are expensive.
+            for (int i = count - 1; i > 0; i--)
+              Positioned(
+                top: (totalOffset - i * inset),
+                right: (totalOffset - i * inset),
+                left: i * inset,
+                bottom: i * inset,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: _coverImage(coverUrls[i]),
+                ),
+              ),
+            // Front cover (bottom-left)
             Positioned(
-              top: (totalOffset - i * inset),
-              right: (totalOffset - i * inset),
-              left: i * inset,
-              bottom: i * inset,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: _coverImage(coverUrls[i]),
-              ),
-            ),
-          // Front cover (bottom-left)
-          Positioned(
-            top: totalOffset,
-            right: totalOffset,
-            left: 0,
-            bottom: 0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: count > 1
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 3,
-                          offset: const Offset(-1, 1),
+              top: totalOffset,
+              right: totalOffset,
+              left: 0,
+              bottom: 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: count > 1
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 3,
+                            offset: const Offset(-1, 1),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _coverImage(coverUrls.isNotEmpty ? coverUrls[0] : null),
+                      // Series progress bar
+                      if (seriesProgress > 0 && booksFinished < numBooks)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: LinearProgressIndicator(
+                            value: seriesProgress.clamp(0.0, 1.0),
+                            minHeight: 3,
+                            backgroundColor: Colors.black38,
+                            valueColor: AlwaysStoppedAnimation(cs.primary),
+                          ),
                         ),
-                      ]
-                    : [],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _coverImage(coverUrls.isNotEmpty ? coverUrls[0] : null),
-                    // Series progress bar
-                    if (seriesProgress > 0 && booksFinished < numBooks)
+                      // Finished banner
+                      if (booksFinished > 0 && booksFinished >= numBooks)
+                        const Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: CoverStateBadges(
+                            isDownloaded: false,
+                            isFinished: true,
+                          ),
+                        ),
+                      // Book count badge
                       Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: LinearProgressIndicator(
-                          value: seriesProgress.clamp(0.0, 1.0),
-                          minHeight: 3,
-                          backgroundColor: Colors.black38,
-                          valueColor: AlwaysStoppedAnimation(cs.primary),
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_stories_rounded,
+                                size: 11,
+                                color: cs.onPrimaryContainer,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                booksFinished > 0 && booksFinished < numBooks
+                                    ? '$booksFinished/$numBooks'
+                                    : '$numBooks',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: cs.onPrimaryContainer,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    // Finished banner
-                    if (booksFinished > 0 && booksFinished >= numBooks)
-                      const Positioned(
-                        left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: false, isFinished: true),
-                      ),
-                    // Book count badge
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: cs.primaryContainer,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.auto_stories_rounded, size: 11, color: cs.onPrimaryContainer),
-                            const SizedBox(width: 3),
-                            Text(booksFinished > 0 && booksFinished < numBooks
-                                ? '$booksFinished/$numBooks'
-                                : '$numBooks',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                                color: cs.onPrimaryContainer)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -408,20 +519,30 @@ class _StackedCovers extends StatelessWidget {
     if (url == null) return _placeholder();
     // Series stacked covers are always cropped to fit - no blur padding needed
     if (url.startsWith('/')) {
-      return Image.file(File(url), fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _placeholder());
+      return Image.file(
+        File(url),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
     }
-    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
-        httpHeaders: mediaHeaders, placeholder: (_, __) => _placeholder(),
-        errorWidget: (_, __, ___) => _placeholder());
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      httpHeaders: mediaHeaders,
+      placeholder: (_, __) => _placeholder(),
+      errorWidget: (_, __, ___) => _placeholder(),
+    );
   }
 
   Widget _placeholder() {
     return Container(
       color: cs.surfaceContainerHighest,
       child: Center(
-        child: Icon(Icons.auto_stories_rounded,
-            size: 24, color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
+        child: Icon(
+          Icons.auto_stories_rounded,
+          size: 24,
+          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+        ),
       ),
     );
   }
@@ -433,7 +554,11 @@ class _StackedCovers extends StatelessWidget {
 class GridSeriesTile extends StatelessWidget {
   final Map<String, dynamic> item;
   final double coverAspectRatio;
-  const GridSeriesTile({super.key, required this.item, this.coverAspectRatio = 1.0});
+  const GridSeriesTile({
+    super.key,
+    required this.item,
+    this.coverAspectRatio = 1.0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -443,23 +568,24 @@ class GridSeriesTile extends StatelessWidget {
     final lib = context.watch<LibraryProvider>();
     final auth = context.read<AuthProvider>();
 
-    final collapsedSeries = item['collapsedSeries'] as Map<String, dynamic>? ?? {};
-    final seriesName = collapsedSeries['name'] as String? ?? l.libraryGridTilesUnknownSeries;
+    final collapsedSeries =
+        item['collapsedSeries'] as Map<String, dynamic>? ?? {};
+    final seriesName =
+        collapsedSeries['name'] as String? ?? l.libraryGridTilesUnknownSeries;
     final seriesId = collapsedSeries['id'] as String? ?? '';
     final media = item['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final author = metadata['authorName'] as String? ?? '';
 
     // Gather up to 4 cover URLs from libraryItemIds
-    final itemIds = (collapsedSeries['libraryItemIds'] as List<dynamic>?)
-        ?.map((e) => e as String)
-        .toList() ?? [item['id'] as String? ?? ''];
+    final itemIds =
+        (collapsedSeries['libraryItemIds'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
+        [item['id'] as String? ?? ''];
     final rawNumBooks = collapsedSeries['numBooks'] as int? ?? 0;
     final numBooks = rawNumBooks > 0 ? rawNumBooks : itemIds.length;
-    final coverUrls = itemIds
-        .take(4)
-        .map((id) => lib.getCoverUrl(id))
-        .toList();
+    final coverUrls = itemIds.take(4).map((id) => lib.getCoverUrl(id)).toList();
 
     // Calculate series progress
     double totalProgress = 0;
@@ -473,7 +599,9 @@ class GridSeriesTile extends StatelessWidget {
         totalProgress += lib.getProgress(id);
       }
     }
-    final seriesProgress = itemIds.isNotEmpty ? totalProgress / itemIds.length : 0.0;
+    final seriesProgress = itemIds.isNotEmpty
+        ? totalProgress / itemIds.length
+        : 0.0;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -537,7 +665,12 @@ class GridSeriesTileDirect extends StatelessWidget {
   final Map<String, dynamic> series;
   final double coverAspectRatio;
   final String? parentSeriesId;
-  const GridSeriesTileDirect({super.key, required this.series, this.coverAspectRatio = 1.0, this.parentSeriesId});
+  const GridSeriesTileDirect({
+    super.key,
+    required this.series,
+    this.coverAspectRatio = 1.0,
+    this.parentSeriesId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -547,7 +680,8 @@ class GridSeriesTileDirect extends StatelessWidget {
     final lib = context.watch<LibraryProvider>();
     final auth = context.read<AuthProvider>();
 
-    final seriesName = series['name'] as String? ?? l.libraryGridTilesUnknownSeries;
+    final seriesName =
+        series['name'] as String? ?? l.libraryGridTilesUnknownSeries;
     final seriesId = series['id'] as String? ?? '';
     final books = series['books'] as List<dynamic>? ?? [];
     final numBooks = books.length;
@@ -562,13 +696,10 @@ class GridSeriesTileDirect extends StatelessWidget {
     }
 
     // Gather up to 4 cover URLs from books
-    final coverUrls = books
-        .take(4)
-        .map((b) {
-          final bookId = (b as Map<String, dynamic>)['id'] as String? ?? '';
-          return bookId.isNotEmpty ? lib.getCoverUrl(bookId) : null;
-        })
-        .toList();
+    final coverUrls = books.take(4).map((b) {
+      final bookId = (b as Map<String, dynamic>)['id'] as String? ?? '';
+      return bookId.isNotEmpty ? lib.getCoverUrl(bookId) : null;
+    }).toList();
 
     // Calculate series progress
     double totalProgress = 0;
@@ -584,7 +715,9 @@ class GridSeriesTileDirect extends StatelessWidget {
         totalProgress += lib.getProgress(bookId);
       }
     }
-    final seriesProgress = books.isNotEmpty ? totalProgress / books.length : 0.0;
+    final seriesProgress = books.isNotEmpty
+        ? totalProgress / books.length
+        : 0.0;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -704,11 +837,12 @@ class GridListTile extends StatelessWidget {
           Row(
             children: [
               Icon(
-                  isPlaylist
-                      ? Icons.playlist_play_rounded
-                      : Icons.collections_bookmark_rounded,
-                  size: 12,
-                  color: cs.onSurfaceVariant),
+                isPlaylist
+                    ? Icons.playlist_play_rounded
+                    : Icons.collections_bookmark_rounded,
+                size: 12,
+                color: cs.onSurfaceVariant,
+              ),
               const SizedBox(width: 3),
               Expanded(
                 child: Text(
@@ -730,7 +864,10 @@ class GridListTile extends StatelessWidget {
                 : l.collectionDetailBookCount(count),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 10),
+            style: tt.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant,
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -802,7 +939,10 @@ class GridAuthorTile extends StatelessWidget {
                     top: 0,
                     right: 0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: cs.primaryContainer,
                         borderRadius: BorderRadius.circular(10),
@@ -810,11 +950,20 @@ class GridAuthorTile extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_stories_rounded, size: 11, color: cs.onPrimaryContainer),
+                          Icon(
+                            Icons.auto_stories_rounded,
+                            size: 11,
+                            color: cs.onPrimaryContainer,
+                          ),
                           const SizedBox(width: 3),
-                          Text('$numBooks',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                              color: cs.onPrimaryContainer)),
+                          Text(
+                            '$numBooks',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: cs.onPrimaryContainer,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -841,9 +990,11 @@ class GridAuthorTile extends StatelessWidget {
 
   Widget _placeholder(ColorScheme cs) {
     return Center(
-      child: Icon(Icons.person_rounded,
-          size: 32, color: cs.onSecondaryContainer.withValues(alpha: 0.4)),
+      child: Icon(
+        Icons.person_rounded,
+        size: 32,
+        color: cs.onSecondaryContainer.withValues(alpha: 0.4),
+      ),
     );
   }
 }
-

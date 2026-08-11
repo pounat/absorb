@@ -101,7 +101,12 @@ class SleepTimerService extends ChangeNotifier {
   final _player = AudioPlayerService();
   final _cast = ChromecastService();
 
-  bool get _isPlaybackActive => _player.isPlaying || _cast.isPlaying;
+  // Counts a backstop cast reconnect (GH #338) as active too, so a transient
+  // sender disconnect doesn't freeze the countdown - the receiver is almost
+  // certainly still playing, and _triggerSleep's cast branch below knows how
+  // to apply the pause once the reconnect lands.
+  bool get _isPlaybackActive =>
+      _player.isPlaying || _cast.isPlaying || _cast.isReconnecting;
 
   // ── State ──
   SleepTimerMode _mode = SleepTimerMode.off;
@@ -111,10 +116,22 @@ class SleepTimerService extends ChangeNotifier {
   Duration _initialDuration = Duration.zero;
   Timer? _timer;
   
-  // Chapter mode
+  // Chapter mode. We stop at the END of _targetChapterIndex, and it's
+  // _targetEndSeconds that actually drives the trigger - comparing chapter
+  // indices alone dies whenever the position can't be resolved to a chapter.
   int _chaptersRemaining = 0;
-  int _targetChapterIndex = -1; // chapter index where we stop
+  int _targetChapterIndex = -1;
+  double _targetEndSeconds = -1;
   StreamSubscription? _positionSub;
+
+  // Where a sleep rewind put us, so hitting play again shortly after can undo
+  // it. Falling asleep is what the rewind is for; coming straight back means
+  // you were awake for it and shouldn't have to listen through it again.
+  static const sleepRewindUndoWindow = Duration(minutes: 5);
+  DateTime? _sleepRewoundAt;
+  String? _sleepRewoundItemId;
+  Duration? _sleepRewoundFrom; // position the timer fired at
+  Duration? _sleepRewoundTo; // position after the rewind
   
   // Shake detection
   String _shakeMode = 'addTime'; // 'off', 'addTime', 'resetTimer'
@@ -203,13 +220,17 @@ class SleepTimerService extends ChangeNotifier {
     try {
       if (_mode != SleepTimerMode.time) return;
       final isPlaying = _isPlaybackActive;
-      final pauseRequested = !_cast.isCasting && _player.isPauseRequested;
+      final pauseRequested = !_cast.isCastEngaged && _player.isPauseRequested;
       var action = sleepTimerTickAction(
         timeRemaining: _timeRemaining,
         isPlaybackActive: isPlaying,
         isPauseRequested: pauseRequested,
       );
       if (action == SleepTimerTickAction.wait) {
+        if (_wasPlaying) {
+          debugPrint('[SleepTimer] Playback went inactive - holding at ${_timeRemaining.inSeconds}s '
+              '(cast=${_cast.isCasting}, reconnecting=${_cast.isReconnecting})');
+        }
         _wasPlaying = false;
         return;
       }
@@ -234,9 +255,13 @@ class SleepTimerService extends ChangeNotifier {
       action = sleepTimerTickAction(
         timeRemaining: _timeRemaining,
         isPlaybackActive: _isPlaybackActive,
-        isPauseRequested: !_cast.isCasting && _player.isPauseRequested,
+        isPauseRequested: !_cast.isCastEngaged && _player.isPauseRequested,
       );
       if (action == SleepTimerTickAction.wait) {
+        if (_wasPlaying) {
+          debugPrint('[SleepTimer] Playback went inactive - holding at ${_timeRemaining.inSeconds}s '
+              '(cast=${_cast.isCasting}, reconnecting=${_cast.isReconnecting})');
+        }
         _wasPlaying = false;
         return;
       }
@@ -257,7 +282,7 @@ class SleepTimerService extends ChangeNotifier {
         _warningSent = true;
         onToast?.call('Sleep timer ending soon...');
         final fadeEnabled = await PlayerSettings.getSleepFadeOut();
-        if (fadeEnabled && !_cast.isCasting) {
+        if (fadeEnabled && !_cast.isCastEngaged) {
           _isFadingOut = true;
           _fadeStartVolume = _player.volume;
           debugPrint('[SleepTimer] Warning: ${_timeRemaining.inSeconds}s remaining - starting fade (${_fadeThreshold.inSeconds}s)');
@@ -270,7 +295,7 @@ class SleepTimerService extends ChangeNotifier {
       }
 
       // Gradually lower volume during the fade period
-      if (_isFadingOut && _timeRemaining.inSeconds > 0 && !_cast.isCasting) {
+      if (_isFadingOut && _timeRemaining.inSeconds > 0 && !_cast.isCastEngaged) {
         final fraction = _timeRemaining.inSeconds / _fadeThreshold.inSeconds;
         _player.setVolume((_fadeStartVolume * fraction).clamp(0.0, 1.0));
       }
@@ -301,49 +326,85 @@ class SleepTimerService extends ChangeNotifier {
 
   // ── Chapter-based sleep ──
 
+  /// Pause this many seconds before the target chapter ends. On the final
+  /// chapter that stops the player from ever "completing" and handing off to
+  /// the next book.
+  static const _chapterEndGuardSec = 2.5;
+
+  /// A chapter with less than this left isn't worth stopping at - the timer
+  /// would expire almost the moment it started - so aim at the next one.
+  static const _minChapterRemainingSec = 60;
+
   void setChapterSleep(int numChapters) {
     cancel();
-    _mode = SleepTimerMode.chapters;
-    _chaptersRemaining = numChapters;
-    
-    // Calculate the target chapter index
+
+    final chapters = _chapterList();
     final currentIdx = _getCurrentChapterIndex();
-    if (currentIdx >= 0) {
-      _targetChapterIndex = currentIdx + numChapters;
-      debugPrint('[SleepTimer] Set chapter sleep: $numChapters chapters '
-          '(current=$currentIdx, target=$_targetChapterIndex)');
-    } else {
-      _targetChapterIndex = -1;
-      debugPrint('[SleepTimer] Set chapter sleep: $numChapters chapters (no current chapter)');
+    if (chapters.isEmpty || currentIdx < 0 || _positionStream() == null) {
+      // Arming here would leave a timer that reads as active but can never
+      // fire, and an active timer blocks auto sleep from ever retrying. Stay
+      // off instead so the next resume or foreground check has another go.
+      debugPrint('[SleepTimer] Chapter sleep not started: '
+          '${chapters.isEmpty ? "no chapters loaded" : currentIdx < 0 ? "position is outside every chapter" : "no position stream"}');
+      return;
     }
-    
+
+    // numChapters counts the current chapter, so stop at the end of
+    // current + numChapters - 1.
+    var target = (currentIdx + numChapters - 1).clamp(0, chapters.length - 1);
+
+    // Resuming right after a sleep can leave the position all but on top of
+    // the boundary we stopped at, and aiming there again would sleep within
+    // seconds. Judged on how much is actually left to hear, not on whether we
+    // slept here: sleep-rewind can be anything up to two hours, and a 15
+    // minute rewind leaves a real 15 minutes to listen, so that should still
+    // stop at this same boundary rather than running on into the next chapter.
+    final pos = _currentPositionSeconds();
+    while (target + 1 < chapters.length &&
+        _chapterEnd(target) - pos < _minChapterRemainingSec) {
+      target += 1;
+      debugPrint('[SleepTimer] Under ${_minChapterRemainingSec}s left here - '
+          'targeting chapter $target instead');
+    }
+
+    _mode = SleepTimerMode.chapters;
+    _targetChapterIndex = target;
+    _targetEndSeconds = _chapterEnd(target);
+    _chaptersRemaining = (target - currentIdx + 1).clamp(0, 999);
+    debugPrint('[SleepTimer] Set chapter sleep: current=$currentIdx '
+        'target=$target end=${_targetEndSeconds.toStringAsFixed(0)}s');
+
     _startChapterMonitor();
     _startShakeDetection();
     notifyListeners();
   }
 
+  /// Cast position stream when casting, local player stream otherwise. Null
+  /// only while casting without a stream attached.
+  Stream<Duration>? _positionStream() =>
+      _cast.isCasting ? _cast.castPositionStream : _player.positionStream;
+
   void _startChapterMonitor() {
     _positionSub?.cancel();
-    // Use cast position stream when casting, local player stream otherwise
-    final stream = _cast.isCasting
-        ? _cast.castPositionStream
-        : _player.positionStream;
+    final stream = _positionStream();
     if (stream == null) return;
     _positionSub = stream.listen((pos) {
       if (!_isPlaybackActive) return;
+      if (_targetEndSeconds <= 0) return;
+
+      // Trigger off the position, not the chapter index: a position that lands
+      // in a gap between chapters resolves to no index at all.
+      if (_currentPositionSeconds() >= _targetEndSeconds - _chapterEndGuardSec) {
+        unawaited(_triggerSleep());
+        return;
+      }
 
       final currentIdx = _getCurrentChapterIndex();
       if (currentIdx < 0) return;
-
-      // Update chapters remaining
-      if (_targetChapterIndex >= 0) {
-        _chaptersRemaining = (_targetChapterIndex - currentIdx).clamp(0, 999);
+      final remaining = (_targetChapterIndex - currentIdx + 1).clamp(0, 999);
+      if (remaining != _chaptersRemaining) {
+        _chaptersRemaining = remaining;
         notifyListeners();
-
-        // Check if we've reached the end of the target chapter
-        if (currentIdx >= _targetChapterIndex) {
-          unawaited(_triggerSleep());
-        }
       }
     });
   }
@@ -351,8 +412,14 @@ class SleepTimerService extends ChangeNotifier {
   /// Add a chapter (used by shake reset in chapter mode, or manual add)
   void addChapter() {
     if (_mode != SleepTimerMode.chapters) return;
-    _chaptersRemaining++;
+    final chapters = _chapterList();
+    if (_targetChapterIndex + 1 >= chapters.length) {
+      debugPrint('[SleepTimer] Already targeting the last chapter — nothing to add');
+      return;
+    }
     _targetChapterIndex++;
+    _targetEndSeconds = _chapterEnd(_targetChapterIndex);
+    _chaptersRemaining++;
     notifyListeners();
     debugPrint('[SleepTimer] Added 1 chapter — now $_chaptersRemaining remaining');
   }
@@ -393,20 +460,36 @@ class SleepTimerService extends ChangeNotifier {
 
   // ── Common ──
 
+  List<dynamic> _chapterList() =>
+      _cast.isCasting ? _cast.castingChapters : _player.chapters;
+
+  double _currentPositionSeconds() => _cast.isCasting
+      ? _cast.castPosition.inMilliseconds / 1000.0
+      : _player.position.inMilliseconds / 1000.0;
+
+  double _chapterEnd(int index) {
+    final chapters = _chapterList();
+    if (index < 0 || index >= chapters.length) return -1;
+    final ch = chapters[index] as Map<String, dynamic>;
+    return (ch['end'] as num?)?.toDouble() ?? -1;
+  }
+
   int _getCurrentChapterIndex() {
-    final casting = _cast.isCasting;
-    final chapters = casting ? _cast.castingChapters : _player.chapters;
+    final chapters = _chapterList();
     if (chapters.isEmpty) return -1;
-    final pos = casting
-        ? _cast.castPosition.inMilliseconds / 1000.0
-        : _player.position.inMilliseconds / 1000.0;
+    final pos = _currentPositionSeconds();
+    // Falls back to the last chapter that has started, so a position sitting in
+    // a gap between chapters or past the final end still resolves instead of
+    // reporting "no chapter" and stalling everything downstream.
+    int started = -1;
     for (int i = 0; i < chapters.length; i++) {
       final ch = chapters[i] as Map<String, dynamic>;
       final start = (ch['start'] as num?)?.toDouble() ?? 0;
       final end = (ch['end'] as num?)?.toDouble() ?? 0;
       if (pos >= start && pos < end) return i;
+      if (pos >= start) started = i;
     }
-    return -1;
+    return started;
   }
 
   bool _isFadingOut = false;
@@ -414,7 +497,7 @@ class SleepTimerService extends ChangeNotifier {
 
   Future<void> _triggerSleep() async {
     if (_isTriggeringSleep) return;
-    final pauseRequested = !_cast.isCasting && _player.isPauseRequested;
+    final pauseRequested = !_cast.isCastEngaged && _player.isPauseRequested;
     if (!_isPlaybackActive || pauseRequested) {
       _wasPlaying = false;
       return;
@@ -422,8 +505,8 @@ class SleepTimerService extends ChangeNotifier {
     _isTriggeringSleep = true;
     debugPrint('[SleepTimer] Triggering sleep — pausing playback');
     try {
-      if (_cast.isCasting) {
-        await _cast.pause();
+      if (_cast.isCastEngaged) {
+        await _cast.pauseNowOrOnReconnect();
       } else {
         await _player.pause();
         // Restore volume so next playback starts at normal level
@@ -431,7 +514,12 @@ class SleepTimerService extends ChangeNotifier {
         // Auto-rewind so the user resumes from a few seconds back
         final rewindSeconds = await PlayerSettings.getEffectiveSleepRewindSeconds(_player.currentItemId);
         if (rewindSeconds > 0) {
+          final from = _player.position;
           await _player.sleepTimerRewind(rewindSeconds);
+          _sleepRewoundAt = DateTime.now();
+          _sleepRewoundItemId = _player.currentItemId;
+          _sleepRewoundFrom = from;
+          _sleepRewoundTo = _player.position;
           debugPrint('[SleepTimer] Rewound ${rewindSeconds}s');
         }
       }
@@ -440,6 +528,48 @@ class SleepTimerService extends ChangeNotifier {
     } finally {
       _isTriggeringSleep = false;
     }
+  }
+
+  /// Position to jump back to when playback resumes soon after a sleep rewind,
+  /// or null if there's nothing to undo. Consumed on read, so it only ever
+  /// applies once.
+  ///
+  /// Deliberately separate from the ordinary auto-rewind-on-pause: this only
+  /// reverses the extra jump the sleep timer made. Whatever auto-rewind wants
+  /// to do afterwards still applies from the restored position.
+  Duration? takeSleepRewindUndo(String? itemId, Duration currentPosition) {
+    final at = _sleepRewoundAt;
+    final from = _sleepRewoundFrom;
+    final to = _sleepRewoundTo;
+    if (at == null || from == null || to == null) return null;
+
+    void forget() {
+      _sleepRewoundAt = null;
+      _sleepRewoundItemId = null;
+      _sleepRewoundFrom = null;
+      _sleepRewoundTo = null;
+    }
+
+    if (DateTime.now().difference(at) > sleepRewindUndoWindow) {
+      debugPrint('[SleepTimer] Sleep rewind too old to undo');
+      forget();
+      return null;
+    }
+    if (itemId == null || itemId != _sleepRewoundItemId) {
+      debugPrint('[SleepTimer] Different item since the sleep rewind - not undoing');
+      forget();
+      return null;
+    }
+    // Moved since we rewound (a manual seek, or resuming somewhere else), so
+    // the rewind is no longer the thing that put us here.
+    if ((currentPosition - to).abs() > const Duration(seconds: 2)) {
+      debugPrint('[SleepTimer] Position moved since the sleep rewind - not undoing');
+      forget();
+      return null;
+    }
+    forget();
+    debugPrint('[SleepTimer] Undoing sleep rewind - back to ${from.inSeconds}s');
+    return from;
   }
 
   void cancel() {
@@ -456,6 +586,7 @@ class SleepTimerService extends ChangeNotifier {
     _timeRemaining = Duration.zero;
     _chaptersRemaining = 0;
     _targetChapterIndex = -1;
+    _targetEndSeconds = -1;
     _warningSent = false;
     _autoStarted = false;
     // Restore volume if cancelled during fade-out

@@ -32,6 +32,8 @@ import 'app_shell.dart';
 import 'upcoming_releases_screen.dart';
 import '../widgets/audible_series_sheet.dart' show showAudibleRegionPicker;
 import '../widgets/offline_status_icon.dart';
+import '../widgets/desktop_batch_actions.dart';
+import '../widgets/desktop_cover_size_control.dart';
 import '../widgets/rmab_config_sheet.dart'
     show kRmabBaseUrlKey, kRmabApiTokenKey;
 import '../widgets/rmab_search_results_sheet.dart';
@@ -55,9 +57,7 @@ LinearGradient _libraryBackgroundGradient(
     end: Alignment.bottomCenter,
     stops: const [0.0, 0.22, 0.72, 1.0],
     colors: [
-      colorScheme.primary.withValues(
-        alpha: gradientIntensityNotifier.value,
-      ),
+      colorScheme.primary.withValues(alpha: gradientIntensityNotifier.value),
       colorScheme.surface,
       lowerFade,
       scaffoldBackground,
@@ -82,12 +82,7 @@ class _LibraryHeaderGradientPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paintBounds = Offset.zero & size;
     canvas.drawRect(paintBounds, Paint()..color = backgroundColor);
-    final shaderBounds = Rect.fromLTWH(
-      0,
-      -topInset,
-      size.width,
-      screenHeight,
-    );
+    final shaderBounds = Rect.fromLTWH(0, -topInset, size.width, screenHeight);
     canvas.drawRect(
       paintBounds,
       Paint()..shader = gradient.createShader(shaderBounds),
@@ -106,10 +101,11 @@ SliverGridDelegate libraryGridDelegateForWidth(
   double width, {
   required bool desktopWorkspace,
   required double childAspectRatio,
+  double desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
 }) {
   if (desktopWorkspace) {
     return SliverGridDelegateWithMaxCrossAxisExtent(
-      maxCrossAxisExtent: kDesktopLibraryTileMaxExtent,
+      maxCrossAxisExtent: desktopMaxCrossAxisExtent,
       childAspectRatio: childAspectRatio,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
@@ -126,11 +122,13 @@ SliverGridDelegate libraryGridDelegateForWidth(
 SliverGridDelegate libraryGridDelegate(
   BuildContext context, {
   required double childAspectRatio,
+  double desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
 }) {
   return libraryGridDelegateForWidth(
     MediaQuery.sizeOf(context).width,
     desktopWorkspace: isDesktopWorkspace(context),
     childAspectRatio: childAspectRatio,
+    desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
   );
 }
 
@@ -141,7 +139,7 @@ SliverGridDelegate libraryGridDelegate(
 /// stays put, so the bottom items end up closer to the pill than steady-state
 /// math would suggest. The desktop workspace has neither bar.
 double libraryGridBottomPadding(BuildContext context) =>
-    isDesktopWorkspace(context) ? 24 : 180;
+    isDesktopWorkspace(context) ? 80 : 180;
 
 // ─── Sort modes ──────────────────────────────────────────────
 enum LibrarySort {
@@ -279,20 +277,34 @@ String? buildLibraryFilterQuery(
   return switch (filter) {
     LibraryFilter.hasEbook => _encodedLibraryFilter('ebooks', 'ebook'),
     LibraryFilter.noEbook => _encodedLibraryFilter('ebooks', 'no-ebook'),
-    LibraryFilter.hasSupplementaryEbook =>
-      _encodedLibraryFilter('ebooks', 'supplementary'),
-    LibraryFilter.noSupplementaryEbook =>
-      _encodedLibraryFilter('ebooks', 'no-supplementary'),
-    LibraryFilter.series when filterValue != null =>
-      _encodedLibraryFilter('series', filterValue),
-    LibraryFilter.author when filterValue != null =>
-      _encodedLibraryFilter('authors', filterValue),
-    LibraryFilter.narrator when filterValue != null =>
-      _encodedLibraryFilter('narrators', filterValue),
-    LibraryFilter.language when filterValue != null =>
-      _encodedLibraryFilter('languages', filterValue),
-    LibraryFilter.publisher when filterValue != null =>
-      _encodedLibraryFilter('publishers', filterValue),
+    LibraryFilter.hasSupplementaryEbook => _encodedLibraryFilter(
+      'ebooks',
+      'supplementary',
+    ),
+    LibraryFilter.noSupplementaryEbook => _encodedLibraryFilter(
+      'ebooks',
+      'no-supplementary',
+    ),
+    LibraryFilter.series when filterValue != null => _encodedLibraryFilter(
+      'series',
+      filterValue,
+    ),
+    LibraryFilter.author when filterValue != null => _encodedLibraryFilter(
+      'authors',
+      filterValue,
+    ),
+    LibraryFilter.narrator when filterValue != null => _encodedLibraryFilter(
+      'narrators',
+      filterValue,
+    ),
+    LibraryFilter.language when filterValue != null => _encodedLibraryFilter(
+      'languages',
+      filterValue,
+    ),
+    LibraryFilter.publisher when filterValue != null => _encodedLibraryFilter(
+      'publishers',
+      filterValue,
+    ),
     LibraryFilter.publishedDecade when filterValue != null =>
       _encodedLibraryFilter('publishedDecades', filterValue),
     LibraryFilter.noTracks => _encodedLibraryFilter('tracks', 'none'),
@@ -302,8 +314,10 @@ String? buildLibraryFilterQuery(
     LibraryFilter.issues => 'issues',
     LibraryFilter.feedOpen => 'feed-open',
     LibraryFilter.explicit => 'explicit',
-    LibraryFilter.genre when genre != null =>
-      _encodedLibraryFilter('genres', genre),
+    LibraryFilter.genre when genre != null => _encodedLibraryFilter(
+      'genres',
+      genre,
+    ),
     LibraryFilter.tag when tag != null => _encodedLibraryFilter('tags', tag),
     LibraryFilter.missingMetadata when missingMetadata != null =>
       _encodedLibraryFilter('missing', missingMetadata.filterValue),
@@ -527,7 +541,107 @@ class LibraryScreenState extends State<LibraryScreen>
 
   // ── Cover aspect ratio ──
   bool _rectangleCovers = false;
+  int _bookshelfCoverSize = 120;
   double get _coverAspectRatio => _rectangleCovers ? 2 / 3 : 1.0;
+  double get _desktopTileMaxExtent =>
+      kDesktopLibraryTileMaxExtent * (_bookshelfCoverSize / 120);
+
+  bool _selectionMode = false;
+  bool _batchActionBusy = false;
+  final Set<String> _selectedItemIds = {};
+  int? _lastSelectedVisibleIndex;
+
+  void _resetSelectionState() {
+    _selectionMode = false;
+    _batchActionBusy = false;
+    _selectedItemIds.clear();
+    _lastSelectedVisibleIndex = null;
+  }
+
+  void _clearSelection() {
+    if (!_selectionMode && _selectedItemIds.isEmpty) return;
+    setState(_resetSelectionState);
+  }
+
+  List<Map<String, dynamic>> _selectableVisibleItems() {
+    final lib = context.read<LibraryProvider>();
+    return _visibleLibraryItems(lib)
+        .where(
+          (item) =>
+              !item.containsKey('collapsedSeries') && item['id'] is String,
+        )
+        .toList();
+  }
+
+  void _toggleSelection(Map<String, dynamic> item, int visibleIndex) {
+    final itemId = item['id'] as String?;
+    if (itemId == null) return;
+    final shiftPressed = HardwareKeyboard.instance.isShiftPressed;
+    setState(() {
+      _selectionMode = true;
+      if (shiftPressed && _lastSelectedVisibleIndex != null) {
+        final items = _visibleLibraryItems(context.read<LibraryProvider>());
+        final start = min(_lastSelectedVisibleIndex!, visibleIndex);
+        final end = max(_lastSelectedVisibleIndex!, visibleIndex);
+        for (var index = start; index <= end && index < items.length; index++) {
+          final rangeItem = items[index];
+          if (rangeItem.containsKey('collapsedSeries')) continue;
+          final rangeId = rangeItem['id'] as String?;
+          if (rangeId != null) _selectedItemIds.add(rangeId);
+        }
+      } else if (!_selectedItemIds.add(itemId)) {
+        _selectedItemIds.remove(itemId);
+      }
+      _lastSelectedVisibleIndex = visibleIndex;
+    });
+  }
+
+  void _toggleSelectAll() {
+    final ids = _selectableVisibleItems()
+        .map((item) => item['id'] as String)
+        .toSet();
+    setState(() {
+      _selectionMode = true;
+      if (ids.isNotEmpty && _selectedItemIds.containsAll(ids)) {
+        _selectedItemIds.removeAll(ids);
+      } else {
+        _selectedItemIds.addAll(ids);
+      }
+      _lastSelectedVisibleIndex = null;
+    });
+  }
+
+  Future<void> _runBatchAction(Future<bool?> Function() action) async {
+    if (_batchActionBusy) return;
+    final visibleIds = _selectableVisibleItems()
+        .map((item) => item['id'] as String)
+        .toSet();
+    setState(() {
+      _selectedItemIds.retainAll(visibleIds);
+      if (_selectedItemIds.isEmpty) {
+        _resetSelectionState();
+      } else {
+        _batchActionBusy = true;
+      }
+    });
+    if (_selectedItemIds.isEmpty) return;
+    final success = await action();
+    if (!mounted) return;
+    setState(() {
+      _batchActionBusy = false;
+      if (success == true) _resetSelectionState();
+    });
+  }
+
+  void _changeBookshelfCoverSize(int direction) {
+    final sizes = PlayerSettings.bookshelfCoverSizes;
+    final currentIndex = sizes.indexOf(_bookshelfCoverSize);
+    final nextIndex = (currentIndex + direction).clamp(0, sizes.length - 1);
+    final next = sizes[nextIndex];
+    if (next == _bookshelfCoverSize) return;
+    setState(() => _bookshelfCoverSize = next);
+    PlayerSettings.setBookshelfCoverSize(next);
+  }
 
   // ── Scroll-to-hide bars ──
   /// Continuous 0..1 reveal: 1 = header + nav fully visible, 0 = both hidden.
@@ -612,7 +726,10 @@ class LibraryScreenState extends State<LibraryScreen>
     if (_tabController == null || _tabController!.indexIsChanging) return;
     final newTab = _tabController!.index;
     if (newTab == _currentTab) return;
-    setState(() => _currentTab = newTab);
+    setState(() {
+      _currentTab = newTab;
+      _resetSelectionState();
+    });
     // Reset reveal so the SliverAppBar is fully visible after a tab switch.
     _revealDriver.resetToShown();
     PlayerSettings.setLibraryTab(newTab);
@@ -661,6 +778,7 @@ class LibraryScreenState extends State<LibraryScreen>
       }
 
       setState(() {
+        _resetSelectionState();
         _podcastView = 0;
         _items.clear();
         _page = 0;
@@ -716,6 +834,9 @@ class LibraryScreenState extends State<LibraryScreen>
     });
     PlayerSettings.getRectangleCoversFor(lib.selectedLibraryId).then((v) {
       if (mounted) setState(() => _rectangleCovers = v);
+    });
+    PlayerSettings.getBookshelfCoverSize().then((value) {
+      if (mounted) setState(() => _bookshelfCoverSize = value);
     });
     _restoreSortFilter().then((_) {
       if (!mounted) return;
@@ -814,10 +935,7 @@ class LibraryScreenState extends State<LibraryScreen>
           (f) => f.name == restoredFilterName,
           orElse: () => LibraryFilter.none,
         );
-        if (!libraryFilterSupportsMediaType(
-          _filter,
-          isPodcast: isPodcast,
-        )) {
+        if (!libraryFilterSupportsMediaType(_filter, isPodcast: isPodcast)) {
           _filter = LibraryFilter.none;
         }
         final restoredGenre = isPodcast ? podcastGenreFilter : genreFilter;
@@ -828,14 +946,15 @@ class LibraryScreenState extends State<LibraryScreen>
         final restoredValueLabel = isPodcast
             ? podcastFilterValueLabel
             : libraryFilterValueLabel;
-        _genreFilter = _filter == LibraryFilter.genre && restoredGenre.isNotEmpty
+        _genreFilter =
+            _filter == LibraryFilter.genre && restoredGenre.isNotEmpty
             ? restoredGenre
             : null;
         _tagFilter = _filter == LibraryFilter.tag && restoredTag.isNotEmpty
             ? restoredTag
             : null;
-        _filterValue = libraryFilterRequiresValue(_filter) &&
-                restoredValue.isNotEmpty
+        _filterValue =
+            libraryFilterRequiresValue(_filter) && restoredValue.isNotEmpty
             ? restoredValue
             : null;
         _filterValueLabel = _filterValue == null
@@ -941,14 +1060,20 @@ class LibraryScreenState extends State<LibraryScreen>
       PlayerSettings.getRectangleCoversFor(
         context.read<LibraryProvider>().selectedLibraryId,
       ),
+      PlayerSettings.getBookshelfCoverSize(),
     ]).then((values) {
-      final newHideEbook = values[0];
-      final newCollapse = values[1];
-      final newRectCovers = values[2];
+      final newHideEbook = values[0] as bool;
+      final newCollapse = values[1] as bool;
+      final newRectCovers = values[2] as bool;
+      final newCoverSize = values[3] as int;
       if (!mounted) return;
       final coversChanged = newRectCovers != _rectangleCovers;
-      if (coversChanged) {
-        setState(() => _rectangleCovers = newRectCovers);
+      final coverSizeChanged = newCoverSize != _bookshelfCoverSize;
+      if (coversChanged || coverSizeChanged) {
+        setState(() {
+          _rectangleCovers = newRectCovers;
+          _bookshelfCoverSize = newCoverSize;
+        });
       }
       if (newHideEbook != _hideEbookOnly || newCollapse != _collapseSeries) {
         _loadGeneration++;
@@ -1000,62 +1125,59 @@ class LibraryScreenState extends State<LibraryScreen>
               ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         _availableTags = tags.map(unwrap).where((t) => t.isNotEmpty).toList()
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _availableSeriesFilters = series
-            .whereType<Map>()
-            .map(
-              (value) => {
-                'id': value['id']?.toString() ?? '',
-                'name': value['name']?.toString() ?? '',
-              },
-            )
-            .where(
-              (value) =>
-                  value['id']!.isNotEmpty && value['name']!.isNotEmpty,
-            )
-            .toList()
-          ..sort(
-            (a, b) => a['name']!.toLowerCase().compareTo(
-              b['name']!.toLowerCase(),
-            ),
-          );
-        _availableAuthorFilters = authors
-            .whereType<Map>()
-            .map(
-              (value) => {
-                'id': value['id']?.toString() ?? '',
-                'name': value['name']?.toString() ?? '',
-              },
-            )
-            .where(
-              (value) =>
-                  value['id']!.isNotEmpty && value['name']!.isNotEmpty,
-            )
-            .toList()
-          ..sort(
-            (a, b) => a['name']!.toLowerCase().compareTo(
-              b['name']!.toLowerCase(),
-            ),
-          );
-        _availableNarrators = narrators
-            .map(unwrap)
-            .where((value) => value.isNotEmpty)
-            .toList()
-          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _availableLanguages = languages
-            .map(unwrap)
-            .where((value) => value.isNotEmpty)
-            .toList()
-          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _availablePublishers = publishers
-            .map(unwrap)
-            .where((value) => value.isNotEmpty)
-            .toList()
-          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _availablePublishedDecades = publishedDecades
-            .map(unwrap)
-            .where((value) => value.isNotEmpty)
-            .toList()
-          ..sort();
+        _availableSeriesFilters =
+            series
+                .whereType<Map>()
+                .map(
+                  (value) => {
+                    'id': value['id']?.toString() ?? '',
+                    'name': value['name']?.toString() ?? '',
+                  },
+                )
+                .where(
+                  (value) =>
+                      value['id']!.isNotEmpty && value['name']!.isNotEmpty,
+                )
+                .toList()
+              ..sort(
+                (a, b) => a['name']!.toLowerCase().compareTo(
+                  b['name']!.toLowerCase(),
+                ),
+              );
+        _availableAuthorFilters =
+            authors
+                .whereType<Map>()
+                .map(
+                  (value) => {
+                    'id': value['id']?.toString() ?? '',
+                    'name': value['name']?.toString() ?? '',
+                  },
+                )
+                .where(
+                  (value) =>
+                      value['id']!.isNotEmpty && value['name']!.isNotEmpty,
+                )
+                .toList()
+              ..sort(
+                (a, b) => a['name']!.toLowerCase().compareTo(
+                  b['name']!.toLowerCase(),
+                ),
+              );
+        _availableNarrators =
+            narrators.map(unwrap).where((value) => value.isNotEmpty).toList()
+              ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availableLanguages =
+            languages.map(unwrap).where((value) => value.isNotEmpty).toList()
+              ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availablePublishers =
+            publishers.map(unwrap).where((value) => value.isNotEmpty).toList()
+              ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availablePublishedDecades =
+            publishedDecades
+                .map(unwrap)
+                .where((value) => value.isNotEmpty)
+                .toList()
+              ..sort();
       });
     }
   }
@@ -1303,9 +1425,14 @@ class LibraryScreenState extends State<LibraryScreen>
   void _loadOfflinePage(LibraryProvider lib) {
     final l = AppLocalizations.of(context)!;
     final isPodcast = lib.isPodcastLibrary;
-    final downloads = DownloadService().downloadedItems
-        .where((dl) => (dl.itemId.length > 36) == isPodcast)
-        .toList();
+    final selectedId = lib.selectedLibraryId;
+    final downloads = DownloadService().downloadedItems.where((dl) {
+      final libraryId = dl.libraryId;
+      if (libraryId != null && libraryId.isNotEmpty && selectedId != null) {
+        return libraryId == selectedId;
+      }
+      return (dl.itemId.length > 36) == isPodcast;
+    }).toList();
 
     final items = <Map<String, dynamic>>[];
     for (final dl in downloads) {
@@ -1664,6 +1791,7 @@ class LibraryScreenState extends State<LibraryScreen>
       // Tapping the same sort toggles direction (except Random)
       if (newSort == LibrarySort.random) return;
       setState(() {
+        _resetSelectionState();
         _sortAsc = !_sortAsc;
         _items.clear();
         _page = 0;
@@ -1681,6 +1809,7 @@ class LibraryScreenState extends State<LibraryScreen>
       return;
     }
     setState(() {
+      _resetSelectionState();
       _sort = newSort;
       // Smart defaults: A-Z and Length start ascending, others start descending
       _sortAsc =
@@ -1881,12 +2010,11 @@ class LibraryScreenState extends State<LibraryScreen>
             filterValue != 'no-series');
     _loadGeneration++;
     setState(() {
+      _resetSelectionState();
       _filter = effective;
       _genreFilter = effective == LibraryFilter.genre ? genre : null;
       _tagFilter = effective == LibraryFilter.tag ? tag : null;
-      _filterValue = libraryFilterRequiresValue(effective)
-          ? filterValue
-          : null;
+      _filterValue = libraryFilterRequiresValue(effective) ? filterValue : null;
       _filterValueLabel = _filterValue == null
           ? null
           : (filterValueLabel ?? filterValue);
@@ -2040,6 +2168,7 @@ class LibraryScreenState extends State<LibraryScreen>
 
   void _onSearchChanged(String query) {
     _debounce?.cancel();
+    if (_selectionMode) _clearSelection();
     // Always show bars when entering/exiting search
     _revealDriver.resetToShown();
     if (query.trim().isEmpty) {
@@ -2249,8 +2378,7 @@ class LibraryScreenState extends State<LibraryScreen>
     LibraryFilter.narrator => _filterValueLabel ?? l.libraryTabNarrators,
     LibraryFilter.language => _filterValueLabel ?? l.languageLabel,
     LibraryFilter.publisher => _filterValueLabel ?? l.publisherLabel,
-    LibraryFilter.publishedDecade =>
-      _filterValueLabel ?? l.publishedDecade,
+    LibraryFilter.publishedDecade => _filterValueLabel ?? l.publishedDecade,
     LibraryFilter.noTracks => l.noTracks,
     LibraryFilter.singleTrack => l.singleTrack,
     LibraryFilter.multipleTracks => l.multipleTracks,
@@ -2258,9 +2386,10 @@ class LibraryScreenState extends State<LibraryScreen>
     LibraryFilter.issues => l.issues,
     LibraryFilter.feedOpen => l.rssFeedOpen,
     LibraryFilter.explicit => l.explicitContent,
-    LibraryFilter.missingMetadata => _missingMetadataFilter == null
-        ? l.missingMetadata
-        : missingMetadataFieldLabel(l, _missingMetadataFilter!),
+    LibraryFilter.missingMetadata =>
+      _missingMetadataFilter == null
+          ? l.missingMetadata
+          : missingMetadataFieldLabel(l, _missingMetadataFilter!),
     LibraryFilter.genre => _genreFilter ?? l.genre,
     LibraryFilter.tag => _tagFilter ?? l.tag,
     LibraryFilter.none => '',
@@ -2369,6 +2498,7 @@ class LibraryScreenState extends State<LibraryScreen>
               _listsScrollController.jumpTo(0);
           } else {
             setState(() {
+              _resetSelectionState();
               _sortAsc = !_sortAsc;
               _items.clear();
               _page = 0;
@@ -2387,24 +2517,25 @@ class LibraryScreenState extends State<LibraryScreen>
           }
           Navigator.pop(ctx);
         },
-        onFilterChanged: (
-          filter, {
-          String? genre,
-          String? tag,
-          String? filterValue,
-          String? filterValueLabel,
-          MissingMetadataField? missingMetadata,
-        }) {
-          Navigator.pop(ctx);
-          _changeFilter(
-            filter,
-            genre: genre,
-            tag: tag,
-            filterValue: filterValue,
-            filterValueLabel: filterValueLabel,
-            missingMetadata: missingMetadata,
-          );
-        },
+        onFilterChanged:
+            (
+              filter, {
+              String? genre,
+              String? tag,
+              String? filterValue,
+              String? filterValueLabel,
+              MissingMetadataField? missingMetadata,
+            }) {
+              Navigator.pop(ctx);
+              _changeFilter(
+                filter,
+                genre: genre,
+                tag: tag,
+                filterValue: filterValue,
+                filterValueLabel: filterValueLabel,
+                missingMetadata: missingMetadata,
+              );
+            },
         onClearFilter: () {
           Navigator.pop(ctx);
           _changeFilter(LibraryFilter.none);
@@ -2413,6 +2544,7 @@ class LibraryScreenState extends State<LibraryScreen>
         onCollapseSeriesChanged: (value) {
           _loadGeneration++;
           setState(() {
+            _resetSelectionState();
             _collapseSeries = value;
             _items.clear();
             _page = 0;
@@ -2424,8 +2556,9 @@ class LibraryScreenState extends State<LibraryScreen>
           _loadPage();
         },
         isPodcastLibrary: context.read<LibraryProvider>().isPodcastLibrary,
-        canAccessExplicitContent:
-            context.read<AuthProvider>().canAccessExplicitContent,
+        canAccessExplicitContent: context
+            .read<AuthProvider>()
+            .canAccessExplicitContent,
         onUpcomingReleases: tab == LibraryTab.series
             ? () {
                 Navigator.pop(ctx);
@@ -2455,6 +2588,7 @@ class LibraryScreenState extends State<LibraryScreen>
     // or its data changes; the actual lib object is consumed inside
     // _buildHeaderSliver via context.watch.
     final libWatch = context.watch<LibraryProvider>();
+    final auth = context.watch<AuthProvider>();
     // Reload the grid when the offline state flips so it swaps between the full
     // library and the downloads-only offline view.
     if (libWatch.isOffline != _wasOffline) {
@@ -2462,6 +2596,7 @@ class LibraryScreenState extends State<LibraryScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() {
+          _resetSelectionState();
           _items.clear();
           _page = 0;
           _hasMore = true;
@@ -2471,6 +2606,25 @@ class LibraryScreenState extends State<LibraryScreen>
       });
     }
     final hasTabs = _tabController != null && !_isInSearchMode;
+    final selectionAvailable =
+        desktopWorkspace &&
+        !libWatch.isOffline &&
+        !_isInSearchMode &&
+        (hasTabs ? _currentTab == 0 : _podcastView == 0);
+    if (!selectionAvailable && _selectionMode) _resetSelectionState();
+    final showCoverControl =
+        desktopWorkspace &&
+        !_isInSearchMode &&
+        (hasTabs ? _currentTab != 3 : _podcastView == 0);
+    final selectableItems = selectionAvailable
+        ? _selectableVisibleItems()
+        : const <Map<String, dynamic>>[];
+    if (_selectionMode) {
+      _selectedItemIds.retainAll(
+        selectableItems.map((item) => item['id'] as String).toSet(),
+      );
+    }
+    final selectableCount = selectableItems.length;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -2595,6 +2749,53 @@ class LibraryScreenState extends State<LibraryScreen>
           ),
         ],
       ),
+      floatingActionButton: !desktopWorkspace
+          ? null
+          : _selectionMode && selectionAvailable
+          ? DesktopBatchActionBar(
+              selectedCount: _selectedItemIds.length,
+              selectableCount: selectableCount,
+              busy: _batchActionBusy,
+              canQuickMatch: auth.isAdmin && !libWatch.isPodcastLibrary,
+              canMarkProgress: !libWatch.isPodcastLibrary,
+              canDelete: auth.canDelete,
+              onSelectAll: _toggleSelectAll,
+              onClear: _clearSelection,
+              onQuickMatch: () => _runBatchAction(
+                () => DesktopBatchActions.quickMatch(
+                  context,
+                  _selectedItemIds.toList(),
+                ),
+              ),
+              onMarkFinished: () => _runBatchAction(
+                () => DesktopBatchActions.setFinished(
+                  context,
+                  _selectedItemIds.toList(),
+                  isFinished: true,
+                ),
+              ),
+              onMarkUnfinished: () => _runBatchAction(
+                () => DesktopBatchActions.setFinished(
+                  context,
+                  _selectedItemIds.toList(),
+                  isFinished: false,
+                ),
+              ),
+              onDelete: () => _runBatchAction(
+                () => DesktopBatchActions.delete(
+                  context,
+                  _selectedItemIds.toList(),
+                ),
+              ),
+            )
+          : showCoverControl
+          ? DesktopCoverSizeControl(
+              value: _bookshelfCoverSize,
+              onDecrease: () => _changeBookshelfCoverSize(-1),
+              onIncrease: () => _changeBookshelfCoverSize(1),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -2631,6 +2832,11 @@ class LibraryScreenState extends State<LibraryScreen>
             ),
           );
     final desktop = isDesktopWorkspace(context);
+    final canSelectItems =
+        desktop &&
+        !lib.isOffline &&
+        !_isInSearchMode &&
+        (_tabController == null ? _podcastView == 0 : _currentTab == 0);
     return SliverAppBar(
       floating: !desktop,
       snap: !desktop,
@@ -2676,152 +2882,173 @@ class LibraryScreenState extends State<LibraryScreen>
                       }
                     },
                   ),
-                  actions: hasMultipleLibraries
-                      ? [
-                          GestureDetector(
-                            onTap: () => showLibraryPickerSheet(context, lib),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: cs.onSurface.withValues(alpha: 0.06),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: cs.onSurface.withValues(alpha: 0.08),
-                                ),
-                              ),
-                              child: SizedBox(
-                                height: 20,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      lib.isPodcastLibrary
-                                          ? Icons.podcasts_rounded
-                                          : Icons.auto_stories_rounded,
-                                      size: 18,
-                                      color: cs.onSurfaceVariant,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 140,
-                                      ),
-                                      child: Text(
-                                        libraryName,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: cs.onSurfaceVariant,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.unfold_more_rounded,
-                                      size: 18,
-                                      color: cs.onSurfaceVariant,
-                                    ),
-                                  ],
-                                ),
-                              ),
+                  actions: [
+                    if (hasMultipleLibraries)
+                      GestureDetector(
+                        onTap: () => showLibraryPickerSheet(context, lib),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.onSurface.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: cs.onSurface.withValues(alpha: 0.08),
                             ),
                           ),
-                        ]
-                      : null,
+                          child: SizedBox(
+                            height: 20,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  lib.isPodcastLibrary
+                                      ? Icons.podcasts_rounded
+                                      : Icons.auto_stories_rounded,
+                                  size: 18,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 6),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 140,
+                                  ),
+                                  child: Text(
+                                    libraryName,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.unfold_more_rounded,
+                                  size: 18,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (canSelectItems)
+                      Tooltip(
+                        message: _selectionMode
+                            ? l.downloadsCancelSelection
+                            : 'Select items',
+                        child: IconButton(
+                          onPressed: _selectionMode
+                              ? _clearSelection
+                              : () => setState(() => _selectionMode = true),
+                          icon: Icon(
+                            _selectionMode
+                                ? Icons.close_rounded
+                                : Icons.library_add_check_rounded,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                Builder(builder: (context) {
-                  final searchBar = SearchBar(
-                    // Same GlobalKey on whichever SearchBar gets the shared
-                    // focus, so when _isInSearchMode toggles and the tree
-                    // swaps from tabbed -> search results, Flutter re-parents
-                    // the existing Element instead of destroying and
-                    // recreating it. Keeps focus + keyboard alive.
-                    key: useSharedFocus ? _searchBarKey : null,
-                    controller: _searchController,
-                    // Only the active tab's SearchBar binds to the screen-
-                    // level focus node. Inactive tabs' SearchBars use their
-                    // own internal focus so multiple instances in the
-                    // IndexedStack don't fight over the same FocusNode (the
-                    // bug that left tap-to-focus dead until you switched
-                    // libraries to force a state reset).
-                    focusNode: useSharedFocus ? _focusNode : null,
-                    hintText: lib.isPodcastLibrary
-                        ? l.librarySearchShowsHint
-                        : l.librarySearchBooksHint,
-                    leading: const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Icon(Icons.search_rounded),
-                    ),
-                    trailing: [
-                      if (_searchController.text.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.clear_rounded),
-                          onPressed: () {
-                            _searchController.clear();
-                            _onSearchChanged('');
-                            _focusNode.unfocus();
-                          },
-                        ),
-                    ],
-                    onChanged: _onSearchChanged,
-                    padding: const WidgetStatePropertyAll(
-                      EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    side: WidgetStatePropertyAll(
-                      BorderSide(color: cs.onSurface.withValues(alpha: 0.08)),
-                    ),
-                  );
-                  if (!desktop) {
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: searchBar,
-                    );
-                  }
-                  final hasBookTabs =
-                      _tabController != null && !_isInSearchMode;
-                  final showsPodcastPill =
-                      !hasBookTabs && lib.isPodcastLibrary && !_isInSearchMode;
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 560),
-                            child: searchBar,
-                          ),
-                        ),
-                        if (hasBookTabs) ...[
-                          const SizedBox(width: 12),
-                          _buildFloatingTabBar(cs, floating: false),
-                        ],
-                        if (showsPodcastPill) ...[
-                          const SizedBox(width: 12),
-                          _buildPodcastViewPill(cs, floating: false),
-                          if (context.read<AuthProvider>().isAdmin) ...[
-                            const SizedBox(width: 8),
-                            _buildFloatingManageButton(cs),
-                          ],
-                        ],
-                        const Spacer(),
-                        if (!lib.isOffline)
-                          Tooltip(
-                            message: l.refreshTooltip,
-                            child: IconButton(
-                              onPressed: _refreshCurrentTab,
-                              icon: Icon(Icons.refresh_rounded,
-                                  color: cs.onSurfaceVariant),
-                            ),
+                Builder(
+                  builder: (context) {
+                    final searchBar = SearchBar(
+                      // Same GlobalKey on whichever SearchBar gets the shared
+                      // focus, so when _isInSearchMode toggles and the tree
+                      // swaps from tabbed -> search results, Flutter re-parents
+                      // the existing Element instead of destroying and
+                      // recreating it. Keeps focus + keyboard alive.
+                      key: useSharedFocus ? _searchBarKey : null,
+                      controller: _searchController,
+                      // Only the active tab's SearchBar binds to the screen-
+                      // level focus node. Inactive tabs' SearchBars use their
+                      // own internal focus so multiple instances in the
+                      // IndexedStack don't fight over the same FocusNode (the
+                      // bug that left tap-to-focus dead until you switched
+                      // libraries to force a state reset).
+                      focusNode: useSharedFocus ? _focusNode : null,
+                      hintText: lib.isPodcastLibrary
+                          ? l.librarySearchShowsHint
+                          : l.librarySearchBooksHint,
+                      leading: const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Icon(Icons.search_rounded),
+                      ),
+                      trailing: [
+                        if (_searchController.text.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(Icons.clear_rounded),
+                            onPressed: () {
+                              _searchController.clear();
+                              _onSearchChanged('');
+                              _focusNode.unfocus();
+                            },
                           ),
                       ],
-                    ),
-                  );
-                }),
+                      onChanged: _onSearchChanged,
+                      padding: const WidgetStatePropertyAll(
+                        EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      side: WidgetStatePropertyAll(
+                        BorderSide(color: cs.onSurface.withValues(alpha: 0.08)),
+                      ),
+                    );
+                    if (!desktop) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        child: searchBar,
+                      );
+                    }
+                    final hasBookTabs =
+                        _tabController != null && !_isInSearchMode;
+                    final showsPodcastPill =
+                        !hasBookTabs &&
+                        lib.isPodcastLibrary &&
+                        !_isInSearchMode;
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 560),
+                              child: searchBar,
+                            ),
+                          ),
+                          if (hasBookTabs) ...[
+                            const SizedBox(width: 12),
+                            _buildFloatingTabBar(cs, floating: false),
+                          ],
+                          if (showsPodcastPill) ...[
+                            const SizedBox(width: 12),
+                            _buildPodcastViewPill(cs, floating: false),
+                            if (context.read<AuthProvider>().isAdmin) ...[
+                              const SizedBox(width: 8),
+                              _buildFloatingManageButton(cs),
+                            ],
+                          ],
+                          const Spacer(),
+                          if (!lib.isOffline)
+                            Tooltip(
+                              message: l.refreshTooltip,
+                              child: IconButton(
+                                onPressed: _refreshCurrentTab,
+                                icon: Icon(
+                                  Icons.refresh_rounded,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
                 // Item count + filter badge row
                 if (!_isInSearchMode) _buildInfoRow(cs, tt, l),
               ],
@@ -2838,76 +3065,73 @@ class LibraryScreenState extends State<LibraryScreen>
     final l = AppLocalizations.of(context)!;
     final labels = [l.appShellShowsTab, l.libraryTabEpisodes];
     final pill = Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: floating
-                ? cs.surface.withValues(alpha: 0.6)
-                : cs.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: floating
-                  ? cs.primary.withValues(alpha: 0.25)
-                  : cs.outlineVariant.withValues(alpha: 0.45),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: floating
+            ? cs.surface.withValues(alpha: 0.6)
+            : cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: floating
+              ? cs.primary.withValues(alpha: 0.25)
+              : cs.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(labels.length, (i) {
+          final active = _podcastView == i;
+          return GestureDetector(
+            onTap: () {
+              if (!active) {
+                setState(() {
+                  _podcastView = i;
+                  _resetSelectionState();
+                });
+                PlayerSettings.setPodcastView(i);
+              } else if (i == 0) {
+                // Re-tap on the active Shows pill opens the sort sheet,
+                // same as the book libraries' pills.
+                _showSortFilterSheet(context, cs, Theme.of(context).textTheme);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              padding: EdgeInsets.symmetric(
+                horizontal: active ? 14 : 12,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: active
+                    ? cs.primary.withValues(alpha: 0.15)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    labels[i],
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                      color: active ? cs.primary : cs.onSurfaceVariant,
+                    ),
+                  ),
+                  if (active && i == 0) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.sort_rounded, size: 14, color: cs.primary),
+                  ],
+                ],
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(labels.length, (i) {
-              final active = _podcastView == i;
-              return GestureDetector(
-                onTap: () {
-                  if (!active) {
-                    setState(() => _podcastView = i);
-                    PlayerSettings.setPodcastView(i);
-                  } else if (i == 0) {
-                    // Re-tap on the active Shows pill opens the sort sheet,
-                    // same as the book libraries' pills.
-                    _showSortFilterSheet(
-                      context,
-                      cs,
-                      Theme.of(context).textTheme,
-                    );
-                  }
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: active ? 14 : 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? cs.primary.withValues(alpha: 0.15)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        labels[i],
-                        maxLines: 1,
-                        softWrap: false,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: active
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: active ? cs.primary : cs.onSurfaceVariant,
-                        ),
-                      ),
-                      if (active && i == 0) ...[
-                        const SizedBox(width: 4),
-                        Icon(Icons.sort_rounded, size: 14, color: cs.primary),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        );
+          );
+        }),
+      ),
+    );
     if (!floating) return pill;
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -2980,21 +3204,13 @@ class LibraryScreenState extends State<LibraryScreen>
                       softWrap: false,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: active
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                        color: active
-                            ? cs.primary
-                            : cs.onSurfaceVariant,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                        color: active ? cs.primary : cs.onSurfaceVariant,
                       ),
                     ),
                     if (active) ...[
                       const SizedBox(width: 4),
-                      Icon(
-                        Icons.sort_rounded,
-                        size: 14,
-                        color: cs.primary,
-                      ),
+                      Icon(Icons.sort_rounded, size: 14, color: cs.primary),
                     ],
                   ],
                 ),
@@ -3219,6 +3435,7 @@ class LibraryScreenState extends State<LibraryScreen>
       // yet - show a spinner instead of flashing the empty state.
       isLoading: entries.isEmpty && _cachedHasLists,
       coverAspectRatio: _coverAspectRatio,
+      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
       onOpenCollection: (c) {
         final id = c['id'] as String?;
         if (id != null && id.isNotEmpty)
@@ -3255,6 +3472,7 @@ class LibraryScreenState extends State<LibraryScreen>
     final lib = context.read<LibraryProvider>();
     await lib.refresh();
     setState(() {
+      _resetSelectionState();
       _items.clear();
       _page = 0;
       _hasMore = true;
@@ -3289,6 +3507,7 @@ class LibraryScreenState extends State<LibraryScreen>
   // ═══════════════════════════════════════════════════════════════
   Widget _buildGrid(Widget headerSliver) {
     final lib = context.watch<LibraryProvider>();
+    final selectionAvailable = isDesktopWorkspace(context) && !lib.isOffline;
     return LibraryBooksTab(
       items: _visibleLibraryItems(lib),
       isLoadingPage: _isLoadingPage,
@@ -3299,6 +3518,10 @@ class LibraryScreenState extends State<LibraryScreen>
       isPodcastLibrary: context.read<LibraryProvider>().isPodcastLibrary,
       rectangleCovers: _rectangleCovers,
       coverAspectRatio: _coverAspectRatio,
+      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
+      selectionMode: selectionAvailable && _selectionMode,
+      selectedItemIds: _selectedItemIds,
+      onSelectionToggle: selectionAvailable ? _toggleSelection : null,
       onRefresh: _refreshAll,
       onClearFilter: () => _changeFilter(LibraryFilter.none),
       headerSliver: headerSliver,
@@ -3325,6 +3548,7 @@ class LibraryScreenState extends State<LibraryScreen>
       hasMoreSeries: _hasMoreSeries,
       rectangleCovers: _rectangleCovers,
       coverAspectRatio: _coverAspectRatio,
+      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
       onRefresh: _refreshSeries,
       headerSliver: headerSliver,
       scrollController: _seriesScrollController,
@@ -3340,6 +3564,7 @@ class LibraryScreenState extends State<LibraryScreen>
       authors: _authors,
       isLoadingAuthors: _isLoadingAuthors,
       authorsLoaded: _authorsLoaded,
+      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
       onRefresh: _refreshAuthors,
       headerSliver: headerSliver,
       scrollController: _authorsScrollController,

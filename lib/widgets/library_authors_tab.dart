@@ -8,6 +8,7 @@ class LibraryAuthorsTab extends StatelessWidget {
   final List<Map<String, dynamic>> authors;
   final bool isLoadingAuthors;
   final bool authorsLoaded;
+  final double desktopMaxCrossAxisExtent;
   final Future<void> Function() onRefresh;
   final Widget? headerSliver;
   final ScrollController? scrollController;
@@ -17,6 +18,7 @@ class LibraryAuthorsTab extends StatelessWidget {
     required this.authors,
     required this.isLoadingAuthors,
     required this.authorsLoaded,
+    this.desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
     required this.onRefresh,
     this.headerSliver,
     this.scrollController,
@@ -55,11 +57,16 @@ class LibraryAuthorsTab extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.people_outline_rounded,
-                      size: 56, color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
+                  Icon(
+                    Icons.people_outline_rounded,
+                    size: 56,
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                  ),
                   const SizedBox(height: 12),
-                  Text(l.libraryNoAuthorsFound,
-                      style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
+                  Text(
+                    l.libraryNoAuthorsFound,
+                    style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+                  ),
                 ],
               ),
             ),
@@ -73,11 +80,17 @@ class LibraryAuthorsTab extends StatelessWidget {
         slivers: [
           ...headers,
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding(context)),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              libraryGridBottomPadding(context),
+            ),
             sliver: SliverGrid(
               gridDelegate: libraryGridDelegate(
                 context,
                 childAspectRatio: 0.68,
+                desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) => GridAuthorTile(author: authors[index]),

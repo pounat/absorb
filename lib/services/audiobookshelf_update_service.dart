@@ -73,6 +73,45 @@ class AudiobookshelfUpdateService {
   }
 }
 
+class AudiobookshelfUpdateController extends ChangeNotifier {
+  AudiobookshelfUpdateController._();
+
+  static final AudiobookshelfUpdateController instance =
+      AudiobookshelfUpdateController._();
+
+  AudiobookshelfServerUpdate? _update;
+  String? _checkedFor;
+  bool _isChecking = false;
+
+  AudiobookshelfServerUpdate? get update => _update;
+  String? get checkedFor => _checkedFor;
+  bool get isChecking => _isChecking;
+
+  bool shouldCheck(String currentVersion) {
+    final version = currentVersion.trim();
+    return version.isNotEmpty && _checkedFor != version;
+  }
+
+  Future<void> check({required String currentVersion}) async {
+    final version = currentVersion.trim();
+    if (version.isEmpty || !shouldCheck(version)) return;
+
+    _checkedFor = version;
+    _isChecking = true;
+    _update = null;
+    notifyListeners();
+
+    final update = await AudiobookshelfUpdateService.check(
+      currentVersion: version,
+    );
+    if (_checkedFor != version) return;
+
+    _update = update;
+    _isChecking = false;
+    notifyListeners();
+  }
+}
+
 class _ReleaseVersion {
   final _ServerVersion version;
   final String releaseUrl;

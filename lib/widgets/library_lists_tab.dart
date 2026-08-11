@@ -10,6 +10,7 @@ class LibraryListsTab extends StatelessWidget {
   final List<Map<String, dynamic>> entries;
   final bool isLoading;
   final double coverAspectRatio;
+  final double desktopMaxCrossAxisExtent;
   final void Function(Map<String, dynamic>) onOpenCollection;
   final void Function(Map<String, dynamic>) onOpenPlaylist;
   final Future<void> Function() onRefresh;
@@ -20,6 +21,7 @@ class LibraryListsTab extends StatelessWidget {
     super.key,
     required this.entries,
     required this.coverAspectRatio,
+    this.desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
     required this.onOpenCollection,
     required this.onOpenPlaylist,
     required this.onRefresh,
@@ -70,13 +72,18 @@ class LibraryListsTab extends StatelessWidget {
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.collections_bookmark_outlined,
-                            size: 56,
-                            color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
+                        Icon(
+                          Icons.collections_bookmark_outlined,
+                          size: 56,
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                        ),
                         const SizedBox(height: 12),
-                        Text('No collections or playlists',
-                            style: tt.bodyLarge
-                                ?.copyWith(color: cs.onSurfaceVariant)),
+                        Text(
+                          'No collections or playlists',
+                          style: tt.bodyLarge?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
             ),
@@ -90,35 +97,39 @@ class LibraryListsTab extends StatelessWidget {
         slivers: [
           ...headers,
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding(context)),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              libraryGridBottomPadding(context),
+            ),
             sliver: SliverGrid(
               gridDelegate: libraryGridDelegate(
                 context,
                 childAspectRatio: coverAspectRatio < 1 ? 0.48 : 0.68,
+                desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
               ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final entry = entries[index];
-                  final isPlaylist = entry['_isPlaylist'] == true;
-                  final name = entry['name'] as String? ?? '';
-                  final ids = isPlaylist
-                      ? _playlistBookIds(entry)
-                      : _collectionBookIds(entry);
-                  final count = isPlaylist
-                      ? (entry['items'] as List<dynamic>?)?.length ?? ids.length
-                      : (entry['books'] as List<dynamic>?)?.length ?? ids.length;
-                  return GridListTile(
-                    name: name,
-                    bookIds: ids,
-                    count: count,
-                    isPlaylist: isPlaylist,
-                    coverAspectRatio: coverAspectRatio,
-                    onTap: () =>
-                        isPlaylist ? onOpenPlaylist(entry) : onOpenCollection(entry),
-                  );
-                },
-                childCount: entries.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final entry = entries[index];
+                final isPlaylist = entry['_isPlaylist'] == true;
+                final name = entry['name'] as String? ?? '';
+                final ids = isPlaylist
+                    ? _playlistBookIds(entry)
+                    : _collectionBookIds(entry);
+                final count = isPlaylist
+                    ? (entry['items'] as List<dynamic>?)?.length ?? ids.length
+                    : (entry['books'] as List<dynamic>?)?.length ?? ids.length;
+                return GridListTile(
+                  name: name,
+                  bookIds: ids,
+                  count: count,
+                  isPlaylist: isPlaylist,
+                  coverAspectRatio: coverAspectRatio,
+                  onTap: () => isPlaylist
+                      ? onOpenPlaylist(entry)
+                      : onOpenCollection(entry),
+                );
+              }, childCount: entries.length),
             ),
           ),
         ],

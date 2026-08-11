@@ -6,8 +6,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   bool isRollingDownloadEnabled(String seriesOrShowId) =>
       _rollingDownloadSeries.contains(seriesOrShowId);
 
-  Future<void> enableRollingDownload(String seriesOrShowId) async {
+  Future<void> enableRollingDownload(String seriesOrShowId,
+      {String? name, String? kind}) async {
     _rollingDownloadSeries.add(seriesOrShowId);
+    _rememberRollingDownloadSource(seriesOrShowId, name: name, kind: kind);
     await _saveRollingDownloadSeries();
     notifyListeners();
     final player = AudioPlayerService();
@@ -18,28 +20,215 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       _checkRollingDownloads(playingKey);
       unawaited(_checkQueueAutoDownloads(playingKey));
     }
+    unawaited(_catchUpListRollingDownloads(onlyListId: seriesOrShowId));
   }
 
   Future<void> disableRollingDownload(String seriesOrShowId) async {
     _rollingDownloadSeries.remove(seriesOrShowId);
+    _rollingDownloadSourceNames.remove(seriesOrShowId);
+    unawaited(_saveRollingDownloadSourceNames());
     await _saveRollingDownloadSeries();
     notifyListeners();
   }
 
-  Future<void> toggleRollingDownload(String seriesOrShowId) async {
+  Future<void> toggleRollingDownload(String seriesOrShowId,
+      {String? name, String? kind}) async {
     if (_rollingDownloadSeries.contains(seriesOrShowId)) {
       await disableRollingDownload(seriesOrShowId);
     } else {
-      await enableRollingDownload(seriesOrShowId);
+      await enableRollingDownload(seriesOrShowId, name: name, kind: kind);
     }
+  }
+
+  void _rememberRollingDownloadSource(String id, {String? name, String? kind}) {
+    final existing = _rollingDownloadSourceNames[id];
+    final mergedName =
+        (name != null && name.isNotEmpty) ? name : existing?['name'];
+    _rollingDownloadSourceNames[id] = {
+      if (mergedName != null) 'name': mergedName,
+      'kind': kind ?? existing?['kind'] ?? 'unknown',
+    };
+    unawaited(_saveRollingDownloadSourceNames());
+  }
+
+  Future<void> _saveRollingDownloadSourceNames() => ScopedPrefs.setString(
+      'rolling_download_source_names',
+      jsonEncode(_rollingDownloadSourceNames));
+
+  /// Everything auto-download is currently turned on for, resolved to a name
+  /// where we can. The stored set is bare ids with no type, so entries we
+  /// can't match against the cached series/playlist/collection/show data are
+  /// still returned unnamed rather than hidden - a toggle you can't see is a
+  /// toggle you can't turn off.
+  List<Map<String, String>> enabledAutoDownloadSources() {
+    final sources = <Map<String, String>>[];
+    for (final id in _rollingDownloadSeries) {
+      String? name;
+      var kind = 'unknown';
+
+      // Names stored at enable time (or by an earlier resolve) win; the
+      // live caches below only cover the currently selected library.
+      final stored = _rollingDownloadSourceNames[id];
+      if (stored != null) {
+        name = stored['name'];
+        kind = stored['kind'] ?? 'unknown';
+      }
+
+      if (name == null) {
+        for (final raw in _playlists) {
+          if (raw is Map<String, dynamic> && raw['id'] == id) {
+            name = raw['name'] as String?;
+            kind = 'playlist';
+            break;
+          }
+        }
+      }
+      if (name == null) {
+        for (final raw in _collections) {
+          if (raw is Map<String, dynamic> && raw['id'] == id) {
+            name = raw['name'] as String?;
+            kind = 'collection';
+            break;
+          }
+        }
+      }
+      if (name == null) {
+        for (final raw in _series) {
+          if (raw is Map<String, dynamic> && raw['id'] == id) {
+            name = raw['name'] as String?;
+            kind = 'series';
+            break;
+          }
+        }
+      }
+      if (name == null) {
+        for (final cached in _absorbingItemCache.values) {
+          if (cached['id'] != id) continue;
+          final media = cached['media'] as Map<String, dynamic>? ?? const {};
+          final metadata =
+              media['metadata'] as Map<String, dynamic>? ?? const {};
+          name = metadata['title'] as String?;
+          if (name != null) kind = 'podcast';
+          break;
+        }
+      }
+
+      if (name != null && name.isNotEmpty && stored?['name'] == null) {
+        _rememberRollingDownloadSource(id, name: name, kind: kind);
+      }
+
+      sources.add({
+        'id': id,
+        'kind': kind,
+        if (name != null && name.isNotEmpty) 'name': name,
+      });
+    }
+    sources.sort((a, b) {
+      final an = a['name'];
+      final bn = b['name'];
+      if (an == null && bn == null) return a['id']!.compareTo(b['id']!);
+      if (an == null) return 1;
+      if (bn == null) return -1;
+      return an.toLowerCase().compareTo(bn.toLowerCase());
+    });
+    return sources;
   }
 
   Future<void> _loadRollingDownloadSeries() async {
     _rollingDownloadSeries =
         (await ScopedPrefs.getStringList('rolling_download_series')).toSet();
+    _rollingDownloadSourceNames = {};
+    final namesJson =
+        await ScopedPrefs.getString('rolling_download_source_names');
+    if (namesJson != null && namesJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(namesJson);
+        if (decoded is Map<String, dynamic>) {
+          for (final entry in decoded.entries) {
+            final value = entry.value;
+            if (value is Map) {
+              _rollingDownloadSourceNames[entry.key] = {
+                for (final e in value.entries)
+                  if (e.value is String) e.key.toString(): e.value as String,
+              };
+            }
+          }
+        }
+      } catch (_) {}
+    }
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey('rollingDownload')) {
       await prefs.remove('rollingDownload');
+    }
+  }
+
+  bool _resolvingAutoDownloadNames = false;
+
+  /// Fetch names for auto-download ids enabled before names were stored.
+  /// The set holds bare UUIDs with no type, so try each endpoint until one
+  /// answers: playlist, collection, series, then podcast item.
+  Future<void> resolveAutoDownloadSourceNames() async {
+    final api = _api;
+    if (api == null || isOffline || _resolvingAutoDownloadNames) return;
+    final unknown = _rollingDownloadSeries
+        .where((id) => _rollingDownloadSourceNames[id]?['name'] == null)
+        .toList();
+    if (unknown.isEmpty) return;
+    _resolvingAutoDownloadNames = true;
+    try {
+      final bookLibraryIds = <String>[];
+      for (final l in _libraries) {
+        if (l is Map && (l['mediaType'] as String? ?? 'book') != 'podcast') {
+          final libraryId = l['id'];
+          if (libraryId is String) bookLibraryIds.add(libraryId);
+        }
+      }
+      var resolvedAny = false;
+      for (final id in unknown) {
+        String? name;
+        String? kind;
+        final playlist = await api.getPlaylist(id);
+        if (playlist != null) {
+          name = playlist['name'] as String?;
+          kind = 'playlist';
+        }
+        if (name == null) {
+          final collection = await api.getCollection(id);
+          if (collection != null) {
+            name = collection['name'] as String?;
+            kind = 'collection';
+          }
+        }
+        if (name == null) {
+          final series =
+              await api.getSeriesInfo(id, libraryIds: bookLibraryIds);
+          if (series != null) {
+            name = series['name'] as String?;
+            kind = 'series';
+          }
+        }
+        if (name == null) {
+          final item = await api.getLibraryItem(id);
+          if (item != null) {
+            final media = item['media'] as Map<String, dynamic>? ?? const {};
+            final metadata =
+                media['metadata'] as Map<String, dynamic>? ?? const {};
+            name = metadata['title'] as String?;
+            kind = item['mediaType'] == 'podcast' ? 'podcast' : 'unknown';
+          }
+        }
+        if (name != null && name.isNotEmpty) {
+          debugPrint('[AutoDL] Resolved $id -> $kind "$name"');
+          _rememberRollingDownloadSource(id, name: name, kind: kind);
+          resolvedAny = true;
+        } else {
+          debugPrint(
+              '[AutoDL] Unresolved $id (stored kind: ${_rollingDownloadSourceNames[id]?['kind'] ?? 'none'}) - no playlist/collection/series/item answered');
+        }
+      }
+      if (resolvedAny) notifyListeners();
+    } finally {
+      _resolvingAutoDownloadNames = false;
     }
   }
 
@@ -151,7 +340,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         ProgressSyncService().flushOfflineListeningTime(api: _api!);
         LocalSessionService().flushPending(api: _api!);
       }
-      if (_selectedLibraryId == null) {
+      if (_selectedLibraryId == null || _librariesFromCache) {
         (this as LibraryProvider).loadLibraries();
       } else {
         (this as LibraryProvider).refresh();
@@ -262,7 +451,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         ProgressSyncService().flushOfflineListeningTime(api: _api!);
         LocalSessionService().flushPending(api: _api!);
       }
-      if (_selectedLibraryId == null) {
+      if (_selectedLibraryId == null || _librariesFromCache) {
         (this as LibraryProvider).loadLibraries();
       } else {
         (this as LibraryProvider).refresh();
@@ -903,6 +1092,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           if (_rollingDownloadSeries.isNotEmpty) _catchUpRollingDownloads();
           unawaited(_catchUpQueueAutoDownloads());
           (this as LibraryProvider).catchUpSubscribedPodcasts();
+          final ebookApi = _api;
+          if (ebookApi != null) {
+            unawaited(DownloadService().catchUpEbookCaches(ebookApi));
+          }
         } else {
           debugPrint('[Library] Connectivity changed but server unreachable — starting ping timer');
           if (_networkOffline) {
@@ -1248,7 +1441,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         : player.currentItemId;
     if (key == playingKey && player.hasBook) {
       if (mp['isFinished'] == true && !_resetItems.contains(key)) {
-        (this as _AbsorbingMixin).markFinishedLocally(key, skipAutoAdvance: true);
+        (this as _AbsorbingMixin)
+            .markFinishedLocally(key, skipAutoAdvance: true, fromRemote: true);
       } else if (mp['isFinished'] != true) {
         _progressMap[key] = mp;
         _localProgressOverrides.remove(key);
@@ -2069,8 +2263,17 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       // the same library instead (otherwise an item from another library at
       // index 0 would push this to visible-first). 'start'/'end' are the list
       // extremes and read correctly in both modes, so they need no adjustment.
+      // 'none' subscribes without queueing: the episode is still detected,
+      // notified and downloaded, it just never lands on the absorbing list.
+      final queueless = position == 'none';
       final merged = await PlayerSettings.getMergeAbsorbingLibraries();
       final libId = item['libraryId'] as String?;
+      // The download step normally rediscovers episodes by scanning the
+      // absorbing queue, which finds nothing for a queue-less show, so the
+      // keys and their metadata have to be carried over explicitly.
+      final freshKeys = <String>[];
+      final freshMeta = <String, Map<String, dynamic>>{};
+      final freshEpIds = <String>[];
       // For 'start', remember the front-most new episode so the absorbing
       // screen's keep-on-top pins yield to it (otherwise a paused/last-finished
       // item gets pulled above it and it shows 2nd).
@@ -2080,24 +2283,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         final epId = epMap['id'] as String;
         final key = '$itemId-$epId';
 
-        switch (position) {
-          case 'end':
-            _absorbingIdsAdd(key, atFront: false);
-            break;
-          case 'second':
-            if (merged) {
-              _absorbingIdsAdd(key, atIndex: 1);
-            } else {
-              final firstSameLib = _absorbingBookIds.indexWhere(
-                  (k) => _absorbingItemCache[k]?['libraryId'] == libId);
-              _absorbingIdsAdd(key, atIndex: firstSameLib >= 0 ? firstSameLib + 1 : 0);
-            }
-            break;
-          default:
-            _absorbingIdsAdd(key, atFront: true);
-            startFrontKey = key;
-        }
-        _absorbingItemCache[key] = {
+        final entry = {
           'id': itemId,
           'libraryId': item['libraryId'] as String?,
           'mediaType': 'podcast',
@@ -2105,9 +2291,34 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           'recentEpisode': epMap,
           'media': media,
         };
-        _manualAbsorbAdds.add(key);
-        _manualAbsorbRemoves.remove(key);
-        knownIds.add(epId);
+        freshKeys.add(key);
+        freshMeta[key] = entry;
+
+        if (!queueless) {
+          switch (position) {
+            case 'end':
+              _absorbingIdsAdd(key, atFront: false);
+              break;
+            case 'second':
+              if (merged) {
+                _absorbingIdsAdd(key, atIndex: 1);
+              } else {
+                final firstSameLib = _absorbingBookIds.indexWhere(
+                    (k) => _absorbingItemCache[k]?['libraryId'] == libId);
+                _absorbingIdsAdd(key, atIndex: firstSameLib >= 0 ? firstSameLib + 1 : 0);
+              }
+              break;
+            default:
+              _absorbingIdsAdd(key, atFront: true);
+              startFrontKey = key;
+          }
+          // Only cache what the queue will render. A queue-less show would
+          // otherwise grow this cache with entries nothing ever reads.
+          _absorbingItemCache[key] = entry;
+          _manualAbsorbAdds.add(key);
+          _manualAbsorbRemoves.remove(key);
+        }
+        freshEpIds.add(epId);
         queued++;
       }
 
@@ -2115,10 +2326,28 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         if (startFrontKey != null) {
           (this as _AbsorbingMixin).setFreshQueuedFront(startFrontKey);
         }
-        _saveKnownEpisodeIds(itemId);
-        (this as _AbsorbingMixin)._saveManualAbsorbing();
-        notifyListeners();
-        _downloadSubscribedEpisodes(itemId);
+        if (!queueless) {
+          knownIds.addAll(freshEpIds);
+          _saveKnownEpisodeIds(itemId);
+          (this as _AbsorbingMixin)._saveManualAbsorbing();
+          notifyListeners();
+          _downloadSubscribedEpisodes(itemId, keys: freshKeys, meta: freshMeta);
+        } else {
+          // Nothing queue-less lands on the absorbing list, so the catch-up
+          // pass has no way to rediscover these. Only mark them seen once the
+          // download is actually enqueued - if it was deferred for WiFi,
+          // leaving them unseen makes the next check retry instead of losing
+          // the episode entirely.
+          final started = await _downloadSubscribedEpisodes(itemId,
+              keys: freshKeys, meta: freshMeta);
+          if (started) {
+            knownIds.addAll(freshEpIds);
+            _saveKnownEpisodeIds(itemId);
+          } else {
+            debugPrint('[Subscription] $itemId download deferred - leaving '
+                '${freshEpIds.length} episode(s) unseen so the next check retries');
+          }
+        }
       }
     }
   }
@@ -2134,26 +2363,43 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
   }
 
-  Future<void> _downloadSubscribedEpisodes(String podcastId) async {
-    if (AppPlatform.isWeb || _api == null || isOffline) return;
+  /// Downloads a subscribed show's episodes. [keys] names the exact episodes
+  /// (with [meta] carrying their details); without it the absorbing queue is
+  /// scanned instead, which is what the catch-up pass does. A queue-less show
+  /// must pass [keys] - its episodes never enter the queue, so a scan would
+  /// come back empty and silently download nothing.
+  ///
+  /// Returns false when it bailed before enqueueing anything (offline, or
+  /// holding out for WiFi), so a caller that can't rely on the catch-up pass
+  /// knows the episodes still need retrying.
+  Future<bool> _downloadSubscribedEpisodes(
+    String podcastId, {
+    List<String>? keys,
+    Map<String, Map<String, dynamic>>? meta,
+  }) async {
+    if (AppPlatform.isWeb || _api == null || isOffline) return false;
     final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
     if (wifiOnly) {
       final connectivity = await Connectivity().checkConnectivity();
       if (!connectivity.contains(ConnectivityResult.wifi)) {
         debugPrint('[Subscription] Skipping download (not on WiFi) - will retry on WiFi');
-        return;
+        return false;
       }
     }
 
     final dl = DownloadService();
     int downloaded = 0;
 
-    for (final key in _absorbingBookIds) {
-      if (!key.startsWith(podcastId)) continue;
+    final targets = keys ??
+        [for (final k in _absorbingBookIds) if (k.startsWith(podcastId)) k];
+
+    for (final key in targets) {
       if (dl.isDownloaded(key) || dl.isDownloading(key)) continue;
 
-      final cached = _absorbingItemCache[key];
-      final epId = key.substring(37);
+      final cached = meta?[key] ?? _absorbingItemCache[key];
+      // key is '<podcastId>-<episodeId>', so the offset follows the show id
+      // rather than assuming every id is a 36-char UUID.
+      final epId = key.substring(podcastId.length + 1);
       final ep = cached?['recentEpisode'] as Map<String, dynamic>?;
       final media = cached?['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
@@ -2171,10 +2417,13 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
 
     if (downloaded > 0) {
-      final cached = _absorbingItemCache.values.firstWhere(
-        (c) => (c['id'] as String?) == podcastId,
-        orElse: () => {},
-      );
+      // A queue-less show has nothing in the absorbing cache, so fall back to
+      // the metadata that came in with this batch.
+      final cached = meta?.values.firstOrNull ??
+          _absorbingItemCache.values.firstWhere(
+            (c) => (c['id'] as String?) == podcastId,
+            orElse: () => {},
+          );
       final media = cached['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
       final showTitle = metadata['title'] as String? ?? 'Podcast';
@@ -2182,6 +2431,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       final l = _l();
       final String message;
       switch (position) {
+        case 'none':
+          message = l?.lpSubscribedEpisodeDownloaded(showTitle)
+              ?? 'New $showTitle episode downloaded';
+          break;
         case 'end':
           message = l?.lpSubscribedEpisodeAddedEnd(showTitle)
               ?? '$showTitle added to the end of your queue';
@@ -2196,9 +2449,14 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       }
       final ctx = rootNavigatorKey.currentContext;
       if (ctx != null) {
-        showOverlayToast(ctx, message, icon: Icons.playlist_add_rounded);
+        showOverlayToast(ctx,
+            message,
+            icon: position == 'none'
+                ? Icons.download_done_rounded
+                : Icons.playlist_add_rounded);
       }
     }
+    return true;
   }
 
   Future<void> catchUpSubscribedPodcasts() async {
@@ -2264,6 +2522,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         _checkRollingDownloads(latestBookKey);
       }
     }
+
+    await _catchUpListRollingDownloads();
   }
 
   void _checkRollingDownloads(String playingKey) async {
@@ -2287,13 +2547,17 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         await PlayerSettings.getQueueAutoDownload();
     if (_rollingDownloadSeries.isEmpty && !autoSeriesDefault) return;
     final count = await PlayerSettings.getRollingDownloadCount();
+    _checkListRollingDownloads(playingKey, count);
 
     if (playingKey.length > 36) {
       final showId = playingKey.substring(0, 36);
       final activeShowId = activeKey != null && activeKey.length > 36
           ? activeKey.substring(0, 36)
           : null;
-      final activeQueueOwnsWindow = activeQueueMode != 'off' &&
+      // Only an auto_next queue follows this same show; playlist and
+      // collection queues plan their own list's window instead, so they
+      // must not suppress the show's rolling download.
+      final activeQueueOwnsWindow = activeQueueMode == 'auto_next' &&
           resolveQueueAutoDownloadEnabled(
             queueMode: activeQueueMode,
             globalEnabled: globalQueueAutoDownload,
@@ -2338,7 +2602,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           }
         }
       }
-      final activeQueueOwnsWindow = activeQueueMode != 'off' &&
+      final activeQueueOwnsWindow = activeQueueMode == 'auto_next' &&
           resolveQueueAutoDownloadEnabled(
             queueMode: activeQueueMode,
             globalEnabled: globalQueueAutoDownload,
@@ -2353,11 +2617,176 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
   }
 
+  /// Per-playlist and per-collection auto-download. Mirrors how series behave:
+  /// it runs off whatever is playing and needs only the list's own toggle, so
+  /// the auto-play queue does not have to be in playlist or collection mode.
+  /// A list whose window the active queue already covers is skipped so the two
+  /// paths don't plan the same downloads twice.
+  Future<void> _checkListRollingDownloads(String playingKey, int count) async {
+    final api = _api;
+    if (api == null || isOffline || count <= 0) return;
+    if (_rollingDownloadSeries.isEmpty) return;
+    final self = this as LibraryProvider;
+
+    final sources =
+        <({String id, String kind, List<Map<String, dynamic>> items})>[];
+    for (final raw in _playlists) {
+      if (raw is! Map<String, dynamic>) continue;
+      final id = raw['id'] as String?;
+      if (id == null || !_rollingDownloadSeries.contains(id)) continue;
+      final items = (raw['items'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (items.isNotEmpty) {
+        sources.add((id: id, kind: 'playlist', items: items));
+      }
+    }
+    for (final raw in _collections) {
+      if (raw is! Map<String, dynamic>) continue;
+      final id = raw['id'] as String?;
+      if (id == null || !_rollingDownloadSeries.contains(id)) continue;
+      final items = self._collectionItems(raw);
+      if (items.isNotEmpty) {
+        sources.add((id: id, kind: 'collection', items: items));
+      }
+    }
+    if (sources.isEmpty) return;
+
+    final activeQueueMode = playingKey.length > 36
+        ? await PlayerSettings.getPodcastQueueMode()
+        : await PlayerSettings.getBookQueueMode();
+    final globalAutoDownload = await PlayerSettings.getQueueAutoDownload();
+    final activePlaylistId = await PlayerSettings.getQueuePlaylistId();
+    final activeCollectionId = await PlayerSettings.getQueueCollectionId();
+
+    String? playingNow() {
+      final player = AudioPlayerService();
+      final itemId = player.currentItemId;
+      if (itemId == null) return null;
+      final episodeId = player.currentEpisodeId;
+      return episodeId == null ? itemId : '$itemId-$episodeId';
+    }
+
+    // Plans anchored to live playback abort when the user moves on; plans
+    // from catch-up or an idle toggle have no playback to go stale against.
+    final anchoredToPlayback = playingNow() == playingKey;
+    bool isStale() =>
+        _api == null ||
+        isOffline ||
+        (anchoredToPlayback && playingNow() != playingKey);
+    Future<bool> settingsStillMatch() async =>
+        !isStale() && await PlayerSettings.getRollingDownloadCount() == count;
+
+    for (final source in sources) {
+      if (isStale()) return;
+      final activeId =
+          source.kind == 'playlist' ? activePlaylistId : activeCollectionId;
+      final queueOwnsWindow = activeQueueMode == source.kind &&
+          activeId == source.id &&
+          resolveQueueAutoDownloadEnabled(
+            queueMode: activeQueueMode,
+            globalEnabled: globalAutoDownload,
+            activeSourceId: activeId,
+            activeSourceEnabled: _rollingDownloadSeries.contains(activeId),
+          );
+      if (queueOwnsWindow) {
+        debugPrint(
+            '[QueueDL] ${source.kind} ${source.id}: active queue already covers this window');
+        continue;
+      }
+      final window = queueTailFrom(
+        items: source.items,
+        currentKey: playingKey,
+        keyOf: self._playlistItemKey,
+      );
+      if (window.isEmpty) continue;
+      debugPrint(
+          '[QueueDL] ${source.kind} ${source.id}: ${source.items.length} items, window=${window.length} from $playingKey');
+      await _downloadQueueWindow(
+        items: window,
+        count: count,
+        api: api,
+        isStale: isStale,
+        settingsStillMatch: () async =>
+            await settingsStillMatch() &&
+            _rollingDownloadSeries.contains(source.id),
+        logLabel: '${source.kind}=${source.id}',
+      );
+    }
+  }
+
+  /// Plan list windows without a playback anchor: on launch/reconnect and
+  /// when a list's toggle is turned on while idle. Anchors at the member
+  /// with the most recent unfinished progress, or the first unfinished
+  /// member of a list that was never started. A list whose member is
+  /// currently playing is skipped - the playback-anchored check owns it.
+  Future<void> _catchUpListRollingDownloads({String? onlyListId}) async {
+    if (_api == null || isOffline || _rollingDownloadSeries.isEmpty) return;
+    final count = await PlayerSettings.getRollingDownloadCount();
+    if (count <= 0) return;
+    final self = this as LibraryProvider;
+
+    final player = AudioPlayerService();
+    final playingItemId = player.currentItemId;
+    final playingKey = playingItemId == null
+        ? null
+        : player.currentEpisodeId == null
+            ? playingItemId
+            : '$playingItemId-${player.currentEpisodeId}';
+
+    final anchors = <String>{};
+    void collectAnchor(String? id, List<Map<String, dynamic>> items) {
+      if (id == null || !_rollingDownloadSeries.contains(id)) return;
+      if (onlyListId != null && id != onlyListId) return;
+      String? latestKey;
+      num latestUpdate = -1;
+      String? firstUnfinishedKey;
+      for (final item in items) {
+        final key = self._playlistItemKey(item);
+        if (key.isEmpty) continue;
+        if (key == playingKey) return;
+        final progress = _progressMap[key];
+        if (progress?['isFinished'] == true) continue;
+        firstUnfinishedKey ??= key;
+        final lastUpdate = progress?['lastUpdate'] as num? ?? 0;
+        if (progress != null && lastUpdate > latestUpdate) {
+          latestUpdate = lastUpdate;
+          latestKey = key;
+        }
+      }
+      final anchor = latestKey ?? firstUnfinishedKey;
+      if (anchor != null) anchors.add(anchor);
+    }
+
+    for (final raw in _playlists) {
+      if (raw is! Map<String, dynamic>) continue;
+      collectAnchor(
+          raw['id'] as String?,
+          (raw['items'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .toList());
+    }
+    for (final raw in _collections) {
+      if (raw is! Map<String, dynamic>) continue;
+      collectAnchor(raw['id'] as String?, self._collectionItems(raw));
+    }
+
+    for (final anchor in anchors) {
+      await _checkListRollingDownloads(anchor, count);
+    }
+  }
+
   Future<String?> _queueAutoDownloadSourceId(
     String playingKey,
     String queueMode,
     ApiService api,
   ) async {
+    if (queueMode == 'playlist') {
+      return PlayerSettings.getQueuePlaylistId();
+    }
+    if (queueMode == 'collection') {
+      return PlayerSettings.getQueueCollectionId();
+    }
     if (queueMode != 'auto_next') return null;
     if (playingKey.length > 36) return playingKey.substring(0, 36);
 
@@ -2374,14 +2803,28 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     return seriesId;
   }
 
+  // Alpha [QueueDL]: every exit from this function used to be silent, so a
+  // queue auto-download that never fired looked identical to one that never
+  // ran. Each return now names the gate that stopped it. Strip before beta.
   Future<void> _checkQueueAutoDownloads(String playingKey) async {
     if (AppPlatform.isWeb) return;
     try {
       final self = this as LibraryProvider;
       final planGeneration = ++_queueDownloadPlanGeneration;
       final api = _api;
-      if (api == null || isOffline) return;
+      if (api == null) {
+        debugPrint('[QueueDL] stop at entry: no api (key=$playingKey)');
+        return;
+      }
+      if (isOffline) {
+        debugPrint('[QueueDL] stop at entry: offline (key=$playingKey)');
+        return;
+      }
       final accountGeneration = self._accountLoadGeneration;
+      // `_api` builds a fresh ApiService on every read, so the session has to
+      // be identified by the server it points at - comparing instances is
+      // always unequal.
+      final sessionUrl = _auth?.activeServerUrl;
 
       String? activePlayerKey() {
         final player = AudioPlayerService();
@@ -2391,34 +2834,57 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         return episodeId == null ? itemId : '$itemId-$episodeId';
       }
 
-      bool isStale() {
-        return planGeneration != _queueDownloadPlanGeneration ||
-            accountGeneration != self._accountLoadGeneration ||
-            !identical(api, _api) ||
-            isOffline ||
-            activePlayerKey() != playingKey;
+      String? staleReason() {
+        if (planGeneration != _queueDownloadPlanGeneration) {
+          return 'a newer check superseded this one';
+        }
+        if (accountGeneration != self._accountLoadGeneration) {
+          return 'account reloaded';
+        }
+        if (_api == null) return 'signed out';
+        if (_auth?.activeServerUrl != sessionUrl) return 'server changed';
+        if (isOffline) return 'went offline';
+        final active = activePlayerKey();
+        if (active != playingKey) return 'now playing $active';
+        return null;
       }
 
-      if (isStale()) return;
+      bool isStale() => staleReason() != null;
+
+      bool stop(String stage) {
+        final reason = staleReason();
+        if (reason == null) return false;
+        debugPrint('[QueueDL] stop at $stage: $reason (key=$playingKey)');
+        return true;
+      }
+
+      debugPrint('[QueueDL] check start key=$playingKey');
+      if (stop('start')) return;
       final isPodcastKey = playingKey.length > 36;
       final bookMode = await PlayerSettings.getBookQueueMode();
-      if (isStale()) return;
+      if (stop('read book mode')) return;
       final podcastMode = await PlayerSettings.getPodcastQueueMode();
-      if (isStale()) return;
+      if (stop('read podcast mode')) return;
       final merged = await PlayerSettings.getMergeAbsorbingLibraries();
-      if (isStale()) return;
+      if (stop('read merge setting')) return;
       final queueMode = isPodcastKey ? podcastMode : bookMode;
-      if (queueMode == 'off') return;
+      if (queueMode == 'off') {
+        debugPrint(
+            '[QueueDL] stop: queue mode is off (isPodcastKey=$isPodcastKey book=$bookMode podcast=$podcastMode)');
+        return;
+      }
       final queueSourceId = queueMode == 'playlist'
           ? await PlayerSettings.getQueuePlaylistId()
           : queueMode == 'collection'
               ? await PlayerSettings.getQueueCollectionId()
               : null;
-      if (isStale()) return;
+      if (stop('read queue source')) return;
+      debugPrint(
+          '[QueueDL] mode=$queueMode sourceId=$queueSourceId merged=$merged');
 
       final autoDownloadSourceId =
           await _queueAutoDownloadSourceId(playingKey, queueMode, api);
-      if (isStale()) return;
+      if (stop('resolve auto-download source')) return;
       final globalAutoDownload =
           await PlayerSettings.getQueueAutoDownload();
       final enabled = resolveQueueAutoDownloadEnabled(
@@ -2428,21 +2894,32 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         activeSourceEnabled: autoDownloadSourceId != null &&
             _rollingDownloadSeries.contains(autoDownloadSourceId),
       );
-      if (!enabled || isStale()) return;
+      if (!enabled) {
+        debugPrint(
+            '[QueueDL] stop: auto-download disabled (mode=$queueMode global=$globalAutoDownload autoSourceId=$autoDownloadSourceId perSource=${autoDownloadSourceId != null && _rollingDownloadSeries.contains(autoDownloadSourceId)})');
+        return;
+      }
+      if (stop('resolve enabled')) return;
       final count = await PlayerSettings.getRollingDownloadCount();
-      if (count <= 0 || isStale()) return;
+      if (count <= 0) {
+        debugPrint('[QueueDL] stop: keep-next count is $count');
+        return;
+      }
+      if (stop('read keep-next count')) return;
       final podcastAdvanceDir = isPodcastKey && queueMode == 'auto_next'
           ? await PlayerSettings.getPodcastAdvanceDir(
               playingKey.substring(0, 36))
           : null;
-      if (isStale()) return;
+      if (stop('read podcast advance dir')) return;
 
       final wifiOnly = await PlayerSettings.getWifiOnlyDownloads();
-      if (isStale()) return;
+      if (stop('read wifi-only setting')) return;
       if (wifiOnly) {
         final connectivity = await Connectivity().checkConnectivity();
-        if (isStale() ||
-            !connectivity.contains(ConnectivityResult.wifi)) {
+        if (stop('check connectivity')) return;
+        if (!connectivity.contains(ConnectivityResult.wifi)) {
+          debugPrint(
+              '[QueueDL] stop: wifi-only downloads on, not on wifi ($connectivity)');
           return;
         }
       }
@@ -2505,98 +2982,137 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         podcastAdvanceDir: podcastAdvanceDir,
         isStale: isStale,
       );
-      if (items.isEmpty || !await settingsStillMatch()) return;
-
-      final downloads = DownloadService();
-      var newDownloads = 0;
-      String keyOf(Map<String, dynamic> item) {
-        final libraryItemId = item['libraryItemId'] as String? ?? '';
-        final episodeId = item['episodeId'] as String?;
-        return queueItemKey(
-          libraryItemId: libraryItemId,
-          episodeId: episodeId,
-        );
+      if (items.isEmpty) {
+        debugPrint(
+            '[QueueDL] stop: queue tail is empty (mode=$queueMode sourceId=$queueSourceId key=$playingKey) - the window starts at the playing item, so this means it was not found in the queue');
+        return;
       }
-      final pendingItems = queueItemsNeedingDownload(
-        items: items.where((item) => keyOf(item).isNotEmpty),
+      if (!await settingsStillMatch()) {
+        debugPrint(
+            '[QueueDL] stop: settings changed while planning (${items.length} items found)');
+        return;
+      }
+
+      await _downloadQueueWindow(
+        items: items,
         count: count,
-        keyOf: keyOf,
-        isFinished: (item) => self.isItemFinishedByKey(keyOf(item)),
-        isAvailable: (item) {
-          final key = keyOf(item);
-          return downloads.isDownloaded(key) || downloads.isDownloading(key);
-        },
+        api: api,
+        isStale: isStale,
+        settingsStillMatch: settingsStillMatch,
+        logLabel: 'mode=$queueMode',
       );
-
-      for (final item in pendingItems) {
-        if (isStale()) return;
-        final libraryItemId = item['libraryItemId'] as String? ?? '';
-        if (libraryItemId.isEmpty) continue;
-        final episodeId = item['episodeId'] as String?;
-        final key = keyOf(item);
-        if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
-          continue;
-        }
-
-        var libraryItem =
-            item['libraryItem'] as Map<String, dynamic>? ?? const {};
-        if (libraryItem['media'] == null) {
-          final fetched = await api.getLibraryItem(libraryItemId);
-          if (fetched != null) libraryItem = fetched;
-        }
-        if (!await settingsStillMatch()) return;
-        final media =
-            libraryItem['media'] as Map<String, dynamic>? ?? const {};
-        final metadata =
-            media['metadata'] as Map<String, dynamic>? ?? const {};
-        var episode = item['episode'] as Map<String, dynamic>?;
-        if (episode == null && episodeId != null) {
-          for (final candidate
-              in (media['episodes'] as List<dynamic>? ?? const [])) {
-            if (candidate is Map<String, dynamic> &&
-                candidate['id'] == episodeId) {
-              episode = candidate;
-              break;
-            }
-          }
-        }
-
-        final title = episodeId == null
-            ? metadata['title'] as String? ?? ''
-            : episode?['title'] as String? ?? 'Episode';
-        final author = episodeId == null
-            ? metadata['authorName'] as String? ?? ''
-            : metadata['title'] as String? ?? '';
-        if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
-          continue;
-        }
-        final error = await downloads.downloadItem(
-          api: api,
-          itemId: key,
-          title: title,
-          author: author,
-          coverUrl: getCoverUrl(libraryItemId),
-          episodeId: episodeId,
-          libraryId:
-              libraryItem['libraryId'] as String? ?? _selectedLibraryId,
-          shouldStart: () => !isStale(),
-        );
-        if (isStale()) return;
-        if (error == null &&
-            (downloads.isDownloaded(key) || downloads.isDownloading(key))) {
-          newDownloads++;
-        }
-      }
-
-      if (newDownloads > 0) {
-        final l = _l();
-        _showRollingToast(
-            l?.lpQueueDownloadingItems(newDownloads) ??
-                'Queue: downloading $newDownloads item${newDownloads == 1 ? '' : 's'}',
-            icon: Icons.download_rounded);
-      }
     } catch (error, stackTrace) {
       debugPrint('[QueueDownload] Check failed: $error\n$stackTrace');
+    }
+  }
+
+  /// Download the first [count] not-yet-available entries of an already-ordered
+  /// queue window. Shared by the active-queue check and the per-playlist /
+  /// per-collection check so both keep the same "keep next N" behaviour.
+  Future<void> _downloadQueueWindow({
+    required List<Map<String, dynamic>> items,
+    required int count,
+    required ApiService api,
+    required bool Function() isStale,
+    required Future<bool> Function() settingsStillMatch,
+    required String logLabel,
+  }) async {
+    final self = this as LibraryProvider;
+    final downloads = DownloadService();
+    var newDownloads = 0;
+    String keyOf(Map<String, dynamic> item) {
+      final libraryItemId = item['libraryItemId'] as String? ?? '';
+      final episodeId = item['episodeId'] as String?;
+      return queueItemKey(
+        libraryItemId: libraryItemId,
+        episodeId: episodeId,
+      );
+    }
+
+    final pendingItems = queueItemsNeedingDownload(
+      items: items.where((item) => keyOf(item).isNotEmpty),
+      count: count,
+      keyOf: keyOf,
+      isFinished: (item) => self.isItemFinishedByKey(keyOf(item)),
+      isAvailable: (item) {
+        final key = keyOf(item);
+        return downloads.isDownloaded(key) || downloads.isDownloading(key);
+      },
+    );
+    debugPrint(
+        '[QueueDL] plan ($logLabel): ${items.length} in window, keep-next=$count, ${pendingItems.length} need downloading -> ${pendingItems.map(keyOf).join(', ')}');
+    if (pendingItems.isEmpty) {
+      debugPrint(
+          '[QueueDL] nothing to do ($logLabel) - the next $count are already downloaded or finished');
+    }
+
+    for (final item in pendingItems) {
+      if (isStale()) {
+        debugPrint('[QueueDL] stop during download loop ($logLabel)');
+        return;
+      }
+      final libraryItemId = item['libraryItemId'] as String? ?? '';
+      if (libraryItemId.isEmpty) continue;
+      final episodeId = item['episodeId'] as String?;
+      final key = keyOf(item);
+      if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
+        continue;
+      }
+
+      var libraryItem =
+          item['libraryItem'] as Map<String, dynamic>? ?? const {};
+      if (libraryItem['media'] == null) {
+        final fetched = await api.getLibraryItem(libraryItemId);
+        if (fetched != null) libraryItem = fetched;
+      }
+      if (!await settingsStillMatch()) return;
+      final media = libraryItem['media'] as Map<String, dynamic>? ?? const {};
+      final metadata =
+          media['metadata'] as Map<String, dynamic>? ?? const {};
+      var episode = item['episode'] as Map<String, dynamic>?;
+      if (episode == null && episodeId != null) {
+        for (final candidate
+            in (media['episodes'] as List<dynamic>? ?? const [])) {
+          if (candidate is Map<String, dynamic> &&
+              candidate['id'] == episodeId) {
+            episode = candidate;
+            break;
+          }
+        }
+      }
+
+      final title = episodeId == null
+          ? metadata['title'] as String? ?? ''
+          : episode?['title'] as String? ?? 'Episode';
+      final author = episodeId == null
+          ? metadata['authorName'] as String? ?? ''
+          : metadata['title'] as String? ?? '';
+      if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
+        continue;
+      }
+      final error = await downloads.downloadItem(
+        api: api,
+        itemId: key,
+        title: title,
+        author: author,
+        coverUrl: getCoverUrl(libraryItemId),
+        episodeId: episodeId,
+        libraryId: libraryItem['libraryId'] as String? ?? _selectedLibraryId,
+        shouldStart: () => !isStale(),
+      );
+      if (isStale()) return;
+      if (error == null &&
+          (downloads.isDownloaded(key) || downloads.isDownloading(key))) {
+        newDownloads++;
+      }
+    }
+
+    if (newDownloads > 0) {
+      final l = _l();
+      _showRollingToast(
+          l?.lpQueueDownloadingItems(newDownloads) ??
+              'Queue: downloading $newDownloads item${newDownloads == 1 ? '' : 's'}',
+          icon: Icons.download_rounded);
     }
   }
 
@@ -2604,6 +3120,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     if (AppPlatform.isWeb) return;
     final itemId = AudioPlayerService().currentItemId;
     if (itemId == null) {
+      debugPrint(
+          '[QueueDL] stop: nothing is playing, so there is no queue position to download from');
       _queueDownloadPlanGeneration++;
       return;
     }

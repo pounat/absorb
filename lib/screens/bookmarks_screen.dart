@@ -33,6 +33,11 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   // Selected bookmarks as "itemId::bookmarkId" keys
   final Set<String> _selected = {};
   final Map<String, String> _titleCache = {};
+  bool _speedAdjustedTime = true;
+  // Per-book playback speed so each group's timestamps honor the
+  // speed-adjusted-time setting at that book's own speed.
+  final Map<String, double> _bookSpeeds = {};
+  double _defaultSpeed = 1.0;
 
   static const _titleCacheKey = 'bookmark_book_titles';
 
@@ -40,6 +45,30 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   void initState() {
     super.initState();
     _loadSort();
+    PlayerSettings.getSpeedAdjustedTime().then((v) {
+      if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
+    });
+  }
+
+  Future<void> _loadBookSpeeds() async {
+    _defaultSpeed = await PlayerSettings.getDefaultSpeed();
+    var changed = false;
+    for (final itemId in _allBookmarks.keys) {
+      if (_bookSpeeds.containsKey(itemId)) continue;
+      final s = await PlayerSettings.getBookSpeed(itemId);
+      if (s != null) {
+        _bookSpeeds[itemId] = s;
+        changed = true;
+      }
+    }
+    if (mounted && changed) setState(() {});
+  }
+
+  double _displaySpeedFor(String itemId) {
+    if (!_speedAdjustedTime) return 1.0;
+    final player = AudioPlayerService();
+    if (player.currentItemId == itemId) return player.speed;
+    return _bookSpeeds[itemId] ?? _defaultSpeed;
   }
 
   Future<void> _loadSort() async {
@@ -74,6 +103,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   Future<void> _load() async {
     final all = await BookmarkService().getAllBookmarks(sort: _sort);
     if (mounted) setState(() { _allBookmarks = all; _loading = false; });
+    await _loadBookSpeeds();
   }
 
   Future<void> _syncAll() async {
@@ -441,6 +471,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                             coverUrl: coverUrl,
                             mediaHeaders: lib.mediaHeaders,
                             bookmarks: bookmarks,
+                            displaySpeed: _displaySpeedFor(itemId),
                             cs: cs,
                             tt: tt,
                             selecting: _selecting,
@@ -497,6 +528,7 @@ class _BookGroup extends StatelessWidget {
   final String? coverUrl;
   final Map<String, String> mediaHeaders;
   final List<Bookmark> bookmarks;
+  final double displaySpeed;
   final ColorScheme cs;
   final TextTheme tt;
   final bool selecting;
@@ -512,6 +544,7 @@ class _BookGroup extends StatelessWidget {
     this.coverUrl,
     this.mediaHeaders = const {},
     required this.bookmarks,
+    this.displaySpeed = 1.0,
     required this.cs,
     required this.tt,
     required this.selecting,
@@ -592,6 +625,7 @@ class _BookGroup extends StatelessWidget {
                 _BookmarkRow(
                   itemId: itemId,
                   bookmark: bookmarks[j],
+                  displaySpeed: displaySpeed,
                   cs: cs,
                   tt: tt,
                   selecting: selecting,
@@ -643,6 +677,7 @@ class _BookGroup extends StatelessWidget {
 class _BookmarkRow extends StatelessWidget {
   final String itemId;
   final Bookmark bookmark;
+  final double displaySpeed;
   final ColorScheme cs;
   final TextTheme tt;
   final bool selecting;
@@ -654,6 +689,7 @@ class _BookmarkRow extends StatelessWidget {
   const _BookmarkRow({
     required this.itemId,
     required this.bookmark,
+    this.displaySpeed = 1.0,
     required this.cs,
     required this.tt,
     required this.selecting,
@@ -710,7 +746,7 @@ class _BookmarkRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              bookmark.formattedPosition,
+              bookmark.formattedAt(displaySpeed),
               style: tt.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontFeatures: [const FontFeature.tabularFigures()],

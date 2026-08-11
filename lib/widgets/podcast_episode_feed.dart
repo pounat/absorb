@@ -16,6 +16,7 @@ import 'card_buttons.dart' show showErrorToast;
 import 'episode_list_sheet.dart';
 import 'episode_row.dart';
 import 'overlay_toast.dart';
+import 'swipe_action.dart';
 
 bool podcastEpisodeMatchesFilter(
   String filter, {
@@ -543,41 +544,22 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                 final finished =
                     lib.getEpisodeProgressData(showId, epId)?['isFinished'] ==
                     true;
-                return Dismissible(
+                return SwipeAction(
                   key: ValueKey('feed-$showId-$epId'),
-                  direction: AppPlatform.isWeb
-                      ? DismissDirection.startToEnd
-                      : DismissDirection.horizontal,
-                  // Swipes act without dismissing the row.
-                  confirmDismiss: (direction) async {
-                    if (direction == DismissDirection.startToEnd) {
-                      _toggleFinished(ep);
-                    } else {
-                      _downloadEpisode(ep);
-                    }
-                    return false;
-                  },
-                  background: Container(
-                    color: cs.primaryContainer,
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.only(left: 24),
-                    child: Icon(
-                      finished
-                          ? Icons.radio_button_unchecked_rounded
-                          : Icons.check_circle_rounded,
-                      color: cs.onPrimaryContainer,
-                    ),
+                  borderRadius: BorderRadius.zero,
+                  onStartToEnd: SwipeActionSpec(
+                    icon: finished
+                        ? Icons.radio_button_unchecked_rounded
+                        : Icons.check_circle_rounded,
+                    color: cs.primary,
+                    onTrigger: () => _toggleFinished(ep),
                   ),
-                  secondaryBackground: AppPlatform.isWeb
+                  onEndToStart: AppPlatform.isWeb
                       ? null
-                      : Container(
-                          color: cs.secondaryContainer,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 24),
-                          child: Icon(
-                            Icons.download_rounded,
-                            color: cs.onSecondaryContainer,
-                          ),
+                      : SwipeActionSpec(
+                          icon: Icons.download_rounded,
+                          color: cs.secondary,
+                          onTrigger: () => _downloadEpisode(ep),
                         ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,

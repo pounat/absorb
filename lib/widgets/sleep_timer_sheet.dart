@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/audio_player_service.dart';
 import '../services/sleep_timer_service.dart';
+import '../utils/app_platform.dart';
 import 'adaptive_modal.dart';
 
 // ─── SHARED SLEEP TIMER SHEET ─────────────────────────────────
@@ -163,13 +164,14 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 // Rewind on sleep
                 _buildRewindSection(accent, tt, l),
 
-                const SizedBox(height: 12),
-                Container(
-                    height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
-                const SizedBox(height: 12),
-
-                // Shake toggle
-                _buildShakeToggle(accent, tt, l),
+                if (!AppPlatform.isWeb) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                      height: 0.5,
+                      color: cs.onSurface.withValues(alpha: 0.08)),
+                  const SizedBox(height: 12),
+                  _buildShakeToggle(accent, tt, l),
+                ],
               ],
             ]),
           ),
@@ -282,10 +284,12 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
       Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
       const SizedBox(height: 12),
       _buildRewindSection(accent, tt, l),
-      const SizedBox(height: 12),
-      Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
-      const SizedBox(height: 12),
-      _buildShakeToggle(accent, tt, l),
+      if (!AppPlatform.isWeb) ...[
+        const SizedBox(height: 12),
+        Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
+        const SizedBox(height: 12),
+        _buildShakeToggle(accent, tt, l),
+      ],
     ]);
   }
 
@@ -737,6 +741,16 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                   color: cs.onSurface.withValues(alpha: 0.3), fontSize: 11)),
         ]),
       ),
+      if (isEnabled)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(28, 2, 12, 0),
+          child: Text(
+            l.sleepRewindUndoNote(
+                SleepTimerService.sleepRewindUndoWindow.inMinutes),
+            style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.45), fontSize: 11),
+          ),
+        ),
     ]);
   }
 

@@ -10,6 +10,7 @@ class LibrarySeriesTab extends StatelessWidget {
   final bool hasMoreSeries;
   final bool rectangleCovers;
   final double coverAspectRatio;
+  final double desktopMaxCrossAxisExtent;
   final Future<void> Function() onRefresh;
   final VoidCallback onLoadMore;
   final Widget? headerSliver;
@@ -22,6 +23,7 @@ class LibrarySeriesTab extends StatelessWidget {
     required this.hasMoreSeries,
     required this.rectangleCovers,
     required this.coverAspectRatio,
+    this.desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
     required this.onRefresh,
     required this.onLoadMore,
     this.headerSliver,
@@ -61,11 +63,16 @@ class LibrarySeriesTab extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.collections_bookmark_outlined,
-                      size: 56, color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
+                  Icon(
+                    Icons.collections_bookmark_outlined,
+                    size: 56,
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                  ),
                   const SizedBox(height: 12),
-                  Text(l.libraryNoSeriesFound,
-                      style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
+                  Text(
+                    l.libraryNoSeriesFound,
+                    style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+                  ),
                 ],
               ),
             ),
@@ -79,27 +86,32 @@ class LibrarySeriesTab extends StatelessWidget {
         slivers: [
           ...headers,
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding(context)),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              libraryGridBottomPadding(context),
+            ),
             sliver: SliverGrid(
               gridDelegate: libraryGridDelegate(
                 context,
                 childAspectRatio: rectangleCovers ? 0.48 : 0.68,
+                desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
               ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= seriesItems.length) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    );
-                  }
-                  return GridSeriesTileDirect(
-                      series: seriesItems[index], coverAspectRatio: coverAspectRatio);
-                },
-                childCount: seriesItems.length + (hasMoreSeries ? 1 : 0),
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                if (index >= seriesItems.length) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
+                return GridSeriesTileDirect(
+                  series: seriesItems[index],
+                  coverAspectRatio: coverAspectRatio,
+                );
+              }, childCount: seriesItems.length + (hasMoreSeries ? 1 : 0)),
             ),
           ),
         ],

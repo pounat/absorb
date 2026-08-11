@@ -134,13 +134,35 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Apply the serverSettings (and, if present, version) carried on an
+  /// /api/authorize response - the same shape /login and /login/oidc return,
+  /// used on every session-restore path (tryRestoreSession, ensureUserInfo,
+  /// switchToAccount). Those paths never call login(), so without this the
+  /// version cache stayed empty for a process that only ever restored a
+  /// session - stream URLs would fall back to the tokened form even on a
+  /// server whose version had already been learned in an earlier process.
+  void _applyAuthorizeServerInfo(Map<String, dynamic> auth, String serverUrl) {
+    final sSettings = auth['serverSettings'] as Map<String, dynamic>?;
+    if (sSettings != null) _serverSettings = sSettings;
+    final version =
+        auth['serverVersion'] as String? ?? (sSettings?['version'] as String?);
+    if (version != null && version.isNotEmpty) {
+      _serverVersion = version;
+      ApiService.cacheServerVersion(serverUrl, version);
+    }
+  }
+
   /// Re-cache server settings after an admin saves them via PATCH /api/settings
   /// (which echoes the updated serverSettings). Keeps cached values and the
   /// shown server version fresh without forcing a re-login.
   void applyServerSettings(Map<String, dynamic> settings) {
     _serverSettings = settings;
     final v = settings['version'] as String?;
-    if (v != null && v.isNotEmpty) _serverVersion = v;
+    if (v != null && v.isNotEmpty) {
+      _serverVersion = v;
+      final url = activeServerUrl;
+      if (url != null) ApiService.cacheServerVersion(url, v);
+    }
     notifyListeners();
   }
 
@@ -277,6 +299,14 @@ class AuthProvider extends ChangeNotifier {
         serverUrl: sessionServer,
         username: sessionUsername,
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+          'token_saved_at', DateTime.now().millisecondsSinceEpoch);
+      debugPrint(
+        '[Auth] Rotated tokens persisted: '
+        'access=${ApiService.tokenFp(_accessToken)} '
+        'refresh=${ApiService.tokenFp(_refreshToken)}',
+      );
     } catch (e) {
       debugPrint('[Auth] Failed to persist refreshed tokens: $e');
     }
@@ -335,7 +365,20 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
     _authExpiryInProgress = true;
-    debugPrint('[Auth] Token refresh failed, forcing re-login');
+    debugPrint(
+      '[Auth] Token refresh failed, forcing re-login '
+      '(access=${ApiService.tokenFp(_accessToken)} '
+      'refresh=${ApiService.tokenFp(_refreshToken)})',
+    );
+    unawaited(SharedPreferences.getInstance().then((prefs) {
+      final savedAt = prefs.getInt('token_saved_at');
+      if (savedAt != null) {
+        final age = Duration(
+            milliseconds: DateTime.now().millisecondsSinceEpoch - savedAt);
+        debugPrint(
+            '[Auth] Expired session tokens were last persisted ${age.inHours}h ago');
+      }
+    }));
     // Show a message to the user
     final ctx = rootNavigatorKey.currentContext;
     final l = ctx != null ? AppLocalizations.of(ctx) : null;
@@ -375,8 +418,13 @@ class AuthProvider extends ChangeNotifier {
       // return them, so without this they'd stay empty until next login.
       await _restoreEreaderDevices();
 
+      final tokenSavedAt = prefs.getInt('token_saved_at');
+      final tokenAge = tokenSavedAt == null
+          ? 'unknown'
+          : '${Duration(milliseconds: DateTime.now().millisecondsSinceEpoch - tokenSavedAt).inHours}h';
       debugPrint(
-        '[Auth] saved credentials: url=${savedUrl != null}, token=${savedToken != null}, refreshToken=${savedRefreshToken != null}',
+        '[Auth] saved credentials: url=${savedUrl != null}, token=${savedToken != null}, refreshToken=${savedRefreshToken != null} '
+        '(access=${ApiService.tokenFp(savedToken)}, refresh=${ApiService.tokenFp(savedRefreshToken)}, saved $tokenAge ago)',
       );
 
       if (savedUrl != null && savedToken != null) {
@@ -499,8 +547,7 @@ class AuthProvider extends ChangeNotifier {
                 _ereaderDevices = devicesRaw.cast<Map<String, dynamic>>();
                 await _persistEreaderDevices();
               }
-              final sSettings = auth['serverSettings'] as Map<String, dynamic>?;
-              if (sSettings != null) _serverSettings = sSettings;
+              _applyAuthorizeServerInfo(auth, activeServerUrl!);
               final defaultLib = auth['userDefaultLibraryId'] as String?;
               if (defaultLib != null) _defaultLibraryId = defaultLib;
             } else {
@@ -577,8 +624,7 @@ class AuthProvider extends ChangeNotifier {
           _ereaderDevices = devicesRaw.cast<Map<String, dynamic>>();
           await _persistEreaderDevices();
         }
-        final sSettings = auth['serverSettings'] as Map<String, dynamic>?;
-        if (sSettings != null) _serverSettings = sSettings;
+        _applyAuthorizeServerInfo(auth, activeServerUrl!);
         final defaultLib = auth['userDefaultLibraryId'] as String?;
         if (defaultLib != null) _defaultLibraryId = defaultLib;
       } else {
@@ -689,6 +735,7 @@ class AuthProvider extends ChangeNotifier {
         (_serverSettings?['version'] as String?);
     if (loginVersion != null && loginVersion.isNotEmpty) {
       _serverVersion = loginVersion;
+      ApiService.cacheServerVersion(url, loginVersion);
     } else {
       _fetchServerVersion(url);
     }
@@ -891,6 +938,7 @@ class AuthProvider extends ChangeNotifier {
         (_serverSettings?['version'] as String?);
     if (oidcVersion != null && oidcVersion.isNotEmpty) {
       _serverVersion = oidcVersion;
+      ApiService.cacheServerVersion(url, oidcVersion);
     } else {
       _fetchServerVersion(url);
     }
@@ -1283,6 +1331,7 @@ class AuthProvider extends ChangeNotifier {
           _ereaderDevices = devicesRaw.cast<Map<String, dynamic>>();
           await _persistEreaderDevices();
         }
+        _applyAuthorizeServerInfo(auth, _serverUrl!);
       } else {
         final me = await api.getMe();
         if (me != null) {

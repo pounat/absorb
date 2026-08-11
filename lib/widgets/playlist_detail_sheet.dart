@@ -18,6 +18,7 @@ import 'book_detail_sheet.dart';
 import 'editable_sheet_item.dart';
 import 'episode_list_sheet.dart';
 import 'stackable_sheet.dart';
+import 'swipe_action.dart';
 
 class PlaylistDetailSheet extends StatefulWidget {
   final String playlistId;
@@ -210,16 +211,6 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
     }
   }
 
-  Future<void> _removeItem(
-    LibraryProvider lib,
-    String libraryItemId, {
-    String? episodeId,
-  }) async {
-    await lib.removeFromPlaylist(
-      widget.playlistId, libraryItemId, episodeId: episodeId,
-    );
-  }
-
   void _openAddBooks(LibraryProvider lib, Map<String, dynamic> playlist,
       String name, List<dynamic> items) {
     final libraryId = playlist['libraryId'] as String? ?? lib.selectedLibraryId;
@@ -391,6 +382,15 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
             if (!isPodcastPlaylist)
               _headerIconButton(cs, Icons.library_add_rounded,
                 () => _openAddBooks(lib, playlist, name, items)),
+            _headerIconButton(cs,
+              lib.isRollingDownloadEnabled(widget.playlistId)
+                  ? Icons.downloading_rounded
+                  : Icons.download_outlined,
+              () => lib.toggleRollingDownload(widget.playlistId,
+                  name: name, kind: 'playlist'),
+              tooltip: lib.isRollingDownloadEnabled(widget.playlistId)
+                  ? l.turnAutoDownloadOff
+                  : l.turnAutoDownloadOn),
             _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
               () => setState(() => _gridView = !_gridView)),
@@ -608,39 +608,24 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         }
 
         final isOnAbsorbing = lib.isOnAbsorbingList(progressKey);
-        return Dismissible(
+        // Removing an item lives in the edit mode. It used to be a left swipe,
+        // which put an un-undoable server change one stray scroll away.
+        return SwipeAction(
           key: ValueKey('$libraryItemId-${episodeId ?? ''}'),
-          direction: DismissDirection.horizontal,
-          confirmDismiss: (direction) async {
-            if (direction == DismissDirection.startToEnd) {
-              if (isOnAbsorbing) return false;
-              await lib.addToAbsorbingQueue(progressKey);
-              lib.absorbingItemCache[progressKey] = Map<String, dynamic>.from(libraryItem);
-              HapticFeedback.mediumImpact();
-              if (context.mounted) {
-                showOverlayToast(context, Wording.of(context).playlistDetailAddedToAbsorbing(episodeTitle ?? title), icon: Icons.add_circle_outline_rounded);
-              }
-              return false;
-            }
-            // endToStart = delete
-            _removeItem(lib, libraryItemId, episodeId: episodeId);
-            return true;
-          },
-          background: Container(
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.only(left: 20),
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(Icons.add_circle_outline_rounded, color: cs.primary),
-          ),
-          secondaryBackground: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            color: cs.error.withValues(alpha: 0.1),
-            child: Icon(Icons.delete_rounded, color: cs.error),
-          ),
+          onStartToEnd: isOnAbsorbing
+              ? null
+              : SwipeActionSpec(
+                  icon: Icons.add_circle_outline_rounded,
+                  color: cs.primary,
+                  onTrigger: () async {
+                    await lib.addToAbsorbingQueue(progressKey);
+                    lib.absorbingItemCache[progressKey] = Map<String, dynamic>.from(libraryItem);
+                    HapticFeedback.mediumImpact();
+                    if (context.mounted) {
+                      showOverlayToast(context, Wording.of(context).playlistDetailAddedToAbsorbing(episodeTitle ?? title), icon: Icons.add_circle_outline_rounded);
+                    }
+                  },
+                ),
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Card(

@@ -42,6 +42,24 @@ class UpdateCheckerService {
   static const _lastCheckKey = 'update_last_check';
   static const _updateChannel = MethodChannel('com.absorb.update');
 
+  static Future<String> currentInstalledVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    int? baseBuildNumber;
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        baseBuildNumber =
+            await _updateChannel.invokeMethod<int>('getBaseBuildNumber');
+      } catch (error) {
+        debugPrint('[UpdateChecker] Base build lookup failed: $error');
+      }
+    }
+    return currentUpdateVersion(
+      versionName: packageInfo.version,
+      packageBuildNumber: packageInfo.buildNumber,
+      baseBuildNumber: baseBuildNumber,
+    );
+  }
+
   /// Check for updates. Returns UpdateInfo if a newer version exists, null otherwise.
   /// Respects a 12-hour cooldown between checks and skips dismissed versions.
   /// When [includePreReleases] is true, pre-release/alpha builds are also considered.
@@ -94,9 +112,7 @@ class UpdateCheckerService {
         }
       }
 
-      final packageInfo = await PackageInfo.fromPlatform();
       List<String> supportedAbis = const [];
-      int? baseBuildNumber;
       if (!kIsWeb && Platform.isAndroid) {
         try {
           supportedAbis =
@@ -104,22 +120,12 @@ class UpdateCheckerService {
         } catch (error) {
           debugPrint('[UpdateChecker] ABI detection failed: $error');
         }
-        try {
-          baseBuildNumber =
-              await _updateChannel.invokeMethod<int>('getBaseBuildNumber');
-        } catch (error) {
-          debugPrint('[UpdateChecker] Base build lookup failed: $error');
-        }
       }
       final selectedAsset = selectAndroidUpdateAsset(
         assets: releaseAssets,
         supportedAbis: supportedAbis,
       );
-      final currentVersion = currentUpdateVersion(
-        versionName: packageInfo.version,
-        packageBuildNumber: packageInfo.buildNumber,
-        baseBuildNumber: baseBuildNumber,
-      );
+      final currentVersion = await currentInstalledVersion();
       final downloadUrl = selectedAsset?.downloadUrl ??
           data['html_url'] as String? ??
           '';

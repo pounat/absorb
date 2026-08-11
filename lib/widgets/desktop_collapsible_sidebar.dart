@@ -6,6 +6,50 @@ import 'package:flutter/services.dart';
 typedef DesktopSidebarBuilder =
     Widget Function(BuildContext context, bool extended);
 
+class DesktopSidebarBranding extends StatelessWidget {
+  const DesktopSidebarBranding({
+    super.key,
+    required this.extended,
+    required this.leading,
+    required this.title,
+    this.titleStyle,
+  });
+
+  static const leadingKey = ValueKey<String>(
+    'desktop-sidebar-branding-leading',
+  );
+
+  final bool extended;
+  final Widget leading;
+  final String title;
+  final TextStyle? titleStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          key: leadingKey,
+          width: 48,
+          height: 48,
+          child: Center(child: leading),
+        ),
+        if (extended) ...[
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: titleStyle,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class DesktopSidebarLayout extends StatelessWidget {
   const DesktopSidebarLayout({
     super.key,

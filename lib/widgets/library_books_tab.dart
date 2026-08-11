@@ -14,6 +14,10 @@ class LibraryBooksTab extends StatelessWidget {
   final bool isPodcastLibrary;
   final bool rectangleCovers;
   final double coverAspectRatio;
+  final double desktopMaxCrossAxisExtent;
+  final bool selectionMode;
+  final Set<String> selectedItemIds;
+  final void Function(Map<String, dynamic> item, int index)? onSelectionToggle;
   final Future<void> Function() onRefresh;
   final VoidCallback onClearFilter;
 
@@ -43,6 +47,10 @@ class LibraryBooksTab extends StatelessWidget {
     this.isPodcastLibrary = false,
     required this.rectangleCovers,
     required this.coverAspectRatio,
+    this.desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
+    this.selectionMode = false,
+    this.selectedItemIds = const {},
+    this.onSelectionToggle,
     required this.onRefresh,
     required this.onClearFilter,
     required this.onLoadMore,
@@ -75,35 +83,39 @@ class LibraryBooksTab extends StatelessWidget {
       final filterMsg = isPodcastLibrary && filter != LibraryFilter.none
           ? l.libraryNoItemsMatchingFilter
           : switch (filter) {
-        LibraryFilter.notFinished => l.libraryNoUnfinishedBooks,
-        LibraryFilter.inProgress => l.libraryNoBooksInProgress,
-        LibraryFilter.finished => l.libraryNoFinishedBooks,
-        LibraryFilter.notStarted => l.libraryAllBooksStarted,
-        LibraryFilter.downloaded => l.libraryNoDownloadedBooks,
-        LibraryFilter.subscribed => l.libraryNoItemsMatchingFilter,
-        LibraryFilter.inASeries => l.libraryNoSeriesFound,
-        LibraryFilter.hasEbook => l.libraryNoBooksWithEbooks,
-        LibraryFilter.noEbook ||
-        LibraryFilter.hasSupplementaryEbook ||
-        LibraryFilter.noSupplementaryEbook ||
-        LibraryFilter.series ||
-        LibraryFilter.author ||
-        LibraryFilter.narrator ||
-        LibraryFilter.language ||
-        LibraryFilter.publisher ||
-        LibraryFilter.publishedDecade ||
-        LibraryFilter.noTracks ||
-        LibraryFilter.singleTrack ||
-        LibraryFilter.multipleTracks ||
-        LibraryFilter.abridged ||
-        LibraryFilter.issues ||
-        LibraryFilter.feedOpen ||
-        LibraryFilter.explicit => l.libraryNoItemsMatchingFilter,
-        LibraryFilter.missingMetadata => l.libraryNoBooksMissingMetadata,
-        LibraryFilter.genre => l.libraryNoBooksInGenre(genreFilter ?? l.genre.toLowerCase()),
-        LibraryFilter.tag => l.libraryNoBooksWithTag(tagFilter ?? l.tag.toLowerCase()),
-        LibraryFilter.none => l.libraryNoBooks,
-      };
+              LibraryFilter.notFinished => l.libraryNoUnfinishedBooks,
+              LibraryFilter.inProgress => l.libraryNoBooksInProgress,
+              LibraryFilter.finished => l.libraryNoFinishedBooks,
+              LibraryFilter.notStarted => l.libraryAllBooksStarted,
+              LibraryFilter.downloaded => l.libraryNoDownloadedBooks,
+              LibraryFilter.subscribed => l.libraryNoItemsMatchingFilter,
+              LibraryFilter.inASeries => l.libraryNoSeriesFound,
+              LibraryFilter.hasEbook => l.libraryNoBooksWithEbooks,
+              LibraryFilter.noEbook ||
+              LibraryFilter.hasSupplementaryEbook ||
+              LibraryFilter.noSupplementaryEbook ||
+              LibraryFilter.series ||
+              LibraryFilter.author ||
+              LibraryFilter.narrator ||
+              LibraryFilter.language ||
+              LibraryFilter.publisher ||
+              LibraryFilter.publishedDecade ||
+              LibraryFilter.noTracks ||
+              LibraryFilter.singleTrack ||
+              LibraryFilter.multipleTracks ||
+              LibraryFilter.abridged ||
+              LibraryFilter.issues ||
+              LibraryFilter.feedOpen ||
+              LibraryFilter.explicit => l.libraryNoItemsMatchingFilter,
+              LibraryFilter.missingMetadata => l.libraryNoBooksMissingMetadata,
+              LibraryFilter.genre => l.libraryNoBooksInGenre(
+                genreFilter ?? l.genre.toLowerCase(),
+              ),
+              LibraryFilter.tag => l.libraryNoBooksWithTag(
+                tagFilter ?? l.tag.toLowerCase(),
+              ),
+              LibraryFilter.none => l.libraryNoBooks,
+            };
       body = CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -115,17 +127,24 @@ class LibraryBooksTab extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.library_books_outlined,
-                      size: 56, color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
+                  Icon(
+                    Icons.library_books_outlined,
+                    size: 56,
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                  ),
                   const SizedBox(height: 12),
-                  Text(filterMsg,
-                      style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
+                  Text(
+                    filterMsg,
+                    style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+                  ),
                   if (filter != LibraryFilter.none) ...[
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: onClearFilter,
-                      child: Text(l.libraryClearFilter,
-                          style: tt.bodySmall?.copyWith(color: cs.primary)),
+                      child: Text(
+                        l.libraryClearFilter,
+                        style: tt.bodySmall?.copyWith(color: cs.primary),
+                      ),
                     ),
                   ],
                 ],
@@ -141,30 +160,45 @@ class LibraryBooksTab extends StatelessWidget {
         slivers: [
           ...headers,
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding(context)),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              libraryGridBottomPadding(context),
+            ),
             sliver: SliverGrid(
               gridDelegate: libraryGridDelegate(
                 context,
                 childAspectRatio: rectangleCovers ? 0.48 : 0.68,
+                desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
               ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= items.length) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    );
-                  }
-                  final item = items[index];
-                  if (item.containsKey('collapsedSeries')) {
-                    return GridSeriesTile(item: item, coverAspectRatio: coverAspectRatio);
-                  }
-                  return GridBookTile(item: item, coverAspectRatio: coverAspectRatio);
-                },
-                childCount: items.length + (hasMore ? 1 : 0),
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                if (index >= items.length) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
+                final item = items[index];
+                if (item.containsKey('collapsedSeries')) {
+                  return GridSeriesTile(
+                    item: item,
+                    coverAspectRatio: coverAspectRatio,
+                  );
+                }
+                final itemId = item['id'] as String?;
+                return GridBookTile(
+                  item: item,
+                  coverAspectRatio: coverAspectRatio,
+                  selectionMode: selectionMode,
+                  selected: itemId != null && selectedItemIds.contains(itemId),
+                  onSelectionToggle: itemId == null || onSelectionToggle == null
+                      ? null
+                      : () => onSelectionToggle!(item, index),
+                );
+              }, childCount: items.length + (hasMore ? 1 : 0)),
             ),
           ),
         ],

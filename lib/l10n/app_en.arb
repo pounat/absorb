@@ -614,7 +614,7 @@
   "cardScrubbersChapterSubtitle": "Only the chapter bar can seek",
   "cardScrubbersLockedSubtitle": "Progress is shown without seeking",
   "speedAdjustedTime": "Speed-adjusted time",
-  "speedAdjustedTimeOnSubtitle": "On - remaining time reflects playback speed",
+  "speedAdjustedTimeOnSubtitle": "On - all times reflect your playback speed",
   "speedAdjustedTimeOffSubtitle": "Off - showing raw audio duration",
   "buttonLayout": "Button layout",
   "buttonLayoutSubtitle": "How action buttons are arranged on the card",
@@ -672,6 +672,10 @@
   "queueModeBooks": "Books",
   "queueModePodcasts": "Podcasts",
   "autoDownloadQueue": "Auto-download queue",
+  "autoDownloadThisSeriesLabel": "Auto-download this series",
+  "autoDownloadThisShowLabel": "Auto-download this podcast",
+  "autoDownloadThisPlaylistLabel": "Auto-download this playlist",
+  "autoDownloadThisCollectionLabel": "Auto-download this collection",
   "autoDownloadQueueOnSubtitle": "Keep next {count} items downloaded",
   "@autoDownloadQueueOnSubtitle": {
     "placeholders": {
@@ -854,10 +858,13 @@
   "autoDownloadOnWifiOffSubtitle": "Off",
   "concurrentDownloads": "Concurrent downloads",
   "autoDownload": "Auto-download",
-  "autoDownloadSubtitle": "Enable per series or podcast from their detail pages",
+  "autoDownloadSubtitle": "Enable per series, podcast, playlist or collection from their detail pages",
+  "autoDownloadEnabledFor": "Turned on for",
+  "autoDownloadEnabledForNone": "Nothing yet",
+  "autoDownloadSourceUnnamed": "Not loaded yet",
   "keepNext": "Keep next",
   "keepNextInfoTitle": "Keep Next",
-  "keepNextInfoContent": "The number of items to keep downloaded, including the one you're currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in the series or podcast will stay downloaded.",
+  "keepNextInfoContent": "The number of items to keep downloaded, including the one you're currently listening to. For example, \"Keep next 3\" means the current book plus the next 2 in that series, podcast, playlist or collection will stay downloaded. This applies to every auto-download you turn on.",
   "deleteAbsorbedDownloads": "Delete absorbed downloads",
   "deleteAbsorbedDownloadsInfoTitle": "Delete Absorbed Downloads",
   "deleteAbsorbedDownloadsInfoContent": "When enabled, downloaded books or episodes are automatically deleted from this device after you finish them in Absorb. Finishing an item on the web or another device won’t delete its download here.",
@@ -1636,6 +1643,28 @@
   "deleteCollectionContent": "Are you sure you want to delete this collection?",
   "deleteCollectionFailed": "Couldn't delete the collection",
   "deletePermissionRequired": "Delete permission required. Ask the root admin to grant you the delete permission.",
+  "deleteFilesCheckbox": "Also delete the files on the server",
+  "deleteFilesCheckedHint": "The files are deleted from the server for good.",
+  "deleteFilesUncheckedHint": "The files stay on the server, so the next library scan can add this back.",
+  "deleteFromServerAction": "Delete from Server",
+  "deleteFromServerTitle": "Delete from server",
+  "deleteFromServerContent": "Delete \"{title}\" from Audiobookshelf?",
+  "@deleteFromServerContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deletedFromServer": "Deleted \"{title}\"",
+  "@deletedFromServer": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFromServerFailed": "Couldn't delete that. Check the server logs.",
   "playlistNotFound": "Playlist not found",
   "deletePlaylist": "Delete Playlist",
   "deletePlaylistContent": "Are you sure you want to delete this playlist?",
@@ -2029,14 +2058,6 @@
     }
   },
   "deleteBookmarkQuestion": "Delete bookmark?",
-  "bookmarkAtPosition": "Bookmark at {position}",
-  "@bookmarkAtPosition": {
-    "placeholders": {
-      "position": {
-        "type": "String"
-      }
-    }
-  },
   "cardIconsOnlyChip": "Icons only",
   "cardMoreInGridChip": "\"More\" in grid",
   "cardLayoutHidden": "Hidden",
@@ -2160,7 +2181,7 @@
   "adminMissingBadge": "Missing",
   "adminInvalidBadge": "Invalid",
   "adminMissingDeleteTitle": "Remove entry",
-  "adminMissingDeleteOneContent": "Remove \"{title}\" from Audiobookshelf? The files on disk are not deleted.",
+  "adminMissingDeleteOneContent": "Remove \"{title}\" from Audiobookshelf?",
   "@adminMissingDeleteOneContent": {
     "placeholders": {
       "title": {
@@ -2168,7 +2189,7 @@
       }
     }
   },
-  "adminMissingDeleteManyContent": "Remove {count} entries from Audiobookshelf? The files on disk are not deleted.",
+  "adminMissingDeleteManyContent": "Remove {count} entries from Audiobookshelf?",
   "@adminMissingDeleteManyContent": {
     "placeholders": {
       "count": {
@@ -3476,7 +3497,7 @@
   "tipsSheetTapToSeekTitle": "Tap to Seek",
   "tipsSheetTapToSeekDesc": "Tap anywhere on the chapter or book progress bar to jump directly to that position. You can also drag the bars for fine-grained control.",
   "tipsSheetSpeedAdjustedTimeTitle": "Speed-Adjusted Time",
-  "tipsSheetSpeedAdjustedTimeDesc": "Time remaining and chapter times automatically adjust based on your playback speed. Listening at 1.5x? The time shown reflects how long it'll actually take you.",
+  "tipsSheetSpeedAdjustedTimeDesc": "Every time shown - position, remaining, chapters, bookmarks - adjusts to your playback speed. Listening at 1.5x? The times shown reflect how long they'll actually take you.",
   "tipsSheetPlaybackHistoryTitle": "Playback History",
   "tipsSheetPlaybackHistoryDesc": "Tap the History button on any card to see a timeline of every play, pause, seek, and speed change. Tap any event to jump back to that position.",
   "tipsSheetAutoRewindTitle": "Auto-Rewind",
@@ -3665,10 +3686,29 @@
       }
     }
   },
+  "lpSubscribedEpisodeDownloaded": "New {showTitle} episode downloaded",
+  "@lpSubscribedEpisodeDownloaded": {
+    "placeholders": {
+      "showTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "statsWeekStartsOn": "Week starts on",
   "episodeListNewEpisodePosition": "New episode position",
   "episodeListPositionTop": "Top of queue",
   "episodeListPositionSecond": "Second in queue",
   "episodeListPositionEnd": "End of queue",
+  "episodeListPositionNone": "Don't add to queue",
+  "episodeListPositionNoneDesc": "Still notified and downloaded",
+  "sleepRewindUndoNote": "Hit play within {minutes} minutes and the rewind is undone",
+  "@sleepRewindUndoNote": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "lpQueueDownloadingItems": "{count, plural, =1{Queue: downloading 1 item} other{Queue: downloading {count} items}}",
   "@lpQueueDownloadingItems": {
     "placeholders": {
