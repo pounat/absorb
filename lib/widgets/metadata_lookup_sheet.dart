@@ -4,7 +4,27 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/metadata_override_service.dart';
+import '../utils/desktop_workspace.dart';
 import 'overlay_toast.dart';
+
+const double metadataFieldPickerDesktopMaxWidth = 540;
+const double metadataFieldPickerDesktopMaxHeight = 720;
+const double metadataFieldPickerDesktopHeightFraction = 0.8;
+
+BoxConstraints? metadataFieldPickerDialogConstraints({
+  required bool desktop,
+  required double viewportHeight,
+}) {
+  if (!desktop) return null;
+  final availableHeight =
+      viewportHeight * metadataFieldPickerDesktopHeightFraction;
+  return BoxConstraints(
+    maxWidth: metadataFieldPickerDesktopMaxWidth,
+    maxHeight: availableHeight < metadataFieldPickerDesktopMaxHeight
+        ? availableHeight
+        : metadataFieldPickerDesktopMaxHeight,
+  );
+}
 
 /// Bottom sheet that lets users search for book metadata via the ABS server
 /// and pick a result to store as a local override, or manually edit fields.
@@ -208,6 +228,10 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
           final cs = Theme.of(ctx).colorScheme;
           final tt = Theme.of(ctx).textTheme;
           return AlertDialog(
+            constraints: metadataFieldPickerDialogConstraints(
+              desktop: isDesktopWorkspace(ctx),
+              viewportHeight: MediaQuery.sizeOf(ctx).height,
+            ),
             title: Text(l.metadataLookupChooseFields),
             content: SizedBox(
               width: double.maxFinite,

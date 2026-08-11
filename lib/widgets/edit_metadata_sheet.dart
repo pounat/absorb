@@ -8,6 +8,9 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/socket_service.dart';
 import '../screens/chapter_editor_screen.dart';
+import '../utils/desktop_workspace.dart';
+import 'metadata_lookup_sheet.dart'
+    show metadataFieldPickerDialogConstraints;
 import 'overlay_toast.dart';
 
 enum _ETab { details, cover, chapters, match, encode, embed }
@@ -516,6 +519,10 @@ class _MetadataEditViewState extends State<MetadataEditView>
           final cs = Theme.of(ctx).colorScheme;
           final tt = Theme.of(ctx).textTheme;
           return AlertDialog(
+            constraints: metadataFieldPickerDialogConstraints(
+              desktop: isDesktopWorkspace(ctx),
+              viewportHeight: MediaQuery.sizeOf(ctx).height,
+            ),
             title: Text(l.metadataLookupChooseFields),
             content: SizedBox(
               width: double.maxFinite,

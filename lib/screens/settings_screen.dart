@@ -193,10 +193,10 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  State<SettingsScreen> createState() => SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class SettingsScreenState extends State<SettingsScreen> {
   static const _isPlayStoreBuild = bool.fromEnvironment('PLAYSTORE_BUILD');
   static const _isGithubBuild = bool.fromEnvironment('GITHUB_BUILD');
   // Distribution label shown next to the version. The F-Droid build passes
@@ -327,6 +327,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _expandedSection;
   final ScrollController _settingsScrollController = ScrollController();
   final Map<String, GlobalKey> _sectionKeys = {};
+
+  void showAccountMenu() {
+    if (mounted) _showAccountSheet(context);
+  }
 
   GlobalKey _keyFor(String section) => _sectionKeys.putIfAbsent(section, () => GlobalKey());
 
@@ -1390,13 +1394,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             builder: (context, constraints) {
               final isDesktopSettings = isDesktopWorkspace(context);
               final expandedSection = _expandedSection ??
-                  (isDesktopSettings ? 'Account' : null);
+                  (isDesktopSettings ? 'Appearance' : null);
               final destinations = <_SettingsSectionDestination>[
-                _SettingsSectionDestination(
-                  'Account',
-                  Icons.person_outline_rounded,
-                  l.userFallback,
-                ),
+                if (!isDesktopSettings)
+                  _SettingsSectionDestination(
+                    'Account',
+                    Icons.person_outline_rounded,
+                    l.userFallback,
+                  ),
                 _SettingsSectionDestination(
                   'Appearance',
                   Icons.palette_outlined,
@@ -1500,7 +1505,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 8),
 
                 // ── User Profile ──
-                        if (!isDesktopSettings || expandedSection == 'Account')
+                        if (!isDesktopSettings)
                 Padding(
                             key: _keyFor('Account'),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

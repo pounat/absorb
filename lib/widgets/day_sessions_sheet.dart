@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'adaptive_modal.dart';
 import 'listening_session_card.dart';
 
 typedef DaySessionLoader =
@@ -150,6 +151,7 @@ class _DaySessionsSheetState extends State<DaySessionsSheet> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final desktopMode = ModalSurface.isDesktopOf(context);
     final dateLabel = MaterialLocalizations.of(context).formatFullDate(_date);
     final filtered = _sessions
         .where(
@@ -166,7 +168,7 @@ class _DaySessionsSheetState extends State<DaySessionsSheet> {
         ? l.statsScreenSessionCountOne(filtered.length)
         : l.statsScreenSessionCountOther(filtered.length);
 
-    return DraggableScrollableSheet(
+    return AdaptiveDraggableScrollableSheet(
       initialChildSize: 0.82,
       minChildSize: 0.5,
       maxChildSize: 0.96,
@@ -175,7 +177,9 @@ class _DaySessionsSheetState extends State<DaySessionsSheet> {
         return Container(
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: desktopMode
+                ? BorderRadius.zero
+                : const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [

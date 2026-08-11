@@ -25,6 +25,7 @@ import '../services/wording.dart';
 import '../services/android_auto_service.dart';
 import '../services/carplay_service.dart';
 import '../widgets/expanded_card.dart';
+import '../widgets/desktop_account_button.dart';
 import '../widgets/desktop_now_playing_bar.dart';
 import 'absorbing_screen.dart';
 import 'admin_screen.dart';
@@ -151,6 +152,7 @@ class _AppShellState extends State<AppShell>
   String _podcastTabLibraryId = '';
   final _homeKey = GlobalKey<HomeScreenState>();
   final _libraryKey = GlobalKey<LibraryScreenState>();
+  final _settingsKey = GlobalKey<SettingsScreenState>();
   final _player = AudioPlayerService();
   final _cast = ChromecastService();
   bool _playerHadBook = false;
@@ -315,7 +317,7 @@ class _AppShellState extends State<AppShell>
         _pages[index] = const StatsScreen();
         break;
       case 4:
-        _pages[index] = const SettingsScreen();
+        _pages[index] = SettingsScreen(key: _settingsKey);
         break;
     }
   }
@@ -901,12 +903,32 @@ class _AppShellState extends State<AppShell>
       );
     }
 
-    final accountAvatar = CircleAvatar(
-      radius: 18,
-      backgroundColor: cs.secondaryContainer,
-      foregroundColor: cs.onSecondaryContainer,
-      child: Text(accountName.characters.first.toUpperCase()),
-    );
+    void openAccountMenu() {
+      final wasBuilt = _pages[4] != null;
+      _ensurePageBuilt(4);
+
+      final state = _settingsKey.currentState;
+      if (state != null) {
+        state.showAccountMenu();
+        return;
+      }
+
+      if (!wasBuilt) setState(() {});
+      var attempts = 0;
+      void tryOpen() {
+        if (!mounted) return;
+        final settings = _settingsKey.currentState;
+        if (settings != null) {
+          settings.showAccountMenu();
+          return;
+        }
+        if (++attempts < 10) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => tryOpen());
+        }
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) => tryOpen());
+    }
 
     return SafeArea(
       child: SizedBox(
@@ -1066,43 +1088,11 @@ class _AppShellState extends State<AppShell>
               height: 1,
               color: cs.outlineVariant.withValues(alpha: 0.45),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: extended
-                  ? Row(
-                      children: [
-                        accountAvatar,
-                        const SizedBox(width: 11),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                accountName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelLarge,
-                              ),
-                              if (serverLabel.isNotEmpty)
-                                Text(
-                                  serverLabel,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  : Tooltip(
-                      message: serverLabel.isEmpty
-                          ? accountName
-                          : '$accountName\n$serverLabel',
-                      child: Center(child: accountAvatar),
-                    ),
+            DesktopAccountButton(
+              accountName: accountName,
+              serverLabel: serverLabel,
+              extended: extended,
+              onPressed: openAccountMenu,
             ),
           ],
         ),

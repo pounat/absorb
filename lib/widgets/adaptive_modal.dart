@@ -25,6 +25,53 @@ class ModalSurface extends InheritedWidget {
       oldWidget.desktop != desktop;
 }
 
+/// Keeps sheet-style content draggable on mobile while giving it a finite,
+/// conventional dialog height on desktop. The same builder and scroll
+/// controller work in both surfaces.
+class AdaptiveDraggableScrollableSheet extends StatelessWidget {
+  const AdaptiveDraggableScrollableSheet({
+    super.key,
+    required this.builder,
+    this.initialChildSize = 0.5,
+    this.minChildSize = 0.25,
+    this.maxChildSize = 1.0,
+    this.expand = true,
+    this.desktopHeightFraction = 0.76,
+    this.desktopMaxHeight = 720,
+  });
+
+  final ScrollableWidgetBuilder builder;
+  final double initialChildSize;
+  final double minChildSize;
+  final double maxChildSize;
+  final bool expand;
+  final double desktopHeightFraction;
+  final double desktopMaxHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    if (ModalSurface.isDesktopOf(context)) {
+      final availableHeight =
+          MediaQuery.sizeOf(context).height * desktopHeightFraction;
+      final height = availableHeight < desktopMaxHeight
+          ? availableHeight
+          : desktopMaxHeight;
+      return SizedBox(
+        height: height,
+        child: _SheetDialogScrollHost(builder: builder),
+      );
+    }
+
+    return DraggableScrollableSheet(
+      initialChildSize: initialChildSize,
+      minChildSize: minChildSize,
+      maxChildSize: maxChildSize,
+      expand: expand,
+      builder: builder,
+    );
+  }
+}
+
 /// Scrollable browse/detail surface: draggable bottom sheet on mobile,
 /// centered dialog on the desktop workspace. The builder's ScrollController
 /// comes from the DraggableScrollableSheet on mobile and a dialog-owned
@@ -129,18 +176,17 @@ Future<T?> showDesktopSheetDialog<T>({
   bool isDismissible = true,
   void Function(Route<dynamic>)? onRouteCaptured,
   void Function(Route<dynamic>)? onRouteDisposed,
-}) =>
-    showDesktopModalDialog<T>(
-      context: context,
-      maxWidth: maxWidth,
-      maxHeightFraction: maxHeightFraction,
-      closeButton: closeButton,
-      backgroundColor: backgroundColor,
-      isDismissible: isDismissible,
-      onRouteCaptured: onRouteCaptured,
-      onRouteDisposed: onRouteDisposed,
-      builder: (ctx) => _SheetDialogScrollHost(builder: builder),
-    );
+}) => showDesktopModalDialog<T>(
+  context: context,
+  maxWidth: maxWidth,
+  maxHeightFraction: maxHeightFraction,
+  closeButton: closeButton,
+  backgroundColor: backgroundColor,
+  isDismissible: isDismissible,
+  onRouteCaptured: onRouteCaptured,
+  onRouteDisposed: onRouteDisposed,
+  builder: (ctx) => _SheetDialogScrollHost(builder: builder),
+);
 
 /// Centered dialog with the shared desktop modal chrome (matches the
 /// settings surfaces). Always presents on the root navigator so it covers
@@ -271,8 +317,11 @@ class _DesktopDialogBodyState extends State<_DesktopDialogBody> {
             clipBehavior: Clip.antiAlias,
             child: IconButton(
               visualDensity: VisualDensity.compact,
-              icon: Icon(Icons.close_rounded,
-                  size: 20, color: cs.onSurfaceVariant),
+              icon: Icon(
+                Icons.close_rounded,
+                size: 20,
+                color: cs.onSurfaceVariant,
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ),

@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import '../services/ebook_cache.dart';
 import '../services/progress_sync_service.dart';
 import '../services/volume_key_service.dart';
+import 'adaptive_modal.dart';
 
 /// Full-screen PDF reader. PDFs are fixed-layout, so this is deliberately
 /// simpler than the EPUB reader (no font/margin/theme reflow): page scrolling,
@@ -146,26 +147,73 @@ class _PdfReaderViewState extends State<PdfReaderView> with WidgetsBindingObserv
 
   void _showOutline() {
     final cs = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    Widget header(BuildContext ctx, {required bool showClose}) => Padding(
+      padding: showClose
+          ? const EdgeInsets.fromLTRB(16, 8, 8, 8)
+          : const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              AppLocalizations.of(ctx)!.readerChapters,
+              style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface,
+              ),
+            ),
+          ),
+          if (showClose)
+            IconButton(
+              tooltip: MaterialLocalizations.of(ctx).closeButtonTooltip,
+              onPressed: () => Navigator.pop(ctx),
+              icon: const Icon(Icons.close_rounded),
+            ),
+        ],
+      ),
+    );
+
+    showAdaptiveActionMenu<void>(
       context: context,
       backgroundColor: cs.surface,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(AppLocalizations.of(ctx)!.readerChapters,
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600, color: cs.onSurface)),
+      builder: (ctx) {
+        if (!ModalSurface.isDesktopOf(ctx)) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                header(ctx, showClose: false),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: _outlineTiles(_outline, ctx, 0),
+                  ),
+                ),
+              ],
             ),
-            Flexible(child: ListView(shrinkWrap: true, children: _outlineTiles(_outline, ctx, 0))),
-          ],
-        ),
-      ),
+          );
+        }
+        return AdaptiveDraggableScrollableSheet(
+          expand: false,
+          builder: (_, scrollController) => SafeArea(
+            child: Column(
+              children: [
+                header(ctx, showClose: true),
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    children: _outlineTiles(_outline, ctx, 0),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

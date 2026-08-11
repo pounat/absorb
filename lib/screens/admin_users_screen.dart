@@ -1247,6 +1247,7 @@ class _AdminSessionDetailsSheet extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final desktopMode = ModalSurface.isDesktopOf(context);
     final s = session;
 
     final meta = s['mediaMetadata'] as Map<String, dynamic>? ?? {};
@@ -1288,7 +1289,7 @@ class _AdminSessionDetailsSheet extends StatelessWidget {
     final lib = context.read<LibraryProvider>();
     final coverUrl = itemId != null ? lib.getCoverUrl(itemId) : null;
 
-    return DraggableScrollableSheet(
+    return AdaptiveDraggableScrollableSheet(
       initialChildSize: 0.6,
       minChildSize: 0.4,
       maxChildSize: 0.95,
@@ -1297,20 +1298,37 @@ class _AdminSessionDetailsSheet extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: desktopMode
+                ? BorderRadius.zero
+                : const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 10, bottom: 4),
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
+            if (desktopMode)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                  child: IconButton(
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
             Expanded(
               child: ListView(
                 controller: scrollController,

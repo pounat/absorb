@@ -8,8 +8,10 @@ import '../services/audio_player_service.dart';
 import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/upcoming_releases_service.dart';
+import '../utils/desktop_workspace.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/audible_series_sheet.dart';
+import '../widgets/desktop_page_body.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/rmab_book_detail_sheet.dart';
 import '../widgets/rmab_config_sheet.dart'
@@ -250,10 +252,13 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final desktopWorkspace = isDesktopWorkspace(context);
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
+        child: DesktopPageBody(
+          maxWidth: 1080,
+          child: Column(
           children: [
             AbsorbPageHeader(
               title: l.upcomingReleasesTitle,
@@ -315,6 +320,16 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
                     ]),
                   ),
                 ),
+                if (desktopWorkspace)
+                  IconButton(
+                    key: const Key('upcoming-releases-close'),
+                    tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
               ],
             ),
 
@@ -374,6 +389,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
               child: _buildContent(cs, tt, l),
             ),
           ],
+          ),
         ),
       ),
     );

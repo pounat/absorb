@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/desktop_workspace.dart';
 
 /// Consistent page header used across all screens.
 ///
@@ -13,7 +14,7 @@ class AbsorbPageHeader extends StatelessWidget {
   final Color? titleColor;
   final List<Widget>? actions;
   final Widget? trailing;
-  final bool showBranding;
+  final bool? showBranding;
   final EdgeInsetsGeometry padding;
 
   const AbsorbPageHeader({
@@ -23,7 +24,7 @@ class AbsorbPageHeader extends StatelessWidget {
     this.titleColor,
     this.actions,
     this.trailing,
-    this.showBranding = true,
+    this.showBranding,
     this.padding = const EdgeInsets.fromLTRB(20, 12, 20, 0),
   });
 
@@ -35,6 +36,7 @@ class AbsorbPageHeader extends StatelessWidget {
     final bColor = brandingColor ?? cs.onSurfaceVariant;
     final tColor = titleColor ?? cs.onSurface;
     final headerActions = actions;
+    final shouldShowBranding = showBranding ?? !isDesktopWorkspace(context);
 
     return Padding(
       padding: padding,
@@ -43,16 +45,15 @@ class AbsorbPageHeader extends StatelessWidget {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final reservedWidth = showBranding ? 140.0 : 200.0;
-              final maxActionWidth =
-                  (constraints.maxWidth - reservedWidth)
-                      .clamp(0.0, double.infinity)
-                      .toDouble();
+              final reservedWidth = shouldShowBranding ? 140.0 : 200.0;
+              final maxActionWidth = (constraints.maxWidth - reservedWidth)
+                  .clamp(0.0, double.infinity)
+                  .toDouble();
               return ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 32),
                 child: Row(
                   children: [
-                    if (showBranding)
+                    if (shouldShowBranding)
                       Text(
                         l.appTitle,
                         style: tt.labelSmall?.copyWith(
@@ -78,7 +79,7 @@ class AbsorbPageHeader extends StatelessWidget {
                       const SizedBox(width: 8),
                       trailing!,
                     ],
-                    if (showBranding)
+                    if (shouldShowBranding)
                       const Spacer()
                     else
                       const SizedBox(width: 12),
@@ -100,7 +101,7 @@ class AbsorbPageHeader extends StatelessWidget {
               );
             },
           ),
-          if (showBranding) ...[
+          if (shouldShowBranding) ...[
             const SizedBox(height: 4),
             Text(
               title,

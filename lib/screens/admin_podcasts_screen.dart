@@ -8,9 +8,11 @@ import '../services/socket_service.dart';
 import 'podcast_edit_screen.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/adaptive_modal.dart';
+import '../widgets/desktop_page_body.dart';
 import '../widgets/html_description.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/desktop_workspace.dart';
 import '../utils/duration_format.dart';
 
 /// Opens the podcast lookup used by the admin podcast manager.
@@ -47,13 +49,21 @@ Future<void> showPodcastAdminSettings(
   required VoidCallback onChanged,
 }) async {
   if (!context.read<AuthProvider>().isAdmin) return;
-  await Navigator.of(context).push<void>(
+  final navigator = contentNavigator(context);
+  final sourceContext = context;
+  final sourceRoute = ModalRoute.of(context);
+  if (isDesktopWorkspace(context) && sourceRoute is PopupRoute<dynamic>) {
+    Navigator.of(context, rootNavigator: true).removeRoute(sourceRoute);
+  }
+  await navigator.push<void>(
     MaterialPageRoute<void>(
       builder: (_) => _PodcastDetailScreen(
         item: item,
         libraryId: libraryId,
         initialTab: 2,
-        onChanged: onChanged,
+        onChanged: () {
+          if (sourceContext.mounted) onChanged();
+        },
       ),
     ),
   );
@@ -138,7 +148,7 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
         onPressed: () => _showSearchSheet(),
         child: Icon(Icons.add_rounded, color: cs.onPrimary),
       ),
-      body: SafeArea(child: Column(children: [
+      body: DesktopPageBody(maxWidth: 1040, child: SafeArea(child: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
           child: Row(children: [
@@ -159,7 +169,7 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
               ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
               : RefreshIndicator(onRefresh: _loadShows, child: _buildShowList(cs, tt)),
         ),
-      ])),
+      ]))),
     );
   }
 
@@ -244,7 +254,7 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
   // ─── Show Detail ────────────────────────────────────────────
 
   void _openShowDetail(Map<String, dynamic> item) {
-    Navigator.push(context, MaterialPageRoute(
+    contentNavigator(context).push(MaterialPageRoute(
       builder: (_) => _PodcastDetailScreen(item: item, libraryId: _libraryId, onChanged: _loadShows)));
   }
 }
@@ -439,11 +449,12 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
         color: cs.surfaceContainerHigh,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: DraggableScrollableSheet(
+      child: AdaptiveDraggableScrollableSheet(
         initialChildSize: 0.85,
         minChildSize: 0.05,
         maxChildSize: 0.95,
         expand: false,
+        desktopMaxHeight: 680,
         builder: (ctx, sc) {
           return Column(
             children: [
@@ -806,7 +817,7 @@ class _PodcastPreviewScreenState extends State<_PodcastPreviewScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
+      body: DesktopPageBody(maxWidth: 1040, child: SafeArea(
         child: Column(
           children: [
             // Header
@@ -965,7 +976,7 @@ class _PodcastPreviewScreenState extends State<_PodcastPreviewScreen> {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 
@@ -1222,7 +1233,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(child: Column(children: [
+      body: DesktopPageBody(maxWidth: 1040, child: SafeArea(child: Column(children: [
         // Back button
         Padding(padding: const EdgeInsets.fromLTRB(4, 4, 8, 0),
           child: Row(children: [
@@ -1297,7 +1308,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
           _buildFeedTab(cs, tt),
           _buildSettingsTab(cs, tt),
         ])),
-      ])),
+      ]))),
     );
   }
 
@@ -2068,7 +2079,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
 
   void _openEditInfo() {
     final tags = (_media['tags'] as List<dynamic>?)?.whereType<String>().toList() ?? <String>[];
-    Navigator.push(context, MaterialPageRoute(
+    contentNavigator(context).push(MaterialPageRoute(
       builder: (_) => PodcastEditScreen(
         itemId: _podcastId,
         metadata: Map<String, dynamic>.from(_metadata),
@@ -2578,11 +2589,12 @@ class _PodcastMatchSheetState extends State<_PodcastMatchSheet> {
         color: cs.surfaceContainerHigh,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: DraggableScrollableSheet(
+      child: AdaptiveDraggableScrollableSheet(
         initialChildSize: 0.75,
         minChildSize: 0.05,
         maxChildSize: 0.95,
         expand: false,
+        desktopMaxHeight: 680,
         builder: (ctx, sc) => Column(children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 8, 0),

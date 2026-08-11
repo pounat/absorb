@@ -97,6 +97,7 @@ class _AdminSessionsScreenState extends State<AdminSessionsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       desktopWidth: 520,
+      desktopScrollWrap: false,
       builder: (_) =>
           SessionDetailsSheet(session: s, allowEdit: ownerId == myId),
     );

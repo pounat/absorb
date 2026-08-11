@@ -1563,7 +1563,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       desktopScrollWrap: false,
-      builder: (ctx) => DraggableScrollableSheet(
+      builder: (ctx) => AdaptiveDraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.6,
         maxChildSize: 0.9,
@@ -1582,6 +1582,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                       '${_annotations.length}',
                       style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                     ),
+                    if (ModalSurface.isDesktopOf(ctx)) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: MaterialLocalizations.of(
+                          ctx,
+                        ).closeButtonTooltip,
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
                   ],
                 ),
               ),
