@@ -1384,6 +1384,7 @@ class CardActionDelegate {
   final bool iconsOnly;
   final bool moreInline;
   final List<String> buttonOrder;
+  final bool showChaptersAction;
   final VoidCallback removeFromAbsorbing;
   final VoidCallback? onRemoveExtra;
   final void Function(List<String>, int) onReorder;
@@ -1413,6 +1414,7 @@ class CardActionDelegate {
     this.iconsOnly = false,
     this.moreInline = false,
     required this.buttonOrder,
+    this.showChaptersAction = true,
     required this.removeFromAbsorbing,
     this.onRemoveExtra,
     required this.onReorder,
@@ -1437,7 +1439,10 @@ class CardActionDelegate {
 
   List<Widget> buildButtonGrid(Color accent, TextTheme tt) {
     final count = visibleButtonCount;
-    final ids = buttonOrder.take(count).toList();
+    final ids = buttonOrder
+        .take(count)
+        .where((id) => showChaptersAction || id != 'chapters')
+        .toList();
     final n = ids.length;
     if (n == 0) return [];
 
@@ -1835,7 +1840,10 @@ class CardActionDelegate {
 
   void showMoreMenu(Color accent, TextTheme tt) {
     final count = visibleButtonCount;
-    final overflowIds = buttonOrder.skip(count).where((id) => id != '_more').toList();
+    final overflowIds = buttonOrder
+        .skip(count)
+        .where((id) => id != '_more' && (showChaptersAction || id != 'chapters'))
+        .toList();
     showAdaptiveActionMenu(
       context: context,
       desktopWidth: 520,

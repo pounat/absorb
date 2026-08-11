@@ -1479,6 +1479,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     iconsOnly: _iconsOnly,
     moreInline: _moreInline,
     buttonOrder: _buttonOrder,
+    showChaptersAction: widget.presentation != AbsorbingCardPresentation.desktop,
     removeFromAbsorbing: _removeFromAbsorbing,
     onReorder: (newOrder, newCount) {
       setState(() { _buttonOrder = newOrder; _buttonVisibleCount = newCount; });

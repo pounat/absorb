@@ -33,6 +33,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
   List<double> _speedPresets = List<double>.from(
     PlayerSettings.defaultSpeedPresets,
   );
+  bool _speedAdjustedTime = true;
   String? _lastItemId;
   String? _lastLibraryId;
   double? _dragPositionSeconds;
@@ -90,12 +91,14 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
       PlayerSettings.getEffectiveBackSkip(libraryId: libraryId),
       PlayerSettings.getEffectiveForwardSkip(libraryId: libraryId),
       PlayerSettings.getSpeedPresets(),
+      PlayerSettings.getSpeedAdjustedTime(),
     ]);
     if (!mounted) return;
     setState(() {
       _backSkip = results[0] as int;
       _forwardSkip = results[1] as int;
       _speedPresets = results[2] as List<double>;
+      _speedAdjustedTime = results[3] as bool;
     });
   }
 
@@ -146,6 +149,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
                     return _PositionControl(
                       positionSeconds: positionSeconds,
                       totalSeconds: totalSeconds,
+                      displaySpeed: _speedAdjustedTime ? player.speed : 1.0,
                       enabled: totalSeconds > 0,
                       accent: cs.primary,
                       onChangeStart: (value) {
@@ -403,6 +407,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
 class _PositionControl extends StatelessWidget {
   final double positionSeconds;
   final double totalSeconds;
+  final double displaySpeed;
   final bool enabled;
   final Color accent;
   final ValueChanged<double> onChangeStart;
@@ -412,6 +417,7 @@ class _PositionControl extends StatelessWidget {
   const _PositionControl({
     required this.positionSeconds,
     required this.totalSeconds,
+    required this.displaySpeed,
     required this.enabled,
     required this.accent,
     required this.onChangeStart,
@@ -426,6 +432,12 @@ class _PositionControl extends StatelessWidget {
     final max = enabled ? totalSeconds : 1.0;
     final value = enabled ? positionSeconds.clamp(0.0, max).toDouble() : 0.0;
     final remaining = enabled ? totalSeconds - value : 0.0;
+    final speed = displaySpeed.isFinite && displaySpeed > 0
+        ? displaySpeed
+        : 1.0;
+    final displayValue = value / speed;
+    final displayRemaining = remaining / speed;
+    final displayTotal = totalSeconds / speed;
     final timeStyle = tt.labelSmall?.copyWith(
       color: cs.onSurfaceVariant,
       fontSize: 10,
@@ -438,7 +450,8 @@ class _PositionControl extends StatelessWidget {
         SizedBox(
           width: 50,
           child: Text(
-            _formatTime(value),
+            _formatTime(displayValue),
+            key: const ValueKey('desktop-now-playing-elapsed'),
             textAlign: TextAlign.right,
             style: timeStyle,
           ),
@@ -460,13 +473,17 @@ class _PositionControl extends StatelessWidget {
               onChanged: enabled ? onChanged : null,
               onChangeEnd: enabled ? onChangeEnd : null,
               semanticFormatterCallback: (value) =>
-                  '${_formatTime(value)} of ${_formatTime(totalSeconds)}',
+                  '${_formatTime(value / speed)} of ${_formatTime(displayTotal)}',
             ),
           ),
         ),
         SizedBox(
           width: 50,
-          child: Text('-${_formatTime(remaining)}', style: timeStyle),
+          child: Text(
+            '-${_formatTime(displayRemaining)}',
+            key: const ValueKey('desktop-now-playing-remaining'),
+            style: timeStyle,
+          ),
         ),
         const SizedBox(width: 12),
       ],

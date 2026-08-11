@@ -12,6 +12,8 @@ import 'overlay_toast.dart';
 
 enum _ETab { details, cover, chapters, match, encode, embed }
 
+const double _metadataDetailsWideBreakpoint = 700;
+
 /// The unified per-book editor body: one swipeable tab bar over Details, Cover,
 /// Chapters, Match and Encode (in Audiobookshelf web order). Hosted full-screen
 /// by BookEditScreen. The Chapters tab embeds [ChapterEditBody]; the rest are
@@ -20,6 +22,7 @@ enum _ETab { details, cover, chapters, match, encode, embed }
 class MetadataEditView extends StatefulWidget {
   static const quickMatchButtonKey = Key('metadataQuickMatchButton');
   static const filePathsSectionKey = Key('metadataFilePathsSection');
+  static const descriptionFieldKey = Key('metadataDescriptionField');
 
   final String itemId;
   final String bookTitle;
@@ -1312,6 +1315,17 @@ class _MetadataEditViewState extends State<MetadataEditView>
   // ─── Custom Tab ─────────────────────────────────────────────
 
   Widget _buildCustomTab(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    return LayoutBuilder(
+      builder: (context, constraints) => _buildCustomTabLayout(
+        cs,
+        tt,
+        l,
+        wide: constraints.maxWidth >= _metadataDetailsWideBreakpoint,
+      ),
+    );
+  }
+
+  Widget _buildCustomTabLayout(ColorScheme cs, TextTheme tt, AppLocalizations l, {required bool wide}) {
     final filePaths = fullLibraryFilePaths(widget.libraryFiles);
     return Column(children: [
       // Save button bar
@@ -1347,10 +1361,23 @@ class _MetadataEditViewState extends State<MetadataEditView>
           controller: _detailsScroll,
           padding: EdgeInsets.fromLTRB(20, 8, 20, 32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
           children: [
-            _field(l.titleLabel, _titleCtrl, tt),
-            _field(l.subtitleLabel, _subtitleCtrl, tt),
-            _field(l.authorLabel, _authorCtrl, tt),
-            _field(l.narratorLabel, _narratorCtrl, tt),
+            if (wide) ...[
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _field(l.titleLabel, _titleCtrl, tt)),
+                const SizedBox(width: 16),
+                Expanded(child: _field(l.subtitleLabel, _subtitleCtrl, tt)),
+              ]),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _field(l.authorLabel, _authorCtrl, tt)),
+                const SizedBox(width: 16),
+                Expanded(child: _field(l.narratorLabel, _narratorCtrl, tt)),
+              ]),
+            ] else ...[
+              _field(l.titleLabel, _titleCtrl, tt),
+              _field(l.subtitleLabel, _subtitleCtrl, tt),
+              _field(l.authorLabel, _authorCtrl, tt),
+              _field(l.narratorLabel, _narratorCtrl, tt),
+            ],
             for (int i = 0; i < _seriesRows.length; i++) ...[
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: _field(l.seriesLabel, _seriesRows[i].name, tt)),
@@ -1390,13 +1417,30 @@ class _MetadataEditViewState extends State<MetadataEditView>
                 ),
               ),
             ),
-            _field(l.descriptionLabel, _descCtrl, tt, maxLines: 5),
-            _field(l.publisherLabel, _publisherCtrl, tt),
-            Row(children: [
-              Expanded(child: _field(l.yearLabel, _yearCtrl, tt, keyboardType: TextInputType.number)),
-              const SizedBox(width: 12),
-              Expanded(child: _field(l.languageLabel, _languageCtrl, tt)),
-            ]),
+            _field(
+              l.descriptionLabel,
+              _descCtrl,
+              tt,
+              maxLines: wide ? null : 5,
+              minLines: wide ? 10 : null,
+              fieldKey: MetadataEditView.descriptionFieldKey,
+            ),
+            if (wide)
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(flex: 2, child: _field(l.publisherLabel, _publisherCtrl, tt)),
+                const SizedBox(width: 16),
+                Expanded(child: _field(l.yearLabel, _yearCtrl, tt, keyboardType: TextInputType.number)),
+                const SizedBox(width: 16),
+                Expanded(child: _field(l.languageLabel, _languageCtrl, tt)),
+              ])
+            else ...[
+              _field(l.publisherLabel, _publisherCtrl, tt),
+              Row(children: [
+                Expanded(child: _field(l.yearLabel, _yearCtrl, tt, keyboardType: TextInputType.number)),
+                const SizedBox(width: 12),
+                Expanded(child: _field(l.languageLabel, _languageCtrl, tt)),
+              ]),
+            ],
             _field(l.genresLabel, _genresCtrl, tt, hint: l.commaSeparated),
             _suggestionChips(_genresCtrl, _allGenres, multi: true),
             _field(l.tagsLabel, _tagsCtrl, tt, hint: l.commaSeparated),
@@ -1448,7 +1492,6 @@ class _MetadataEditViewState extends State<MetadataEditView>
                     color: cs.onSurfaceVariant, height: 1.35)),
                 ),
             ],
-
           ],
         ),
       ),
@@ -1775,12 +1818,14 @@ class _MetadataEditViewState extends State<MetadataEditView>
     }
   }
 
-  Widget _field(String label, TextEditingController ctrl, TextTheme tt, {int maxLines = 1, String? hint, TextInputType? keyboardType}) {
+  Widget _field(String label, TextEditingController ctrl, TextTheme tt, {int? maxLines = 1, int? minLines, String? hint, TextInputType? keyboardType, Key? fieldKey}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
+        key: fieldKey,
         controller: ctrl,
         maxLines: maxLines,
+        minLines: minLines,
         keyboardType: keyboardType,
         decoration: InputDecoration(
           labelText: label,
