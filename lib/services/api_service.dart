@@ -3818,6 +3818,77 @@ class ApiService {
     return 0;
   }
 
+  /// Delete several library items in one server operation.
+  /// Returns the HTTP status code so callers can distinguish a missing
+  /// `delete` permission (403) from other failures. Zero means no request was
+  /// made or the request threw.
+  Future<int> deleteLibraryItems(
+    List<String> itemIds, {
+    bool hard = false,
+  }) async {
+    if (itemIds.isEmpty) return 0;
+    try {
+      final response = await _authPost(
+        Uri.parse('$_cleanBaseUrl/api/items/batch/delete?hard=${hard ? 1 : 0}'),
+        body: jsonEncode({'libraryItemIds': itemIds}),
+        timeout: const Duration(seconds: 60),
+      );
+      return response.statusCode;
+    } catch (e) {
+      debugPrint('deleteLibraryItems error: $e');
+      return 0;
+    }
+  }
+
+  /// Quick-match several items using Audiobookshelf's native batch endpoint.
+  Future<bool> quickMatchLibraryItems(
+    List<String> itemIds, {
+    required String provider,
+    bool overrideCover = false,
+    bool overrideDetails = false,
+  }) async {
+    if (itemIds.isEmpty) return false;
+    try {
+      final response = await _authPost(
+        Uri.parse('$_cleanBaseUrl/api/items/batch/quickmatch'),
+        body: jsonEncode({
+          'options': {
+            'provider': provider,
+            'overrideCover': overrideCover,
+            'overrideDetails': overrideDetails,
+          },
+          'libraryItemIds': itemIds,
+        }),
+        timeout: const Duration(seconds: 60),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('quickMatchLibraryItems error: $e');
+      return false;
+    }
+  }
+
+  /// Mark several library items finished or unfinished in one request.
+  Future<bool> updateLibraryItemsFinished(
+    List<String> itemIds, {
+    required bool isFinished,
+  }) async {
+    if (itemIds.isEmpty) return false;
+    try {
+      final response = await _authPatch(
+        Uri.parse('$_cleanBaseUrl/api/me/progress/batch/update'),
+        body: jsonEncode([
+          for (final itemId in itemIds)
+            {'libraryItemId': itemId, 'isFinished': isFinished},
+        ]),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('updateLibraryItemsFinished error: $e');
+      return false;
+    }
+  }
+
   // ── Playlists ──────────────────────────────────────────────────────────
 
   /// GET /api/libraries/:libraryId/playlists

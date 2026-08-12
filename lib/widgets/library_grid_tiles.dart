@@ -21,8 +21,19 @@ class GridBookTile extends StatefulWidget {
   final Map<String, dynamic> item;
   final double coverAspectRatio;
   final String? sequenceBadge;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback? onSelectionToggle;
 
-  const GridBookTile({super.key, required this.item, this.coverAspectRatio = 1.0, this.sequenceBadge});
+  const GridBookTile({
+    super.key,
+    required this.item,
+    this.coverAspectRatio = 1.0,
+    this.sequenceBadge,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelectionToggle,
+  });
 
   @override
   State<GridBookTile> createState() => _GridBookTileState();
@@ -75,6 +86,10 @@ class _GridBookTileState extends State<GridBookTile> {
       // miss the Column's hit test and nothing happens.
       behavior: HitTestBehavior.opaque,
       onTap: () {
+        if (widget.selectionMode && widget.onSelectionToggle != null) {
+          widget.onSelectionToggle!();
+          return;
+        }
         if (itemId.isNotEmpty) {
           if (lib.isPodcastLibrary) {
             EpisodeListSheet.show(context, widget.item);
@@ -84,7 +99,10 @@ class _GridBookTileState extends State<GridBookTile> {
         }
       },
       // Long-press a book cover for the quick-actions sheet (podcasts skipped).
-      onLongPress: (itemId.isNotEmpty && !lib.isPodcastLibrary)
+      // Selection mode owns the gesture instead, so a long-press can't fire a
+      // sheet over a grid the user is ticking through.
+      onLongPress:
+          (!widget.selectionMode && itemId.isNotEmpty && !lib.isPodcastLibrary)
           ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
           : null,
       child: Column(
@@ -195,6 +213,44 @@ class _GridBookTileState extends State<GridBookTile> {
                         isFinished: isFinished,
                       ),
                     ),
+
+                  // ── Batch selection ──
+                  if (widget.selectionMode) ...[
+                    if (widget.selected)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: cs.primary, width: 3),
+                            borderRadius: BorderRadius.circular(10),
+                            color: cs.primary.withValues(alpha: 0.18),
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.selected
+                              ? cs.primary
+                              : Colors.black.withValues(alpha: 0.55),
+                          border: Border.all(
+                            color: widget.selected ? cs.primary : Colors.white70,
+                          ),
+                        ),
+                        child: Icon(
+                          widget.selected
+                              ? Icons.check_rounded
+                              : Icons.circle_outlined,
+                          size: 17,
+                          color: widget.selected ? cs.onPrimary : Colors.white70,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -727,7 +783,18 @@ class GridListTile extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════
 class GridAuthorTile extends StatelessWidget {
   final Map<String, dynamic> author;
-  const GridAuthorTile({super.key, required this.author});
+  final bool selectionMode;
+  final bool isSelected;
+  final bool isMatching;
+  final VoidCallback? onSelectionToggle;
+  const GridAuthorTile({
+    super.key,
+    required this.author,
+    this.selectionMode = false,
+    this.isSelected = false,
+    this.isMatching = false,
+    this.onSelectionToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -749,13 +816,20 @@ class GridAuthorTile extends StatelessWidget {
 
     final headers = lib.mediaHeaders;
 
-    return GestureDetector(
+    return Semantics(
+      selected: selectionMode ? isSelected : null,
+      child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
+        if (selectionMode) {
+          onSelectionToggle?.call();
+          return;
+        }
         if (authorId.isNotEmpty) {
           showAuthorDetailSheet(context, authorId: authorId, authorName: name);
         }
       },
+      onLongPress: onSelectionToggle,
       child: Column(
         children: [
           // Circular avatar
@@ -769,18 +843,47 @@ class GridAuthorTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: cs.secondaryContainer,
+                    border: selectionMode && isSelected
+                        ? Border.all(color: cs.primary, width: 3)
+                        : null,
                   ),
+                  padding: selectionMode && isSelected
+                      ? const EdgeInsets.all(3)
+                      : EdgeInsets.zero,
                   clipBehavior: Clip.antiAlias,
                   child: imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          httpHeaders: headers,
-                          placeholder: (_, __) => _placeholder(cs),
-                          errorWidget: (_, __, ___) => _placeholder(cs),
+                      ? ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            httpHeaders: headers,
+                            placeholder: (_, __) => _placeholder(cs),
+                            errorWidget: (_, __, ___) => _placeholder(cs),
+                          ),
                         )
-                      : _placeholder(cs),
+                      : ClipOval(child: _placeholder(cs)),
                 ),
+                if (selectionMode)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isSelected ? cs.primary : cs.surfaceContainerHighest,
+                        border: Border.all(
+                          color: isSelected ? cs.primary : cs.outlineVariant,
+                        ),
+                      ),
+                      child: Icon(
+                        isSelected ? Icons.check_rounded : Icons.circle_outlined,
+                        size: 18,
+                        color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                 if (numBooks > 0)
                   Positioned(
                     top: 0,
@@ -803,6 +906,25 @@ class GridAuthorTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (isMatching)
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.55),
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -819,6 +941,7 @@ class GridAuthorTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

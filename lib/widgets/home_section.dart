@@ -18,6 +18,9 @@ class HomeSection extends StatelessWidget {
   final String sectionId;
   final VoidCallback? onTitleTap;
   final double coverAspectRatio;
+  final bool selectionMode;
+  final Set<String> selectedItemIds;
+  final ValueChanged<Map<String, dynamic>>? onSelectionToggle;
 
   const HomeSection({
     super.key,
@@ -28,6 +31,9 @@ class HomeSection extends StatelessWidget {
     required this.sectionId,
     this.onTitleTap,
     this.coverAspectRatio = 1.0,
+    this.selectionMode = false,
+    this.selectedItemIds = const {},
+    this.onSelectionToggle,
   });
 
   @override
@@ -177,6 +183,15 @@ class HomeSection extends StatelessWidget {
                     sourcePlaylistEpisodeId: sourcePlaylistEpisodeId,
                     sourceCollectionId: sourceCollectionId,
                     sourceCollectionName: sourceCollectionName,
+                    selectionMode: selectionMode,
+                    selected: entity is Map<String, dynamic> &&
+                        selectedItemIds.contains(entity['id'] as String?),
+                    onSelectionToggle:
+                        entity is Map<String, dynamic> &&
+                            entity['id'] is String &&
+                            onSelectionToggle != null
+                        ? () => onSelectionToggle!(entity as Map<String, dynamic>)
+                        : null,
                   ),
                 );
               },

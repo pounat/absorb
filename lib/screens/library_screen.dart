@@ -19,6 +19,8 @@ import '../widgets/library_search_results.dart';
 import '../widgets/podcast_episode_feed.dart';
 import '../main.dart' show flatNotifier, gradientIntensityNotifier;
 import '../widgets/library_sort_filter_sheet.dart';
+import '../widgets/desktop_batch_actions.dart';
+import '../widgets/overlay_toast.dart';
 import '../widgets/library_books_tab.dart';
 import '../widgets/library_series_tab.dart';
 import '../widgets/library_authors_tab.dart';
@@ -331,6 +333,16 @@ class LibraryScreenState extends State<LibraryScreen>
   bool _isSearching = false;
   bool _hasSearched = false;
   bool get _isInSearchMode => _searchController.text.trim().isNotEmpty;
+
+  // ── Batch selection (books tab and authors tab) ──
+  bool _selectionMode = false;
+  bool _batchActionBusy = false;
+  bool _matchingAuthors = false;
+  String? _matchingAuthorId;
+  int _authorMatchPosition = 0;
+  int _authorMatchTotal = 0;
+  final Set<String> _selectedItemIds = {};
+  int? _lastSelectedVisibleIndex;
 
   // ── Tab state ──
   TabController? _tabController;
@@ -2375,6 +2387,7 @@ class LibraryScreenState extends State<LibraryScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() {
+          _resetSelectionState();
           _items.clear();
           _page = 0;
           _hasMore = true;
@@ -2384,9 +2397,94 @@ class LibraryScreenState extends State<LibraryScreen>
       });
     }
     final hasTabs = _tabController != null && !_isInSearchMode;
+    final auth = context.watch<AuthProvider>();
+    final selectingAuthors = hasTabs && _currentTab == 2;
+    final authorSelectionAvailable =
+        selectingAuthors &&
+        !libWatch.isOffline &&
+        auth.canUpdateMetadata &&
+        !_matchingAuthors;
+    final bookSelectionAvailable =
+        !libWatch.isOffline &&
+        !_isInSearchMode &&
+        (hasTabs ? _currentTab == 0 : _podcastView == 0);
+    final selectionAvailable =
+        authorSelectionAvailable || bookSelectionAvailable;
+    if (!selectionAvailable && _selectionMode) _resetSelectionState();
+    final selectableItems = selectionAvailable && _selectionMode
+        ? _selectableVisibleItems()
+        : const <Map<String, dynamic>>[];
+    // Drop ids that scrolled out of the current filter so the count and the
+    // select-all state always describe what is on screen.
+    if (_selectionMode) {
+      _selectedItemIds.retainAll(
+        selectableItems.map((item) => item['id'] as String).toSet(),
+      );
+    }
+    final selectableCount = selectableItems.length;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: !_selectionMode
+          ? null
+          : authorSelectionAvailable
+          ? DesktopBatchActionBar(
+              selectedCount: _selectedItemIds.length,
+              selectableCount: selectableCount,
+              busy: _batchActionBusy,
+              busyLabel: _authorMatchTotal > 0
+                  ? '$_authorMatchPosition/$_authorMatchTotal'
+                  : null,
+              canQuickMatch: true,
+              canMarkProgress: false,
+              canDelete: false,
+              onSelectAll: _toggleSelectAll,
+              onClear: _clearSelection,
+              onQuickMatch: () =>
+                  _runBatchAction(() => _quickMatchAuthors(_selectedAuthors())),
+              onMarkFinished: () {},
+              onMarkUnfinished: () {},
+              onDelete: () {},
+            )
+          : bookSelectionAvailable
+          ? DesktopBatchActionBar(
+              selectedCount: _selectedItemIds.length,
+              selectableCount: selectableCount,
+              busy: _batchActionBusy,
+              canQuickMatch: auth.isAdmin && !libWatch.isPodcastLibrary,
+              canMarkProgress: !libWatch.isPodcastLibrary,
+              canDelete: auth.canDelete,
+              onSelectAll: _toggleSelectAll,
+              onClear: _clearSelection,
+              onQuickMatch: () => _runBatchAction(
+                () => DesktopBatchActions.quickMatch(
+                  context,
+                  _selectedItemIds.toList(),
+                ),
+              ),
+              onMarkFinished: () => _runBatchAction(
+                () => DesktopBatchActions.setFinished(
+                  context,
+                  _selectedItemIds.toList(),
+                  isFinished: true,
+                ),
+              ),
+              onMarkUnfinished: () => _runBatchAction(
+                () => DesktopBatchActions.setFinished(
+                  context,
+                  _selectedItemIds.toList(),
+                  isFinished: false,
+                ),
+              ),
+              onDelete: () => _runBatchAction(
+                () => DesktopBatchActions.delete(
+                  context,
+                  _selectedItemIds.toList(),
+                ),
+              ),
+            )
+          : null,
       body: Stack(
         children: [
           if (!flatNotifier.value)
@@ -2546,6 +2644,20 @@ class LibraryScreenState extends State<LibraryScreen>
     final lib = context.watch<LibraryProvider>();
     final allLibraries = lib.libraries;
     final hasMultipleLibraries = allLibraries.length > 1;
+    // Batch selection is offered on the books grid and on the authors tab.
+    // Authors need metadata permission (quick match writes to the server);
+    // books only need to be online and out of search, where the visible list
+    // is stable enough for select-all to mean something.
+    final canSelectAuthors =
+        _tabController != null &&
+        _currentTab == 2 &&
+        context.read<AuthProvider>().canUpdateMetadata &&
+        !_matchingAuthors;
+    final canSelectItems =
+        !lib.isOffline &&
+        !_isInSearchMode &&
+        (canSelectAuthors ||
+            (_tabController == null ? _podcastView == 0 : _currentTab == 0));
     final libraryName =
         lib.selectedLibrary?['name'] as String? ?? l.libraryFallback;
     final topInset = MediaQuery.of(context).padding.top;
@@ -2627,8 +2739,8 @@ class LibraryScreenState extends State<LibraryScreen>
                       }
                     },
                   ),
-                  actions: hasMultipleLibraries
-                      ? [
+                  actions: [
+                        if (hasMultipleLibraries)
                           GestureDetector(
                             onTap: () => showLibraryPickerSheet(context, lib),
                             child: Container(
@@ -2682,8 +2794,25 @@ class LibraryScreenState extends State<LibraryScreen>
                               ),
                             ),
                           ),
-                        ]
-                      : null,
+                        if (canSelectItems)
+                          Tooltip(
+                            message: _selectionMode
+                                ? l.downloadsCancelSelection
+                                : l.downloadsSelect,
+                            child: IconButton(
+                              onPressed: _batchActionBusy
+                                  ? null
+                                  : _selectionMode
+                                  ? _clearSelection
+                                  : () => setState(() => _selectionMode = true),
+                              icon: Icon(
+                                _selectionMode
+                                    ? Icons.close_rounded
+                                    : Icons.library_add_check_rounded,
+                              ),
+                            ),
+                          ),
+                      ],
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -3067,6 +3196,29 @@ class LibraryScreenState extends State<LibraryScreen>
               ),
             ),
           ],
+          if (_currentTab == 2 &&
+              !_selectionMode &&
+              _authors.isNotEmpty &&
+              context.read<AuthProvider>().canUpdateMetadata &&
+              !context.read<LibraryProvider>().isOffline)
+            TextButton.icon(
+              onPressed: _matchingAuthors ? null : _quickMatchAllAuthors,
+              icon: _matchingAuthors
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_fix_high_rounded, size: 18),
+              label: Text(
+                _matchingAuthors && _authorMatchTotal > 0
+                    ? '${l.adminMatching} '
+                          '$_authorMatchPosition/$_authorMatchTotal'
+                    : _matchingAuthors
+                    ? l.adminMatching
+                    : l.adminMatchAll,
+              ),
+            ),
           const Spacer(),
           Text(
             countText,
@@ -3179,7 +3331,225 @@ class LibraryScreenState extends State<LibraryScreen>
       headerSliver: headerSliver,
       scrollController: _scrollController,
       onLoadMore: _loadPage,
+      selectionMode: _selectionMode && (_tabController == null || _currentTab == 0),
+      selectedItemIds: _selectedItemIds,
+      onSelectionToggle: _toggleSelection,
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BATCH SELECTION
+  // ═══════════════════════════════════════════════════════════════
+  void _resetSelectionState() {
+    _selectionMode = false;
+    _batchActionBusy = false;
+    _selectedItemIds.clear();
+    _lastSelectedVisibleIndex = null;
+  }
+
+  void _clearSelection() {
+    if (!_selectionMode && _selectedItemIds.isEmpty) return;
+    setState(_resetSelectionState);
+  }
+
+  List<Map<String, dynamic>> _selectableVisibleItems() {
+    if (_tabController != null && _currentTab == 2) {
+      return _authors
+          .where((author) => author['id'] is String)
+          .toList(growable: false);
+    }
+    final lib = context.read<LibraryProvider>();
+    return _visibleLibraryItems(lib)
+        .where(
+          (item) =>
+              !item.containsKey('collapsedSeries') && item['id'] is String,
+        )
+        .toList();
+  }
+
+  void _toggleSelection(Map<String, dynamic> item, int visibleIndex) {
+    final itemId = item['id'] as String?;
+    if (itemId == null) return;
+    // Shift-click extends the run on a hardware keyboard; plain taps toggle.
+    final shiftPressed = HardwareKeyboard.instance.isShiftPressed;
+    setState(() {
+      _selectionMode = true;
+      if (shiftPressed && _lastSelectedVisibleIndex != null) {
+        final items = _selectableVisibleItems();
+        final start = min(_lastSelectedVisibleIndex!, visibleIndex);
+        final end = max(_lastSelectedVisibleIndex!, visibleIndex);
+        for (var index = start; index <= end && index < items.length; index++) {
+          final rangeItem = items[index];
+          if (rangeItem.containsKey('collapsedSeries')) continue;
+          final rangeId = rangeItem['id'] as String?;
+          if (rangeId != null) _selectedItemIds.add(rangeId);
+        }
+      } else if (!_selectedItemIds.add(itemId)) {
+        _selectedItemIds.remove(itemId);
+      }
+      _lastSelectedVisibleIndex = visibleIndex;
+    });
+  }
+
+  void _toggleSelectAll() {
+    final ids = _selectableVisibleItems()
+        .map((item) => item['id'] as String)
+        .toSet();
+    setState(() {
+      _selectionMode = true;
+      if (ids.isNotEmpty && _selectedItemIds.containsAll(ids)) {
+        _selectedItemIds.removeAll(ids);
+      } else {
+        _selectedItemIds.addAll(ids);
+      }
+      _lastSelectedVisibleIndex = null;
+    });
+  }
+
+  Future<void> _runBatchAction(Future<bool?> Function() action) async {
+    if (_batchActionBusy) return;
+    // Anything that scrolled out of the filter since it was ticked is dropped,
+    // so an action can never touch an item the user can no longer see.
+    final visibleIds = _selectableVisibleItems()
+        .map((item) => item['id'] as String)
+        .toSet();
+    setState(() {
+      _selectedItemIds.retainAll(visibleIds);
+      if (_selectedItemIds.isEmpty) {
+        _resetSelectionState();
+      } else {
+        _batchActionBusy = true;
+      }
+    });
+    if (_selectedItemIds.isEmpty) return;
+    final success = await action();
+    if (!mounted) return;
+    setState(() {
+      _batchActionBusy = false;
+      if (success == true) _resetSelectionState();
+    });
+  }
+
+  List<Map<String, dynamic>> _selectedAuthors() {
+    return _authors
+        .where((author) => _selectedItemIds.contains(author['id']))
+        .toList(growable: false);
+  }
+
+  String _authorQuickMatchRegion(LibraryProvider lib) {
+    final provider =
+        lib.selectedLibrary?['provider']?.toString().toLowerCase() ?? '';
+    if (!provider.startsWith('audible.')) return 'us';
+    final region = provider.split('.').last.trim();
+    return region.isEmpty ? 'us' : region;
+  }
+
+  /// Quick-match authors one at a time. There is no batch author endpoint, so
+  /// this walks the list and reports a tally at the end; the tile shows a
+  /// spinner on whichever author is in flight.
+  Future<bool> _quickMatchAuthors(
+    List<Map<String, dynamic>> authors, {
+    bool allAuthors = false,
+  }) async {
+    if (authors.isEmpty) return false;
+    final auth = context.read<AuthProvider>();
+    final lib = context.read<LibraryProvider>();
+    final api = auth.apiService;
+    final libraryId = lib.selectedLibraryId;
+    if (api == null || libraryId == null || !auth.canUpdateMetadata) {
+      return false;
+    }
+
+    final l = AppLocalizations.of(context)!;
+    setState(() {
+      _authorMatchPosition = 0;
+      _authorMatchTotal = authors.length;
+      _matchingAuthorId = null;
+    });
+    showOverlayToast(
+      context,
+      l.adminMatchingStarted(
+        allAuthors
+            ? l.libraryAuthorsCount(authors.length)
+            : l.selectedCount(authors.length),
+      ),
+      icon: Icons.auto_fix_high_rounded,
+    );
+
+    final region = _authorQuickMatchRegion(lib);
+    var found = 0;
+    var updated = 0;
+    var notFound = 0;
+    var failed = 0;
+    for (var index = 0; index < authors.length; index++) {
+      final author = authors[index];
+      final id = author['id']?.toString() ?? '';
+      final name = author['name']?.toString().trim() ?? '';
+      final asin = author['asin']?.toString().trim() ?? '';
+      if (mounted) {
+        setState(() {
+          _matchingAuthorId = id.isEmpty ? null : id;
+          _authorMatchPosition = index + 1;
+        });
+      }
+      if (id.isEmpty || (asin.isEmpty && name.isEmpty)) {
+        failed++;
+        continue;
+      }
+      final result = await api.quickMatchAuthor(
+        id,
+        asin: asin.isEmpty ? null : asin,
+        q: asin.isEmpty ? name : null,
+        region: region,
+      );
+      if (result.found) {
+        found++;
+        if (result.updated) updated++;
+      } else if (result.statusCode == 404) {
+        notFound++;
+      } else {
+        failed++;
+      }
+    }
+
+    if (!mounted) return failed < authors.length;
+    setState(() => _matchingAuthorId = null);
+    if (context.read<LibraryProvider>().selectedLibraryId == libraryId) {
+      await _refreshAuthors();
+    }
+    if (!mounted) return failed < authors.length;
+
+    final unchanged = found - updated;
+    final summary = <String>[
+      if (updated > 0) '${l.metadataUpdated} ($updated)',
+      if (unchanged > 0) '${l.quickMatchNoUpdates} ($unchanged)',
+      if (notFound > 0) '${l.authorNoMatchFound} ($notFound)',
+      if (failed > 0) '${l.failedToUpdateMetadata} ($failed)',
+    ];
+    showOverlayToast(
+      context,
+      summary.join(' - '),
+      icon: failed > 0
+          ? Icons.error_outline_rounded
+          : notFound > 0
+          ? Icons.search_off_rounded
+          : Icons.check_circle_outline_rounded,
+    );
+    return failed == 0 && notFound == 0;
+  }
+
+  Future<void> _quickMatchAllAuthors() async {
+    if (_matchingAuthors || _batchActionBusy || _authors.isEmpty) return;
+    final authors = List<Map<String, dynamic>>.from(_authors);
+    setState(() => _matchingAuthors = true);
+    await _quickMatchAuthors(authors, allAuthors: true);
+    if (mounted) {
+      setState(() {
+        _matchingAuthors = false;
+        _authorMatchPosition = 0;
+        _authorMatchTotal = 0;
+      });
+    }
   }
 
   List<Map<String, dynamic>> _visibleLibraryItems(LibraryProvider lib) {
@@ -3218,6 +3588,10 @@ class LibraryScreenState extends State<LibraryScreen>
       onRefresh: _refreshAuthors,
       headerSliver: headerSliver,
       scrollController: _authorsScrollController,
+      selectionMode: _selectionMode && _currentTab == 2,
+      selectedAuthorIds: _selectedItemIds,
+      matchingAuthorId: _matchingAuthorId,
+      onSelectionToggle: _toggleSelection,
     );
   }
 

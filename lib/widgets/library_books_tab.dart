@@ -30,6 +30,9 @@ class LibraryBooksTab extends StatelessWidget {
   /// IndexedStack each one needs its own controller so scroll positions don't
   /// collide on the PrimaryScrollController.
   final ScrollController? scrollController;
+  final bool selectionMode;
+  final Set<String> selectedItemIds;
+  final void Function(Map<String, dynamic> item, int index)? onSelectionToggle;
 
   const LibraryBooksTab({
     super.key,
@@ -47,6 +50,9 @@ class LibraryBooksTab extends StatelessWidget {
     required this.onLoadMore,
     this.headerSliver,
     this.scrollController,
+    this.selectionMode = false,
+    this.selectedItemIds = const {},
+    this.onSelectionToggle,
   });
 
   @override
@@ -162,7 +168,16 @@ class LibraryBooksTab extends StatelessWidget {
                   if (item.containsKey('collapsedSeries')) {
                     return GridSeriesTile(item: item, coverAspectRatio: coverAspectRatio);
                   }
-                  return GridBookTile(item: item, coverAspectRatio: coverAspectRatio);
+                  final itemId = item['id'] as String?;
+                  return GridBookTile(
+                    item: item,
+                    coverAspectRatio: coverAspectRatio,
+                    selectionMode: selectionMode,
+                    selected: itemId != null && selectedItemIds.contains(itemId),
+                    onSelectionToggle: itemId == null || onSelectionToggle == null
+                        ? null
+                        : () => onSelectionToggle!(item, index),
+                  );
                 },
                 childCount: items.length + (hasMore ? 1 : 0),
               ),
