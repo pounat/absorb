@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/cover_accent.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
@@ -89,6 +90,8 @@ class _ExpandedCardState extends State<ExpandedCard> {
   }
   ImageProvider? _coverProvider;
   ui.Image? _blurredCover;
+  // Brightness of the blurred cover's top strip, where the percentage sits.
+  double? _coverTopLuminance;
   List<dynamic>? _fetchedChapters;
   // The item passed to the full-screen player is often a lean/synthetic map
   // without media.ebookFile, so the "Read" action fell back to "no ebook".
@@ -399,6 +402,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     // Dispose old blur and regenerate
     _blurredCover?.dispose();
     _blurredCover = null;
+    _coverTopLuminance = null;
     _generateBlur();
     _fetchChaptersIfNeeded();
     _startChapterTracking();
@@ -584,8 +588,13 @@ class _ExpandedCardState extends State<ExpandedCard> {
       final blurred = await picture.toImage(targetWidth, targetHeight);
       picture.dispose();
 
+      final topLuminance = await topStripLuminance(blurred);
+
       if (mounted) {
-        setState(() => _blurredCover = blurred);
+        setState(() {
+          _blurredCover = blurred;
+          _coverTopLuminance = topLuminance;
+        });
       } else {
         blurred.dispose();
       }
@@ -700,15 +709,28 @@ class _ExpandedCardState extends State<ExpandedCard> {
                         : outerConstraints.maxWidth >
                             outerConstraints.maxHeight;
 
+                    // Same story as the small card: the scrim is thinnest at
+                    // the top, so on a blurred background take the ink from
+                    // the cover rather than from the theme.
+                    final coverLuminance =
+                        _cardBackground == 'blurred' ? _coverTopLuminance : null;
+                    final ink = coverLuminance == null
+                        ? null
+                        : inkForLuminance(scrimmedLuminance(
+                            coverLuminance,
+                            isDark ? Colors.black : Colors.white,
+                            isDark ? 0.3 : 0.4,
+                          ));
                     final statsRow = Padding(
                         padding: EdgeInsets.fromLTRB(24, compact ? 4 : 12, 24, 0),
                         child: Center(
                           child: Text('${(bookProgress * 100).clamp(0, 100).toStringAsFixed(1)}%',
                             style: tt.labelSmall?.copyWith(
-                              color: isDark ? Colors.white.withValues(alpha: 0.55) : Colors.black.withValues(alpha: 0.45),
+                              color: ink?.ink ??
+                                  (isDark ? Colors.white.withValues(alpha: 0.55) : Colors.black.withValues(alpha: 0.45)),
                               fontWeight: FontWeight.w500, fontSize: (compact ? 10 : 11) * _progressTextScale,
                               fontFeatures: const [ui.FontFeature.tabularFigures()],
-                              shadows: [Shadow(color: isDark ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.6), blurRadius: 4)],
+                              shadows: [Shadow(color: ink?.shadow ?? (isDark ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.6)), blurRadius: 4)],
                             )),
                         ),
                       );

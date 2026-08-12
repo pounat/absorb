@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/cover_accent.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../screens/app_shell.dart';
@@ -99,6 +100,10 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   ui.Image? _blurredCover; // Precached blurred background
   String? _blurredCoverIdentity;
   String? _pendingBlurIdentity;
+  // Mean brightness of the blurred cover's top strip, which is what the
+  // progress row is drawn on. Null until the blur is ready, or when the card
+  // isn't using the blurred background at all.
+  double? _coverTopLuminance;
   List<String> _buttonOrder = PlayerSettings.defaultButtonOrder;
   int _buttonVisibleCount = PlayerSettings.defaultButtonVisibleCount;
   bool _iconsOnly = false;
@@ -536,6 +541,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       _blurredCover = null;
       _blurredCoverIdentity = null;
       _pendingBlurIdentity = null;
+      _coverTopLuminance = null;
       _fetchedChapters = null;
       _fetchedEbookFile = null;
       _lastChapterIdx = -1;
@@ -671,11 +677,14 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       final blurred = await picture.toImage(targetWidth, targetHeight);
       picture.dispose();
 
+      final topLuminance = await topStripLuminance(blurred);
+
       if (mounted && _currentCoverIdentity() == coverIdentity) {
         final previous = _blurredCover;
         setState(() {
           _blurredCover = blurred;
           _blurredCoverIdentity = coverIdentity;
+          _coverTopLuminance = topLuminance;
         });
         previous?.dispose();
       } else {
@@ -689,6 +698,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -906,11 +916,27 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                       final liveBookProgress = dur > 0 ? (pos / dur).clamp(0.0, 1.0) : bookProgress;
                       final elapsed = pos / speed;
                       final remaining = (dur - pos) / speed;
+                      // This row sits on the cover, not on the theme surface.
+                      // With a blurred background the scrim is at its thinnest
+                      // right here (0.3 / 0.4), so a pale cover in dark mode
+                      // used to leave white text on a near-white backdrop.
+                      // Pick the ink from what is actually behind it; the other
+                      // background modes follow the theme as before.
+                      final coverLuminance =
+                          _cardBackground == 'blurred' ? _coverTopLuminance : null;
+                      final ink = coverLuminance == null
+                          ? null
+                          : inkForLuminance(scrimmedLuminance(
+                              coverLuminance,
+                              isDark ? Colors.black : Colors.white,
+                              isDark ? 0.3 : 0.4,
+                            ));
                       final timeStyle = tt.labelSmall?.copyWith(
-                        color: isDark ? Colors.white.withValues(alpha: 0.55) : cs.onSurface,
+                        color: ink?.ink ??
+                            (isDark ? Colors.white.withValues(alpha: 0.55) : cs.onSurface),
                         fontWeight: FontWeight.w500, fontSize: (compact ? 10 : 11) * _progressTextScale,
                         fontFeatures: const [FontFeature.tabularFigures()],
-                        shadows: [Shadow(color: isDark ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.6), blurRadius: 4)],
+                        shadows: [Shadow(color: ink?.shadow ?? (isDark ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.6)), blurRadius: 4)],
                       );
                       return Stack(
                         alignment: Alignment.center,
