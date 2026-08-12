@@ -564,8 +564,37 @@ class ProgressSyncService {
         }
 
         final data = await getLocal(itemId);
-        final currentTime = (data?['currentTime'] as num?)?.toDouble() ?? 0;
+        var currentTime = (data?['currentTime'] as num?)?.toDouble() ?? 0;
         final duration = (data?['duration'] as num?)?.toDouble() ?? 0;
+
+        // The session opened below carries a position, and the server writes
+        // that position into progress. This ledger entry can be hours older
+        // than the server's own position (another device, or this one, carried
+        // on listening since), so report the time at whichever position is
+        // further in. Crediting listening must never drag progress backwards.
+        try {
+          final serverProgress = await api.getItemProgress(itemId);
+          final serverTime =
+              (serverProgress?['currentTime'] as num?)?.toDouble() ?? 0;
+          if (serverTime > currentTime) {
+            debugPrint(
+                '[Sync] Server is ahead for $itemId (${serverTime}s vs ${currentTime}s) - reporting listening at the server position');
+            currentTime = serverTime;
+          }
+        } catch (e) {
+          debugPrint('[Sync] Could not read server progress for $itemId: $e');
+        }
+
+        // A ledger holding more listening than the item is long is not a real
+        // backlog, it is an accrual that ran away - a player that reported
+        // playing while its position stood still. Report what is plausible and
+        // say what was dropped rather than writing fiction into the stats.
+        var reported = seconds;
+        if (duration > 0 && reported > duration) {
+          debugPrint(
+              '[Sync] Offline listening for $itemId holds ${seconds}s but the item is only ${duration.round()}s - reporting ${duration.round()}s and dropping the rest');
+          reported = duration.round();
+        }
 
         try {
           final isCompound = itemId.length > 36;
@@ -583,10 +612,10 @@ class ProgressSyncService {
                 sid,
                 currentTime: currentTime,
                 duration: duration,
-                timeListened: seconds,
+                timeListened: reported,
               );
               await api.closePlaybackSession(sid);
-              debugPrint('[Sync] Flushed ${seconds}s offline listening for $itemId');
+              debugPrint('[Sync] Flushed ${reported}s offline listening for $itemId');
             }
           }
           // Subtract only what we actually synced. Any ticks added to the
