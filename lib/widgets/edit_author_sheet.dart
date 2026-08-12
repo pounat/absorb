@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
 
 /// Opens a full-screen editor for an author (root admin only).
@@ -26,27 +27,24 @@ void showEditAuthorSheet(
   required VoidCallback onUpdated,
   required void Function(String mergedIntoId, String mergedIntoName) onMerged,
 }) {
-  showModalBottomSheet(
+  showAdaptiveSheetDialog(
     context: context,
-    isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.85,
-      minChildSize: 0.3,
-      maxChildSize: 0.95,
-      snap: true,
-      builder: (ctx, sc) => _EditAuthorContent(
-        authorId: authorId,
-        currentName: currentName,
-        currentDescription: currentDescription,
-        currentAsin: currentAsin,
-        currentImageUrl: currentImageUrl,
-        scrollController: sc,
-        onUpdated: onUpdated,
-        onMerged: onMerged,
-      ),
+    expand: false,
+    initialChildSize: 0.85,
+    minChildSize: 0.3,
+    maxChildSize: 0.95,
+    snap: true,
+    builder: (ctx, sc) => _EditAuthorContent(
+      authorId: authorId,
+      currentName: currentName,
+      currentDescription: currentDescription,
+      currentAsin: currentAsin,
+      currentImageUrl: currentImageUrl,
+      scrollController: sc,
+      onUpdated: onUpdated,
+      onMerged: onMerged,
     ),
   );
 }
@@ -130,13 +128,18 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
 
     setState(() { _matching = true; _matchResult = null; _matchEmpty = false; });
 
-    final result = await api.matchAuthor(widget.authorId, q: q, region: _region);
+    final match = await api.quickMatchAuthor(
+      widget.authorId,
+      q: q,
+      region: _region,
+    );
+    final result = match.author;
 
     if (!mounted) return;
     setState(() {
       _matching = false;
       if (result == null || result.isEmpty) {
-        _matchEmpty = true;
+        _matchEmpty = match.statusCode == 404;
       } else {
         _matchResult = result;
         // Sync the Custom tab fields with the matched values so editing
@@ -150,12 +153,17 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
       }
     });
 
-    if (result != null && result.isNotEmpty) {
-      // The match endpoint already updates the author server-side, so notify parent.
-      widget.onUpdated();
-      _showToast(AppLocalizations.of(context)!.authorMatched, icon: Icons.check_circle_rounded);
+    final l = AppLocalizations.of(context)!;
+    if (match.found) {
+      if (match.updated) widget.onUpdated();
+      _showToast(
+        match.updated ? l.authorMatched : l.quickMatchNoUpdates,
+        icon: Icons.check_circle_rounded,
+      );
+    } else if (match.statusCode == 404) {
+      _showToast(l.authorNoMatchFound, icon: Icons.search_off_rounded);
     } else {
-      _showToast(AppLocalizations.of(context)!.authorNoMatchFound, icon: Icons.search_off_rounded);
+      _showToast(l.failedToUpdateMetadata, icon: Icons.error_outline_rounded);
     }
   }
 

@@ -84,6 +84,20 @@ class MediaUploadResult {
   const MediaUploadResult({required this.success, this.error});
 }
 
+class AuthorQuickMatchResult {
+  final int statusCode;
+  final bool updated;
+  final Map<String, dynamic>? author;
+
+  const AuthorQuickMatchResult({
+    required this.statusCode,
+    this.updated = false,
+    this.author,
+  });
+
+  bool get found => statusCode == 200;
+}
+
 class LibraryMetadataRemovalResult {
   final int found;
   final int removed;
@@ -1418,29 +1432,73 @@ class ApiService {
 
   /// Quick-match an author against the configured provider (Audible).
   /// Server fetches name/asin/description/image, updates the author server-side,
-  /// and returns the updated author. Returns null if no match or on error.
+  /// and returns the author. Returns null if no match or on error. A successful
+  /// match can return the unchanged author when its stored details are already
+  /// current.
   /// POST /api/authors/:id/match  body: { q, region }
-  /// Response: { updated: true, author: {...} } on match, { updated: false } on no match.
+  /// Response: { updated, author } on match; a missing provider match is 404.
   Future<Map<String, dynamic>?> matchAuthor(
     String authorId, {
     required String q,
     String region = 'us',
   }) async {
+    final result = await quickMatchAuthor(authorId, q: q, region: region);
+    if (!result.found) return null;
+    return result.author;
+  }
+
+  /// Quick-match one author using the same ASIN-first request shape as the
+  /// Audiobookshelf web client. The full response is retained so batch callers
+  /// can distinguish a match with no changes from a missing author or a failed
+  /// request.
+  Future<AuthorQuickMatchResult> quickMatchAuthor(
+    String authorId, {
+    String? q,
+    String? asin,
+    String region = 'us',
+  }) async {
+    final trimmedAsin = asin?.trim() ?? '';
+    final trimmedQuery = q?.trim() ?? '';
+    if (trimmedAsin.isEmpty && trimmedQuery.isEmpty) {
+      return const AuthorQuickMatchResult(statusCode: 0);
+    }
+
     try {
+      final body = <String, dynamic>{'region': region};
+      if (trimmedAsin.isNotEmpty) {
+        body['asin'] = trimmedAsin;
+      } else {
+        body['q'] = trimmedQuery;
+      }
       final r = await _authPost(
         Uri.parse('$_cleanBaseUrl/api/authors/$authorId/match'),
-        body: jsonEncode({'q': q, 'region': region}),
+        body: jsonEncode(body),
+        timeout: const Duration(seconds: 30),
       );
-      debugPrint('[API] matchAuthor $authorId -> ${r.statusCode}: ${r.body}');
+      debugPrint(
+        '[API] quickMatchAuthor $authorId -> ${r.statusCode}: ${r.body}',
+      );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body) as Map<String, dynamic>;
-        // Server signals no match with { updated: false } and no author payload.
-        if (data['updated'] == false) return null;
-        if (data['author'] is Map) return data['author'] as Map<String, dynamic>;
-        return data;
+        final author = data['author'] is Map
+            ? Map<String, dynamic>.from(data['author'] as Map)
+            : null;
+        // Current ABS returns 404 when the provider has no match. Older
+        // servers returned 200 with {updated: false} and no author payload.
+        if (author == null && data['updated'] == false) {
+          return const AuthorQuickMatchResult(statusCode: 404);
+        }
+        return AuthorQuickMatchResult(
+          statusCode: r.statusCode,
+          updated: data['updated'] == true,
+          author: author,
+        );
       }
-    } catch (e) { debugPrint('matchAuthor error: $e'); }
-    return null;
+      return AuthorQuickMatchResult(statusCode: r.statusCode);
+    } catch (e) {
+      debugPrint('quickMatchAuthor error: $e');
+    }
+    return const AuthorQuickMatchResult(statusCode: 0);
   }
 
   /// Set the author image from a remote URL.
