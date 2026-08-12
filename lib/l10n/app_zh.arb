@@ -206,11 +206,17 @@
   "notStarted": "未开始",
   "downloaded": "已下载",
   "hasEbook": "含电子书",
+  "missingMetadata": "缺失元数据",
   "genre": "分类",
   "clearFilter": "清除筛选",
   "noGenresFound": "未找到分类",
   "asc": "升序",
   "desc": "降序",
+  "progressSort": "进度",
+  "dateStarted": "开始日期",
+  "dateFinished": "完成日期",
+  "episodeCount": "集数",
+  "sequence": "系列序号",
   "absorbingTitle": "正在收听",
   "absorbingStop": "停止",
   "absorbingManageQueue": "管理队列",
@@ -362,6 +368,21 @@
   "statsEpisodesFinished": "单集",
   "statsBooksThisYear": "今年书籍",
   "statsEpisodesThisYear": "今年单集",
+  "statsChartDays7": "7 天",
+  "statsChartDays30": "30天",
+  "statsLast30Days": "过去 30 天",
+  "statsThisYearTitle": "今年",
+  "statsHeatmapLess": "更少",
+  "statsHeatmapMore": "更多",
+  "statsDayOfWeek": "每周日均",
+  "statsTimeSavedSince": "自 {date} 起",
+  "@statsTimeSavedSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "statsDaysActive": "活跃天数",
   "statsDailyAverage": "日均时长",
   "statsLast7Days": "过去7天",
@@ -374,6 +395,26 @@
   "appShellSettingsTab": "设置",
   "appShellDiscoverTab": "发现",
   "appShellShowsTab": "节目",
+  "settingsEpisodeNotifs": "新剧集通知",
+  "notifIntervalOff": "关闭",
+  "notifIntervalMinutes": "每 {n} 分钟",
+  "@notifIntervalMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "notifIntervalHour": "每小时",
+  "notifIntervalHours": "每 {n} 小时",
+  "@notifIntervalHours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsBatteryUnrestricted": "允许不受限制地使用电池",
   "appShellPressBackToExit": "再按一次返回键退出",
   "settingsTitle": "设置",
   "sectionAppearance": "外观",
@@ -390,6 +431,9 @@
   "colorSourceWallpaperDescription": "应用颜色跟随系统壁纸",
   "colorSourceWallpaper": "壁纸",
   "colorSourceNowPlaying": "正在播放",
+  "colorSourceDynamic": "动态",
+  "colorSourceManual": "手动",
+  "colorSourceCustom": "自定义",
   "startScreenLabel": "启动画面",
   "startScreenSubtitle": "应用启动时打开的标签页",
   "startScreenHome": "首页",
@@ -409,6 +453,8 @@
   "fullBookScrubber": "全书进度条",
   "fullBookScrubberOnSubtitle": "开启 - 可拖动滑块跳转至全书任意位置",
   "fullBookScrubberOffSubtitle": "关闭 - 仅显示进度条",
+  "cardScrubbersChapter": "章节",
+  "cardScrubbersLocked": "已锁定",
   "speedAdjustedTime": "变速后时间",
   "speedAdjustedTimeOffSubtitle": "关闭 - 显示原始音频时长",
   "buttonLayout": "按钮布局",
@@ -434,7 +480,19 @@
   "queueModeManual": "手动",
   "queueModeAuto": "自动",
   "queueModePlaylist": "播放列表",
+  "queueModeInfoPlaylist": "播放队列",
   "queueModeInfoPlaylistDesc": "按所选播放列表的顺序播放，跳过已完成的项目，并在列表结束时停止。",
+  "queuePlaylistPickerTitle": "选择一个播放列表",
+  "queuePlaylistNone": "没有选择播放列表",
+  "queuePlaylistActiveLabel": "播放列表：{name}",
+  "@queuePlaylistActiveLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "exit": "退出",
   "playlistPlayAction": "播放列表",
   "queueModeBooks": "书籍",
   "queueModePodcasts": "播客",
