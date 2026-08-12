@@ -79,6 +79,7 @@ dependencies:
 
   # Log sharing
   share_plus: ^10.0.0
+  web: ^1.1.1
   app_links: ^7.2.1
   qr_flutter: ^4.1.0
 

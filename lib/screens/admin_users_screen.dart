@@ -12,10 +12,12 @@ import '../services/backup_service.dart';
 import '../services/setup_link_service.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/absorb_wave_icon.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/setup_link_share_sheet.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/duration_format.dart';
+import '../utils/app_platform.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   final List<dynamic> users;
@@ -208,7 +210,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   void _showEditor(Map<String, dynamic>? user) {
-    showModalBottomSheet(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+    showAdaptiveActionMenu(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+      desktopWidth: 560, desktopScrollWrap: false,
       builder: (_) => _UserEditorSheet(user: user, libraries: widget.libraries, onSaved: _reload));
   }
 }
@@ -739,10 +742,12 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
   }
 
   void _showSessionDetails(Map<String, dynamic> session) {
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 560,
+      desktopScrollWrap: false,
       builder: (_) => _AdminSessionDetailsSheet(session: session),
     );
   }
@@ -779,7 +784,8 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
   );
 
   void _showEditor() {
-    showModalBottomSheet(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+    showAdaptiveActionMenu(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+      desktopWidth: 560, desktopScrollWrap: false,
       builder: (_) => _UserEditorSheet(user: widget.user, libraries: widget.libraries, onSaved: () {
         widget.onChanged();
         _load();
@@ -854,11 +860,13 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
       final setupLink = SetupLinkService.createLink(payload);
       if (!mounted) return;
 
-      await showModalBottomSheet<void>(
+      await showAdaptiveActionMenu<void>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
         showDragHandle: false,
+        desktopWidth: 560,
+        desktopScrollWrap: false,
         builder: (sheetContext) => SetupLinkShareSheet(
           username: username,
           setupLink: setupLink,
@@ -905,7 +913,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
     );
 
     if (result == null) return;
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    if (AppPlatform.isDesktop) {
       await File(result).writeAsString(jsonStr);
     }
     if (mounted) {
@@ -1239,6 +1247,7 @@ class _AdminSessionDetailsSheet extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final desktopMode = ModalSurface.isDesktopOf(context);
     final s = session;
 
     final meta = s['mediaMetadata'] as Map<String, dynamic>? ?? {};
@@ -1280,7 +1289,7 @@ class _AdminSessionDetailsSheet extends StatelessWidget {
     final lib = context.read<LibraryProvider>();
     final coverUrl = itemId != null ? lib.getCoverUrl(itemId) : null;
 
-    return DraggableScrollableSheet(
+    return AdaptiveDraggableScrollableSheet(
       initialChildSize: 0.6,
       minChildSize: 0.4,
       maxChildSize: 0.95,
@@ -1289,20 +1298,37 @@ class _AdminSessionDetailsSheet extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: desktopMode
+                ? BorderRadius.zero
+                : const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 10, bottom: 4),
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
+            if (desktopMode)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                  child: IconButton(
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
             Expanded(
               child: ListView(
                 controller: scrollController,

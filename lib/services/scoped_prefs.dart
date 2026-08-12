@@ -31,6 +31,7 @@ class ScopedPrefs {
     'loggingEnabled', 'manual_offline_mode',
     'custom_download_path', 'custom_download_uri', 'downloads',
     'absorb_device_id',
+    'desktop_sidebar_pinned',
     'widget_item_id', 'widget_episode_id',
     'cached_stats', 'cached_sessions',
     'update_last_check', 'update_dismissed_version',

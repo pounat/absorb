@@ -133,6 +133,71 @@ class SocketService {
     }
   }
 
+  // Server log fan-out. Each consumer keeps its own minimum level so opening
+  // another log surface later cannot steal or disable an existing listener.
+  // The server is subscribed at the lowest requested threshold and entries
+  // are filtered again before delivery to each consumer.
+  final Map<void Function(Map<String, dynamic>), int> _serverLogListeners = {};
+
+  void addServerLogListener(
+    void Function(Map<String, dynamic>) fn, {
+    required int level,
+  }) {
+    _serverLogListeners[fn] = _validLogLevel(level);
+    _syncServerLogSubscription();
+  }
+
+  void updateServerLogListenerLevel(
+    void Function(Map<String, dynamic>) fn,
+    int level,
+  ) {
+    if (!_serverLogListeners.containsKey(fn)) return;
+    _serverLogListeners[fn] = _validLogLevel(level);
+    _syncServerLogSubscription();
+  }
+
+  void removeServerLogListener(void Function(Map<String, dynamic>) fn) {
+    if (_serverLogListeners.remove(fn) == null) return;
+    _syncServerLogSubscription();
+  }
+
+  int _validLogLevel(int level) => level.clamp(0, 6).toInt();
+
+  int? get _lowestRequestedLogLevel {
+    if (_serverLogListeners.isEmpty) return null;
+    var lowest = _serverLogListeners.values.first;
+    for (final level in _serverLogListeners.values.skip(1)) {
+      if (level < lowest) lowest = level;
+    }
+    return lowest;
+  }
+
+  void _syncServerLogSubscription() {
+    if (_socket?.connected != true) return;
+    final level = _lowestRequestedLogLevel;
+    if (level == null) {
+      _socket!.emit('remove_log_listener');
+    } else {
+      _socket!.emit('set_log_listener', level);
+    }
+  }
+
+  void _handleServerLog(dynamic data) {
+    final log = normalizeSocketMap(data);
+    if (log == null) return;
+    final rawLevel = log['level'];
+    final level = rawLevel is num
+        ? rawLevel.toInt()
+        : int.tryParse(rawLevel?.toString() ?? '') ?? 0;
+    for (final listener in Map.of(_serverLogListeners).entries) {
+      if (level >= listener.value) listener.key(log);
+    }
+  }
+
+  void _registerServerLogEvents() {
+    _socket!.on('log', _handleServerLog);
+  }
+
   @visibleForTesting
   static Map<String, dynamic>? normalizeSocketMap(Object? data) {
     if (data is Map<String, dynamic>) return data;
@@ -276,6 +341,7 @@ class SocketService {
 
       _socket!.on('init', (_) {
         debugPrint('[Socket] Authenticated - user is online');
+        _syncServerLogSubscription();
       });
 
       _socket!.on('auth_failed', (_) {
@@ -383,6 +449,8 @@ class SocketService {
       _socket!.on('task_progress', _handleTaskProgress);
       _socket!.on('task_finished', _handleTaskFinished);
 
+      _registerServerLogEvents();
+
       // Ereader device list changed (admin-wide or per-user). Payload carries
       // the list already filtered for this connection's user.
       _socket!.on('ereader-devices-updated', (data) {
@@ -478,6 +546,7 @@ class SocketService {
 
       _socket!.on('init', (_) {
         debugPrint('[Socket] Authenticated - user is online');
+        _syncServerLogSubscription();
       });
 
       _socket!.on('auth_failed', (_) {
@@ -539,6 +608,8 @@ class SocketService {
       _socket!.on('task_started', _handleTaskStarted);
       _socket!.on('task_progress', _handleTaskProgress);
       _socket!.on('task_finished', _handleTaskFinished);
+
+      _registerServerLogEvents();
 
       _socket!.on('ereader-devices-updated', (data) {
         if (data is! Map) return;

@@ -408,7 +408,9 @@ class BackupService {
     // when we write settings below. saveAccount() sets the active scope key.
     final accounts = data['accounts'] as List<dynamic>?;
     if (accounts != null) {
-      for (final a in accounts) {
+      // saveAccount inserts at the front. Restore in reverse so the backup's
+      // first (active) account stays first and owns the scoped settings below.
+      for (final a in accounts.reversed) {
         final map = a as Map<String, dynamic>;
         await UserAccountService().saveAccount(SavedAccount.fromJson(
           map,

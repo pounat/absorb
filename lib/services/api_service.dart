@@ -84,6 +84,16 @@ class MediaUploadResult {
   const MediaUploadResult({required this.success, this.error});
 }
 
+class LibraryMetadataRemovalResult {
+  final int found;
+  final int removed;
+
+  const LibraryMetadataRemovalResult({
+    required this.found,
+    required this.removed,
+  });
+}
+
 enum _RefreshOutcome {
   refreshed,
   rejected,
@@ -105,6 +115,77 @@ class PasswordChangeResult {
 }
 
 class ApiService {
+  /// Remove sidecar metadata files from every item in a library (admin only).
+  /// [extension] is the server-supported sidecar type: `json` or `abs`.
+  Future<LibraryMetadataRemovalResult?> removeLibraryMetadataFiles(
+    String libraryId,
+    String extension,
+  ) async {
+    if (extension != 'json' && extension != 'abs') {
+      throw ArgumentError.value(extension, 'extension', 'Must be json or abs');
+    }
+    try {
+      final uri = Uri.parse(
+        '$_cleanBaseUrl/api/libraries/$libraryId/remove-metadata',
+      ).replace(queryParameters: {'ext': extension});
+      final r = await _authPost(uri, timeout: const Duration(minutes: 30));
+      if (r.statusCode != 200) {
+        debugPrint('[API] removeLibraryMetadataFiles failed: ${r.statusCode}');
+        return null;
+      }
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      return LibraryMetadataRemovalResult(
+        found: (data['found'] as num?)?.toInt() ?? 0,
+        removed: (data['removed'] as num?)?.toInt() ?? 0,
+      );
+    } catch (e) {
+      debugPrint('[API] removeLibraryMetadataFiles error: $e');
+      return null;
+    }
+  }
+
+  Future<String?> validateCronExpression(String expression) async {
+    try {
+      final r = await _authPost(
+        Uri.parse('$_cleanBaseUrl/api/validate-cron'),
+        body: jsonEncode({'expression': expression}),
+      );
+      if (r.statusCode == 200) return null;
+      final message = r.body.trim();
+      return message.isEmpty ? 'Invalid cron expression' : message;
+    } catch (e) {
+      debugPrint('[API] validateCronExpression error: $e');
+      return 'Could not validate the cron expression';
+    }
+  }
+
+  /// Get the server's current daily log entries (admin only).
+  ///
+  /// GET /api/logger-data returns `{ currentDailyLogs: [...] }`. A nullable
+  /// result distinguishes a request failure from a valid empty log file.
+  Future<List<Map<String, dynamic>>?> getServerLogs() async {
+    try {
+      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/logger-data'));
+      if (r.statusCode != 200) {
+        debugPrint('[API] getServerLogs failed: ${r.statusCode}');
+        return null;
+      }
+      final decoded = jsonDecode(r.body);
+      if (decoded is! Map) return const <Map<String, dynamic>>[];
+      final rawLogs = decoded['currentDailyLogs'];
+      if (rawLogs is! List) return const <Map<String, dynamic>>[];
+      return rawLogs
+          .whereType<Map>()
+          .map(
+            (log) => log.map((key, value) => MapEntry(key.toString(), value)),
+          )
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[API] getServerLogs error: $e');
+      return null;
+    }
+  }
+
   static String appVersion = '1.3.0'; // fallback; overwritten by initVersion()
   static String appBuild = ''; // build number; set by initVersion()
 
