@@ -880,7 +880,19 @@ class GridListTile extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════
 class GridAuthorTile extends StatelessWidget {
   final Map<String, dynamic> author;
-  const GridAuthorTile({super.key, required this.author});
+  final bool selectionMode;
+  final bool isSelected;
+  final bool isMatching;
+  final VoidCallback? onSelectionToggle;
+
+  const GridAuthorTile({
+    super.key,
+    required this.author,
+    this.selectionMode = false,
+    this.isSelected = false,
+    this.isMatching = false,
+    this.onSelectionToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -902,88 +914,154 @@ class GridAuthorTile extends StatelessWidget {
 
     final headers = lib.mediaHeaders;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (authorId.isNotEmpty) {
-          showAuthorDetailSheet(context, authorId: authorId, authorName: name);
-        }
-      },
-      child: Column(
-        children: [
-          // Circular avatar
-          AspectRatio(
-            aspectRatio: 1,
-            child: Stack(
-              fit: StackFit.expand,
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: cs.secondaryContainer,
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          httpHeaders: headers,
-                          placeholder: (_, __) => _placeholder(cs),
-                          errorWidget: (_, __, ___) => _placeholder(cs),
-                        )
-                      : _placeholder(cs),
-                ),
-                if (numBooks > 0)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: cs.primaryContainer,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.auto_stories_rounded,
-                            size: 11,
-                            color: cs.onPrimaryContainer,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            '$numBooks',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: cs.onPrimaryContainer,
+    return Semantics(
+      selected: selectionMode ? isSelected : null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (selectionMode) {
+            onSelectionToggle?.call();
+            return;
+          }
+          if (authorId.isNotEmpty) {
+            showAuthorDetailSheet(
+              context,
+              authorId: authorId,
+              authorName: name,
+            );
+          }
+        },
+        onLongPress: onSelectionToggle,
+        child: Column(
+          children: [
+            // Circular avatar
+            AspectRatio(
+              aspectRatio: 1,
+              child: Stack(
+                fit: StackFit.expand,
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: cs.secondaryContainer,
+                      border: selectionMode && isSelected
+                          ? Border.all(color: cs.primary, width: 3)
+                          : null,
+                    ),
+                    padding: selectionMode && isSelected
+                        ? const EdgeInsets.all(3)
+                        : EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    child: imageUrl != null
+                        ? ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              httpHeaders: headers,
+                              placeholder: (_, __) => _placeholder(cs),
+                              errorWidget: (_, __, ___) => _placeholder(cs),
                             ),
+                          )
+                        : ClipOval(child: _placeholder(cs)),
+                  ),
+                  if (selectionMode)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected
+                              ? cs.primary
+                              : cs.surfaceContainerHighest,
+                          border: Border.all(
+                            color: isSelected ? cs.primary : cs.outlineVariant,
                           ),
-                        ],
+                        ),
+                        child: Icon(
+                          isSelected
+                              ? Icons.check_rounded
+                              : Icons.circle_outlined,
+                          size: 18,
+                          color: isSelected
+                              ? cs.onPrimary
+                              : cs.onSurfaceVariant,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                  if (numBooks > 0)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.auto_stories_rounded,
+                              size: 11,
+                              color: cs.onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '$numBooks',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: cs.onPrimaryContainer,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (isMatching)
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black.withValues(alpha: 0.55),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 30,
+                            height: 30,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: tt.labelSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: cs.onSurface,
-              fontSize: 11,
+            const SizedBox(height: 5),
+            Text(
+              name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: tt.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface,
+                fontSize: 11,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

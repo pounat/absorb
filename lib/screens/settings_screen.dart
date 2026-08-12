@@ -4368,15 +4368,13 @@ class SettingsScreenState extends State<SettingsScreen> {
                               onPressed: () => _backupSettings(context, cs, tt,
                                             ),
                                           ),),
-                            if (!AppPlatform.isWeb) ...[
-                              const SizedBox(width: 10),
-                              Expanded(child: OutlinedButton.icon(
-                                icon: const Icon(Icons.download_rounded, size: 18,),
-                                label: Text(l.restore),
-                                onPressed: () => _restoreSettings(context, cs, tt,
-                                              ),
-                                            ),),
-                            ],
+                            const SizedBox(width: 10),
+                            Expanded(child: OutlinedButton.icon(
+                              icon: const Icon(Icons.download_rounded, size: 18,),
+                              label: Text(l.restore),
+                              onPressed: () => _restoreSettings(context, cs, tt,
+                                            ),
+                                          ),),
                           ],),
                         ],
                       ),
@@ -4859,11 +4857,26 @@ class SettingsScreenState extends State<SettingsScreen> {
   void _restoreSettings(BuildContext context, ColorScheme cs, TextTheme tt,) async {
     final l = AppLocalizations.of(context)!;
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
-      if (result == null || result.files.single.path == null) return;
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        withData: AppPlatform.isWeb,
+      );
+      if (result == null || result.files.isEmpty) return;
 
-      final file = File(result.files.single.path!);
-      final jsonStr = await file.readAsString();
+      final pickedFile = result.files.single;
+      final bytes = pickedFile.bytes;
+      final jsonStr = bytes != null
+          ? utf8.decode(bytes)
+          : pickedFile.path != null
+              ? await File(pickedFile.path!).readAsString()
+              : null;
+      if (jsonStr == null) {
+        if (mounted) {
+          showOverlayToast(context, l.invalidBackupFile,
+              icon: Icons.error_outline_rounded,);
+        }
+        return;
+      }
       final data = jsonDecode(jsonStr) as Map<String, dynamic>;
 
       if (data['version'] == null) {

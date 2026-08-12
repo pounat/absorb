@@ -52,6 +52,7 @@ import 'adaptive_modal.dart';
 import 'stackable_sheet.dart';
 import 'ebook_router.dart';
 import '../utils/duration_format.dart';
+import '../utils/url_file_download.dart';
 
 // ─── BOOK DETAIL BOTTOM SHEET ───────────────────────────────
 
@@ -757,6 +758,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       // Primary action row: Download | Fully Absorb | Read (when ebook)
       const SizedBox(height: 12),
       Row(children: [
+        if (AppPlatform.isWeb && auth.canDownload) ...[
+          Expanded(child: _webDownloadButton(context, cs, l, auth)),
+          const SizedBox(width: 8),
+        ],
         if (!isEbookOnly && !AppPlatform.isWeb) ...[
           Expanded(child: DownloadWideButton(itemId: widget.itemId, coverUrl: _coverUrl, title: title, author: authorName, accent: accent)),
           const SizedBox(width: 8),
@@ -1003,6 +1008,66 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
               ]));
           })]],
       ]);
+  }
+
+  Widget _webDownloadButton(
+    BuildContext context,
+    ColorScheme cs,
+    AppLocalizations l,
+    AuthProvider auth,
+  ) {
+    return GestureDetector(
+      onTap: () => _downloadToComputer(context, auth),
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: cs.onSurface.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: cs.onSurface.withValues(alpha: 0.08),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.download_outlined,
+              size: 16,
+              color: cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              l.download,
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _downloadToComputer(
+    BuildContext context,
+    AuthProvider auth,
+  ) async {
+    final api = auth.apiService;
+    if (api == null) return;
+
+    final uri = Uri.parse(
+      '${api.cleanBaseUrl}/api/items/${Uri.encodeComponent(widget.itemId)}/download',
+    ).replace(queryParameters: {'token': api.token});
+    final started = await downloadUrlFile(uri);
+    if (!started && context.mounted) {
+      showOverlayToast(
+        context,
+        AppLocalizations.of(context)!.downloadNotifFailedTitle,
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
   // ─── QUICK ACTIONS (long-press) ─────────────────────────────

@@ -4736,6 +4736,19 @@ class AppLocalizationsIt extends AppLocalizations {
       'Failed to update auto-download setting';
 
   @override
+  String get adminPodcastsMaxEpisodesToKeep => 'Max episodes to keep';
+
+  @override
+  String get adminPodcastsMaxEpisodesToKeepHelp =>
+      '0 keeps every episode. After a new episode is auto-downloaded, Audiobookshelf removes the oldest episode when the show is over this limit.';
+
+  @override
+  String get adminPodcastsNoEpisodeLimit => 'No limit';
+
+  @override
+  String get adminPodcastsEpisodeLimitInvalid => 'Enter 0 or a whole number';
+
+  @override
   String get adminPodcastsCheckSchedule => 'Check Schedule';
 
   @override

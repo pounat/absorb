@@ -119,6 +119,12 @@ class AuthProvider extends ChangeNotifier {
     return perms?['delete'] == true;
   }
 
+  /// True when the server allows this user to download library item files.
+  bool get canDownload {
+    final perms = _userJson?['permissions'] as Map<String, dynamic>?;
+    return perms?['download'] == true;
+  }
+
   /// Replace the live app shell with the startup loading view while a saved
   /// account is being activated and its library is prepared.
   void beginAccountSwitch() {

@@ -41,12 +41,12 @@ double absorbingDesktopPlayerLayoutWidth(double paneWidth) =>
         .clamp(0.0, double.infinity)
         .toDouble();
 
-bool shouldOverlayAbsorbingSidePanel(double paneWidth) =>
+bool shouldUseCompactAbsorbingSidePanel(double paneWidth) =>
     absorbingDesktopPlayerLayoutWidth(paneWidth) <
     kAbsorbingDesktopRowLayoutWidth;
 
 bool shouldOpenAbsorbingSidePanelByDefault(double paneWidth) =>
-    !shouldOverlayAbsorbingSidePanel(paneWidth);
+    !shouldUseCompactAbsorbingSidePanel(paneWidth);
 
 enum DesktopAbsorbingPanelTab { chapters, queue }
 
@@ -980,8 +980,8 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                                       absorbingDesktopPlayerLayoutWidth(
                                         constraints.maxWidth,
                                       );
-                                  final overlayPanel =
-                                      shouldOverlayAbsorbingSidePanel(
+                                  final compactPanel =
+                                      shouldUseCompactAbsorbingSidePanel(
                                         constraints.maxWidth,
                                       );
                                   final chapterData =
@@ -1060,8 +1060,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                                             CrossAxisAlignment.stretch,
                                         children: [
                                           playerPane,
-                                          if (!overlayPanel)
-                                            SizedBox(width: visibleWidth),
+                                          SizedBox(width: visibleWidth),
                                           const SizedBox(
                                             width:
                                                 _kAbsorbingDesktopPanelDividerWidth,
@@ -1100,7 +1099,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                                     },
                                     child: _buildDesktopSidePanel(
                                       context,
-                                      opaque: overlayPanel,
+                                      opaque: compactPanel,
                                       chapterData: chapterData,
                                       queuePanel: _AbsorbingQueuePanel(
                                         embedded: true,

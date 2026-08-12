@@ -234,6 +234,7 @@ class DesktopBatchActionBar extends StatelessWidget {
   final int selectedCount;
   final int selectableCount;
   final bool busy;
+  final String? busyLabel;
   final bool canQuickMatch;
   final bool canMarkProgress;
   final bool canDelete;
@@ -249,6 +250,7 @@ class DesktopBatchActionBar extends StatelessWidget {
     required this.selectedCount,
     required this.selectableCount,
     required this.busy,
+    this.busyLabel,
     required this.canQuickMatch,
     this.canMarkProgress = true,
     required this.canDelete,
@@ -280,7 +282,7 @@ class DesktopBatchActionBar extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (busy)
+              if (busy) ...[
                 const Padding(
                   padding: EdgeInsets.all(10),
                   child: SizedBox(
@@ -288,8 +290,16 @@ class DesktopBatchActionBar extends StatelessWidget {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                )
-              else
+                ),
+                if (busyLabel != null && busyLabel!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Text(
+                      busyLabel!,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+              ] else
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Text(

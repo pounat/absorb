@@ -828,21 +828,20 @@ class _LoginScreenState extends State<LoginScreen>
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            if (!AppPlatform.isWeb)
-                              ActionChip(
-                                avatar: Icon(Icons.restore_rounded, size: 16,
-                                  color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
-                                label: Text(l.loginRestoreFromBackup,
-                                  style: tt.labelSmall?.copyWith(
-                                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                                  )),
-                                backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-                                side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.15)),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                onPressed: _restoreFromBackup,
+                            ActionChip(
+                              avatar: Icon(Icons.restore_rounded, size: 16,
+                                color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                              label: Text(l.loginRestoreFromBackup,
+                                style: tt.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                                )),
+                              backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                              side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.15)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
                               ),
+                              onPressed: _restoreFromBackup,
+                            ),
                             ActionChip(
                               key: const Key('paste-login-link'),
                               avatar: Icon(Icons.content_paste_rounded, size: 16,
@@ -965,14 +964,28 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _restoreFromBackup() async {
-    if (AppPlatform.isWeb) return;
-
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        withData: AppPlatform.isWeb,
+      );
       if (result == null || result.files.isEmpty) return;
 
-      final file = File(result.files.single.path!);
-      final jsonStr = await file.readAsString();
+      final pickedFile = result.files.single;
+      final bytes = pickedFile.bytes;
+      final jsonStr = bytes != null
+          ? utf8.decode(bytes)
+          : pickedFile.path != null
+              ? await File(pickedFile.path!).readAsString()
+              : null;
+      if (jsonStr == null) {
+        if (mounted) {
+          final l = AppLocalizations.of(context)!;
+          showOverlayToast(context, l.loginInvalidBackupFile,
+              icon: Icons.error_outline_rounded);
+        }
+        return;
+      }
       final data = jsonDecode(jsonStr) as Map<String, dynamic>;
 
       if (!data.containsKey('version')) {

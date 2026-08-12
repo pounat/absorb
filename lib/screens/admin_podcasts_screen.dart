@@ -1120,6 +1120,90 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
     } catch (_) {}
   }
 
+  Future<void> _editMaxEpisodesToKeep() async {
+    final l = AppLocalizations.of(context)!;
+    final rawCurrent = _media['maxEpisodesToKeep'];
+    final current = rawCurrent is num && rawCurrent >= 0
+        ? rawCurrent.toInt()
+        : 0;
+    final controller = TextEditingController(text: '$current');
+    String? errorText;
+
+    final value = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void submit() {
+            final parsed = int.tryParse(controller.text.trim());
+            if (parsed == null || parsed < 0) {
+              setDialogState(() => errorText = l.adminPodcastsEpisodeLimitInvalid);
+              return;
+            }
+            Navigator.of(dialogContext).pop(parsed);
+          }
+
+          return AlertDialog(
+            title: Text(l.adminPodcastsMaxEpisodesToKeep),
+            content: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l.adminPodcastsMaxEpisodesToKeepHelp,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: l.adminPodcastsMaxEpisodesToKeep,
+                      errorText: errorText,
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (_) {
+                      if (errorText != null) {
+                        setDialogState(() => errorText = null);
+                      }
+                    },
+                    onSubmitted: (_) => submit(),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(l.cancel),
+              ),
+              FilledButton(onPressed: submit, child: Text(l.save)),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+    if (value == null || value == current || !mounted) return;
+
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    final ok = await api.updatePodcastMedia(
+      _podcastId,
+      {'maxEpisodesToKeep': value},
+    );
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _media['maxEpisodesToKeep'] = value);
+      widget.onChanged();
+    } else {
+      _msg(l.adminPodcastsFailedAutoDownloadUpdate);
+    }
+  }
+
   Future<void> _loadFeed() async {
     if (_feedUrl.isEmpty) { _msg(AppLocalizations.of(context)!.adminPodcastsNoFeedAvailable); return; }
     final api = context.read<AuthProvider>().apiService; if (api == null) return;
@@ -1939,6 +2023,11 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
       if (autoDownload)
         StatefulBuilder(builder: (ctx, setScheduleState) {
           final currentCron = _media['autoDownloadSchedule'] as String? ?? '0 * * * *';
+          final rawMaxEpisodesToKeep = _media['maxEpisodesToKeep'];
+          final maxEpisodesToKeep =
+              rawMaxEpisodesToKeep is num && rawMaxEpisodesToKeep >= 0
+                  ? rawMaxEpisodesToKeep.toInt()
+                  : 0;
           final parsed = _parseCron(currentCron);
           final freq = parsed.$1;      // 'hourly', 'daily', 'weekly'
           final hour = parsed.$2;      // 0-23
@@ -1999,6 +2088,39 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
                     : l.podcastScheduleServerTime(serverTimeZone),
                   style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
               ),
+              const SizedBox(height: 14),
+              Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l.adminPodcastsMaxEpisodesToKeep,
+                        style: tt.bodySmall?.copyWith(
+                          color: cs.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        l.adminPodcastsMaxEpisodesToKeepHelp,
+                        style: tt.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  onPressed: _editMaxEpisodesToKeep,
+                  child: Text(
+                    maxEpisodesToKeep == 0
+                        ? l.adminPodcastsNoEpisodeLimit
+                        : '$maxEpisodesToKeep',
+                  ),
+                ),
+              ]),
               const SizedBox(height: 10),
               // Frequency
               Text(l.adminPodcastsFrequency, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 10)),

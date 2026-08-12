@@ -32,6 +32,7 @@ import 'app_shell.dart';
 import 'upcoming_releases_screen.dart';
 import '../widgets/audible_series_sheet.dart' show showAudibleRegionPicker;
 import '../widgets/offline_status_icon.dart';
+import '../widgets/overlay_toast.dart';
 import '../widgets/desktop_batch_actions.dart';
 import '../widgets/desktop_cover_size_control.dart';
 import '../widgets/rmab_config_sheet.dart'
@@ -548,6 +549,10 @@ class LibraryScreenState extends State<LibraryScreen>
 
   bool _selectionMode = false;
   bool _batchActionBusy = false;
+  bool _matchingAuthors = false;
+  String? _matchingAuthorId;
+  int _authorMatchPosition = 0;
+  int _authorMatchTotal = 0;
   final Set<String> _selectedItemIds = {};
   int? _lastSelectedVisibleIndex;
 
@@ -564,6 +569,11 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   List<Map<String, dynamic>> _selectableVisibleItems() {
+    if (_tabController != null && _currentTab == 2) {
+      return _authors
+          .where((author) => author['id'] is String)
+          .toList(growable: false);
+    }
     final lib = context.read<LibraryProvider>();
     return _visibleLibraryItems(lib)
         .where(
@@ -580,7 +590,7 @@ class LibraryScreenState extends State<LibraryScreen>
     setState(() {
       _selectionMode = true;
       if (shiftPressed && _lastSelectedVisibleIndex != null) {
-        final items = _visibleLibraryItems(context.read<LibraryProvider>());
+        final items = _selectableVisibleItems();
         final start = min(_lastSelectedVisibleIndex!, visibleIndex);
         final end = max(_lastSelectedVisibleIndex!, visibleIndex);
         for (var index = start; index <= end && index < items.length; index++) {
@@ -1731,6 +1741,125 @@ class LibraryScreenState extends State<LibraryScreen>
     });
   }
 
+  String _authorQuickMatchRegion(LibraryProvider lib) {
+    final provider =
+        lib.selectedLibrary?['provider']?.toString().toLowerCase() ?? '';
+    if (!provider.startsWith('audible.')) return 'us';
+    final region = provider.split('.').last.trim();
+    return region.isEmpty ? 'us' : region;
+  }
+
+  List<Map<String, dynamic>> _selectedAuthors() {
+    return _authors
+        .where((author) => _selectedItemIds.contains(author['id']))
+        .toList(growable: false);
+  }
+
+  Future<bool> _quickMatchAuthors(
+    List<Map<String, dynamic>> authors, {
+    bool allAuthors = false,
+  }) async {
+    if (authors.isEmpty) return false;
+    final auth = context.read<AuthProvider>();
+    final lib = context.read<LibraryProvider>();
+    final api = auth.apiService;
+    final libraryId = lib.selectedLibraryId;
+    if (api == null || libraryId == null || !auth.canUpdateMetadata) {
+      return false;
+    }
+
+    final l = AppLocalizations.of(context)!;
+    setState(() {
+      _authorMatchPosition = 0;
+      _authorMatchTotal = authors.length;
+      _matchingAuthorId = null;
+    });
+    showOverlayToast(
+      context,
+      l.adminMatchingStarted(
+        allAuthors
+            ? l.libraryAuthorsCount(authors.length)
+            : l.selectedCount(authors.length),
+      ),
+      icon: Icons.auto_fix_high_rounded,
+    );
+
+    final region = _authorQuickMatchRegion(lib);
+    var found = 0;
+    var updated = 0;
+    var notFound = 0;
+    var failed = 0;
+    for (var index = 0; index < authors.length; index++) {
+      final author = authors[index];
+      final id = author['id']?.toString() ?? '';
+      final name = author['name']?.toString().trim() ?? '';
+      final asin = author['asin']?.toString().trim() ?? '';
+      if (mounted) {
+        setState(() {
+          _matchingAuthorId = id.isEmpty ? null : id;
+          _authorMatchPosition = index + 1;
+        });
+      }
+      if (id.isEmpty || (asin.isEmpty && name.isEmpty)) {
+        failed++;
+        continue;
+      }
+      final result = await api.quickMatchAuthor(
+        id,
+        asin: asin.isEmpty ? null : asin,
+        q: asin.isEmpty ? name : null,
+        region: region,
+      );
+      if (result.found) {
+        found++;
+        if (result.updated) updated++;
+      } else if (result.statusCode == 404) {
+        notFound++;
+      } else {
+        failed++;
+      }
+    }
+
+    if (!mounted) return failed < authors.length;
+    setState(() => _matchingAuthorId = null);
+    if (context.read<LibraryProvider>().selectedLibraryId == libraryId) {
+      await _refreshAuthors();
+    }
+    if (!mounted) return failed < authors.length;
+
+    final unchanged = found - updated;
+    final summary = <String>[
+      if (updated > 0) '${l.metadataUpdated} ($updated)',
+      if (unchanged > 0) '${l.quickMatchNoUpdates} ($unchanged)',
+      if (notFound > 0) '${l.authorNoMatchFound} ($notFound)',
+      if (failed > 0) '${l.failedToUpdateMetadata} ($failed)',
+    ];
+    showOverlayToast(
+      context,
+      summary.join(' • '),
+      icon: failed > 0
+          ? Icons.error_outline_rounded
+          : notFound > 0
+          ? Icons.search_off_rounded
+          : Icons.check_circle_outline_rounded,
+    );
+    return failed == 0 && notFound == 0;
+  }
+
+  Future<void> _quickMatchAllAuthors() async {
+    if (_matchingAuthors || _batchActionBusy || _authors.isEmpty) return;
+    final authors = List<Map<String, dynamic>>.from(_authors);
+    setState(() => _matchingAuthors = true);
+    await _quickMatchAuthors(authors, allAuthors: true);
+    if (mounted) {
+      setState(() {
+        _matchingAuthors = false;
+        _authorMatchPosition = 0;
+        _authorMatchTotal = 0;
+      });
+    }
+  }
+
   Future<void> _loadNarrators() async {
     if (_isLoadingNarrators) return;
     setState(() => _isLoadingNarrators = true);
@@ -2606,11 +2735,19 @@ class LibraryScreenState extends State<LibraryScreen>
       });
     }
     final hasTabs = _tabController != null && !_isInSearchMode;
-    final selectionAvailable =
+    final selectingAuthors = hasTabs && _currentTab == 2;
+    final authorSelectionAvailable =
+        selectingAuthors &&
+        !libWatch.isOffline &&
+        auth.canUpdateMetadata &&
+        !_matchingAuthors;
+    final bookSelectionAvailable =
         desktopWorkspace &&
         !libWatch.isOffline &&
         !_isInSearchMode &&
         (hasTabs ? _currentTab == 0 : _podcastView == 0);
+    final selectionAvailable =
+        authorSelectionAvailable || bookSelectionAvailable;
     if (!selectionAvailable && _selectionMode) _resetSelectionState();
     final showCoverControl =
         desktopWorkspace &&
@@ -2688,7 +2825,10 @@ class LibraryScreenState extends State<LibraryScreen>
                     },
                   ),
                 ),
-                if (hasTabs && !_isInSearchMode && !desktopWorkspace)
+                if (hasTabs &&
+                    !_isInSearchMode &&
+                    !desktopWorkspace &&
+                    !_selectionMode)
                   Positioned(
                     left: 0,
                     right: 0,
@@ -2749,9 +2889,28 @@ class LibraryScreenState extends State<LibraryScreen>
           ),
         ],
       ),
-      floatingActionButton: !desktopWorkspace
+      floatingActionButton: _selectionMode && authorSelectionAvailable
+          ? DesktopBatchActionBar(
+              selectedCount: _selectedItemIds.length,
+              selectableCount: selectableCount,
+              busy: _batchActionBusy,
+              busyLabel: _authorMatchTotal > 0
+                  ? '$_authorMatchPosition/$_authorMatchTotal'
+                  : null,
+              canQuickMatch: true,
+              canMarkProgress: false,
+              canDelete: false,
+              onSelectAll: _toggleSelectAll,
+              onClear: _clearSelection,
+              onQuickMatch: () =>
+                  _runBatchAction(() => _quickMatchAuthors(_selectedAuthors())),
+              onMarkFinished: () {},
+              onMarkUnfinished: () {},
+              onDelete: () {},
+            )
+          : !desktopWorkspace
           ? null
-          : _selectionMode && selectionAvailable
+          : _selectionMode && bookSelectionAvailable
           ? DesktopBatchActionBar(
               selectedCount: _selectedItemIds.length,
               selectableCount: selectableCount,
@@ -2795,7 +2954,10 @@ class LibraryScreenState extends State<LibraryScreen>
               onIncrease: () => _changeBookshelfCoverSize(1),
             )
           : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonLocation:
+          authorSelectionAvailable && !desktopWorkspace
+          ? FloatingActionButtonLocation.centerFloat
+          : FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -2832,11 +2994,19 @@ class LibraryScreenState extends State<LibraryScreen>
             ),
           );
     final desktop = isDesktopWorkspace(context);
+    final canSelectAuthors =
+        _tabController != null &&
+        _currentTab == 2 &&
+        context.read<AuthProvider>().canUpdateMetadata &&
+        !_matchingAuthors;
     final canSelectItems =
-        desktop &&
         !lib.isOffline &&
         !_isInSearchMode &&
-        (_tabController == null ? _podcastView == 0 : _currentTab == 0);
+        (canSelectAuthors ||
+            (desktop &&
+                (_tabController == null
+                    ? _podcastView == 0
+                    : _currentTab == 0)));
     return SliverAppBar(
       floating: !desktop,
       snap: !desktop,
@@ -2941,9 +3111,11 @@ class LibraryScreenState extends State<LibraryScreen>
                       Tooltip(
                         message: _selectionMode
                             ? l.downloadsCancelSelection
-                            : 'Select items',
+                            : l.downloadsSelect,
                         child: IconButton(
-                          onPressed: _selectionMode
+                          onPressed: _batchActionBusy
+                              ? null
+                              : _selectionMode
                               ? _clearSelection
                               : () => setState(() => _selectionMode = true),
                           icon: Icon(
@@ -3392,6 +3564,29 @@ class LibraryScreenState extends State<LibraryScreen>
               ),
             ),
           ],
+          if (_currentTab == 2 &&
+              !_selectionMode &&
+              _authors.isNotEmpty &&
+              context.read<AuthProvider>().canUpdateMetadata &&
+              !context.read<LibraryProvider>().isOffline)
+            TextButton.icon(
+              onPressed: _matchingAuthors ? null : _quickMatchAllAuthors,
+              icon: _matchingAuthors
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_fix_high_rounded, size: 18),
+              label: Text(
+                _matchingAuthors && _authorMatchTotal > 0
+                    ? '${l.adminMatching} '
+                          '$_authorMatchPosition/$_authorMatchTotal'
+                    : _matchingAuthors
+                    ? l.adminMatching
+                    : l.adminMatchAll,
+              ),
+            ),
           const Spacer(),
           Text(
             countText,
@@ -3568,6 +3763,16 @@ class LibraryScreenState extends State<LibraryScreen>
       onRefresh: _refreshAuthors,
       headerSliver: headerSliver,
       scrollController: _authorsScrollController,
+      selectionMode: _selectionMode,
+      selectedAuthorIds: _selectedItemIds,
+      matchingAuthorId: _matchingAuthorId,
+      onSelectionToggle:
+          context.read<AuthProvider>().canUpdateMetadata &&
+              !context.read<LibraryProvider>().isOffline &&
+              !_matchingAuthors &&
+              !_batchActionBusy
+          ? _toggleSelection
+          : null,
     );
   }
 
