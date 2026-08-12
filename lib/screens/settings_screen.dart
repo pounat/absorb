@@ -1281,6 +1281,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     switch (code) {
       case 'en': return 'English';
       case 'de': return 'Deutsch';
+      case 'fr': return 'Français';
       case 'zh': return '中文';
       default: return l.languageSystemDefault;
     }
@@ -1290,7 +1291,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
-    const codes = ['', 'en', 'de', 'zh'];
+    const codes = ['', 'en', 'de', 'fr', 'zh'];
 
     final picked = await _showAdaptiveSettingsSurface<String>(
       context: context,

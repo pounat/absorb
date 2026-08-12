@@ -158,7 +158,7 @@ class AppLocalizationsIt extends AppLocalizations {
       'For Cloudflare tunnels or reverse proxies that require extra headers. Add headers before entering your server URL.';
 
   @override
-  String get loginHeaderName => 'Header name';
+  String get loginHeaderName => 'Nome intestazione';
 
   @override
   String get loginHeaderValue => 'Value';
@@ -171,7 +171,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get loginTrustAllCertificates =>
-      'Trust all certificates (for self-signed / custom CA setups)';
+      'Fidati di tutti i certificati (per le impostazioni CA auto-firmate / personalizzate)';
 
   @override
   String get loginApiKey => 'API Key';
@@ -227,7 +227,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get adminSetupFileNoteWithHeaders =>
-      'A dedicated API key and your custom headers will be included so they can reach the server. Treat the link like a password.';
+      'Una chiave API dedicata e le tue intestazioni personalizzate saranno incluse in modo che possano raggiungere il server. Trattare il link come una password.';
 
   @override
   String get adminSetupFileNote =>
@@ -258,7 +258,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String setupLinkShareDescription(String username) {
-    return 'Send this private link or have them scan the QR code to sign in as $username.';
+    return 'Invia questo link privato o scansiona il codice QR per accedere come $username.';
   }
 
   @override
@@ -346,7 +346,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get loginSessionExpired =>
-      'Settings restored. Session expired - sign in to continue.';
+      'Impostazioni ripristinate. Sessione scaduta - accedi per continuare.';
 
   @override
   String get loginSettingsRestored => 'Settings restored';

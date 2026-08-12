@@ -3377,6 +3377,7 @@ class AudioPlayerService extends ChangeNotifier {
     _activeStreamHeaders = const {};
     _lastServerSync = DateTime.now();
     _lastAccrual = _lastServerSync;
+    _lastAccrualPos = null;
     _logEvent(PlaybackEventType.sessionStart, detail: 'local hot-swap');
 
     if (api == null || streamingSessionId == null) return;
@@ -4907,6 +4908,7 @@ class AudioPlayerService extends ChangeNotifier {
     _lastKnownPositionSec = 0;
     _lastServerSync = DateTime.now();
     _lastAccrual = DateTime.now();
+    _lastAccrualPos = null;
     _positionSyncInProgress = false;
     _positionSyncFailures = 0;
     // Cache prefs in background - not needed synchronously here
@@ -5613,6 +5615,7 @@ class AudioPlayerService extends ChangeNotifier {
   // Separate from the server-sync clock: drives the every-5s durable accrual so
   // a kill loses at most one tick of listening, independent of how often we POST.
   DateTime _lastAccrual = DateTime.now();
+  double? _lastAccrualPos;
   bool _syncRecoveryInProgress = false;
   bool _positionSyncInProgress = false;
   int _positionSyncFailures = 0;
@@ -5633,13 +5636,29 @@ class AudioPlayerService extends ChangeNotifier {
     final now = DateTime.now();
     final delta = now.difference(_lastAccrual).inSeconds;
     if (delta <= 0) return;
+    final ct = absolutePos.inMilliseconds / 1000.0;
+    // A player can report playing while its position sits still - a stalled
+    // stream, a dead web audio element. Wall clock alone would bank that span
+    // as listening, and the 300s backstop timer keeps doing it for as long as
+    // the app is open, so hours of standing still later ship as one phantom
+    // session. Only credit a span the position actually moved through, and
+    // drop the frozen span rather than carrying it into the next tick.
+    final prevPos = _lastAccrualPos;
+    _lastAccrualPos = ct;
+    if (prevPos != null && (ct - prevPos).abs() < 0.5) {
+      _lastAccrual = now;
+      debugPrint(
+        '[Player] Position frozen at ${ct.toStringAsFixed(1)}s - '
+        'not banking ${delta}s as listening',
+      );
+      return;
+    }
     final secs = delta > 300 ? 300 : delta;
     _lastAccrual = now;
     final key = _currentEpisodeId != null
         ? '$_currentItemId-$_currentEpisodeId'
         : _currentItemId!;
     final manualOffline = (_prefs?.getBool('manual_offline_mode')) ?? false;
-    final ct = absolutePos.inMilliseconds / 1000.0;
     if (_localSessionMode) {
       await LocalSessionService().accrue(
         progressKey: key,
@@ -5908,6 +5927,7 @@ class AudioPlayerService extends ChangeNotifier {
     // include pause duration as timeListened
     _lastServerSync = DateTime.now();
     _lastAccrual = DateTime.now();
+    _lastAccrualPos = null;
     // Re-activate audio session in case a prior stop released it.
     try {
       await _setAudioSessionActive(true);
@@ -5955,6 +5975,7 @@ class AudioPlayerService extends ChangeNotifier {
     // would otherwise be credited as up to 300s of phantom listening).
     _lastServerSync = DateTime.now();
     _lastAccrual = DateTime.now();
+    _lastAccrualPos = null;
     // Start playback immediately — don't wait for server calls
     _player?.play();
     _scheduleAudioDiagnostics('resume');
