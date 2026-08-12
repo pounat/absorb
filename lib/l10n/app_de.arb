@@ -925,6 +925,9 @@
   "autoDownloadOnWifiOffSubtitle": "Aus",
   "concurrentDownloads": "Gleichzeitige Downloads",
   "autoDownload": "Auto-Download",
+  "autoDownloadSubtitle": "Aktiviere pro Serie, Podcast, Wiedergabeliste oder Sammlung über deren Detailseiten",
+  "autoDownloadEnabledFor": "Eingeschaltet für",
+  "autoDownloadEnabledForNone": "Noch nichts",
   "keepNext": "Nächste behalten",
   "keepNextInfoTitle": "Nächste behalten",
   "deleteAbsorbedDownloads": "Absorbed Downloads löschen",
@@ -2225,6 +2228,22 @@
   "adminMissingBadge": "Fehlend",
   "adminInvalidBadge": "Ungültig",
   "adminMissingDeleteTitle": "Eintrag entfernen",
+  "adminMissingDeleteOneContent": "\"{title}\" aus Audiobookshelf entfernen?",
+  "@adminMissingDeleteOneContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingDeleteManyContent": "{count} Einträge aus Audiobookshelf entfernen?",
+  "@adminMissingDeleteManyContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminMissingDeleteCount": "\"{count}\" löschen?",
   "@adminMissingDeleteCount": {
     "placeholders": {
