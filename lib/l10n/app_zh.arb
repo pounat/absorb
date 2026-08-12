@@ -63,6 +63,32 @@
   "loginUsernameRequired": "请输入用户名",
   "loginPassword": "密码",
   "loginSignIn": "登录",
+  "loginSignInAs": "以 {username} 登录？",
+  "@loginSignInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSignInToServer": "登录到此服务器？",
+  "loginSignedInAs": "已登录为 {username}",
+  "@loginSignedInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminCreateSetupFile": "共享登录",
+  "adminSetupFileDescription": "为 {username} 创建私密登录链接，只能用于 Absorb。",
+  "@adminSetupFileDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "loginFailed": "登录失败",
   "loginSsoFailed": "单点登录失败或已取消",
   "loginSsoAuthFailed": "单点登录认证失败，请重试。",
