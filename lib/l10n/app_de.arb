@@ -740,6 +740,8 @@
   "queueModeBooks": "Bücher",
   "queueModePodcasts": "Podcasts",
   "autoDownloadQueue": "Auto-Download-Warteschlange",
+  "autoDownloadThisPlaylistLabel": "Wiedergabeliste automatisch herunterladen",
+  "autoDownloadThisCollectionLabel": "Diese Sammlung automatisch herunterladen",
   "autoDownloadQueueOnSubtitle": "Die nächsten {count} Inhalte heruntergeladen halten",
   "@autoDownloadQueueOnSubtitle": {
     "placeholders": {
@@ -1702,6 +1704,15 @@
   "deleteCollectionContent": "Möchtest du diese Sammlung wirklich löschen?",
   "deleteCollectionFailed": "Sammlung konnte nicht gelöscht werden",
   "deletePermissionRequired": "Löschberechtigung erforderlich. Bitte wende dich hierzu an den Administrator.",
+  "deletedFromServer": "\"{title}\" gelöscht",
+  "@deletedFromServer": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFromServerFailed": "Konnte dies nicht löschen. Überprüfe die Server-Protokolle.",
   "playlistNotFound": "Playlist nicht gefunden",
   "deletePlaylist": "Playlist löschen",
   "deletePlaylistContent": "Möchtest du diese Playlist wirklich löschen?",
