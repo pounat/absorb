@@ -84,6 +84,30 @@ class MediaUploadResult {
   const MediaUploadResult({required this.success, this.error});
 }
 
+class AuthorQuickMatchResult {
+  final int statusCode;
+  final bool updated;
+  final Map<String, dynamic>? author;
+
+  const AuthorQuickMatchResult({
+    required this.statusCode,
+    this.updated = false,
+    this.author,
+  });
+
+  bool get found => statusCode == 200;
+}
+
+class LibraryMetadataRemovalResult {
+  final int found;
+  final int removed;
+
+  const LibraryMetadataRemovalResult({
+    required this.found,
+    required this.removed,
+  });
+}
+
 enum _RefreshOutcome {
   refreshed,
   rejected,
@@ -105,6 +129,77 @@ class PasswordChangeResult {
 }
 
 class ApiService {
+  /// Remove sidecar metadata files from every item in a library (admin only).
+  /// [extension] is the server-supported sidecar type: `json` or `abs`.
+  Future<LibraryMetadataRemovalResult?> removeLibraryMetadataFiles(
+    String libraryId,
+    String extension,
+  ) async {
+    if (extension != 'json' && extension != 'abs') {
+      throw ArgumentError.value(extension, 'extension', 'Must be json or abs');
+    }
+    try {
+      final uri = Uri.parse(
+        '$_cleanBaseUrl/api/libraries/$libraryId/remove-metadata',
+      ).replace(queryParameters: {'ext': extension});
+      final r = await _authPost(uri, timeout: const Duration(minutes: 30));
+      if (r.statusCode != 200) {
+        debugPrint('[API] removeLibraryMetadataFiles failed: ${r.statusCode}');
+        return null;
+      }
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      return LibraryMetadataRemovalResult(
+        found: (data['found'] as num?)?.toInt() ?? 0,
+        removed: (data['removed'] as num?)?.toInt() ?? 0,
+      );
+    } catch (e) {
+      debugPrint('[API] removeLibraryMetadataFiles error: $e');
+      return null;
+    }
+  }
+
+  Future<String?> validateCronExpression(String expression) async {
+    try {
+      final r = await _authPost(
+        Uri.parse('$_cleanBaseUrl/api/validate-cron'),
+        body: jsonEncode({'expression': expression}),
+      );
+      if (r.statusCode == 200) return null;
+      final message = r.body.trim();
+      return message.isEmpty ? 'Invalid cron expression' : message;
+    } catch (e) {
+      debugPrint('[API] validateCronExpression error: $e');
+      return 'Could not validate the cron expression';
+    }
+  }
+
+  /// Get the server's current daily log entries (admin only).
+  ///
+  /// GET /api/logger-data returns `{ currentDailyLogs: [...] }`. A nullable
+  /// result distinguishes a request failure from a valid empty log file.
+  Future<List<Map<String, dynamic>>?> getServerLogs() async {
+    try {
+      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/logger-data'));
+      if (r.statusCode != 200) {
+        debugPrint('[API] getServerLogs failed: ${r.statusCode}');
+        return null;
+      }
+      final decoded = jsonDecode(r.body);
+      if (decoded is! Map) return const <Map<String, dynamic>>[];
+      final rawLogs = decoded['currentDailyLogs'];
+      if (rawLogs is! List) return const <Map<String, dynamic>>[];
+      return rawLogs
+          .whereType<Map>()
+          .map(
+            (log) => log.map((key, value) => MapEntry(key.toString(), value)),
+          )
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[API] getServerLogs error: $e');
+      return null;
+    }
+  }
+
   static String appVersion = '1.3.0'; // fallback; overwritten by initVersion()
   static String appBuild = ''; // build number; set by initVersion()
 
@@ -1425,29 +1520,73 @@ class ApiService {
 
   /// Quick-match an author against the configured provider (Audible).
   /// Server fetches name/asin/description/image, updates the author server-side,
-  /// and returns the updated author. Returns null if no match or on error.
+  /// and returns the author. Returns null if no match or on error. A successful
+  /// match can return the unchanged author when its stored details are already
+  /// current.
   /// POST /api/authors/:id/match  body: { q, region }
-  /// Response: { updated: true, author: {...} } on match, { updated: false } on no match.
+  /// Response: { updated, author } on match; a missing provider match is 404.
   Future<Map<String, dynamic>?> matchAuthor(
     String authorId, {
     required String q,
     String region = 'us',
   }) async {
+    final result = await quickMatchAuthor(authorId, q: q, region: region);
+    if (!result.found) return null;
+    return result.author;
+  }
+
+  /// Quick-match one author using the same ASIN-first request shape as the
+  /// Audiobookshelf web client. The full response is retained so batch callers
+  /// can distinguish a match with no changes from a missing author or a failed
+  /// request.
+  Future<AuthorQuickMatchResult> quickMatchAuthor(
+    String authorId, {
+    String? q,
+    String? asin,
+    String region = 'us',
+  }) async {
+    final trimmedAsin = asin?.trim() ?? '';
+    final trimmedQuery = q?.trim() ?? '';
+    if (trimmedAsin.isEmpty && trimmedQuery.isEmpty) {
+      return const AuthorQuickMatchResult(statusCode: 0);
+    }
+
     try {
+      final body = <String, dynamic>{'region': region};
+      if (trimmedAsin.isNotEmpty) {
+        body['asin'] = trimmedAsin;
+      } else {
+        body['q'] = trimmedQuery;
+      }
       final r = await _authPost(
         Uri.parse('$_cleanBaseUrl/api/authors/$authorId/match'),
-        body: jsonEncode({'q': q, 'region': region}),
+        body: jsonEncode(body),
+        timeout: const Duration(seconds: 30),
       );
-      debugPrint('[API] matchAuthor $authorId -> ${r.statusCode}: ${r.body}');
+      debugPrint(
+        '[API] quickMatchAuthor $authorId -> ${r.statusCode}: ${r.body}',
+      );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body) as Map<String, dynamic>;
-        // Server signals no match with { updated: false } and no author payload.
-        if (data['updated'] == false) return null;
-        if (data['author'] is Map) return data['author'] as Map<String, dynamic>;
-        return data;
+        final author = data['author'] is Map
+            ? Map<String, dynamic>.from(data['author'] as Map)
+            : null;
+        // Current ABS returns 404 when the provider has no match. Older
+        // servers returned 200 with {updated: false} and no author payload.
+        if (author == null && data['updated'] == false) {
+          return const AuthorQuickMatchResult(statusCode: 404);
+        }
+        return AuthorQuickMatchResult(
+          statusCode: r.statusCode,
+          updated: data['updated'] == true,
+          author: author,
+        );
       }
-    } catch (e) { debugPrint('matchAuthor error: $e'); }
-    return null;
+      return AuthorQuickMatchResult(statusCode: r.statusCode);
+    } catch (e) {
+      debugPrint('quickMatchAuthor error: $e');
+    }
+    return const AuthorQuickMatchResult(statusCode: 0);
   }
 
   /// Set the author image from a remote URL.
@@ -3762,6 +3901,77 @@ class ApiService {
       return r.statusCode;
     } catch (e) { debugPrint('deleteLibraryItem error: $e'); }
     return 0;
+  }
+
+  /// Delete several library items in one server operation.
+  /// Returns the HTTP status code so callers can distinguish a missing
+  /// `delete` permission (403) from other failures. Zero means no request was
+  /// made or the request threw.
+  Future<int> deleteLibraryItems(
+    List<String> itemIds, {
+    bool hard = false,
+  }) async {
+    if (itemIds.isEmpty) return 0;
+    try {
+      final response = await _authPost(
+        Uri.parse('$_cleanBaseUrl/api/items/batch/delete?hard=${hard ? 1 : 0}'),
+        body: jsonEncode({'libraryItemIds': itemIds}),
+        timeout: const Duration(seconds: 60),
+      );
+      return response.statusCode;
+    } catch (e) {
+      debugPrint('deleteLibraryItems error: $e');
+      return 0;
+    }
+  }
+
+  /// Quick-match several items using Audiobookshelf's native batch endpoint.
+  Future<bool> quickMatchLibraryItems(
+    List<String> itemIds, {
+    required String provider,
+    bool overrideCover = false,
+    bool overrideDetails = false,
+  }) async {
+    if (itemIds.isEmpty) return false;
+    try {
+      final response = await _authPost(
+        Uri.parse('$_cleanBaseUrl/api/items/batch/quickmatch'),
+        body: jsonEncode({
+          'options': {
+            'provider': provider,
+            'overrideCover': overrideCover,
+            'overrideDetails': overrideDetails,
+          },
+          'libraryItemIds': itemIds,
+        }),
+        timeout: const Duration(seconds: 60),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('quickMatchLibraryItems error: $e');
+      return false;
+    }
+  }
+
+  /// Mark several library items finished or unfinished in one request.
+  Future<bool> updateLibraryItemsFinished(
+    List<String> itemIds, {
+    required bool isFinished,
+  }) async {
+    if (itemIds.isEmpty) return false;
+    try {
+      final response = await _authPatch(
+        Uri.parse('$_cleanBaseUrl/api/me/progress/batch/update'),
+        body: jsonEncode([
+          for (final itemId in itemIds)
+            {'libraryItemId': itemId, 'isFinished': isFinished},
+        ]),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('updateLibraryItemsFinished error: $e');
+      return false;
+    }
   }
 
   // ── Playlists ──────────────────────────────────────────────────────────

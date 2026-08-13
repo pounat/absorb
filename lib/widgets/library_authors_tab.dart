@@ -10,6 +10,11 @@ class LibraryAuthorsTab extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final Widget? headerSliver;
   final ScrollController? scrollController;
+  final bool selectionMode;
+  final Set<String> selectedAuthorIds;
+  final String? matchingAuthorId;
+  final void Function(Map<String, dynamic> author, int index)?
+      onSelectionToggle;
 
   const LibraryAuthorsTab({
     super.key,
@@ -19,6 +24,10 @@ class LibraryAuthorsTab extends StatelessWidget {
     required this.onRefresh,
     this.headerSliver,
     this.scrollController,
+    this.selectionMode = false,
+    this.selectedAuthorIds = const {},
+    this.matchingAuthorId,
+    this.onSelectionToggle,
   });
 
   @override
@@ -81,7 +90,19 @@ class LibraryAuthorsTab extends StatelessWidget {
                 mainAxisSpacing: 10,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, index) => GridAuthorTile(author: authors[index]),
+                (context, index) {
+                  final author = authors[index];
+                  final authorId = author['id'] as String? ?? '';
+                  return GridAuthorTile(
+                    author: author,
+                    selectionMode: selectionMode,
+                    isSelected: selectedAuthorIds.contains(authorId),
+                    isMatching: matchingAuthorId == authorId,
+                    onSelectionToggle: onSelectionToggle == null
+                        ? null
+                        : () => onSelectionToggle!(author, index),
+                  );
+                },
                 childCount: authors.length,
               ),
             ),

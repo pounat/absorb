@@ -20,6 +20,9 @@ class BookCard extends StatelessWidget {
   final String? sourcePlaylistEpisodeId;
   final String? sourceCollectionId;
   final String? sourceCollectionName;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback? onSelectionToggle;
 
   const BookCard({
     super.key,
@@ -31,6 +34,9 @@ class BookCard extends StatelessWidget {
     this.sourcePlaylistEpisodeId,
     this.sourceCollectionId,
     this.sourceCollectionName,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelectionToggle,
   });
 
   @override
@@ -61,10 +67,59 @@ class BookCard extends StatelessWidget {
 
     final headers = lib.mediaHeaders;
 
-    if (isWide) {
-      return _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit);
-    }
-    return _buildCompactCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
+    final card = isWide
+        ? _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit)
+        : _buildCompactCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
+    if (!selectionMode) return card;
+    // Selection sits on top of the finished card rather than inside both
+    // layouts: the overlay swallows the tap, so nothing below it can open a
+    // sheet while the shelf is being ticked through.
+    return Stack(
+      children: [
+        card,
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onSelectionToggle,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: selected
+                    ? Border.all(color: cs.primary, width: 3)
+                    : null,
+                color: selected
+                    ? cs.primary.withValues(alpha: 0.18)
+                    : Colors.transparent,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 6,
+          left: 6,
+          child: IgnorePointer(
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected
+                    ? cs.primary
+                    : Colors.black.withValues(alpha: 0.55),
+                border: Border.all(
+                  color: selected ? cs.primary : Colors.white70,
+                ),
+              ),
+              child: Icon(
+                selected ? Icons.check_rounded : Icons.circle_outlined,
+                size: 17,
+                color: selected ? cs.onPrimary : Colors.white70,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _navigateToDetail(BuildContext context) {

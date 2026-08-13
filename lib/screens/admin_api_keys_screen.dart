@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/overlay_toast.dart';
 
 class AdminApiKeysScreen extends StatefulWidget {
@@ -183,7 +184,8 @@ class _AdminApiKeysScreenState extends State<AdminApiKeysScreen> {
   }
 
   void _showEditor() {
-    showModalBottomSheet(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+    showAdaptiveActionMenu(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+      desktopWidth: 560, desktopScrollWrap: false,
       builder: (_) => _ApiKeyEditorSheet(users: widget.users, onCreated: _load));
   }
 
@@ -323,7 +325,8 @@ class _ApiKeyEditorSheetState extends State<_ApiKeyEditorSheet> {
     if (created != null && token != null) {
       widget.onCreated();
       Navigator.pop(context);
-      showModalBottomSheet(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+      showAdaptiveActionMenu(context: context, isScrollControlled: true, useSafeArea: true, backgroundColor: Colors.transparent,
+        desktopWidth: 560,
         builder: (_) => _ApiKeyCreatedSheet(name: name, token: token));
     } else {
       showOverlayToast(context, l.adminApiKeysFailedCreate, icon: Icons.error_outline_rounded);

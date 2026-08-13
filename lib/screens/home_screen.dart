@@ -10,6 +10,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../widgets/desktop_batch_actions.dart';
 import '../widgets/home_section.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/library_picker_sheet.dart';
@@ -41,6 +42,122 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
   final _player = AudioPlayerService();
   bool _hideEbookOnly = false;
   bool _rectangleCovers = false;
+
+  // ── Batch selection ──
+  bool _selectionMode = false;
+  bool _batchActionBusy = false;
+  final Set<String> _selectedItemIds = {};
+
+  void _resetSelectionState() {
+    _selectionMode = false;
+    _batchActionBusy = false;
+    _selectedItemIds.clear();
+  }
+
+  void _clearSelection() {
+    if (!_selectionMode && _selectedItemIds.isEmpty) return;
+    setState(_resetSelectionState);
+  }
+
+  void _toggleSelection(Map<String, dynamic> item) {
+    final itemId = item['id'] as String?;
+    if (itemId == null) return;
+    setState(() {
+      _selectionMode = true;
+      if (!_selectedItemIds.add(itemId)) _selectedItemIds.remove(itemId);
+    });
+  }
+
+  /// A shelf entity is only selectable when it resolves to a plain library
+  /// item: authors, series and episodes have no id the batch endpoints accept,
+  /// and a playlist row wraps the real item one level down.
+  Map<String, dynamic>? _selectableHomeItem(
+    dynamic entity, {
+    required String sectionType,
+  }) {
+    if (sectionType == 'author' ||
+        sectionType == 'authors' ||
+        sectionType == 'series' ||
+        sectionType == 'episode') {
+      return null;
+    }
+    if (entity is! Map<String, dynamic>) return null;
+    var item = entity;
+    if (sectionType == 'playlist') {
+      if (entity['episodeId'] != null) return null;
+      final nested = entity['libraryItem'];
+      if (nested is! Map<String, dynamic>) return null;
+      item = nested;
+    }
+    if (item['recentEpisode'] != null || item['id'] is! String) return null;
+    return item;
+  }
+
+  /// Every selectable item on screen, deduped: the same book can sit in
+  /// Continue Listening and in a shelf below it.
+  List<Map<String, dynamic>> _selectableHomeItems() {
+    final byId = <String, Map<String, dynamic>>{};
+    for (final item in _cachedClItems ?? const <dynamic>[]) {
+      final selectable = _selectableHomeItem(item, sectionType: 'book');
+      final id = selectable?['id'] as String?;
+      if (id != null) byId[id] = selectable!;
+    }
+    for (final section in _cachedSections ?? const <Map<String, dynamic>>[]) {
+      final id = section['id'] as String? ?? '';
+      if (id == 'continue-listening') continue;
+      final type = id.startsWith('playlist:')
+          ? 'playlist'
+          : id.startsWith('collection:')
+          ? 'collection'
+          : (section['type'] as String? ?? 'book');
+      final entities = _filterEbookOnly(
+        section['entities'] as List<dynamic>? ?? const [],
+        sectionType: section['type'] as String?,
+      );
+      for (final entity in entities) {
+        final selectable = _selectableHomeItem(entity, sectionType: type);
+        final itemId = selectable?['id'] as String?;
+        if (itemId != null) byId[itemId] = selectable!;
+      }
+    }
+    return byId.values.toList();
+  }
+
+  void _toggleSelectAll() {
+    final ids = _selectableHomeItems()
+        .map((item) => item['id'] as String)
+        .toSet();
+    setState(() {
+      _selectionMode = true;
+      if (ids.isNotEmpty && _selectedItemIds.containsAll(ids)) {
+        _selectedItemIds.removeAll(ids);
+      } else {
+        _selectedItemIds.addAll(ids);
+      }
+    });
+  }
+
+  Future<void> _runBatchAction(Future<bool?> Function() action) async {
+    if (_batchActionBusy) return;
+    final visibleIds = _selectableHomeItems()
+        .map((item) => item['id'] as String)
+        .toSet();
+    setState(() {
+      _selectedItemIds.retainAll(visibleIds);
+      if (_selectedItemIds.isEmpty) {
+        _resetSelectionState();
+      } else {
+        _batchActionBusy = true;
+      }
+    });
+    if (_selectedItemIds.isEmpty) return;
+    final success = await action();
+    if (!mounted) return;
+    setState(() {
+      _batchActionBusy = false;
+      if (success == true) _resetSelectionState();
+    });
+  }
 
   // ── Scroll-to-hide bars ──
   /// Continuous 0..1 reveal value the AppShell mirrors onto the bottom nav.
@@ -243,8 +360,63 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
       _refreshFilteredCache(lib);
     }
 
+    final auth = context.watch<AuthProvider>();
+    final selectionAvailable = !lib.isOffline;
+    if (!selectionAvailable && _selectionMode) _resetSelectionState();
+    // Only walked while selecting: this crosses every shelf, and home rebuilds
+    // far too often to pay for that when there is nothing selected.
+    final selectableItems = selectionAvailable && _selectionMode
+        ? _selectableHomeItems()
+        : const <Map<String, dynamic>>[];
+    // Shelves reshuffle as progress changes, so drop anything that is no
+    // longer on screen rather than acting on a book the user can't see.
+    if (_selectionMode) {
+      _selectedItemIds.retainAll(
+        selectableItems.map((item) => item['id'] as String).toSet(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: scaffoldBg,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: !(_selectionMode && selectionAvailable)
+          ? null
+          : DesktopBatchActionBar(
+              selectedCount: _selectedItemIds.length,
+              selectableCount: selectableItems.length,
+              busy: _batchActionBusy,
+              canQuickMatch: auth.isAdmin && !lib.isPodcastLibrary,
+              canMarkProgress: !lib.isPodcastLibrary,
+              canDelete: auth.canDelete,
+              onSelectAll: _toggleSelectAll,
+              onClear: _clearSelection,
+              onQuickMatch: () => _runBatchAction(
+                () => DesktopBatchActions.quickMatch(
+                  context,
+                  _selectedItemIds.toList(),
+                ),
+              ),
+              onMarkFinished: () => _runBatchAction(
+                () => DesktopBatchActions.setFinished(
+                  context,
+                  _selectedItemIds.toList(),
+                  isFinished: true,
+                ),
+              ),
+              onMarkUnfinished: () => _runBatchAction(
+                () => DesktopBatchActions.setFinished(
+                  context,
+                  _selectedItemIds.toList(),
+                  isFinished: false,
+                ),
+              ),
+              onDelete: () => _runBatchAction(
+                () => DesktopBatchActions.delete(
+                  context,
+                  _selectedItemIds.toList(),
+                ),
+              ),
+            ),
       body: Container(
         decoration: flatNotifier.value ? null : BoxDecoration(
           gradient: LinearGradient(
@@ -292,6 +464,24 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                       },
                     ),
                     actions: [
+                      if (selectionAvailable)
+                        Tooltip(
+                          message: _selectionMode
+                              ? l.downloadsCancelSelection
+                              : l.downloadsSelect,
+                          child: IconButton(
+                            onPressed: _batchActionBusy
+                                ? null
+                                : _selectionMode
+                                ? _clearSelection
+                                : () => setState(() => _selectionMode = true),
+                            icon: Icon(
+                              _selectionMode
+                                  ? Icons.close_rounded
+                                  : Icons.library_add_check_rounded,
+                            ),
+                          ),
+                        ),
                       if (allLibraries.length > 1)
                         Material(
                           color: cs.onSurface.withValues(alpha: 0.06),
@@ -506,6 +696,14 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                                   return RepaintBoundary(child: _ContinueListeningCard(
                                     item: item, lib: lib, player: _player,
                                     rectangleCovers: _rectangleCovers,
+                                    selectionMode: selectionAvailable && _selectionMode,
+                                    selected: _selectedItemIds
+                                        .contains(item['id'] as String?),
+                                    onSelectionToggle: selectionAvailable &&
+                                            item['recentEpisode'] == null &&
+                                            item['id'] is String
+                                        ? () => _toggleSelection(item)
+                                        : null,
                                   ));
                                 },
                               ),
@@ -568,8 +766,13 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                           entities: entities,
                           sectionType: type,
                           sectionId: id,
-                          onTitleTap: titleTap,
+                          onTitleTap: _selectionMode ? null : titleTap,
                           coverAspectRatio: _rectangleCovers ? 2 / 3 : 1.0,
+                          selectionMode: selectionAvailable && _selectionMode,
+                          selectedItemIds: _selectedItemIds,
+                          onSelectionToggle: selectionAvailable
+                              ? _toggleSelection
+                              : null,
                         ),
                       ),
                     ];
@@ -600,12 +803,18 @@ class _ContinueListeningCard extends StatefulWidget {
   final LibraryProvider lib;
   final AudioPlayerService player;
   final bool rectangleCovers;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback? onSelectionToggle;
 
   const _ContinueListeningCard({
     required this.item,
     required this.lib,
     required this.player,
     required this.rectangleCovers,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelectionToggle,
   });
 
   @override
@@ -809,7 +1018,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
       }
     }
 
-    return Material(
+    final card = Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
@@ -823,8 +1032,8 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
           ),
         ),
         child: InkWell(
-          onTap: resume,
-          onLongPress: openQuickActions,
+          onTap: widget.selectionMode ? widget.onSelectionToggle : resume,
+          onLongPress: widget.selectionMode ? null : openQuickActions,
           borderRadius: BorderRadius.circular(14),
           child: SizedBox(
             width: 150,
@@ -946,6 +1155,49 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
         ),
         ),
       ),
+    );
+
+    if (!widget.selectionMode) return card;
+    return Stack(
+      children: [
+        card,
+        Positioned(
+          top: 6,
+          left: 6,
+          child: IgnorePointer(
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.selected
+                    ? cs.primary
+                    : Colors.black.withValues(alpha: 0.55),
+                border: Border.all(
+                  color: widget.selected ? cs.primary : Colors.white70,
+                ),
+              ),
+              child: Icon(
+                widget.selected ? Icons.check_rounded : Icons.circle_outlined,
+                size: 17,
+                color: widget.selected ? cs.onPrimary : Colors.white70,
+              ),
+            ),
+          ),
+        ),
+        if (widget.selected)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: cs.primary, width: 3),
+                  color: cs.primary.withValues(alpha: 0.18),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

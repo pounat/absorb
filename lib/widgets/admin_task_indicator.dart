@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/server_task_tracker.dart';
+import 'adaptive_modal.dart';
 
 class AdminTaskIndicator extends StatelessWidget {
   static const indicatorKey = Key('admin-task-indicator');
@@ -82,11 +83,13 @@ Future<void> showAdminTasksSheet(
   BuildContext context,
   ServerTaskTracker tracker,
 ) {
-  return showModalBottomSheet<void>(
+  return showAdaptiveActionMenu<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
+    desktopWidth: 560,
+    desktopScrollWrap: false,
     builder: (sheetContext) => ListenableBuilder(
       listenable: tracker,
       builder: (_, __) => AdminTasksSheet(tasks: tracker.visibleTasks),

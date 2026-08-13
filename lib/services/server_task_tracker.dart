@@ -109,6 +109,8 @@ class ServerTaskTracker extends ChangeNotifier {
   final Set<String> _finishedTaskIds = {};
   var _eventRevision = 0;
   var _disposed = false;
+  Future<void>? _refreshInFlight;
+  ApiService? _refreshApi;
 
   ServerTaskTracker({SocketService? socketService})
     : _socketService = socketService ?? SocketService() {
@@ -142,6 +144,26 @@ class ServerTaskTracker extends ChangeNotifier {
   }
 
   Future<void> refresh(ApiService api) async {
+    final activeRefresh = _refreshInFlight;
+    if (activeRefresh != null) {
+      if (identical(api, _refreshApi)) return activeRefresh;
+      await activeRefresh;
+      return refresh(api);
+    }
+
+    late final Future<void> operation;
+    operation = _performRefresh(api).whenComplete(() {
+      if (identical(_refreshInFlight, operation)) {
+        _refreshInFlight = null;
+        _refreshApi = null;
+      }
+    });
+    _refreshApi = api;
+    _refreshInFlight = operation;
+    return operation;
+  }
+
+  Future<void> _performRefresh(ApiService api) async {
     if (_disposed) return;
     final revisionBeforeRequest = _eventRevision;
     final rawTasks = await api.getServerTasks();

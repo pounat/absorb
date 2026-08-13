@@ -40,6 +40,7 @@ class AdminUploadScreen extends StatefulWidget {
   final UploadPathChecker? pathChecker;
   final MediaUploader? uploader;
   final BookMetadataSearcher? metadataSearcher;
+  final VoidCallback? onNavigationGuardChanged;
 
   const AdminUploadScreen({
     super.key,
@@ -50,6 +51,7 @@ class AdminUploadScreen extends StatefulWidget {
     this.pathChecker,
     this.uploader,
     this.metadataSearcher,
+    this.onNavigationGuardChanged,
   });
 
   @override
@@ -508,6 +510,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
       _uploading = true;
       _progress = null;
     });
+    widget.onNavigationGuardChanged?.call();
 
     final pathResult = widget.pathChecker != null
         ? await widget.pathChecker!(request.directory, _folderPath)
@@ -518,11 +521,13 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
     if (!mounted) return;
     if (!pathResult.success) {
       setState(() => _uploading = false);
+      widget.onNavigationGuardChanged?.call();
       _showError(l.adminUploadPathCheckFailed);
       return;
     }
     if (pathResult.exists) {
       setState(() => _uploading = false);
+      widget.onNavigationGuardChanged?.call();
       final existingTitle = pathResult.libraryItemTitle;
       _showError(
         existingTitle == null || existingTitle.isEmpty
@@ -559,6 +564,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
         _files = [];
       }
     });
+    widget.onNavigationGuardChanged?.call();
 
     if (result.success) {
       showOverlayToast(
@@ -608,9 +614,11 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
+    return PopScope(
+      canPop: !_uploading,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: SafeArea(
         child: Column(
           children: [
             Padding(
@@ -710,6 +718,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
                     ),
             ),
           ],
+        ),
         ),
       ),
     );

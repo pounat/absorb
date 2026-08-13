@@ -128,7 +128,7 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
     final lib = context.read<LibraryProvider>();
     final auth = context.watch<AuthProvider>();
     final headers = lib.mediaHeaders;
-    final canEdit = auth.isAdmin && !lib.isOffline;
+    final canEdit = auth.canUpdateMetadata && !lib.isOffline;
 
     if (_isLoading) {
       return Column(

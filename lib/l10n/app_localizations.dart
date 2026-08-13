@@ -6400,6 +6400,12 @@ abstract class AppLocalizations {
   /// **'Switch library'**
   String get switchLibraryTooltip;
 
+  /// No description provided for @refreshTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refreshTooltip;
+
   /// No description provided for @noBooksFound.
   ///
   /// In en, this message translates to:
@@ -8437,6 +8443,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to update auto-download setting'**
   String get adminPodcastsFailedAutoDownloadUpdate;
+
+  /// No description provided for @adminPodcastsMaxEpisodesToKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Max episodes to keep'**
+  String get adminPodcastsMaxEpisodesToKeep;
+
+  /// No description provided for @adminPodcastsMaxEpisodesToKeepHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'0 keeps every episode. After a new episode is auto-downloaded, Audiobookshelf removes the oldest episode when the show is over this limit.'**
+  String get adminPodcastsMaxEpisodesToKeepHelp;
+
+  /// No description provided for @adminPodcastsNoEpisodeLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'No limit'**
+  String get adminPodcastsNoEpisodeLimit;
+
+  /// No description provided for @adminPodcastsEpisodeLimitInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter 0 or a whole number'**
+  String get adminPodcastsEpisodeLimitInvalid;
 
   /// No description provided for @adminPodcastsCheckSchedule.
   ///
