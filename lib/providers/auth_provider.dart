@@ -775,9 +775,12 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
-      if (_accessToken != null) await prefs.setString('token', _accessToken!);
+      // Refresh token first: a crash between the two writes then leaves the old
+      // access token beside the NEW refresh token, which recovers itself. The
+      // other order is the one that strands a spent refresh token.
       if (_refreshToken != null)
         await prefs.setString('refresh_token', _refreshToken!);
+      if (_accessToken != null) await prefs.setString('token', _accessToken!);
       if (_username != null) await prefs.setString('username', _username!);
       if (_userId != null) await prefs.setString('user_id', _userId!);
       if (_defaultLibraryId != null) {
@@ -978,9 +981,12 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
-      if (_accessToken != null) await prefs.setString('token', _accessToken!);
+      // Refresh token first: a crash between the two writes then leaves the old
+      // access token beside the NEW refresh token, which recovers itself. The
+      // other order is the one that strands a spent refresh token.
       if (_refreshToken != null)
         await prefs.setString('refresh_token', _refreshToken!);
+      if (_accessToken != null) await prefs.setString('token', _accessToken!);
       if (_username != null) await prefs.setString('username', _username!);
       if (_userId != null) await prefs.setString('user_id', _userId!);
       if (_defaultLibraryId != null) {
@@ -1317,12 +1323,13 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
-      if (_accessToken != null) await prefs.setString('token', _accessToken!);
+      // Refresh token first, for the same reason as the other persist sites.
       if (_refreshToken != null) {
         await prefs.setString('refresh_token', _refreshToken!);
       } else {
         await prefs.remove('refresh_token');
       }
+      if (_accessToken != null) await prefs.setString('token', _accessToken!);
       if (_username != null) await prefs.setString('username', _username!);
       if (_userId != null) {
         await prefs.setString('user_id', _userId!);
