@@ -3193,6 +3193,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get coverImage => '封面图片';
 
   @override
+  String get coverRemove => 'Remove cover';
+
+  @override
+  String get coverRemoveConfirm =>
+      'Remove this book\'s cover? It will show the generated title card instead.';
+
+  @override
+  String get coverRemoved => 'Cover removed';
+
+  @override
+  String get coverRemoveFailed => 'Could not remove the cover';
+
+  @override
   String get coverUrlLabel => '封面 URL';
 
   @override

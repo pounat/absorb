@@ -660,6 +660,55 @@ class _MetadataEditViewState extends State<MetadataEditView>
     }
   }
 
+  /// Clear the cover entirely, so the book falls back to the generated
+  /// title card. Every other control here replaces one cover with another;
+  /// there was no way to end up with none.
+  Future<void> _removeCover() async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.coverRemove),
+        content: Text(l.coverRemoveConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.remove),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    setState(() => _saving = true);
+    final ok = await api.removeItemCover(widget.itemId);
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      if (ok) {
+        _coverVersion++;
+        _coverFilePath = null;
+        _coverUrlCtrl.clear();
+      }
+    });
+    if (ok) {
+      // The grid reads has-cover from the item payload, so refresh rather than
+      // leaving stale art behind on the shelves.
+      context.read<LibraryProvider>().refresh();
+    }
+    showOverlayToast(
+      context,
+      ok ? l.coverRemoved : l.coverRemoveFailed,
+      icon: ok ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
+    );
+  }
+
   String _safeString(dynamic value) {
     if (value == null) return '';
     if (value is String) return value;
@@ -1546,6 +1595,16 @@ class _MetadataEditViewState extends State<MetadataEditView>
                 ),
               ),
             ),
+            if (base.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: _saving ? null : _removeCover,
+                  icon: Icon(Icons.hide_image_outlined, size: 18, color: cs.error),
+                  label: Text(l.coverRemove, style: TextStyle(color: cs.error)),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Text(l.coverImage, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
