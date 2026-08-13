@@ -193,8 +193,13 @@ class UserAccountService {
   /// beside the PREVIOUS refresh token is a dead session: the stored refresh
   /// token has already been spent and every later refresh 401s, with no way
   /// back short of a re-login. That is exactly what happened on 2026-08-13.
-  /// So the pair is written together or not at all, and the write is read back
-  /// before it is called a success.
+  ///
+  /// SharedPreferences has no multi-key transaction, so the two keys are
+  /// written in the order that makes a crash between them survivable: refresh
+  /// FIRST. Dying after it leaves the old access token beside the NEW refresh
+  /// token, which self-heals - the stale access token 401s and the refresh
+  /// succeeds. The other order is the unrecoverable one. The write is also read
+  /// back before it is called a success.
   Future<bool> persistRefreshedTokens(
     String accessToken,
     String? refreshToken, {
@@ -224,8 +229,8 @@ class UserAccountService {
       );
       return false;
     }
-    await prefs.setString('token', accessToken);
     if (refreshToken != null) await prefs.setString('refresh_token', refreshToken);
+    await prefs.setString('token', accessToken);
     if (username != null) {
       if (_accounts.isEmpty) await init();
       await updateTokens(serverUrl, username, accessToken, refreshToken: refreshToken);

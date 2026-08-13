@@ -447,10 +447,89 @@ class ApiService {
     }
   }
 
-  /// Make an authenticated GET request, retrying once on 401 with a refreshed token.
-  Future<http.Response> _authGet(Uri url, {Map<String, String>? headers, Duration timeout = const Duration(seconds: 15)}) async {
+  /// Seconds of headroom before the access token's own expiry at which we stop
+  /// trusting it. Generous because a slow request that starts valid can still
+  /// arrive expired.
+  static const _accessTokenSkew = Duration(seconds: 60);
 
-    final h = headers ?? _headers;
+  /// Expiry stamped in the access token, or null when it can't be read
+  /// (legacy static tokens, opaque tokens, malformed payloads).
+  DateTime? get _accessTokenExpiry {
+    final parts = _accessToken.split('.');
+    if (parts.length != 3) return null;
+    try {
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      if (payload is! Map) return null;
+      final exp = payload['exp'];
+      if (exp is! int) return null;
+      return DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Suppresses the pre-flight after a refresh that couldn't reach the server.
+  /// Static because callers construct a fresh ApiService per use.
+  static DateTime? _preflightCooldownUntil;
+  static const _preflightCooldown = Duration(minutes: 2);
+
+  /// Static state outlives a single test, so a test that trips the cooldown
+  /// would otherwise silently disable the pre-flight for whatever runs next.
+  @visibleForTesting
+  static void resetPreflightCooldown() => _preflightCooldownUntil = null;
+
+  /// Refresh BEFORE spending a known-expired access token, rather than firing
+  /// the request, taking a 401, and recovering afterwards.
+  ///
+  /// Reactive-only refresh means every parallel call that happens to fall after
+  /// expiry races into its own recovery - four concurrent refreshes inside one
+  /// second showed up in the 2026-08-13 logout log - and it widens the window
+  /// in which a rotation can be lost. The server's grace period for a spent
+  /// refresh token is only ten minutes, so noticing early matters.
+  ///
+  /// The cooldown is what keeps this from being worse than the old behaviour
+  /// when the server is routable but not answering (LAN-only server, away from
+  /// home): without it every call would spend two 15s refresh timeouts, holding
+  /// the token mutation lock, before its own request even started - so a
+  /// handful of queued calls turn into minutes. After one unreachable attempt
+  /// we go back to letting the request itself fail.
+  Future<void> _ensureFreshAccessToken() async {
+    if (_isLegacyToken || _refreshToken == null) return;
+    final cooldownUntil = _preflightCooldownUntil;
+    if (cooldownUntil != null && DateTime.now().isBefore(cooldownUntil)) return;
+    final expiry = _accessTokenExpiry;
+    if (expiry == null) return;
+    if (DateTime.now().add(_accessTokenSkew).isBefore(expiry)) return;
+    final outcome = await _refreshAccessToken();
+    switch (outcome) {
+      case _RefreshOutcome.refreshed:
+        _preflightCooldownUntil = null;
+      case _RefreshOutcome.rejected:
+        _preflightCooldownUntil = null;
+        onAuthExpired?.call();
+      case _RefreshOutcome.transientFailure:
+        _preflightCooldownUntil = DateTime.now().add(_preflightCooldown);
+        debugPrint(
+          '[API] Pre-flight refresh could not reach the server - '
+          'falling back to on-401 refresh for '
+          '${_preflightCooldown.inMinutes}m',
+        );
+    }
+  }
+
+  /// Make an authenticated GET request, retrying once on 401 with a refreshed token.
+  ///
+  /// [sendRefreshTokenHeader] adds `x-refresh-token` from whatever the current
+  /// pair is once the pre-flight has run, rather than from a value the caller
+  /// captured earlier.
+  Future<http.Response> _authGet(Uri url, {Map<String, String>? headers, bool sendRefreshTokenHeader = false, Duration timeout = const Duration(seconds: 15)}) async {
+    await _ensureFreshAccessToken();
+    var h = headers ?? _headers;
+    if (sendRefreshTokenHeader && _refreshToken != null) {
+      h = {...h, 'x-refresh-token': _refreshToken!};
+    }
     var response = await _get(url, headers: h).timeout(timeout);
     if (response.statusCode == 401) {
       debugPrint('[API] 401 on GET ${url.path} - isLegacy=$_isLegacyToken, hasRefresh=${_refreshToken != null}, tokenLen=${_accessToken.length}');
@@ -473,7 +552,7 @@ class ApiService {
 
   /// Make an authenticated POST request, retrying once on 401 with a refreshed token.
   Future<http.Response> _authPost(Uri url, {Map<String, String>? headers, Object? body, Duration timeout = const Duration(seconds: 15)}) async {
-
+    await _ensureFreshAccessToken();
     final h = headers ?? _headers;
     var response = await _post(url, headers: h, body: body).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
@@ -490,6 +569,7 @@ class ApiService {
 
   /// Make an authenticated PATCH request, retrying once on 401 with a refreshed token.
   Future<http.Response> _authPatch(Uri url, {Map<String, String>? headers, Object? body, Duration timeout = const Duration(seconds: 15)}) async {
+    await _ensureFreshAccessToken();
     final h = headers ?? _headers;
     var response = await _patch(url, headers: h, body: body).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
@@ -506,6 +586,7 @@ class ApiService {
 
   /// Make an authenticated DELETE request, retrying once on 401 with a refreshed token.
   Future<http.Response> _authDelete(Uri url, {Map<String, String>? headers, Duration timeout = const Duration(seconds: 15)}) async {
+    await _ensureFreshAccessToken();
     final h = headers ?? _headers;
     var response = await _delete(url, headers: h).timeout(timeout);
     if (response.statusCode == 401 && !_isLegacyToken) {
@@ -947,13 +1028,12 @@ class ApiService {
 
   Future<AuthSessionsResult> getAuthSessions({int page = 0, int itemsPerPage = 20}) async {
     try {
-      final refreshToken = _refreshToken;
+      // Headers are built by _authGet AFTER its pre-flight refresh, so this
+      // can't be snapshotted here - a rotation would leave both the Bearer and
+      // the x-refresh-token stale, guaranteeing a 401 and a second rotation.
       final response = await _authGet(
         Uri.parse('$_cleanBaseUrl/api/me/sessions?page=$page&itemsPerPage=$itemsPerPage'),
-        headers: {
-          ..._headers,
-          if (refreshToken != null) 'x-refresh-token': refreshToken,
-        },
+        sendRefreshTokenHeader: true,
         timeout: const Duration(seconds: 10));
       if (response.statusCode == 404) {
         return const AuthSessionsResult(AuthSessionsStatus.unsupported);
@@ -2722,8 +2802,7 @@ class ApiService {
   /// Get all users (admin only)
   Future<List<dynamic>> getUsers() async {
     try {
-      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/users'), headers: _headers)
-          ;
+      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/users'));
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
         if (data is List) return data;
@@ -2743,8 +2822,7 @@ class ApiService {
   /// Get online users (admin only)
   Future<List<dynamic>> getOnlineUsers() async {
     try {
-      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/users/online'), headers: _headers)
-          ;
+      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/users/online'));
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
         if (data is Map && data['usersOnline'] is List) return data['usersOnline'] as List<dynamic>;
@@ -2802,8 +2880,7 @@ class ApiService {
   /// Get all backups (admin only)
   Future<List<dynamic>> getBackups() async {
     try {
-      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/backups'), headers: _headers)
-          ;
+      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/backups'));
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
         return (data['backups'] as List<dynamic>?) ?? [];
