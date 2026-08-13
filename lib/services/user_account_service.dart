@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/server_url.dart';
+import 'api_service.dart';
 import 'auth_tokens.dart';
 
 /// Represents a saved user account (server + credentials).
@@ -185,7 +186,16 @@ class UserAccountService {
   /// single-use - so a refresh whose result is only kept in memory strands
   /// the on-disk session with an expired access token and a consumed refresh
   /// token, and the next app launch can't sign in.
-  Future<void> persistRefreshedTokens(
+  /// Persist a rotated token pair. Returns whether the pair actually reached
+  /// storage.
+  ///
+  /// The server rotates refresh tokens single-use, so a new access token stored
+  /// beside the PREVIOUS refresh token is a dead session: the stored refresh
+  /// token has already been spent and every later refresh 401s, with no way
+  /// back short of a re-login. That is exactly what happened on 2026-08-13.
+  /// So the pair is written together or not at all, and the write is read back
+  /// before it is called a success.
+  Future<bool> persistRefreshedTokens(
     String accessToken,
     String? refreshToken, {
     required String serverUrl,
@@ -198,7 +208,21 @@ class UserAccountService {
     if (activeServer == null ||
         normalizeServerUrl(activeServer) != normalizeServerUrl(serverUrl) ||
         activeUsername != username) {
-      return;
+      debugPrint(
+        '[Accounts] Not persisting rotated tokens: active session is '
+        '${activeServer == null ? "(none)" : "$activeUsername@$activeServer"}, '
+        'rotation was for $username@$serverUrl',
+      );
+      return false;
+    }
+    // Half a pair is worse than none: keep the old, still-valid pair rather
+    // than pairing a fresh access token with a spent refresh token.
+    if (refreshToken == null && prefs.getString('refresh_token') != null) {
+      debugPrint(
+        '[Accounts] Not persisting rotated tokens: response carried no refresh '
+        'token and storage already holds one - refusing to store half a pair',
+      );
+      return false;
     }
     await prefs.setString('token', accessToken);
     if (refreshToken != null) await prefs.setString('refresh_token', refreshToken);
@@ -206,6 +230,24 @@ class UserAccountService {
       if (_accounts.isEmpty) await init();
       await updateTokens(serverUrl, username, accessToken, refreshToken: refreshToken);
     }
+    // Read back: another isolate holding stale state can clobber these keys
+    // between the write and the next launch, and the failure is silent until
+    // the session is already dead.
+    await prefs.reload();
+    final storedAccess = prefs.getString('token');
+    final storedRefresh = prefs.getString('refresh_token');
+    if (storedAccess != accessToken ||
+        (refreshToken != null && storedRefresh != refreshToken)) {
+      debugPrint(
+        '[Accounts] Rotated tokens did NOT survive the write: '
+        'wrote access=${ApiService.tokenFp(accessToken)} '
+        'refresh=${ApiService.tokenFp(refreshToken)}, '
+        'read back access=${ApiService.tokenFp(storedAccess)} '
+        'refresh=${ApiService.tokenFp(storedRefresh)}',
+      );
+      return false;
+    }
+    return true;
   }
 
   /// Reload the active session from disk. SharedPreferences keeps an
