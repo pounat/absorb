@@ -785,6 +785,7 @@
   "speedBookmarkOffSubtitle": "Désactivé - la notification montre le saut de chapitre, la vitesse et le signet restent dans Android Auto",
   "lockSeekBar": "Verrouiller la barre de lecture",
   "lockSeekBarOnSubtitle": "Activé - la barre dans la notification, l'écran de verrouillage et le mode voiture montre la progression mais ne peut pas être déplacée",
+  "lockSeekBarOffSubtitle": "Désactivé - faites glisser le curseur dans la notification, l'écran de verrouillage et le mode voiture pour vous déplacer ",
   "autoRewindOnResume": "Rembobiner lors de la reprise",
   "autoRewindOnSubtitle": "Activé - {min}s à {max}s en fonction de la longueur de la pause",
   "@autoRewindOnSubtitle": {
@@ -1393,6 +1394,7 @@
       }
     }
   },
+  "markAsFullyAbsorbedContent": "Cela définira votre progression à 100% et arrêtera la lecture si ce livre est en cours de lecture.",
   "unmark": "Désélectionner",
   "resetProgressQuestion": "Réinitialiser la progression ?",
   "resetProgressContent": "Ceci effacera toute la progression de ce livre et le réinitialisera au début. Cela ne peut pas être annulé.",
@@ -1915,6 +1917,14 @@
   },
   "adminPodcastsAdding": "Ajout en cours…",
   "adminPodcastsAddToLibrary": "Ajouter à la bibliothèque",
+  "adminPodcastsRemoveShowContent": "Supprimer «{title}» et tous ses épisodes du serveur? Cette action est irréversible.",
+  "@adminPodcastsRemoveShowContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "adminPodcastsSelectMultipleTooltip": "Sélection multiple",
   "adminPodcastsTabDownloaded": "Téléchargé",
   "adminPodcastsTabSettings": "Paramètres",
@@ -1964,6 +1974,7 @@
     }
   },
   "adminPodcastsCheckAndDownload": "Vérifier & Télécharger",
+  "adminPodcastsMaxEpisodesToKeepHelp": "0 conserve tous les épisodes. Après le téléchargement automatique d'un nouvel épisode, Audiobookshelf supprime l'épisode le plus ancien lorsque la série dépasse cette limite.",
   "adminPodcastsFrequency": "Fréquence",
   "adminPodcastsFreqHourly": "Toutes les heures",
   "adminPodcastsFreqDaily": "Quotidiennement",
@@ -2225,6 +2236,14 @@
   "statsScreenMonthDec": "Déc",
   "upcomingReleasesTitle": "Sorties à venir",
   "upcomingReleasesRescanTitle": "Rescanner ?",
+  "upcomingReleasesRescanContent": "Ces résultats sont vieux de {days} jours. Les dates de parution ont pu changer - voulez-vous scanner de nouveau ?",
+  "@upcomingReleasesRescanContent": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesNotNow": "Plus tard",
   "upcomingReleasesRescanning": "Nouvelle analyse...",
   "upcomingReleasesUpdatedWithDate": "Mis à jour - {date}",
@@ -2571,6 +2590,7 @@
       }
     }
   },
+  "chapterAudibleLonger": "La version Audible est plus longue que votre fichier - les chapitres suivants peuvent ne pas s'aligner.",
   "chapterAudibleShorter": "La version Audible est plus courte que votre fichier - les chapitres peuvent ne pas s'aligner.",
   "coverSearchTitle": "Rechercher une couverture",
   "coverSearchRefineHint": "Affinez le titre/auteur pour nettoyer les résultats - cela ne change pas le livre.",
@@ -2689,6 +2709,7 @@
   "adminUploadChooseFiles": "Choisir les fichiers",
   "adminUploadAddFiles": "Ajouter des fichiers",
   "adminUploadBookFilesHint": "Choisissez des fichiers audio ou ebook. Vous pouvez également inclure des fichiers de couvertures et de métadonnées.",
+  "adminUploadPodcastFilesHint": "Choisissez un ou plusieurs fichiers audio. Vous pouvez également inclure des pochettes et des fichiers de métadonnées.",
   "adminUploadTitleRequired": "Entrez un titre",
   "adminUploadLibraryRequired": "Choisir une bibliothèque",
   "adminUploadUploading": "Envoi...",
