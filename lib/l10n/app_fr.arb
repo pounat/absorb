@@ -1167,6 +1167,15 @@
     }
   },
   "editServerAddressField": "Adresse du serveur",
+  "editServerConnectionSubtitle": "Mettre à jour l'adresse du serveur et les en-têtes personnalisés pour {username}. Vos statistiques et vos téléchargements sont conservés.",
+  "@editServerConnectionSubtitle": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "editCustomHeadersDescription": "Utilisé pour les tunnels Cloudflare ou les proxy inversés. Ces en-têtes ne s'appliquent qu'à ce compte enregistré.",
   "removeAccountAction": "Supprimer le compte",
   "removeAccountTitle": "Supprimer le compte ?",
   "removeAccountContent": "Supprimer {username} sur {server} des comptes enregistrés ?\n\nVous pouvez toujours l'ajouter plus tard en vous connectant à nouveau.",
@@ -1346,6 +1355,7 @@
       }
     }
   },
+  "encodeRescanNote": "Si vous avez désactivé l'observateur, vous devrez scanner à nouveau ce livre audio.",
   "aboutSection": "À propos",
   "chaptersCount": "Chapitres ({count})",
   "@chaptersCount": {
@@ -1387,6 +1397,7 @@
   "resetProgressQuestion": "Réinitialiser la progression ?",
   "resetProgressContent": "Ceci effacera toute la progression de ce livre et le réinitialisera au début. Cela ne peut pas être annulé.",
   "clearLocalMetadataQuestion": "Effacer les métadonnées locales ?",
+  "clearLocalMetadataContent": "Cela supprimera les métadonnées stockées localement et réutilisera ce que le serveur possède.",
   "localMetadataCleared": "Métadonnées locales effacées",
   "saveEbook": "Enregistrer l'eBook",
   "bookmark": "Signet",
@@ -1465,6 +1476,7 @@
   "skipSilence": "Sauter les silences",
   "resetAll": "Tout réinitialiser",
   "deleteCollection": "Supprimer la collection",
+  "deletePermissionRequired": "La permission de suppression est requise. Demandez à l'administrateur root de vous accorder la permission de suppression.",
   "deletePlaylist": "Supprimer la liste de lecture",
   "newPlaylist": "Nouvelle liste de lecture",
   "playlistNameHint": "Nom de la liste de lecture",
@@ -1535,6 +1547,7 @@
   "cardBackgroundGradient": "Dégradé",
   "queueModeSeriesLabel": "Séries",
   "queueModeInfoSeries": "Séries",
+  "queueModeInfoSeriesDesc": "Joue automatiquement le livre suivant dans une série ou le prochain épisode dans une série de podcasts.",
   "reset": "Réinitialiser",
   "buttonGridReset": "Réinitialiser la grille de boutons",
   "resetButtonGrid": "Réinitialiser la grille de boutons",
@@ -1614,6 +1627,7 @@
   "checkForUpdate": "Rechercher les mises à jour",
   "updateAvailable": "Mise à jour disponible",
   "downloadButton": "Télécharger",
+  "updateInstallPermissionDenied": "Autorisation d'installation refusée. Activez \"Installer des applications inconnues\" pour Absorb dans les paramètres du système.",
   "sendToEreader": "Envoyer vers l'E-Reader",
   "sendingToEreader": "Envoi à {device}...",
   "@sendingToEreader": {
@@ -2183,6 +2197,7 @@
   "statsViewSessions": "Voir les sessions",
   "statsSearchSessions": "Sessions de recherche",
   "sessionDeleteConfirmTitle": "Supprimer la session ?",
+  "sessionDeleteConfirmBody": "Cela supprime la session et réduit vos totaux d'écoute de sa durée. Cela ne peut pas être annulé.",
   "sessionSaved": "Session mise à jour",
   "sessionDeleted": "Session supprimée",
   "statsScreenStarted": "Commencé",
@@ -2369,11 +2384,13 @@
   "tipsSheetCoverPlayPauseTitle": "Lecture/pause sur la couverture",
   "tipsSheetCoverPlayPauseDesc": "Appuyez sur la pochette de n'importe quelle carte pour jouer ou mettre en pause. Activez ceci dans Réglages sous Cartes d'Absorption. Une icône de pause pâle apparaît lors de la lecture pour que vous sachiez qu'elle est tappable.",
   "tipsSheetFullScreenPlayerTitle": "Lecteur plein écran",
+  "tipsSheetFullScreenPlayerDesc": "Glissez vers le haut sur n'importe quelle carte d'absorption pour ouvrir le lecteur en plein écran. Glissez vers le bas pour le refermer.",
   "tipsSheetQuickAddAbsorbingDesc": "Glissez à droite sur n'importe quel livre dans une page de liste (séries, auteur, résultats de recherche) pour l'ajouter instantanément à votre file d'attente.",
   "tipsSheetShakeExtendSleepDesc": "Si vous avez un minuteur de sommeil en cours et que vous secouez votre téléphone, cela ajoutera des minutes supplémentaires. Configurez la quantité dans les paramètres sous Minuterie de sommeil.",
   "tipsSheetSeriesNavigationDesc": "Appuyez sur le nom de la série dans la popup de détails de n'importe quel livre pour voir tous les livres de la série, trié en ordre de lecture avec des badges séquentiels sur chaque couverture.",
   "tipsSheetSwipeBetweenBooksDesc": "Glissez vers la gauche et la droite sur l'écran Absorbing pour basculer entre vos livres en cours. Avec le mode file d'attente manuelle activée, les cartes agissent également comme une file d'attente, de sorte que la prochaine jouera automatiquement lorsque la carte actuelle se terminera.",
   "tipsSheetTapToSeekDesc": "Tapotez n'importe où sur la barre de progression du chapitre ou du livre pour passer directement à cette position. Vous pouvez également faire glisser les barres pour un contrôle précis.",
+  "tipsSheetSpeedAdjustedTimeDesc": "Toutes les durées affichées - position, chapitres, signets - s'ajustent à votre vitesse de lecture. Vous écoutez à 1,5x ? Les durées montrées reflètent combien de temps ils vous prendront effectivement.",
   "tipsSheetPlaybackHistoryTitle": "Historique de lecture",
   "tipsSheetPlaybackHistoryDesc": "Appuyez sur le bouton Historique de n'importe quelle carte pour voir une chronologie de chaque lecture, pause, recherche et changement de vitesse. Appuyez sur n'importe quel événement pour revenir à cette position.",
   "tipsSheetAutoRewindDesc": "Lorsque vous redémarrez après une pause, Absorb revient en arrière automatiquement de quelques secondes pour ne pas perdre votre place. La durée du retour varie avec le temps d'absence. Configurez-le dans les paramètres.",
@@ -2387,6 +2404,7 @@
   "tipsSheetAutoSleepWindowDesc": "Choisissez les heures où vous vous endormez habituellement et le minuteur de sommeil se déclenchera quand vous commencerez à écouter dans cette plage.",
   "tipsSheetSleepFadeChimeDesc": "Quand le minuteur de sommeil se termine, l'audio s'estompe graduellement et une cloche optionnelle joue pour qu'il ne coupe pas au milieu d'une phrase.",
   "tipsSheetCarModeTitle": "Mode voiture",
+  "tipsSheetCarModeDesc": "Appuyez sur l'icône de la voiture pour passer en mode bouton géant conçu pour une utilisation plus sûre pendant la conduite.",
   "tipsSheetAudibleSeriesDesc": "Ouvrez une série et utilisez le menu de débordement (les trois points) pour récupérer la liste complète des séries d'Audible, y compris les entrées manquantes et les livres que vous n'avez pas commencés.",
   "bookCardUnknownTitle": "Titre inconnu",
   "bookCardExplicitBadge": "E",
