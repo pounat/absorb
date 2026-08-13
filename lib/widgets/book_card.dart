@@ -225,6 +225,8 @@ class BookCard extends StatelessWidget {
                     cs: cs,
                     fit: BoxFit.contain,
                     httpHeaders: headers,
+                    title: title,
+                    author: authorName,
                   ),
                   if (isExplicit)
                     Positioned(
@@ -381,6 +383,8 @@ class BookCard extends StatelessWidget {
                     cs: cs,
                     httpHeaders: headers,
                     coverAspectRatio: coverAspectRatio,
+                    title: title,
+                    author: authorName,
                   ),
                   if (progress > 0 && !isFinished)
                     Positioned(
@@ -499,6 +503,8 @@ class _CoverImage extends StatelessWidget {
   final BoxFit fit;
   final Map<String, String> httpHeaders;
   final double coverAspectRatio;
+  final String? title;
+  final String? author;
 
   const _CoverImage({
     required this.coverUrl,
@@ -506,6 +512,8 @@ class _CoverImage extends StatelessWidget {
     this.fit = BoxFit.cover,
     this.httpHeaders = const {},
     this.coverAspectRatio = 1.0,
+    this.title,
+    this.author,
   });
 
   @override
@@ -556,18 +564,10 @@ class _CoverImage extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() {
-    return Container(
-      color: cs.surfaceContainerHighest,
-      child: Center(
-        child: Icon(
-          Icons.headphones_rounded,
-          size: 32,
-          color: cs.onSurfaceVariant.withValues(alpha: 0.4),
-        ),
-      ),
-    );
-  }
+  /// Home shelves used to show a bare headphones icon here while the library
+  /// grid showed the generated title card, so the same coverless book looked
+  /// different depending on the screen. One placeholder everywhere now.
+  Widget _placeholder() => CoverPlaceholder(title: title, author: author);
 }
 
 /// Pressable wrapper that scales down slightly on tap for tactile feedback.

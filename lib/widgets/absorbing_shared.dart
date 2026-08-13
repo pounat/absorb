@@ -96,32 +96,59 @@ class CoverPlaceholder extends StatelessWidget {
         ),
       ),
       child: hasText
-          ? Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.auto_stories_rounded, size: 28,
-                      color: cs.onPrimaryContainer.withValues(alpha: 0.4)),
-                  const SizedBox(height: 8),
-                  Flexible(
-                    child: Text(title!, textAlign: TextAlign.center, maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                            height: 1.2, color: cs.onPrimaryContainer)),
-                  ),
-                  if (author != null && author!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Flexible(
-                      child: Text(author!, textAlign: TextAlign.center, maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11,
-                              color: cs.onPrimaryContainer.withValues(alpha: 0.7))),
+          // Fixed sizes used to lose most of the title: on a small grid tile,
+          // or with the system font scaled up, the 28px icon and 13/11pt text
+          // ate the box and the title clipped to a word or two. Everything
+          // below is derived from the actual tile size, and the text scaler is
+          // capped so accessibility zoom can't push it back out of bounds.
+          ? LayoutBuilder(
+              builder: (context, constraints) {
+                final w = constraints.maxWidth;
+                final h = constraints.maxHeight;
+                final short = w < h ? w : h;
+                final pad = (short * 0.08).clamp(4.0, 12.0);
+                final titleSize = (short * 0.11).clamp(9.0, 16.0);
+                final authorSize = (titleSize * 0.8).clamp(8.0, 13.0);
+                // Tiny tiles are better off with just the words on them.
+                final showIcon = h > 110;
+                final iconSize = (short * 0.18).clamp(14.0, 28.0);
+                return MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: 1.2,
+                  child: Padding(
+                    padding: EdgeInsets.all(pad),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showIcon) ...[
+                          Icon(Icons.auto_stories_rounded, size: iconSize,
+                              color: cs.onPrimaryContainer.withValues(alpha: 0.4)),
+                          SizedBox(height: pad * 0.6),
+                        ],
+                        Flexible(
+                          child: Text(title!, textAlign: TextAlign.center,
+                              maxLines: h < 90 ? 2 : 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: titleSize,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.15, color: cs.onPrimaryContainer)),
+                        ),
+                        if (author != null && author!.isNotEmpty && h > 70) ...[
+                          SizedBox(height: pad * 0.35),
+                          Flexible(
+                            child: Text(author!, textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: authorSize,
+                                    height: 1.15,
+                                    color: cs.onPrimaryContainer.withValues(alpha: 0.7))),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
-              ),
+                  ),
+                );
+              },
             )
           : Center(child: Icon(Icons.auto_stories_rounded, size: 48,
               color: cs.onPrimaryContainer.withValues(alpha: 0.3))),
