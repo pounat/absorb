@@ -5926,6 +5926,30 @@ abstract class AppLocalizations {
   /// **'Cover Image'**
   String get coverImage;
 
+  /// No description provided for @coverRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove cover'**
+  String get coverRemove;
+
+  /// No description provided for @coverRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this book\'s cover? It will show the generated title card instead.'**
+  String get coverRemoveConfirm;
+
+  /// No description provided for @coverRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover removed'**
+  String get coverRemoved;
+
+  /// No description provided for @coverRemoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove the cover'**
+  String get coverRemoveFailed;
+
   /// No description provided for @coverUrlLabel.
   ///
   /// In en, this message translates to:

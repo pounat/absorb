@@ -3248,6 +3248,19 @@ class AppLocalizationsNo extends AppLocalizations {
   String get coverImage => 'Cover Image';
 
   @override
+  String get coverRemove => 'Remove cover';
+
+  @override
+  String get coverRemoveConfirm =>
+      'Remove this book\'s cover? It will show the generated title card instead.';
+
+  @override
+  String get coverRemoved => 'Cover removed';
+
+  @override
+  String get coverRemoveFailed => 'Could not remove the cover';
+
+  @override
   String get coverUrlLabel => 'Cover URL';
 
   @override

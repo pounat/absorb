@@ -3532,6 +3532,19 @@ class ApiService {
     return false;
   }
 
+  /// Remove a library item's cover, leaving it with none (admin only).
+  /// DELETE /api/items/:id/cover
+  Future<bool> removeItemCover(String itemId) async {
+    try {
+      final r = await _authDelete(
+        Uri.parse('$_cleanBaseUrl/api/items/$itemId/cover'),
+        timeout: const Duration(seconds: 30));
+      debugPrint('[API] removeItemCover $itemId -> ${r.statusCode}');
+      return r.statusCode == 200;
+    } catch (e) { debugPrint('removeItemCover error: $e'); }
+    return false;
+  }
+
   /// Upload a cover image file for a library item (admin only)
   Future<bool> uploadItemCover(String itemId, String filePath) async {
     try {
