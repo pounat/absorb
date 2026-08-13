@@ -283,36 +283,55 @@ class AuthProvider extends ChangeNotifier {
         _username == username;
   }
 
-  Future<void> _onTokensRefreshed(
+  Future<bool> _onTokensRefreshed(
     String sessionServer,
     String? sessionUsername,
     String newAccessToken,
     String? newRefreshToken,
   ) async {
-    if (!_isCurrentSession(sessionServer, sessionUsername) ||
-        _accessToken == null) {
-      return;
+    // These used to return silently, so a rotation that was never stored looked
+    // identical in the log to one that was. Say which guard stopped it.
+    if (!_isCurrentSession(sessionServer, sessionUsername)) {
+      debugPrint(
+        '[Auth] Dropping rotated tokens: they belong to '
+        '$sessionUsername@$sessionServer, current session is $_username@$_serverUrl',
+      );
+      return false;
+    }
+    if (_accessToken == null) {
+      debugPrint('[Auth] Dropping rotated tokens: no access token in memory');
+      return false;
     }
     final refreshUnchanged =
         newRefreshToken == null || newRefreshToken == _refreshToken;
-    if (_accessToken == newAccessToken && refreshUnchanged) return;
+    if (_accessToken == newAccessToken && refreshUnchanged) return true;
     _accessToken = newAccessToken;
     if (newRefreshToken != null) _refreshToken = newRefreshToken;
+    var persisted = false;
     try {
-      await UserAccountService().persistRefreshedTokens(
+      persisted = await UserAccountService().persistRefreshedTokens(
         _accessToken!,
         _refreshToken,
         serverUrl: sessionServer,
         username: sessionUsername,
       );
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(
-          'token_saved_at', DateTime.now().millisecondsSinceEpoch);
-      debugPrint(
-        '[Auth] Rotated tokens persisted: '
-        'access=${ApiService.tokenFp(_accessToken)} '
-        'refresh=${ApiService.tokenFp(_refreshToken)}',
-      );
+      if (persisted) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(
+            'token_saved_at', DateTime.now().millisecondsSinceEpoch);
+        debugPrint(
+          '[Auth] Rotated tokens persisted: '
+          'access=${ApiService.tokenFp(_accessToken)} '
+          'refresh=${ApiService.tokenFp(_refreshToken)}',
+        );
+      } else {
+        debugPrint(
+          '[Auth] ROTATION NOT PERSISTED: this session now holds a refresh '
+          'token that only exists in memory - a restart will come back with a '
+          'spent one (access=${ApiService.tokenFp(_accessToken)} '
+          'refresh=${ApiService.tokenFp(_refreshToken)})',
+        );
+      }
     } catch (e) {
       debugPrint('[Auth] Failed to persist refreshed tokens: $e');
     }
@@ -321,6 +340,7 @@ class AuthProvider extends ChangeNotifier {
     // Keep the paired Wear OS app's cached token in sync.
     _pushSessionToWear();
     notifyListeners();
+    return persisted;
   }
 
   /// Push the current session to the paired Wear OS app (if any). Safe
@@ -365,11 +385,16 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _onAuthExpired(String sessionServer, String? sessionUsername) {
-    if (!_isCurrentSession(sessionServer, sessionUsername) ||
-        _accessToken == null ||
-        _authExpiryInProgress) {
+    // Swallowing this is how a dead session turns into fifteen minutes of
+    // silent 401s instead of one "please sign in again", so name the guard.
+    if (!_isCurrentSession(sessionServer, sessionUsername)) {
+      debugPrint(
+        '[Auth] Ignoring auth-expired for $sessionUsername@$sessionServer: '
+        'current session is $_username@$_serverUrl',
+      );
       return;
     }
+    if (_accessToken == null || _authExpiryInProgress) return;
     _authExpiryInProgress = true;
     debugPrint(
       '[Auth] Token refresh failed, forcing re-login '

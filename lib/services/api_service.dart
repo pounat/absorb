@@ -200,7 +200,10 @@ class ApiService {
   final http.Client? _httpClient;
 
   /// Called after a successful token refresh so the auth layer can persist.
-  FutureOr<void> Function(String newAccessToken, String? newRefreshToken)?
+  /// Returns whether the pair actually reached storage - a rotation that only
+  /// lives in memory dies with the process and leaves a spent refresh token
+  /// behind, so callers must be able to tell the difference.
+  FutureOr<bool> Function(String newAccessToken, String? newRefreshToken)?
   onTokensRefreshed;
 
   /// Loads the latest persisted tokens before refreshing. Background isolates
@@ -350,10 +353,14 @@ class ApiService {
 
   Future<void> _notifyTokensRefreshed() async {
     try {
-      await onTokensRefreshed?.call(_accessToken, _refreshToken);
+      final persisted = await onTokensRefreshed?.call(_accessToken, _refreshToken);
       debugPrint(
-        '[API] Tokens handed to persistence: access=${tokenFp(_accessToken)} '
-        'refresh=${tokenFp(_refreshToken)}',
+        persisted == false
+            ? '[API] Tokens NOT persisted (rotation held in memory only): '
+                  'access=${tokenFp(_accessToken)} '
+                  'refresh=${tokenFp(_refreshToken)}'
+            : '[API] Tokens handed to persistence: access=${tokenFp(_accessToken)} '
+                  'refresh=${tokenFp(_refreshToken)}',
       );
     } catch (e) {
       debugPrint('[API] Failed to persist refreshed tokens: $e');
@@ -485,7 +492,8 @@ class ApiService {
             if (_refreshToken != refreshTokenSent && attempt == 0) continue;
             debugPrint(
               '[API] Token refresh rejected: ${response.statusCode} '
-              '(sent refresh=${tokenFp(refreshTokenSent)})',
+              '(sent refresh=${tokenFp(refreshTokenSent)})'
+              '${_refreshToken == refreshTokenSent ? " - storage holds the same spent token, session is dead until re-login" : ""}',
             );
             _refreshCompleter!.complete(_RefreshOutcome.rejected);
             return _RefreshOutcome.rejected;
