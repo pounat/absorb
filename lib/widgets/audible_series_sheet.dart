@@ -140,8 +140,19 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
     }
     final title = _normalizeTitle(book['title'] as String? ?? '');
     if (title.isEmpty) return false;
+    // Libraries often bake the subtitle into the title with a colon while
+    // Audible keeps them separate - match both shapes in both directions.
+    final subtitle = book['subtitle'] as String? ?? '';
+    final withSub =
+        subtitle.isEmpty ? '' : _normalizeTitle('${book['title']} $subtitle');
     for (final owned in widget.ownedTitles) {
-      if (_normalizeTitle(owned) == title) return true;
+      final full = _normalizeTitle(owned);
+      if (full == title) return true;
+      if (withSub.isNotEmpty && full == withSub) return true;
+      final colon = owned.indexOf(':');
+      if (colon > 0 && _normalizeTitle(owned.substring(0, colon)) == title) {
+        return true;
+      }
     }
     return false;
   }
@@ -610,6 +621,10 @@ void showAudibleBookMenu(BuildContext context, {
   final title = book['title'] as String? ?? '';
   final asin = book['asin'] as String? ?? '';
   final releaseDate = book['releaseDate'] as String? ?? '';
+  // Calendar entries only make sense for books that haven't released yet
+  final releaseDateTime = DateTime.tryParse(releaseDate);
+  final isFutureRelease =
+      releaseDateTime != null && releaseDateTime.isAfter(DateTime.now());
 
   showAdaptiveActionMenu(
     context: context,
@@ -643,7 +658,7 @@ void showAudibleBookMenu(BuildContext context, {
               _openOnAudible(context, asin, region);
             },
           ),
-        if (releaseDate.isNotEmpty)
+        if (isFutureRelease)
           ListTile(
             leading: Icon(Icons.calendar_month_rounded, color: cs.primary, size: 22),
             title: Text(l.audibleSeriesAddToCalendar, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),

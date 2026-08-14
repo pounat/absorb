@@ -539,8 +539,8 @@
   "settingsPodcastTabDesc": "Give one podcast library its own tab in the bottom bar",
   "settingsPodcastTabLibrary": "Podcasts tab library",
   "settingsMergeImpliedByPodcastTab": "Always on while the Podcasts tab is enabled",
-  "settingsEpisodeNotifs": "New episode notifications",
-  "settingsEpisodeNotifsDesc": "Check subscribed shows in the background",
+  "settingsEpisodeNotifs": "Notification settings",
+  "settingsEpisodeNotifsDesc": "New podcast episodes and upcoming book releases, checked in the background",
   "notifIntervalOff": "Off",
   "notifIntervalMinutes": "Every {n} minutes",
   "@notifIntervalMinutes": {
@@ -3120,6 +3120,209 @@
   "upcomingReleasesBadgeUpcoming": "UPCOMING",
   "upcomingReleasesBadgeAdded": "ADDED",
   "upcomingReleasesBadgeMissing": "MISSING",
+  "upcomingReleasesScanSettingsTitle": "Scan settings",
+  "upcomingReleasesFinishedAfterTitle": "Consider a series finished after",
+  "upcomingReleasesFinishedAfterDesc": "Series whose last book is older than this are skipped during scans and only re-checked every month or two.",
+  "upcomingReleasesFinishedAfterYears": "{count, plural, =1{1 year} other{{count} years}}",
+  "@upcomingReleasesFinishedAfterYears": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesFinishedAfterNever": "Never",
+  "upcomingReleasesSkippedTitle": "Skipped series",
+  "upcomingReleasesSkippedNone": "Nothing skipped yet",
+  "upcomingReleasesSkippedCount": "{count, plural, =1{1 skipped} other{{count} skipped}}",
+  "@upcomingReleasesSkippedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesSkippedLastBook": "{count, plural, =0{Last book under a year ago} =1{Last book 1 year ago} other{Last book {count} years ago}}",
+  "@upcomingReleasesSkippedLastBook": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesSkippedUnmatched": "Couldn't match this series on Audible",
+  "upcomingReleasesSkippedScanNow": "Scan now",
+  "upcomingReleasesSkippedAlwaysScan": "Always scan",
+  "upcomingReleasesSkippedNeverScan": "Never scan",
+  "upcomingReleasesSkippedScanFound": "Found new releases in {name}",
+  "@upcomingReleasesSkippedScanFound": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "upcomingReleasesSkippedScanNone": "Nothing new in {name}",
+  "@upcomingReleasesSkippedScanNone": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "upcomingReleasesSkippedOtherLibrary": "This list came from a different library. Run a rescan to refresh it.",
+  "upcomingReleasesChipUpcoming": "Upcoming",
+  "upcomingReleasesChipMissing": "{count, plural, =0{Missing} =1{1 missing} other{{count} missing}}",
+  "@upcomingReleasesChipMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesNoMissing": "No missing books found",
+  "upcomingReleasesScanSeries": "Scan series",
+  "upcomingReleasesScanUpcomingOption": "Upcoming releases",
+  "upcomingReleasesScanUpcomingOptionDesc": "Quick scan for new and upcoming books",
+  "upcomingReleasesScanDeepOption": "Deep scan",
+  "upcomingReleasesScanDeepOptionDesc": "Also finds missing books in every series - takes longer",
+  "upcomingReleasesFirstScanNote": "The first scan checks every series on Audible and can take a few minutes. Later scans get much quicker once your series are sorted.",
+  "upcomingReleasesLastScanReport": "Last scan report",
+  "upcomingReleasesReportChecked": "Checked on Audible: {count}",
+  "@upcomingReleasesReportChecked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportSkipped": "Skipped: {count}",
+  "@upcomingReleasesReportSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportUnmatched": "Couldn't match on Audible: {count}",
+  "@upcomingReleasesReportUnmatched": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportFailed": "Failed to check: {count}",
+  "@upcomingReleasesReportFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportFound": "Found {upcoming} upcoming, {recent} recent",
+  "@upcomingReleasesReportFound": {
+    "placeholders": {
+      "upcoming": {
+        "type": "int"
+      },
+      "recent": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportFoundDeep": "Found {upcoming} upcoming, {recent} recent, {missing} missing",
+  "@upcomingReleasesReportFoundDeep": {
+    "placeholders": {
+      "upcoming": {
+        "type": "int"
+      },
+      "recent": {
+        "type": "int"
+      },
+      "missing": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportMore": "+{count} more",
+  "@upcomingReleasesReportMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBadgeNew": "NEW",
+  "upcomingReleasesOpenSeries": "Open series on Audible",
+  "upcomingReleasesOpenLibrarySeries": "Open series in library",
+  "upcomingReleasesAsinCopied": "Series ASIN copied",
+  "upcomingReleasesSetSeriesAsin": "Set series ASIN",
+  "upcomingReleasesSetAsinInstructions": "Find the series on audible.com and copy the page link - the ASIN is the 10-character code starting with B0 (like B08S2YN3YS). Pasting the whole link works too.",
+  "upcomingReleasesSetAsinHint": "B0… or audible.com link",
+  "upcomingReleasesSetAsinSave": "Save",
+  "upcomingReleasesSetAsinInvalid": "No ASIN found in that text",
+  "upcomingReleasesSetAsinSaved": "Series linked - scanning now",
+  "upcomingReleasesRemoveTitle": "{count, plural, =1{Remove book} other{Remove {count} books}}",
+  "@upcomingReleasesRemoveTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesRemoveThisScan": "Remove from this scan",
+  "upcomingReleasesRemoveThisScanDesc": "Can come back on a future scan",
+  "upcomingReleasesRemoveForever": "Remove from this and future scans",
+  "upcomingReleasesRemoveForeverDesc": "Goes to the removed list, restore any time",
+  "upcomingReleasesRemovedForeverToast": "Removed - won't show on future scans",
+  "upcomingReleasesRemovedBooksTitle": "Removed books",
+  "upcomingReleasesRemovedCount": "{count, plural, =1{1 book} other{{count} books}}",
+  "@upcomingReleasesRemovedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesRemovedNone": "No removed books",
+  "upcomingReleasesRestore": "Restore",
+  "upcomingReleasesRestoredToast": "Restored",
+  "upcomingReleasesRestoredNextScan": "Restored - it will show after the next scan",
+  "upcomingReleasesSelectedCount": "{count, plural, =1{1 selected} other{{count} selected}}",
+  "@upcomingReleasesSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkRequest": "Request",
+  "upcomingReleasesBulkRemove": "Remove",
+  "upcomingReleasesBulkRemoved": "{count, plural, =1{1 removed} other{{count} removed}}",
+  "@upcomingReleasesBulkRemoved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkRequestDone": "{count, plural, =1{1 request sent} other{{count} requests sent}}",
+  "@upcomingReleasesBulkRequestDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkRequestSkipped": "{count} skipped",
+  "@upcomingReleasesBulkRequestSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeScreenEpisodeFallback": "Episode",
   "libraryScreenUnknownTitle": "Unknown Title",
   "playlistDetailDefaultName": "Playlist",
@@ -3315,8 +3518,8 @@
   },
   "notesExport": "Export",
   "notesNewNote": "New note",
-  "librarySortFilterUpcomingReleases": "Upcoming Releases",
-  "librarySortFilterUpcomingReleasesSubtitle": "Scan Audible for new releases in your series",
+  "librarySortFilterUpcomingReleases": "Scan Series",
+  "librarySortFilterUpcomingReleasesSubtitle": "Check Audible for upcoming and missing books in your series",
   "sleepTimerSheetChaptersLeft": "{count, plural, =1{1 chapter left} other{{count} chapters left}}",
   "@sleepTimerSheetChaptersLeft": {
     "placeholders": {

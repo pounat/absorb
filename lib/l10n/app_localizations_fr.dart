@@ -5511,6 +5511,300 @@ class AppLocalizationsFr extends AppLocalizations {
   String get upcomingReleasesBadgeMissing => 'MANQUANT';
 
   @override
+  String get upcomingReleasesScanSettingsTitle => 'Scan settings';
+
+  @override
+  String get upcomingReleasesFinishedAfterTitle =>
+      'Consider a series finished after';
+
+  @override
+  String get upcomingReleasesFinishedAfterDesc =>
+      'Series whose last book is older than this are skipped during scans and only re-checked every month or two.';
+
+  @override
+  String upcomingReleasesFinishedAfterYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count years',
+      one: '1 year',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get upcomingReleasesFinishedAfterNever => 'Never';
+
+  @override
+  String get upcomingReleasesSkippedTitle => 'Skipped series';
+
+  @override
+  String get upcomingReleasesSkippedNone => 'Nothing skipped yet';
+
+  @override
+  String upcomingReleasesSkippedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count skipped',
+      one: '1 skipped',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String upcomingReleasesSkippedLastBook(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Last book $count years ago',
+      one: 'Last book 1 year ago',
+      zero: 'Last book under a year ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get upcomingReleasesSkippedUnmatched =>
+      'Couldn\'t match this series on Audible';
+
+  @override
+  String get upcomingReleasesSkippedScanNow => 'Scan now';
+
+  @override
+  String get upcomingReleasesSkippedAlwaysScan => 'Always scan';
+
+  @override
+  String get upcomingReleasesSkippedNeverScan => 'Never scan';
+
+  @override
+  String upcomingReleasesSkippedScanFound(String name) {
+    return 'Found new releases in $name';
+  }
+
+  @override
+  String upcomingReleasesSkippedScanNone(String name) {
+    return 'Nothing new in $name';
+  }
+
+  @override
+  String get upcomingReleasesSkippedOtherLibrary =>
+      'This list came from a different library. Run a rescan to refresh it.';
+
+  @override
+  String get upcomingReleasesChipUpcoming => 'Upcoming';
+
+  @override
+  String upcomingReleasesChipMissing(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count missing',
+      one: '1 missing',
+      zero: 'Missing',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get upcomingReleasesNoMissing => 'No missing books found';
+
+  @override
+  String get upcomingReleasesScanSeries => 'Scan series';
+
+  @override
+  String get upcomingReleasesScanUpcomingOption => 'Upcoming releases';
+
+  @override
+  String get upcomingReleasesScanUpcomingOptionDesc =>
+      'Quick scan for new and upcoming books';
+
+  @override
+  String get upcomingReleasesScanDeepOption => 'Deep scan';
+
+  @override
+  String get upcomingReleasesScanDeepOptionDesc =>
+      'Also finds missing books in every series - takes longer';
+
+  @override
+  String get upcomingReleasesFirstScanNote =>
+      'The first scan checks every series on Audible and can take a few minutes. Later scans get much quicker once your series are sorted.';
+
+  @override
+  String get upcomingReleasesLastScanReport => 'Last scan report';
+
+  @override
+  String upcomingReleasesReportChecked(int count) {
+    return 'Checked on Audible: $count';
+  }
+
+  @override
+  String upcomingReleasesReportSkipped(int count) {
+    return 'Skipped: $count';
+  }
+
+  @override
+  String upcomingReleasesReportUnmatched(int count) {
+    return 'Couldn\'t match on Audible: $count';
+  }
+
+  @override
+  String upcomingReleasesReportFailed(int count) {
+    return 'Failed to check: $count';
+  }
+
+  @override
+  String upcomingReleasesReportFound(int upcoming, int recent) {
+    return 'Found $upcoming upcoming, $recent recent';
+  }
+
+  @override
+  String upcomingReleasesReportFoundDeep(
+    int upcoming,
+    int recent,
+    int missing,
+  ) {
+    return 'Found $upcoming upcoming, $recent recent, $missing missing';
+  }
+
+  @override
+  String upcomingReleasesReportMore(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String get upcomingReleasesBadgeNew => 'NEW';
+
+  @override
+  String get upcomingReleasesOpenSeries => 'Open series on Audible';
+
+  @override
+  String get upcomingReleasesOpenLibrarySeries => 'Open series in library';
+
+  @override
+  String get upcomingReleasesAsinCopied => 'Series ASIN copied';
+
+  @override
+  String get upcomingReleasesSetSeriesAsin => 'Set series ASIN';
+
+  @override
+  String get upcomingReleasesSetAsinInstructions =>
+      'Find the series on audible.com and copy the page link - the ASIN is the 10-character code starting with B0 (like B08S2YN3YS). Pasting the whole link works too.';
+
+  @override
+  String get upcomingReleasesSetAsinHint => 'B0… or audible.com link';
+
+  @override
+  String get upcomingReleasesSetAsinSave => 'Save';
+
+  @override
+  String get upcomingReleasesSetAsinInvalid => 'No ASIN found in that text';
+
+  @override
+  String get upcomingReleasesSetAsinSaved => 'Series linked - scanning now';
+
+  @override
+  String upcomingReleasesRemoveTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Remove $count books',
+      one: 'Remove book',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get upcomingReleasesRemoveThisScan => 'Remove from this scan';
+
+  @override
+  String get upcomingReleasesRemoveThisScanDesc =>
+      'Can come back on a future scan';
+
+  @override
+  String get upcomingReleasesRemoveForever =>
+      'Remove from this and future scans';
+
+  @override
+  String get upcomingReleasesRemoveForeverDesc =>
+      'Goes to the removed list, restore any time';
+
+  @override
+  String get upcomingReleasesRemovedForeverToast =>
+      'Removed - won\'t show on future scans';
+
+  @override
+  String get upcomingReleasesRemovedBooksTitle => 'Removed books';
+
+  @override
+  String upcomingReleasesRemovedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count books',
+      one: '1 book',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get upcomingReleasesRemovedNone => 'No removed books';
+
+  @override
+  String get upcomingReleasesRestore => 'Restore';
+
+  @override
+  String get upcomingReleasesRestoredToast => 'Restored';
+
+  @override
+  String get upcomingReleasesRestoredNextScan =>
+      'Restored - it will show after the next scan';
+
+  @override
+  String upcomingReleasesSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selected',
+      one: '1 selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get upcomingReleasesBulkRequest => 'Request';
+
+  @override
+  String get upcomingReleasesBulkRemove => 'Remove';
+
+  @override
+  String upcomingReleasesBulkRemoved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count removed',
+      one: '1 removed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String upcomingReleasesBulkRequestDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests sent',
+      one: '1 request sent',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String upcomingReleasesBulkRequestSkipped(int count) {
+    return '$count skipped';
+  }
+
+  @override
   String get homeScreenEpisodeFallback => 'Épisode';
 
   @override
@@ -5731,11 +6025,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get notesNewNote => 'Nouvelle note';
 
   @override
-  String get librarySortFilterUpcomingReleases => 'Upcoming Releases';
+  String get librarySortFilterUpcomingReleases => 'Scan Series';
 
   @override
   String get librarySortFilterUpcomingReleasesSubtitle =>
-      'Scan Audible for new releases in your series';
+      'Check Audible for upcoming and missing books in your series';
 
   @override
   String sleepTimerSheetChaptersLeft(int count) {
