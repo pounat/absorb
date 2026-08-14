@@ -2089,13 +2089,13 @@ abstract class AppLocalizations {
   /// No description provided for @settingsEpisodeNotifs.
   ///
   /// In en, this message translates to:
-  /// **'New episode notifications'**
+  /// **'Notification settings'**
   String get settingsEpisodeNotifs;
 
   /// No description provided for @settingsEpisodeNotifsDesc.
   ///
   /// In en, this message translates to:
-  /// **'Check subscribed shows in the background'**
+  /// **'New podcast episodes and upcoming book releases, checked in the background'**
   String get settingsEpisodeNotifsDesc;
 
   /// No description provided for @notifIntervalOff.
@@ -9621,6 +9621,372 @@ abstract class AppLocalizations {
   /// **'MISSING'**
   String get upcomingReleasesBadgeMissing;
 
+  /// No description provided for @upcomingReleasesScanSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan settings'**
+  String get upcomingReleasesScanSettingsTitle;
+
+  /// No description provided for @upcomingReleasesFinishedAfterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Consider a series finished after'**
+  String get upcomingReleasesFinishedAfterTitle;
+
+  /// No description provided for @upcomingReleasesFinishedAfterDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Series whose last book is older than this are skipped during scans and only re-checked every month or two.'**
+  String get upcomingReleasesFinishedAfterDesc;
+
+  /// No description provided for @upcomingReleasesFinishedAfterYears.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 year} other{{count} years}}'**
+  String upcomingReleasesFinishedAfterYears(int count);
+
+  /// No description provided for @upcomingReleasesFinishedAfterNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get upcomingReleasesFinishedAfterNever;
+
+  /// No description provided for @upcomingReleasesSkippedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped series'**
+  String get upcomingReleasesSkippedTitle;
+
+  /// No description provided for @upcomingReleasesSkippedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing skipped yet'**
+  String get upcomingReleasesSkippedNone;
+
+  /// No description provided for @upcomingReleasesSkippedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 skipped} other{{count} skipped}}'**
+  String upcomingReleasesSkippedCount(int count);
+
+  /// No description provided for @upcomingReleasesSkippedLastBook.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Last book under a year ago} =1{Last book 1 year ago} other{Last book {count} years ago}}'**
+  String upcomingReleasesSkippedLastBook(int count);
+
+  /// No description provided for @upcomingReleasesSkippedUnmatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t match this series on Audible'**
+  String get upcomingReleasesSkippedUnmatched;
+
+  /// No description provided for @upcomingReleasesSkippedScanNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan now'**
+  String get upcomingReleasesSkippedScanNow;
+
+  /// No description provided for @upcomingReleasesSkippedAlwaysScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Always scan'**
+  String get upcomingReleasesSkippedAlwaysScan;
+
+  /// No description provided for @upcomingReleasesSkippedNeverScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Never scan'**
+  String get upcomingReleasesSkippedNeverScan;
+
+  /// No description provided for @upcomingReleasesSkippedScanFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Found new releases in {name}'**
+  String upcomingReleasesSkippedScanFound(String name);
+
+  /// No description provided for @upcomingReleasesSkippedScanNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing new in {name}'**
+  String upcomingReleasesSkippedScanNone(String name);
+
+  /// No description provided for @upcomingReleasesSkippedOtherLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'This list came from a different library. Run a rescan to refresh it.'**
+  String get upcomingReleasesSkippedOtherLibrary;
+
+  /// No description provided for @upcomingReleasesChipUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming'**
+  String get upcomingReleasesChipUpcoming;
+
+  /// No description provided for @upcomingReleasesChipMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Missing} =1{1 missing} other{{count} missing}}'**
+  String upcomingReleasesChipMissing(int count);
+
+  /// No description provided for @upcomingReleasesNoMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No missing books found'**
+  String get upcomingReleasesNoMissing;
+
+  /// No description provided for @upcomingReleasesScanSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan series'**
+  String get upcomingReleasesScanSeries;
+
+  /// No description provided for @upcomingReleasesScanUpcomingOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming releases'**
+  String get upcomingReleasesScanUpcomingOption;
+
+  /// No description provided for @upcomingReleasesScanUpcomingOptionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick scan for new and upcoming books'**
+  String get upcomingReleasesScanUpcomingOptionDesc;
+
+  /// No description provided for @upcomingReleasesScanDeepOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep scan'**
+  String get upcomingReleasesScanDeepOption;
+
+  /// No description provided for @upcomingReleasesScanDeepOptionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Also finds missing books in every series - takes longer'**
+  String get upcomingReleasesScanDeepOptionDesc;
+
+  /// No description provided for @upcomingReleasesFirstScanNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The first scan checks every series on Audible and can take a few minutes. Later scans get much quicker once your series are sorted.'**
+  String get upcomingReleasesFirstScanNote;
+
+  /// No description provided for @upcomingReleasesLastScanReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Last scan report'**
+  String get upcomingReleasesLastScanReport;
+
+  /// No description provided for @upcomingReleasesReportChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked on Audible: {count}'**
+  String upcomingReleasesReportChecked(int count);
+
+  /// No description provided for @upcomingReleasesReportSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped: {count}'**
+  String upcomingReleasesReportSkipped(int count);
+
+  /// No description provided for @upcomingReleasesReportUnmatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t match on Audible: {count}'**
+  String upcomingReleasesReportUnmatched(int count);
+
+  /// No description provided for @upcomingReleasesReportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to check: {count}'**
+  String upcomingReleasesReportFailed(int count);
+
+  /// No description provided for @upcomingReleasesReportFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {upcoming} upcoming, {recent} recent'**
+  String upcomingReleasesReportFound(int upcoming, int recent);
+
+  /// No description provided for @upcomingReleasesReportFoundDeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {upcoming} upcoming, {recent} recent, {missing} missing'**
+  String upcomingReleasesReportFoundDeep(int upcoming, int recent, int missing);
+
+  /// No description provided for @upcomingReleasesReportMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String upcomingReleasesReportMore(int count);
+
+  /// No description provided for @upcomingReleasesBadgeNew.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW'**
+  String get upcomingReleasesBadgeNew;
+
+  /// No description provided for @upcomingReleasesOpenSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Open series on Audible'**
+  String get upcomingReleasesOpenSeries;
+
+  /// No description provided for @upcomingReleasesOpenLibrarySeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Open series in library'**
+  String get upcomingReleasesOpenLibrarySeries;
+
+  /// No description provided for @upcomingReleasesAsinCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Series ASIN copied'**
+  String get upcomingReleasesAsinCopied;
+
+  /// No description provided for @upcomingReleasesSetSeriesAsin.
+  ///
+  /// In en, this message translates to:
+  /// **'Set series ASIN'**
+  String get upcomingReleasesSetSeriesAsin;
+
+  /// No description provided for @upcomingReleasesSetAsinInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Find the series on audible.com and copy the page link - the ASIN is the 10-character code starting with B0 (like B08S2YN3YS). Pasting the whole link works too.'**
+  String get upcomingReleasesSetAsinInstructions;
+
+  /// No description provided for @upcomingReleasesSetAsinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'B0… or audible.com link'**
+  String get upcomingReleasesSetAsinHint;
+
+  /// No description provided for @upcomingReleasesSetAsinSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get upcomingReleasesSetAsinSave;
+
+  /// No description provided for @upcomingReleasesSetAsinInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'No ASIN found in that text'**
+  String get upcomingReleasesSetAsinInvalid;
+
+  /// No description provided for @upcomingReleasesSetAsinSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Series linked - scanning now'**
+  String get upcomingReleasesSetAsinSaved;
+
+  /// No description provided for @upcomingReleasesRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Remove book} other{Remove {count} books}}'**
+  String upcomingReleasesRemoveTitle(int count);
+
+  /// No description provided for @upcomingReleasesRemoveThisScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from this scan'**
+  String get upcomingReleasesRemoveThisScan;
+
+  /// No description provided for @upcomingReleasesRemoveThisScanDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Can come back on a future scan'**
+  String get upcomingReleasesRemoveThisScanDesc;
+
+  /// No description provided for @upcomingReleasesRemoveForever.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from this and future scans'**
+  String get upcomingReleasesRemoveForever;
+
+  /// No description provided for @upcomingReleasesRemoveForeverDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Goes to the removed list, restore any time'**
+  String get upcomingReleasesRemoveForeverDesc;
+
+  /// No description provided for @upcomingReleasesRemovedForeverToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed - won\'t show on future scans'**
+  String get upcomingReleasesRemovedForeverToast;
+
+  /// No description provided for @upcomingReleasesRemovedBooksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed books'**
+  String get upcomingReleasesRemovedBooksTitle;
+
+  /// No description provided for @upcomingReleasesRemovedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 book} other{{count} books}}'**
+  String upcomingReleasesRemovedCount(int count);
+
+  /// No description provided for @upcomingReleasesRemovedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No removed books'**
+  String get upcomingReleasesRemovedNone;
+
+  /// No description provided for @upcomingReleasesRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get upcomingReleasesRestore;
+
+  /// No description provided for @upcomingReleasesRestoredToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored'**
+  String get upcomingReleasesRestoredToast;
+
+  /// No description provided for @upcomingReleasesRestoredNextScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored - it will show after the next scan'**
+  String get upcomingReleasesRestoredNextScan;
+
+  /// No description provided for @upcomingReleasesSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 selected} other{{count} selected}}'**
+  String upcomingReleasesSelectedCount(int count);
+
+  /// No description provided for @upcomingReleasesBulkRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Request'**
+  String get upcomingReleasesBulkRequest;
+
+  /// No description provided for @upcomingReleasesBulkRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get upcomingReleasesBulkRemove;
+
+  /// No description provided for @upcomingReleasesBulkRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 removed} other{{count} removed}}'**
+  String upcomingReleasesBulkRemoved(int count);
+
+  /// No description provided for @upcomingReleasesBulkRequestDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 request sent} other{{count} requests sent}}'**
+  String upcomingReleasesBulkRequestDone(int count);
+
+  /// No description provided for @upcomingReleasesBulkRequestSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} skipped'**
+  String upcomingReleasesBulkRequestSkipped(int count);
+
   /// No description provided for @homeScreenEpisodeFallback.
   ///
   /// In en, this message translates to:
@@ -9984,13 +10350,13 @@ abstract class AppLocalizations {
   /// No description provided for @librarySortFilterUpcomingReleases.
   ///
   /// In en, this message translates to:
-  /// **'Upcoming Releases'**
+  /// **'Scan Series'**
   String get librarySortFilterUpcomingReleases;
 
   /// No description provided for @librarySortFilterUpcomingReleasesSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Scan Audible for new releases in your series'**
+  /// **'Check Audible for upcoming and missing books in your series'**
   String get librarySortFilterUpcomingReleasesSubtitle;
 
   /// No description provided for @sleepTimerSheetChaptersLeft.

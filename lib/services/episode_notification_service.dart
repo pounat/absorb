@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -9,6 +9,7 @@ import 'package:workmanager/workmanager.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../screens/upcoming_releases_screen.dart';
 import '../widgets/episode_list_sheet.dart';
 import 'api_service.dart';
 import 'download_service.dart';
@@ -90,6 +91,23 @@ class EpisodeNotificationService {
 
   /// Open the show's episode list once the app (navigator + session) is up.
   static Future<void> _handleTap(String? payload) async {
+    if (payload == 'upcoming') {
+      // Release-day notification: open the upcoming releases page.
+      for (var i = 0; i < 60; i++) {
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          try {
+            if (ctx.read<AuthProvider>().apiService != null) {
+              Navigator.push(ctx, MaterialPageRoute(
+                  builder: (_) => const UpcomingReleasesScreen()));
+              return;
+            }
+          } catch (_) {}
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      return;
+    }
     if (payload == null || !payload.startsWith('show:')) return;
     final showId = payload.substring(5);
     for (var i = 0; i < 60; i++) {
@@ -132,6 +150,9 @@ Future<void> _checkAndNotify() async {
   // WorkManager uses a separate Flutter engine whose SharedPreferences cache
   // can lag behind writes from earlier workers or the foreground app.
   await EpisodeNotificationService.prepareBackgroundPreferences();
+
+  // Purely local, so it runs before the subscribed-podcasts early return.
+  await _checkReleaseDayNotifs();
 
   final subscribed = await ScopedPrefs.getStringList('subscribed_podcasts');
   if (subscribed.isEmpty) return;
@@ -233,6 +254,82 @@ Future<void> _checkAndNotify() async {
     } catch (e) {
       debugPrint('[EpisodeNotif] check failed for $showId: $e');
     }
+  }
+}
+
+/// Notify on release day for books tracked on the upcoming page. Reads the
+/// cached scan results from raw prefs - no network, no account scope needed.
+Future<void> _checkReleaseDayNotifs() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString('upcomingReleasesCache');
+    if (json == null || json.isEmpty) return;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final notified =
+        (prefs.getStringList('upcomingReleaseDayNotified') ?? []).toSet();
+    final results = jsonDecode(json) as List<dynamic>;
+
+    final allUpcomingAsins = <String>{};
+    final due = <({String asin, String title, String seriesName})>[];
+    for (final r in results) {
+      if (r is! Map) continue;
+      final seriesName = r['seriesName'] as String? ?? '';
+      for (final b in (r['upcomingBooks'] as List<dynamic>? ?? [])) {
+        if (b is! Map) continue;
+        final asin = b['asin'] as String? ?? '';
+        final title = b['title'] as String? ?? '';
+        if (asin.isEmpty || title.isEmpty) continue;
+        allUpcomingAsins.add(asin);
+        if (notified.contains(asin)) continue;
+        final date = DateTime.tryParse(b['releaseDate'] as String? ?? '');
+        if (date == null) continue;
+        // Release day, or the periodic job catching up within a couple days
+        final daysOut = today.difference(DateTime(date.year, date.month, date.day)).inDays;
+        if (daysOut < 0 || daysOut > 2) continue;
+        due.add((asin: asin, title: title, seriesName: seriesName));
+      }
+    }
+    if (due.isEmpty) return;
+
+    final plugin = FlutterLocalNotificationsPlugin();
+    const channel = AndroidNotificationChannel(
+      'release_day',
+      'Book releases',
+      description: 'A tracked upcoming book is out',
+      importance: Importance.defaultImportance,
+    );
+    await plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    for (final book in due) {
+      await plugin.show(
+        0x52440000 | (book.asin.hashCode & 0xFFFF),
+        '${book.title} is released today!',
+        book.seriesName,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'release_day',
+            'Book releases',
+            channelDescription: 'A tracked upcoming book is out',
+            icon: 'drawable/ic_notification',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+          ),
+        ),
+        payload: 'upcoming',
+      );
+    }
+
+    // Keep only asins still tracked as upcoming - released books leave the
+    // upcoming list on the next scan, so the set prunes itself.
+    await prefs.setStringList('upcomingReleaseDayNotified',
+        {...notified, ...due.map((b) => b.asin)}.where(allUpcomingAsins.contains).toList());
+    debugPrint('[EpisodeNotif] release-day notified: ${due.length}');
+  } catch (e) {
+    debugPrint('[EpisodeNotif] release-day check failed: $e');
   }
 }
 

@@ -291,7 +291,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                 border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
               ),
               child: Row(children: [
-                Icon(Icons.calendar_month_rounded, size: 20, color: cs.primary),
+                Icon(Icons.travel_explore_rounded, size: 20, color: cs.primary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

@@ -3288,25 +3288,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
                             onTap: () => _pickPodcastTabLibrary(podcastLibs),
                           ),
-                        if (Platform.isAndroid) ...[
-                          const Divider(height: 1, indent: 16, endIndent: 16),
-                          ListTile(
-                            title: Text(l.settingsEpisodeNotifs),
-                            subtitle: Text(
-                                '${l.settingsEpisodeNotifsDesc} - ${_episodeNotifLabel(l)}',
-                                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                            trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
-                            onTap: _loaded ? _pickEpisodeNotifInterval : null,
-                          ),
-                          if (_episodeNotifMinutes > 0)
-                            ListTile(
-                              title: Text(l.settingsBatteryUnrestricted),
-                              subtitle: Text(l.settingsBatteryUnrestrictedDesc,
-                                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                              trailing: Icon(Icons.battery_saver_rounded, color: cs.onSurfaceVariant),
-                              onTap: () => Permission.ignoreBatteryOptimizations.request(),
-                            ),
-                        ],
                         const Divider(height: 1, indent: 16, endIndent: 16),
                       ]);
                     }),
@@ -3487,6 +3468,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
                     ),
                     if (Platform.isAndroid) ...[
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    ListTile(
+                      leading: const Icon(Icons.notifications_active_outlined),
+                      title: Text(l.settingsEpisodeNotifs),
+                      subtitle: Text(
+                          '${l.settingsEpisodeNotifsDesc} - ${_episodeNotifLabel(l)}',
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
+                      onTap: _loaded ? _pickEpisodeNotifInterval : null,
+                    ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
                       leading: const Icon(Icons.battery_saver_outlined),

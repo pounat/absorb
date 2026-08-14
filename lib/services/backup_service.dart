@@ -95,6 +95,7 @@ class BackupService {
       'skipChapterBarrier': await PlayerSettings.getSkipChapterBarrier(),
       'audibleRegion': await PlayerSettings.getAudibleRegion(),
       'upcomingReleasesSortByDate': await PlayerSettings.getUpcomingReleasesSortByDate(),
+      'upcomingFinishedAfterYears': await PlayerSettings.getUpcomingFinishedAfterYears(),
       'libraryTagFilter': await PlayerSettings.getLibraryTagFilter(),
       'librarySeriesFilter': await PlayerSettings.getLibrarySeriesFilter(),
       'narratorSort': await PlayerSettings.getNarratorSort(),
@@ -194,6 +195,11 @@ class BackupService {
 
     // Rolling download series (scoped)
     final rollingDownloadSeries = await ScopedPrefs.getStringList('rolling_download_series');
+
+    // Upcoming-scan per-series overrides + removed-books list (scoped)
+    final upcomingAlwaysScan = await ScopedPrefs.getStringList('upcoming_always_scan_series');
+    final upcomingNeverScan = await ScopedPrefs.getStringList('upcoming_never_scan_series');
+    final upcomingIgnoredBooks = await ScopedPrefs.getString('upcomingReleasesIgnoredBooks');
 
     // Podcast subscriptions + manually-curated Absorbing list (scoped)
     final subscribedPodcasts = await ScopedPrefs.getStringList('subscribed_podcasts');
@@ -342,6 +348,10 @@ class BackupService {
       'notes': notes,
       'savedEbooks': savedEbooks,
       'rollingDownloadSeries': rollingDownloadSeries,
+      'upcomingAlwaysScan': upcomingAlwaysScan,
+      'upcomingNeverScan': upcomingNeverScan,
+      if (upcomingIgnoredBooks != null && upcomingIgnoredBooks.isNotEmpty)
+        'upcomingIgnoredBooks': upcomingIgnoredBooks,
       'subscribedPodcasts': subscribedPodcasts,
       'absorbingManualAdds': absorbingManualAdds,
       'absorbingFinishedManualAdds': absorbingFinishedManualAdds,
@@ -535,6 +545,7 @@ class BackupService {
     if (s['longBackSkip'] != null) PlayerSettings.setLongBackSkip(s['longBackSkip'] as int);
     if (s['audibleRegion'] != null) await PlayerSettings.setAudibleRegion(s['audibleRegion'] as String);
     if (s['upcomingReleasesSortByDate'] != null) await PlayerSettings.setUpcomingReleasesSortByDate(s['upcomingReleasesSortByDate'] as bool);
+    if (s['upcomingFinishedAfterYears'] != null) await PlayerSettings.setUpcomingFinishedAfterYears((s['upcomingFinishedAfterYears'] as num).toInt());
     if (s['libraryTagFilter'] != null) await PlayerSettings.setLibraryTagFilter(s['libraryTagFilter'] as String);
     if (s['librarySeriesFilter'] != null) await PlayerSettings.setLibrarySeriesFilter(s['librarySeriesFilter'] as String);
     if (s['narratorSort'] != null) await PlayerSettings.setNarratorSort(s['narratorSort'] as String);
@@ -656,6 +667,26 @@ class BackupService {
         'rolling_download_series',
         rollingDownloadSeries.cast<String>(),
       );
+    }
+
+    // Upcoming-scan per-series overrides (scoped)
+    final upcomingAlwaysScan = data['upcomingAlwaysScan'] as List<dynamic>?;
+    if (upcomingAlwaysScan != null && upcomingAlwaysScan.isNotEmpty) {
+      await ScopedPrefs.setStringList(
+        'upcoming_always_scan_series',
+        upcomingAlwaysScan.cast<String>(),
+      );
+    }
+    final upcomingNeverScan = data['upcomingNeverScan'] as List<dynamic>?;
+    if (upcomingNeverScan != null && upcomingNeverScan.isNotEmpty) {
+      await ScopedPrefs.setStringList(
+        'upcoming_never_scan_series',
+        upcomingNeverScan.cast<String>(),
+      );
+    }
+    final upcomingIgnoredBooks = data['upcomingIgnoredBooks'] as String?;
+    if (upcomingIgnoredBooks != null && upcomingIgnoredBooks.isNotEmpty) {
+      await ScopedPrefs.setString('upcomingReleasesIgnoredBooks', upcomingIgnoredBooks);
     }
 
     // Podcast subscriptions + Absorbing manual list (scoped)
