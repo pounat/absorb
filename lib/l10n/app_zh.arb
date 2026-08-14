@@ -395,7 +395,6 @@
   "appShellSettingsTab": "设置",
   "appShellDiscoverTab": "发现",
   "appShellShowsTab": "节目",
-  "settingsEpisodeNotifs": "新剧集通知",
   "notifIntervalOff": "关闭",
   "notifIntervalMinutes": "每 {n} 分钟",
   "@notifIntervalMinutes": {
@@ -1429,8 +1428,6 @@
     }
   },
   "equalizerPerBookEq": "每本书单独配置",
-  "librarySortFilterUpcomingReleases": "即将发布",
-  "librarySortFilterUpcomingReleasesSubtitle": "Audible 中检查系列新书",
   "sleepTimerSheetStartChapterSleep": "{count, plural, =1{听完 1 章结束} other{听完 {count} 章结束}}",
   "@sleepTimerSheetStartChapterSleep": {
     "placeholders": {
