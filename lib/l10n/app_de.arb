@@ -608,8 +608,6 @@
   "settingsPodcastTabDesc": "Gib einer Podcast-Bibliothek einen eigenen Tab in der unteren Leiste",
   "settingsPodcastTabLibrary": "Podcasts Registerkarte",
   "settingsMergeImpliedByPodcastTab": "Immer eingeschaltet, während der Podcasts-Tab aktiviert ist",
-  "settingsEpisodeNotifs": "Benachrichtigung für neue Folgen",
-  "settingsEpisodeNotifsDesc": "Abonnierte Podcasts im Hintergrund prüfen",
   "notifIntervalOff": "Aus",
   "notifIntervalMinutes": "Alle {n} Minuten",
   "@notifIntervalMinutes": {
@@ -3356,8 +3354,6 @@
   },
   "notesExport": "Exportieren",
   "notesNewNote": "Neue Notiz",
-  "librarySortFilterUpcomingReleases": "Kommende Veröffentlichungen",
-  "librarySortFilterUpcomingReleasesSubtitle": "Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen",
   "sleepTimerSheetChaptersLeft": "{count, plural, =1{Noch 1 Kapitel} other{Noch {count} Kapitel}}",
   "@sleepTimerSheetChaptersLeft": {
     "placeholders": {
