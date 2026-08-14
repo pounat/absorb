@@ -604,8 +604,6 @@
   "settingsPodcastTabDesc": "Donner à une bibliothèque de podcast son propre onglet dans la barre du bas",
   "settingsPodcastTabLibrary": "Bibliothèque pour l'onglet podcasts",
   "settingsMergeImpliedByPodcastTab": "Toujours allumé lorsque l'onglet Podcasts est activé",
-  "settingsEpisodeNotifs": "Notifications de nouvel épisode",
-  "settingsEpisodeNotifsDesc": "Vérifier les séries abonnées en arrière-plan",
   "notifIntervalOff": "Désactivé",
   "notifIntervalMinutes": "Toutes les {n} minutes",
   "@notifIntervalMinutes": {
