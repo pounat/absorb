@@ -42,6 +42,7 @@ import '../widgets/scroll_reveal.dart';
 import '../services/scoped_prefs.dart';
 import '../services/user_account_service.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/app_platform.dart';
 import '../utils/desktop_workspace.dart';
 
 const double kDesktopLibraryTileMaxExtent = 220;
@@ -2688,7 +2689,9 @@ class LibraryScreenState extends State<LibraryScreen>
         canAccessExplicitContent: context
             .read<AuthProvider>()
             .canAccessExplicitContent,
-        onUpcomingReleases: tab == LibraryTab.series
+        // Browsers block Audible's catalog API (no CORS), so the series scan
+        // can't work on web - hide the entry there
+        onUpcomingReleases: tab == LibraryTab.series && !AppPlatform.isWeb
             ? () {
                 Navigator.pop(ctx);
                 _openUpcomingReleases();
