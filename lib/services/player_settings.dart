@@ -742,6 +742,12 @@ class PlayerSettings {
   static Future<int> getSleepTimerChapters() => _get('sleepTimerChapters', 1);
   static Future<void> setSleepTimerChapters(int chapters) => _set('sleepTimerChapters', chapters);
 
+  /// Media-button snooze during the sleep timer wind-down (GH #333):
+  /// 'off' | 'addTime' | 'resetTimer'. A press inside the wind-down window
+  /// resets or extends the timer instead of pausing.
+  static Future<String> getSleepButtonMode() => _get('sleepButtonMode', 'off');
+  static Future<void> setSleepButtonMode(String v) => _set('sleepButtonMode', v);
+
   static Future<bool> getResetSleepOnPause() => _get('resetSleepOnPause', false);
   static Future<void> setResetSleepOnPause(bool value) => _set('resetSleepOnPause', value);
 

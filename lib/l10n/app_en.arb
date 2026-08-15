@@ -773,6 +773,7 @@
   "shakeAddTime": "Add Time",
   "shakeReset": "Reset",
   "shakeAdds": "Shake adds",
+  "sleepAddAmount": "Add time amount",
   "shakeAddsValue": "{minutes} min",
   "@shakeAddsValue": {
     "placeholders": {
@@ -787,6 +788,8 @@
   "shakeSensitivityMedium": "Medium",
   "shakeSensitivityHigh": "High",
   "shakeSensitivityVeryHigh": "Very high",
+  "buttonDuringSleepTimer": "Headphone button during wind-down",
+  "buttonDuringSleepTimerHint": "In the final wind-down moments, one press resets the timer instead of pausing. Double press still skips.",
   "resetTimerOnPause": "Reset timer on pause",
   "resetTimerOnPauseOnSubtitle": "Timer restarts from full duration when you resume",
   "resetTimerOnPauseOffSubtitle": "Timer continues from where it left off",

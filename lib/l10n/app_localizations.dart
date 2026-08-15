@@ -3082,6 +3082,12 @@ abstract class AppLocalizations {
   /// **'Shake adds'**
   String get shakeAdds;
 
+  /// No description provided for @sleepAddAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add time amount'**
+  String get sleepAddAmount;
+
   /// No description provided for @shakeAddsValue.
   ///
   /// In en, this message translates to:
@@ -3123,6 +3129,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Very high'**
   String get shakeSensitivityVeryHigh;
+
+  /// No description provided for @buttonDuringSleepTimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Headphone button during wind-down'**
+  String get buttonDuringSleepTimer;
+
+  /// No description provided for @buttonDuringSleepTimerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'In the final wind-down moments, one press resets the timer instead of pausing. Double press still skips.'**
+  String get buttonDuringSleepTimerHint;
 
   /// No description provided for @resetTimerOnPause.
   ///

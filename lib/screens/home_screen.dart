@@ -971,6 +971,16 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
     final Color cardBgBottom = bgHsl != null
         ? bgHsl.withLightness(isDark ? 0.11 : 0.88).toColor()
         : cardBgTop;
+    // The percent and progress bar sit on the tinted card bottom; a dark
+    // cover accent on its own dark tint is invisible (and the reverse in
+    // light mode). Keep the hue but force lightness contrast with the card.
+    final Color rowAccent = bgHsl != null
+        ? HSLColor.fromColor(accent)
+            .withLightness(isDark ? 0.72 : 0.30)
+            .withSaturation(
+                HSLColor.fromColor(accent).saturation.clamp(0.35, 1.0))
+            .toColor()
+        : accent;
     final progressValue =
         (totalDuration > 0 ? currentTime / totalDuration : progress).clamp(0.0, 1.0);
     final remaining = totalDuration > 0 ? totalDuration - currentTime : 0.0;
@@ -1124,8 +1134,8 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
                         child: LinearProgressIndicator(
                           value: progressValue,
                           minHeight: 3,
-                          backgroundColor: cs.outlineVariant.withValues(alpha: 0.3),
-                          valueColor: AlwaysStoppedAnimation(accent),
+                          backgroundColor: rowAccent.withValues(alpha: 0.22),
+                          valueColor: AlwaysStoppedAnimation(rowAccent),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -1133,7 +1143,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
                         Text('${(progressValue * 100).round()}%',
                             style: tt.labelSmall?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: accent,
+                                color: rowAccent,
                                 fontSize: 11)),
                         if (remaining > 0) ...[
                           const SizedBox(width: 6),

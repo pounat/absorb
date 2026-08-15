@@ -1407,6 +1407,47 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
   // ── Socket event handlers ──
 
+  DateTime? _lastProgressCatchUp;
+
+  /// The socket only delivers progress events while connected - anything
+  /// that happens during a backgrounded gap is lost for good, which left
+  /// finished-elsewhere books sitting in Absorbing until a tap un-finished
+  /// them. On every socket auth, pull the server's progress list and replay
+  /// entries newer than what we hold through the same handler the live
+  /// event uses, so pruning and shelf refreshes behave identically.
+  Future<void> _catchUpRemoteProgress() async {
+    final api = _api;
+    if (api == null) return;
+    final now = DateTime.now();
+    if (_lastProgressCatchUp != null &&
+        now.difference(_lastProgressCatchUp!) < const Duration(seconds: 45)) {
+      return;
+    }
+    _lastProgressCatchUp = now;
+    try {
+      final list = await api.getAllProgress();
+      if (list == null) return;
+      var applied = 0;
+      for (final mp in list) {
+        final itemId = mp['libraryItemId'] as String?;
+        if (itemId == null) continue;
+        final episodeId = mp['episodeId'] as String?;
+        final key = episodeId != null ? '$itemId-$episodeId' : itemId;
+        final serverUpd = (mp['lastUpdate'] as num?)?.toInt() ?? 0;
+        final localUpd =
+            ((_progressMap[key]?['lastUpdate']) as num?)?.toInt() ?? 0;
+        if (serverUpd <= localUpd) continue;
+        _onRemoteProgressUpdated(mp);
+        applied++;
+      }
+      if (applied > 0) {
+        debugPrint('[Sync] Progress catch-up applied $applied newer entries');
+      }
+    } catch (e) {
+      debugPrint('[Sync] Progress catch-up failed: $e');
+    }
+  }
+
   void _onRemoteProgressUpdated(Map<String, dynamic> mp) {
     final itemId = mp['libraryItemId'] as String?;
     final episodeId = mp['episodeId'] as String?;
@@ -1419,12 +1460,40 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         : player.currentItemId;
     if (key == playingKey && player.hasBook) {
       if (mp['isFinished'] == true && !_resetItems.contains(key)) {
-        (this as _AbsorbingMixin)
-            .markFinishedLocally(key, skipAutoAdvance: true, fromRemote: true);
+        // Re-reading a finished book: the server keeps isFinished=true and
+        // echoes it back after every sync. Pinning the override to 100%
+        // while this device is actively mid-listen drags every inactive
+        // view to the end of the book (GH #345) - only honor the echo when
+        // we aren't the ones listening far from the end.
+        final posS = player.position.inMilliseconds / 1000.0;
+        final durS = player.totalDuration;
+        final nearEnd = durS <= 0 || posS >= durS - 60;
+        if (!player.isPlaying || nearEnd) {
+          (this as _AbsorbingMixin)
+              .markFinishedLocally(key, skipAutoAdvance: true, fromRemote: true);
+        }
       } else if (mp['isFinished'] != true) {
+        final prevUpd = ((_progressMap[key]?['lastUpdate']) as num?)?.toInt() ?? 0;
+        final newUpd = (mp['lastUpdate'] as num?)?.toInt() ?? 0;
         _progressMap[key] = mp;
         _localProgressOverrides.remove(key);
         _resetItems.remove(key);
+        // Cross-device continuity: a newer position from another device
+        // moves the paused player too, so the card shows it and resume
+        // carries on from there instead of the stale pause point.
+        final serverTime = (mp['currentTime'] as num?)?.toDouble();
+        if (serverTime != null &&
+            newUpd > prevUpd &&
+            !player.isPlaying &&
+            !ChromecastService().isCasting) {
+          final posS = player.position.inMilliseconds / 1000.0;
+          if ((serverTime - posS).abs() > 5.0) {
+            debugPrint('[Sync] Adopting newer remote position for paused player: '
+                '${posS.toStringAsFixed(1)}s -> ${serverTime.toStringAsFixed(1)}s');
+            unawaited(player.seekTo(
+                Duration(milliseconds: (serverTime * 1000).round())));
+          }
+        }
         notifyListeners();
       }
       return;

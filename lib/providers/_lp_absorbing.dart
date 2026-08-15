@@ -542,7 +542,11 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     // Stats widget shows "books finished this year"; force a refresh so it
     // reflects the new count without waiting on the 15-min throttle.
     HomeWidgetService().refreshStats(force: true);
-    if (_absorbingBookIds.remove(itemId)) {
+    if (fromRemote) {
+      // Finished on another device: leave Absorbing right away, same as when
+      // the book isn't loaded - don't linger until the next play press
+      _absorbingBookIds.remove(itemId);
+    } else if (_absorbingBookIds.remove(itemId)) {
       _absorbingBookIds.insert(0, itemId);
     }
     if (itemId.length > 36) {

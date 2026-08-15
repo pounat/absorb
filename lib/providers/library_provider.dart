@@ -222,6 +222,7 @@ class LibraryProvider extends ChangeNotifier
         if (auth.serverUrl != null && auth.token != null) {
           final socket = SocketService();
           socket.onProgressUpdated = _onRemoteProgressUpdated;
+          socket.onAuthenticated = _catchUpRemoteProgress;
           socket.onItemUpdated = _onRemoteItemUpdated;
           socket.onItemRemoved = _onRemoteItemRemoved;
           socket.onSeriesUpdated = _onRemoteSeriesUpdated;
