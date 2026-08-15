@@ -33,6 +33,31 @@ class ChapterLookup {
     return null;
   }
 
+  /// How far past the last chapter's end a position may sit while still
+  /// counting as the last chapter (covers rounding and trailing gaps).
+  /// Positions grossly past that mean the chapters don't cover the item's
+  /// timeline - e.g. duplicate audio files doubling the duration (GH #345) -
+  /// and resolve to no chapter instead of pinning the last one.
+  static const graceSeconds = 120.0;
+
+  /// Like [indexAt], but keeps the last chapter for positions within
+  /// [graceSeconds] past its end.
+  static int? indexAtWithGrace(
+    List<dynamic> chapters,
+    double positionSeconds,
+    double totalDuration,
+  ) {
+    final idx = indexAt(chapters, positionSeconds, totalDuration);
+    if (idx != null) return idx;
+    if (chapters.isEmpty) return null;
+    final last = chapters.last as Map<String, dynamic>;
+    final end = (last['end'] as num?)?.toDouble() ?? totalDuration;
+    if (positionSeconds >= end && positionSeconds <= end + graceSeconds) {
+      return chapters.length - 1;
+    }
+    return null;
+  }
+
   static ({double seconds, bool finishesItem})? nextSkipTarget(
     List<dynamic> chapters,
     double positionSeconds,

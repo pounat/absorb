@@ -239,15 +239,9 @@ class SleepTimerService extends ChangeNotifier {
       if (!_wasPlaying) {
         final resetOnPause = await PlayerSettings.getResetSleepOnPause();
         if (resetOnPause) {
-          _timeRemaining = _initialDuration;
-          _warningSent = false;
-          if (_isFadingOut) {
-            _isFadingOut = false;
-            _player.setVolume(_fadeStartVolume);
-          }
+          _resetToFull();
           debugPrint('[SleepTimer] Reset to ${_initialDuration.inMinutes}m on resume');
           onToast?.call('Sleep timer reset: ${_initialDuration.inMinutes}m');
-          _scheduleNextTick();
         }
       }
       _wasPlaying = true;
@@ -494,6 +488,42 @@ class SleepTimerService extends ChangeNotifier {
 
   bool _isFadingOut = false;
   bool get isFadingOut => _isFadingOut;
+
+  /// True during the wind-down window of a time-based timer (chime played,
+  /// fade underway or imminent).
+  bool get isInWarningWindow => _mode == SleepTimerMode.time && _warningSent;
+
+  /// Reset the countdown to its full duration, undoing any wind-down fade.
+  /// Shared by shake reset, reset-on-resume and the media-button snooze.
+  void _resetToFull() {
+    _timeRemaining = _initialDuration;
+    _warningSent = false;
+    if (_isFadingOut) {
+      _isFadingOut = false;
+      _player.setVolume(_fadeStartVolume);
+    }
+    if (_timer?.isActive == true) _scheduleNextTick();
+    notifyListeners();
+  }
+
+  /// Media-button snooze (GH #333): during the wind-down window a single
+  /// headphone press resets or extends the timer instead of pausing.
+  /// Returns true when the press was consumed.
+  Future<bool> snoozeFromMediaButton() async {
+    if (!isInWarningWindow || !_isPlaybackActive) return false;
+    final mode = await PlayerSettings.getSleepButtonMode();
+    if (mode == 'off') return false;
+    _vibrateSnooze();
+    if (mode == 'addTime') {
+      final addMins = await PlayerSettings.getShakeAddMinutes();
+      addTime(Duration(minutes: addMins));
+      debugPrint('[SleepTimer] Media button snooze: +${addMins}m');
+    } else {
+      _resetToFull();
+      debugPrint('[SleepTimer] Media button snooze: reset to ${_initialDuration.inMinutes}m');
+    }
+    return true;
+  }
 
   Future<void> _triggerSleep() async {
     if (_isTriggeringSleep) return;
@@ -806,9 +836,7 @@ class SleepTimerService extends ChangeNotifier {
 
     if (_shakeMode == 'resetTimer') {
       if (_mode == SleepTimerMode.time) {
-        _timeRemaining = _initialDuration;
-        _warningSent = false;
-        notifyListeners();
+        _resetToFull();
         onToast?.call('Timer reset to ${_initialDuration.inMinutes}m');
       } else if (_mode == SleepTimerMode.chapters) {
         // For chapter mode, re-count from current position

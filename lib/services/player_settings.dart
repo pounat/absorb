@@ -187,8 +187,10 @@ class PlayerSettings {
 
   /// Years without a new release before the upcoming-releases scan considers
   /// a series finished and stops checking it every time (0 = never skip).
-  static Future<int> getUpcomingFinishedAfterYears() => _get('upcomingFinishedAfterYears', 3);
-  static Future<void> setUpcomingFinishedAfterYears(int value) => _set('upcomingFinishedAfterYears', value);
+  static Future<int> getUpcomingFinishedAfterYears() =>
+      _get('upcomingFinishedAfterYears', 3);
+  static Future<void> setUpcomingFinishedAfterYears(int value) =>
+      _set('upcomingFinishedAfterYears', value);
 
   /// Last state of the "delete files from the server" checkbox in the delete
   /// confirm. Starts ticked and remembers what you picked, same as the web UI
@@ -918,6 +920,13 @@ class PlayerSettings {
   static Future<int> getSleepTimerChapters() => _get('sleepTimerChapters', 1);
   static Future<void> setSleepTimerChapters(int chapters) =>
       _set('sleepTimerChapters', chapters);
+
+  /// Media-button snooze during the sleep timer wind-down (GH #333):
+  /// 'off' | 'addTime' | 'resetTimer'. A press inside the wind-down window
+  /// resets or extends the timer instead of pausing.
+  static Future<String> getSleepButtonMode() => _get('sleepButtonMode', 'off');
+  static Future<void> setSleepButtonMode(String v) =>
+      _set('sleepButtonMode', v);
 
   static Future<bool> getResetSleepOnPause() =>
       _get('resetSleepOnPause', false);

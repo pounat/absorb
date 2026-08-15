@@ -786,6 +786,15 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       );
       switch (count) {
         case 1:
+          // Sleep-timer snooze (GH #333): during the wind-down window a
+          // single press resets the timer instead of pausing. Sits after all
+          // the phantom guards so a spurious AA/BT click can't reset it, and
+          // inside the resolver so double/triple presses still skip.
+          if (await SleepTimerService().snoozeFromMediaButton()) {
+            _lastClickKeyCode = null;
+            debugPrint('[Handler] → single press consumed by sleep timer snooze');
+            break;
+          }
           _inClickResolver = true;
           try {
             // Honor the actual keycode the system dispatched when we can.
@@ -4474,14 +4483,22 @@ class AudioPlayerService extends ChangeNotifier {
         return ch['title'] as String?;
       }
     }
-    // Past all chapters — use the last one
-    if (_chapters.isNotEmpty) {
-      final last = _chapters.last as Map<String, dynamic>;
-      _currentChapterStart = (last['start'] as num?)?.toDouble() ?? 0;
-      _currentChapterEnd = (last['end'] as num?)?.toDouble() ?? _totalDuration;
-      _lastNotifiedChapterIndex = _chapters.length - 1;
-      return last['title'] as String?;
+    // Slightly past the last chapter still counts as the last chapter.
+    // Grossly past it means the chapters don't cover the timeline (e.g.
+    // duplicate audio files doubling the duration, GH #345) - report no
+    // chapter rather than pinning the last one.
+    final graceIdx =
+        ChapterLookup.indexAtWithGrace(_chapters, posSeconds, _totalDuration);
+    if (graceIdx != null) {
+      final ch = _chapters[graceIdx] as Map<String, dynamic>;
+      _currentChapterStart = (ch['start'] as num?)?.toDouble() ?? 0;
+      _currentChapterEnd = (ch['end'] as num?)?.toDouble() ?? _totalDuration;
+      _lastNotifiedChapterIndex = graceIdx;
+      return ch['title'] as String?;
     }
+    _currentChapterStart = 0;
+    _currentChapterEnd = _totalDuration;
+    _lastNotifiedChapterIndex = -1;
     return null;
   }
 
@@ -5088,6 +5105,36 @@ class AudioPlayerService extends ChangeNotifier {
                 break;
               }
             }
+          }
+
+          // Within the grace window past the last chapter, keep the last one
+          if (chapterIdx < 0) {
+            final g = ChapterLookup.indexAtWithGrace(_chapters, posSec, _totalDuration);
+            if (g != null) {
+              final ch = _chapters[g] as Map<String, dynamic>;
+              chapterIdx = g;
+              chapterTitle = ch['title'] as String?;
+              chapterStart = (ch['start'] as num?)?.toDouble() ?? 0;
+              chapterEnd = (ch['end'] as num?)?.toDouble() ?? _totalDuration;
+            }
+          }
+
+          if (chapterIdx < 0 && _lastNotifiedChapterIndex >= 0) {
+            // Position left the chapter span entirely - clear the stale
+            // chapter so the notification stops claiming the last one
+            debugPrint(
+              '[Battery] Chapter cleared: ${posSec.toStringAsFixed(1)}s is outside the chapter span',
+            );
+            _lastNotifiedChapterIndex = -1;
+            _currentChapterStart = 0;
+            _currentChapterEnd = _totalDuration;
+            _pushMediaItem(
+              _currentItemId!,
+              _currentTitle ?? '',
+              _currentAuthor ?? '',
+              _currentCoverUrl,
+              _totalDuration,
+            );
           }
 
           if (chapterIdx >= 0 && chapterIdx != _lastNotifiedChapterIndex) {

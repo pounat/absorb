@@ -263,6 +263,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   double _sleepChimeVolume = 0.7;
   int _shakeAddMinutes = 5;
   String _shakeSensitivity = 'medium';
+  String _sleepButtonMode = 'off';
   String _bookQueueMode = 'off';
   String _podcastQueueMode = 'off';
   String? _queuePlaylistId;
@@ -1126,6 +1127,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final manualSeed = await PlayerSettings.getManualSeedColor();
     final gradientIntensity = await PlayerSettings.getGradientIntensity();
     final useColorEverywhere = await PlayerSettings.getUseColorEverywhere();
+    final sleepButtonMode = await PlayerSettings.getSleepButtonMode();
     final statsGoalMinutes = <String, int>{
       for (final p in PlayerSettings.statsGoalPeriods)
         p: await PlayerSettings.getStatsGoalMinutesFor(p),
@@ -1278,6 +1280,7 @@ class SettingsScreenState extends State<SettingsScreen> {
         _sleepChime = chime;
         _sleepChimeVolume = chimeVol;
         _shakeSensitivity = shakeSens;
+        _sleepButtonMode = sleepButtonMode;
         _language = language;
         _canPickDownloadLocation = !AppPlatform.isWeb;
         _statsGoalMinutes
@@ -4678,7 +4681,95 @@ class SettingsScreenState extends State<SettingsScreen> {
                                 ),
                                 const SizedBox(height: 4),
                               ],
-                              if (_shakeMode == 'addTime') ...[
+                              const Divider(
+                                height: 1,
+                                indent: 16,
+                                endIndent: 16,
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  12,
+                                  16,
+                                  0,
+                                ),
+                                child: Text(
+                                  l.buttonDuringSleepTimer,
+                                  style: tt.bodyMedium?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  8,
+                                  16,
+                                  8,
+                                ),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: SegmentedButton<String>(
+                                    showSelectedIcon: false,
+                                    segments: [
+                                      ButtonSegment(
+                                        value: 'off',
+                                        label: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(l.shakeOff),
+                                        ),
+                                      ),
+                                      ButtonSegment(
+                                        value: 'addTime',
+                                        label: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(l.shakeAddTime),
+                                        ),
+                                      ),
+                                      ButtonSegment(
+                                        value: 'resetTimer',
+                                        label: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(l.shakeReset),
+                                        ),
+                                      ),
+                                    ],
+                                    selected: {_sleepButtonMode},
+                                    onSelectionChanged: _loaded
+                                        ? (v) {
+                                            setState(
+                                              () => _sleepButtonMode = v.first,
+                                            );
+                                            PlayerSettings.setSleepButtonMode(
+                                              v.first,
+                                            );
+                                          }
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                              if (_sleepButtonMode != 'off')
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    0,
+                                    16,
+                                    8,
+                                  ),
+                                  child: Text(
+                                    l.buttonDuringSleepTimerHint,
+                                    style: tt.bodySmall?.copyWith(
+                                      color: cs.onSurfaceVariant.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              // Shared by shake and button add-time modes, so
+                              // it shows whenever either trigger needs it
+                              if (_shakeMode == 'addTime' ||
+                                  _sleepButtonMode == 'addTime') ...[
                                 const Divider(
                                   height: 1,
                                   indent: 16,
@@ -4696,7 +4787,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        l.shakeAdds,
+                                        l.sleepAddAmount,
                                         style: tt.bodyMedium?.copyWith(
                                           color: cs.onSurfaceVariant,
                                         ),

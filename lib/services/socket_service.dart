@@ -66,6 +66,10 @@ class SocketService {
   /// Called when the server pushes a progress update (cross-device sync).
   void Function(Map<String, dynamic> progress)? onProgressUpdated;
 
+  /// Called after each successful socket auth (initial connect and every
+  /// reconnect) so listeners can catch up on events missed while offline.
+  void Function()? onAuthenticated;
+
   /// Called when a library item is added, updated, or removed.
   void Function(Map<String, dynamic> data)? onItemUpdated;
 
@@ -342,6 +346,7 @@ class SocketService {
       _socket!.on('init', (_) {
         debugPrint('[Socket] Authenticated - user is online');
         _syncServerLogSubscription();
+        onAuthenticated?.call();
       });
 
       _socket!.on('auth_failed', (_) {
@@ -494,6 +499,7 @@ class SocketService {
     _token = null;
     _serverUrl = null;
     onProgressUpdated = null;
+    onAuthenticated = null;
     onItemUpdated = null;
     onItemRemoved = null;
     onSeriesUpdated = null;
@@ -547,6 +553,7 @@ class SocketService {
       _socket!.on('init', (_) {
         debugPrint('[Socket] Authenticated - user is online');
         _syncServerLogSubscription();
+        onAuthenticated?.call();
       });
 
       _socket!.on('auth_failed', (_) {

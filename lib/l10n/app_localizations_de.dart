@@ -1677,6 +1677,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get shakeAdds => 'Schütteln fügt hinzu';
 
   @override
+  String get sleepAddAmount => 'Add time amount';
+
+  @override
   String shakeAddsValue(int minutes) {
     return '$minutes Min.';
   }
@@ -1698,6 +1701,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get shakeSensitivityVeryHigh => 'Sehr hoch';
+
+  @override
+  String get buttonDuringSleepTimer => 'Headphone button during wind-down';
+
+  @override
+  String get buttonDuringSleepTimerHint =>
+      'In the final wind-down moments, one press resets the timer instead of pausing. Double press still skips.';
 
   @override
   String get resetTimerOnPause => 'Timer bei Pause zurücksetzen';

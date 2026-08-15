@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/audio_player_service.dart';
+import '../services/chapter_lookup.dart';
 import '../services/chromecast_service.dart';
 import 'absorb_slider.dart';
 
@@ -305,15 +306,23 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
               break;
             }
           }
-          // Past last chapter end - use last chapter
+          // Slightly past the last chapter end still counts as the last
+          // chapter. Grossly past means the chapters don't cover the item's
+          // timeline (e.g. duplicate audio files, GH #345) - keep the
+          // whole-book span so the pill stays honest and keeps moving.
           if (resolvedChapterIdx < 0 && posS > 0) {
             final last = chapterSource.last as Map<String, dynamic>;
-            chapterStart = (last['start'] as num?)?.toDouble() ?? 0;
-            chapterEnd = (last['end'] as num?)?.toDouble() ?? totalDur;
-            resolvedChapterName = last['title'] as String?;
-            resolvedChapterIdx = chapterSource.length - 1;
+            final lastEnd = (last['end'] as num?)?.toDouble() ?? totalDur;
+            if (posS <= lastEnd + ChapterLookup.graceSeconds) {
+              chapterStart = (last['start'] as num?)?.toDouble() ?? 0;
+              chapterEnd = lastEnd;
+              resolvedChapterName = last['title'] as String?;
+              resolvedChapterIdx = chapterSource.length - 1;
+            }
           }
         }
+        final chapterUnresolved =
+            chapterSource.isNotEmpty && resolvedChapterIdx < 0 && posS > 0;
         final chapterDur = chapterEnd - chapterStart;
         final chapterPos = (posS - chapterStart).clamp(0.0, chapterDur);
         final chapterProgress = chapterDur > 0 ? chapterPos / chapterDur : 0.0;
@@ -409,7 +418,8 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
               // Prefer the chapter name resolved from posS (consistent with
               // the fill position) over the externally-passed name which
               // may come from player.currentChapter (different position source).
-              final rawName = resolvedChapterName ?? widget.chapterName;
+              final rawName = resolvedChapterName ??
+                  (chapterUnresolved ? null : widget.chapterName);
               final chIdx = resolvedChapterIdx >= 0 ? resolvedChapterIdx : widget.chapterIndex;
               final chName = rawName != null
                   ? _smartChapterName(l, rawName, chIdx, widget.totalChapters)
