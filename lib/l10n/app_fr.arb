@@ -604,6 +604,7 @@
   "settingsPodcastTabDesc": "Donner à une bibliothèque de podcast son propre onglet dans la barre du bas",
   "settingsPodcastTabLibrary": "Bibliothèque pour l'onglet podcasts",
   "settingsMergeImpliedByPodcastTab": "Toujours allumé lorsque l'onglet Podcasts est activé",
+  "settingsEpisodeNotifs": "Paramètres des notifications",
   "notifIntervalOff": "Désactivé",
   "notifIntervalMinutes": "Toutes les {n} minutes",
   "@notifIntervalMinutes": {
@@ -677,6 +678,7 @@
   "cardScrubbersChapterSubtitle": "Seul la barre de chapitre peut positionner la lecture",
   "cardScrubbersLockedSubtitle": "La progression est affichée sans positionnement possible",
   "speedAdjustedTime": "Temps ajusté à la vitesse",
+  "speedAdjustedTimeOnSubtitle": "Activé - tous les temps reflètent votre vitesse de lecture",
   "speedAdjustedTimeOffSubtitle": "Désactivé - affichage de la durée audio brute",
   "buttonLayout": "Disposition des boutons",
   "buttonLayoutSubtitle": "Comment les boutons d'action sont disposés sur la carte",
@@ -1166,6 +1168,8 @@
     }
   },
   "editServerAddressField": "Adresse du serveur",
+  "editServerAddressAction": "Modifier l'adresse du serveur",
+  "editServerConnectionTitle": "Modifier la connexion au serveur",
   "editServerConnectionSubtitle": "Mettre à jour l'adresse du serveur et les en-têtes personnalisés pour {username}. Vos statistiques et vos téléchargements sont conservés.",
   "@editServerConnectionSubtitle": {
     "placeholders": {
@@ -1174,6 +1178,9 @@
       }
     }
   },
+  "editServerConnectionAction": "Modifier la connexion au serveur",
+  "editServerConnectionUpdated": "Connexion au serveur mise à jour",
+  "editServerConnectionFailed": "Impossible de mettre à jour la connexion au serveur",
   "editCustomHeadersDescription": "Utilisé pour les tunnels Cloudflare ou les proxy inversés. Ces en-têtes ne s'appliquent qu'à ce compte enregistré.",
   "removeAccountAction": "Supprimer le compte",
   "removeAccountTitle": "Supprimer le compte ?",
@@ -1202,13 +1209,25 @@
   },
   "switchButton": "Changer",
   "downloadLocationSheetTitle": "Emplacement des téléchargements",
+  "downloadLocationSheetSubtitle": "Choisir où les livres audio sont enregistrés",
   "currentLocation": "Emplacement actuel",
   "existingDownloadsWarning": "Les téléchargements existants restent à leur emplacement actuel. Seuls les nouveaux téléchargements utilisent le nouveau chemin.",
   "chooseFolder": "Choisir un dossier",
   "chooseDownloadFolder": "Choisir le dossier de téléchargement",
+  "storagePermissionDenied": "Autorisation d'accès au stockage définitivement refusée - activez-la dans les paramètres de l'application",
   "openSettings": "Ouvrir les paramètres",
+  "storagePermissionRequired": "L'autorisation de stockage est requise pour les emplacements de téléchargement personnalisés",
   "cannotWriteToFolder": "Impossible d'écrire dans ce dossier - choisissez un autre emplacement ou accordez l'accès aux fichiers dans les paramètres système",
+  "downloadLocationSetTo": "Emplacement de téléchargement défini à {label}",
+  "@downloadLocationSetTo": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "resetToDefault": "Réinitialiser aux valeurs par défaut",
+  "resetToDefaultStorage": "Rétablir le stockage par défaut",
   "legacyDownloadsNotice": "{count, plural, =1{1 téléchargement se trouve dans un ancien dossier personnalisé qui ne peut plus être ouvert. Téléchargez-le à nouveau ou ignorez cette notification.} other{{count} téléchargements se trouvent dans un ancien dossier personnalisé qui ne peut plus être ouvert. Téléchargez-les à nouveau ou ignorez cette notification.}}",
   "@legacyDownloadsNotice": {
     "placeholders": {
@@ -1219,9 +1238,13 @@
   },
   "redownload": "Re-télécharger",
   "redownloadStarted": "Re-téléchargement",
+  "dismiss": "Ignorer",
+  "tipsAndHiddenFeatures": "Astuces & fonctionnalités cachées",
+  "tipsSubtitle": "Tirez le maximum de Absorb",
   "adminTitle": "Administrateur du serveur",
   "adminTasksTitle": "Activité du serveur",
   "adminTasksRecent": "Activité récente du serveur",
+  "adminTasksEmpty": "Aucune tâche n'est en cours d'exécution sur le serveur",
   "adminServer": "Serveur",
   "adminVersion": "Version",
   "adminUsers": "Utilisateurs",
