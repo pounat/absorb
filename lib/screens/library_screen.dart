@@ -2352,7 +2352,9 @@ class LibraryScreenState extends State<LibraryScreen>
         isPodcastLibrary: context.read<LibraryProvider>().isPodcastLibrary,
         canAccessExplicitContent:
             context.read<AuthProvider>().canAccessExplicitContent,
-        onUpcomingReleases: tab == LibraryTab.series
+        // Browsers block Audible's catalog API (no CORS), so the series scan
+        // can't work on web - hide the entry there
+        onUpcomingReleases: tab == LibraryTab.series && !kIsWeb
             ? () {
                 Navigator.pop(ctx);
                 _openUpcomingReleases();
