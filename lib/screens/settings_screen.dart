@@ -131,6 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _snappyTransitions = false;
   bool _classicWording = false;
   bool _rectangleCovers = false;
+  String _coverSize = 'medium';
   // Per-library overrides shown in the Library section, scoped to whichever
   // library is currently selected (scales to accounts with many libraries -
   // no giant list, just "whatever you're browsing right now").
@@ -826,6 +827,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = results[0] as AutoRewindSettings;
     final progressScale = results.last as double;
     final mp3IndexSeek = await PlayerSettings.getMp3IndexSeeking();
+    final coverSize = await PlayerSettings.getCoverSize();
     final flatBackground = await PlayerSettings.getFlatBackground();
     final colorSource = await PlayerSettings.getColorSource();
     final manualSeed = await PlayerSettings.getManualSeedColor();
@@ -966,6 +968,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _startScreen = startScreen;
       // cardBtnLayout removed (now managed in edit sheet)
       _rectangleCovers = rectCovers;
+      _coverSize = coverSize;
       _coverPlayButton = coverPlay;
       _cardBackground = cardBg;
       _progressTextScale = progressScale;
@@ -1743,6 +1746,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         setState(() => _rectangleCovers = v);
                         PlayerSettings.setRectangleCovers(v);
                       } : null,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l.coverSize, style: tt.titleSmall),
+                          const SizedBox(height: 4),
+                          Text(
+                            l.coverSizeSubtitle,
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: SegmentedButton<String>(
+                              showSelectedIcon: false,
+                              segments: [
+                                ButtonSegment(value: 'small', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.coverSizeSmall, maxLines: 1))),
+                                ButtonSegment(value: 'medium', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.coverSizeMedium, maxLines: 1))),
+                                ButtonSegment(value: 'large', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.coverSizeLarge, maxLines: 1))),
+                              ],
+                              selected: {_coverSize},
+                              onSelectionChanged: _loaded ? (selected) {
+                                final v = selected.first;
+                                setState(() => _coverSize = v);
+                                PlayerSettings.setCoverSize(v);
+                              } : null,
+                              style: const ButtonStyle(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     SwitchListTile(

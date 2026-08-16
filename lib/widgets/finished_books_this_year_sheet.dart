@@ -9,6 +9,7 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
 import 'book_detail_sheet.dart';
+import 'books_sheet_shared.dart' show coverGridCount;
 import 'overlay_toast.dart';
 import 'stackable_sheet.dart';
 
@@ -307,8 +308,8 @@ class _FinishedBooksThisYearSheetState
     return GridView.builder(
       controller: widget.scrollController,
       padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPad),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: coverGridCount(context),
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childAspectRatio: 0.55,

@@ -10,6 +10,7 @@ import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
 import 'absorbing_shared.dart';
 import 'book_detail_sheet.dart';
+import 'books_sheet_shared.dart' show coverGridTextScale, coverGridDecodeWidth;
 import 'episode_list_sheet.dart';
 import '../services/upcoming_releases_service.dart';
 import 'series_books_sheet.dart';
@@ -265,7 +266,7 @@ class _GridBookTileState extends State<GridBookTile> {
             style: tt.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: cs.onSurface,
-              fontSize: 11,
+              fontSize: 11 * coverGridTextScale(context),
             ),
           ),
           // Author
@@ -276,7 +277,7 @@ class _GridBookTileState extends State<GridBookTile> {
               overflow: TextOverflow.ellipsis,
               style: tt.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
-                fontSize: 10,
+                fontSize: 10 * coverGridTextScale(context),
               ),
             ),
         ],
@@ -287,30 +288,42 @@ class _GridBookTileState extends State<GridBookTile> {
   Widget _blurCover(String coverUrl, Map<String, String> headers, ColorScheme cs, double aspectRatio, String title, String author) {
     final placeholder = CoverPlaceholder(title: title, author: author);
     final isSquare = (aspectRatio - 1.0).abs() < 0.01;
+    final decodeWidth = coverGridDecodeWidth(context);
     if (!isSquare) {
       if (coverUrl.startsWith('/')) {
         return Image.file(File(coverUrl), fit: BoxFit.cover,
+            cacheWidth: decodeWidth,
             errorBuilder: (_, __, ___) => placeholder);
       }
       return CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
-          httpHeaders: headers, placeholder: (_, __) => placeholder,
+          httpHeaders: headers, memCacheWidth: decodeWidth,
+          placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder);
     }
+    // The letterbox fill behind non-square art. A real gaussian here means one
+    // offscreen blur layer per tile, which piles up GPU memory on dense grids
+    // and gets the app OOM-killed mid-scroll - a tiny decode stretched to size
+    // looks the same under the scrim at tile sizes and costs nothing.
     if (coverUrl.startsWith('/')) {
-      return BlurPaddedCover(
-        blurChild: Image.file(File(coverUrl), fit: BoxFit.cover,
-            errorBuilder: (_, __ ,___) => const SizedBox.shrink()),
-        child: Image.file(File(coverUrl), fit: BoxFit.contain,
+      return Stack(fit: StackFit.expand, children: [
+        Image.file(File(coverUrl), fit: BoxFit.cover, cacheWidth: 32,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Image.file(File(coverUrl), fit: BoxFit.contain,
+            cacheWidth: decodeWidth,
             errorBuilder: (_, __, ___) => placeholder),
-      );
+      ]);
     }
-    return BlurPaddedCover(
-      blurChild: CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
-          httpHeaders: headers, errorWidget: (_, __, ___) => const SizedBox.shrink()),
-      child: CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.contain,
-          httpHeaders: headers, placeholder: (_, __) => placeholder,
+    return Stack(fit: StackFit.expand, children: [
+      CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
+          httpHeaders: headers, memCacheWidth: 32,
+          errorWidget: (_, __, ___) => const SizedBox.shrink()),
+      Container(color: Colors.black.withValues(alpha: 0.15)),
+      CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.contain,
+          httpHeaders: headers, memCacheWidth: decodeWidth,
+          placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder),
-    );
+    ]);
   }
 }
 
@@ -363,7 +376,7 @@ class _StackedCovers extends StatelessWidget {
               bottom: i * inset,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: _coverImage(coverUrls[i]),
+                child: _coverImage(context, coverUrls[i]),
               ),
             ),
           // Front cover (bottom-left)
@@ -390,7 +403,7 @@ class _StackedCovers extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    _coverImage(coverUrls.isNotEmpty ? coverUrls[0] : null),
+                    _coverImage(context, coverUrls.isNotEmpty ? coverUrls[0] : null),
                     // Series progress bar
                     if (seriesProgress > 0 && booksFinished < numBooks)
                       Positioned(
@@ -445,15 +458,18 @@ class _StackedCovers extends StatelessWidget {
     );
   }
 
-  Widget _coverImage(String? url) {
+  Widget _coverImage(BuildContext context, String? url) {
     if (url == null) return _placeholder();
+    final decodeWidth = coverGridDecodeWidth(context);
     // Series stacked covers are always cropped to fit - no blur padding needed
     if (url.startsWith('/')) {
       return Image.file(File(url), fit: BoxFit.cover,
+          cacheWidth: decodeWidth,
           errorBuilder: (_, __, ___) => _placeholder());
     }
     return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
-        httpHeaders: mediaHeaders, placeholder: (_, __) => _placeholder(),
+        httpHeaders: mediaHeaders, memCacheWidth: decodeWidth,
+        placeholder: (_, __) => _placeholder(),
         errorWidget: (_, __, ___) => _placeholder());
   }
 
@@ -553,7 +569,7 @@ class GridSeriesTile extends StatelessWidget {
             style: tt.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: cs.onSurface,
-              fontSize: 11,
+              fontSize: 11 * coverGridTextScale(context),
             ),
           ),
           if (author.isNotEmpty)
@@ -563,7 +579,7 @@ class GridSeriesTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: tt.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
-                fontSize: 10,
+                fontSize: 10 * coverGridTextScale(context),
               ),
             ),
         ],
@@ -666,7 +682,7 @@ class GridSeriesTileDirect extends StatelessWidget {
             style: tt.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: cs.onSurface,
-              fontSize: 11,
+              fontSize: 11 * coverGridTextScale(context),
             ),
           ),
           if (author.isNotEmpty)
@@ -676,7 +692,7 @@ class GridSeriesTileDirect extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: tt.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
-                fontSize: 10,
+                fontSize: 10 * coverGridTextScale(context),
               ),
             ),
         ],
@@ -751,7 +767,7 @@ class GridListTile extends StatelessWidget {
                   isPlaylist
                       ? Icons.playlist_play_rounded
                       : Icons.collections_bookmark_rounded,
-                  size: 12,
+                  size: 12 * coverGridTextScale(context),
                   color: cs.onSurfaceVariant),
               const SizedBox(width: 3),
               Expanded(
@@ -762,7 +778,7 @@ class GridListTile extends StatelessWidget {
                   style: tt.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: cs.onSurface,
-                    fontSize: 11,
+                    fontSize: 11 * coverGridTextScale(context),
                   ),
                 ),
               ),
@@ -774,7 +790,9 @@ class GridListTile extends StatelessWidget {
                 : l.collectionDetailBookCount(count),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 10),
+            style: tt.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontSize: 10 * coverGridTextScale(context)),
           ),
         ],
       ),
@@ -861,6 +879,7 @@ class GridAuthorTile extends StatelessWidget {
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
                             httpHeaders: headers,
+                            memCacheWidth: coverGridDecodeWidth(context),
                             placeholder: (_, __) => _placeholder(cs),
                             errorWidget: (_, __, ___) => _placeholder(cs),
                           ),
@@ -941,7 +960,7 @@ class GridAuthorTile extends StatelessWidget {
             style: tt.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: cs.onSurface,
-              fontSize: 11,
+              fontSize: 11 * coverGridTextScale(context),
             ),
           ),
         ],

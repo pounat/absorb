@@ -87,6 +87,7 @@ class BackupService {
       'cardSingleRow': await PlayerSettings.getCardSingleRow(),
       'cardMoreInline': await PlayerSettings.getCardMoreInline(),
       'rectangleCovers': await PlayerSettings.getRectangleCovers(),
+      'coverSize': await PlayerSettings.getCoverSize(),
       'coverPlayButton': await PlayerSettings.getCoverPlayButton(),
       'whenFinished': await PlayerSettings.getWhenFinished(),
       'sleepRewindSeconds': await PlayerSettings.getSleepRewindSeconds(),
@@ -536,6 +537,7 @@ class BackupService {
     if (s['cardSingleRow'] != null) PlayerSettings.setCardSingleRow(s['cardSingleRow'] as bool);
     if (s['cardMoreInline'] != null) PlayerSettings.setCardMoreInline(s['cardMoreInline'] as bool);
     if (s['rectangleCovers'] != null) PlayerSettings.setRectangleCovers(s['rectangleCovers'] as bool);
+    if (s['coverSize'] != null) PlayerSettings.setCoverSize(s['coverSize'] as String);
     if (s['coverPlayButton'] != null) PlayerSettings.setCoverPlayButton(s['coverPlayButton'] as bool);
     if (s['sleepRewindSeconds'] != null) PlayerSettings.setSleepRewindSeconds(s['sleepRewindSeconds'] as int);
     if (s['sleepTimerTab'] != null) PlayerSettings.setSleepTimerTab(s['sleepTimerTab'] as int);

@@ -925,6 +925,15 @@ class PlayerSettings {
   static Future<bool> getRectangleCovers() => _get('rectangleCovers', false);
   static Future<void> setRectangleCovers(bool value) => _set('rectangleCovers', value, notify: true);
 
+  /// Cached value for synchronous access in grid builders.
+  /// 'small' | 'medium' | 'large'; medium keeps the long-standing layout.
+  static String coverSize = 'medium';
+  static Future<String> getCoverSize() => _get('coverSize', 'medium');
+  static Future<void> setCoverSize(String value) async {
+    coverSize = value;
+    await _set('coverSize', value, notify: true);
+  }
+
   /// Per-library cover-shape override: 'rect', 'square', or null (= follow
   /// the global toggle). Lets an ebook library run tall covers while the
   /// audiobook libraries stay square.

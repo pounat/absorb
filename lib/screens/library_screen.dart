@@ -32,6 +32,7 @@ import 'admin_podcasts_screen.dart';
 import 'app_shell.dart';
 import 'upcoming_releases_screen.dart';
 import '../widgets/audible_series_sheet.dart' show showAudibleRegionPicker;
+import '../widgets/books_sheet_shared.dart' show coverGridCount;
 import '../widgets/offline_status_icon.dart';
 import '../widgets/rmab_config_sheet.dart'
     show kRmabBaseUrlKey, kRmabApiTokenKey;
@@ -41,12 +42,9 @@ import '../services/scoped_prefs.dart';
 import '../services/user_account_service.dart';
 import '../l10n/app_localizations.dart';
 
-/// Responsive grid column count based on available width.
-/// Returns 3 on phones, scales up on tablets/iPads.
-int responsiveGridCount(BuildContext context) {
-  final width = MediaQuery.of(context).size.width;
-  return (width / 130).floor().clamp(3, 10);
-}
+/// Responsive grid column count based on available width and the cover size
+/// setting; scales up on tablets/iPads.
+int responsiveGridCount(BuildContext context) => coverGridCount(context);
 
 /// Bottom padding for the library tab grids/lists so the last row clears the
 /// floating tab bar (`Library/Series/Authors/Narrators`) plus the AppShell
@@ -2710,8 +2708,8 @@ class LibraryScreenState extends State<LibraryScreen>
           ? 156
           : ((_filter != LibraryFilter.none ||
                     _seriesFilter != SeriesFilter.none)
-                ? 196
-                : 184),
+                ? 204
+                : 192),
       backgroundColor: scaffoldBg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,

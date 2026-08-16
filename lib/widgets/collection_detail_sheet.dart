@@ -14,6 +14,7 @@ import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
 import 'add_books_search_sheet.dart';
 import 'book_detail_sheet.dart';
+import 'books_sheet_shared.dart' show coverGridCount;
 import 'editable_sheet_item.dart';
 import 'stackable_sheet.dart';
 import 'swipe_action.dart';
@@ -580,8 +581,8 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
       controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4)
           .copyWith(bottom: 40),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: coverGridCount(context),
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childAspectRatio: 0.62,

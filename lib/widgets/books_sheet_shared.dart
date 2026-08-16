@@ -21,13 +21,50 @@ void registerBookCovers(LibraryProvider lib, Iterable<Map<String, dynamic>> book
   }
 }
 
+/// Column count for cover grids. Small/large scale the width-based medium
+/// count by a third, so phones land on exactly 4/3/2 columns no matter their
+/// display scale while tablets move proportionally (e.g. 8/6/4).
+int coverGridCount(BuildContext context) {
+  final width = MediaQuery.of(context).size.width;
+  final base = (width / 130).floor().clamp(3, 10);
+  switch (PlayerSettings.coverSize) {
+    case 'small':
+      return ((base * 4) / 3).round().clamp(4, 12);
+    case 'large':
+      return ((base * 2) / 3).round().clamp(2, 10);
+    default:
+      return base;
+  }
+}
+
+/// Label scale for cover-grid tiles: 1.0 at the stock phone tile width and
+/// growing with the tile, so big tablet or large-cover grids don't pair big
+/// covers with tiny labels. Never shrinks below 1.0 on dense grids.
+double coverGridTextScale(BuildContext context) {
+  final columns = coverGridCount(context);
+  final width = MediaQuery.of(context).size.width;
+  final tile = (width - 32 - 10 * (columns - 1)) / columns;
+  return (tile / 120).clamp(1.0, 1.5);
+}
+
+/// Decode width in physical pixels for a cover in the current grid. Disk
+/// caching only saves the download - every tile scrolled into view still
+/// decodes its bitmap, so decoding at tile size instead of the full server
+/// cover is what keeps a long scroll from ballooning memory.
+int coverGridDecodeWidth(BuildContext context) {
+  final columns = coverGridCount(context);
+  final mq = MediaQuery.of(context);
+  final tile = (mq.size.width - 32 - 10 * (columns - 1)) / columns;
+  return (tile * mq.devicePixelRatio).round();
+}
+
 /// Standard grid delegate for book grids inside sheets.
 SliverGridDelegateWithFixedCrossAxisCount sheetBookGridDelegate(
   BuildContext context, {
   double childAspectRatio = 0.55,
 }) {
   return SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: (MediaQuery.of(context).size.width / 130).floor().clamp(3, 10),
+    crossAxisCount: coverGridCount(context),
     mainAxisSpacing: 8,
     crossAxisSpacing: 8,
     childAspectRatio: childAspectRatio,
