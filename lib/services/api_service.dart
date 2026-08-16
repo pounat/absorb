@@ -2401,7 +2401,9 @@ class ApiService {
         body: jsonEncode({
           'currentTime': currentTime,
           'duration': duration,
-          'progress': duration > 0 ? (currentTime / duration).clamp(0.0, 1.0) : 0,
+          'progress': duration > 0
+              ? (currentTime / duration).clamp(0.0, 1.0)
+              : 0,
           'isFinished': isFinished,
         }),
         timeout: const Duration(seconds: 10),
@@ -3610,36 +3612,45 @@ class ApiService {
     return false;
   }
 
-  /// GET /api/search/providers — metadata provider ids for the library editor.
-  /// Response shape is { books: [{text,value}], podcasts: [...], booksCovers: [...] }.
-  /// Returns book + podcast provider values (deduped); falls back to built-ins.
+  /// Metadata provider ids for the library editor. The server has no endpoint
+  /// for these - the ABS web UI hardcodes them client-side - so this is the
+  /// same fixed set, plus any custom metadata providers configured on the
+  /// server (GET /api/custom-metadata-providers, dropdown value custom-<id>).
   Future<List<String>> getMetadataProviders() async {
+    final out = <String>[
+      'google',
+      'openlibrary',
+      'itunes',
+      'audible',
+      'audible.ca',
+      'audible.uk',
+      'audible.au',
+      'audible.fr',
+      'audible.de',
+      'audible.jp',
+      'audible.it',
+      'audible.in',
+      'audible.es',
+      'audnexus',
+      'fantlab',
+    ];
     try {
       final r = await _authGet(
-        Uri.parse('$_cleanBaseUrl/api/search/providers'),
+        Uri.parse('$_cleanBaseUrl/api/custom-metadata-providers'),
       );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
-        final out = <String>[];
-        for (final key in ['books', 'podcasts']) {
-          for (final p in (data[key] as List?) ?? []) {
-            final v = p is Map ? p['value']?.toString() : p?.toString();
-            if (v != null && v.isNotEmpty && !out.contains(v)) out.add(v);
+        for (final p in (data['providers'] as List?) ?? []) {
+          if (p is Map && p['id'] != null) {
+            final v = 'custom-${p['id']}';
+            if (!out.contains(v)) out.add(v);
           }
         }
-        if (out.isNotEmpty) return out;
       }
     } catch (e) {
       debugPrint('[API] getMetadataProviders error: $e');
     }
-    return const [
-      'google',
-      'audible',
-      'openlibrary',
-      'itunes',
-      'audnexus',
-      'fantlab',
-    ];
+    return out;
   }
 
   /// PATCH /api/settings — update server settings (admin only).
@@ -3942,10 +3953,13 @@ class ApiService {
     try {
       final r = await _authDelete(
         Uri.parse('$_cleanBaseUrl/api/items/$itemId/cover'),
-        timeout: const Duration(seconds: 30));
+        timeout: const Duration(seconds: 30),
+      );
       debugPrint('[API] removeItemCover $itemId -> ${r.statusCode}');
       return r.statusCode == 200;
-    } catch (e) { debugPrint('removeItemCover error: $e'); }
+    } catch (e) {
+      debugPrint('removeItemCover error: $e');
+    }
     return false;
   }
 
