@@ -598,6 +598,11 @@
   "progressTextSize": "Progress text size",
   "rectangleBookCoversOnSubtitle": "Covers display in 2:3 book proportion",
   "rectangleBookCoversOffSubtitle": "Covers are square",
+  "coverSize": "Cover size",
+  "coverSizeSubtitle": "How many covers fit across the library grid",
+  "coverSizeSmall": "Small",
+  "coverSizeMedium": "Medium",
+  "coverSizeLarge": "Large",
   "sectionAbsorbingCards": "Absorbing Cards",
   "fullScreenPlayer": "Full screen player",
   "fullScreenPlayerOnSubtitle": "On - books open in full screen when played",
@@ -2707,6 +2712,13 @@
   "episodeListExplicitChip": "Explicit",
   "episodeListSortNewest": "Newest",
   "episodeListSortOldest": "Oldest",
+  "episodeListSortBy": "Sort episodes",
+  "episodeListSortPubDate": "Publish date",
+  "episodeListSortTitle": "Title",
+  "episodeListSortSeason": "Season",
+  "episodeListSortEpisode": "Episode number",
+  "episodeListSortFileName": "File name",
+  "episodeListSortReverseHint": "Tap again to reverse the order",
   "episodeListAddedToAbsorbing": "Added \"{title}\" to Absorbing",
   "@episodeListAddedToAbsorbing": {
     "placeholders": {
@@ -3250,7 +3262,6 @@
     }
   },
   "upcomingReleasesBadgeNew": "NEW",
-  "upcomingReleasesOpenSeries": "Open series on Audible",
   "upcomingReleasesOpenLibrarySeries": "Open series in library",
   "upcomingReleasesAsinCopied": "Series ASIN copied",
   "upcomingReleasesSetSeriesAsin": "Set series ASIN",
@@ -3319,6 +3330,24 @@
       }
     }
   },
+  "upcomingReleasesBulkScanned": "{count, plural, =1{1 series rescanned} other{{count} series rescanned}}",
+  "@upcomingReleasesBulkScanned": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkScanFound": "{count} with new books",
+  "@upcomingReleasesBulkScanFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesExcludeFromScan": "Exclude from series scan",
+  "seriesIncludeInScan": "Include in series scan",
   "homeScreenEpisodeFallback": "Episode",
   "libraryScreenUnknownTitle": "Unknown Title",
   "playlistDetailDefaultName": "Playlist",

@@ -11,6 +11,7 @@ import '../services/download_service.dart';
 import 'absorbing_shared.dart';
 import 'book_detail_sheet.dart';
 import 'episode_list_sheet.dart';
+import '../services/upcoming_releases_service.dart';
 import 'series_books_sheet.dart';
 import 'author_books_sheet.dart';
 
@@ -529,6 +530,9 @@ class GridSeriesTile extends StatelessWidget {
           );
         }
       },
+      onLongPress: seriesId.isNotEmpty
+          ? () => showSeriesScanMenu(context, seriesId, seriesName)
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -952,5 +956,47 @@ class GridAuthorTile extends StatelessWidget {
           size: 32, color: cs.onSecondaryContainer.withValues(alpha: 0.4)),
     );
   }
+}
+
+/// Long-press menu for a library series: exclude it from (or re-include it
+/// in) the Scan Series feature.
+Future<void> showSeriesScanMenu(
+    BuildContext context, String seriesId, String seriesName) async {
+  final excluded = await UpcomingReleasesService.isNeverScan(seriesId);
+  if (!context.mounted) return;
+  final l = AppLocalizations.of(context)!;
+  final cs = Theme.of(context).colorScheme;
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(top: 8, bottom: 12),
+          decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(seriesName,
+            style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+        ),
+        const SizedBox(height: 12),
+        ListTile(
+          leading: Icon(excluded ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+            color: cs.primary, size: 22),
+          title: Text(excluded ? l.seriesIncludeInScan : l.seriesExcludeFromScan,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          dense: true, visualDensity: VisualDensity.compact,
+          onTap: () {
+            Navigator.pop(ctx);
+            UpcomingReleasesService.setNeverScan(seriesId, !excluded);
+          },
+        ),
+        const SizedBox(height: 8),
+      ]),
+    ),
+  );
 }
 

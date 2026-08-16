@@ -1253,6 +1253,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rectangleBookCoversOffSubtitle => 'Les couvertures sont carrées';
 
   @override
+  String get coverSize => 'Cover size';
+
+  @override
+  String get coverSizeSubtitle => 'How many covers fit across the library grid';
+
+  @override
+  String get coverSizeSmall => 'Small';
+
+  @override
+  String get coverSizeMedium => 'Medium';
+
+  @override
+  String get coverSizeLarge => 'Large';
+
+  @override
   String get sectionAbsorbingCards => 'Cartes d\'absorption';
 
   @override
@@ -5001,6 +5016,27 @@ class AppLocalizationsFr extends AppLocalizations {
   String get episodeListSortOldest => 'Les plus anciens';
 
   @override
+  String get episodeListSortBy => 'Sort episodes';
+
+  @override
+  String get episodeListSortPubDate => 'Publish date';
+
+  @override
+  String get episodeListSortTitle => 'Title';
+
+  @override
+  String get episodeListSortSeason => 'Season';
+
+  @override
+  String get episodeListSortEpisode => 'Episode number';
+
+  @override
+  String get episodeListSortFileName => 'File name';
+
+  @override
+  String get episodeListSortReverseHint => 'Tap again to reverse the order';
+
+  @override
   String episodeListAddedToAbsorbing(String title) {
     return 'Added \"$title\" to Absorbing';
   }
@@ -5661,9 +5697,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get upcomingReleasesBadgeNew => 'NEW';
 
   @override
-  String get upcomingReleasesOpenSeries => 'Open series on Audible';
-
-  @override
   String get upcomingReleasesOpenLibrarySeries => 'Open series in library';
 
   @override
@@ -5788,6 +5821,28 @@ class AppLocalizationsFr extends AppLocalizations {
   String upcomingReleasesBulkRequestSkipped(int count) {
     return '$count skipped';
   }
+
+  @override
+  String upcomingReleasesBulkScanned(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count series rescanned',
+      one: '1 series rescanned',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String upcomingReleasesBulkScanFound(int count) {
+    return '$count with new books';
+  }
+
+  @override
+  String get seriesExcludeFromScan => 'Exclude from series scan';
+
+  @override
+  String get seriesIncludeInScan => 'Include in series scan';
 
   @override
   String get homeScreenEpisodeFallback => 'Épisode';

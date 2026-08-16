@@ -518,32 +518,6 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
     return null;
   }
 
-  Future<void> _openSeriesSheetFor(String seriesId, String seriesName, String audibleAsin) async {
-    final api = context.read<AuthProvider>().apiService;
-    final libraryId = context.read<LibraryProvider>().selectedLibraryId;
-    final ownedTitles = <String>{};
-    final ownedAsins = <String>{};
-    if (api != null && libraryId != null && seriesId.isNotEmpty) {
-      final books = await api.getBooksBySeries(libraryId, seriesId, limit: 500);
-      for (final b in books) {
-        if (b is! Map<String, dynamic>) continue;
-        final media = b['media'] as Map<String, dynamic>? ?? {};
-        final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
-        final title = metadata['title'] as String? ?? '';
-        final asin = metadata['asin'] as String? ?? '';
-        if (title.isNotEmpty) ownedTitles.add(title);
-        if (asin.isNotEmpty) ownedAsins.add(asin);
-      }
-    }
-    if (!mounted) return;
-    showAudibleSeriesSheet(context,
-      seriesName: seriesName,
-      seriesAsin: audibleAsin,
-      ownedTitles: ownedTitles,
-      ownedAsins: ownedAsins,
-    );
-  }
-
   void _showBookMenu(Map<String, dynamic> book, String seriesName,
       {bool isUpcoming = false}) {
     final l = AppLocalizations.of(context)!;
@@ -575,18 +549,6 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
                 token: auth.token,
                 libraryId: lib.selectedLibraryId,
               );
-            },
-          ),
-        if (seriesContext != null && seriesContext.audibleAsin.isNotEmpty)
-          ListTile(
-            leading: Icon(Icons.travel_explore_rounded, color: cs.primary, size: 22),
-            title: Text(l.upcomingReleasesOpenSeries,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            dense: true, visualDensity: VisualDensity.compact,
-            onTap: () {
-              Navigator.pop(context);
-              _openSeriesSheetFor(
-                  seriesContext.seriesId, seriesName, seriesContext.audibleAsin);
             },
           ),
         ListTile(
@@ -1749,6 +1711,63 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
   Set<String> _alwaysScan = {};
   Set<String> _neverScan = {};
   String? _busySeriesId;
+  final Set<String> _selected = {};
+  bool get _selecting => _selected.isNotEmpty;
+  bool _bulkBusy = false;
+
+  void _toggleSelected(String seriesId) {
+    setState(() {
+      if (!_selected.remove(seriesId)) _selected.add(seriesId);
+    });
+  }
+
+  Future<void> _bulkOverride({required bool always}) async {
+    setState(() {
+      final target = always ? _alwaysScan : _neverScan;
+      final other = always ? _neverScan : _alwaysScan;
+      target.addAll(_selected);
+      other.removeAll(_selected);
+    });
+    await ScopedPrefs.setStringList(
+        UpcomingReleasesService.alwaysScanPrefKey, _alwaysScan.toList());
+    await ScopedPrefs.setStringList(
+        UpcomingReleasesService.neverScanPrefKey, _neverScan.toList());
+    if (mounted) setState(() => _selected.clear());
+  }
+
+  Future<void> _bulkScanNow() async {
+    final l = AppLocalizations.of(context)!;
+    final targets = _service.skippedSeries
+        .where((s) => _selected.contains(s.seriesId))
+        .toList();
+    if (targets.isEmpty) return;
+    final api = context.read<AuthProvider>().apiService;
+    final libraryId = context.read<LibraryProvider>().selectedLibraryId;
+    if (api == null || libraryId == null) return;
+    setState(() => _bulkBusy = true);
+    var found = 0;
+    for (final s in targets) {
+      final outcome = await _service.scanSingleSeries(
+        api: api,
+        libraryId: libraryId,
+        seriesId: s.seriesId,
+        seriesName: s.seriesName,
+      );
+      if (outcome == SingleScanOutcome.found) found++;
+    }
+    if (!mounted) return;
+    setState(() {
+      _bulkBusy = false;
+      _selected.clear();
+    });
+    showOverlayToast(
+      context,
+      found > 0
+          ? '${l.upcomingReleasesBulkScanned(targets.length)} - ${l.upcomingReleasesBulkScanFound(found)}'
+          : l.upcomingReleasesBulkScanned(targets.length),
+      icon: Icons.refresh_rounded,
+    );
+  }
 
   @override
   void initState() {
@@ -1935,6 +1954,17 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
               maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
           ),
           const SizedBox(height: 12),
+          if (s.audibleAsin.isNotEmpty)
+            ListTile(
+              leading: Icon(Icons.travel_explore_rounded, color: cs.primary, size: 22),
+              title: Text(l.seriesBooksFindMissingTitle,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              dense: true, visualDensity: VisualDensity.compact,
+              onTap: () {
+                Navigator.pop(ctx);
+                _openSeriesSheet(s);
+              },
+            ),
           ListTile(
             leading: Icon(Icons.refresh_rounded, color: cs.primary, size: 22),
             title: Text(l.upcomingReleasesSkippedScanNow,
@@ -2024,6 +2054,51 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
                   itemBuilder: (context, index) => _buildRow(cs, tt, l, skipped[index], mismatch),
                 ),
         ),
+        if (_selecting)
+          Container(
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHigh,
+              border: Border(top: BorderSide(color: cs.onSurface.withValues(alpha: 0.08))),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+                child: Row(children: [
+                  Text(l.upcomingReleasesSelectedCount(_selected.length),
+                    style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  if (_bulkBusy)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  else ...[
+                    IconButton(
+                      tooltip: l.upcomingReleasesSkippedScanNow,
+                      icon: Icon(Icons.refresh_rounded, color: cs.primary),
+                      onPressed: _bulkScanNow,
+                    ),
+                    IconButton(
+                      tooltip: l.upcomingReleasesSkippedAlwaysScan,
+                      icon: Icon(Icons.check_circle_outline_rounded, color: cs.primary),
+                      onPressed: () => _bulkOverride(always: true),
+                    ),
+                    IconButton(
+                      tooltip: l.upcomingReleasesSkippedNeverScan,
+                      icon: Icon(Icons.block_rounded, color: cs.error),
+                      onPressed: () => _bulkOverride(always: false),
+                    ),
+                  ],
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, color: cs.onSurfaceVariant),
+                    onPressed: _bulkBusy ? null : () => setState(() => _selected.clear()),
+                  ),
+                ]),
+              ),
+            ),
+          ),
       ],
     ));
   }
@@ -2045,18 +2120,25 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
       }
     }
 
+    final selected = _selected.contains(s.seriesId);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
         onTap: mismatch
             ? null
-            : unmatched
-                ? () => _promptSeriesAsin(s)
-                : () => _openSeriesSheet(s),
+            : _selecting
+                ? () => _toggleSelected(s.seriesId)
+                : () => _showRowMenu(s),
+        onLongPress: mismatch ? null : () => _toggleSelected(s.seriesId),
         child: Card(
           elevation: 0,
           color: cs.surfaceContainerHigh,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: selected
+                ? BorderSide(color: cs.primary, width: 1.5)
+                : BorderSide.none,
+          ),
           clipBehavior: Clip.antiAlias,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
@@ -2100,8 +2182,12 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
                 )
               else if (!mismatch)
                 IconButton(
-                  icon: Icon(Icons.more_vert_rounded, size: 20, color: cs.onSurfaceVariant),
-                  onPressed: () => _showRowMenu(s),
+                  icon: Icon(
+                    selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                    size: 22,
+                    color: selected ? cs.primary : cs.onSurfaceVariant.withValues(alpha: 0.4),
+                  ),
+                  onPressed: () => _toggleSelected(s.seriesId),
                 ),
             ]),
           ),

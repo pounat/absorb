@@ -16,6 +16,7 @@ import 'book_detail_sheet.dart';
 import 'library_grid_tiles.dart';
 import 'episode_list_sheet.dart';
 import 'stackable_sheet.dart';
+import '../services/upcoming_releases_service.dart';
 import 'audible_series_sheet.dart';
 import 'action_pill.dart';
 import 'books_sheet_shared.dart';
@@ -81,6 +82,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
   bool _isDownloadingAll = false;
   bool _isMarkingAll = false;
   bool _autoDownloadEnabled = false;
+  bool _scanExcluded = false;
   bool _collapseSeries = false;
   final Set<String> _expandedSubSeries = {};
 
@@ -104,6 +106,12 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     // Fetch full data from API for proper sequence info
     _fetchFromApi();
     _loadAutoDownloadState();
+    final sid = widget.seriesId;
+    if (sid != null && sid.isNotEmpty) {
+      UpcomingReleasesService.isNeverScan(sid).then((v) {
+        if (mounted && v != _scanExcluded) setState(() => _scanExcluded = v);
+      });
+    }
     PlayerSettings.getSheetGridView().then((v) {
       if (mounted && v != _gridView) setState(() => _gridView = v);
     });
@@ -838,6 +846,16 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                       await lib.toggleRollingDownload(widget.seriesId!,
                           name: widget.seriesName, kind: 'series');
                       setState(() => _autoDownloadEnabled = lib.isRollingDownloadEnabled(widget.seriesId!));
+                    }),
+                if (hasSeriesId)
+                  ActionPillData(
+                    icon: _scanExcluded ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                    label: _scanExcluded ? l.seriesIncludeInScan : l.seriesExcludeFromScan,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final next = !_scanExcluded;
+                      await UpcomingReleasesService.setNeverScan(widget.seriesId!, next);
+                      if (mounted) setState(() => _scanExcluded = next);
                     }),
                 ActionPillData(icon: Icons.search_rounded, label: l.seriesBooksFindMissingTitle,
                   onTap: () { Navigator.pop(ctx); _findOnAudible(); }),

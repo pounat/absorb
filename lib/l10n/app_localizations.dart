@@ -2362,6 +2362,36 @@ abstract class AppLocalizations {
   /// **'Covers are square'**
   String get rectangleBookCoversOffSubtitle;
 
+  /// No description provided for @coverSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover size'**
+  String get coverSize;
+
+  /// No description provided for @coverSizeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How many covers fit across the library grid'**
+  String get coverSizeSubtitle;
+
+  /// No description provided for @coverSizeSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get coverSizeSmall;
+
+  /// No description provided for @coverSizeMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get coverSizeMedium;
+
+  /// No description provided for @coverSizeLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get coverSizeLarge;
+
   /// No description provided for @sectionAbsorbingCards.
   ///
   /// In en, this message translates to:
@@ -8846,6 +8876,48 @@ abstract class AppLocalizations {
   /// **'Oldest'**
   String get episodeListSortOldest;
 
+  /// No description provided for @episodeListSortBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort episodes'**
+  String get episodeListSortBy;
+
+  /// No description provided for @episodeListSortPubDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish date'**
+  String get episodeListSortPubDate;
+
+  /// No description provided for @episodeListSortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get episodeListSortTitle;
+
+  /// No description provided for @episodeListSortSeason.
+  ///
+  /// In en, this message translates to:
+  /// **'Season'**
+  String get episodeListSortSeason;
+
+  /// No description provided for @episodeListSortEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode number'**
+  String get episodeListSortEpisode;
+
+  /// No description provided for @episodeListSortFileName.
+  ///
+  /// In en, this message translates to:
+  /// **'File name'**
+  String get episodeListSortFileName;
+
+  /// No description provided for @episodeListSortReverseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap again to reverse the order'**
+  String get episodeListSortReverseHint;
+
   /// No description provided for @episodeListAddedToAbsorbing.
   ///
   /// In en, this message translates to:
@@ -9843,12 +9915,6 @@ abstract class AppLocalizations {
   /// **'NEW'**
   String get upcomingReleasesBadgeNew;
 
-  /// No description provided for @upcomingReleasesOpenSeries.
-  ///
-  /// In en, this message translates to:
-  /// **'Open series on Audible'**
-  String get upcomingReleasesOpenSeries;
-
   /// No description provided for @upcomingReleasesOpenLibrarySeries.
   ///
   /// In en, this message translates to:
@@ -10004,6 +10070,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} skipped'**
   String upcomingReleasesBulkRequestSkipped(int count);
+
+  /// No description provided for @upcomingReleasesBulkScanned.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 series rescanned} other{{count} series rescanned}}'**
+  String upcomingReleasesBulkScanned(int count);
+
+  /// No description provided for @upcomingReleasesBulkScanFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} with new books'**
+  String upcomingReleasesBulkScanFound(int count);
+
+  /// No description provided for @seriesExcludeFromScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclude from series scan'**
+  String get seriesExcludeFromScan;
+
+  /// No description provided for @seriesIncludeInScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Include in series scan'**
+  String get seriesIncludeInScan;
 
   /// No description provided for @homeScreenEpisodeFallback.
   ///
