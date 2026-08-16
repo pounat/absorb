@@ -2873,7 +2873,7 @@ class AudioPlayerService extends ChangeNotifier {
       final sinceSync = DateTime.now()
           .difference(service._lastServerSync)
           .inSeconds;
-      if (sinceSync > 60) {
+      if (sinceSync > 20) {
         service._syncToServer(service.position);
       }
     }
@@ -5171,9 +5171,11 @@ class AudioPlayerService extends ChangeNotifier {
           await _accrueListening(absolutePos);
           if (_isCachedStartReconcilePending) return;
 
-          // Push to server: 15s foreground, 60s background. Accuracy rides on the
-          // accrual above, not this cadence — this is just server freshness.
-          final syncInterval = _isBackgrounded ? 60 : 15;
+          // Push to server every 20s regardless of foreground state, in line
+          // with the other ABS clients (official 15s, web 10s). Accuracy rides
+          // on the accrual above, not this cadence - this is just server
+          // freshness.
+          const syncInterval = 20;
           final sinceLastSync = DateTime.now()
               .difference(_lastServerSync)
               .inSeconds;
