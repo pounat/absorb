@@ -605,6 +605,7 @@
   "settingsPodcastTabLibrary": "Bibliothèque pour l'onglet podcasts",
   "settingsMergeImpliedByPodcastTab": "Toujours allumé lorsque l'onglet Podcasts est activé",
   "settingsEpisodeNotifs": "Paramètres des notifications",
+  "settingsEpisodeNotifsDesc": "Nouveaux épisodes de podcast et versions à venir de livres, vérifiés en arrière-plan",
   "notifIntervalOff": "Désactivé",
   "notifIntervalMinutes": "Toutes les {n} minutes",
   "@notifIntervalMinutes": {
@@ -2291,6 +2292,9 @@
   },
   "upcomingReleasesBadgeUpcoming": "À VENIR",
   "upcomingReleasesBadgeMissing": "MANQUANT",
+  "upcomingReleasesFinishedAfterDesc": "Séries dont le dernier livre est plus vieux que ceci sont ignorés lors des scans et seulement revérifiés tous les un ou deux mois.",
+  "upcomingReleasesFirstScanNote": "Le premier scan vérifie chaque série sur Audible et peut prendre quelques minutes. Les scans suivants sont plus rapides une fois que vos séries sont triées.",
+  "upcomingReleasesSetAsinInstructions": "Trouvez la série sur audible.com et copiez le lien de la page - l'ASIN est le code à 10 caractères commençant par B0 (comme B08S2YN3YS). Coller l'ensemble du lien fonctionne aussi.",
   "homeScreenEpisodeFallback": "Épisode",
   "libraryScreenUnknownTitle": "Titre inconnu",
   "playlistDetailDefaultName": "Liste de lecture",
