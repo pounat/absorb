@@ -3010,14 +3010,30 @@ class ApiService {
     String asin, {
     String? region,
   }) async {
+    final r = region ?? _region;
+    final book = await _getAudnexusBookRaw(asin, r);
+    if (book != null || r == 'us') return book;
+    // Audnexus often has no data for the smaller regional stores
+    // (REGION_UNAVAILABLE) even when that store sells the book. Series
+    // structure is the same everywhere, so fall back to the US record
+    // instead of failing the whole lookup.
+    return _getAudnexusBookRaw(asin, 'us');
+  }
+
+  static Future<Map<String, dynamic>?> _getAudnexusBookRaw(
+    String asin,
+    String region,
+  ) async {
     try {
-      final r = region ?? _region;
       final response = await http
-          .get(Uri.parse('https://api.audnex.us/books/$asin?region=$r'))
+          .get(Uri.parse('https://api.audnex.us/books/$asin?region=$region'))
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
+      debugPrint(
+        '[API] getAudnexusBook $asin region=$region status=${response.statusCode}',
+      );
     } catch (e) {
       debugPrint('[API] getAudnexusBook error: $e');
     }
@@ -3103,10 +3119,20 @@ class ApiService {
     String? region,
     bool newestOnly = false,
   }) async {
-    final relationships = await getAudibleSeriesBooks(
-      seriesAsin,
-      region: region,
-    );
+    var effectiveRegion = region;
+    var relationships = await getAudibleSeriesBooks(seriesAsin, region: region);
+    if (relationships.isEmpty && region != null && region != 'us') {
+      // Regional stores often lack the series ASIN even when they sell the
+      // books - US data beats no data. Details must then come from the US
+      // store too, since these relationship ASINs may not exist regionally.
+      relationships = await getAudibleSeriesBooks(seriesAsin, region: 'us');
+      if (relationships.isNotEmpty) {
+        debugPrint(
+          '[API] discoverAudibleSeries: region $region empty, using us',
+        );
+        effectiveRegion = 'us';
+      }
+    }
     if (relationships.isEmpty) return [];
 
     final bySequence = <String, List<Map<String, dynamic>>>{};
@@ -3145,7 +3171,10 @@ class ApiService {
       final batch = uniqueBooks.skip(i).take(10);
       final futures = batch.map((book) async {
         final asin = book['asin'] as String;
-        final details = await getAudibleBookDetails(asin, region: region);
+        final details = await getAudibleBookDetails(
+          asin,
+          region: effectiveRegion,
+        );
         if (details == null) return null;
 
         final authors = (details['authors'] as List<dynamic>? ?? [])
