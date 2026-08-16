@@ -59,6 +59,7 @@ class ScopedPrefs {
       if (key.startsWith('flutter.')) continue;
       // Skip per-podcast sort keys (global, keyed by item ID)
       if (key.startsWith('podcast_sort_newest_')) continue;
+      if (key.startsWith('podcast_sort_mode_')) continue;
 
       final scopedKey = '$scope:$key';
       if (prefs.containsKey(scopedKey)) continue; // already exists

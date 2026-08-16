@@ -315,6 +315,7 @@ class BackupService {
       }
     }
     collectPodcast('podcast_sort_newest_', 'sortNewest', (k) => prefs.getBool(k));
+    collectPodcast('podcast_sort_mode_', 'sortMode', (k) => prefs.getString(k));
     collectPodcast('podcast_hide_finished_', 'hideFinished', (k) => prefs.getBool(k));
     collectPodcast('podcast_advance_dir_', 'advanceDir', (k) => prefs.getString(k));
 
@@ -854,6 +855,7 @@ class BackupService {
         final itemId = entry.key;
         final p = entry.value as Map<String, dynamic>;
         if (p['sortNewest'] != null) await prefs.setBool('podcast_sort_newest_$itemId', p['sortNewest'] as bool);
+        if (p['sortMode'] != null) await prefs.setString('podcast_sort_mode_$itemId', p['sortMode'] as String);
         if (p['hideFinished'] != null) await prefs.setBool('podcast_hide_finished_$itemId', p['hideFinished'] as bool);
         if (p['advanceDir'] != null) await prefs.setString('podcast_advance_dir_$itemId', p['advanceDir'] as String);
       }

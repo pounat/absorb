@@ -79,7 +79,8 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   bool _autoDownloadEnabled = false;
   bool _subscribed = false;
   String _newEpisodePosition = 'start';
-  bool _newestFirst = true;
+  String _sortMode = 'pubDate';
+  bool _sortAscending = false;
   bool _hideFinished = false;
   bool _selectMode = false;
   final Set<String> _selectedEpisodeIds = {};
@@ -167,10 +168,24 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
 
   void _loadSortOrder() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getBool('podcast_sort_newest_$_itemId');
-    if (saved != null && mounted) {
+    var mode = 'pubDate';
+    var ascending = false;
+    final saved = prefs.getString('podcast_sort_mode_$_itemId');
+    if (saved != null) {
+      final split = saved.lastIndexOf('_');
+      if (split > 0) {
+        mode = saved.substring(0, split);
+        ascending = saved.substring(split + 1) == 'asc';
+      }
+    } else {
+      final legacy = prefs.getBool('podcast_sort_newest_$_itemId');
+      if (legacy == null) return;
+      ascending = !legacy;
+    }
+    if (mounted) {
       setState(() {
-        _newestFirst = saved;
+        _sortMode = mode;
+        _sortAscending = ascending;
         _episodes = _sortEpisodes(_episodes);
       });
     }
@@ -224,13 +239,49 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     }
   }
 
-  /// Sort episodes by publishedAt according to current sort order.
+  /// Sort episodes by the current mode; ties fall back to newest first so
+  /// shows with missing numbers or identical dates keep a sensible order.
   List<dynamic> _sortEpisodes(List<dynamic> episodes) {
+    int epInt(Map<String, dynamic> ep, String key) =>
+        int.tryParse((ep[key] as String? ?? '').trim()) ?? 0;
+    String fileName(Map<String, dynamic> ep) =>
+        (((ep['audioFile'] as Map<String, dynamic>?)?['metadata']
+                    as Map<String, dynamic>?)?['filename'] as String? ??
+                '')
+            .toLowerCase();
+    int published(Map<String, dynamic> ep) =>
+        (ep['publishedAt'] as num?)?.toInt() ?? 0;
+
     final sorted = List<dynamic>.from(episodes);
     sorted.sort((a, b) {
-      final aTime = (a['publishedAt'] as num?)?.toInt() ?? 0;
-      final bTime = (b['publishedAt'] as num?)?.toInt() ?? 0;
-      return _newestFirst ? bTime.compareTo(aTime) : aTime.compareTo(bTime);
+      final ma = a as Map<String, dynamic>;
+      final mb = b as Map<String, dynamic>;
+      int c;
+      switch (_sortMode) {
+        case 'title':
+          c = (ma['title'] as String? ?? '')
+              .toLowerCase()
+              .compareTo((mb['title'] as String? ?? '').toLowerCase());
+          break;
+        case 'season':
+          c = epInt(ma, 'season').compareTo(epInt(mb, 'season'));
+          if (c == 0) c = epInt(ma, 'episode').compareTo(epInt(mb, 'episode'));
+          break;
+        case 'episode':
+          c = epInt(ma, 'episode').compareTo(epInt(mb, 'episode'));
+          break;
+        case 'fileName':
+          c = fileName(ma).compareTo(fileName(mb));
+          break;
+        default:
+          c = published(ma).compareTo(published(mb));
+      }
+      if (!_sortAscending) c = -c;
+      if (c == 0) c = published(mb).compareTo(published(ma));
+      if (c == 0) {
+        c = (ma['id'] as String? ?? '').compareTo(mb['id'] as String? ?? '');
+      }
+      return c;
     });
     return sorted;
   }
@@ -248,14 +299,100 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
     });
   }
 
-  void _toggleSortOrder() {
+  void _applySort(String mode) {
     setState(() {
-      _newestFirst = !_newestFirst;
+      if (_sortMode == mode) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortMode = mode;
+        _sortAscending = mode != 'pubDate';
+      }
       _episodes = _sortEpisodes(_episodes);
     });
     SharedPreferences.getInstance().then((prefs) {
-      prefs.setBool('podcast_sort_newest_$_itemId', _newestFirst);
+      prefs.setString('podcast_sort_mode_$_itemId',
+          '${_sortMode}_${_sortAscending ? 'asc' : 'desc'}');
     });
+  }
+
+  String _sortLabel(AppLocalizations l) {
+    switch (_sortMode) {
+      case 'title':
+        return l.episodeListSortTitle;
+      case 'season':
+        return l.episodeListSortSeason;
+      case 'episode':
+        return l.episodeListSortEpisode;
+      case 'fileName':
+        return l.episodeListSortFileName;
+      default:
+        return _sortAscending ? l.episodeListSortOldest : l.episodeListSortNewest;
+    }
+  }
+
+  void _showSortPicker() {
+    final l = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final options = <String, String>{
+      'pubDate': l.episodeListSortPubDate,
+      'title': l.episodeListSortTitle,
+      'season': l.episodeListSortSeason,
+      'episode': l.episodeListSortEpisode,
+      'fileName': l.episodeListSortFileName,
+    };
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(l.episodeListSortBy,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+            ),
+            for (final entry in options.entries)
+              ListTile(
+                leading: Icon(
+                  _sortMode == entry.key
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: _sortMode == entry.key ? cs.primary : cs.onSurfaceVariant,
+                ),
+                title: Text(entry.value),
+                subtitle: _sortMode == entry.key
+                    ? Text(l.episodeListSortReverseHint,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: cs.onSurfaceVariant))
+                    : null,
+                trailing: _sortMode == entry.key
+                    ? Icon(
+                        _sortAscending
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        size: 18,
+                        color: cs.primary)
+                    : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _applySort(entry.key);
+                },
+              ),
+          ]),
+        ),
+      ),
+    );
   }
 
   String? _playlistSourceForEpisode(String episodeId) {
@@ -825,14 +962,14 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                     ),
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: _toggleSortOrder,
+                      onTap: _showSortPicker,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(_newestFirst ? l.episodeListSortNewest : l.episodeListSortOldest,
+                          Text(_sortLabel(l),
                             style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
                           const SizedBox(width: 2),
-                          Icon(_newestFirst ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                          Icon(_sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
                             size: 14, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
                         ],
                       ),
