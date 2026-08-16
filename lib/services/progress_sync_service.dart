@@ -142,6 +142,46 @@ class ProgressSyncService {
     await ScopedPrefs.setStringList('pending_syncs', pendingList);
   }
 
+  /// The duration sent with a progress write becomes the divisor for the
+  /// server's percentage, so a bad local duration corrupts the displayed
+  /// percent forever even while currentTime stays right (abs issue #5468).
+  /// Prefer the item's own server-side duration whenever it can be fetched.
+  final Map<String, double> _serverDurationCache = {};
+
+  Future<double> serverTrustedDuration(
+      ApiService api, String itemId, double localDuration) async {
+    final cached = _serverDurationCache[itemId];
+    if (cached != null) return cached;
+    final isCompound = itemId.length > 36;
+    final apiItemId = isCompound ? itemId.substring(0, 36) : itemId;
+    final episodeId = isCompound ? itemId.substring(37) : null;
+    try {
+      final item = await api.getLibraryItem(apiItemId);
+      final media = item?['media'] as Map<String, dynamic>?;
+      double serverDur = 0;
+      if (episodeId != null) {
+        for (final e in (media?['episodes'] as List<dynamic>? ?? const [])) {
+          if (e is Map<String, dynamic> && e['id'] == episodeId) {
+            serverDur = (e['duration'] as num?)?.toDouble() ?? 0;
+            break;
+          }
+        }
+      } else {
+        serverDur = (media?['duration'] as num?)?.toDouble() ?? 0;
+      }
+      if (serverDur > 0) {
+        if ((serverDur - localDuration).abs() > 1) {
+          debugPrint('[Sync] $itemId: using server duration '
+              '${serverDur.toStringAsFixed(0)}s over local '
+              '${localDuration.toStringAsFixed(0)}s');
+        }
+        _serverDurationCache[itemId] = serverDur;
+        return serverDur;
+      }
+    } catch (_) {}
+    return localDuration;
+  }
+
   /// Sync a single item to the server. Returns true if synced.
   Future<bool> syncToServer({
     required ApiService api,
@@ -175,7 +215,7 @@ class ProgressSyncService {
         await api.updateProgress(
           itemId,
           currentTime: currentTime,
-          duration: duration,
+          duration: await serverTrustedDuration(api, itemId, duration),
           isFinished: isFinished,
         );
       }
@@ -286,18 +326,20 @@ class ProgressSyncService {
           final episodeId = isCompound ? itemId.substring(37) : null;
 
           final localFinished = data['isFinished'] as bool? ?? false;
+          final syncDuration =
+              await serverTrustedDuration(api, itemId, localDuration);
           if (episodeId != null) {
             await api.updateEpisodeProgress(
               apiItemId, episodeId,
               currentTime: localTime,
-              duration: localDuration,
+              duration: syncDuration,
               isFinished: localFinished,
             );
           } else {
             await api.updateProgress(
               apiItemId,
               currentTime: localTime,
-              duration: localDuration,
+              duration: syncDuration,
               isFinished: localFinished,
             );
           }

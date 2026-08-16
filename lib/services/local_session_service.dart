@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
+import 'progress_sync_service.dart';
 import 'scoped_prefs.dart';
 
 /// Owns client-built LOCAL playback sessions for downloaded/offline plays.
@@ -106,6 +107,24 @@ class LocalSessionService {
         'date': s['date'],
         'dayOfWeek': s['dayOfWeek'],
       };
+
+  /// Swap the payload's duration for the item's server-side duration when it
+  /// can be fetched - a wrong player duration on a session otherwise corrupts
+  /// the server's progress percent (abs issue #5468).
+  Future<Map<String, dynamic>> _trustedPayload(
+      ApiService api, Map<String, dynamic> s) async {
+    final payload = _payload(s);
+    final key = s['progressKey'] as String? ??
+        (s['episodeId'] != null
+            ? '${s['libraryItemId']}-${s['episodeId']}'
+            : s['libraryItemId'] as String? ?? '');
+    if (key.isNotEmpty) {
+      final local = (payload['duration'] as num?)?.toDouble() ?? 0;
+      payload['duration'] =
+          await ProgressSyncService().serverTrustedDuration(api, key, local);
+    }
+    return payload;
+  }
 
   /// Reset in-memory state between tests.
   @visibleForTesting
@@ -260,7 +279,8 @@ class LocalSessionService {
       await _legacyFlush(api, _active!);
       return true;
     }
-    final result = await api.syncLocalSession(_payload(_active!));
+    final result =
+        await api.syncLocalSession(await _trustedPayload(api, _active!));
     if (result.serverTooOld) {
       debugPrint('[LocalSession] Server lacks /api/session/local — falling back to /play');
       _localUnsupported = true;
@@ -308,8 +328,11 @@ class LocalSessionService {
         return;
       }
 
-      final result =
-          await api.syncLocalSessionsAll(combined.map(_payload).toList());
+      final payloads = <Map<String, dynamic>>[];
+      for (final s in combined) {
+        payloads.add(await _trustedPayload(api, s));
+      }
+      final result = await api.syncLocalSessionsAll(payloads);
       if (result.ok) {
         // Keep the active session live; only clear the finalized queue.
         await ScopedPrefs.setStringList(_kPending, []);
