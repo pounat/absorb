@@ -2714,6 +2714,13 @@
   "episodeListExplicitChip": "Explicit",
   "episodeListSortNewest": "Newest",
   "episodeListSortOldest": "Oldest",
+  "episodeListSortBy": "Sort episodes",
+  "episodeListSortPubDate": "Publish date",
+  "episodeListSortTitle": "Title",
+  "episodeListSortSeason": "Season",
+  "episodeListSortEpisode": "Episode number",
+  "episodeListSortFileName": "File name",
+  "episodeListSortReverseHint": "Tap again to reverse the order",
   "episodeListAddedToAbsorbing": "Added \"{title}\" to Absorbing",
   "@episodeListAddedToAbsorbing": {
     "placeholders": {

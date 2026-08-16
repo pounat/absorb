@@ -4979,6 +4979,27 @@ class AppLocalizationsEl extends AppLocalizations {
   String get episodeListSortOldest => 'Oldest';
 
   @override
+  String get episodeListSortBy => 'Sort episodes';
+
+  @override
+  String get episodeListSortPubDate => 'Publish date';
+
+  @override
+  String get episodeListSortTitle => 'Title';
+
+  @override
+  String get episodeListSortSeason => 'Season';
+
+  @override
+  String get episodeListSortEpisode => 'Episode number';
+
+  @override
+  String get episodeListSortFileName => 'File name';
+
+  @override
+  String get episodeListSortReverseHint => 'Tap again to reverse the order';
+
+  @override
   String episodeListAddedToAbsorbing(String title) {
     return 'Added \"$title\" to Absorbing';
   }
