@@ -1894,8 +1894,10 @@ class ApiService {
         body: jsonEncode({
           'currentTime': currentTime,
           'timeListened': timeListened,
+          // Older servers use this duration unconditionally for the progress
+          // row, so it must be sent; progress is ignored by every version
+          // (the server derives it from the session).
           'duration': duration,
-          'progress': duration > 0 ? currentTime / duration : 0,
         }),
         timeout: const Duration(seconds: 10),
       );
@@ -2139,7 +2141,7 @@ class ApiService {
       final body = jsonEncode({
         'currentTime': currentTime,
         'duration': duration,
-        'progress': duration > 0 ? currentTime / duration : 0,
+        'progress': duration > 0 ? (currentTime / duration).clamp(0.0, 1.0) : 0,
         'isFinished': isFinished,
       });
       final progressPath = itemId.length > 36
@@ -2399,7 +2401,7 @@ class ApiService {
         body: jsonEncode({
           'currentTime': currentTime,
           'duration': duration,
-          'progress': duration > 0 ? currentTime / duration : 0,
+          'progress': duration > 0 ? (currentTime / duration).clamp(0.0, 1.0) : 0,
           'isFinished': isFinished,
         }),
         timeout: const Duration(seconds: 10),
