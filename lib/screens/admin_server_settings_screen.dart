@@ -18,7 +18,12 @@ class AdminServerSettingsScreen extends StatefulWidget {
 }
 
 class _AdminServerSettingsScreenState extends State<AdminServerSettingsScreen> {
-  static const _coverProviders = ['google', 'audible', 'openlibrary', 'itunes', 'fantlab'];
+  static const _coverProviders = [
+    'google', 'openlibrary', 'itunes',
+    'audible', 'audible.ca', 'audible.uk', 'audible.au', 'audible.fr',
+    'audible.de', 'audible.jp', 'audible.it', 'audible.in', 'audible.es',
+    'fantlab', 'audiobookcovers',
+  ];
   static const _metadataFormats = ['json', 'abs'];
 
   bool _saving = false;

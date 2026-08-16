@@ -133,9 +133,18 @@ class _AdminLibraryEditScreenState extends State<AdminLibraryEditScreen> {
   _LibraryEditorSection _selectedSection = _LibraryEditorSection.details;
   List<String> _providers = const [
     'google',
-    'audible',
     'openlibrary',
     'itunes',
+    'audible',
+    'audible.ca',
+    'audible.uk',
+    'audible.au',
+    'audible.fr',
+    'audible.de',
+    'audible.jp',
+    'audible.it',
+    'audible.in',
+    'audible.es',
     'audnexus',
     'fantlab',
   ];
