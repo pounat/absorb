@@ -346,7 +346,7 @@ class _CarModeScreenState extends State<CarModeScreen>
                           aspectRatio: 1,
                           child: GestureDetector(
                             onTap: player.hasBook
-                                ? player.togglePlayPause
+                                ? () => player.togglePlayPause(fromUi: true)
                                 : widget.itemId != null ? _startPlayback : null,
                             child: Stack(
                               children: [
