@@ -1370,6 +1370,14 @@
   "stereo": "Stéréo",
   "startM4bEncode": "Commencer l'encodage M4B",
   "currentlyLabel": "Actuellement :",
+  "encodeOutputPathNote": "Le M4B terminé sera mis dans votre dossier de livre audio à: {path}/",
+  "@encodeOutputPathNote": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "encodeBackupNote": "Une sauvegarde de vos fichiers audio d'origine sera stockée dans : /metadata/cache/items/{itemId}/. Assurez-vous de purger périodiquement le cache des éléments.",
   "@encodeBackupNote": {
     "placeholders": {
@@ -1417,6 +1425,7 @@
     }
   },
   "markAsFullyAbsorbedContent": "Cela définira votre progression à 100% et arrêtera la lecture si ce livre est en cours de lecture.",
+  "markAsNotFinishedContent": "Ceci effacera le statut fini mais conservera votre position actuelle.",
   "unmark": "Désélectionner",
   "resetProgressQuestion": "Réinitialiser la progression ?",
   "resetProgressContent": "Ceci effacera toute la progression de ce livre et le réinitialisera au début. Cela ne peut pas être annulé.",
@@ -1481,6 +1490,7 @@
   "commaSeparated": "Séparé par des virgules",
   "asinLabel": "ASIN",
   "isbnLabel": "ISBN",
+  "coverRemoveConfirm": "Supprimer la couverture de ce livre ? La carte de titre générée sera visible à la place.",
   "coverUrlLabel": "URL de la couverture",
   "coverUrlHint": "https://...",
   "localMetadata": "Métadonnées locales",
@@ -2293,6 +2303,7 @@
   "upcomingReleasesBadgeUpcoming": "À VENIR",
   "upcomingReleasesBadgeMissing": "MANQUANT",
   "upcomingReleasesFinishedAfterDesc": "Séries dont le dernier livre est plus vieux que ceci sont ignorés lors des scans et seulement revérifiés tous les un ou deux mois.",
+  "upcomingReleasesSkippedOtherLibrary": "Cette liste provient d'une bibliothèque différente. Exécutez un rescan pour l'actualiser.",
   "upcomingReleasesFirstScanNote": "Le premier scan vérifie chaque série sur Audible et peut prendre quelques minutes. Les scans suivants sont plus rapides une fois que vos séries sont triées.",
   "upcomingReleasesSetAsinInstructions": "Trouvez la série sur audible.com et copiez le lien de la page - l'ASIN est le code à 10 caractères commençant par B0 (comme B08S2YN3YS). Coller l'ensemble du lien fonctionne aussi.",
   "homeScreenEpisodeFallback": "Épisode",
@@ -2628,6 +2639,7 @@
   "embedNoteInFolder": "Les métadonnées seront intégrées dans les pistes audio dans le dossier de votre livre audio.",
   "embedProgressIndeterminate": "Intégration...",
   "taskStarting": "Démarrage...",
+  "embedBackupNoteIntro": "Une sauvegarde de vos fichiers audio d'origine sera stockée sur le serveur dans ",
   "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
   "@embedBackupNotePath": {
     "placeholders": {
