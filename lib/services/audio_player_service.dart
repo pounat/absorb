@@ -3533,7 +3533,11 @@ class AudioPlayerService extends ChangeNotifier {
     // (GH #321) - unless this phone has no position for it at all, where
     // starting from zero would be the wrong guess and there is nothing to
     // preserve. Whatever position we start with, we keep - no seeking after.
-    if (!_playFromUi && startTime > 0) {
+    if (forceStartTime) {
+      debugPrint(
+        '[Player] Forced start time: ${startTime}s — skipping server/local position comparison',
+      );
+    } else if (!_playFromUi && startTime > 0) {
       debugPrint(
         '[Player] Skipping progress reconcile - not started from the app screen, playing local position ${startTime.toStringAsFixed(1)}s now',
       );
