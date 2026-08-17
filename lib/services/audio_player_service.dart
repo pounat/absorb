@@ -2699,6 +2699,11 @@ class AudioPlayerService extends ChangeNotifier {
               await service._player?.pause();
               service._lastPauseTime = DateTime.now();
               service._wasPlayingBeforeInterrupt = true;
+              // The notification reads the player directly, but the home
+              // widget, cards and watch only refresh on notify - without this
+              // the widget kept showing "playing" and ticking its clock
+              // through the whole interruption.
+              service.notifyListeners();
             }
           } else {
             if (event.type == AudioInterruptionType.duck &&
