@@ -150,6 +150,17 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   AudioPlayerHandler() {
     _subscribePlaybackEvents();
+    // One line per ExoPlayer state transition (playerStateStream is already
+    // distinct). Tells "the app paused it" apart from "the audio pipeline
+    // stalled": a play/pause blip the app caused shows up as playing flips
+    // next to a Handler/Service/AudioSession line, a rebuffer shows as
+    // ready -> buffering -> ready, and a BT-link hiccup shows nothing here.
+    _player.playerStateStream.listen((s) {
+      debugPrint(
+        '[PlayerState] playing=${s.playing} state=${s.processingState.name} '
+        'pos=${(_player.position.inMilliseconds / 1000).toStringAsFixed(2)}s',
+      );
+    });
   }
 
   /// Subscribe to the player's playback event stream and forward state to
