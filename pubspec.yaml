@@ -103,7 +103,7 @@ dependencies:
   flutter_epub_viewer: ^1.2.6
 
   # PDF reader (non-EPUB ebooks route here)
-  pdfrx: ^2.4.4
+  pdfrx: ^2.4.7
 
   # foliate-js host for MOBI/AZW3/FB2/CBZ (already transitive via the epub
   # viewer; pinned direct so the bridge API is a declared dependency)

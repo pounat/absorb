@@ -138,7 +138,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.44.0
+          flutter-version: 3.47.0
           cache: true
 
       - name: Set up Android signing
@@ -242,7 +242,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.44.0
+          flutter-version: 3.47.0
           cache: true
 
       - name: Install codemagic-cli-tools
