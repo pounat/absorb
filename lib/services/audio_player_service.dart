@@ -106,12 +106,35 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       '[AbsorbDiag] $tag: '
       'keyCode=${snap['lastKeyCode']} keyAgeMs=${snap['lastKeyAgeMs']} '
       'lastPlayCaller=${snap['lastPlayCaller']} playAgeMs=${snap['lastPlayCallerAgeMs']} '
-      'lastPauseCaller=${snap['lastPauseCaller']} pauseAgeMs=${snap['lastPauseCallerAgeMs']}',
+      'lastPauseCaller=${snap['lastPauseCaller']} pauseAgeMs=${snap['lastPauseCallerAgeMs']} '
+      'carClientAgeMs=${snap['carClientAgeMs']}',
     );
   }
 
   static Future<void> _logAbsorbDiag(String tag) async {
     _logAbsorbDiagFromSnapshot(tag, await _absorbDiagSnapshot());
+  }
+
+  /// How long after a car client (Android Auto / Automotive) last touched the
+  /// browse tree we still assume a car is attached. Long enough to span a
+  /// drive where the head unit connected once and never browsed again, short
+  /// enough that a headset press hours after the drive is taken at face value.
+  static const _carClientWindow = Duration(hours: 2);
+
+  /// Whether a car client has touched the media browse tree recently, per the
+  /// Java-side stamp. The MEDIA_PAUSE-while-paused phantom (GH #243) only
+  /// exists on Android Auto, so this is what decides whether the click
+  /// resolver suppresses that keycode or honors it as a headset toggle.
+  /// Snapshot missing (iOS, channel unavailable) reads as no car.
+  static Future<bool> _carClientRecentlySeen() async {
+    final snap = await _absorbDiagSnapshot();
+    final age = snap?['carClientAgeMs'];
+    final seen =
+        age is int && age >= 0 && age < _carClientWindow.inMilliseconds;
+    debugPrint(
+      '[Handler] car client ${seen ? 'seen' : 'not seen'} (carClientAgeMs=$age)',
+    );
+    return seen;
   }
 
   /// Force-push current PlaybackState so the notification picks up
@@ -813,10 +836,19 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
               if (_player.playing) {
                 debugPrint('[Handler] → single press (MEDIA_PAUSE) → PAUSE');
                 await pause();
-              } else {
+              } else if (await _carClientRecentlySeen()) {
                 debugPrint(
-                  '[Handler] → single press (MEDIA_PAUSE while paused) → no-op (suppressed phantom toggle to PLAY)',
+                  '[Handler] -> single press (MEDIA_PAUSE while paused) -> no-op (suppressed phantom toggle to PLAY, car client seen)',
                 );
+              } else {
+                // Some BT headsets (Shokz seen in the wild) send MEDIA_PAUSE
+                // for a play press when their idea of our state went stale.
+                // Without a car around there is no #243 phantom to guard
+                // against, so treat it as the toggle the user meant.
+                debugPrint(
+                  '[Handler] -> single press (MEDIA_PAUSE while paused, no car client) -> PLAY',
+                );
+                await play();
               }
             } else if (kc == keycodeMediaPlay) {
               if (!_player.playing) {
