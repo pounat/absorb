@@ -2702,6 +2702,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
               episodeTitle: epTitle,
               libraryId:
                   book['libraryId'] as String? ?? widget.lib.selectedLibraryId,
+              fromUi: true,
             );
           } else {
             playback = AudioPlayerService().playItem(
@@ -2714,6 +2715,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
               chapters: media['chapters'] as List<dynamic>? ?? const [],
               libraryId:
                   book['libraryId'] as String? ?? widget.lib.selectedLibraryId,
+              fromUi: true,
             );
           }
           unawaited(

@@ -522,6 +522,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       // selected library would pin the wrong per-library skip amounts. Null
       // is fine: the player resolves it from the session/server.
       libraryId: _podcastItem['libraryId'] as String?,
+      fromUi: true,
     );
     if (error == null) {
       unawaited(lib.syncQueueAutoDownloads());

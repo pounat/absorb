@@ -1209,7 +1209,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
           if (serverCurrentTime > playerPosSec + 5.0) {
             _startBook(context, itemId);
           } else {
-            player.play();
+            player.play(fromUi: true);
           }
         }
       } else {
@@ -1472,6 +1472,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
         episodeId: episodeId,
         episodeTitle: episodeTitle,
         libraryId: widget.item['libraryId'] as String?,
+        fromUi: true,
       );
       if (mounted) {
         if (error != null) showErrorToast(context, error);
@@ -1507,6 +1508,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
       totalDuration: duration,
       chapters: chapters,
       libraryId: fullItem['libraryId'] as String?,
+      fromUi: true,
     );
     if (error != null && mounted) showErrorToast(context, error);
 

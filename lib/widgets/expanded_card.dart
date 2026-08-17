@@ -796,7 +796,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                     if (isCastingThis) {
                                       castService.togglePlayPause();
                                     } else if (_isActive) {
-                                      widget.player.togglePlayPause();
+                                      widget.player.togglePlayPause(fromUi: true);
                                     } else {
                                       _startPlayback();
                                     }
@@ -1178,6 +1178,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
       episodeId: _episodeId,
       episodeTitle: _recentEpisode?['title'] as String?,
       libraryId: _resolveLibraryId(),
+      fromUi: true,
     );
     if (mounted) {
       if (error != null) showErrorToast(context, error);
