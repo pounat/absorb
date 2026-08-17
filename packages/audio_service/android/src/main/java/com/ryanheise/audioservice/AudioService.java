@@ -111,6 +111,19 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static volatile long lastMediaKeyAt = 0;
     private static volatile long lastPlayAt = 0;
     private static volatile long lastPauseAt = 0;
+    // Stamped whenever a car client (Android Auto / Automotive) touches the
+    // browse tree, so the Dart side can tell an AA phantom MEDIA_PAUSE from a
+    // headset toggle that arrived while paused.
+    private static volatile long lastCarClientAt = 0;
+
+    private static boolean isCarPackage(String pkg) {
+        return pkg != null && (pkg.equals("com.google.android.projection.gearhead")
+                || pkg.startsWith("com.android.car"));
+    }
+
+    static void stampCarClient(String pkg) {
+        if (isCarPackage(pkg)) lastCarClientAt = SystemClock.elapsedRealtime();
+    }
 
     public static Map<String, Object> getDiagnosticSnapshot() {
         final long now = SystemClock.elapsedRealtime();
@@ -121,6 +134,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         snapshot.put("lastPlayCallerAgeMs", lastPlayAt == 0 ? -1 : now - lastPlayAt);
         snapshot.put("lastPauseCaller", "mediaSession");
         snapshot.put("lastPauseCallerAgeMs", lastPauseAt == 0 ? -1 : now - lastPauseAt);
+        snapshot.put("carClientAgeMs", lastCarClientAt == 0 ? -1 : now - lastCarClientAt);
         return snapshot;
     }
 
@@ -867,6 +881,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
+        stampCarClient(clientPackageName);
         Boolean isRecentRequest = rootHints == null ? null : (Boolean)rootHints.getBoolean(BrowserRoot.EXTRA_RECENT);
         if (isRecentRequest == null) isRecentRequest = false;
         Bundle extras = config.getBrowsableRootExtras();
@@ -884,6 +899,11 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options) {
+        // Keeps the car stamp fresh through a long drive - AA re-queries the
+        // tree whenever we notify children changed.
+        try {
+            stampCarClient(getCurrentBrowserInfo().getPackageName());
+        } catch (Exception ignored) {}
         if (listener == null) {
             result.sendResult(new ArrayList<>());
             return;
@@ -968,9 +988,21 @@ public class AudioService extends MediaBrowserServiceCompat {
             listener.onPrepareFromUri(uri, extras);
         }
 
+        // Also stamps the car client when Android Auto itself sends the
+        // command, so a long drive with no browsing keeps the stamp fresh
+        // right up to the head-unit pause that precedes the phantom. Only
+        // valid inside a Callback method; headset presses arrive via the
+        // system and never match a car package.
+        private void stampCarController() {
+            try {
+                stampCarClient(mediaSession.getCurrentControllerInfo().getPackageName());
+            } catch (Exception ignored) {}
+        }
+
         @Override
         public void onPlay() {
             if (listener == null) return;
+            stampCarController();
             lastPlayAt = SystemClock.elapsedRealtime();
             listener.onPlay();
         }
@@ -1000,6 +1032,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             @SuppressWarnings("deprecation")
             final KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().getParcelable(Intent.EXTRA_KEY_EVENT);
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                stampCarController();
                 lastMediaKeyCode = event.getKeyCode();
                 lastMediaKeyAt = SystemClock.elapsedRealtime();
                 switch (event.getKeyCode()) {
@@ -1057,6 +1090,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onPause() {
             if (listener == null) return;
+            stampCarController();
             lastPauseAt = SystemClock.elapsedRealtime();
             listener.onPause();
         }
