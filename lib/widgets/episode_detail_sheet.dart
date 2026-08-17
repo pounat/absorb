@@ -185,6 +185,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       // The show's own library, not the browsing library (wrong with unified
       // libraries on). Null lets the player resolve it from the session.
       libraryId: widget.podcastItem['libraryId'] as String?,
+      fromUi: true,
     );
     debugPrint('[PodcastPlay] playItem returned in ${DateTime.now().difference(t0).inMilliseconds}ms (error=${error ?? 'none'})');
     if (error != null) {

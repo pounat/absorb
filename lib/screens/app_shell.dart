@@ -865,7 +865,7 @@ class _AppShellState extends State<AppShell>
       if (_player.isPlaying) {
         _player.pause();
       } else {
-        _player.play();
+        _player.play(fromUi: true);
       }
     }
   }

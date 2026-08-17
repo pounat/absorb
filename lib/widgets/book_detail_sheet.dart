@@ -2187,7 +2187,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
     if (player.currentItemId == widget.itemId) {
       await _activateQueueSource();
-      if (!player.isPlaying) await player.play();
+      if (!player.isPlaying) await player.play(fromUi: true);
       unawaited(lib.syncQueueAutoDownloads());
       rootNav.popUntil((route) => route.isFirst);
       Future.delayed(const Duration(milliseconds: 100), () {
@@ -2206,7 +2206,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     rootNav.popUntil((route) => route.isFirst);
     AppShell.goToAbsorbingGlobal();
 
-    final error = await player.playItem(api: api, itemId: widget.itemId, title: title, author: author, coverUrl: coverUrl, totalDuration: duration, chapters: chapters, libraryId: _item?['libraryId'] as String?);
+    final error = await player.playItem(api: api, itemId: widget.itemId, title: title, author: author, coverUrl: coverUrl, totalDuration: duration, chapters: chapters, libraryId: _item?['libraryId'] as String?, fromUi: true);
     if (error != null) {
       unawaited(_restoreActivatedQueueSource(queueModeBackup));
       final ctx = rootNavigatorKey.currentContext;

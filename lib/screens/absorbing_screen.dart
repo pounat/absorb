@@ -1946,6 +1946,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
               episodeId: epId,
               episodeTitle: epTitle,
               libraryId: book['libraryId'] as String? ?? widget.lib.selectedLibraryId,
+              fromUi: true,
             );
           } else {
             playback = AudioPlayerService().playItem(
@@ -1957,6 +1958,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
               totalDuration: (media['duration'] as num?)?.toDouble() ?? 0,
               chapters: media['chapters'] as List<dynamic>? ?? const [],
               libraryId: book['libraryId'] as String? ?? widget.lib.selectedLibraryId,
+              fromUi: true,
             );
           }
           unawaited(playback.then((error) async {

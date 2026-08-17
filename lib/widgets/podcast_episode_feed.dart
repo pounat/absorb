@@ -375,6 +375,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       libraryId: ep['libraryId'] as String? ??
           (ep['podcast'] as Map<String, dynamic>?)?['libraryId'] as String? ??
           widget.libraryId,
+      fromUi: true,
     );
     if (error != null && mounted) showErrorToast(context, error);
   }

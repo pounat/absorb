@@ -139,6 +139,7 @@ class _CarModeScreenState extends State<CarModeScreen>
       episodeId: widget.episodeId,
       episodeTitle: widget.episodeTitle,
       libraryId: context.read<LibraryProvider>().selectedLibraryId,
+      fromUi: true,
     );
     if (mounted) setState(() => _isStarting = false);
   }

@@ -422,6 +422,13 @@ class HomeWidgetService {
     final episodeId = prefs.getString('widget_episode_id');
 
     try {
+      // A downloaded item needs nothing from the server to start: the download
+      // record already carries title/author/duration/chapters, so play it now
+      // instead of holding a headphone / widget press behind getLibraryItem
+      // (15s timeout, and no playback at all if it failed - GH #321).
+      if (await _resumeFromDownloadRecord(player, api, itemId, episodeId)) {
+        return;
+      }
       debugPrint(
         '[HomeWidget] play_pause: fetching item $itemId (episode=$episodeId)',
       );
@@ -478,6 +485,51 @@ class HomeWidgetService {
     } catch (e) {
       debugPrint('[HomeWidget] Resume playback failed: $e');
     }
+  }
+
+  /// Cold-resume a downloaded item straight from its download record. Returns
+  /// false when the item isn't downloaded (or the record is unusable) so the
+  /// caller falls back to fetching it from the server.
+  Future<bool> _resumeFromDownloadRecord(
+    AudioPlayerService player,
+    ApiService api,
+    String itemId,
+    String? episodeId,
+  ) async {
+    final downloads = DownloadService();
+    final dlKey = episodeId != null ? '$itemId-$episodeId' : itemId;
+    if (!downloads.isDownloaded(dlKey)) return false;
+    final info = downloads.getInfo(dlKey);
+    if (info.localPaths.isEmpty) return false;
+    double duration = 0;
+    List<dynamic> chapters = const [];
+    final sessionJson = info.sessionData;
+    if (sessionJson != null) {
+      try {
+        final session = jsonDecode(sessionJson) as Map<String, dynamic>;
+        duration = (session['duration'] as num?)?.toDouble() ?? 0;
+        chapters = session['chapters'] as List<dynamic>? ?? const [];
+      } catch (_) {}
+    }
+    final title = info.title ?? '';
+    debugPrint(
+      '[HomeWidget] play_pause: downloaded, resuming from record (title="$title" episode=$episodeId dur=${duration.toStringAsFixed(0)}s)',
+    );
+    // Episode downloads store the episode as title and the show as author,
+    // which is exactly what playItem wants for a podcast episode.
+    await player.playItem(
+      api: api,
+      itemId: itemId,
+      title: title,
+      author: info.author ?? '',
+      coverUrl: api.getCoverUrl(itemId),
+      totalDuration: duration,
+      chapters: episodeId != null ? const [] : chapters,
+      episodeId: episodeId,
+      episodeTitle: episodeId != null ? title : null,
+      libraryId: info.libraryId,
+    );
+    return true;
   }
 
   void _onPlayerChanged() {

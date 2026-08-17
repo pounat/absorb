@@ -105,7 +105,7 @@ class QuickActionsService {
       // and early-returns when player.hasBook is true, so we can't reuse it.
       if (player.hasBook) {
         if (!player.isPlaying) {
-          await player.play();
+          await player.play(fromUi: true);
         }
         return;
       }
