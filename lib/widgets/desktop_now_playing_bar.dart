@@ -236,7 +236,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
                                     player.isLoadingOrBuffering &&
                                         !player.isPlaying
                                     ? null
-                                    : player.togglePlayPause,
+                                    : () => player.togglePlayPause(fromUi: true),
                                 icon:
                                     player.isLoadingOrBuffering &&
                                         !player.isPlaying
