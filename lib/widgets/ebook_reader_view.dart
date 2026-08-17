@@ -1848,7 +1848,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                       // Active: toggle. Otherwise start this book's audiobook.
                       onPressed: _startingAudio
                           ? null
-                          : (isActive ? player.togglePlayPause : _startThisBook),
+                          : (isActive
+                                ? () => player.togglePlayPause(fromUi: true)
+                                : _startThisBook),
                     ),
                     IconButton(
                       icon: Icon(fwdIcon, color: isActive ? fg : dim),

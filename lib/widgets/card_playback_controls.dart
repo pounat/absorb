@@ -198,7 +198,7 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
         )),
         if (widget.showPlayButton)
           Flexible(child: _playPauseButton(cs, playing: widget.isActive && widget.player.isPlaying, loading: loading,
-            onTap: widget.isActive ? widget.player.togglePlayPause : widget.onStart)),
+            onTap: widget.isActive ? () => widget.player.togglePlayPause(fromUi: true) : widget.onStart)),
         Flexible(child: Pressable(
           onTap: widget.isActive ? () => widget.player.skipForward(_forwardSkip) : null,
           child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, active: widget.isActive, size: skIcon))),
