@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show ProcessInfo;
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
@@ -1421,8 +1422,15 @@ class LibraryScreenState extends State<LibraryScreen>
           // Client-side filters (e.g. hide-ebook-only) reduce _items below total,
           // which would leave _hasMore permanently true and the loader spinning.
           _hasMore = results.length >= _pageSize;
+          // Alpha: memory next to the page count, for the dense-grid OOM
+          // kills (no [CRASH] line, log just stops). rss is the whole
+          // process; imgCache is Flutter's decoded-cover cache (count/MB, and
+          // how many are still on screen). Strip once the grid is proven.
+          final imgCache = PaintingBinding.instance.imageCache;
+          final rssMb = kIsWeb ? -1 : ProcessInfo.currentRss ~/ 1048576;
           debugPrint(
-            '[LibPage] page=${_page - 1} results=${results.length} pageSize=$_pageSize filtered=${_items.length} total=$total hideEbook=$_hideEbookOnly hasMore=$_hasMore',
+            '[LibPage] page=${_page - 1} results=${results.length} pageSize=$_pageSize filtered=${_items.length} total=$total hideEbook=$_hideEbookOnly hasMore=$_hasMore '
+            'rss=${rssMb}MB imgCache=${imgCache.currentSize}/${imgCache.currentSizeBytes ~/ 1048576}MB live=${imgCache.liveImageCount}',
           );
           _isLoadingPage = false;
         });
