@@ -209,6 +209,8 @@ class BackupService {
     final absorbingFinishedManualAdds =
         await ScopedPrefs.getStringList('absorbing_finished_manual_adds');
     final absorbingManualRemoves = await ScopedPrefs.getStringList('absorbing_manual_removes');
+    // Books hidden from the local "finished this year" count and list
+    final yearHiddenIds = await ScopedPrefs.getStringList('year_hidden_ids');
 
     // Pending offline state (scoped) - server hasn't received these yet
     final pendingSyncs = await ScopedPrefs.getStringList('pending_syncs');
@@ -359,6 +361,7 @@ class BackupService {
       'absorbingManualAdds': absorbingManualAdds,
       'absorbingFinishedManualAdds': absorbingFinishedManualAdds,
       'absorbingManualRemoves': absorbingManualRemoves,
+      'yearHiddenIds': yearHiddenIds,
       'pendingSyncs': pendingSyncs,
       'pendingOfflineListening': pendingOfflineListening,
       'bookmarksPendingCreates': bookmarksPendingCreates,
@@ -714,6 +717,10 @@ class BackupService {
     final absorbingManualRemoves = data['absorbingManualRemoves'] as List<dynamic>?;
     if (absorbingManualRemoves != null) {
       await ScopedPrefs.setStringList('absorbing_manual_removes', absorbingManualRemoves.cast<String>());
+    }
+    final yearHiddenIds = data['yearHiddenIds'] as List<dynamic>?;
+    if (yearHiddenIds != null) {
+      await ScopedPrefs.setStringList('year_hidden_ids', yearHiddenIds.cast<String>());
     }
 
     // Pending offline state (scoped) - so offline changes still push after restore
