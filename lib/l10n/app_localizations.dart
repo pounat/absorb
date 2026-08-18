@@ -3874,6 +3874,12 @@ abstract class AppLocalizations {
   /// **'Absorb v{version}'**
   String appVersionFormat(String version);
 
+  /// Shown after the version on beta builds, e.g. 1.9.3+240 (Beta 6)
+  ///
+  /// In en, this message translates to:
+  /// **'Beta {number}'**
+  String betaLabel(int number);
+
   /// No description provided for @appVersionWithServerFormat.
   ///
   /// In en, this message translates to:

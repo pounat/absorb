@@ -33,6 +33,17 @@ class UpdateInfo {
 
   bool get hasUpdate =>
       compareUpdateVersions(latestVersion, currentVersion) > 0;
+
+  /// Which beta the release is, read from the "## Beta N" heading the release
+  /// notes open with. Null for full releases or notes without that line.
+  int? get latestBetaNumber => betaNumberFromReleaseNotes(releaseNotes);
+}
+
+/// Pulls N out of a "## Beta N" heading in GitHub release notes.
+int? betaNumberFromReleaseNotes(String notes) {
+  final m = RegExp(r'^#+\s*Beta\s+(\d+)\b', multiLine: true, caseSensitive: false)
+      .firstMatch(notes);
+  return m == null ? null : int.tryParse(m.group(1)!);
 }
 
 class UpdateCheckerService {

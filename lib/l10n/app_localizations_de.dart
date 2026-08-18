@@ -2117,6 +2117,11 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String betaLabel(int number) {
+    return 'Beta $number';
+  }
+
+  @override
   String appVersionWithServerFormat(String version, String serverVersion) {
     return 'Absorb v$version  -  Server $serverVersion';
   }

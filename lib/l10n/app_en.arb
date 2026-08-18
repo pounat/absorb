@@ -987,6 +987,15 @@
       }
     }
   },
+  "betaLabel": "Beta {number}",
+  "@betaLabel": {
+    "description": "Shown after the version on beta builds, e.g. 1.9.3+240 (Beta 6)",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "appVersionWithServerFormat": "Absorb v{version}  -  Server {serverVersion}",
   "@appVersionWithServerFormat": {
     "placeholders": {
