@@ -1785,6 +1785,7 @@
       }
     }
   },
+  "serverReturnedErrorPage": "Le serveur a renvoyé une page d'erreur au lieu du fichier ebook",
   "ebookSaved": "{filename} enregistré",
   "@ebookSaved": {
     "placeholders": {
@@ -2546,6 +2547,7 @@
   "cardEdgeProgressQuarterSpeed": "Vitesse /4",
   "cardEdgeProgressHalfSpeed": "Vitesse /2",
   "authInvalidApiKey": "Clé API invalide",
+  "authLoginFailedDetail": "Échec de la connexion - vérifiez l'adresse du serveur et vos identifiants",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
   "lpSubscribedPodcastDownloading": "{showTitle}: {count, plural, =1{1 nouvel épisode en cours de téléchargement} other{{count} nouveaux épisodes en cours de téléchargement}}",
   "@lpSubscribedPodcastDownloading": {
@@ -2749,6 +2751,7 @@
   "adminUploadAddFiles": "Ajouter des fichiers",
   "adminUploadBookFilesHint": "Choisissez des fichiers audio ou ebook. Vous pouvez également inclure des fichiers de couvertures et de métadonnées.",
   "adminUploadPodcastFilesHint": "Choisissez un ou plusieurs fichiers audio. Vous pouvez également inclure des pochettes et des fichiers de métadonnées.",
+  "adminUploadUnsupportedFiles": "Certains fichiers sélectionnés ne sont pas pris en charge par Audiobookshelf.",
   "adminUploadTitleRequired": "Entrez un titre",
   "adminUploadLibraryRequired": "Choisir une bibliothèque",
   "adminUploadUploading": "Envoi...",
