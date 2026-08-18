@@ -438,6 +438,23 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       }
     }
 
+    // Lock screen skip amounts. iOS bakes these into the command center's
+    // preferredIntervals rather than reading them per press, so Dart pushes the
+    // effective amounts here whenever they change.
+    let playerCoreChannel = FlutterMethodChannel(name: "com.absorb.player_core",
+                                                 binaryMessenger: messenger)
+    playerCoreChannel.setMethodCallHandler { (call, result) in
+      guard call.method == "setSkipIntervals" else { result(FlutterMethodNotImplemented); return }
+      let args = call.arguments as? [String: Any]
+      guard let forward = args?["forward"] as? Int,
+            let backward = args?["backward"] as? Int else {
+        result(FlutterError(code: "SKIP_ARGS", message: "Missing forward or backward", details: nil))
+        return
+      }
+      AbsorbPlayerCore.shared.setSkipIntervals(forward: forward, backward: backward)
+      result(true)
+    }
+
     let widgetChannel = FlutterMethodChannel(name: "com.absorb.widget",
                                                binaryMessenger: messenger)
     self.widgetChannel = widgetChannel

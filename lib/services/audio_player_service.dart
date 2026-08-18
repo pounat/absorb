@@ -1501,12 +1501,44 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
+  static const _playerCoreChannel = MethodChannel('com.absorb.player_core');
+  static const _audioServiceClientChannel = MethodChannel(
+    'com.ryanheise.audio_service.client.methods',
+  );
+
+  /// Point the iOS lock screen skip buttons at [forward] / [backward] seconds.
+  /// Unlike Android, iOS doesn't ask how far to skip on each press - it reads
+  /// the amounts off MPRemoteCommandCenter, which audio_service writes once at
+  /// startup and the native core armed with the defaults, so changing the
+  /// setting never reached the lock screen. Tell both, since they write the
+  /// same properties and whoever goes last wins.
+  static Future<void> _pushIosSkipIntervals(int forward, int backward) async {
+    try {
+      await _playerCoreChannel.invokeMethod('setSkipIntervals', {
+        'forward': forward,
+        'backward': backward,
+      });
+    } catch (e) {
+      debugPrint('[SkipDebug] native core setSkipIntervals failed: $e');
+    }
+    try {
+      await _audioServiceClientChannel.invokeMethod('updateSkipIntervals', {
+        'fastForwardInterval': forward * 1000,
+        'rewindInterval': backward * 1000,
+      });
+    } catch (e) {
+      debugPrint('[SkipDebug] audio_service updateSkipIntervals failed: $e');
+    }
+  }
+
   /// Refresh the notification's cached skip labels with the amounts for the
   /// current library. Called on settings changes and whenever the loaded
   /// item changes.
   void _syncNotifSkipCache() {
     final libId = _currentLibraryId;
-    PlayerSettings.getEffectiveForwardSkip(libraryId: libId).then((v) {
+    final fwdFuture = PlayerSettings.getEffectiveForwardSkip(libraryId: libId);
+    final backFuture = PlayerSettings.getEffectiveBackSkip(libraryId: libId);
+    fwdFuture.then((v) {
       debugPrint(
         '[SkipDebug] notif cache: lib=$libId fwd=${v}s (was ${_handler?._cachedForwardSkip})',
       );
@@ -1515,12 +1547,18 @@ class AudioPlayerService extends ChangeNotifier {
         _handler!.refreshPlaybackState();
       }
     });
-    PlayerSettings.getEffectiveBackSkip(libraryId: libId).then((v) {
+    backFuture.then((v) {
       if (_handler != null && v != _handler!._cachedBackSkip) {
         _handler!._cachedBackSkip = v;
         _handler!.refreshPlaybackState();
       }
     });
+    if (Platform.isIOS) {
+      unawaited(
+        Future.wait([fwdFuture, backFuture])
+            .then((v) => _pushIosSkipIntervals(v[0], v[1])),
+      );
+    }
   }
 
   /// Fill in a missing library id for the playing item so per-library skip
@@ -2520,6 +2558,11 @@ class AudioPlayerService extends ChangeNotifier {
       // Initialize cached skip amounts so notification icons show the correct values
       _handler!._cachedForwardSkip = fwdSkip;
       _handler!._cachedBackSkip = backSkip;
+      // Nothing is loaded yet so there's no library override to apply; the
+      // per-library amounts follow from _syncNotifSkipCache once an item does.
+      if (Platform.isIOS) {
+        unawaited(_pushIosSkipIntervals(fwdSkip, backSkip));
+      }
       _handler!._cachedNotifSpeedBookmark =
           await PlayerSettings.getMediaControlsSpeedBookmark();
       _handler!._cachedLockSeekBar = await PlayerSettings.getLockSeekBar();

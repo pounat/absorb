@@ -35,6 +35,12 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
 
   private var _commandsConfigured = false
 
+  // Lock screen skip amounts, mirrored from Dart. They start on the same
+  // defaults as PlayerSettings so the buttons are right before Dart pushes
+  // anything, then follow the user's setting (and per-library override).
+  private var _skipForwardSec = 30
+  private var _skipBackwardSec = 10
+
   // Server sync timer (separate from the engine's position observer).
   private var _serverSyncTimer: Timer?
   private static let serverSyncIntervalSec: TimeInterval = 60.0
@@ -484,6 +490,33 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
 
   // MARK: - MPRemoteCommandCenter
 
+  /// Point the lock screen skip buttons at the user's skip amounts. Called
+  /// from Dart at startup and whenever the setting (or the playing item's
+  /// per-library override) changes. Applies immediately even before the
+  /// commands are armed, because `preferredIntervals` lives on the shared
+  /// command center and whoever writes it last wins - audio_service only
+  /// writes it when it re-applies its controls.
+  func setSkipIntervals(forward: Int, backward: Int) {
+    queue.async { [weak self] in
+      guard let self = self else { return }
+      let fwd = max(1, forward)
+      let back = max(1, backward)
+      if fwd != self._skipForwardSec || back != self._skipBackwardSec {
+        self.emit("[NativeCore] skip intervals fwd=\(fwd)s back=\(back)s")
+      }
+      self._skipForwardSec = fwd
+      self._skipBackwardSec = back
+      // Always re-assert, even when unchanged: audio_service writes the same
+      // properties whenever it re-applies its controls (it does after a stop),
+      // so a push that looks redundant here may still be undoing a stale write.
+      DispatchQueue.main.async {
+        let cc = MPRemoteCommandCenter.shared()
+        cc.skipForwardCommand.preferredIntervals = [NSNumber(value: fwd)]
+        cc.skipBackwardCommand.preferredIntervals = [NSNumber(value: back)]
+      }
+    }
+  }
+
   /// Register the remote command handlers up front, without loading a player or
   /// starting playback. They defer to Flutter while it's alive, so this is a
   /// no-op for normal foreground use - but it guarantees a native target stays
@@ -533,9 +566,10 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
       return .success
     }
 
-    cc.skipForwardCommand.preferredIntervals = [30]
+    cc.skipForwardCommand.preferredIntervals = [NSNumber(value: _skipForwardSec)]
     cc.skipForwardCommand.addTarget { [weak self] event in
-      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 30
+      let fallback = self?._skipForwardSec ?? 30
+      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? Double(fallback)
       if self?.flutterIsAlive() == true {
         self?.emit("[NativeCore] remote: skipForward - Flutter is alive, deferring")
         return .success
@@ -543,9 +577,10 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
       self?.skipForward(seconds: Int(interval))
       return .success
     }
-    cc.skipBackwardCommand.preferredIntervals = [10]
+    cc.skipBackwardCommand.preferredIntervals = [NSNumber(value: _skipBackwardSec)]
     cc.skipBackwardCommand.addTarget { [weak self] event in
-      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 10
+      let fallback = self?._skipBackwardSec ?? 10
+      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? Double(fallback)
       if self?.flutterIsAlive() == true {
         self?.emit("[NativeCore] remote: skipBackward - Flutter is alive, deferring")
         return .success

@@ -142,6 +142,26 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         fastForwardInterval = configMap[@"fastForwardInterval"];
         rewindInterval = configMap[@"rewindInterval"];
         result(@{});
+    } else if ([@"updateSkipIntervals" isEqualToString:call.method]) {
+        // Absorb patch: the skip amounts were only ever read from the config at
+        // init, and updateControl: skips re-applying them once the controls have
+        // settled, so changing the setting left the lock screen on the amounts
+        // from launch. Refresh the statics (used by every later re-apply) and
+        // push them to the command center now.
+        NSDictionary *args = (NSDictionary *)call.arguments;
+        fastForwardInterval = args[@"fastForwardInterval"];
+        rewindInterval = args[@"rewindInterval"];
+        if (commandCenter) {
+            if (fastForwardInterval.integerValue > 0) {
+                int fwdSec = [fastForwardInterval intValue]/1000;
+                commandCenter.skipForwardCommand.preferredIntervals = @[[NSNumber numberWithInt:fwdSec]];
+            }
+            if (rewindInterval.integerValue > 0) {
+                int backSec = [rewindInterval intValue]/1000;
+                commandCenter.skipBackwardCommand.preferredIntervals = @[[NSNumber numberWithInt:backSec]];
+            }
+        }
+        result(@{});
     } else if ([@"setState" isEqualToString:call.method]) {
         NSDictionary *args = (NSDictionary *)call.arguments;
         NSDictionary *stateMap = (NSDictionary *)args[@"state"];
