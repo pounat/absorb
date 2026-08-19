@@ -167,12 +167,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   String _audioAuthor = '';
   String? _audioCoverUrl;
   bool _startingAudio = false;
+  // Held from initState so dispose can lift the quiet without a context read.
+  late final LibraryProvider _quietLib;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _epubController = EpubController();
+    _quietLib = context.read<LibraryProvider>();
+    _quietLib.setReaderQuiet(true);
     _loadInitialLocation();
     // A settings read failure must not stop the book from opening - fall back
     // to the field defaults and open anyway.
@@ -468,6 +472,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   @override
   void dispose() {
+    _quietLib.setReaderQuiet(false);
     WidgetsBinding.instance.removeObserver(this);
     _volumeNav.detach();
     _routeAnim?.removeStatusListener(_onRouteAnim);

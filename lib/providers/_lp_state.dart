@@ -89,6 +89,11 @@ mixin _StateMixin on ChangeNotifier {
   DateTime? _localLastReachableAt;
 
   bool _isBackgrounded = false;
+  // The ebook reader holds the app in the foreground for long stretches with
+  // nothing on screen that needs live data, so it asks for the same quiet the
+  // app keeps while backgrounded.
+  bool _readerQuiet = false;
+  DateTime? _readerQuietAt;
   bool _socketSoftDisconnected = false;
   DateTime? _backgroundedAt;
 

@@ -1112,7 +1112,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
   void _startServerPingTimer() {
     _serverPingTimer?.cancel();
-    if (_isBackgrounded) return;
+    if (_isBackgrounded || _readerQuiet) return;
     final serverUrl = _auth?.serverUrl;
     if (serverUrl == null) return;
     debugPrint('[Library] Starting server ping timer');
@@ -1172,8 +1172,9 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       _stopLocalProbeTimer();
       return;
     }
-    // Don't run when truly idle in the background (battery).
-    if (_isBackgrounded && !AudioPlayerService().isPlaying) {
+    // Don't run when truly idle in the background, or while reading (battery).
+    // Playback still needs it either way.
+    if ((_isBackgrounded || _readerQuiet) && !AudioPlayerService().isPlaying) {
       _stopLocalProbeTimer();
       return;
     }
@@ -1251,7 +1252,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
   void _startHealthCheckTimer() {
     _healthCheckTimer?.cancel();
-    if (_isBackgrounded) return;
+    if (_isBackgrounded || _readerQuiet) return;
     debugPrint('[Library] Health check timer started (60s ping while online)');
     _healthCheckTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
       if (_networkOffline || _manualOffline || !_deviceHasConnectivity) return;
@@ -1296,6 +1297,43 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   // still tears the socket down.
   void onAppForegrounded() {
     _isBackgrounded = false;
+    // Coming back to a book that's still open: stay quiet, the reader will say
+    // when it closes.
+    if (_readerQuiet) {
+      debugPrint('[Library] Foregrounded into the reader - staying quiet');
+      return;
+    }
+    _resumeLiveWork(quietSince: _backgroundedAt);
+  }
+
+  /// The ebook reader keeps the app foregrounded with nothing on screen that
+  /// needs live data, so while it's open the app drops to its background
+  /// behavior: no socket, no polling. Page turns still push progress over
+  /// HTTP, and playback keeps its own work running.
+  void setReaderQuiet(bool quiet) {
+    if (_readerQuiet == quiet) return;
+    _readerQuiet = quiet;
+    if (quiet) {
+      _readerQuietAt = DateTime.now();
+      debugPrint('[Library] Reader open - quieting live work');
+      _stopServerPingTimer();
+      _stopHealthCheckTimer();
+      if (!AudioPlayerService().isPlaying) _stopLocalProbeTimer();
+      _softDisconnectSocket();
+      return;
+    }
+    final since = _readerQuietAt;
+    _readerQuietAt = null;
+    debugPrint('[Library] Reader closed - waking live work');
+    // Backgrounded while reading: the background handler owns the wake-up.
+    if (_isBackgrounded) return;
+    _resumeLiveWork(quietSince: since);
+  }
+
+  /// Bring back the socket and the polling this app does while it's visible
+  /// and awake. [quietSince] is when live work stopped, so a long gap can
+  /// replay what the socket would have delivered.
+  void _resumeLiveWork({DateTime? quietSince}) {
     _softReconnectSocket();
     if (_networkOffline && _deviceHasConnectivity && !_manualOffline) {
       _startServerPingTimer();
@@ -1305,13 +1343,12 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     _startLocalProbeTimer();
     if (!isOffline && !_manualOffline) {
       (this as LibraryProvider).checkSubscribedPodcasts();
-      // Item events emitted while backgrounded were missed (the socket was
-      // down) and are never replayed, so anything edited from another device
-      // would stay stale forever. Skip quick app switches - a fresh socket
-      // has nothing to have missed.
-      final away = _backgroundedAt == null
+      // Item events emitted while the socket was down are never replayed, so
+      // anything edited from another device would stay stale forever. Skip
+      // quick gaps - a fresh socket has nothing to have missed.
+      final away = quietSince == null
           ? null
-          : DateTime.now().difference(_backgroundedAt!);
+          : DateTime.now().difference(quietSince);
       if (away != null && away > const Duration(seconds: 30)) {
         _catchUpAfterBackground();
       }
@@ -1351,14 +1388,14 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   void onPlaybackStarted() {
-    if (!_isBackgrounded) {
+    if (!_isBackgrounded && !_readerQuiet) {
       _softReconnectSocket();
     }
     _startLocalProbeTimer();
   }
 
   void onPlaybackStopped() {
-    if (_isBackgrounded) {
+    if (_isBackgrounded || _readerQuiet) {
       _softDisconnectSocket();
       _stopLocalProbeTimer();
     }

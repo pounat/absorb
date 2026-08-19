@@ -89,6 +89,7 @@ class _FoliateReaderViewState extends State<FoliateReaderView> with WidgetsBindi
     _setFullscreen(true);
     _api = context.read<AuthProvider>().apiService;
     _lib = context.read<LibraryProvider>();
+    _lib?.setReaderQuiet(true);
     _loadInitialCfi();
     _prepare();
     _volumeNav.attach();
@@ -107,6 +108,7 @@ class _FoliateReaderViewState extends State<FoliateReaderView> with WidgetsBindi
 
   @override
   void dispose() {
+    _lib?.setReaderQuiet(false);
     WidgetsBinding.instance.removeObserver(this);
     _volumeNav.detach();
     _setFullscreen(false);

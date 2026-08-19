@@ -57,6 +57,7 @@ class _PdfReaderViewState extends State<PdfReaderView> with WidgetsBindingObserv
     _setFullscreen(true);
     _api = context.read<AuthProvider>().apiService;
     _lib = context.read<LibraryProvider>();
+    _lib?.setReaderQuiet(true);
     _loadInitialPage();
     _open();
     _volumeNav.attach();
@@ -81,6 +82,7 @@ class _PdfReaderViewState extends State<PdfReaderView> with WidgetsBindingObserv
 
   @override
   void dispose() {
+    _lib?.setReaderQuiet(false);
     WidgetsBinding.instance.removeObserver(this);
     _volumeNav.detach();
     _setFullscreen(false);
