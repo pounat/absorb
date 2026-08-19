@@ -2287,13 +2287,37 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       return;
     }
 
+    // "Already seen" is tracked per device (known_episodes_ is not synced or
+    // backed up), so a phone that was off, or a second phone, meets episodes
+    // another device already announced. Progress DOES sync, so use it as the
+    // tiebreaker: an episode already listened to is not news, and re-downloading
+    // it is worse than not mentioning it. Record it as known and move on.
     final newEpisodes = <Map<String, dynamic>>[];
+    var alreadyHeard = 0;
     for (final ep in episodes) {
       final epMap = ep as Map<String, dynamic>;
       final epId = epMap['id'] as String?;
-      if (epId != null && !knownIds.contains(epId)) {
-        newEpisodes.add(epMap);
+      if (epId == null || knownIds.contains(epId)) continue;
+      final progress = getEpisodeProgressData(itemId, epId);
+      final finished = progress?['isFinished'] == true;
+      final started = ((progress?['currentTime'] as num?)?.toDouble() ?? 0) > 0;
+      if (finished || started) {
+        knownIds.add(epId);
+        alreadyHeard++;
+        continue;
       }
+      newEpisodes.add(epMap);
+    }
+    if (alreadyHeard > 0) {
+      debugPrint(
+        '[Subscription] $alreadyHeard episode(s) for $itemId were already '
+        'listened to elsewhere - marking known, not announcing',
+      );
+      await _saveKnownEpisodeIds(itemId);
+      await EpisodeNotificationService.markAlreadySurfaced(
+        itemId,
+        knownIds,
+      );
     }
 
     if (newEpisodes.isNotEmpty) {
@@ -2374,6 +2398,12 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         if (!queueless) {
           knownIds.addAll(freshEpIds);
           _saveKnownEpisodeIds(itemId);
+          // The user is looking at these right now, queued and downloading, so
+          // the background job must not announce them hours later as news.
+          unawaited(EpisodeNotificationService.markAlreadySurfaced(
+            itemId,
+            freshEpIds,
+          ));
           (this as _AbsorbingMixin)._saveManualAbsorbing();
           notifyListeners();
           _downloadSubscribedEpisodes(itemId, keys: freshKeys, meta: freshMeta);
@@ -2388,6 +2418,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           if (started) {
             knownIds.addAll(freshEpIds);
             _saveKnownEpisodeIds(itemId);
+            unawaited(EpisodeNotificationService.markAlreadySurfaced(
+              itemId,
+              freshEpIds,
+            ));
           } else {
             debugPrint('[Subscription] $itemId download deferred - leaving '
                 '${freshEpIds.length} episode(s) unseen so the next check retries');

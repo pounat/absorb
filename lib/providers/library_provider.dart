@@ -11,6 +11,7 @@ import '../services/api_service.dart';
 import '../services/progress_sync_service.dart';
 import '../services/local_session_service.dart';
 import '../services/download_service.dart';
+import '../services/episode_notification_service.dart';
 import '../services/library_cache.dart';
 import '../services/android_auto_service.dart';
 import '../services/carplay_service.dart';
@@ -549,4 +550,19 @@ class LibraryProvider extends ChangeNotifier
     return getProgressData(key)?['isFinished'] == true;
   }
 
+  /// Re-read every prefs-backed list this provider holds in memory.
+  ///
+  /// Settings sync and the manual restore both rewrite SharedPreferences under
+  /// a running app. Without this the provider keeps serving what it loaded at
+  /// account load - and worse, the next `_saveManualAbsorbing()` writes that
+  /// stale copy straight back over what just arrived, which is how a card
+  /// removed on another phone came back and stayed back through a reboot.
+  Future<void> reloadPrefsBackedState() async {
+    await _loadManualAbsorbing();
+    await _loadRollingDownloadSeries();
+    await _loadSubscribedPodcasts();
+    await _loadYearHidden();
+    await _loadSectionPrefs();
+    notifyListeners();
+  }
 }
