@@ -17,6 +17,7 @@ import '../services/reader_font_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/volume_key_service.dart';
 import 'overlay_toast.dart';
+import 'quote_share_sheet.dart';
 import 'card_buttons.dart' show CardSpeedSheet;
 
 /// Reader background/text presets (e-reader themes). Colors are hex so they
@@ -43,12 +44,16 @@ class EbookReaderView extends StatefulWidget {
   final String itemId;
   final String title;
   final Map<String, dynamic> ebookFile;
+  /// Opens here instead of the saved reading position, for jumping straight
+  /// to a highlight from outside the reader.
+  final String? openAtCfi;
 
   const EbookReaderView({
     super.key,
     required this.itemId,
     required this.title,
     required this.ebookFile,
+    this.openAtCfi,
   });
 
   @override
@@ -112,6 +117,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // per mount, or it re-triggers itself into an endless display->displayed loop
   // that freezes page-turn taps. Reset whenever the viewer remounts.
   bool _didLoadRescue = false;
+  // Where an outside jump (a highlight from the list) asked to land, re-applied
+  // once after the first paint - epub.js repaginates right after load and can
+  // round the target away.
+  String? _settleJumpCfi;
   // Same event, same reason: the handler/highlight/font wiring must run once
   // per mount, not on every chapter crossing - unguarded it stacked a new JS
   // relocated-listener, re-registered every highlight and re-shipped the
@@ -576,9 +585,17 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   void _loadInitialLocation() {
     final lib = context.read<LibraryProvider>();
+    // A highlight jump wins over the saved reading position; the percent below
+    // still comes from saved progress so the bar isn't at 0 until epub.js has
+    // indexed locations.
+    final target = widget.openAtCfi;
+    if (target != null && target.isNotEmpty) {
+      _initialCfi = pointCfi(target);
+      _settleJumpCfi = _initialCfi;
+    }
     final progressData = lib.getProgressData(widget.itemId);
     final loc = progressData?['ebookLocation'] as String?;
-    if (loc != null && loc.isNotEmpty) {
+    if (_initialCfi == null && loc != null && loc.isNotEmpty) {
       _initialCfi = loc;
     }
     // Seed the displayed percent from saved progress so the bar shows the
@@ -699,6 +716,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       cfi: _selectionCfi!,
       selectedText: _selectionText!,
       color: color,
+      chapter: _currentChapterTitle,
     );
     _epubController?.addHighlight(
       cfi: annotation.cfi,
@@ -707,6 +725,23 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     );
     _annotations.insert(0, annotation);
     if (mounted) _dismissSelection();
+  }
+
+  /// [onThisPage] is for a highlight tapped in the book: the reader is sitting
+  /// in its chapter, so an older highlight with no recorded chapter can borrow
+  /// the current one. From the list it would be a guess, so it stays blank.
+  Future<void> _shareHighlight(EbookAnnotation annotation,
+      {bool onThisPage = false}) async {
+    final text = annotation.selectedText ?? '';
+    if (text.isEmpty) return;
+    await showQuoteShareSheet(
+      context,
+      itemId: widget.itemId,
+      quote: text,
+      bookTitle: widget.title,
+      author: _audioAuthor.isEmpty ? null : _audioAuthor,
+      chapter: annotation.chapter ?? (onThisPage ? _currentChapterTitle : null),
+    );
   }
 
   Future<void> _removeHighlight(EbookAnnotation annotation) async {
@@ -739,6 +774,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       final annotation = await _annotationService.addBookmark(
         itemId: widget.itemId,
         cfi: cfi,
+        chapter: _currentChapterTitle,
       );
       _annotations.insert(0, annotation);
     }
@@ -809,7 +845,18 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l.readerNoteTitle),
+        title: Row(children: [
+          Expanded(child: Text(l.readerNoteTitle)),
+          if ((annotation.selectedText ?? '').isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.ios_share_rounded),
+              tooltip: l.quoteShareTitle,
+              onPressed: () {
+                Navigator.pop(ctx);
+                _shareHighlight(annotation, onThisPage: true);
+              },
+            ),
+        ]),
         content: TextField(
           controller: controller,
           maxLines: 5,
@@ -1631,10 +1678,19 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                       ? Text(h.note!, maxLines: 1, overflow: TextOverflow.ellipsis,
                                           style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))
                                       : null,
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.ios_share_rounded, size: 18),
+                                    tooltip: AppLocalizations.of(ctx)!.quoteShareTitle,
+                                    color: cs.onSurfaceVariant,
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      _shareHighlight(h);
+                                    },
+                                  ),
                                   dense: true,
                                   onTap: () {
                                     Navigator.pop(ctx);
-                                    _epubController?.display(cfi: h.cfi);
+                                    _epubController?.display(cfi: pointCfi(h.cfi));
                                   },
                                   onLongPress: () => _addNoteToAnnotation(h),
                                 ),
@@ -1682,7 +1738,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                   dense: true,
                                   onTap: () {
                                     Navigator.pop(ctx);
-                                    _epubController?.display(cfi: bm.cfi);
+                                    _epubController?.display(cfi: pointCfi(bm.cfi));
                                   },
                                   onLongPress: () => _addNoteToAnnotation(bm),
                                 ),
@@ -1961,6 +2017,15 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   if (once != null && once.isNotEmpty) {
                     _initialCfi = null;
                     _epubController?.display(cfi: once);
+                    // Safe to re-display: _didLoadRescue is already set, so the
+                    // "displayed" event this fires can't loop back in here.
+                    final settle = _settleJumpCfi;
+                    if (settle != null) {
+                      _settleJumpCfi = null;
+                      Future.delayed(const Duration(milliseconds: 700), () {
+                        if (mounted) _epubController?.display(cfi: settle);
+                      });
+                    }
                   } else {
                     // First open (no saved position) - the same blank-first-paint
                     // can happen here, but display(cfi:) needs a target, so force

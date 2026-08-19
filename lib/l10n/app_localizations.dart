@@ -1468,6 +1468,138 @@ abstract class AppLocalizations {
   /// **'All Bookmarks'**
   String get bookmarksTitle;
 
+  /// No description provided for @bookmarksTabBookmarks.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmarks'**
+  String get bookmarksTabBookmarks;
+
+  /// No description provided for @bookmarksTabHighlights.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlights'**
+  String get bookmarksTabHighlights;
+
+  /// No description provided for @highlightOpenInBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in book'**
+  String get highlightOpenInBook;
+
+  /// No description provided for @highlightDeleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete highlight'**
+  String get highlightDeleteAction;
+
+  /// No description provided for @highlightDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight deleted'**
+  String get highlightDeleted;
+
+  /// No description provided for @highlightsDeleteCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} highlight(s)?'**
+  String highlightsDeleteCount(int count);
+
+  /// No description provided for @highlightsDeletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count} highlight(s)'**
+  String highlightsDeletedCount(int count);
+
+  /// No description provided for @quoteShareTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share quote'**
+  String get quoteShareTitle;
+
+  /// No description provided for @quoteShareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get quoteShareAction;
+
+  /// No description provided for @quoteShareFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t make the quote image'**
+  String get quoteShareFailed;
+
+  /// No description provided for @quoteShapePortrait.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait'**
+  String get quoteShapePortrait;
+
+  /// No description provided for @quoteShapeSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'Square'**
+  String get quoteShapeSquare;
+
+  /// No description provided for @quoteShapeStory.
+  ///
+  /// In en, this message translates to:
+  /// **'Story'**
+  String get quoteShapeStory;
+
+  /// No description provided for @quoteStyleBlur.
+  ///
+  /// In en, this message translates to:
+  /// **'Blurred'**
+  String get quoteStyleBlur;
+
+  /// No description provided for @quoteStyleDim.
+  ///
+  /// In en, this message translates to:
+  /// **'Dimmed'**
+  String get quoteStyleDim;
+
+  /// No description provided for @quoteStyleNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Plain cover'**
+  String get quoteStyleNone;
+
+  /// No description provided for @quoteTextLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light text'**
+  String get quoteTextLight;
+
+  /// No description provided for @quoteTextDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark text'**
+  String get quoteTextDark;
+
+  /// No description provided for @quoteFieldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get quoteFieldTitle;
+
+  /// No description provided for @quoteFieldDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get quoteFieldDetail;
+
+  /// No description provided for @quoteFieldDetailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Author, chapter, page, who said it'**
+  String get quoteFieldDetailHint;
+
+  /// No description provided for @highlightsMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'{chapter} · {date}'**
+  String highlightsMeta(String chapter, String date);
+
   /// No description provided for @bookmarksCancelSelection.
   ///
   /// In en, this message translates to:

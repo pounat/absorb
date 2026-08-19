@@ -356,6 +356,52 @@
     }
   },
   "bookmarksTitle": "All Bookmarks",
+  "bookmarksTabBookmarks": "Bookmarks",
+  "bookmarksTabHighlights": "Highlights",
+  "highlightOpenInBook": "Open in book",
+  "highlightDeleteAction": "Delete highlight",
+  "highlightDeleted": "Highlight deleted",
+  "highlightsDeleteCount": "Delete {count} highlight(s)?",
+  "@highlightsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "highlightsDeletedCount": "Deleted {count} highlight(s)",
+  "@highlightsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "quoteShareTitle": "Share quote",
+  "quoteShareAction": "Share",
+  "quoteShareFailed": "Couldn't make the quote image",
+  "quoteShapePortrait": "Portrait",
+  "quoteShapeSquare": "Square",
+  "quoteShapeStory": "Story",
+  "quoteStyleBlur": "Blurred",
+  "quoteStyleDim": "Dimmed",
+  "quoteStyleNone": "Plain cover",
+  "quoteTextLight": "Light text",
+  "quoteTextDark": "Dark text",
+  "quoteFieldTitle": "Title",
+  "quoteFieldDetail": "Details",
+  "quoteFieldDetailHint": "Author, chapter, page, who said it",
+  "highlightsMeta": "{chapter} · {date}",
+  "@highlightsMeta": {
+    "placeholders": {
+      "chapter": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "bookmarksCancelSelection": "Cancel selection",
   "bookmarksSortedByNewest": "Sorted by newest",
   "bookmarksSortedByPosition": "Sorted by position",
