@@ -1103,6 +1103,12 @@ class HomeWidgetService {
     return count;
   }
 
+  /// Width requested from the server for the widget's copy of the cover.
+  /// Larger than the player's 400 because the widget can be far bigger than a
+  /// notification icon; the Kotlin side downscales to its own safe ceiling
+  /// before handing anything to RemoteViews.
+  static const int _widgetCoverWidth = 1000;
+
   Future<void> _updateCoverArt(String itemId) async {
     final player = AudioPlayerService();
     final coverUrl = player.currentCoverUrl;
@@ -1130,8 +1136,18 @@ class HomeWidgetService {
           final coverDir = await _getCoverDirectory();
           final coverFile = File('${coverDir.path}/$itemId.jpg');
 
+          // The player's cover URL asks the server for 400px, which is plenty
+          // for a notification and soft on a large home screen widget - a big
+          // tile is around 1000px on a modern phone, so 400 gets upscaled 2.5x.
+          // Ask for a bigger one just for the widget file. The Kotlin side caps
+          // what it actually hands to RemoteViews, so this only improves the
+          // source it has to work from.
+          final widgetCoverUrl = coverUrl.replaceAllMapped(
+            RegExp(r'([?&])width=\d+'),
+            (m) => '${m[1]}width=$_widgetCoverWidth',
+          );
           final response = await http
-              .get(Uri.parse(coverUrl))
+              .get(Uri.parse(widgetCoverUrl))
               .timeout(const Duration(seconds: 10));
           if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
             await coverFile.writeAsBytes(response.bodyBytes);

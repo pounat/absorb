@@ -12,6 +12,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Build
 import android.os.Bundle
@@ -118,6 +119,49 @@ class NowPlayingWidgetTiny : AppWidgetProvider() {
                 context, MainActivity::class.java, Uri.parse("absorb://widget/open")
             )
 
+        /// Mean brightness of the bottom slice of the cover - the part the
+        /// player panel sits over. Sampled on a coarse grid rather than every
+        /// pixel; this runs on every widget update and the answer only has to
+        /// be right enough to pick between two scrims.
+        private fun bottomBrightness(bitmap: Bitmap): Double {
+            val h = bitmap.height
+            val w = bitmap.width
+            if (h <= 0 || w <= 0) return 0.0
+            val startY = (h * 0.55).toInt().coerceIn(0, h - 1)
+            val stepX = (w / 16).coerceAtLeast(1)
+            val stepY = ((h - startY) / 12).coerceAtLeast(1)
+            var total = 0.0
+            var count = 0
+            var y = startY
+            while (y < h) {
+                var x = 0
+                while (x < w) {
+                    val c = bitmap.getPixel(x, y)
+                    if (((c shr 24) and 0xFF) > 8) {
+                        val r = (c shr 16) and 0xFF
+                        val g = (c shr 8) and 0xFF
+                        val b = c and 0xFF
+                        // Rec. 601 luma - closer to perceived brightness than a
+                        // plain channel average, which reads blue as too light.
+                        total += 0.299 * r + 0.587 * g + 0.114 * b
+                        count++
+                    }
+                    x += stepX
+                }
+                y += stepY
+            }
+            return if (count == 0) 0.0 else total / count
+        }
+
+        // Above this the cover is bright enough that white text needs the full
+        // scrim; below it the artwork already does the job.
+        // Widest cover edge handed to RemoteViews. 768px in ARGB_8888 is about
+        // 2.4MB, well clear of what a widget update will carry, and still twice
+        // the linear detail of the 400px the player uses.
+        private const val MAX_COVER_PX = 768
+
+        private const val SCRIM_BRIGHTNESS_THRESHOLD = 88.0
+
         // Decode the cover no larger than the widget needs, then mask rounded
         // corners. targetPx keeps a big cover crisp without decoding a huge
         // bitmap that RemoteViews would refuse to serialise.
@@ -138,12 +182,29 @@ class NowPlayingWidgetTiny : AppWidgetProvider() {
             val displayPx = targetPx.toFloat().coerceAtLeast(1f)
             val scale = minOf(bitmap.width, bitmap.height).toFloat() / displayPx
             val radiusPx = radiusDp * density * scale
-            val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+            // Hard ceiling on what gets handed to RemoteViews. inSampleSize only
+            // halves, so a 1000px source against a 1050px target stays at full
+            // size - 1000x1000 in ARGB_8888 is 4MB, and an oversized bitmap does
+            // not degrade, it makes the widget update fail silently. Scale to a
+            // known-safe edge instead of hoping.
+            val edge = minOf(bitmap.width, bitmap.height)
+            val outEdge = minOf(edge, MAX_COVER_PX)
+            val output = Bitmap.createBitmap(outEdge, outEdge, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(output)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-            canvas.drawRoundRect(RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat()), radiusPx, radiusPx, paint)
+            val outRadius = radiusPx * outEdge / edge.toFloat()
+            canvas.drawRoundRect(RectF(0f, 0f, outEdge.toFloat(), outEdge.toFloat()), outRadius, outRadius, paint)
             paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-            canvas.drawBitmap(bitmap, 0f, 0f, paint)
+            // Centre-crop the source square into the output, matching what the
+            // ImageView would have done anyway.
+            val srcLeft = (bitmap.width - edge) / 2
+            val srcTop = (bitmap.height - edge) / 2
+            canvas.drawBitmap(
+                bitmap,
+                Rect(srcLeft, srcTop, srcLeft + edge, srcTop + edge),
+                RectF(0f, 0f, outEdge.toFloat(), outEdge.toFloat()),
+                paint,
+            )
             // Recycle only the source: RemoteViews serialises `output` later in
             // updateAppWidget, so recycling it here crashes the app.
             bitmap.recycle()
@@ -200,6 +261,19 @@ class NowPlayingWidgetTiny : AppWidgetProvider() {
             } else {
                 views.setImageViewResource(R.id.widget_cover, R.mipmap.ic_launcher)
             }
+
+            // The panel's background IS the scrim, so the taller the panel gets
+            // the more artwork it fades out - worst on a big widget, which is
+            // exactly where the cover is worth looking at. Match the fade to
+            // the cover instead of always assuming the worst case: a dark cover
+            // carries white text unaided, a pale one still needs the full wash.
+            val darkCover = cover != null && bottomBrightness(cover) < SCRIM_BRIGHTNESS_THRESHOLD
+            views.setInt(
+                R.id.widget_panel,
+                "setBackgroundResource",
+                if (darkCover) R.drawable.widget_controls_scrim_soft
+                else R.drawable.widget_controls_scrim,
+            )
 
             val playPauseIcon = if (isPlaying) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_play_dark
             // Tap registered, audio not started yet (cold start can take

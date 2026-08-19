@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lighter companion to widget_controls_scrim, used when the bottom of the
+     cover is already dark enough to carry white text on its own. Just enough
+     to stop the panel floating, without flattening the artwork. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:startColor="#99000000"
+        android:centerColor="#40000000"
+        android:endColor="#00000000"
+        android:centerY="0.5"
+        android:angle="90" />
+</shape>
