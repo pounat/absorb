@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:background_downloader/background_downloader.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:just_audio/just_audio.dart' show AudioPlayer;
@@ -16,7 +14,6 @@ import '../services/download_service.dart';
 import '../services/episode_notification_service.dart';
 import '../services/sleep_timer_service.dart';
 import '../services/user_account_service.dart';
-import '../services/backup_service.dart';
 import '../services/log_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/socket_service.dart';
@@ -29,6 +26,8 @@ import '../widgets/update_dialog.dart';
 import '../screens/admin_screen.dart';
 import '../screens/downloads_screen.dart';
 import '../screens/bookmarks_screen.dart';
+import '../screens/backup_sync_screen.dart';
+import '../services/settings_sync_service.dart';
 import '../screens/change_password_screen.dart';
 import '../screens/auth_sessions_screen.dart';
 import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
@@ -227,6 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _localServerController = TextEditingController();
     _loadSettings();
     _loadAdminIssueCount();
+    _refreshSyncStatus();
     SocketService().addItemsChangedListener(_onServerItemsChanged);
     PlayerSettings.settingsChanged.addListener(_onExternalSettingsChange);
   }
@@ -3880,42 +3880,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const SizedBox(height: 16),
 
-                // ── Backup & Restore ──
+                // ── Backup and sync ──
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Card(
                     elevation: 0,
                     color: cs.surfaceContainerHigh,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(children: [
-                            Icon(Icons.settings_backup_restore_rounded, color: cs.primary, size: 22),
-                            const SizedBox(width: 10),
-                            Text(l.backupAndRestore, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                          ]),
-                          const SizedBox(height: 4),
-                          Text(l.backupAndRestoreSubtitle,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                          const SizedBox(height: 14),
-                          Row(children: [
-                            Expanded(child: FilledButton.tonalIcon(
-                              icon: const Icon(Icons.upload_rounded, size: 18),
-                              label: Text(l.backUp),
-                              onPressed: () => _backupSettings(context, cs, tt),
-                            )),
-                            const SizedBox(width: 10),
-                            Expanded(child: OutlinedButton.icon(
-                              icon: const Icon(Icons.download_rounded, size: 18),
-                              label: Text(l.restore),
-                              onPressed: () => _restoreSettings(context, cs, tt),
-                            )),
-                          ]),
-                        ],
-                      ),
+                    child: ListTile(
+                      leading: Icon(Icons.cloud_sync_rounded, color: cs.primary),
+                      title: Text(l.backupAndSync),
+                      subtitle: Text(_backupSyncStatus(l),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      onTap: () async {
+                        await Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const BackupSyncScreen()));
+                        if (mounted) await _refreshSyncStatus();
+                      },
+                      // Shortcut for the impatient: push straight from here
+                      // rather than opening the screen for one button. Only
+                      // offered while sync is on, since there is nowhere to
+                      // send it otherwise.
+                      onLongPress: _syncOn ? () => _uploadSyncNow(l) : null,
                     ),
                   ),
                 ),
@@ -4286,198 +4274,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _backupSettings(BuildContext context, ColorScheme cs, TextTheme tt) {
-    final l = AppLocalizations.of(context)!;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.shield_rounded),
-        title: Text(l.includeLoginInfoTitle),
-        content: Text(l.includeLoginInfoContent),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _performBackup(context, includeAccounts: false);
-            },
-            child: Text(l.noSettingsOnly),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _performBackup(context, includeAccounts: true);
-            },
-            child: Text(l.yesIncludeAccounts),
-          ),
-        ],
-      ),
-    );
-  }
+  bool _syncUploading = false;
 
-  Future<void> _performBackup(BuildContext context, {required bool includeAccounts}) async {
-    final l = AppLocalizations.of(context)!;
+  /// Long-press upload from the settings row. Goes through the content check
+  /// rather than forcing a push: an upload that changes nothing still bumps the
+  /// file's timestamp, which wakes the other device to apply an identical copy.
+  Future<void> _uploadSyncNow(AppLocalizations l) async {
+    if (_syncUploading) return;
+    _syncUploading = true;
+    HapticFeedback.mediumImpact();
     try {
-      final data = await BackupService.exportSettings(includeAccounts: includeAccounts);
-      final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
-      final now = DateTime.now();
-      final datePart = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final fileName = 'absorb_backup_$datePart.absorb';
-
-      final bytes = Uint8List.fromList(utf8.encode(jsonStr));
-
-      final result = await FilePicker.platform.saveFile(
-        dialogTitle: l.saveAbsorbBackup,
-        fileName: fileName,
-        type: FileType.any,
-        bytes: bytes,
-      );
-
-      if (result != null) {
-        // Desktop platforms need manual file write; mobile writes via bytes param
-        if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-          await File(result).writeAsString(jsonStr);
-        }
-        if (mounted) {
-          showOverlayToast(
-            context,
-            includeAccounts
-                ? l.backupSavedWithAccounts
-                : l.backupSavedSettingsOnly,
-            icon: Icons.check_circle_outline_rounded,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        showOverlayToast(context, l.backupFailed(e.toString()),
-            icon: Icons.error_outline_rounded);
-      }
-    }
-  }
-
-  void _restoreSettings(BuildContext context, ColorScheme cs, TextTheme tt) async {
-    final l = AppLocalizations.of(context)!;
-    try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
-      if (result == null || result.files.single.path == null) return;
-
-      final file = File(result.files.single.path!);
-      final jsonStr = await file.readAsString();
-      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-
-      if (data['version'] == null) {
-        if (mounted) {
-          showOverlayToast(context, l.invalidBackupFile,
-              icon: Icons.error_outline_rounded);
-        }
-        return;
-      }
-
+      final result = await SettingsSyncService().pushIfChanged();
       if (!mounted) return;
-
-      final accounts = data['accounts'] as List<dynamic>?;
-      final hasAccounts = accounts != null && accounts.isNotEmpty;
-      final hasCustomHeaders = data['customHeaders'] != null;
-      final createdAt = data['createdAt'] as String?;
-      final appVersion = data['appVersion'] as String?;
-
-      String details = '';
-      if (appVersion != null) details += l.fromAbsorbVersion(appVersion);
-      if (createdAt != null) {
-        final dt = DateTime.tryParse(createdAt);
-        if (dt != null) {
-          details += details.isEmpty ? '' : l.backupDetailsSeparator;
-          details += l.backupDateFormat(dt.month, dt.day, dt.year);
-        }
-      }
-
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.restore_rounded),
-          title: Text(l.restoreBackupTitle),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l.restoreBackupContent),
-              if (details.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(details, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-              ],
-              if (hasAccounts || hasCustomHeaders) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (hasAccounts)
-                      _restoreChip(Icons.people_rounded, l.restoreAccountsChip(accounts.length), cs),
-                    if (hasCustomHeaders)
-                      _restoreChip(Icons.vpn_key_rounded, l.restoreCustomHeadersChip, cs),
-                  ],
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l.restore),
-            ),
-          ],
-        ),
+      await _refreshSyncStatus();
+      if (!mounted) return;
+      final message = result.ok
+          ? (result.message == 'unchanged'
+              ? l.syncSettingsUpToDate
+              : l.syncSettingsUploaded)
+          : l.syncSettingsNetworkError;
+      showOverlayToast(
+        context,
+        message,
+        icon: result.ok
+            ? Icons.check_circle_outline_rounded
+            : Icons.error_outline_rounded,
       );
-
-      if (confirmed != true || !mounted) return;
-
-      await BackupService.importSettings(data);
-
-      // Apply theme immediately
-      final settings = data['settings'] as Map<String, dynamic>?;
-      final theme = settings?['themeMode'] as String?;
-      if (theme != null) {
-        applyThemeMode(theme);
-      }
-      if (settings?['flatBackground'] is bool) applyFlatBackground(settings!['flatBackground'] as bool);
-      if (settings?['colorSource'] is String) applyColorSource(settings!['colorSource'] as String);
-      if (settings?['manualSeedColor'] is int) applyManualSeed(settings!['manualSeedColor'] as int);
-      if (settings?['gradientIntensity'] is num) applyGradientIntensity((settings!['gradientIntensity'] as num).toDouble());
-      if (settings?['useColorEverywhere'] is bool) applyUseColorEverywhere(settings!['useColorEverywhere'] as bool);
-      await applyOrientationLock();
-
-      // Refresh UI
-      await _loadSettings();
-
-      if (mounted) {
-        showOverlayToast(context, l.settingsRestoredSuccessfully,
-            icon: Icons.check_circle_outline_rounded);
-      }
-    } catch (e) {
-      if (mounted) {
-        showOverlayToast(context, l.restoreFailed(e.toString()),
-            icon: Icons.error_outline_rounded);
-      }
+    } finally {
+      _syncUploading = false;
     }
   }
 
-  Widget _restoreChip(IconData icon, String label, ColorScheme cs) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 16, color: cs.primary),
-        const SizedBox(width: 8),
-        Text(label, style: TextStyle(fontSize: 12, color: cs.primary)),
-      ]),
-    );
+  DateTime? _syncLastAt;
+  bool _syncOn = false;
+
+  /// Live status for the settings row, so the common question - is it syncing,
+  /// and when did it last manage it - is answered without opening the screen.
+  String _backupSyncStatus(AppLocalizations l) {
+    if (!_syncOn) return l.backupAndSyncSubtitle;
+    final at = _syncLastAt;
+    final status =
+        at == null ? l.syncSettingsNever : l.syncSettingsLastSynced(_syncTimeAgo(l, at));
+    // A long-press nobody is told about is a long-press nobody uses, and this
+    // row is the only place it could be discovered.
+    return '$status  ·  ${l.syncSettingsHoldToUpload}';
+  }
+
+  static String _syncTimeAgo(AppLocalizations l, DateTime dt) {
+    final d = DateTime.now().difference(dt);
+    if (d.inSeconds < 60) return l.justNow.toLowerCase();
+    if (d.inMinutes < 60) return l.minutesAgo(d.inMinutes);
+    if (d.inHours < 24) return l.hoursAgo(d.inHours);
+    return l.daysAgo(d.inDays);
+  }
+
+  Future<void> _refreshSyncStatus() async {
+    final on = await SettingsSyncService().getEnabled();
+    final at = await SettingsSyncService().getLastSyncTime();
+    if (!mounted) return;
+    setState(() {
+      _syncOn = on;
+      _syncLastAt = at;
+    });
   }
 
   void _showAccountSheet(BuildContext context) {

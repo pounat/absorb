@@ -30,6 +30,7 @@ import 'app_shell_navigation_policy.dart';
 import '../widgets/library_picker_sheet.dart';
 import '../widgets/welcome_sheet.dart';
 import '../services/review_service.dart';
+import '../services/settings_sync_service.dart';
 import '../services/update_checker_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/overlay_toast.dart';
@@ -649,6 +650,7 @@ class _AppShellState extends State<AppShell>
     AudioPlayerService.onAppForegrounded();
     HomeWidgetService().onAppForegrounded();
     ReviewService.onAppForegrounded();
+    unawaited(SettingsSyncService().onAppForegrounded());
     _refreshDataForTab(_currentIndex);
     // Check auto sleep in case we resumed into the window
     SleepTimerService().checkAutoSleep();
@@ -662,6 +664,7 @@ class _AppShellState extends State<AppShell>
     SleepTimerService().onAppBackgrounded();
     AudioPlayerService.onAppBackgrounded();
     HomeWidgetService().onAppBackgrounded();
+    unawaited(SettingsSyncService().onAppBackgrounded());
   }
 
   @override

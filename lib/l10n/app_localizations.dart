@@ -13641,6 +13641,276 @@ abstract class AppLocalizations {
   /// **'Add a note...'**
   String get readerNoteHint;
 
+  /// No description provided for @backupAndSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup and sync'**
+  String get backupAndSync;
+
+  /// No description provided for @backupAndSyncSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a backup file, or keep settings in step across devices'**
+  String get backupAndSyncSubtitle;
+
+  /// No description provided for @syncSettingsExperimental.
+  ///
+  /// In en, this message translates to:
+  /// **'Experimental'**
+  String get syncSettingsExperimental;
+
+  /// No description provided for @syncSettingsExperimentalBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync is new and still being worked on. If two devices change things while they are apart, one side can lose its changes. Keep a backup file as your safe copy.'**
+  String get syncSettingsExperimentalBody;
+
+  /// No description provided for @syncSettingsNeedServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Need a server?'**
+  String get syncSettingsNeedServer;
+
+  /// No description provided for @syncSettingsNeedServerSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Any WebDAV server works. Nextcloud is a free self-hosted one.'**
+  String get syncSettingsNeedServerSub;
+
+  /// No description provided for @syncSettingsConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection'**
+  String get syncSettingsConnection;
+
+  /// No description provided for @syncSettingsConnectionNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set up yet'**
+  String get syncSettingsConnectionNotSet;
+
+  /// No description provided for @syncSettingsBackupFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup file'**
+  String get syncSettingsBackupFile;
+
+  /// No description provided for @syncSettingsBackupFilePlain.
+  ///
+  /// In en, this message translates to:
+  /// **'Save everything to a file you keep.'**
+  String get syncSettingsBackupFilePlain;
+
+  /// No description provided for @syncSettingsBackupFileWithSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Save everything to a file you keep. Include login info and restoring it on another phone turns sync on there too.'**
+  String get syncSettingsBackupFileWithSync;
+
+  /// No description provided for @syncSettingsStatusOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Not syncing'**
+  String get syncSettingsStatusOff;
+
+  /// No description provided for @syncSettingsStatusProblem.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach your server'**
+  String get syncSettingsStatusProblem;
+
+  /// No description provided for @syncSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync settings between devices'**
+  String get syncSettings;
+
+  /// No description provided for @syncSettingsExtras.
+  ///
+  /// In en, this message translates to:
+  /// **'Also sync'**
+  String get syncSettingsExtras;
+
+  /// No description provided for @syncSettingsIncludeRmab.
+  ///
+  /// In en, this message translates to:
+  /// **'ReadMeABook settings'**
+  String get syncSettingsIncludeRmab;
+
+  /// No description provided for @syncSettingsIncludeRmabSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Puts your ReadMeABook API token in the synced file'**
+  String get syncSettingsIncludeRmabSub;
+
+  /// No description provided for @syncSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep your settings in step through your own WebDAV server'**
+  String get syncSettingsSubtitle;
+
+  /// No description provided for @syncSettingsEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync settings'**
+  String get syncSettingsEnable;
+
+  /// No description provided for @syncSettingsServerUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV folder URL'**
+  String get syncSettingsServerUrl;
+
+  /// No description provided for @syncSettingsServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://cloud.example.com/remote.php/dav/files/you/Absorb'**
+  String get syncSettingsServerUrlHint;
+
+  /// No description provided for @syncSettingsUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get syncSettingsUsername;
+
+  /// No description provided for @syncSettingsPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get syncSettingsPassword;
+
+  /// No description provided for @syncSettingsHeaders.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom headers (optional)'**
+  String get syncSettingsHeaders;
+
+  /// No description provided for @syncSettingsHeadersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One per line, like CF-Access-Client-Id: abc123'**
+  String get syncSettingsHeadersHint;
+
+  /// No description provided for @syncSettingsTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Test connection'**
+  String get syncSettingsTest;
+
+  /// No description provided for @syncSettingsHoldToUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold to upload now'**
+  String get syncSettingsHoldToUpload;
+
+  /// No description provided for @syncSettingsUploadNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload now'**
+  String get syncSettingsUploadNow;
+
+  /// No description provided for @syncSettingsDownloadNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Download now'**
+  String get syncSettingsDownloadNow;
+
+  /// No description provided for @syncSettingsOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get syncSettingsOk;
+
+  /// No description provided for @syncSettingsNoRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected - nothing synced yet'**
+  String get syncSettingsNoRemote;
+
+  /// No description provided for @syncSettingsAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong username or password'**
+  String get syncSettingsAuthFailed;
+
+  /// No description provided for @syncSettingsNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach that address'**
+  String get syncSettingsNetworkError;
+
+  /// No description provided for @syncSettingsNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the address, username and password first'**
+  String get syncSettingsNotConfigured;
+
+  /// No description provided for @syncSettingsTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Your settings are too big to sync'**
+  String get syncSettingsTooLarge;
+
+  /// No description provided for @syncSettingsUploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings uploaded'**
+  String get syncSettingsUploaded;
+
+  /// No description provided for @syncSettingsApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings updated from your other device'**
+  String get syncSettingsApplied;
+
+  /// No description provided for @syncSettingsAppliedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 setting updated from your other device} other{{count} settings updated from your other device}}'**
+  String syncSettingsAppliedCount(int count);
+
+  /// No description provided for @syncSettingsUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Already up to date'**
+  String get syncSettingsUpToDate;
+
+  /// No description provided for @syncSettingsLastSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Last synced {when}'**
+  String syncSettingsLastSynced(String when);
+
+  /// No description provided for @syncSettingsNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced yet'**
+  String get syncSettingsNever;
+
+  /// No description provided for @syncSettingsWhatTravels.
+  ///
+  /// In en, this message translates to:
+  /// **'Your preferences, per-book speeds, home layout, notes and ebook highlights travel. Logins, download folders and anything not yet sent to your server stay on this device.'**
+  String get syncSettingsWhatTravels;
+
+  /// No description provided for @syncSettingsDownloadWarnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace this device\'s settings?'**
+  String get syncSettingsDownloadWarnTitle;
+
+  /// No description provided for @syncSettingsDownloadWarnBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The synced copy will overwrite the settings on this device.'**
+  String get syncSettingsDownloadWarnBody;
+
+  /// No description provided for @syncSettingsDownloadWarnConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get syncSettingsDownloadWarnConfirm;
+
   /// No description provided for @readerCopied.
   ///
   /// In en, this message translates to:

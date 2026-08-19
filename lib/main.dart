@@ -26,6 +26,7 @@ import 'services/progress_sync_service.dart';
 import 'services/local_session_service.dart';
 import 'services/equalizer_service.dart';
 import 'services/sleep_timer_service.dart';
+import 'services/settings_sync_service.dart';
 import 'services/scoped_prefs.dart';
 import 'services/user_account_service.dart';
 import 'services/android_auto_service.dart';
@@ -142,6 +143,21 @@ void applyColorSource(String value) => colorSourceNotifier.value = value;
 void applyManualSeed(int argb) => manualSeedNotifier.value = Color(argb);
 void applyGradientIntensity(double value) => gradientIntensityNotifier.value = value;
 void applyUseColorEverywhere(bool value) => useColorEverywhereNotifier.value = value;
+
+/// Push every appearance setting from storage into the notifiers that drive
+/// the theme. The individual appliers above are called by the settings screen
+/// as the user changes each one; this is for when the whole store is replaced
+/// underneath a running app - a settings-sync pull or a restore - where
+/// nothing has told the theme it moved.
+Future<void> applyAppearanceFromPrefs() async {
+  applyThemeMode(await PlayerSettings.getThemeMode());
+  applyFlatBackground(await PlayerSettings.getFlatBackground());
+  applyColorSource(await PlayerSettings.getColorSource());
+  applyManualSeed(await PlayerSettings.getManualSeedColor());
+  applyGradientIntensity(await PlayerSettings.getGradientIntensity());
+  applyUseColorEverywhere(await PlayerSettings.getUseColorEverywhere());
+  await applyOrientationLock();
+}
 
 /// Apply the saved rotation preference. When "lock portrait" is on the app is
 /// pinned to portrait; otherwise all orientations are allowed (the default).
@@ -703,6 +719,9 @@ class _AuthGateState extends State<AuthGate> {
       await LocalSessionService().init();
       await EqualizerService().init();
       await SleepTimerService().loadAutoSleepSettings();
+      // Watch for settings changes and pull the synced copy on the way in.
+      await SettingsSyncService().startIfEnabled();
+      unawaited(SettingsSyncService().onAppForegrounded());
       if (Platform.isAndroid) {
         // Pre-populate Android Auto browse tree in background.
         Future.microtask(() => AndroidAutoService().refresh());

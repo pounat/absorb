@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'scoped_prefs.dart';
+import 'settings_sync_service.dart';
 
 /// Types of ebook annotations.
 enum AnnotationType { highlight, bookmark }
@@ -103,6 +104,11 @@ class EbookAnnotationService {
   Future<void> _save(String itemId, List<EbookAnnotation> annotations) async {
     final json = jsonEncode(annotations.map((a) => a.toJson()).toList());
     await ScopedPrefs.setString(_key(itemId), json);
+    // Highlights and bookmarks live only on the device, so settings sync is
+    // their only way to another one. Writing straight to prefs like this is
+    // invisible to the settings-changed notifier, so tell sync directly rather
+    // than leaving it to the periodic sweep.
+    SettingsSyncService().noteLocalChange();
   }
 
   /// Add a highlight.

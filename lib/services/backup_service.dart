@@ -195,8 +195,12 @@ class BackupService {
     // Saved ebooks (scoped)
     final savedEbooks = await ScopedPrefs.getStringList('saved_ebooks');
 
-    // Rolling download series (scoped)
+    // Rolling download series (scoped). The id set carries no type, so the
+    // companion name map has to come along or the auto-download list restores
+    // as a column of unnamed ids until the caches happen to repopulate.
     final rollingDownloadSeries = await ScopedPrefs.getStringList('rolling_download_series');
+    final rollingDownloadSourceNames =
+        await ScopedPrefs.getString('rolling_download_source_names');
 
     // Upcoming-scan per-series overrides + removed-books list (scoped)
     final upcomingAlwaysScan = await ScopedPrefs.getStringList('upcoming_always_scan_series');
@@ -324,6 +328,24 @@ class BackupService {
     // Custom download path (GLOBAL)
     final customDownloadPath = prefs.getString('custom_download_path');
 
+    // Settings-sync setup (scoped). This lives in the backup file but never in
+    // the synced payload itself - a sync config that synced itself would be
+    // circular, and the point of putting it here is that restoring a backup on
+    // a second phone leaves the two already keeping each other in step.
+    //
+    // The WebDAV password rides with `includeAccounts` for the same reason the
+    // server tokens do: a settings-only backup is a file people hand around,
+    // and it should not carry the key to their Nextcloud.
+    final settingsSync = <String, dynamic>{
+      'url': await ScopedPrefs.getString('settingsSyncUrl'),
+      'username': await ScopedPrefs.getString('settingsSyncUser'),
+      'headers': await ScopedPrefs.getString('settingsSyncHeaders'),
+      'enabled': await ScopedPrefs.getBool('settingsSyncEnabled'),
+      'includeRmab': await ScopedPrefs.getBool('settingsSyncIncludeRmab'),
+      if (includeAccounts)
+        'password': await ScopedPrefs.getString('settingsSyncPass'),
+    }..removeWhere((_, v) => v == null);
+
     // Accounts & custom headers (optional - contain auth data)
     List<Map<String, dynamic>>? accounts;
     Map<String, String>? customHeaders;
@@ -353,6 +375,9 @@ class BackupService {
       'notes': notes,
       'savedEbooks': savedEbooks,
       'rollingDownloadSeries': rollingDownloadSeries,
+      if (rollingDownloadSourceNames != null &&
+          rollingDownloadSourceNames.isNotEmpty)
+        'rollingDownloadSourceNames': rollingDownloadSourceNames,
       'upcomingAlwaysScan': upcomingAlwaysScan,
       'upcomingNeverScan': upcomingNeverScan,
       if (upcomingIgnoredBooks != null && upcomingIgnoredBooks.isNotEmpty)
@@ -376,6 +401,7 @@ class BackupService {
       'ereader': ereader,
       'podcastPrefs': podcastPrefs,
       'customDownloadPath': customDownloadPath,
+      if (settingsSync.isNotEmpty) 'settingsSync': settingsSync,
       'accounts': accounts,
       'customHeaders': customHeaders,
     };
@@ -675,6 +701,53 @@ class BackupService {
         'rolling_download_series',
         rollingDownloadSeries.cast<String>(),
       );
+    }
+    final rollingDownloadSourceNames =
+        data['rollingDownloadSourceNames'] as String?;
+    if (rollingDownloadSourceNames != null &&
+        rollingDownloadSourceNames.isNotEmpty) {
+      await ScopedPrefs.setString(
+        'rolling_download_source_names',
+        rollingDownloadSourceNames,
+      );
+    }
+
+    // Settings-sync setup. Restoring it is what makes a backup taken on one
+    // phone leave the second one already syncing. A backup saved without login
+    // info carries no password, so sync stays switched off until one is typed
+    // rather than silently failing to authenticate on every foreground.
+    final settingsSync = data['settingsSync'] as Map<String, dynamic>?;
+    if (settingsSync != null) {
+      final url = settingsSync['url'] as String?;
+      final username = settingsSync['username'] as String?;
+      final headers = settingsSync['headers'] as String?;
+      final password = settingsSync['password'] as String?;
+      if (url != null) await ScopedPrefs.setString('settingsSyncUrl', url);
+      if (username != null) {
+        await ScopedPrefs.setString('settingsSyncUser', username);
+      }
+      if (headers != null) {
+        await ScopedPrefs.setString('settingsSyncHeaders', headers);
+      }
+      if (password != null) {
+        await ScopedPrefs.setString('settingsSyncPass', password);
+      }
+      if (settingsSync['includeRmab'] is bool) {
+        await ScopedPrefs.setBool(
+          'settingsSyncIncludeRmab',
+          settingsSync['includeRmab'] as bool,
+        );
+      }
+      final wantEnabled = settingsSync['enabled'] == true;
+      await ScopedPrefs.setBool(
+        'settingsSyncEnabled',
+        wantEnabled && password != null && password.isNotEmpty,
+      );
+      // This device has just taken on another's settings wholesale, so clear
+      // the sync bookkeeping: leaving the donor's "last seen" timestamp behind
+      // would make the next pull think it had already caught up.
+      await ScopedPrefs.remove('settingsSyncLastSeen');
+      await ScopedPrefs.remove('settingsSyncLastHash');
     }
 
     // Upcoming-scan per-series overrides (scoped)
