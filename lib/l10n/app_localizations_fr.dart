@@ -6491,6 +6491,63 @@ class AppLocalizationsFr extends AppLocalizations {
       'Ouvrez une série et utilisez le menu de débordement (les trois points) pour récupérer la liste complète des séries d\'Audible, y compris les entrées manquantes et les livres que vous n\'avez pas commencés.';
 
   @override
+  String get tipsSheetTranscribeBookmarkTitle => 'Transcribe Bookmarks';
+
+  @override
+  String get tipsSheetTranscribeBookmarkDesc =>
+      'Turn the audio at any bookmark into text, fully on your device. Enable it in Settings under Advanced > Transcription and download a model, then tap Transcribe on a bookmark - the text lands in its note, ready to fix up or share.';
+
+  @override
+  String get tipsSheetFindBetweenFormatsTitle =>
+      'Jump Between Audiobook and Ebook';
+
+  @override
+  String get tipsSheetFindBetweenFormatsDesc =>
+      'With transcription on and the book downloaded, pause and tap Find position in ebook on the player to open the ebook at the passage you just heard. In the reader, select some text and tap the headphones to start the audiobook right there.';
+
+  @override
+  String get tipsSheetShareQuoteTitle => 'Share Quotes';
+
+  @override
+  String get tipsSheetShareQuoteDesc =>
+      'Share an ebook highlight or a bookmark note as an image with the quote over the book cover. Look for the share option on highlights and in the bookmark sheet.';
+
+  @override
+  String get tipsSheetClipExportTitle => 'Export Audio Clips';
+
+  @override
+  String get tipsSheetClipExportDesc =>
+      'Open a bookmark and tap Export clip to trim and save a short audio snippet of the book, cover art included - great for sharing a favorite scene.';
+
+  @override
+  String get tipsSheetAllHighlightsTitle => 'All Highlights in One Place';
+
+  @override
+  String get tipsSheetAllHighlightsDesc =>
+      'The All Bookmarks page has a Highlights tab collecting every ebook highlight from every book. Tap one to share it or jump back into the book.';
+
+  @override
+  String get tipsSheetVolumeKeyPagesTitle => 'Volume-Key Page Turns';
+
+  @override
+  String get tipsSheetVolumeKeyPagesDesc =>
+      'Turn ebook pages with the volume keys. Enable it in the reader\'s settings - normal or mirrored direction, and it can stay on even while audio is playing.';
+
+  @override
+  String get tipsSheetSettingsSyncTitle => 'Settings Sync';
+
+  @override
+  String get tipsSheetSettingsSyncDesc =>
+      'Keep your settings, per-book speeds and reader preferences in step across devices through your own WebDAV server. Set it up in Settings under Backup and sync.';
+
+  @override
+  String get tipsSheetNavLongPressTitle => 'Long-Press the Bottom Tabs';
+
+  @override
+  String get tipsSheetNavLongPressDesc =>
+      'Hold the Home tab to switch libraries from any page. Hold the Library tab to jump straight into search.';
+
+  @override
   String get bookCardUnknownTitle => 'Titre inconnu';
 
   @override
@@ -8310,6 +8367,10 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get transcriptionIntroBody =>
       'This listens to the chosen amount of audio, starting just before the bookmark, and turns it into text on your device. Longer clips take longer, and transcription isn\'t 100% accurate. The text is saved into the bookmark\'s note when it\'s done, ready to fix up or share.';
+
+  @override
+  String get transcriptionUseEbookText =>
+      'Use the ebook\'s exact text when it can be matched';
 
   @override
   String get findInEbook => 'Find position in ebook';

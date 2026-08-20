@@ -11145,6 +11145,102 @@ abstract class AppLocalizations {
   /// **'Open a series and use the overflow menu (the three dots) to pull the full series list from Audible, including missing entries and books you haven\'t started.'**
   String get tipsSheetAudibleSeriesDesc;
 
+  /// No description provided for @tipsSheetTranscribeBookmarkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe Bookmarks'**
+  String get tipsSheetTranscribeBookmarkTitle;
+
+  /// No description provided for @tipsSheetTranscribeBookmarkDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn the audio at any bookmark into text, fully on your device. Enable it in Settings under Advanced > Transcription and download a model, then tap Transcribe on a bookmark - the text lands in its note, ready to fix up or share.'**
+  String get tipsSheetTranscribeBookmarkDesc;
+
+  /// No description provided for @tipsSheetFindBetweenFormatsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump Between Audiobook and Ebook'**
+  String get tipsSheetFindBetweenFormatsTitle;
+
+  /// No description provided for @tipsSheetFindBetweenFormatsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'With transcription on and the book downloaded, pause and tap Find position in ebook on the player to open the ebook at the passage you just heard. In the reader, select some text and tap the headphones to start the audiobook right there.'**
+  String get tipsSheetFindBetweenFormatsDesc;
+
+  /// No description provided for @tipsSheetShareQuoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share Quotes'**
+  String get tipsSheetShareQuoteTitle;
+
+  /// No description provided for @tipsSheetShareQuoteDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Share an ebook highlight or a bookmark note as an image with the quote over the book cover. Look for the share option on highlights and in the bookmark sheet.'**
+  String get tipsSheetShareQuoteDesc;
+
+  /// No description provided for @tipsSheetClipExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Audio Clips'**
+  String get tipsSheetClipExportTitle;
+
+  /// No description provided for @tipsSheetClipExportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a bookmark and tap Export clip to trim and save a short audio snippet of the book, cover art included - great for sharing a favorite scene.'**
+  String get tipsSheetClipExportDesc;
+
+  /// No description provided for @tipsSheetAllHighlightsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'All Highlights in One Place'**
+  String get tipsSheetAllHighlightsTitle;
+
+  /// No description provided for @tipsSheetAllHighlightsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The All Bookmarks page has a Highlights tab collecting every ebook highlight from every book. Tap one to share it or jump back into the book.'**
+  String get tipsSheetAllHighlightsDesc;
+
+  /// No description provided for @tipsSheetVolumeKeyPagesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume-Key Page Turns'**
+  String get tipsSheetVolumeKeyPagesTitle;
+
+  /// No description provided for @tipsSheetVolumeKeyPagesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn ebook pages with the volume keys. Enable it in the reader\'s settings - normal or mirrored direction, and it can stay on even while audio is playing.'**
+  String get tipsSheetVolumeKeyPagesDesc;
+
+  /// No description provided for @tipsSheetSettingsSyncTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings Sync'**
+  String get tipsSheetSettingsSyncTitle;
+
+  /// No description provided for @tipsSheetSettingsSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep your settings, per-book speeds and reader preferences in step across devices through your own WebDAV server. Set it up in Settings under Backup and sync.'**
+  String get tipsSheetSettingsSyncDesc;
+
+  /// No description provided for @tipsSheetNavLongPressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-Press the Bottom Tabs'**
+  String get tipsSheetNavLongPressTitle;
+
+  /// No description provided for @tipsSheetNavLongPressDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold the Home tab to switch libraries from any page. Hold the Library tab to jump straight into search.'**
+  String get tipsSheetNavLongPressDesc;
+
   /// No description provided for @bookCardUnknownTitle.
   ///
   /// In en, this message translates to:
@@ -14258,6 +14354,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This listens to the chosen amount of audio, starting just before the bookmark, and turns it into text on your device. Longer clips take longer, and transcription isn\'t 100% accurate. The text is saved into the bookmark\'s note when it\'s done, ready to fix up or share.'**
   String get transcriptionIntroBody;
+
+  /// No description provided for @transcriptionUseEbookText.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the ebook\'s exact text when it can be matched'**
+  String get transcriptionUseEbookText;
 
   /// No description provided for @findInEbook.
   ///
