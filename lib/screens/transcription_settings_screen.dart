@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/player_settings.dart';
 import '../services/transcription_service.dart';
@@ -118,16 +119,45 @@ class _TranscriptionSettingsScreenState
                       color: cs.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.lock_outline_rounded, size: 18, color: cs.primary),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            l.transcriptionDisclaimer,
-                            style: tt.bodySmall
-                                ?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.lock_outline_rounded, size: 18, color: cs.primary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                l.transcriptionDisclaimer,
+                                style: tt.bodySmall
+                                    ?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.record_voice_over_rounded, size: 18, color: cs.primary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                l.transcriptionWhisperInfo,
+                                style: tt.bodySmall
+                                    ?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => launchUrl(
+                                Uri.parse('https://openai.com/index/whisper/'),
+                                mode: LaunchMode.externalApplication),
+                            child: Text(l.transcriptionWhisperLearnMore),
                           ),
                         ),
                       ],
