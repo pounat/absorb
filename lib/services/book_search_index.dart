@@ -38,6 +38,10 @@ class BookSearchIndex {
 
   final Map<String, List<_Indexed>> _cache = {};
   final Map<String, Future<void>> _inFlight = {};
+  // Libraries whose index hit the item cap: their search results are missing
+  // the newest items, so callers must merge the server's results in rather
+  // than replacing them (GH #349 - books past 10k vanished from search).
+  final Set<String> _truncated = {};
 
   void _onItemUpdated(Map<String, dynamic> item) => patchItem(item);
 
@@ -69,11 +73,16 @@ class BookSearchIndex {
 
   bool isReady(String libraryId) => _cache.containsKey(libraryId);
 
+  /// True when the library has more items than the index cap, meaning search
+  /// results from this index are incomplete for the newest items.
+  bool isTruncated(String libraryId) => _truncated.contains(libraryId);
+
   /// Drop everything (call on logout / account switch so a reused libraryId
   /// can't serve another account's items).
   void clear() {
     _cache.clear();
     _inFlight.clear();
+    _truncated.clear();
   }
 
   /// Build the index for [libraryId] if not already cached. Concurrent callers
@@ -111,8 +120,11 @@ class BookSearchIndex {
       }
     }
     if (pages > maxPages) {
+      _truncated.add(libraryId);
       debugPrint('[BookSearchIndex] $libraryId has $total items; indexed first '
-          '${maxPages * pageSize}. Search may miss the rest.');
+          '${maxPages * pageSize}. Callers merge server results for the rest.');
+    } else {
+      _truncated.remove(libraryId);
     }
     _cache[libraryId] = items.map(_indexItem).toList();
   }

@@ -2083,6 +2083,21 @@ class LibraryScreenState extends State<LibraryScreen>
               )
               .toList();
         }
+        // A truncated index (item cap) can't see the newest books in a huge
+        // library, but the server's SQL search can - keep any server hit the
+        // index missed instead of letting the override erase it (GH #349).
+        if (BookSearchIndex().isTruncated(libId)) {
+          final seen = books
+              .map((b) => (b['libraryItem'] as Map<String, dynamic>)['id'])
+              .toSet();
+          for (final r in (result?['book'] as List<dynamic>? ?? const [])) {
+            final m = r as Map<String, dynamic>;
+            final item = (m['libraryItem'] as Map<String, dynamic>?) ?? m;
+            if (seen.contains(item['id'])) continue;
+            if (_hideEbookOnly && PlayerSettings.isEbookOnly(item)) continue;
+            books.add({'libraryItem': item, '_titleMatch': true});
+          }
+        }
         setState(() => _searchBookResults = books);
       }
     }

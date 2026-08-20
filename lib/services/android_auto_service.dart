@@ -1674,7 +1674,10 @@ class AndroidAutoService {
       if (library?.isPodcast != true) {
         final index = BookSearchIndex();
         await index.ensureIndex(api, libId);
-        if (index.isReady(libId)) {
+        // A truncated index misses the newest items in a huge library, so its
+        // hits alone aren't the full answer - fall through to the server
+        // search and merge instead of returning early (GH #349).
+        if (index.isReady(libId) && !index.isTruncated(libId)) {
           final hits = index
               .search(libId, trimmedQuery, limit: 20)
               .where((hit) => hit.item['mediaType'] != 'podcast')
