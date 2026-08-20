@@ -1433,6 +1433,7 @@ class CardActionDelegate {
   final void Function(List<String>, int) onReorder;
   final bool isEbookPdf;
   final VoidCallback? onEbookTap;
+  final VoidCallback? onFindInEbookTap;
 
   CardActionDelegate({
     required this.context,
@@ -1462,6 +1463,7 @@ class CardActionDelegate {
     required this.onReorder,
     this.isEbookPdf = false,
     this.onEbookTap,
+    this.onFindInEbookTap,
   });
 
   Map<String, dynamic> get _media => item['media'] as Map<String, dynamic>? ?? {};
@@ -1700,6 +1702,13 @@ class CardActionDelegate {
           // fetch before toasting).
           onTap: () => onEbookTap?.call(),
         );
+      case 'findinebook':
+        return CardWideButton(
+          icon: Icons.manage_search_rounded,
+          label: l.findInEbook,
+          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          onTap: () => onFindInEbookTap?.call(),
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -1872,6 +1881,15 @@ class CardActionDelegate {
           onTap: () {
             Navigator.pop(ctx);
             onEbookTap?.call();
+          },
+        );
+      case 'findinebook':
+        return MoreMenuItem(
+          icon: Icons.manage_search_rounded,
+          label: l.findInEbook, accent: accent,
+          onTap: () {
+            Navigator.pop(ctx);
+            onFindInEbookTap?.call();
           },
         );
       default:

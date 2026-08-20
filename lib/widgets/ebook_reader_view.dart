@@ -47,6 +47,13 @@ class EbookReaderView extends StatefulWidget {
   /// Opens here instead of the saved reading position, for jumping straight
   /// to a highlight from outside the reader.
   final String? openAtCfi;
+  /// Find in ebook: a Whisper transcript of the audio just heard. When set,
+  /// the reader fuzzy-locates it once loaded and jumps there if confident;
+  /// otherwise it stays at the normal position and toasts. [findChapterHint]
+  /// is the audio chapter it came from - searched first, and used to accept
+  /// borderline matches only when the location agrees.
+  final String? findText;
+  final String? findChapterHint;
 
   const EbookReaderView({
     super.key,
@@ -54,6 +61,8 @@ class EbookReaderView extends StatefulWidget {
     required this.title,
     required this.ebookFile,
     this.openAtCfi,
+    this.findText,
+    this.findChapterHint,
   });
 
   @override
@@ -126,6 +135,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // relocated-listener, re-registered every highlight and re-shipped the
   // ~100KB font payload each time a chapter boundary was crossed.
   bool _didInitViewer = false;
+  // Find in ebook runs once per mount, after the first paint has settled.
+  bool _didStartFind = false;
+  bool _finding = false;
 
   // Reader settings
   int _fontSize = 16;
@@ -1549,6 +1561,305 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _highlightSearchHit(cfi);
   }
 
+  // Find in ebook: how sure the fuzzy match must be before the reader jumps.
+  // fine = 1 - levenshtein/maxLen over normalized text (1.0 = identical). A
+  // correct Whisper transcript of clean narration lands around 0.75-0.95; the
+  // hint bonus lets a borderline hit through only when it sits in the chapter
+  // the audio says it should. Tuned against device logs - see [FindEbook] lines.
+  static const double _findFineFloor = 0.55;
+  static const double _findAcceptScore = 0.68;
+  static const double _findHintBonus = 0.06;
+  static const double _findMargin = 0.05;
+
+  /// Runs the whole Find in ebook flow: fuzzy-locate the transcript, decide
+  /// whether the best hit is trustworthy, then jump + flash or toast and stay.
+  Future<void> _runFindInEbook(String transcript, String? chapterHint) async {
+    final l = AppLocalizations.of(context)!;
+    if (_finding) return;
+    setState(() => _finding = true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: Row(children: [
+          const SizedBox(
+              width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+          const SizedBox(width: 16),
+          Expanded(child: Text(l.findInEbookSearching)),
+        ]),
+      ),
+    );
+
+    Map<String, dynamic>? decision;
+    try {
+      decision = await _decideFindTarget(transcript, chapterHint);
+    } catch (e) {
+      debugPrint('[FindEbook] failed: $e');
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context); // progress dialog
+    setState(() => _finding = false);
+
+    if (decision == null) {
+      showOverlayToast(context, l.findInEbookNotFound,
+          icon: Icons.search_off_rounded);
+      return;
+    }
+    final jumped = await _jumpToFindHit(
+        decision['href'] as String, decision['excerpt'] as String);
+    if (!mounted) return;
+    if (!jumped) {
+      showOverlayToast(context, l.findInEbookNotFound,
+          icon: Icons.search_off_rounded);
+    }
+  }
+
+  /// Fuzzy-search the book for the transcript and apply the confidence rules.
+  /// Returns {href, excerpt} for a trustworthy hit, null when not confident.
+  Future<Map<String, dynamic>?> _decideFindTarget(
+      String transcript, String? chapterHint) async {
+    // Whisper sometimes emits bracketed non-speech tags; they'd poison matching.
+    final cleaned = transcript
+        .replaceAll(RegExp(r'\[[^\]]*\]|\([^)]*\)'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (cleaned.split(' ').length < 3) {
+      debugPrint('[FindEbook] transcript too short after cleaning: "$cleaned"');
+      return null;
+    }
+
+    // Spine sections whose TOC chapter agrees with the audio chapter get
+    // searched first (and an early exit on a strong hit there).
+    final hintBases = <String>[];
+    if (chapterHint != null) {
+      for (final ch in _chapters) {
+        if (_chapterTitlesAgree(chapterHint, ch.title)) {
+          final base = ch.href.split('#').first.split('/').last.toLowerCase();
+          if (base.isNotEmpty) hintBases.add(base);
+        }
+      }
+    }
+    debugPrint('[FindEbook] query="$cleaned" hintBases=$hintBases');
+
+    final raw = await _fuzzyFindPassage(cleaned, hintBases);
+    if (raw == null) return null;
+    final best = raw['best'] as Map<String, dynamic>?;
+    final second = raw['second'] as Map<String, dynamic>?;
+    if (best == null) {
+      debugPrint('[FindEbook] no candidates');
+      return null;
+    }
+
+    double scoreOf(Map<String, dynamic> c) {
+      final fine = (c['fine'] as num?)?.toDouble() ?? 0;
+      final agrees = chapterHint != null &&
+          _chapterTitlesAgree(chapterHint, _chapterForHref(c['href'] as String? ?? '') ?? '');
+      return fine + (agrees ? _findHintBonus : 0);
+    }
+
+    final bestFine = (best['fine'] as num?)?.toDouble() ?? 0;
+    final bestScore = scoreOf(best);
+    double? secondScore;
+    var sameSpot = false;
+    if (second != null) {
+      secondScore = scoreOf(second);
+      final bestStart = (best['s'] as num?)?.toDouble() ?? 0;
+      final secondStart = (second['s'] as num?)?.toDouble() ?? 0;
+      sameSpot =
+          second['idx'] == best['idx'] && (secondStart - bestStart).abs() < 200;
+    }
+    final margin = secondScore == null || sameSpot || bestScore - secondScore >= _findMargin;
+    final confident =
+        bestFine >= _findFineFloor && bestScore >= _findAcceptScore && margin;
+    debugPrint('[FindEbook] best fine=${bestFine.toStringAsFixed(3)} '
+        'score=${bestScore.toStringAsFixed(3)} href=${best['href']} '
+        'chapter=${_chapterForHref(best['href'] as String? ?? '')} '
+        'second=${secondScore?.toStringAsFixed(3)} sameSpot=$sameSpot '
+        'confident=$confident excerpt="${best['excerpt']}"');
+    if (!confident) return null;
+    return {'href': best['href'] as String? ?? '', 'excerpt': best['excerpt'] as String? ?? ''};
+  }
+
+  /// True when an audio chapter title and a TOC chapter title plausibly name
+  /// the same chapter: equal, one contains the other, or they share a number.
+  bool _chapterTitlesAgree(String? audio, String? toc) {
+    if (audio == null || toc == null) return false;
+    String norm(String s) => s
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N} ]+', unicode: true), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final a = norm(audio), t = norm(toc);
+    if (a.isEmpty || t.isEmpty) return false;
+    if (a == t || a.contains(t) || t.contains(a)) return true;
+    final an = RegExp(r'\d+').allMatches(a).map((m) => m.group(0)).toSet();
+    final tn = RegExp(r'\d+').allMatches(t).map((m) => m.group(0)).toSet();
+    return an.isNotEmpty && an.intersection(tn).isNotEmpty;
+  }
+
+  /// Fuzzy passage search over the separate search Book (same instance the
+  /// exact search uses - never the live book, that wedges page turns). Token
+  /// bag-of-words narrows candidate windows cheaply, then character-level
+  /// Levenshtein on the normalized window ranks them. Returns the two best
+  /// candidates across the book, hinted sections first with early exit.
+  Future<Map<String, dynamic>?> _fuzzyFindPassage(
+      String transcript, List<String> hintBases) async {
+    final wc = _epubController?.webViewController;
+    if (wc == null) return null;
+    final res = await wc.callAsyncJavaScript(
+      functionBody: r'''
+        var sb = window.__absorbSearchBook;
+        if (!sb) {
+          sb = ePub();
+          sb.spine.unpack(book.packaging, book.resolve.bind(book), book.canonical.bind(book));
+          window.__absorbSearchBook = sb;
+        }
+        function toks(s){ return (s.toLowerCase().match(/[\p{L}\p{N}']+/gu) || []); }
+        function base(h){ return (h||'').split('#')[0].split('/').pop().toLowerCase(); }
+        function lev(a,b){
+          var m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+          var prev=new Array(n+1), cur=new Array(n+1), i, j, tmp;
+          for(j=0;j<=n;j++)prev[j]=j;
+          for(i=1;i<=m;i++){ cur[0]=i; var ca=a.charCodeAt(i-1);
+            for(j=1;j<=n;j++){ var cost=(ca===b.charCodeAt(j-1))?0:1;
+              cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost); }
+            tmp=prev; prev=cur; cur=tmp; }
+          return prev[n];
+        }
+        var T = toks(transcript);
+        if (T.length < 3) return JSON.stringify({err:'short'});
+        var need = {}; T.forEach(function(t){ need[t]=(need[t]||0)+1; });
+        var tNorm = T.join(' ');
+        var W = T.length;
+        var items = (sb.spine && sb.spine.spineItems) ? sb.spine.spineItems : [];
+        var order = [], i;
+        for (i=0;i<items.length;i++){ if (hints.indexOf(base(items[i].href))!==-1) order.push(i); }
+        for (i=0;i<items.length;i++){ if (order.indexOf(i)===-1) order.push(i); }
+        var best=null, second=null;
+        function offer(c){
+          if (!best || c.fine > best.fine){ second = best; best = c; }
+          else if (!second || c.fine > second.fine){ second = c; }
+        }
+        for (var oi=0; oi<order.length; oi++){
+          var idx=order[oi], item=items[idx], text='';
+          try {
+            await item.load(book.load.bind(book));
+            var d=item.document;
+            text = d ? ((d.body && d.body.textContent) || (d.documentElement && d.documentElement.textContent) || '') : '';
+          } catch(e){ text=''; }
+          finally { try { item.unload(); } catch(e2){} }
+          if (!text) continue;
+          var st=[], re=/[\p{L}\p{N}']+/gu, mm;
+          while((mm=re.exec(text))!==null){ st.push({t:mm[0].toLowerCase(), s:mm.index, e:mm.index+mm[0].length}); }
+          if (st.length < 3) continue;
+          var have={}, matched=0, cands=[], p;
+          for (p=0;p<st.length;p++){
+            var tk=st[p].t; have[tk]=(have[tk]||0)+1; if (have[tk] <= (need[tk]||0)) matched++;
+            if (p>=W){ var old=st[p-W].t; if (have[old] <= (need[old]||0)) matched--; have[old]--; }
+            if (matched >= Math.max(2, Math.floor(W*0.4))) cands.push({i:Math.max(0,p-W+1), m:matched});
+          }
+          cands.sort(function(a,b){ return b.m-a.m; });
+          var used=[], picked=[];
+          for (var c=0;c<cands.length && picked.length<4;c++){
+            var s0=cands[c].i, ok=true;
+            for (var u=0;u<used.length;u++){ if (Math.abs(used[u]-s0) < W) { ok=false; break; } }
+            if (ok){ picked.push(cands[c]); used.push(s0); }
+          }
+          for (var pc=0;pc<picked.length;pc++){
+            var s1=picked[pc].i, e1=Math.min(st.length-1, s1+W-1);
+            var winNorm = st.slice(s1,e1+1).map(function(x){return x.t;}).join(' ');
+            var dl = lev(tNorm, winNorm);
+            var fine = 1 - dl/Math.max(tNorm.length, winNorm.length);
+            offer({ href:item.href||'', idx:idx, s:st[s1].s, e:st[e1].e,
+                    fine:fine, coarse:picked[pc].m/W,
+                    excerpt:text.substring(st[s1].s, st[e1].e) });
+          }
+          // A strong hit inside a hinted section is trustworthy enough to stop.
+          if (best && best.fine >= 0.85 && hints.indexOf(base(item.href))!==-1) break;
+        }
+        return JSON.stringify({best:best, second:second, tokens:W});
+      ''',
+      arguments: {'transcript': transcript, 'hints': hintBases},
+    ).timeout(const Duration(seconds: 90), onTimeout: () => null);
+    final raw = res?.value;
+    if (raw is! String || raw.isEmpty) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Displays the hit's section, re-finds the matched excerpt in the LIVE
+  /// rendered DOM (whitespace-normalized - the search doc is parsed as XML and
+  /// whitespace differs), rebuilds the range there and lands on its CFI with
+  /// the search flash. Restores the previous position when the re-find fails,
+  /// so a bad anchor never strands the user at a chapter start.
+  Future<bool> _jumpToFindHit(String href, String excerpt) async {
+    final wc = _epubController?.webViewController;
+    if (wc == null || href.isEmpty || excerpt.trim().isEmpty) return false;
+    final res = await wc.callAsyncJavaScript(
+      functionBody: r'''
+        var dbg = { matched: false };
+        var backCfi = null;
+        try {
+          try { var loc = rendition.currentLocation(); backCfi = loc && loc.start ? loc.start.cfi : null; } catch(e0){}
+          await rendition.display(href);
+          var target=null; try { target = book.spine.get(href); } catch(e1){}
+          var si = target ? target.index : -1;
+          var contents = (typeof rendition.getContents === 'function') ? rendition.getContents() : [];
+          var c=null;
+          for (var i=0;i<contents.length;i++){ if (si<0 || contents[i].sectionIndex===si){ c=contents[i]; break; } }
+          if (!c) c = contents[0];
+          var doc = c && c.document;
+          if (doc) {
+            var tw = doc.createTreeWalker(doc.body||doc, NodeFilter.SHOW_TEXT, null, false);
+            var nodes=[], raw='', node;
+            while (node = tw.nextNode()) { nodes.push({node:node, start:raw.length, len:node.textContent.length}); raw += node.textContent; }
+            var lower = raw.toLowerCase();
+            var normChars=[], map=[], prevSpace=true;
+            for (var k=0;k<lower.length;k++){
+              var ch=lower[k];
+              if (/\s/.test(ch)) { if (!prevSpace){ normChars.push(' '); map.push(k); } prevSpace=true; }
+              else { normChars.push(ch); map.push(k); prevSpace=false; }
+            }
+            var hay = normChars.join('');
+            var needle = excerpt.toLowerCase().replace(/\s+/g,' ').trim();
+            var pos = hay.indexOf(needle);
+            dbg.pos = pos; dbg.hayLen = hay.length;
+            if (pos !== -1 && nodes.length) {
+              var rawStart = map[pos], rawEnd = map[pos + needle.length - 1] + 1;
+              var locate = function(off){
+                for (var q=0;q<nodes.length;q++){ var e2=nodes[q]; if (off < e2.start + e2.len) return {node:e2.node, offset:off - e2.start}; }
+                var last = nodes[nodes.length-1]; return {node:last.node, offset:last.len};
+              };
+              var sp = locate(rawStart), ep = locate(rawEnd);
+              var r = doc.createRange();
+              r.setStart(sp.node, sp.offset); r.setEnd(ep.node, ep.offset);
+              var liveCfi = c.cfiFromRange(r);
+              if (liveCfi) { dbg.matched = true; dbg.cfi = liveCfi; await rendition.display(liveCfi); }
+            }
+          }
+          if (!dbg.matched && backCfi) { try { await rendition.display(backCfi); } catch(e3){} }
+        } catch(e){ dbg.err = String(e); if (backCfi) { try { await rendition.display(backCfi); } catch(e4){} } }
+        return JSON.stringify(dbg);
+      ''',
+      arguments: {'href': href, 'excerpt': excerpt},
+    ).timeout(const Duration(seconds: 30), onTimeout: () => null);
+    final raw = res?.value;
+    debugPrint('[FindEbook] anchor $raw');
+    if (raw is! String) return false;
+    try {
+      final d = jsonDecode(raw) as Map<String, dynamic>;
+      if (d['matched'] == true && d['cfi'] is String) {
+        _highlightSearchHit(d['cfi'] as String);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   void _highlightSearchHit(String cfi) {
     // Brief highlight so the user can spot the match on the page. Strong opacity
     // and a vivid amber so it stays visible across light, sepia, and dark themes
@@ -2048,6 +2359,15 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   _setupTapHandler();
                   _setupFontInjector();
                   _applyFontFace();
+                }
+                final findText = widget.findText;
+                if (findText != null && findText.isNotEmpty && !_didStartFind) {
+                  _didStartFind = true;
+                  // Let the load rescue / settle re-displays finish first, so
+                  // the find's own display() calls don't race them.
+                  Future.delayed(const Duration(milliseconds: 900), () {
+                    if (mounted) _runFindInEbook(findText, widget.findChapterHint);
+                  });
                 }
               },
               onRelocated: (value) {

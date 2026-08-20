@@ -21,18 +21,23 @@ bool canReadEbook(Map<String, dynamic>? ebookFile) =>
 /// Routes an ebook to the right reader for its format, or toasts when the
 /// format isn't supported in-app. [openAtCfi] jumps an EPUB straight to a
 /// saved location (a highlight) instead of resuming where reading left off.
+/// [findText] hands an EPUB a transcript to fuzzy-locate once it has loaded
+/// (Find in ebook), with [findChapterHint] naming the audio chapter it came from.
 Future<void> openEbookReader(
   BuildContext context, {
   required String itemId,
   required String title,
   required Map<String, dynamic> ebookFile,
   String? openAtCfi,
+  String? findText,
+  String? findChapterHint,
 }) async {
   final ext = ebookExt(ebookFile);
   final Widget viewer;
   if (ext == 'epub') {
     viewer = EbookReaderView(
-        itemId: itemId, title: title, ebookFile: ebookFile, openAtCfi: openAtCfi);
+        itemId: itemId, title: title, ebookFile: ebookFile, openAtCfi: openAtCfi,
+        findText: findText, findChapterHint: findChapterHint);
   } else if (ext == 'pdf') {
     viewer = PdfReaderView(itemId: itemId, title: title, ebookFile: ebookFile);
   } else if (foliateEbookFormats.contains(ext)) {

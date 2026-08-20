@@ -15,6 +15,7 @@ import 'absorbing_shared.dart';
 import 'ebook_router.dart';
 import 'overlay_toast.dart';
 import '../services/ebook_cache.dart';
+import '../services/find_in_ebook.dart';
 import 'card_edge_progress_bar.dart';
 import 'card_progress_bar.dart';
 import 'card_playback_controls.dart';
@@ -1183,6 +1184,17 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     openEbookReader(context, itemId: _itemId, title: _title, ebookFile: ebookFile);
   }
 
+  void _findInEbook() async {
+    var ebookFile = _ebookFile;
+    ebookFile ??= await cachedEbookFileFor(_itemId);
+    if (ebookFile == null) {
+      await _fetchChaptersIfNeeded();
+      ebookFile = _ebookFile;
+    }
+    if (!mounted) return;
+    launchFindInEbook(context, itemId: _itemId, title: _title, ebookFile: ebookFile);
+  }
+
   int _currentChapterIndex() {
     final cast = ChromecastService();
     final chapters = _isCastingThis ? cast.castingChapters : (_isActive ? widget.player.chapters : _chapters);
@@ -1317,6 +1329,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     },
     isEbookPdf: _ebookExt == 'pdf',
     onEbookTap: _openEbookReader,
+    onFindInEbookTap: _findInEbook,
   );
 
   int get _visibleButtonCount => _buttonVisibleCount;

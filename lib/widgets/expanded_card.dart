@@ -18,6 +18,7 @@ import 'card_buttons.dart';
 import 'ebook_router.dart';
 import 'overlay_toast.dart';
 import '../services/ebook_cache.dart';
+import '../services/find_in_ebook.dart';
 import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme;
 
 // ─── Custom route: slide-up + fade ────────────────────────────
@@ -1196,6 +1197,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     },
     isEbookPdf: _ebookExt == 'pdf',
     onEbookTap: _openReader,
+    onFindInEbookTap: _findInEbook,
   );
 
   Map<String, dynamic>? get _ebookFile =>
@@ -1224,6 +1226,17 @@ class _ExpandedCardState extends State<ExpandedCard> {
       return;
     }
     openEbookReader(context, itemId: _itemId, title: _title, ebookFile: ef);
+  }
+
+  void _findInEbook() async {
+    var ef = _ebookFile;
+    ef ??= await cachedEbookFileFor(_itemId);
+    if (ef == null) {
+      await _fetchChaptersIfNeeded();
+      ef = _ebookFile;
+    }
+    if (!mounted) return;
+    launchFindInEbook(context, itemId: _itemId, title: _title, ebookFile: ef);
   }
 
   int get _visibleButtonCount => _buttonVisibleCount;
