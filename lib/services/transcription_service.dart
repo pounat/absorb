@@ -325,6 +325,115 @@ class TranscriptionService {
 
   bool get isBusy => _busy;
 
+  /// Transcribe [windowSeconds] starting at global book time [startSeconds]
+  /// and return the segments with timestamps relative to the window start.
+  /// For audio-to-text alignment (Find in audiobook) - the extracted clip is
+  /// deleted before returning. Same guards and exceptions as [transcribeAt].
+  Future<List<({double start, double end, String text})>> transcribeWindowSegments({
+    required String itemId,
+    required double startSeconds,
+    required double windowSeconds,
+  }) async {
+    if (!await PlayerSettings.getTranscriptionEnabled()) {
+      throw TranscriptionException(TranscriptionError.disabled);
+    }
+    if (_busy) throw TranscriptionException(TranscriptionError.busy);
+
+    final info = TranscriptionModelInfo.fromPref(
+        await PlayerSettings.getTranscriptionModel());
+    if (!await isModelDownloaded(info.size)) {
+      throw TranscriptionException(TranscriptionError.modelMissing);
+    }
+
+    final localPaths = DownloadService().getLocalPaths(itemId);
+    if (localPaths == null || localPaths.isEmpty) {
+      throw TranscriptionException(TranscriptionError.notDownloaded);
+    }
+
+    final durations = _trackDurations(itemId);
+    final int trackIndex;
+    final double localOffset;
+    final double trackDuration;
+    final double gStart = startSeconds.clamp(0.0, double.infinity);
+    if (durations != null && durations.length == localPaths.length) {
+      final m = mapGlobalToTrack(durations, gStart);
+      trackIndex = m.index;
+      localOffset = m.offset;
+      trackDuration = durations[trackIndex];
+    } else if (localPaths.length == 1) {
+      trackIndex = 0;
+      localOffset = gStart;
+      trackDuration = double.infinity;
+    } else {
+      throw TranscriptionException(TranscriptionError.noMetadata);
+    }
+
+    final sourcePath = localPaths[trackIndex];
+    if (!File(sourcePath).existsSync()) {
+      throw TranscriptionException(TranscriptionError.notDownloaded, sourcePath);
+    }
+
+    final available = trackDuration.isFinite ? trackDuration - localOffset : windowSeconds;
+    final window = available < windowSeconds ? available : windowSeconds;
+    if (window <= 0.5) {
+      throw TranscriptionException(TranscriptionError.extractFailed, 'window too short');
+    }
+
+    _busy = true;
+    String? wavPath;
+    final watch = Stopwatch()..start();
+    try {
+      wavPath = await _extractWav(
+        sourcePath: sourcePath,
+        startSeconds: localOffset,
+        durationSeconds: window,
+      );
+      final extractMs = watch.elapsedMilliseconds;
+      if (wavPath == null || !File(wavPath).existsSync()) {
+        throw TranscriptionException(TranscriptionError.extractFailed);
+      }
+
+      final List<({double start, double end, String text})> segments;
+      try {
+        final result = await _whisper.transcribe(
+          model: info.whisperModel,
+          audioPath: wavPath,
+          lang: 'auto',
+          convert: false,
+          withTimestamps: true,
+          // Must be auto, not disabled - see transcribeAt.
+          vadMode: WhisperVadMode.auto,
+          threads: _threads(),
+        );
+        segments = (result?.transcription.segments ?? const [])
+            .map((s) => (
+                  start: s.fromTs.inMilliseconds / 1000.0,
+                  end: s.toTs.inMilliseconds / 1000.0,
+                  text: s.text.trim(),
+                ))
+            .where((s) => s.text.isNotEmpty)
+            .toList();
+      } catch (e) {
+        if (e is TranscriptionException) rethrow;
+        throw TranscriptionException(TranscriptionError.transcribeFailed, e);
+      }
+      debugPrint('[Transcribe] segments window=${window.toStringAsFixed(1)}s '
+          'model=${info.fileName} extract=${extractMs}ms '
+          'whisper=${watch.elapsedMilliseconds - extractMs}ms '
+          'segments=${segments.length}');
+      if (segments.isEmpty) throw TranscriptionException(TranscriptionError.empty);
+      return segments;
+    } finally {
+      _busy = false;
+      if (wavPath != null) {
+        try {
+          final f = File(wavPath);
+          if (f.existsSync()) await f.delete();
+        } catch (_) {}
+      }
+    }
+  }
+
   // Internals
 
   int _threads() => (Platform.numberOfProcessors - 1).clamp(2, 6);

@@ -8165,18 +8165,18 @@ class AppLocalizationsNo extends AppLocalizations {
   }
 
   @override
-  String get transcriptionTitle => 'Bookmark transcription';
+  String get transcriptionTitle => 'Transcription';
 
   @override
   String get transcriptionAdvancedSubtitle =>
-      'Turn the audio at a bookmark into text, on your device';
+      'For transcribing bookmarks and finding your spot between audiobook and ebook';
 
   @override
   String get transcriptionEnable => 'Enable transcription';
 
   @override
   String get transcriptionEnableSubtitle =>
-      'Adds a Transcribe option to your bookmarks';
+      'Adds Transcribe to bookmarks, Find position in ebook to the player, and Find in audiobook to the reader';
 
   @override
   String get transcriptionDisclaimer =>
@@ -8276,4 +8276,38 @@ class AppLocalizationsNo extends AppLocalizations {
 
   @override
   String get findInEbookNoEbook => 'This book doesn\'t have an ebook.';
+
+  @override
+  String get findInAudiobook => 'Find in audiobook';
+
+  @override
+  String get findInAudiobookSearching =>
+      'Finding this spot in the audiobook...';
+
+  @override
+  String get findInAudiobookNotFound =>
+      'Couldn\'t find this spot in the audiobook.';
+
+  @override
+  String get transcriptionWhisperInfo =>
+      'Transcription is powered by Whisper, an open speech recognition model that listens to the narration and writes out the words - all on this device.';
+
+  @override
+  String get transcriptionWhisperLearnMore => 'Learn more about Whisper';
+
+  @override
+  String get findInAudiobookIntroBody =>
+      'This listens to the audiobook near where you\'re reading and matches it to this passage, all on your device. It can take up to a minute. If the spot can\'t be matched confidently, nothing moves.';
+
+  @override
+  String get findInAudiobookAfterLabel => 'When the spot is found';
+
+  @override
+  String get findInAudiobookStay => 'Keep reading';
+
+  @override
+  String get findInAudiobookGoPlayer => 'Open the player';
+
+  @override
+  String get findInAudiobookPlaying => 'Playing this passage in the audiobook';
 }

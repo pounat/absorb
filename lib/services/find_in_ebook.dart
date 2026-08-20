@@ -1,13 +1,17 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/chapter_lookup.dart';
+import '../services/download_service.dart';
 import '../services/transcription_service.dart';
 import '../widgets/ebook_router.dart';
 import '../widgets/overlay_toast.dart';
+import '../widgets/progress_dialog.dart';
 
 /// "Find in ebook": transcribe the audio the user just heard and open the
 /// companion ebook at that passage. The caller resolves the ebook file the
@@ -19,6 +23,36 @@ import '../widgets/overlay_toast.dart';
 /// the decode) but too short gives fuzzy matching too few words to be unique;
 /// the window ends at the pause point because that is what the user just heard.
 const double findInEbookWindowSeconds = 5.0;
+
+/// Audio chapters + total duration for [itemId], from whatever already knows
+/// the book: the live player, the cached offline session, then one server
+/// fetch. Empty chapters when nothing knows.
+Future<({List<dynamic> chapters, double duration})> resolveAudioChapters(
+    String itemId, ApiService? api) async {
+  final player = AudioPlayerService();
+  if (player.currentItemId == itemId && player.chapters.isNotEmpty) {
+    return (chapters: player.chapters, duration: player.totalDuration);
+  }
+  final raw = DownloadService().getCachedSessionData(itemId);
+  if (raw != null && raw.isNotEmpty) {
+    try {
+      final session = jsonDecode(raw) as Map<String, dynamic>;
+      final chapters = session['chapters'] as List<dynamic>? ?? const [];
+      final duration = (session['duration'] as num?)?.toDouble() ?? 0;
+      if (chapters.isNotEmpty) return (chapters: chapters, duration: duration);
+    } catch (_) {}
+  }
+  if (api != null) {
+    try {
+      final item = await api.getLibraryItem(itemId);
+      final media = item?['media'] as Map<String, dynamic>? ?? {};
+      final chapters = media['chapters'] as List<dynamic>? ?? const [];
+      final duration = (media['duration'] as num?)?.toDouble() ?? 0;
+      return (chapters: chapters, duration: duration);
+    } catch (_) {}
+  }
+  return (chapters: const [], duration: 0.0);
+}
 
 Future<void> launchFindInEbook(
   BuildContext context, {
@@ -64,18 +98,7 @@ Future<void> launchFindInEbook(
     if (t != null && t.isNotEmpty) chapterHint = t;
   }
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => AlertDialog(
-      content: Row(children: [
-        const SizedBox(
-            width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
-        const SizedBox(width: 16),
-        Expanded(child: Text(l.transcribing)),
-      ]),
-    ),
-  );
+  showProgressDialog(context, l.transcribing);
 
   String? text;
   String? error;
@@ -123,5 +146,6 @@ Future<void> launchFindInEbook(
     ebookFile: ebookFile,
     findText: text,
     findChapterHint: chapterHint,
+    findPositionSeconds: position,
   );
 }

@@ -218,6 +218,17 @@ class PlayerSettings {
     await prefs.setInt('transcriptionWindowSeconds', value);
   }
 
+  /// Where Find in audiobook lands on success: true = switch to the player,
+  /// false = stay in the reader while the audio plays.
+  static Future<bool> getFindInAudiobookGoToPlayer() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('findInAudiobookGoToPlayer') ?? true;
+  }
+  static Future<void> setFindInAudiobookGoToPlayer(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('findInAudiobookGoToPlayer', value);
+  }
+
   /// Which Whisper model the transcriber loads: 'tiny' (default) or 'small'.
   static Future<String> getTranscriptionModel() async {
     final prefs = await SharedPreferences.getInstance();

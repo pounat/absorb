@@ -15,6 +15,7 @@ import '../services/download_service.dart';
 import '../services/transcription_service.dart';
 import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
+import 'progress_dialog.dart';
 import 'quote_share_sheet.dart';
 
 /// Result of [BookmarkDetailSheet]. [action] is 'jump' (caller should seek
@@ -282,18 +283,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     if (go != true || !mounted) return;
     await PlayerSettings.setTranscriptionWindowSeconds(window);
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        content: Row(children: [
-          const SizedBox(
-              width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
-          const SizedBox(width: 16),
-          Expanded(child: Text(l.transcribing)),
-        ]),
-      ),
-    );
+    showProgressDialog(context, l.transcribing);
 
     ({String text, String audioPath})? result;
     String? error;

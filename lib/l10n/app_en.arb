@@ -4710,10 +4710,10 @@
       "query": {"type": "String"}
     }
   },
-  "transcriptionTitle": "Bookmark transcription",
-  "transcriptionAdvancedSubtitle": "Turn the audio at a bookmark into text, on your device",
+  "transcriptionTitle": "Transcription",
+  "transcriptionAdvancedSubtitle": "For transcribing bookmarks and finding your spot between audiobook and ebook",
   "transcriptionEnable": "Enable transcription",
-  "transcriptionEnableSubtitle": "Adds a Transcribe option to your bookmarks",
+  "transcriptionEnableSubtitle": "Adds Transcribe to bookmarks, Find position in ebook to the player, and Find in audiobook to the reader",
   "transcriptionDisclaimer": "Runs entirely on your device, nothing is sent anywhere. It uses extra battery and processing while it works, and only downloaded books can be transcribed.",
   "transcriptionNeedModelHint": "Download a model below to start transcribing.",
   "transcriptionModelSection": "Model",
@@ -4742,5 +4742,15 @@
   "findInEbookSearching": "Finding this spot in the ebook...",
   "findInEbookNotFound": "Couldn't find this spot in the ebook.",
   "findInEbookNeedsEpub": "Find in ebook needs an EPUB ebook.",
-  "findInEbookNoEbook": "This book doesn't have an ebook."
+  "findInEbookNoEbook": "This book doesn't have an ebook.",
+  "findInAudiobook": "Find in audiobook",
+  "findInAudiobookSearching": "Finding this spot in the audiobook...",
+  "findInAudiobookNotFound": "Couldn't find this spot in the audiobook.",
+  "transcriptionWhisperInfo": "Transcription is powered by Whisper, an open speech recognition model that listens to the narration and writes out the words - all on this device.",
+  "transcriptionWhisperLearnMore": "Learn more about Whisper",
+  "findInAudiobookIntroBody": "This listens to the audiobook near where you're reading and matches it to this passage, all on your device. It can take up to a minute. If the spot can't be matched confidently, nothing moves.",
+  "findInAudiobookAfterLabel": "When the spot is found",
+  "findInAudiobookStay": "Keep reading",
+  "findInAudiobookGoPlayer": "Open the player",
+  "findInAudiobookPlaying": "Playing this passage in the audiobook"
 }

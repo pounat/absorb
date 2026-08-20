@@ -31,13 +31,15 @@ Future<void> openEbookReader(
   String? openAtCfi,
   String? findText,
   String? findChapterHint,
+  double? findPositionSeconds,
 }) async {
   final ext = ebookExt(ebookFile);
   final Widget viewer;
   if (ext == 'epub') {
     viewer = EbookReaderView(
         itemId: itemId, title: title, ebookFile: ebookFile, openAtCfi: openAtCfi,
-        findText: findText, findChapterHint: findChapterHint);
+        findText: findText, findChapterHint: findChapterHint,
+        findPositionSeconds: findPositionSeconds);
   } else if (ext == 'pdf') {
     viewer = PdfReaderView(itemId: itemId, title: title, ebookFile: ebookFile);
   } else if (foliateEbookFormats.contains(ext)) {

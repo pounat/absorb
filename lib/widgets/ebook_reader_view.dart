@@ -9,14 +9,18 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../screens/app_shell.dart';
 import '../services/audio_player_service.dart';
 import '../services/ebook_annotation_service.dart';
 import '../services/ebook_cache.dart';
+import '../services/find_in_ebook.dart';
 import '../services/progress_sync_service.dart';
 import '../services/reader_font_service.dart';
 import '../services/scoped_prefs.dart';
+import '../services/transcription_service.dart';
 import '../services/volume_key_service.dart';
 import 'overlay_toast.dart';
+import 'progress_dialog.dart';
 import 'quote_share_sheet.dart';
 import 'card_buttons.dart' show CardSpeedSheet;
 
@@ -54,6 +58,9 @@ class EbookReaderView extends StatefulWidget {
   /// borderline matches only when the location agrees.
   final String? findText;
   final String? findChapterHint;
+  /// The audio position [findText] was transcribed at, so a not-confident
+  /// first pass can transcribe a longer window and retry.
+  final double? findPositionSeconds;
 
   const EbookReaderView({
     super.key,
@@ -63,6 +70,7 @@ class EbookReaderView extends StatefulWidget {
     this.openAtCfi,
     this.findText,
     this.findChapterHint,
+    this.findPositionSeconds,
   });
 
   @override
@@ -138,6 +146,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // Find in ebook runs once per mount, after the first paint has settled.
   bool _didStartFind = false;
   bool _finding = false;
+  // Shows the Find-in-audiobook action on the selection toolbar.
+  bool _transcriptionOn = false;
 
   // Reader settings
   int _fontSize = 16;
@@ -203,6 +213,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _loadSkipSettings();
     _loadAudioMeta();
     _volumeNav.attach();
+    PlayerSettings.getTranscriptionEnabled().then((on) {
+      if (mounted && on) setState(() => _transcriptionOn = true);
+    });
   }
 
   late final EreaderVolumeNav _volumeNav = EreaderVolumeNav(
@@ -1570,6 +1583,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   static const double _findAcceptScore = 0.68;
   static const double _findHintBonus = 0.06;
   static const double _findMargin = 0.05;
+  // Retry window when the first transcript is too short or generic to stand
+  // out (5s of plain dialogue can tie with passages all over the book).
+  static const double _findRetryWindowSeconds = 15.0;
 
   /// Runs the whole Find in ebook flow: fuzzy-locate the transcript, decide
   /// whether the best hit is trustworthy, then jump + flash or toast and stay.
@@ -1577,22 +1593,34 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final l = AppLocalizations.of(context)!;
     if (_finding) return;
     setState(() => _finding = true);
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        content: Row(children: [
-          const SizedBox(
-              width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
-          const SizedBox(width: 16),
-          Expanded(child: Text(l.findInEbookSearching)),
-        ]),
-      ),
-    );
+    showProgressDialog(context, l.findInEbookSearching);
 
     Map<String, dynamic>? decision;
     try {
       decision = await _decideFindTarget(transcript, chapterHint);
+      // A short transcript can be too generic to stand out ("So what I am.
+      // Am I?" ties with dialogue all over the book). Before giving up,
+      // listen to a longer window ending at the same spot and try once more.
+      final pos = widget.findPositionSeconds;
+      if (decision == null && pos != null) {
+        debugPrint('[FindEbook] not confident on the short window - '
+            'retrying with ${_findRetryWindowSeconds.toStringAsFixed(0)}s');
+        try {
+          final longer = await TranscriptionService.instance.transcribeAt(
+            itemId: widget.itemId,
+            positionSeconds: pos,
+            windowSeconds: _findRetryWindowSeconds,
+            leadSeconds: _findRetryWindowSeconds,
+          );
+          try {
+            final f = File(longer.audioPath);
+            if (f.existsSync()) await f.delete();
+          } catch (_) {}
+          decision = await _decideFindTarget(longer.text.trim(), chapterHint);
+        } on TranscriptionException catch (e) {
+          debugPrint('[FindEbook] retry transcription failed: $e');
+        }
+      }
     } catch (e) {
       debugPrint('[FindEbook] failed: $e');
     }
@@ -1682,19 +1710,22 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   /// True when an audio chapter title and a TOC chapter title plausibly name
-  /// the same chapter: equal, one contains the other, or they share a number.
+  /// the same chapter: equal, one's words are a subset of the other's, or they
+  /// share a number. Word-level, not substring - raw containment would make
+  /// "Chapter 1" match "Chapter 10".
   bool _chapterTitlesAgree(String? audio, String? toc) {
     if (audio == null || toc == null) return false;
-    String norm(String s) => s
+    Set<String> words(String s) => s
         .toLowerCase()
         .replaceAll(RegExp(r'[^\p{L}\p{N} ]+', unicode: true), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    final a = norm(audio), t = norm(toc);
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toSet();
+    final a = words(audio), t = words(toc);
     if (a.isEmpty || t.isEmpty) return false;
-    if (a == t || a.contains(t) || t.contains(a)) return true;
-    final an = RegExp(r'\d+').allMatches(a).map((m) => m.group(0)).toSet();
-    final tn = RegExp(r'\d+').allMatches(t).map((m) => m.group(0)).toSet();
+    if (a.containsAll(t) || t.containsAll(a)) return true;
+    final an = a.where((w) => RegExp(r'^\d+$').hasMatch(w)).toSet();
+    final tn = t.where((w) => RegExp(r'^\d+$').hasMatch(w)).toSet();
     return an.isNotEmpty && an.intersection(tn).isNotEmpty;
   }
 
@@ -1860,19 +1891,638 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     return false;
   }
 
+  // Find in audiobook: how much audio each probe transcribes, and how many
+  // estimate-correct-retry rounds to attempt before giving up.
+  static const double _probeWindowSeconds = 30.0;
+  static const int _maxProbes = 4;
+  // Narration pace measured on real books: ~0.07-0.08 s per character. Used
+  // when no audio chapter anchors the estimate, and to reject absurd
+  // chapter-derived rates (3-second "chapters" exist in the wild).
+  static const double _fallbackSecPerChar = 0.075;
+  // How far a failed probe shifts the search around the original estimate.
+  static const double _scanStepSeconds = 90.0;
+
+  /// Reverse of Find in ebook: locate the selected text in the audio and start
+  /// listening there. Estimate from the audio chapter and how far through the
+  /// section's text the selection sits, then verify by transcribing a probe
+  /// window and fuzzy-matching it back into this section - the miss distance
+  /// in characters converts to seconds and corrects the estimate.
+  Future<void> _findInAudiobookFromSelection() async {
+    final l = AppLocalizations.of(context)!;
+    final cfi = _selectionCfi;
+    final selText = _selectionText ?? '';
+    _dismissSelection();
+    if (cfi == null) return;
+    if (!TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
+      showOverlayToast(context, l.transcriptionNotDownloadedBook,
+          icon: Icons.download_rounded);
+      return;
+    }
+
+    // Set expectations (it listens for a while, a bad match moves nothing) and
+    // let the user pick where a successful find lands. Choice is remembered.
+    var goToPlayer = await PlayerSettings.getFindInAudiobookGoToPlayer();
+    if (!mounted) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          icon: const Icon(Icons.headphones_rounded),
+          title: Text(l.findInAudiobook),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.findInAudiobookIntroBody),
+              const SizedBox(height: 16),
+              Text(l.findInAudiobookAfterLabel,
+                  style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 8),
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(value: false, label: Text(l.findInAudiobookStay)),
+                  ButtonSegment(value: true, label: Text(l.findInAudiobookGoPlayer)),
+                ],
+                selected: {goToPlayer},
+                showSelectedIcon: false,
+                onSelectionChanged: (sel) =>
+                    setDialogState(() => goToPlayer = sel.first),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.findInAudiobook),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (go != true || !mounted) return;
+    await PlayerSettings.setFindInAudiobookGoToPlayer(goToPlayer);
+    if (!mounted) return;
+
+    showProgressDialog(context, l.findInAudiobookSearching);
+    double? targetTime;
+    try {
+      targetTime = await _locateAudioForSelection(cfi, selText);
+    } catch (e) {
+      debugPrint('[FindAudio] failed: $e');
+    }
+    if (!mounted) return;
+    Navigator.pop(context); // progress dialog
+    if (targetTime == null) {
+      showOverlayToast(context, l.findInAudiobookNotFound,
+          icon: Icons.search_off_rounded);
+      return;
+    }
+    await _startAudioAt(targetTime, goToPlayer: goToPlayer, passageCfi: cfi);
+  }
+
+  Future<double?> _locateAudioForSelection(String cfi, String selText) async {
+    final info = await _selectionSectionInfo(cfi, selText);
+    if (info == null) {
+      debugPrint('[FindAudio] selection offset not resolved');
+      return null;
+    }
+    final si = (info['si'] as num).toInt();
+    final offset = (info['offset'] as num).toDouble();
+    final total = (info['total'] as num).toDouble();
+    final href = info['href'] as String? ?? '';
+    if (total <= 0 || offset < 0) return null;
+
+    final api = context.read<AuthProvider>().apiService;
+    final audio = await resolveAudioChapters(widget.itemId, api);
+    if (audio.chapters.isEmpty) {
+      debugPrint('[FindAudio] no audio chapters');
+      return null;
+    }
+
+    // Which audio chapter is this section? That anchors both the initial
+    // estimate and the seconds-per-character correction rate.
+    final tocTitle = _chapterForHref(href);
+    Map<String, dynamic>? audioCh;
+    for (final ch in audio.chapters) {
+      final m = ch as Map<String, dynamic>;
+      if (_chapterTitlesAgree(m['title'] as String?, tocTitle)) {
+        audioCh = m;
+        break;
+      }
+    }
+
+    final bookEnd = audio.duration > 0 ? audio.duration : double.infinity;
+    double lo, hi, rate;
+    double est;
+    if (audioCh != null) {
+      final chStart = (audioCh['start'] as num?)?.toDouble() ?? 0;
+      final chEnd = (audioCh['end'] as num?)?.toDouble() ?? bookEnd;
+      final chRate = (chEnd - chStart) / total;
+      if (chRate >= 0.03 && chRate <= 0.2) {
+        lo = chStart;
+        hi = chEnd;
+        rate = chRate; // seconds of audio per character of text
+        est = chStart + offset * rate;
+        debugPrint('[FindAudio] si=$si target@${offset.toInt()}/${total.toInt()} '
+            'toc="$tocTitle" audioCh="${audioCh['title']}" '
+            '${chStart.toStringAsFixed(0)}-${chEnd.toStringAsFixed(0)}s '
+            'est=${est.toStringAsFixed(1)}');
+      } else {
+        // Mis-tagged audio chapters (a 3-second "chapter" was seen in the
+        // wild) give an absurd rate. Trust the chapter START as an anchor,
+        // pace the estimate at normal narration speed, leave the end open.
+        lo = chStart;
+        hi = bookEnd;
+        rate = _fallbackSecPerChar;
+        est = chStart + offset * rate;
+        debugPrint('[FindAudio] si=$si target@${offset.toInt()}/${total.toInt()} '
+            'audioCh="${audioCh['title']}" has absurd rate '
+            '${chRate.toStringAsFixed(5)} s/char - using its start + '
+            'narration pace, est=${est.toStringAsFixed(1)}');
+      }
+    } else {
+      // Calibre-split books often have spine sections the TOC never names
+      // (toc=null), or titles no audio chapter agrees with. Best fallback:
+      // anchor on the nearest PRECEDING section that does map to an audio
+      // chapter and pace forward through the intervening text. The whole-book
+      // percentage is the last resort - on books with songs or front matter
+      // it was measured ~800s off, far outside the probes' scan range.
+      double? anchoredEst;
+      var anchorStart = 0.0;
+      final hrefs = await _spineHrefs();
+      for (var a = si - 1; a >= 0 && a >= si - 8; a--) {
+        if (a >= hrefs.length) continue;
+        final aTitle = _chapterForHref(hrefs[a]);
+        if (aTitle == null) continue;
+        Map<String, dynamic>? aCh;
+        for (final ch in audio.chapters) {
+          final m = ch as Map<String, dynamic>;
+          if (_chapterTitlesAgree(m['title'] as String?, aTitle)) {
+            aCh = m;
+            break;
+          }
+        }
+        if (aCh == null) continue;
+        final aStart = (aCh['start'] as num?)?.toDouble() ?? 0;
+        final counts = await _sectionCharCounts(a, si - 1);
+        if (counts.length == si - a) {
+          final between = counts.fold<double>(0, (x, y) => x + y);
+          anchorStart = aStart;
+          anchoredEst = aStart + (between + offset) * _fallbackSecPerChar;
+          debugPrint('[FindAudio] anchored on si=$a "${aCh['title']}" '
+              'start=${aStart.toStringAsFixed(0)} '
+              'charsBetween=${between.toInt()} est=${anchoredEst.toStringAsFixed(1)}');
+        }
+        break;
+      }
+
+      final pct = (info['pct'] as num?)?.toDouble();
+      if (anchoredEst != null) {
+        lo = anchorStart;
+        hi = bookEnd;
+        rate = _fallbackSecPerChar;
+        est = anchoredEst;
+      } else if (pct != null && pct > 0 && audio.duration > 0) {
+        lo = 0;
+        hi = audio.duration;
+        rate = _fallbackSecPerChar;
+        est = (pct * audio.duration).clamp(0.0, audio.duration);
+        debugPrint('[FindAudio] fallback estimate (toc="$tocTitle") '
+            'pct=${(pct * 100).toStringAsFixed(2)}% est=${est.toStringAsFixed(1)}');
+      } else {
+        debugPrint('[FindAudio] no audio chapter matches toc="$tocTitle", '
+            'no anchor, no location percentage - giving up');
+        return null;
+      }
+    }
+    if (hi.isInfinite) hi = est + 3600;
+
+    final baseEst = est;
+    var scanStep = 0;
+    for (var attempt = 0; attempt < _maxProbes; attempt++) {
+      final maxStart =
+          (hi - _probeWindowSeconds) > lo ? hi - _probeWindowSeconds : lo;
+      final probeStart = (est - _probeWindowSeconds / 2).clamp(lo, maxStart);
+
+      List<({double start, double end, String text})> segs;
+      try {
+        segs = await TranscriptionService.instance.transcribeWindowSegments(
+          itemId: widget.itemId,
+          startSeconds: probeStart,
+          windowSeconds: _probeWindowSeconds,
+        );
+      } on TranscriptionException catch (e) {
+        // A silent or music-only window transcribes to nothing, and a probe
+        // landing at the tail of a track file gets truncated to nearly zero
+        // (windows don't span file boundaries) - scan on rather than giving
+        // up. Setup problems can't be scanned away.
+        if (e.kind != TranscriptionError.empty &&
+            e.kind != TranscriptionError.extractFailed) {
+          rethrow;
+        }
+        segs = const [];
+      }
+      final probeText = segs.map((s) => s.text).join(' ').trim();
+      final match =
+          probeText.isEmpty ? null : await _locateTranscriptInSection(si, probeText);
+      final fine = match == null ? 0.0 : (match['fine'] as num).toDouble();
+
+      if (match == null || fine < 0.5) {
+        // Bad probe (music, silence, or the estimate is off enough that the
+        // audio here isn't in this section): scan around the original
+        // estimate instead of declining on the first miss.
+        scanStep = scanStep >= 0 ? -(scanStep + 1) : -scanStep;
+        est = (baseEst + scanStep * _scanStepSeconds).clamp(lo, hi);
+        debugPrint('[FindAudio] probe#$attempt start=${probeStart.toStringAsFixed(1)} '
+            'no usable match (fine=${fine.toStringAsFixed(3)}) - '
+            'scanning to ${est.toStringAsFixed(1)}');
+        continue;
+      }
+
+      final mOff = (match['s'] as num).toDouble();
+      final mEnd = (match['e'] as num).toDouble();
+      debugPrint('[FindAudio] probe#$attempt start=${probeStart.toStringAsFixed(1)} '
+          'match=${mOff.toInt()}-${mEnd.toInt()} '
+          'fine=${fine.toStringAsFixed(3)} target=${offset.toInt()}');
+
+      if (offset >= mOff && offset <= mEnd) {
+        // Target is inside the probed audio: walk the segments to the one
+        // covering the target's share of the matched text.
+        final frac = (mEnd - mOff) > 0 ? (offset - mOff) / (mEnd - mOff) : 0.0;
+        final lens = segs.map((s) => s.text.length + 1).toList();
+        final totalLen = lens.fold<int>(0, (a, b) => a + b);
+        final targetChar = frac * totalLen;
+        var t = probeStart + segs.last.start;
+        var acc = 0.0;
+        for (var i = 0; i < segs.length; i++) {
+          if (targetChar <= acc + lens[i] || i == segs.length - 1) {
+            final inFrac = lens[i] > 0
+                ? ((targetChar - acc) / lens[i]).clamp(0.0, 1.0)
+                : 0.0;
+            t = probeStart + segs[i].start + inFrac * (segs[i].end - segs[i].start);
+            break;
+          }
+          acc += lens[i];
+        }
+        debugPrint('[FindAudio] resolved t=${t.toStringAsFixed(1)}s');
+        return audio.duration > 0 ? t.clamp(0.0, audio.duration) : t;
+      }
+
+      // Probe landed off-target: correct by the miss distance and retry. A
+      // correction too small to move the next probe means the rate is off -
+      // step most of a window toward the target instead.
+      var correction = (offset - (mOff + mEnd) / 2) * rate;
+      if (correction.abs() < 2.0) {
+        correction = correction.isNegative
+            ? -_probeWindowSeconds * 0.75
+            : _probeWindowSeconds * 0.75;
+      }
+      est = (est + correction).clamp(lo, hi);
+    }
+    debugPrint('[FindAudio] gave up after $_maxProbes probes');
+    return null;
+  }
+
+  /// Spine hrefs by spine index, for mapping neighboring sections to TOC and
+  /// audio chapters.
+  Future<List<String>> _spineHrefs() async {
+    final wc = _epubController?.webViewController;
+    if (wc == null) return const [];
+    final res = await wc.callAsyncJavaScript(functionBody: r'''
+      var out = [];
+      try {
+        var items = (book.spine && book.spine.spineItems) ? book.spine.spineItems : [];
+        for (var i = 0; i < items.length; i++) out.push(items[i].href || '');
+      } catch(e){}
+      return JSON.stringify(out);
+    ''');
+    final raw = res?.value;
+    if (raw is! String || raw.isEmpty) return const [];
+    try {
+      return (jsonDecode(raw) as List<dynamic>).cast<String>();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Text length in characters of each spine section from [from] to [to]
+  /// inclusive, via the separate search book (never the live one).
+  Future<List<double>> _sectionCharCounts(int from, int to) async {
+    final wc = _epubController?.webViewController;
+    if (wc == null || to < from) return const [];
+    final res = await wc.callAsyncJavaScript(functionBody: r'''
+      var sb = window.__absorbSearchBook;
+      if (!sb) {
+        sb = ePub();
+        sb.spine.unpack(book.packaging, book.resolve.bind(book), book.canonical.bind(book));
+        window.__absorbSearchBook = sb;
+      }
+      var out = [];
+      var items = (sb.spine && sb.spine.spineItems) ? sb.spine.spineItems : [];
+      for (var i = from; i <= to && i < items.length; i++) {
+        var n = 0;
+        try {
+          await items[i].load(book.load.bind(book));
+          var d = items[i].document;
+          var text = d ? ((d.body && d.body.textContent) || (d.documentElement && d.documentElement.textContent) || '') : '';
+          n = text.length;
+        } catch(e){}
+        finally { try { items[i].unload(); } catch(e2){} }
+        out.push(n);
+      }
+      return JSON.stringify(out);
+    ''', arguments: {'from': from, 'to': to});
+    final raw = res?.value;
+    if (raw is! String || raw.isEmpty) return const [];
+    try {
+      return (jsonDecode(raw) as List<dynamic>)
+          .map((n) => (n as num).toDouble())
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Section index, character offset of the selection start, and the section's
+  /// total character count - resolved in the live DOM. Falls back to locating
+  /// the selected text when the CFI-to-range resolution fails.
+  Future<Map<String, dynamic>?> _selectionSectionInfo(
+      String cfi, String selText) async {
+    final wc = _epubController?.webViewController;
+    if (wc == null) return null;
+    final res = await wc.callAsyncJavaScript(functionBody: r'''
+      var out = {};
+      try {
+        var contents = (typeof rendition.getContents === 'function') ? rendition.getContents() : [];
+        for (var i = 0; i < contents.length; i++) {
+          var c = contents[i], doc = c.document;
+          if (!doc) continue;
+          var tw = doc.createTreeWalker(doc.body||doc, NodeFilter.SHOW_TEXT, null, false);
+          var nodes=[], text='', node;
+          while (node = tw.nextNode()) { nodes.push({node:node, start:text.length, len:node.textContent.length}); text += node.textContent; }
+          var off = -1, r = null;
+          try { r = c.range(cfi); } catch(e){}
+          if (r) {
+            for (var k=0;k<nodes.length;k++){ if (nodes[k].node === r.startContainer) { off = nodes[k].start + r.startOffset; break; } }
+          }
+          if (off < 0 && selText) {
+            var p = text.toLowerCase().indexOf(selText.toLowerCase());
+            if (p !== -1) off = p;
+          }
+          if (off >= 0) {
+            var href = '';
+            try { var sec = book.spine.get(c.sectionIndex); href = sec ? sec.href : ''; } catch(e2){}
+            var pct = null;
+            try {
+              var nLoc = (typeof book.locations.length === 'function')
+                  ? book.locations.length() : (book.locations ? book.locations.length : 0);
+              if (nLoc) pct = book.locations.percentageFromCfi(cfi);
+            } catch(e3){}
+            out = { si: c.sectionIndex, offset: off, total: text.length, href: href, pct: pct };
+            break;
+          }
+        }
+      } catch(e){ out.err = String(e); }
+      return JSON.stringify(out);
+    ''', arguments: {'cfi': cfi, 'selText': selText});
+    final raw = res?.value;
+    debugPrint('[FindAudio] selectionInfo $raw');
+    if (raw is! String || raw.isEmpty) return null;
+    try {
+      final d = jsonDecode(raw) as Map<String, dynamic>;
+      if (d['si'] is num && d['offset'] is num && d['total'] is num) return d;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Fuzzy-locates a probe transcript inside one live section's text. Same
+  /// token bag + Levenshtein scoring as the ebook-direction search, but scoped
+  /// to a single section that is already rendered.
+  Future<Map<String, dynamic>?> _locateTranscriptInSection(
+      int sectionIndex, String transcript) async {
+    final wc = _epubController?.webViewController;
+    if (wc == null) return null;
+    final res = await wc.callAsyncJavaScript(functionBody: r'''
+      var out = null;
+      try {
+        var contents = (typeof rendition.getContents === 'function') ? rendition.getContents() : [];
+        var c = null;
+        for (var i=0;i<contents.length;i++){ if (contents[i].sectionIndex === si) { c = contents[i]; break; } }
+        if (!c) c = contents[0];
+        var doc = c && c.document;
+        if (doc) {
+          var tw = doc.createTreeWalker(doc.body||doc, NodeFilter.SHOW_TEXT, null, false);
+          var text='', node;
+          while (node = tw.nextNode()) text += node.textContent;
+          function toks(s){ return (s.toLowerCase().match(/[\p{L}\p{N}']+/gu) || []); }
+          function lev(a,b){
+            var m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+            var prev=new Array(n+1), cur=new Array(n+1), x, j, tmp;
+            for(j=0;j<=n;j++)prev[j]=j;
+            for(x=1;x<=m;x++){ cur[0]=x; var ca=a.charCodeAt(x-1);
+              for(j=1;j<=n;j++){ var cost=(ca===b.charCodeAt(j-1))?0:1;
+                cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost); }
+              tmp=prev; prev=cur; cur=tmp; }
+            return prev[n];
+          }
+          var T = toks(transcript);
+          if (T.length >= 3) {
+            var need = {}; T.forEach(function(t){ need[t]=(need[t]||0)+1; });
+            var tNorm = T.join(' ');
+            var W = T.length;
+            var st=[], re=/[\p{L}\p{N}']+/gu, mm;
+            while((mm=re.exec(text))!==null){ st.push({t:mm[0].toLowerCase(), s:mm.index, e:mm.index+mm[0].length}); }
+            if (st.length >= 3) {
+              var have={}, matched=0, cands=[], p;
+              for (p=0;p<st.length;p++){
+                var tk=st[p].t; have[tk]=(have[tk]||0)+1; if (have[tk] <= (need[tk]||0)) matched++;
+                if (p>=W){ var old=st[p-W].t; if (have[old] <= (need[old]||0)) matched--; have[old]--; }
+                if (matched >= Math.max(2, Math.floor(W*0.4))) cands.push({i:Math.max(0,p-W+1), m:matched});
+              }
+              cands.sort(function(a,b){ return b.m-a.m; });
+              var used=[], picked=[];
+              for (var cc=0;cc<cands.length && picked.length<4;cc++){
+                var s0=cands[cc].i, ok=true;
+                for (var u=0;u<used.length;u++){ if (Math.abs(used[u]-s0) < W) { ok=false; break; } }
+                if (ok){ picked.push(cands[cc]); used.push(s0); }
+              }
+              for (var pc=0;pc<picked.length;pc++){
+                var s1=picked[pc].i, e1=Math.min(st.length-1, s1+W-1);
+                var winNorm = st.slice(s1,e1+1).map(function(x2){return x2.t;}).join(' ');
+                var dl = lev(tNorm, winNorm);
+                var fine = 1 - dl/Math.max(tNorm.length, winNorm.length);
+                if (!out || fine > out.fine) out = { s: st[s1].s, e: st[e1].e, fine: fine };
+              }
+            }
+          }
+        }
+      } catch(e){ out = null; }
+      return JSON.stringify(out);
+    ''', arguments: {'si': sectionIndex, 'transcript': transcript});
+    final raw = res?.value;
+    if (raw is! String || raw.isEmpty || raw == 'null') return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Seek the audiobook to [seconds] and start playing, loading the book into
+  /// the player first when it isn't the current item. Position is decided
+  /// before playback starts. [goToPlayer] closes the reader and lands on the
+  /// player; otherwise the reader stays open while the audio plays, with
+  /// [passageCfi] flashed so the eye lands back on the matched passage.
+  Future<void> _startAudioAt(double seconds,
+      {required bool goToPlayer, String? passageCfi}) async {
+    final l = AppLocalizations.of(context)!;
+    final player = AudioPlayerService();
+    if (player.currentItemId == widget.itemId) {
+      await player.seekTo(Duration(milliseconds: (seconds * 1000).round()));
+      if (!player.isPlaying) player.play();
+    } else {
+      final api = context.read<AuthProvider>().apiService;
+      if (api == null) {
+        showOverlayToast(context, l.bookmarksNotConnected,
+            icon: Icons.cloud_off_rounded);
+        return;
+      }
+      final lib = context.read<LibraryProvider>();
+      final fullItem = await api.getLibraryItem(widget.itemId);
+      if (fullItem == null) {
+        if (mounted) {
+          showOverlayToast(context, l.findInAudiobookNotFound,
+              icon: Icons.error_outline_rounded);
+        }
+        return;
+      }
+      final media = fullItem['media'] as Map<String, dynamic>? ?? {};
+      final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
+      final error = await player.playItem(
+        api: api,
+        itemId: widget.itemId,
+        title: metadata['title'] as String? ?? widget.title,
+        author: metadata['authorName'] as String? ?? '',
+        coverUrl: lib.getCoverUrl(widget.itemId),
+        totalDuration:
+            (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0,
+        chapters: (media['chapters'] as List<dynamic>?) ?? [],
+        startTime: seconds,
+        forceStartTime: true,
+        libraryId: fullItem['libraryId'] as String?,
+      );
+      if (error != null) {
+        if (mounted) showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+        return;
+      }
+    }
+    if (!mounted) return;
+    if (goToPlayer) {
+      Navigator.of(context).pop(); // close the reader
+      AppShell.goToAbsorbingGlobal();
+    } else {
+      if (passageCfi != null) {
+        _flashHighlight(passageCfi, duration: const Duration(seconds: 8));
+      }
+      showOverlayToast(context, l.findInAudiobookPlaying,
+          icon: Icons.headphones_rounded);
+    }
+  }
+
   void _highlightSearchHit(String cfi) {
-    // Brief highlight so the user can spot the match on the page. Strong opacity
-    // and a vivid amber so it stays visible across light, sepia, and dark themes
-    // (the highlight blends with the page, so a faint tint washes out on some).
+    // The jump behind this ran display() twice in quick succession, which
+    // leaves the page/percent bar stale until the next page turn (the final
+    // relocated event never reaches the handlers - reportLocation() alone
+    // didn't fix it on device). Read the location directly and push the
+    // numbers into state ourselves.
+    _refreshLocationAfterJump();
+    _flashHighlight(cfi);
+  }
+
+  /// Brief highlight so the user can spot the passage on the page. Strong
+  /// opacity and a vivid amber so it stays visible across light, sepia, and
+  /// dark themes (the highlight blends with the page, so a faint tint washes
+  /// out on some).
+  void _flashHighlight(String cfi,
+      {Duration duration = const Duration(seconds: 4)}) {
     _epubController?.addHighlight(
       cfi: cfi,
       color: const Color(0xFFFFC400),
       opacity: 0.9,
     );
-    Future.delayed(const Duration(seconds: 4), () {
+    Future.delayed(duration, () {
       if (!mounted) return;
       _epubController?.removeHighlight(cfi: cfi);
     });
+  }
+
+  /// Reads epub.js's current location and pushes page/chapter/percent into
+  /// state, bypassing the relocated-event plumbing that a scripted jump can
+  /// leave stale. Waits out the display's settle first.
+  Future<void> _refreshLocationAfterJump() async {
+    final wc = _epubController?.webViewController;
+    if (wc == null) return;
+    final res = await wc.callAsyncJavaScript(functionBody: r'''
+      await new Promise(function(r){ setTimeout(r, 450); });
+      try { rendition.reportLocation(); } catch(e0){}
+      var out = {};
+      try {
+        var loc = rendition.currentLocation();
+        if (loc && loc.start) {
+          out.cfi = loc.start.cfi || null;
+          out.href = loc.start.href || '';
+          if (loc.start.displayed) {
+            out.page = loc.start.displayed.page;
+            out.total = loc.start.displayed.total;
+          }
+          out.percentage = (typeof loc.start.percentage === 'number') ? loc.start.percentage : null;
+          if ((out.percentage == null || out.percentage === 0) && book.locations && loc.start.cfi) {
+            try {
+              var nLoc = (typeof book.locations.length === 'function')
+                  ? book.locations.length() : book.locations.length;
+              if (nLoc) out.percentage = book.locations.percentageFromCfi(loc.start.cfi);
+            } catch(e1){}
+          }
+        }
+      } catch(e){ out.err = String(e); }
+      return JSON.stringify(out);
+    ''');
+    final raw = res?.value;
+    debugPrint('[Search] refreshLocation $raw');
+    if (!mounted || raw is! String || raw.isEmpty) return;
+    Map<String, dynamic> d;
+    try {
+      d = jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return;
+    }
+    final cfi = d['cfi'] as String?;
+    final href = d['href'] as String? ?? '';
+    final page = (d['page'] as num?)?.toInt();
+    final total = (d['total'] as num?)?.toInt();
+    final pct = (d['percentage'] as num?)?.toDouble();
+    setState(() {
+      if (page != null && total != null && total > 0) {
+        _chapterPage = page;
+        _chapterPageTotal = total;
+      }
+      if (href.isNotEmpty) {
+        _currentChapterTitle = _chapterForHref(href) ?? _currentChapterTitle;
+      }
+      if (pct != null && pct > 0 && _locationsReady) {
+        _progress = pct.clamp(0.0, 1.0);
+      }
+    });
+    if (cfi != null && cfi.isNotEmpty) {
+      _currentCfi = cfi;
+      _updateBookmarkState();
+      _syncProgress(cfi, _progress);
+    }
   }
 
   Future<void> _openSearchScreen() async {
@@ -2308,6 +2958,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               onLocationLoaded: () {
                 debugPrint('[EbookReader] onLocationLoaded item=${widget.itemId}');
                 if (mounted) setState(() => _locationsReady = true);
+                // A find jump right after open lands before this index exists,
+                // so its refresh got page/chapter but percentage=0 - and no
+                // relocated fires until a page turn. Recompute now it can.
+                if (_didStartFind) _refreshLocationAfterJump();
               },
               suppressNativeContextMenu: true,
               onSelection: _onSelection,
@@ -2594,6 +3248,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                           tooltip: AppLocalizations.of(context)!.readerTooltipDefine,
                           visualDensity: VisualDensity.compact,
                         ),
+                        if (_transcriptionOn)
+                          IconButton(
+                            icon: Icon(Icons.headphones_rounded, size: 20, color: cs.onSurfaceVariant),
+                            onPressed: _findInAudiobookFromSelection,
+                            tooltip: AppLocalizations.of(context)!.findInAudiobook,
+                            visualDensity: VisualDensity.compact,
+                          ),
                         _divider(cs),
                         IconButton(
                           icon: Icon(Icons.close_rounded, size: 20, color: cs.onSurfaceVariant),

@@ -14094,13 +14094,13 @@ abstract class AppLocalizations {
   /// No description provided for @transcriptionTitle.
   ///
   /// In en, this message translates to:
-  /// **'Bookmark transcription'**
+  /// **'Transcription'**
   String get transcriptionTitle;
 
   /// No description provided for @transcriptionAdvancedSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Turn the audio at a bookmark into text, on your device'**
+  /// **'For transcribing bookmarks and finding your spot between audiobook and ebook'**
   String get transcriptionAdvancedSubtitle;
 
   /// No description provided for @transcriptionEnable.
@@ -14112,7 +14112,7 @@ abstract class AppLocalizations {
   /// No description provided for @transcriptionEnableSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Adds a Transcribe option to your bookmarks'**
+  /// **'Adds Transcribe to bookmarks, Find position in ebook to the player, and Find in audiobook to the reader'**
   String get transcriptionEnableSubtitle;
 
   /// No description provided for @transcriptionDisclaimer.
@@ -14288,6 +14288,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This book doesn\'t have an ebook.'**
   String get findInEbookNoEbook;
+
+  /// No description provided for @findInAudiobook.
+  ///
+  /// In en, this message translates to:
+  /// **'Find in audiobook'**
+  String get findInAudiobook;
+
+  /// No description provided for @findInAudiobookSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding this spot in the audiobook...'**
+  String get findInAudiobookSearching;
+
+  /// No description provided for @findInAudiobookNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t find this spot in the audiobook.'**
+  String get findInAudiobookNotFound;
+
+  /// No description provided for @transcriptionWhisperInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription is powered by Whisper, an open speech recognition model that listens to the narration and writes out the words - all on this device.'**
+  String get transcriptionWhisperInfo;
+
+  /// No description provided for @transcriptionWhisperLearnMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more about Whisper'**
+  String get transcriptionWhisperLearnMore;
+
+  /// No description provided for @findInAudiobookIntroBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This listens to the audiobook near where you\'re reading and matches it to this passage, all on your device. It can take up to a minute. If the spot can\'t be matched confidently, nothing moves.'**
+  String get findInAudiobookIntroBody;
+
+  /// No description provided for @findInAudiobookAfterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'When the spot is found'**
+  String get findInAudiobookAfterLabel;
+
+  /// No description provided for @findInAudiobookStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep reading'**
+  String get findInAudiobookStay;
+
+  /// No description provided for @findInAudiobookGoPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the player'**
+  String get findInAudiobookGoPlayer;
+
+  /// No description provided for @findInAudiobookPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing this passage in the audiobook'**
+  String get findInAudiobookPlaying;
 }
 
 class _AppLocalizationsDelegate
