@@ -2864,6 +2864,9 @@
   "readerBookmarkDefault": "Signet",
   "readerNoteTitle": "Note",
   "readerNoteHint": "Ajouter une note...",
+  "syncSettingsExperimentalBody": "La synchronisation est nouvelle et est toujours en cours de développement. Si deux appareils changent les choses pendant qu'ils sont séparés, un côté peut perdre ses changements. Conservez un fichier de sauvegarde comme une copie sécurisée.",
+  "syncSettingsNeedServerSub": "N'importe quel serveur WebDAV fonctionne. Nextcloud est un serveur gratuit auto-hébergé.",
+  "syncSettingsWhatTravels": "Vos préférences, vitesses par livre, mise en page d'accueil, notes et surlignage dans vos ebooks sont envoyés. Les identifiants, les dossiers de téléchargement et tout ce qui n'a pas encore été envoyé à votre serveur restent sur cet appareil.",
   "readerTooltipCopy": "Copier",
   "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez."
 }
