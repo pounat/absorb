@@ -265,12 +265,14 @@ class TranscriptionService {
 
     _busy = true;
     String? wavPath;
+    final watch = Stopwatch()..start();
     try {
       wavPath = await _extractWav(
         sourcePath: sourcePath,
         startSeconds: localOffset,
         durationSeconds: window,
       );
+      final extractMs = watch.elapsedMilliseconds;
       if (wavPath == null || !File(wavPath).existsSync()) {
         throw TranscriptionException(TranscriptionError.extractFailed);
       }
@@ -298,6 +300,10 @@ class TranscriptionService {
         if (e is TranscriptionException) rethrow;
         throw TranscriptionException(TranscriptionError.transcribeFailed, e);
       }
+      debugPrint('[Transcribe] window=${window.toStringAsFixed(1)}s '
+          'model=${info.fileName} extract=${extractMs}ms '
+          'whisper=${watch.elapsedMilliseconds - extractMs}ms '
+          'chars=${text.length}');
       if (text.isEmpty) throw TranscriptionException(TranscriptionError.empty);
       // Hand the extracted clip to the caller (for review playback). Ownership
       // transfers, so null out wavPath to skip the finally-delete below.

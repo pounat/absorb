@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/player_settings.dart';
 import '../services/transcription_service.dart';
+import '../widgets/overlay_toast.dart';
 
 /// Advanced > Bookmark transcription settings: opt-in toggle and on-device
 /// Whisper model management (download / pick / delete). Everything here runs
@@ -71,10 +72,8 @@ class _TranscriptionSettingsScreenState
         // Refresh in case a partial file was left behind.
         _downloaded[size] = await TranscriptionService.instance.isModelDownloaded(size);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l.transcriptionDownloadFailed),
-          behavior: SnackBarBehavior.floating,
-        ));
+        showOverlayToast(context, l.transcriptionDownloadFailed,
+            icon: Icons.error_outline_rounded);
       }
     }
   }
