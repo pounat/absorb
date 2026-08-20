@@ -218,6 +218,17 @@ class PlayerSettings {
     await prefs.setInt('transcriptionWindowSeconds', value);
   }
 
+  /// Replace a bookmark transcript with the ebook's exact text when a
+  /// confident match is found (only offered when the book has an EPUB).
+  static Future<bool> getTranscriptionUseEbookText() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('transcriptionUseEbookText') ?? true;
+  }
+  static Future<void> setTranscriptionUseEbookText(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('transcriptionUseEbookText', value);
+  }
+
   /// Where Find in audiobook lands on success: true = switch to the player,
   /// false = stay in the reader while the audio plays.
   static Future<bool> getFindInAudiobookGoToPlayer() async {

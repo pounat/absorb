@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,7 +13,9 @@ import '../services/bookmark_service.dart';
 import '../services/bookmark_preview_player.dart';
 import '../services/chapter_lookup.dart';
 import '../services/download_service.dart';
+import '../services/ebook_cache.dart';
 import '../services/transcription_service.dart';
+import '../utils/passage_match.dart';
 import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
 import 'progress_dialog.dart';
@@ -50,6 +53,8 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
   late final BookmarkPreviewPlayer _preview;
   bool _saving = false;
   bool _transcriptionOn = false;
+  // Non-null when the book has an EPUB to cross-reference transcripts against.
+  Map<String, dynamic>? _epubForCrossRef;
   // Display-only speed division (speed-adjusted-time setting). _seconds stays
   // raw book time throughout - preview, clip export, jump and save all use it.
   double _displaySpeed = 1.0;
@@ -74,6 +79,22 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     PlayerSettings.getTranscriptionEnabled().then((on) {
       if (mounted && on) setState(() => _transcriptionOn = true);
     });
+    _resolveEpubForCrossRef();
+  }
+
+  /// Whether this book has an EPUB the transcript can be corrected against -
+  /// the cached copy first, then the item's metadata (fetched lazily at
+  /// transcribe time when it isn't cached yet).
+  Future<void> _resolveEpubForCrossRef() async {
+    var ef = await cachedEbookFileFor(widget.itemId);
+    if (ef == null && widget.api != null) {
+      try {
+        final item = await widget.api!.getLibraryItem(widget.itemId);
+        ef = resolveEbookFile(item);
+      } catch (_) {}
+    }
+    if (ef == null || ebookExtFromFile(ef) != '.epub') return;
+    if (mounted) setState(() => _epubForCrossRef = ef);
   }
 
   Future<void> _loadDisplaySpeed() async {
@@ -203,6 +224,26 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     );
   }
 
+  /// The book's own words for [transcript], when the EPUB can be fetched and
+  /// the passage confidently matched. Null keeps the raw transcript - a
+  /// failed fetch or an unconfident match must never block the transcription.
+  Future<String?> _ebookExactText(String transcript) async {
+    final ebookFile = _epubForCrossRef;
+    if (ebookFile == null) return null;
+    try {
+      var f = await ebookCacheFileFor(widget.itemId, ebookFile);
+      if (!f.existsSync() || await f.length() <= 0) {
+        final api = widget.api;
+        if (api == null) return null;
+        f = await fetchEbookToCache(api, widget.itemId, ebookFile, '');
+      }
+      return await compute(correctFromEpub, (epubPath: f.path, transcript: transcript));
+    } catch (e) {
+      debugPrint('[Transcribe] ebook cross-reference failed: $e');
+      return null;
+    }
+  }
+
   String _mapTranscriptionError(AppLocalizations l, TranscriptionError kind) {
     switch (kind) {
       case TranscriptionError.disabled:
@@ -238,8 +279,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
 
     // Set expectations before burning CPU (it takes a while, the text needs a
     // once-over, the result lands in the note) and let the user pick how much
-    // audio to transcribe. The choice is remembered for next time.
+    // audio to transcribe. The choices are remembered for next time.
     var window = await PlayerSettings.getTranscriptionWindowSeconds();
+    var useEbookText = await PlayerSettings.getTranscriptionUseEbookText();
     if (!mounted) return;
     final go = await showDialog<bool>(
       context: context,
@@ -265,6 +307,21 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                 onSelectionChanged: (sel) =>
                     setDialogState(() => window = sel.first),
               ),
+              if (_epubForCrossRef != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(children: [
+                    Expanded(
+                      child: Text(l.transcriptionUseEbookText,
+                          style: Theme.of(ctx).textTheme.bodySmall),
+                    ),
+                    Switch(
+                      value: useEbookText,
+                      onChanged: (v) =>
+                          setDialogState(() => useEbookText = v),
+                    ),
+                  ]),
+                ),
             ],
           ),
           actions: [
@@ -282,17 +339,32 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     );
     if (go != true || !mounted) return;
     await PlayerSettings.setTranscriptionWindowSeconds(window);
+    await PlayerSettings.setTranscriptionUseEbookText(useEbookText);
+    if (!mounted) return;
 
     showProgressDialog(context, l.transcribing);
 
-    ({String text, String audioPath})? result;
+    String? text;
     String? error;
     try {
-      result = await TranscriptionService.instance.transcribeAt(
+      final result = await TranscriptionService.instance.transcribeAt(
         itemId: widget.itemId,
         positionSeconds: _seconds,
         windowSeconds: window.toDouble(),
       );
+      // No review playback anymore, so the extracted clip is done with.
+      try {
+        final f = File(result.audioPath);
+        if (f.existsSync()) await f.delete();
+      } catch (_) {}
+      text = result.text.trim();
+      // Cross-reference the ebook: a confident match swaps Whisper's
+      // approximation for the book's actual words. Still under the progress
+      // dialog - fetching an uncached epub plus matching can take a moment.
+      if (useEbookText && text.isNotEmpty) {
+        final exact = await _ebookExactText(text);
+        if (exact != null && exact.isNotEmpty) text = exact;
+      }
     } on TranscriptionException catch (e) {
       error = _mapTranscriptionError(l, e.kind);
     } catch (_) {
@@ -307,15 +379,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       return;
     }
 
-    // No review playback anymore, so the extracted clip is done with.
-    try {
-      final f = File(result!.audioPath);
-      if (f.existsSync()) await f.delete();
-    } catch (_) {}
-
     // Save straight into the note - a Share-then-back must never lose the
     // text. Fixing mistakes and sharing both happen right here in the sheet.
-    final trimmed = result!.text.trim();
+    final trimmed = (text ?? '').trim();
     if (trimmed.isEmpty) return;
     setState(() {
       _noteC.text =

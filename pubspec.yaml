@@ -37,6 +37,9 @@ dependencies:
   # we feed it 16kHz mono WAV produced by native decoders (MediaCodec / AVAssetReader).
   whisper_ggml_plus: ^1.5.2
 
+  # Reading EPUB text without a WebView (transcript ebook cross-reference).
+  archive: ^4.0.9
+
   # CarPlay - vendored copy of 1.2.11 with a patched image loader (downsampled +
   # cached list thumbnails) so large browse lists don't run CarPlay out of memory.
   flutter_carplay:
