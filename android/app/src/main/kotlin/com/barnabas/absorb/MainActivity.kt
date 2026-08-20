@@ -183,7 +183,7 @@ class MainActivity : AudioServiceActivity() {
                         } else {
                             Thread {
                                 val ok = try {
-                                    AudioWindowExtractor.extractWav(sourcePath, startSeconds, durationSeconds, outPath)
+                                    AudioWindowExtractor.extractWav(applicationContext, sourcePath, startSeconds, durationSeconds, outPath)
                                 } catch (e: Exception) {
                                     Log.e(TAG, "extractWav crashed: ${e.message}")
                                     false

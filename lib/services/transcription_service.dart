@@ -252,7 +252,9 @@ class TranscriptionService {
     }
 
     final sourcePath = localPaths[trackIndex];
-    if (!File(sourcePath).existsSync()) {
+    // Books in a custom Android (SAF) folder are content:// URIs - File()
+    // can't see those, but the native extractor opens them fine.
+    if (!sourcePath.startsWith('content://') && !File(sourcePath).existsSync()) {
       throw TranscriptionException(TranscriptionError.notDownloaded, sourcePath);
     }
 
@@ -369,7 +371,9 @@ class TranscriptionService {
     }
 
     final sourcePath = localPaths[trackIndex];
-    if (!File(sourcePath).existsSync()) {
+    // Books in a custom Android (SAF) folder are content:// URIs - File()
+    // can't see those, but the native extractor opens them fine.
+    if (!sourcePath.startsWith('content://') && !File(sourcePath).existsSync()) {
       throw TranscriptionException(TranscriptionError.notDownloaded, sourcePath);
     }
 

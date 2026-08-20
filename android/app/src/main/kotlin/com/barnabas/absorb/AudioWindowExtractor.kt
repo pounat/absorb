@@ -1,8 +1,10 @@
 package com.barnabas.absorb
 
+import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.net.Uri
 import android.util.Log
 import java.io.File
 import java.io.RandomAccessFile
@@ -32,6 +34,7 @@ object AudioWindowExtractor {
     }
 
     fun extractWav(
+        context: Context,
         sourcePath: String,
         startSeconds: Double,
         durationSeconds: Double,
@@ -40,7 +43,13 @@ object AudioWindowExtractor {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
-            extractor.setDataSource(sourcePath)
+            // Books in a custom (SAF) download folder are content:// URIs,
+            // which only the context overload can open - same as AudioClipExporter.
+            if (sourcePath.startsWith("content://")) {
+                extractor.setDataSource(context, Uri.parse(sourcePath), null)
+            } else {
+                extractor.setDataSource(sourcePath)
+            }
             val trackIndex = selectAudioTrack(extractor)
             if (trackIndex < 0) {
                 Log.e(TAG, "No audio track in $sourcePath")
