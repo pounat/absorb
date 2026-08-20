@@ -211,6 +211,8 @@ class TranscriptionService {
   Future<({String text, String audioPath})> transcribeAt({
     required String itemId,
     required double positionSeconds,
+    double windowSeconds = _windowSeconds,
+    double leadSeconds = _leadSeconds,
   }) async {
     if (!await PlayerSettings.getTranscriptionEnabled()) {
       throw TranscriptionException(TranscriptionError.disabled);
@@ -233,7 +235,7 @@ class TranscriptionService {
     final int trackIndex;
     final double localOffset;
     final double trackDuration;
-    final double gStart = (positionSeconds - _leadSeconds).clamp(0.0, double.infinity);
+    final double gStart = (positionSeconds - leadSeconds).clamp(0.0, double.infinity);
     if (durations != null && durations.length == localPaths.length) {
       final m = mapGlobalToTrack(durations, gStart);
       trackIndex = m.index;
@@ -257,8 +259,8 @@ class TranscriptionService {
     // Clamp the window so it never runs past the end of this track (v1 doesn't
     // span file boundaries - a bookmark in the last few seconds of a track just
     // gets a shorter clip).
-    final available = trackDuration.isFinite ? trackDuration - localOffset : _windowSeconds;
-    final window = available < _windowSeconds ? available : _windowSeconds;
+    final available = trackDuration.isFinite ? trackDuration - localOffset : windowSeconds;
+    final window = available < windowSeconds ? available : windowSeconds;
     if (window <= 0.5) {
       throw TranscriptionException(TranscriptionError.extractFailed, 'window too short');
     }

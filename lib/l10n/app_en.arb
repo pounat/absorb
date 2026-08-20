@@ -4736,5 +4736,11 @@
   "transcriptionEmptyMsg": "No speech was found at this spot.",
   "transcriptionFailedMsg": "Couldn't transcribe this spot. Please try again.",
   "transcriptionPlaySnippet": "Listen",
-  "transcriptionPauseSnippet": "Pause"
+  "transcriptionPauseSnippet": "Pause",
+  "transcriptionIntroBody": "This listens to the chosen amount of audio, starting just before the bookmark, and turns it into text on your device. Longer clips take longer, and transcription isn't 100% accurate. The text is saved into the bookmark's note when it's done, ready to fix up or share.",
+  "findInEbook": "Find position in ebook",
+  "findInEbookSearching": "Finding this spot in the ebook...",
+  "findInEbookNotFound": "Couldn't find this spot in the ebook.",
+  "findInEbookNeedsEpub": "Find in ebook needs an EPUB ebook.",
+  "findInEbookNoEbook": "This book doesn't have an ebook."
 }

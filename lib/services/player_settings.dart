@@ -208,6 +208,16 @@ class PlayerSettings {
     _notify();
   }
 
+  /// How much audio a bookmark transcription covers, in seconds.
+  static Future<int> getTranscriptionWindowSeconds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('transcriptionWindowSeconds') ?? 30;
+  }
+  static Future<void> setTranscriptionWindowSeconds(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('transcriptionWindowSeconds', value);
+  }
+
   /// Which Whisper model the transcriber loads: 'tiny' (default) or 'small'.
   static Future<String> getTranscriptionModel() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1028,7 +1038,7 @@ class PlayerSettings {
 
   // ── Card button order ──
 
-  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'download'];
+  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'download'];
 
   static Future<List<String>> getCardButtonOrder() async {
     final stored = await ScopedPrefs.getStringList('card_button_order');

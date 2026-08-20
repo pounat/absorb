@@ -8257,4 +8257,23 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get transcriptionPauseSnippet => 'Pause';
+
+  @override
+  String get transcriptionIntroBody =>
+      'This listens to the chosen amount of audio, starting just before the bookmark, and turns it into text on your device. Longer clips take longer, and transcription isn\'t 100% accurate. The text is saved into the bookmark\'s note when it\'s done, ready to fix up or share.';
+
+  @override
+  String get findInEbook => 'Find position in ebook';
+
+  @override
+  String get findInEbookSearching => 'Finding this spot in the ebook...';
+
+  @override
+  String get findInEbookNotFound => 'Couldn\'t find this spot in the ebook.';
+
+  @override
+  String get findInEbookNeedsEpub => 'Find in ebook needs an EPUB ebook.';
+
+  @override
+  String get findInEbookNoEbook => 'This book doesn\'t have an ebook.';
 }

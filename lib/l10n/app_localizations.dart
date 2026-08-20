@@ -14252,6 +14252,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pause'**
   String get transcriptionPauseSnippet;
+
+  /// No description provided for @transcriptionIntroBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This listens to the chosen amount of audio, starting just before the bookmark, and turns it into text on your device. Longer clips take longer, and transcription isn\'t 100% accurate. The text is saved into the bookmark\'s note when it\'s done, ready to fix up or share.'**
+  String get transcriptionIntroBody;
+
+  /// No description provided for @findInEbook.
+  ///
+  /// In en, this message translates to:
+  /// **'Find position in ebook'**
+  String get findInEbook;
+
+  /// No description provided for @findInEbookSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding this spot in the ebook...'**
+  String get findInEbookSearching;
+
+  /// No description provided for @findInEbookNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t find this spot in the ebook.'**
+  String get findInEbookNotFound;
+
+  /// No description provided for @findInEbookNeedsEpub.
+  ///
+  /// In en, this message translates to:
+  /// **'Find in ebook needs an EPUB ebook.'**
+  String get findInEbookNeedsEpub;
+
+  /// No description provided for @findInEbookNoEbook.
+  ///
+  /// In en, this message translates to:
+  /// **'This book doesn\'t have an ebook.'**
+  String get findInEbookNoEbook;
 }
 
 class _AppLocalizationsDelegate

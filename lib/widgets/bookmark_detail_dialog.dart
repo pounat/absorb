@@ -1,8 +1,7 @@
-import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -11,10 +10,12 @@ import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/bookmark_preview_player.dart';
+import '../services/chapter_lookup.dart';
 import '../services/download_service.dart';
 import '../services/transcription_service.dart';
 import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
+import 'quote_share_sheet.dart';
 
 /// Result of [BookmarkDetailSheet]. [action] is 'jump' (caller should seek
 /// there) or 'saved' (stay put, refresh). [position] is the possibly-nudged
@@ -57,6 +58,10 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     super.initState();
     _titleC = TextEditingController(text: widget.bookmark.title);
     _noteC = TextEditingController(text: widget.bookmark.note ?? '');
+    // The Share quote button enables/disables with the note's content.
+    _noteC.addListener(() {
+      if (mounted) setState(() {});
+    });
     // Clamp a stray negative position to 0 so it shows 0:00 (not "59:59") and
     // self-heals to 0 if the user saves.
     _seconds = widget.bookmark.positionSeconds < 0 ? 0.0 : widget.bookmark.positionSeconds;
@@ -230,6 +235,53 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       return;
     }
 
+    // Set expectations before burning CPU (it takes a while, the text needs a
+    // once-over, the result lands in the note) and let the user pick how much
+    // audio to transcribe. The choice is remembered for next time.
+    var window = await PlayerSettings.getTranscriptionWindowSeconds();
+    if (!mounted) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          icon: const Icon(Icons.record_voice_over_rounded),
+          title: Text(l.transcribe),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.transcriptionIntroBody),
+              const SizedBox(height: 16),
+              SegmentedButton<int>(
+                segments: [
+                  for (final s in const [15, 30, 60, 120])
+                    ButtonSegment(
+                        value: s,
+                        label: Text(s < 60 ? '${s}s' : '${s ~/ 60} min')),
+                ],
+                selected: {window},
+                showSelectedIcon: false,
+                onSelectionChanged: (sel) =>
+                    setDialogState(() => window = sel.first),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.transcribe),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (go != true || !mounted) return;
+    await PlayerSettings.setTranscriptionWindowSeconds(window);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -246,8 +298,11 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     ({String text, String audioPath})? result;
     String? error;
     try {
-      result = await TranscriptionService.instance
-          .transcribeAt(itemId: widget.itemId, positionSeconds: _seconds);
+      result = await TranscriptionService.instance.transcribeAt(
+        itemId: widget.itemId,
+        positionSeconds: _seconds,
+        windowSeconds: window.toDouble(),
+      );
     } on TranscriptionException catch (e) {
       error = _mapTranscriptionError(l, e.kind);
     } catch (_) {
@@ -262,20 +317,15 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       return;
     }
 
-    final edited = await showDialog<String>(
-      context: context,
-      builder: (ctx) => _TranscriptReviewDialog(
-          initialText: result!.text, audioPath: result.audioPath),
-    );
-
-    // The dialog owned the clip while open; clean it up now.
+    // No review playback anymore, so the extracted clip is done with.
     try {
       final f = File(result!.audioPath);
       if (f.existsSync()) await f.delete();
     } catch (_) {}
 
-    if (edited == null || !mounted) return; // closed without saving
-    final trimmed = edited.trim();
+    // Save straight into the note - a Share-then-back must never lose the
+    // text. Fixing mistakes and sharing both happen right here in the sheet.
+    final trimmed = result!.text.trim();
     if (trimmed.isEmpty) return;
     setState(() {
       _noteC.text =
@@ -287,6 +337,79 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       showOverlayToast(context, l.transcriptionSavedToNote,
           icon: Icons.note_add_rounded);
     }
+  }
+
+  /// Share whatever is in the note field as a quote card - a saved transcript
+  /// or a hand-written note, it makes no difference.
+  Future<void> _shareNote() async {
+    await _preview.stop();
+    final quote = _noteC.text.trim();
+    if (quote.isEmpty) return;
+    final meta = await _quoteMetadata();
+    if (!mounted) return;
+    await showQuoteShareSheet(
+      context,
+      itemId: widget.itemId,
+      quote: quote,
+      bookTitle: meta.title,
+      author: meta.author,
+      chapter: meta.chapter,
+    );
+  }
+
+  /// Title, author and audio-chapter name for the quote card, from whatever
+  /// already knows this book - the live player, the download entry, the cached
+  /// offline session - with one server fetch as the last resort. Anything that
+  /// stays null just drops off the card.
+  Future<({String? title, String? author, String? chapter})> _quoteMetadata() async {
+    final player = AudioPlayerService();
+    List<dynamic> chapters = const [];
+    double duration = 0;
+    if (player.currentItemId == widget.itemId) {
+      chapters = player.chapters;
+      duration = player.totalDuration;
+    }
+
+    final info = DownloadService().getInfo(widget.itemId);
+    String? title = info.title;
+    String? author = info.author;
+
+    if (chapters.isEmpty) {
+      final raw = DownloadService().getCachedSessionData(widget.itemId);
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final session = jsonDecode(raw) as Map<String, dynamic>;
+          chapters = session['chapters'] as List<dynamic>? ?? const [];
+          if (duration <= 0) {
+            duration = (session['duration'] as num?)?.toDouble() ?? 0;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (((title ?? '').isEmpty || chapters.isEmpty) && widget.api != null) {
+      try {
+        final item = await widget.api!.getLibraryItem(widget.itemId);
+        final media = item?['media'] as Map<String, dynamic>? ?? {};
+        final meta = media['metadata'] as Map<String, dynamic>? ?? {};
+        if ((title ?? '').isEmpty) title = meta['title'] as String?;
+        if ((author ?? '').isEmpty) author = meta['authorName'] as String?;
+        if (chapters.isEmpty) {
+          chapters = media['chapters'] as List<dynamic>? ?? const [];
+        }
+        if (duration <= 0) {
+          duration = (media['duration'] as num?)?.toDouble() ?? 0;
+        }
+      } catch (_) {}
+    }
+
+    String? chapterTitle;
+    final idx = ChapterLookup.indexAtWithGrace(chapters, _seconds, duration);
+    if (idx != null) {
+      final t = ((chapters[idx] as Map<String, dynamic>)['title'] as String?)?.trim();
+      if (t != null && t.isNotEmpty) chapterTitle = t;
+    }
+    return (title: title, author: author, chapter: chapterTitle);
   }
 
   Future<void> _persist() async {
@@ -425,6 +548,15 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                 ),
               ),
             ],
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.ios_share_rounded, size: 18),
+                label: Text(l.quoteShareTitle),
+                onPressed: _saving || _noteC.text.trim().isEmpty ? null : _shareNote,
+              ),
+            ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -483,140 +615,6 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
         ),
         child: Text(label),
       ),
-    );
-  }
-}
-
-/// Editable transcript plus inline playback of the extracted clip, so the user
-/// can listen to the bookmarked spot while fixing up the text - WITHOUT moving
-/// their real playback position. Uses a separate just_audio player (mirroring
-/// the chapter editor's preview) and pauses the main player while the clip
-/// plays. Returns the edited text on save, or null if closed.
-class _TranscriptReviewDialog extends StatefulWidget {
-  final String initialText;
-  final String audioPath;
-  const _TranscriptReviewDialog({required this.initialText, required this.audioPath});
-
-  @override
-  State<_TranscriptReviewDialog> createState() => _TranscriptReviewDialogState();
-}
-
-class _TranscriptReviewDialogState extends State<_TranscriptReviewDialog> {
-  late final TextEditingController _controller;
-  AudioPlayer? _preview;
-  StreamSubscription<PlayerState>? _stateSub;
-  bool _loading = false;
-  bool _playing = false;
-  bool? _mainWasPlaying;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialText);
-  }
-
-  @override
-  void dispose() {
-    _stateSub?.cancel();
-    _preview?.dispose();
-    _controller.dispose();
-    // Resume the main player if we paused it to audition the clip.
-    if (_mainWasPlaying == true) AudioPlayerService().play();
-    super.dispose();
-  }
-
-  Future<void> _toggle() async {
-    final main = AudioPlayerService();
-
-    // First tap: spin up a separate preview player and load the clip.
-    if (_preview == null) {
-      setState(() => _loading = true);
-      _mainWasPlaying ??= main.isPlaying;
-      if (main.isPlaying) main.pause();
-      final p = AudioPlayer();
-      _preview = p;
-      _stateSub = p.playerStateStream.listen((s) {
-        if (!mounted) return;
-        if (s.processingState == ProcessingState.completed) {
-          p.pause();
-          p.seek(Duration.zero);
-          setState(() => _playing = false);
-        } else {
-          setState(() => _playing = s.playing);
-        }
-      });
-      try {
-        await p.setAudioSource(AudioSource.file(widget.audioPath));
-      } catch (_) {
-        if (mounted) setState(() => _loading = false);
-        return;
-      }
-      if (!mounted) return;
-      setState(() => _loading = false);
-      await p.play();
-      return;
-    }
-
-    final p = _preview!;
-    if (p.playing) {
-      await p.pause();
-    } else {
-      _mainWasPlaying ??= main.isPlaying;
-      if (main.isPlaying) main.pause();
-      if (p.processingState == ProcessingState.completed) {
-        await p.seek(Duration.zero);
-      }
-      await p.play();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return AlertDialog(
-      scrollable: true,
-      icon: const Icon(Icons.record_voice_over_rounded),
-      title: Text(l.transcriptionResultTitle),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _controller,
-              minLines: 5,
-              maxLines: 12,
-              keyboardType: TextInputType.multiline,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              icon: _loading
-                  ? const SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
-              label: Text(_playing
-                  ? l.transcriptionPauseSnippet
-                  : l.transcriptionPlaySnippet),
-              onPressed: _loading ? null : _toggle,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(l.bookmarksScreenClose),
-        ),
-        FilledButton.icon(
-          icon: const Icon(Icons.note_add_rounded, size: 18),
-          label: Text(l.transcriptionSaveToNote),
-          onPressed: () => Navigator.pop(context, _controller.text),
-        ),
-      ],
     );
   }
 }
