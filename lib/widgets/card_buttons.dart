@@ -131,7 +131,7 @@ class CardWideButton extends StatelessWidget {
               children: [
                 Icon(icon, size: iconSize, color: fgColor),
                 const SizedBox(width: 6),
-                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
+                Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
                   color: fgColor,
                   fontSize: fontSize, fontWeight: FontWeight.w500))),
               ],
@@ -247,7 +247,7 @@ class CardSleepButtonInline extends StatelessWidget {
                 ? Icon(Icons.nightlight_round_outlined, size: iconSz,
                     color: isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))
                 : iconsOnly && active
-                  ? Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
+                  ? Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
                       color: accent,
                       fontSize: fontSize,
                       fontWeight: FontWeight.w700,
@@ -259,7 +259,7 @@ class CardSleepButtonInline extends StatelessWidget {
                       Icon(Icons.nightlight_round_outlined, size: iconSz,
                         color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))),
                       SizedBox(width: compact ? 4 : 8),
-                      Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
+                      Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
                         color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24)),
                         fontSize: fontSize,
                         fontWeight: active ? FontWeight.w700 : FontWeight.w500,
@@ -355,7 +355,7 @@ class CardDownloadButtonInline extends StatelessWidget {
                     children: [
                       Icon(icon, size: iconSz, color: color),
                       SizedBox(width: compact ? 4 : 8),
-                      Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
+                      Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
                         color: color, fontSize: fontSize,
                         fontWeight: downloaded || downloading ? FontWeight.w700 : FontWeight.w500,
                       ))),
@@ -460,7 +460,7 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
               children: [
                 Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant),
                 const SizedBox(width: 8),
-                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
+                Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
                   color: cs.onSurfaceVariant, fontSize: fontSize, fontWeight: FontWeight.w500))),
               ],
             ),
@@ -1553,7 +1553,7 @@ class CardActionDelegate {
                   children: [
                     Icon(moreIcon, size: iconSz, color: iconColor),
                     const SizedBox(width: 6),
-                    Flexible(child: Text(castActive ? l.casting : l.more, overflow: TextOverflow.ellipsis,
+                    Flexible(child: Text(castActive ? l.casting : l.more, maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: iconColor, fontSize: fontSize, fontWeight: FontWeight.w500))),
                   ],
                 ),
