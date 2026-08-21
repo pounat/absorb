@@ -418,8 +418,11 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
   Future<void> _syncThenLoadCount() async {
     // Show local count immediately
     _loadCount();
-    // Then sync with server and update
-    final api = AudioPlayerService().currentApi;
+    // Then sync with server and update. The player's api is null when no book
+    // is loaded (browsing a not-playing book), so fall back to the signed-in
+    // one - server bookmarks should appear either way.
+    final api = AudioPlayerService().currentApi ??
+        (mounted ? context.read<AuthProvider>().apiService : null);
     if (api != null) {
       await BookmarkService().syncBookmarks(widget.itemId, api);
       _loadCount();
@@ -784,9 +787,11 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     // Show the local bookmarks first so the sheet never hangs on a slow or
     // unreachable server (it used to await the sync before loading anything,
     // which spun forever if the server didn't respond). Then sync in the
-    // background and refresh with whatever it pulled in.
+    // background and refresh with whatever it pulled in. The player's api is
+    // null when this book isn't loaded - fall back to the signed-in one.
     await _load();
-    final api = AudioPlayerService().currentApi;
+    final api = AudioPlayerService().currentApi ??
+        (mounted ? context.read<AuthProvider>().apiService : null);
     if (api != null) {
       try {
         await BookmarkService()
