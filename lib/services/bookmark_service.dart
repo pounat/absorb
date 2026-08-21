@@ -27,6 +27,20 @@ class Bookmark {
     return title;
   }
 
+  /// The inverse of [serverTitle]: split a server title back into title and
+  /// note at the first " - ", so a bookmark written on one phone comes apart
+  /// the same way on another. Re-encoding the split pair yields the identical
+  /// server string, so nothing is ever lost - at worst a title that itself
+  /// contains " - " moves its tail into the note.
+  static ({String title, String? note}) splitServerTitle(String raw) {
+    final i = raw.indexOf(' - ');
+    if (i <= 0) return (title: raw.trim(), note: null);
+    final title = raw.substring(0, i).trim();
+    final note = raw.substring(i + 3).trim();
+    if (title.isEmpty || note.isEmpty) return (title: raw.trim(), note: null);
+    return (title: title, note: note);
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'pos': positionSeconds,
@@ -36,6 +50,15 @@ class Bookmark {
       };
 
   factory Bookmark.fromJson(Map<String, dynamic> json) {
+    var title = json['title'] as String? ?? 'Bookmark';
+    var note = json['note'] as String?;
+    // Bookmarks pulled from the server before splitServerTitle existed were
+    // stored with the combined "title - note" as their title - come apart now.
+    if (note == null || note.isEmpty) {
+      final parts = splitServerTitle(title);
+      title = parts.title;
+      note = parts.note;
+    }
     return Bookmark(
       id: json['id'] as String? ?? '${DateTime.now().millisecondsSinceEpoch}',
       positionSeconds: (json['pos'] as num?)?.toDouble() ?? (json['time'] as num?)?.toDouble() ?? 0,
@@ -44,22 +67,23 @@ class Bookmark {
           : json['createdAt'] != null
               ? DateTime.fromMillisecondsSinceEpoch((json['createdAt'] as num).toInt())
               : DateTime.now(),
-      title: json['title'] as String? ?? 'Bookmark',
-      note: json['note'] as String?,
+      title: title,
+      note: note,
     );
   }
 
-  /// Create from ABS server bookmark format: { title, time, createdAt }
-  /// Server only has "title" - we put it into the note body since we don't
-  /// know what part is the title vs note.
+  /// Create from ABS server bookmark format: { title, time, createdAt }.
+  /// The server only has "title", carrying our "title - note" encoding.
   factory Bookmark.fromServer(Map<String, dynamic> json) {
+    final parts = splitServerTitle(json['title'] as String? ?? 'Bookmark');
     return Bookmark(
       id: '${(json['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch}',
       positionSeconds: (json['time'] as num?)?.toDouble() ?? 0,
       created: json['createdAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch((json['createdAt'] as num).toInt())
           : DateTime.now(),
-      title: json['title'] as String? ?? 'Bookmark',
+      title: parts.title,
+      note: parts.note,
     );
   }
 
@@ -429,9 +453,12 @@ class BookmarkService {
           existing.add(jsonEncode(serverBm.toJson()));
           await ScopedPrefs.setStringList(key, existing);
           debugPrint('[Bookmarks] Synced from server: "${serverBm.title}" at ${serverBm.formattedPosition}');
-        } else if (serverBm.title != localMatch.serverTitle && serverBm.created.isAfter(localMatch.created)) {
-          // Server is newer - update local note body with server content
-          localMatch.note = serverBm.title;
+        } else if (serverBm.serverTitle != localMatch.serverTitle && serverBm.created.isAfter(localMatch.created)) {
+          // Server is newer - take its title and note (fromServer already
+          // split the combined server string back into the two fields).
+          localMatch
+            ..title = serverBm.title
+            ..note = serverBm.note;
           await _saveAll(itemId, localBookmarks);
           debugPrint('[Bookmarks] Updated from server: "${serverBm.title}"');
         }
