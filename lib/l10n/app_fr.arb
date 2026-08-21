@@ -2868,5 +2868,7 @@
   "syncSettingsNeedServerSub": "N'importe quel serveur WebDAV fonctionne. Nextcloud est un serveur gratuit auto-hébergé.",
   "syncSettingsWhatTravels": "Vos préférences, vitesses par livre, mise en page d'accueil, notes et surlignage dans vos ebooks sont envoyés. Les identifiants, les dossiers de téléchargement et tout ce qui n'a pas encore été envoyé à votre serveur restent sur cet appareil.",
   "readerTooltipCopy": "Copier",
-  "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez."
+  "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez.",
+  "transcriptionIntroBody": "Cela permet d'écouter la quantité d'audio choisie, en commençant juste avant le signet, et en la transformant en texte sur votre appareil. Les clips plus longs prennent plus de temps, et la transcription n'est pas précise à 100%. Le texte est sauvegardé dans la note du favori une fois terminé, prêt à être corrigé ou partagé.",
+  "findInAudiobookIntroBody": "Cela permet d'écouter le livre audio près de l'endroit où vous lisez et de le faire correspondre à ce passage, le tout sur votre appareil. Cela peut prendre jusqu'à une minute. Si l'emplacement ne peut pas être associé en toute confiance, rien ne bouge."
 }
