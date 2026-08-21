@@ -1310,6 +1310,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   /// needs live data, so while it's open the app drops to its background
   /// behavior: no socket, no polling. Page turns still push progress over
   /// HTTP, and playback keeps its own work running.
+  bool get readerQuiet => _readerQuiet;
+
   void setReaderQuiet(bool quiet) {
     if (_readerQuiet == quiet) return;
     _readerQuiet = quiet;

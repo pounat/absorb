@@ -2382,18 +2382,24 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       {required bool goToPlayer, String? passageCfi}) async {
     final l = AppLocalizations.of(context)!;
     final player = AudioPlayerService();
-    if (player.currentItemId == widget.itemId) {
-      await player.seekTo(Duration(milliseconds: (seconds * 1000).round()));
-      if (!player.isPlaying) player.play();
-    } else {
-      final api = context.read<AuthProvider>().apiService;
+
+    // For "Open the player", close the reader BEFORE playback starts: the
+    // shell's full-screen auto-expand is suppressed while the reader is open
+    // (so "Keep reading" can't get yanked into the player), which means it
+    // only fires for this path if the reader is already gone when play begins.
+    // Everything context-dependent is gathered first; the position was decided
+    // long before, so play still starts exactly where the match landed.
+    final api = context.read<AuthProvider>().apiService;
+    final lib = context.read<LibraryProvider>();
+    final needsLoad = player.currentItemId != widget.itemId;
+    Map<String, dynamic>? fullItem;
+    if (needsLoad) {
       if (api == null) {
         showOverlayToast(context, l.bookmarksNotConnected,
             icon: Icons.cloud_off_rounded);
         return;
       }
-      final lib = context.read<LibraryProvider>();
-      final fullItem = await api.getLibraryItem(widget.itemId);
+      fullItem = await api.getLibraryItem(widget.itemId);
       if (fullItem == null) {
         if (mounted) {
           showOverlayToast(context, l.findInAudiobookNotFound,
@@ -2401,14 +2407,27 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         }
         return;
       }
-      final media = fullItem['media'] as Map<String, dynamic>? ?? {};
+      if (!mounted) return;
+    }
+    final coverUrl = lib.getCoverUrl(widget.itemId);
+
+    if (goToPlayer && mounted) {
+      Navigator.of(context).pop(); // close the reader
+      AppShell.goToAbsorbingGlobal();
+    }
+
+    if (!needsLoad) {
+      await player.seekTo(Duration(milliseconds: (seconds * 1000).round()));
+      if (!player.isPlaying) player.play();
+    } else {
+      final media = fullItem!['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
       final error = await player.playItem(
-        api: api,
+        api: api!,
         itemId: widget.itemId,
         title: metadata['title'] as String? ?? widget.title,
         author: metadata['authorName'] as String? ?? '',
-        coverUrl: lib.getCoverUrl(widget.itemId),
+        coverUrl: coverUrl,
         totalDuration:
             (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0,
         chapters: (media['chapters'] as List<dynamic>?) ?? [],
@@ -2417,15 +2436,15 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         libraryId: fullItem['libraryId'] as String?,
       );
       if (error != null) {
-        if (mounted) showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+        debugPrint('[FindAudio] playItem failed: $error');
+        if (mounted) {
+          showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+        }
         return;
       }
     }
-    if (!mounted) return;
-    if (goToPlayer) {
-      Navigator.of(context).pop(); // close the reader
-      AppShell.goToAbsorbingGlobal();
-    } else {
+
+    if (!goToPlayer && mounted) {
       if (passageCfi != null) {
         _flashHighlight(passageCfi, duration: const Duration(seconds: 8));
       }

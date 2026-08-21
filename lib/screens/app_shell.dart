@@ -549,6 +549,10 @@ class _AppShellState extends State<AppShell>
     // playback from elsewhere (another tab, the nav long-press) shouldn't
     // yank the user into the player.
     if (_currentIndex != 2) return;
+    // The ebook reader is a route above this shell, so the tab check can't
+    // see it: audio started from the reader (Find in audiobook with "Keep
+    // reading", volume-key play) must not pop the full player underneath it.
+    if (context.read<LibraryProvider>().readerQuiet) return;
     final enabled = await PlayerSettings.getFullScreenPlayer();
     if (!enabled || !mounted || !_player.hasBook) return;
 
