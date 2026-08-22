@@ -24,7 +24,7 @@ class EbookAnnotation {
   final AnnotationType type;
   final String cfi;
   final String? selectedText;
-  final HighlightColor? color;
+  HighlightColor? color;
   String? note;
   /// Chapter title captured when the annotation was made. Older annotations
   /// predate this and stay null - the CFI alone can't name a chapter without
@@ -205,6 +205,18 @@ class EbookAnnotationService {
   }
 
   /// Update a note on an annotation.
+  Future<void> updateColor({
+    required String itemId,
+    required String annotationId,
+    required HighlightColor color,
+  }) async {
+    final annotations = await getAnnotations(itemId);
+    final idx = annotations.indexWhere((a) => a.id == annotationId);
+    if (idx == -1) return;
+    annotations[idx].color = color;
+    await _save(itemId, annotations);
+  }
+
   Future<void> updateNote({
     required String itemId,
     required String annotationId,

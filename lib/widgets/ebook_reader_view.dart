@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' show min;
@@ -502,6 +503,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _volumeNav.detach();
     _routeAnim?.removeStatusListener(_onRouteAnim);
     PlayerSettings.settingsChanged.removeListener(_loadSkipSettings);
+    _pendingTapAction?.cancel();
     // Restore system UI when leaving
     _setFullscreen(false);
     super.dispose();
@@ -525,10 +527,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   DateTime _lastReaderTap = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _pendingTapAction;
+  DateTime? _highlightTapAt;
 
   /// Shared tap handler: left quarter = previous page, right quarter = next,
   /// center = toggle controls. [frac] is the tap's x position 0..1 across the
   /// page. Debounced so the touch and injected-click paths can't double-fire.
+  /// A tap on a highlight lands here too, and the markClicked event only
+  /// arrives from the WebView a beat later - so when the book has highlights
+  /// the action commits after a short grace window that the highlight tap can
+  /// cancel. No highlights, no added latency.
   void _readerTapAt(double frac, String source) {
     final now = DateTime.now();
     final sinceMs = now.difference(_lastReaderTap).inMilliseconds;
@@ -539,9 +547,27 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _lastReaderTap = now;
     final action = frac < 0.25 ? 'prev' : (frac > 0.75 ? 'next' : 'menu');
     debugPrint('[ReaderTap] frac=${frac.toStringAsFixed(2)} src=$source -> $action ctrl=${_epubController != null}');
-    if (frac < 0.25) {
+    final hasHighlights =
+        _annotations.any((a) => a.type == AnnotationType.highlight);
+    if (!hasHighlights) {
+      _commitReaderTap(action);
+      return;
+    }
+    _pendingTapAction?.cancel();
+    _pendingTapAction = Timer(const Duration(milliseconds: 140), () {
+      final markAt = _highlightTapAt;
+      if (markAt != null &&
+          DateTime.now().difference(markAt).inMilliseconds < 600) {
+        return;
+      }
+      _commitReaderTap(action);
+    });
+  }
+
+  void _commitReaderTap(String action) {
+    if (action == 'prev') {
       _epubController?.prev();
-    } else if (frac > 0.75) {
+    } else if (action == 'next') {
       _epubController?.next();
     } else {
       _toggleControls();
@@ -782,6 +808,147 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     );
     _annotations.removeWhere((a) => a.id == annotation.id);
     if (mounted) setState(() {});
+  }
+
+  Future<void> _changeHighlightColor(
+      EbookAnnotation annotation, HighlightColor color) async {
+    if (annotation.color == color) return;
+    await _annotationService.updateColor(
+      itemId: widget.itemId,
+      annotationId: annotation.id,
+      color: color,
+    );
+    annotation.color = color;
+    _epubController?.removeHighlight(cfi: annotation.cfi);
+    _epubController?.addHighlight(
+      cfi: annotation.cfi,
+      color: Color(int.parse('FF${color.hex.substring(1)}', radix: 16)),
+      opacity: 0.35,
+    );
+    if (mounted) setState(() {});
+  }
+
+  /// A highlight tapped on the page: cancel the pending page turn and open
+  /// its menu. Transient flash highlights (find/search jumps) have no stored
+  /// annotation, so they fall through to the normal tap.
+  void _onHighlightTapped(String cfiRange) {
+    debugPrint('[Highlight] markClicked cfi=$cfiRange');
+    EbookAnnotation? match;
+    for (final a in _annotations) {
+      if (a.type == AnnotationType.highlight && a.cfi == cfiRange) {
+        match = a;
+        break;
+      }
+    }
+    if (match == null) {
+      final stored = _annotations
+          .where((a) => a.type == AnnotationType.highlight)
+          .map((a) => a.cfi)
+          .toList();
+      debugPrint('[Highlight] no stored annotation for tapped cfi '
+          '(${stored.length} stored${stored.length <= 8 ? ': ${stored.join(' | ')}' : ''}) '
+          '- treating as normal tap');
+      return;
+    }
+    // epub.js dispatches the mark's click emitter on both touchstart and
+    // click, so one tap arrives here twice - keep the page turn cancelled
+    // but only open the menu once.
+    final now = DateTime.now();
+    final last = _highlightTapAt;
+    _highlightTapAt = now;
+    _pendingTapAction?.cancel();
+    if (last != null && now.difference(last).inMilliseconds < 600) {
+      debugPrint('[Highlight] duplicate markClicked ignored');
+      return;
+    }
+    debugPrint('[Highlight] opening menu for annotation ${match.id}');
+    _showHighlightMenu(match);
+  }
+
+  Future<void> _showHighlightMenu(EbookAnnotation annotation) async {
+    final l = AppLocalizations.of(context)!;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        final tt = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 14),
+              child: Text('"${annotation.selectedText ?? ''}"',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: tt.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant, fontStyle: FontStyle.italic)),
+            ),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              for (final c in HighlightColor.values)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _changeHighlightColor(annotation, c);
+                    },
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Color(
+                            int.parse('FF${c.hex.substring(1)}', radix: 16)),
+                        shape: BoxShape.circle,
+                        border: annotation.color == c
+                            ? Border.all(color: cs.onSurface, width: 2.5)
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+            ]),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Icon(Icons.edit_note_rounded, color: cs.onSurfaceVariant),
+              title: Text(
+                  annotation.note?.isNotEmpty == true ? l.editNote : l.newNote),
+              onTap: () {
+                Navigator.pop(ctx);
+                _addNoteToAnnotation(annotation);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.ios_share_rounded, color: cs.onSurfaceVariant),
+              title: Text(l.quoteShareAction),
+              onTap: () {
+                Navigator.pop(ctx);
+                _shareHighlight(annotation, onThisPage: true);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.headphones_rounded, color: cs.onSurfaceVariant),
+              title: Text(l.findInAudiobook),
+              onTap: () {
+                Navigator.pop(ctx);
+                _findInAudiobookFromSelection(
+                  cfiOverride: annotation.cfi,
+                  textOverride: annotation.selectedText ?? '',
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline_rounded, color: cs.error),
+              title: Text(l.remove, style: TextStyle(color: cs.error)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _removeHighlight(annotation);
+              },
+            ),
+            const SizedBox(height: 8),
+          ]),
+        );
+      },
+    );
   }
 
   Future<void> _toggleBookmark() async {
@@ -1955,10 +2122,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// section's text the selection sits, then verify by transcribing a probe
   /// window and fuzzy-matching it back into this section - the miss distance
   /// in characters converts to seconds and corrects the estimate.
-  Future<void> _findInAudiobookFromSelection() async {
+  /// [cfiOverride]/[textOverride] let an existing highlight reuse this flow
+  /// without a live selection.
+  Future<void> _findInAudiobookFromSelection(
+      {String? cfiOverride, String? textOverride}) async {
     final l = AppLocalizations.of(context)!;
-    final cfi = _selectionCfi;
-    final selText = _selectionText ?? '';
+    final cfi = cfiOverride ?? _selectionCfi;
+    final selText = textOverride ?? _selectionText ?? '';
     _dismissSelection();
     if (cfi == null) return;
     if (!TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
@@ -3135,12 +3305,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               onDeselection: () {
                 if (mounted) setState(() => _clearSelection());
               },
-              onAnnotationClicked: (cfi, rect) {
-                final match = _annotations.where(
-                  (a) => a.type == AnnotationType.highlight && a.cfi == cfi,
-                ).firstOrNull;
-                if (match != null) _addNoteToAnnotation(match);
-              },
+              onAnnotationClicked: (cfi, rect) => _onHighlightTapped(cfi),
               onEpubLoaded: () {
                 // Re-display once to rescue an occasionally-blank first paint.
                 // Guarded so it runs at most once per mount: onEpubLoaded fires

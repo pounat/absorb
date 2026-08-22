@@ -890,6 +890,15 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   })
 
   rendition.on('markClicked', function (cfiRange) {
+    // Forward to Flutter. This was missing: the Dart side registers a
+    // "markClicked" handler but nothing here ever called it, so annotation
+    // taps never reached the app.
+    try {
+      window.flutter_inappwebview.callHandler('markClicked', cfiRange.toString());
+    } catch (e) {
+      console.error('Error forwarding markClicked:', e);
+    }
+
     // Only programmatically select if enabled
     if (selectAnnotationRange) {
       // Programmatically select the annotation range to trigger the selection event
