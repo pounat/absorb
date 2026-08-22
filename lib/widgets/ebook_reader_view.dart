@@ -1021,8 +1021,18 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           final l = AppLocalizations.of(ctx)!;
+          // DraggableScrollableSheet wires the inner scroll to the sheet so a
+          // downward drag past the minimum dismisses it - a bare
+          // SingleChildScrollView swallowed the drag and only the back button
+          // could close the sheet.
           return SafeArea(
-          child: SingleChildScrollView(
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.85,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            builder: (ctx, scrollCtrl) => SingleChildScrollView(
+            controller: scrollCtrl,
             child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
             child: Column(
@@ -1233,6 +1243,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   ),
               ],
             ),
+          ),
           ),
           ),
         );
