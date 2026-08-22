@@ -2410,6 +2410,30 @@ abstract class AppLocalizations {
   /// **'Remove the background gradient. Pure black in dark mode for OLED screens.'**
   String get flatBackgroundSubtitle;
 
+  /// No description provided for @einkModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'E-ink mode'**
+  String get einkModeLabel;
+
+  /// No description provided for @einkModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'High-contrast black and white with no animations, made for e-ink screens'**
+  String get einkModeSubtitle;
+
+  /// No description provided for @einkModeIntroBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Made for e-ink screens. The app switches to a flat black-and-white look with high contrast, animations are turned off, the playing card loses its background, and the live server connection stays off to save battery. Playback and progress still sync normally. Your appearance settings are kept and come back when you turn this off.'**
+  String get einkModeIntroBody;
+
+  /// No description provided for @einkModeIntroConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get einkModeIntroConfirm;
+
   /// No description provided for @backgroundIntensityLabel.
   ///
   /// In en, this message translates to:

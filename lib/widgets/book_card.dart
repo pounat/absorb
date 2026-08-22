@@ -460,16 +460,16 @@ class _CoverImage extends StatelessWidget {
     if (coverUrl!.startsWith('/')) {
       final file = File(coverUrl!);
       if (file.existsSync()) {
-        return BlurPaddedCover(
+        return EinkCoverTone(child: BlurPaddedCover(
           enabled: isSquare,
           blurChild: Image.file(file, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
           child: Image.file(file, fit: effectiveFit, errorBuilder: (_, __, ___) => _placeholder()),
-        );
+        ));
       }
       return _placeholder();
     }
 
-    return BlurPaddedCover(
+    return EinkCoverTone(child: BlurPaddedCover(
       enabled: isSquare,
       blurChild: CachedNetworkImage(
         imageUrl: coverUrl!,
@@ -484,7 +484,7 @@ class _CoverImage extends StatelessWidget {
         placeholder: (_, __) => _placeholder(),
         errorWidget: (_, __, ___) => _placeholder(),
       ),
-    );
+    ));
   }
 
   /// Home shelves used to show a bare headphones icon here while the library

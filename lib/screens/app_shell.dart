@@ -15,7 +15,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../main.dart'
-    show snappyTransitionsNotifier, coverSchemeNotifier, rootNavigatorKey, applyOrientationLock;
+    show snappyTransitionsNotifier, einkModeNotifier, coverSchemeNotifier, rootNavigatorKey, applyOrientationLock;
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../services/android_auto_service.dart';
@@ -217,7 +217,7 @@ class _AppShellState extends State<AppShell>
     }
     _ensurePageBuilt(index);
     _syncNavBarListener(index);
-    if (snappyTransitionsNotifier.value) {
+    if (snappyTransitionsNotifier.value || einkModeNotifier.value) {
       setState(() => _currentIndex = index);
     } else {
       _fadeController.reverse().then((_) {

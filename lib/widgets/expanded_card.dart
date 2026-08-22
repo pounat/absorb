@@ -603,7 +603,10 @@ class _ExpandedCardState extends State<ExpandedCard> {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-    final cs = _coverScheme ?? Theme.of(context).colorScheme;
+    // E-ink mode: the cover-derived palette renders as washed-out grey, so
+    // the card sticks to the monochrome app theme.
+    final cs = (PlayerSettings.einkMode ? null : _coverScheme) ??
+        Theme.of(context).colorScheme;
     final accent = cs.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l = AppLocalizations.of(context)!;
@@ -811,7 +814,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                         fit: StackFit.expand,
                                         children: [
                                           // Cover image
-                                          _coverUrl != null
+                                          EinkCoverTone(child: _coverUrl != null
                                               ? _isLocalCover
                                                   ? BlurPaddedCover(blurChild: Image.file(File(_coverUrl!), fit: BoxFit.cover,
                                                       errorBuilder: (_, __, ___) => const SizedBox.shrink()),
@@ -824,7 +827,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                                         httpHeaders: mediaHeaders,
                                                         placeholder: (_, __) => CoverPlaceholder(title: _title, author: _author),
                                                         errorWidget: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
-                                              : CoverPlaceholder(title: _title, author: _author),
+                                              : CoverPlaceholder(title: _title, author: _author)),
                                           // Play/pause overlay
                                           if (_coverPlayButton && !isCastingThis && !isFinished)
                                             Positioned.fill(

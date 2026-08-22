@@ -31,7 +31,7 @@ import '../services/settings_sync_service.dart';
 import '../screens/change_password_screen.dart';
 import '../screens/auth_sessions_screen.dart';
 import '../screens/transcription_settings_screen.dart';
-import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
+import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/theme_presets.dart';
@@ -154,6 +154,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _progressTextScale = 1.0;
   String _themeMode = 'dark';
   bool _flatBackground = false;
+  bool _einkMode = false;
   String _colorSource = 'dynamic';
   int _manualSeed = 0xFF7C6FBF;
   double _gradientIntensity = 0.06;
@@ -839,6 +840,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final mp3IndexSeek = await PlayerSettings.getMp3IndexSeeking();
     final coverSize = await PlayerSettings.getCoverSize();
     final flatBackground = await PlayerSettings.getFlatBackground();
+    final einkMode = await PlayerSettings.getEinkMode();
     final colorSource = await PlayerSettings.getColorSource();
     final manualSeed = await PlayerSettings.getManualSeedColor();
     final gradientIntensity = await PlayerSettings.getGradientIntensity();
@@ -959,6 +961,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _mp3IndexSeeking = mp3IndexSeek;
       _themeMode = theme == 'oled' ? 'dark' : theme;
       _flatBackground = flatBackground;
+      _einkMode = einkMode;
       _colorSource = colorSource == 'manual' ? 'manual' : 'dynamic';
       _manualSeed = manualSeed;
       _gradientIntensity = gradientIntensity;
@@ -1594,6 +1597,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               setState(() => _flatBackground = v);
                               PlayerSettings.setFlatBackground(v);
                               applyFlatBackground(v);
+                            } : null,
+                          ),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(l.einkModeLabel, style: tt.bodyLarge),
+                            subtitle: Text(l.einkModeSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            value: _einkMode,
+                            onChanged: _loaded ? (v) async {
+                              if (v) {
+                                final ok = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: Text(l.einkModeLabel),
+                                    content: Text(l.einkModeIntroBody),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: Text(l.cancel),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: Text(l.einkModeIntroConfirm),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (ok != true || !mounted) return;
+                              }
+                              setState(() => _einkMode = v);
+                              PlayerSettings.setEinkMode(v);
+                              applyEinkModeTheme(v);
+                              if (mounted) {
+                                context.read<LibraryProvider>().applyEinkMode(v);
+                              }
                             } : null,
                           ),
                           if (!_flatBackground) ...[

@@ -1112,7 +1112,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
   void _startServerPingTimer() {
     _serverPingTimer?.cancel();
-    if (_isBackgrounded || _readerQuiet) return;
+    if (_isBackgrounded || _readerQuiet || PlayerSettings.einkMode) return;
     final serverUrl = _auth?.serverUrl;
     if (serverUrl == null) return;
     debugPrint('[Library] Starting server ping timer');
@@ -1252,7 +1252,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
   void _startHealthCheckTimer() {
     _healthCheckTimer?.cancel();
-    if (_isBackgrounded || _readerQuiet) return;
+    if (_isBackgrounded || _readerQuiet || PlayerSettings.einkMode) return;
     debugPrint('[Library] Health check timer started (60s ping while online)');
     _healthCheckTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
       if (_networkOffline || _manualOffline || !_deviceHasConnectivity) return;
@@ -1330,6 +1330,24 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     // Backgrounded while reading: the background handler owns the wake-up.
     if (_isBackgrounded) return;
     _resumeLiveWork(quietSince: since);
+  }
+
+  /// E-ink mode holds the app in its quiet state permanently: no socket, no
+  /// foreground polling, battery first. Progress still syncs over plain HTTP.
+  /// Called when the settings toggle flips; startup needs no call because the
+  /// socket and timer entry points all check PlayerSettings.einkMode.
+  void applyEinkMode(bool on) {
+    if (on) {
+      debugPrint('[Library] E-ink mode on - quieting live work');
+      _stopServerPingTimer();
+      _stopHealthCheckTimer();
+      if (!AudioPlayerService().isPlaying) _stopLocalProbeTimer();
+      _softDisconnectSocket();
+      return;
+    }
+    if (_isBackgrounded || _readerQuiet) return;
+    debugPrint('[Library] E-ink mode off - waking live work');
+    _resumeLiveWork();
   }
 
   /// Bring back the socket and the polling this app does while it's visible
@@ -1410,7 +1428,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   }
 
   void _softReconnectSocket() {
-    if (_manualOffline) return;
+    if (_manualOffline || PlayerSettings.einkMode) return;
     if (!_socketSoftDisconnected && !SocketService().hasSocket) {
       _socketSoftDisconnected = true;
     }

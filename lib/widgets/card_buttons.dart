@@ -33,6 +33,14 @@ import 'notes_sheet.dart';
 import 'overlay_toast.dart';
 import 'sleep_timer_sheet.dart';
 
+/// E-ink screens dither faint greys and cover-colored accents into noise, so
+/// the card controls bump to near-black when e-ink mode is on. Disabled stays
+/// visibly lighter than enabled, just dark enough to survive the panel.
+Color _inkAccent(Color accent) =>
+    PlayerSettings.einkMode ? Colors.black : accent;
+double _inkAlpha(double normal, double eink) =>
+    PlayerSettings.einkMode ? eink : normal;
+
 /// Wrapper that gives any child a press-down opacity+scale effect.
 class Pressable extends StatefulWidget {
   final VoidCallback? onTap;
@@ -113,16 +121,23 @@ class CardWideButton extends StatelessWidget {
     final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
     final showIconOnly = compact || iconsOnly;
     final fgColor = highlighted
-        ? accent
-        : (enabled ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24));
+        ? _inkAccent(accent)
+        : (enabled
+            ? cs.onSurfaceVariant
+            : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)));
     return Pressable(
       onTap: enabled ? onTap : () => showInactiveToast(context),
       child: Container(
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
-          color: highlighted ? accent.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.06),
+          color: highlighted
+              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
+              : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: highlighted ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
+          border: Border.all(
+              color: highlighted
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
         ),
         child: showIconOnly
           ? Center(child: Icon(icon, size: iconSize, color: fgColor))
@@ -168,14 +183,18 @@ class MoreMenuItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
         ),
         child: Column(mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 22, color: enabled ? accent.withValues(alpha: 0.85) : cs.onSurface.withValues(alpha: 0.24)),
+          Icon(icon, size: 22, color: enabled
+              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.85, 1.0))
+              : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))),
           const SizedBox(height: 7),
           Flexible(child: Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: enabled ? cs.onSurface.withValues(alpha: 0.85) : cs.onSurface.withValues(alpha: 0.24),
+              color: enabled
+                  ? cs.onSurface.withValues(alpha: _inkAlpha(0.85, 1.0))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)),
               fontSize: 11, fontWeight: FontWeight.w500, height: 1.15))),
         ]),
       ),
@@ -228,9 +247,13 @@ class CardSleepButtonInline extends StatelessWidget {
             height: h,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: active ? accent.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.06),
+              color: active
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: active ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
+              border: Border.all(color: active
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
             ),
             child: Stack(children: [
               if (active && isTime)
@@ -238,17 +261,17 @@ class CardSleepButtonInline extends StatelessWidget {
                   widthFactor: sleep.timeProgress.clamp(0.0, 1.0),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
+                      color: _inkAccent(accent).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(radius - 1),
                     ),
                   ),
                 ),
               Center(child: (compact || iconsOnly) && !active
                 ? Icon(Icons.nightlight_round_outlined, size: iconSz,
-                    color: isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))
+                    color: isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)))
                 : iconsOnly && active
                   ? Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
-                      color: accent,
+                      color: _inkAccent(accent),
                       fontSize: fontSize,
                       fontWeight: FontWeight.w700,
                       fontFeatures: isTime ? const [FontFeature.tabularFigures()] : null,
@@ -257,10 +280,10 @@ class CardSleepButtonInline extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.nightlight_round_outlined, size: iconSz,
-                        color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))),
+                        color: active ? _inkAccent(accent) : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)))),
                       SizedBox(width: compact ? 4 : 8),
                       Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
-                        color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24)),
+                        color: active ? _inkAccent(accent) : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))),
                         fontSize: fontSize,
                         fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                         fontFeatures: active && isTime ? const [FontFeature.tabularFigures()] : null,
@@ -333,9 +356,13 @@ class CardDownloadButtonInline extends StatelessWidget {
             height: h,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: downloaded ? dlGreen.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.06),
+              color: downloaded
+                  ? dlGreen.withValues(alpha: _inkAlpha(0.1, 0.12))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: downloaded ? dlGreen.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
+              border: Border.all(color: downloaded
+                  ? dlGreen.withValues(alpha: _inkAlpha(0.3, 0.9))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
             ),
             child: Stack(children: [
               if (downloading)
@@ -452,9 +479,9 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: 0.06),
+          color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
         ),
         child: cp || widget.iconsOnly
           ? Center(child: Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant))
@@ -588,9 +615,9 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
           child: Container(
             height: h,
             decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.06),
+              color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+              border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
             ),
             child: content,
           ),
@@ -1547,9 +1574,13 @@ class CardActionDelegate {
             height: h,
             padding: EdgeInsets.symmetric(vertical: vPad),
             decoration: BoxDecoration(
-              color: castActive ? accent.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.06),
+              color: castActive
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: castActive ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
+              border: Border.all(color: castActive
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
             ),
             child: iconsOnly
               ? Center(child: Icon(moreIcon, size: iconSz, color: iconColor))

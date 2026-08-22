@@ -114,7 +114,7 @@ class BackupService {
       'queueCollectionName': await PlayerSettings.getQueueCollectionName(),
       'coverSeedColor': await PlayerSettings.getCoverSeedColor(),
       'speedPresets': await PlayerSettings.getSpeedPresets(),
-      'cardBackground': await PlayerSettings.getCardBackground(),
+      'cardBackground': await PlayerSettings.getCardBackgroundRaw(),
       'lockSeekBar': await PlayerSettings.getLockSeekBar(),
       'mediaControlsSpeedBookmark': await PlayerSettings.getMediaControlsSpeedBookmark(),
       'progressTextScale': await PlayerSettings.getProgressTextScale(),

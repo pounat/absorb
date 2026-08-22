@@ -523,7 +523,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   }
 
   Widget _buildContent(BuildContext context, ColorScheme cs, TextTheme tt, AppLocalizations l) {
-    final accent = _coverScheme?.primary ?? cs.primary;
+    final accent =
+        (PlayerSettings.einkMode ? null : _coverScheme?.primary) ?? cs.primary;
     final media = _item!['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final chapters = media['chapters'] as List<dynamic>? ?? [];
@@ -998,8 +999,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   // Actions run on this (live) sheet context just like the detail sheet, so we
   // never pop-then-touch a defunct context; navigation actions dismiss us.
   Widget _buildQuickContent(BuildContext context, ColorScheme cs, TextTheme tt, AppLocalizations l) {
-    final accent = _coverScheme?.primary ?? cs.primary;
-    final onAccent = _coverScheme?.onPrimary ?? cs.onPrimary;
+    final accent =
+        (PlayerSettings.einkMode ? null : _coverScheme?.primary) ?? cs.primary;
+    final onAccent =
+        (PlayerSettings.einkMode ? null : _coverScheme?.onPrimary) ?? cs.onPrimary;
     final media = _item!['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final chapters = media['chapters'] as List<dynamic>? ?? [];

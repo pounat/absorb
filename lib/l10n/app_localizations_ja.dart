@@ -1269,6 +1269,20 @@ class AppLocalizationsJa extends AppLocalizations {
       'Remove the background gradient. Pure black in dark mode for OLED screens.';
 
   @override
+  String get einkModeLabel => 'E-ink mode';
+
+  @override
+  String get einkModeSubtitle =>
+      'High-contrast black and white with no animations, made for e-ink screens';
+
+  @override
+  String get einkModeIntroBody =>
+      'Made for e-ink screens. The app switches to a flat black-and-white look with high contrast, animations are turned off, the playing card loses its background, and the live server connection stays off to save battery. Playback and progress still sync normally. Your appearance settings are kept and come back when you turn this off.';
+
+  @override
+  String get einkModeIntroConfirm => 'Turn on';
+
+  @override
   String get backgroundIntensityLabel => 'Background intensity';
 
   @override

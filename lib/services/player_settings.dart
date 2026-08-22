@@ -1025,7 +1025,13 @@ class PlayerSettings {
 
   /// Absorbing-card background style: 'blurred' (cover blur, default), 'gradient'
   /// (gradient from the extracted cover colors), or 'off' (plain theme surface).
-  static Future<String> getCardBackground() => _get('cardBackground', 'blurred');
+  static Future<String> getCardBackground() async =>
+      einkMode ? 'off' : await getCardBackgroundRaw();
+
+  /// The stored value, for backup/sync export - the plain getter reports
+  /// 'off' while e-ink mode is on, which must not leak into synced settings.
+  static Future<String> getCardBackgroundRaw() =>
+      _get('cardBackground', 'blurred');
   static Future<void> setCardBackground(String value) => _set('cardBackground', value, notify: true);
 
   // ── Self-signed certificates (global, not per-user) ──
@@ -1153,6 +1159,16 @@ class PlayerSettings {
   /// switches surfaces to pure black (OLED); in light mode to flat white.
   static Future<bool> getFlatBackground() => _get('flatBackground', false);
   static Future<void> setFlatBackground(bool v) => _set('flatBackground', v);
+
+  /// E-ink mode: an override layer for e-ink screens - light flat monochrome
+  /// theme, no animations, plain cards, and the live socket stays down for
+  /// battery. The user's individual appearance settings are left untouched so
+  /// turning it off restores everything. Device-specific by nature, so it is
+  /// deliberately absent from settings sync and backups. The static mirrors
+  /// the stored value for cheap checks from non-async code.
+  static bool einkMode = false;
+  static Future<bool> getEinkMode() => _get('einkMode', false);
+  static Future<void> setEinkMode(bool v) => _set('einkMode', v);
 
   /// Seed color (ARGB int) used when [getColorSource] is 'manual'.
   static Future<int> getManualSeedColor() => _get('manualSeedColor', 0xFF7C6FBF);

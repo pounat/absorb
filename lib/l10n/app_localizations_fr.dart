@@ -1279,6 +1279,20 @@ class AppLocalizationsFr extends AppLocalizations {
       'Supprime le dégradé d’arrière‑plan. Noir pur en mode sombre pour les écrans OLED.';
 
   @override
+  String get einkModeLabel => 'E-ink mode';
+
+  @override
+  String get einkModeSubtitle =>
+      'High-contrast black and white with no animations, made for e-ink screens';
+
+  @override
+  String get einkModeIntroBody =>
+      'Made for e-ink screens. The app switches to a flat black-and-white look with high contrast, animations are turned off, the playing card loses its background, and the live server connection stays off to save battery. Playback and progress still sync normally. Your appearance settings are kept and come back when you turn this off.';
+
+  @override
+  String get einkModeIntroConfirm => 'Turn on';
+
+  @override
   String get backgroundIntensityLabel => 'Intensité de l\'arrière-plan';
 
   @override

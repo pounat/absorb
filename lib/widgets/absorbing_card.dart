@@ -595,7 +595,10 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   @override
   Widget build(BuildContext context) {
     super.build(context); // required for AutomaticKeepAliveClientMixin
-    final cs = _coverScheme ?? Theme.of(context).colorScheme;
+    // E-ink mode: the cover-derived palette renders as washed-out grey, so
+    // the card sticks to the monochrome app theme.
+    final cs = (PlayerSettings.einkMode ? null : _coverScheme) ??
+        Theme.of(context).colorScheme;
     final accent = cs.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l = AppLocalizations.of(context)!;
@@ -922,7 +925,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                               fit: StackFit.expand,
                               children: [
                                 // Cover image
-                                coverUrl != null && coverIdentity != null
+                                EinkCoverTone(child: coverUrl != null && coverIdentity != null
                                     ? isLocalCover
                                         ? BlurPaddedCover(blurChild: Image.file(File(coverUrl), fit: BoxFit.cover,
                                             gaplessPlayback: true,
@@ -942,7 +945,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                                               },
                                               placeholder: (_, __) => CoverPlaceholder(title: _title, author: _author),
                                               errorWidget: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
-                                    : CoverPlaceholder(title: _title, author: _author),
+                                    : CoverPlaceholder(title: _title, author: _author)),
                                                 // Casting overlay
                                 if (isCastingThis) ...[
                                   Positioned.fill(

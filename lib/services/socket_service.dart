@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'player_settings.dart';
+
 class SocketService {
   static const authorChangeEvents = <String>[
     'author_added',
@@ -333,6 +335,14 @@ class SocketService {
     _serverUrl = serverUrl;
     _customHeaders = customHeaders;
 
+    // E-ink mode never holds a live socket (battery first) - keep the
+    // credentials so turning the mode off can reconnect, but stop short of
+    // opening the connection. Progress still syncs over plain HTTP.
+    if (PlayerSettings.einkMode) {
+      debugPrint('[Battery] Socket not opened (e-ink mode)');
+      return;
+    }
+
     try {
       _socket = _createSocket(serverUrl);
 
@@ -536,6 +546,7 @@ class SocketService {
   /// Reconnect after a soft disconnect, reusing saved credentials.
   void softReconnect() {
     if (_socket != null) return; // already connected
+    if (PlayerSettings.einkMode) return;
     final url = _serverUrl;
     final token = _token;
     if (url == null || token == null) return;

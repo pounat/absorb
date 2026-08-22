@@ -80,6 +80,22 @@ ColorScheme manualColorScheme(Color seed, Brightness brightness) {
       : Colors.black;
   return base.copyWith(primary: seed, onPrimary: onSeed);
 }
+/// Route transition that just shows the page - e-ink panels smear animations
+/// into a mess of ghosting, so pages should simply appear.
+class _InstantPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _InstantPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) =>
+      child;
+}
+
 /// Whether to disable the fade animation when switching bottom nav tabs.
 final ValueNotifier<bool> snappyTransitionsNotifier = ValueNotifier(false);
 
@@ -144,6 +160,16 @@ void applyManualSeed(int argb) => manualSeedNotifier.value = Color(argb);
 void applyGradientIntensity(double value) => gradientIntensityNotifier.value = value;
 void applyUseColorEverywhere(bool value) => useColorEverywhereNotifier.value = value;
 
+/// E-ink mode overrides the theme (light, flat, monochrome, no animations)
+/// without touching the user's saved appearance settings. The notifier drives
+/// the theme rebuild; PlayerSettings.einkMode is the cheap check for
+/// non-widget code (socket gating, card backgrounds).
+final ValueNotifier<bool> einkModeNotifier = ValueNotifier(false);
+void applyEinkModeTheme(bool value) {
+  PlayerSettings.einkMode = value;
+  einkModeNotifier.value = value;
+}
+
 /// Push every appearance setting from storage into the notifiers that drive
 /// the theme. The individual appliers above are called by the settings screen
 /// as the user changes each one; this is for when the whole store is replaced
@@ -152,6 +178,7 @@ void applyUseColorEverywhere(bool value) => useColorEverywhereNotifier.value = v
 Future<void> applyAppearanceFromPrefs() async {
   applyThemeMode(await PlayerSettings.getThemeMode());
   applyFlatBackground(await PlayerSettings.getFlatBackground());
+  applyEinkModeTheme(await PlayerSettings.getEinkMode());
   applyColorSource(await PlayerSettings.getColorSource());
   applyManualSeed(await PlayerSettings.getManualSeedColor());
   applyGradientIntensity(await PlayerSettings.getGradientIntensity());
@@ -202,6 +229,7 @@ void main() async {
     }
     applyThemeMode(savedTheme);
     flatNotifier.value = await PlayerSettings.getFlatBackground();
+    applyEinkModeTheme(await PlayerSettings.getEinkMode());
     colorSourceNotifier.value = await PlayerSettings.getColorSource();
     manualSeedNotifier.value = Color(await PlayerSettings.getManualSeedColor());
     gradientIntensityNotifier.value = await PlayerSettings.getGradientIntensity();
@@ -281,10 +309,12 @@ class AbsorbApp extends StatelessWidget {
         manualSeedNotifier,
         gradientIntensityNotifier,
         useColorEverywhereNotifier,
+        einkModeNotifier,
       ]),
       builder: (context, _) {
-        final currentMode = themeNotifier.value;
-        final isFlat = flatNotifier.value;
+        final isEink = einkModeNotifier.value;
+        final currentMode = isEink ? ThemeMode.light : themeNotifier.value;
+        final isFlat = flatNotifier.value || isEink;
         final overrideLocale = localeNotifier.value;
         // Japanese shares many codepoints with Chinese (Han unification) but
         // draws some kanji differently. Flutter on Android doesn't hint the
@@ -365,12 +395,50 @@ class AbsorbApp extends StatelessWidget {
           surfaceContainerHighest: isFlat ? const Color(0xFFEDEDED) : const Color(0xFFE0E0E0),
         );
 
-            const pageTransition = PageTransitionsTheme(
-              builders: {
-                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-              },
-            );
+        // E-ink panels dither mid greys into visible noise, so the light
+        // scheme goes monochrome high-contrast: black ink on white paper, and
+        // the color accents (which would render as grey anyway) become black.
+        if (isEink) {
+          lightScheme = lightScheme.copyWith(
+            primary: Colors.black,
+            onPrimary: Colors.white,
+            primaryContainer: Colors.white,
+            onPrimaryContainer: Colors.black,
+            secondary: Colors.black,
+            onSecondary: Colors.white,
+            // Selected chips/segments paint secondaryContainer - near-white
+            // reads as "nothing selected" on e-ink, so selection goes solid
+            // black with white text.
+            secondaryContainer: Colors.black,
+            onSecondaryContainer: Colors.white,
+            tertiary: Colors.black,
+            onTertiary: Colors.white,
+            tertiaryContainer: const Color(0xFFEFEFEF),
+            onTertiaryContainer: Colors.black,
+            onSurface: Colors.black,
+            onSurfaceVariant: Colors.black,
+            outline: Colors.black,
+            outlineVariant: Colors.black54,
+            surfaceTint: Colors.transparent,
+            inverseSurface: Colors.black,
+            onInverseSurface: Colors.white,
+            inversePrimary: Colors.white,
+          );
+        }
+
+            final pageTransition = isEink
+                ? const PageTransitionsTheme(
+                    builders: {
+                      TargetPlatform.android: _InstantPageTransitionsBuilder(),
+                      TargetPlatform.iOS: _InstantPageTransitionsBuilder(),
+                    },
+                  )
+                : const PageTransitionsTheme(
+                    builders: {
+                      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                    },
+                  );
 
             return MaterialApp(
               navigatorKey: rootNavigatorKey,
@@ -395,16 +463,37 @@ class AbsorbApp extends StatelessWidget {
                 colorScheme: lightScheme,
                 fontFamilyFallback: cjkFallback,
                 scaffoldBackgroundColor: lightScheme.surface,
+                // Ink ripples ghost on e-ink, so touch feedback goes silent.
+                splashFactory: isEink ? NoSplash.splashFactory : null,
+                highlightColor: isEink ? Colors.transparent : null,
                 cardTheme: CardThemeData(
                   color: lightScheme.surfaceContainerHigh,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
+                    // Near-white surfaces blend together on e-ink; a hairline
+                    // keeps cards readable as cards.
+                    side: isEink
+                        ? const BorderSide(color: Colors.black38)
+                        : BorderSide.none,
                   ),
                 ),
                 navigationBarTheme: NavigationBarThemeData(
                   backgroundColor: lightScheme.surface,
-                  indicatorColor: lightScheme.primary.withValues(alpha: 0.15),
+                  // E-ink: a solid black pill with a white icon beats a 15%
+                  // tint that dithers away.
+                  indicatorColor: isEink
+                      ? Colors.black
+                      : lightScheme.primary.withValues(alpha: 0.15),
+                  iconTheme: isEink
+                      ? WidgetStateProperty.resolveWith(
+                          (states) => IconThemeData(
+                            color: states.contains(WidgetState.selected)
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+                        )
+                      : null,
                   labelTextStyle: WidgetStatePropertyAll(
                     TextStyle(
                       fontSize: 11,
@@ -619,6 +708,7 @@ class _AuthGateState extends State<AuthGate> {
     }
     applyThemeMode(scopedTheme);
     flatNotifier.value = await PlayerSettings.getFlatBackground();
+    applyEinkModeTheme(await PlayerSettings.getEinkMode());
     colorSourceNotifier.value = await PlayerSettings.getColorSource();
     manualSeedNotifier.value = Color(await PlayerSettings.getManualSeedColor());
     gradientIntensityNotifier.value = await PlayerSettings.getGradientIntensity();
