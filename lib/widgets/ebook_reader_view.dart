@@ -708,6 +708,26 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   void _restoreHighlights() {
+    _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'absorbCfiText',
+      callback: (args) {
+        final cfi = args.isNotEmpty ? '${args[0]}' : '';
+        final resolved = args.length > 1 ? '${args[1]}' : '';
+        String? stored;
+        for (final x in _annotations) {
+          if (x.cfi == cfi) {
+            stored = x.selectedText;
+            break;
+          }
+        }
+        String cut(String? s) {
+          final t = (s ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+          return t.length <= 60 ? t : '${t.substring(0, 60)}...';
+        }
+        debugPrint('[Highlight] cfi check stored="${cut(stored)}" '
+            'resolves="${cut(resolved)}" cfi=$cfi');
+      },
+    );
     for (final a in _annotations) {
       if (a.type == AnnotationType.highlight && a.color != null) {
         _epubController?.addHighlight(
@@ -715,8 +735,53 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
           color: Color(int.parse('FF${a.color!.hex.substring(1)}', radix: 16)),
           opacity: 0.35,
         );
+        _probeHighlightCfi(a.cfi);
       }
     }
+    // The layout is still settling when these first draw (load-rescue and
+    // settle re-displays, font apply), and the boxes don't follow the text
+    // when it moves - repaint once things calm down.
+    Future.delayed(const Duration(milliseconds: 900),
+        () { if (mounted) _repaintHighlightMarks(); });
+    Future.delayed(const Duration(milliseconds: 2600),
+        () { if (mounted) _repaintHighlightMarks(); });
+  }
+
+  /// Highlight boxes are computed once when the mark is drawn; a reflow after
+  /// that (font swap, re-display) moves the text out from under them, which
+  /// painted synced highlights a few lines away from their own text. The marks
+  /// keep live DOM ranges, so re-rendering the panes puts every box back.
+  void _repaintHighlightMarks() {
+    if (!_annotations.any((a) => a.type == AnnotationType.highlight)) return;
+    _epubController?.webViewController?.evaluateJavascript(source: '''
+      try {
+        requestAnimationFrame(function(){
+          try {
+            rendition.manager.views.forEach(function(v){
+              try { if (v && v.pane) v.pane.render(); } catch(e){}
+            });
+          } catch(e){}
+        });
+      } catch(e){}
+    ''');
+  }
+
+  /// Debug probe: resolve a stored highlight cfi against this device's copy of
+  /// the epub (book.getRange works off the archive, no rendering involved) and
+  /// log the text it lands on, so cross-device drift shows up in the log.
+  void _probeHighlightCfi(String cfi) {
+    final esc = jsonEncode(cfi);
+    _epubController?.webViewController?.evaluateJavascript(source: '''
+      try {
+        book.getRange($esc).then(function(r){
+          window.flutter_inappwebview.callHandler('absorbCfiText', $esc, r ? r.toString() : '(null range)');
+        }).catch(function(e){
+          window.flutter_inappwebview.callHandler('absorbCfiText', $esc, '(error: ' + e + ')');
+        });
+      } catch(e) {
+        try { window.flutter_inappwebview.callHandler('absorbCfiText', $esc, '(error: ' + e + ')'); } catch(_){}
+      }
+    ''');
   }
 
   void _setupPageInfoHandler() {
@@ -3367,6 +3432,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 }
                 _currentCfi = value.startCfi;
                 _updateBookmarkState();
+                _repaintHighlightMarks();
                 if (_locationsReady) {
                   // Trust the percentage only once epub.js has built its
                   // location index. Before that it reports a bogus spine
