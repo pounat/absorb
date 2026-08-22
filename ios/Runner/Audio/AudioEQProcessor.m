@@ -24,6 +24,7 @@ typedef struct {
     _Atomic(int)  mono;
     _Atomic(int)  loudnessGainMb;
     _Atomic(int)  bassBoostStrength;
+    _Atomic(int)  deEsserStrength;
     _Atomic(int)  bandLevels[EQ_NUM_BANDS];
     _Atomic(int)  coeffVersion;
 } EQParams;
@@ -33,6 +34,17 @@ typedef struct {
     BiquadDelay bassDelay[MAX_CHANNELS];
     BiquadCoeffs coeffs[EQ_NUM_BANDS];
     BiquadCoeffs bassCoeffs;
+    // De-esser: sidechain bandpass + per-channel envelope follower state,
+    // plus constants precomputed in rebuildCoefficients so the per-sample
+    // path stays free of pow/exp.
+    BiquadCoeffs deEssCoeffs;
+    BiquadDelay deEssDelay[MAX_CHANNELS];
+    float deEssEnv[MAX_CHANNELS];
+    float deEssAttack;
+    float deEssRelease;
+    float deEssThrLin;
+    float deEssKneeInv;
+    float deEssKMax;
     float sampleRate;
     int numChannels;
     int lastCoeffVersion;
@@ -81,6 +93,25 @@ static BiquadCoeffs lowShelf(float f0, float dBGain, float Fs) {
     return c;
 }
 
+/// Bandpass filter coefficients (constant 0 dB peak gain).
+static BiquadCoeffs bandPass(float f0, float Q, float Fs) {
+    BiquadCoeffs c = {1, 0, 0, 0, 0};
+    if (Fs <= 0) return c;
+
+    float w0    = 2.0f * M_PI * f0 / Fs;
+    float sinw  = sinf(w0);
+    float cosw  = cosf(w0);
+    float alpha = sinw / (2.0f * Q);
+
+    float a0 = 1.0f + alpha;
+    c.b0 = alpha / a0;
+    c.b1 = 0.0f;
+    c.b2 = -alpha / a0;
+    c.a1 = (-2.0f * cosw) / a0;
+    c.a2 = (1.0f - alpha) / a0;
+    return c;
+}
+
 static inline float processBiquad(BiquadCoeffs *c, BiquadDelay *d, float x) {
     float y = c->b0 * x + c->b1 * d->x1 + c->b2 * d->x2
                          - c->a1 * d->y1 - c->a2 * d->y2;
@@ -119,7 +150,47 @@ static void rebuildCoefficients(TapContext *ctx) {
         ctx->bassCoeffs = lowShelf(120.0f, bassdB, Fs);
     }
 
+    int deEssStrength = atomic_load_explicit(&sParams.deEsserStrength, memory_order_relaxed);
+    float s = (float)deEssStrength / 1000.0f;
+    // Below 14kHz there is no headroom for a ~6kHz sibilance band (same
+    // Nyquist concern as the band clamp above), so leave the effect inert.
+    if (s <= 0.0f || Fs < 14000.0f) {
+        BiquadCoeffs unity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        ctx->deEssCoeffs = unity;
+        ctx->deEssKMax = 0.0f;
+        ctx->deEssThrLin = 1.0f;
+        ctx->deEssKneeInv = 0.0f;
+    } else {
+        float f0 = fminf(6000.0f, Fs * 0.45f);
+        ctx->deEssCoeffs = bandPass(f0, 1.1f, Fs);
+        float thresholdDb = -30.0f - 12.0f * s;
+        ctx->deEssThrLin = powf(10.0f, thresholdDb / 20.0f);
+        float maxRedDb = 12.0f * s;
+        ctx->deEssKMax = 1.0f - powf(10.0f, -maxRedDb / 20.0f);
+        // 12 dB soft ramp above threshold, precomputed in linear domain.
+        ctx->deEssKneeInv = 1.0f / (ctx->deEssThrLin * (powf(10.0f, 12.0f / 20.0f) - 1.0f));
+    }
+    ctx->deEssAttack  = 1.0f - expf(-1.0f / (0.001f * Fs));
+    ctx->deEssRelease = 1.0f - expf(-1.0f / (0.060f * Fs));
+
     ctx->lastCoeffVersion = atomic_load_explicit(&sParams.coeffVersion, memory_order_relaxed);
+}
+
+/// De-esser: bandpass sidechain detects sibilance energy; when the envelope
+/// exceeds the threshold, up to deEssKMax of the bandpassed signal is
+/// subtracted so only the sibilance band is attenuated.
+static inline float processDeEss(TapContext *ctx, int ch, float sample) {
+    float bp = processBiquad(&ctx->deEssCoeffs, &ctx->deEssDelay[ch], sample);
+    float mag = fabsf(bp);
+    float env = ctx->deEssEnv[ch];
+    env += ((mag > env) ? ctx->deEssAttack : ctx->deEssRelease) * (mag - env);
+    ctx->deEssEnv[ch] = env;
+    float frac = (env - ctx->deEssThrLin) * ctx->deEssKneeInv;
+    if (frac > 0.0f) {
+        if (frac > 1.0f) frac = 1.0f;
+        sample -= (ctx->deEssKMax * frac) * bp;
+    }
+    return sample;
 }
 
 static void tapInit(MTAudioProcessingTapRef tap, void *clientInfo, void **tapStorageOut) {
@@ -150,6 +221,8 @@ static void tapPrepare(MTAudioProcessingTapRef tap,
 
     memset(ctx->delays, 0, sizeof(ctx->delays));
     memset(ctx->bassDelay, 0, sizeof(ctx->bassDelay));
+    memset(ctx->deEssDelay, 0, sizeof(ctx->deEssDelay));
+    memset(ctx->deEssEnv, 0, sizeof(ctx->deEssEnv));
 
     rebuildCoefficients(ctx);
 
@@ -207,10 +280,12 @@ static void tapProcess(MTAudioProcessingTapRef tap,
     int mono = atomic_load_explicit(&sParams.mono, memory_order_relaxed);
     int loudnessMb = atomic_load_explicit(&sParams.loudnessGainMb, memory_order_relaxed);
     int hasBass = atomic_load_explicit(&sParams.bassBoostStrength, memory_order_relaxed) > 0;
+    int hasDeEss = atomic_load_explicit(&sParams.deEsserStrength, memory_order_relaxed) > 0;
 
-    // Bass / loudness / mono apply independently of the band-EQ master switch,
-    // so process whenever any of them is active - not only when bands are on.
-    if (!bandsOn && !mono && loudnessMb <= 0 && !hasBass) return;
+    // Bass / loudness / mono / de-esser apply independently of the band-EQ
+    // master switch, so process whenever any of them is active - not only
+    // when bands are on.
+    if (!bandsOn && !mono && loudnessMb <= 0 && !hasBass && !hasDeEss) return;
 
     TapContext *ctx = (TapContext *)MTAudioProcessingTapGetStorage(tap);
     if (!ctx) return;
@@ -246,6 +321,10 @@ static void tapProcess(MTAudioProcessingTapRef tap,
 
                 if (hasBass) {
                     sample = processBiquad(&ctx->bassCoeffs, &ctx->bassDelay[ch], sample);
+                }
+
+                if (hasDeEss) {
+                    sample = processDeEss(ctx, ch, sample);
                 }
 
                 if (loudnessMb > 0) {
@@ -289,6 +368,10 @@ static void tapProcess(MTAudioProcessingTapRef tap,
                         sample = processBiquad(&ctx->bassCoeffs, &ctx->bassDelay[ch], sample);
                     }
 
+                    if (hasDeEss) {
+                        sample = processDeEss(ctx, ch, sample);
+                    }
+
                     if (loudnessMb > 0) {
                         sample *= loudnessGain;
                     }
@@ -328,6 +411,7 @@ static void tapProcess(MTAudioProcessingTapRef tap,
         atomic_store(&sParams.mono, 0);
         atomic_store(&sParams.loudnessGainMb, 0);
         atomic_store(&sParams.bassBoostStrength, 0);
+        atomic_store(&sParams.deEsserStrength, 0);
         atomic_store(&sParams.coeffVersion, 0);
         for (int i = 0; i < EQ_NUM_BANDS; i++) {
             atomic_store(&sParams.bandLevels[i], 0);
@@ -459,6 +543,11 @@ static void tapProcess(MTAudioProcessingTapRef tap,
 
 - (void)setBassBoostStrength:(int)strength {
     atomic_store_explicit(&sParams.bassBoostStrength, strength, memory_order_relaxed);
+    atomic_fetch_add_explicit(&sParams.coeffVersion, 1, memory_order_release);
+}
+
+- (void)setDeEsserStrength:(int)strength {
+    atomic_store_explicit(&sParams.deEsserStrength, strength, memory_order_relaxed);
     atomic_fetch_add_explicit(&sParams.coeffVersion, 1, memory_order_release);
 }
 

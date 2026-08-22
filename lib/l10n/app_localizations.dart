@@ -6286,6 +6286,12 @@ abstract class AppLocalizations {
   /// **'Loudness'**
   String get loudness;
 
+  /// No description provided for @deEsser.
+  ///
+  /// In en, this message translates to:
+  /// **'De-esser'**
+  String get deEsser;
+
   /// No description provided for @monoAudio.
   ///
   /// In en, this message translates to:

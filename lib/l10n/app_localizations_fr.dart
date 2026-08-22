@@ -3485,6 +3485,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get loudness => 'Volume';
 
   @override
+  String get deEsser => 'De-esser';
+
+  @override
   String get monoAudio => 'Audio mono';
 
   @override

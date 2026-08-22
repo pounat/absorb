@@ -1698,6 +1698,7 @@
   "bassBoost": "Bass Boost",
   "surround": "Surround",
   "loudness": "Loudness",
+  "deEsser": "De-esser",
   "monoAudio": "Mono Audio",
   "skipSilence": "Skip Silence",
   "resetAll": "Reset All",
