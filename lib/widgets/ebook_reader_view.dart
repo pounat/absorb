@@ -1712,21 +1712,58 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// True when an audio chapter title and a TOC chapter title plausibly name
   /// the same chapter: equal, one's words are a subset of the other's, or they
   /// share a number. Word-level, not substring - raw containment would make
-  /// "Chapter 1" match "Chapter 10".
+  /// "Chapter 1" match "Chapter 10". Spelled-out numbers normalize to digits
+  /// first, so "Chapter Nine" can't claim "Chapter Thirty-Nine" via word
+  /// subset (the hyphen splits it into two words), and "Chapter 39" matches
+  /// "Chapter Thirty-Nine" like it should.
   bool _chapterTitlesAgree(String? audio, String? toc) {
     if (audio == null || toc == null) return false;
-    Set<String> words(String s) => s
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^\p{L}\p{N} ]+', unicode: true), ' ')
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toSet();
-    final a = words(audio), t = words(toc);
+    final a = _chapterTitleWords(audio), t = _chapterTitleWords(toc);
     if (a.isEmpty || t.isEmpty) return false;
     if (a.containsAll(t) || t.containsAll(a)) return true;
     final an = a.where((w) => RegExp(r'^\d+$').hasMatch(w)).toSet();
     final tn = t.where((w) => RegExp(r'^\d+$').hasMatch(w)).toSet();
     return an.isNotEmpty && an.intersection(tn).isNotEmpty;
+  }
+
+  static const _numberUnits = {
+    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6,
+    'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12,
+    'thirteen': 13, 'fourteen': 14, 'fifteen': 15, 'sixteen': 16,
+    'seventeen': 17, 'eighteen': 18, 'nineteen': 19,
+  };
+  static const _numberTens = {
+    'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50, 'sixty': 60,
+    'seventy': 70, 'eighty': 80, 'ninety': 90,
+  };
+
+  /// Title words with spelled-out numbers collapsed to digit tokens
+  /// ("thirty nine" -> "39", "nine" -> "9").
+  Set<String> _chapterTitleWords(String s) {
+    final raw = s
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N} ]+', unicode: true), ' ')
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    final out = <String>{};
+    for (var i = 0; i < raw.length; i++) {
+      final w = raw[i];
+      final tens = _numberTens[w];
+      if (tens != null) {
+        final unit = i + 1 < raw.length ? _numberUnits[raw[i + 1]] : null;
+        if (unit != null && unit < 10) {
+          out.add('${tens + unit}');
+          i++;
+        } else {
+          out.add('$tens');
+        }
+        continue;
+      }
+      final unit = _numberUnits[w];
+      out.add(unit != null ? '$unit' : w);
+    }
+    return out;
   }
 
   /// Fuzzy passage search over the separate search Book (same instance the
@@ -2005,46 +2042,77 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     }
 
     // Which audio chapter is this section? That anchors both the initial
-    // estimate and the seconds-per-character correction rate.
+    // estimate and the seconds-per-character correction rate. Books whose
+    // chapters are plain names (alternating POV) repeat titles, so collect
+    // every agreeing audio chapter and pick by occurrence - the 3rd "Sydney"
+    // section anchors on the 3rd "Sydney" audio chapter. When the counts
+    // don't line up, take the one nearest the selection's position in the
+    // book, and keep a runner-up to probe if the first anchor turns out wrong.
     final tocTitle = _chapterForHref(href);
-    Map<String, dynamic>? audioCh;
+    final bookEnd = audio.duration > 0 ? audio.duration : double.infinity;
+    final pct = (info['pct'] as num?)?.toDouble();
+    final agreeing = <Map<String, dynamic>>[];
     for (final ch in audio.chapters) {
       final m = ch as Map<String, dynamic>;
-      if (_chapterTitlesAgree(m['title'] as String?, tocTitle)) {
-        audioCh = m;
-        break;
+      if (_chapterTitlesAgree(m['title'] as String?, tocTitle)) agreeing.add(m);
+    }
+    Map<String, dynamic>? audioCh;
+    Map<String, dynamic>? audioChAlt;
+    if (agreeing.length == 1) {
+      audioCh = agreeing.first;
+    } else if (agreeing.length > 1) {
+      // Occurrence counting walks the spine and counts transitions into the
+      // title, so a chapter split across several files still counts once and
+      // two same-named chapters separated by an unnamed split file count
+      // twice.
+      final hrefs = await _spineHrefs();
+      var occurrence = 0;
+      String? prev;
+      for (var i = 0; i <= si && i < hrefs.length; i++) {
+        final t = _chapterForHref(hrefs[i]);
+        if (t == tocTitle && prev != tocTitle) occurrence++;
+        prev = t;
       }
+      final targetFrac = (pct != null && pct > 0)
+          ? pct
+          : (hrefs.isNotEmpty ? si / hrefs.length : 0.5);
+      double fracOf(Map<String, dynamic> m) {
+        final s = (m['start'] as num?)?.toDouble() ?? 0;
+        final e = (m['end'] as num?)?.toDouble() ?? s;
+        return audio.duration > 0 ? ((s + e) / 2) / audio.duration : 0;
+      }
+      final byFrac = List<Map<String, dynamic>>.from(agreeing)
+        ..sort((x, y) => (fracOf(x) - targetFrac)
+            .abs()
+            .compareTo((fracOf(y) - targetFrac).abs()));
+      final picked = (occurrence >= 1 && occurrence <= agreeing.length)
+          ? agreeing[occurrence - 1]
+          : byFrac.first;
+      audioCh = picked;
+      for (final m in byFrac) {
+        if (!identical(m, picked)) {
+          audioChAlt = m;
+          break;
+        }
+      }
+      debugPrint('[FindAudio] "$tocTitle" matches ${agreeing.length} audio '
+          'chapters, occurrence #$occurrence -> '
+          '"${picked['title']}"@${((picked['start'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}s'
+          '${audioChAlt != null ? ', runner-up @${((audioChAlt['start'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}s' : ''}');
     }
 
-    final bookEnd = audio.duration > 0 ? audio.duration : double.infinity;
     double lo, hi, rate;
     double est;
     if (audioCh != null) {
-      final chStart = (audioCh['start'] as num?)?.toDouble() ?? 0;
-      final chEnd = (audioCh['end'] as num?)?.toDouble() ?? bookEnd;
-      final chRate = (chEnd - chStart) / total;
-      if (chRate >= 0.03 && chRate <= 0.2) {
-        lo = chStart;
-        hi = chEnd;
-        rate = chRate; // seconds of audio per character of text
-        est = chStart + offset * rate;
-        debugPrint('[FindAudio] si=$si target@${offset.toInt()}/${total.toInt()} '
-            'toc="$tocTitle" audioCh="${audioCh['title']}" '
-            '${chStart.toStringAsFixed(0)}-${chEnd.toStringAsFixed(0)}s '
-            'est=${est.toStringAsFixed(1)}');
-      } else {
-        // Mis-tagged audio chapters (a 3-second "chapter" was seen in the
-        // wild) give an absurd rate. Trust the chapter START as an anchor,
-        // pace the estimate at normal narration speed, leave the end open.
-        lo = chStart;
-        hi = bookEnd;
-        rate = _fallbackSecPerChar;
-        est = chStart + offset * rate;
-        debugPrint('[FindAudio] si=$si target@${offset.toInt()}/${total.toInt()} '
-            'audioCh="${audioCh['title']}" has absurd rate '
-            '${chRate.toStringAsFixed(5)} s/char - using its start + '
-            'narration pace, est=${est.toStringAsFixed(1)}');
-      }
+      final a = _chapterAnchorEstimate(audioCh, offset, total, bookEnd);
+      lo = a.lo;
+      hi = a.hi;
+      rate = a.rate;
+      est = a.est;
+      debugPrint('[FindAudio] si=$si target@${offset.toInt()}/${total.toInt()} '
+          'toc="$tocTitle" audioCh="${audioCh['title']}" '
+          '${lo.toStringAsFixed(0)}-${hi.isFinite ? hi.toStringAsFixed(0) : '?'}s '
+          'rate=${rate.toStringAsFixed(4)} est=${est.toStringAsFixed(1)}');
     } else {
       // Calibre-split books often have spine sections the TOC never names
       // (toc=null), or titles no audio chapter agrees with. Best fallback:
@@ -2081,7 +2149,6 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         break;
       }
 
-      final pct = (info['pct'] as num?)?.toDouble();
       if (anchoredEst != null) {
         lo = anchorStart;
         hi = bookEnd;
@@ -2102,9 +2169,79 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     }
     if (hi.isInfinite) hi = est + 3600;
 
+    final t = await _probeForTarget(
+      si: si,
+      offset: offset,
+      estimate: est,
+      lo: lo,
+      hi: hi,
+      rate: rate,
+      duration: audio.duration,
+      maxProbes: _maxProbes,
+    );
+    if (t != null) return t;
+    if (audioChAlt == null) return null;
+
+    // The picked anchor never matched; the same title elsewhere in the book
+    // might be the right one. Two probes on the runner-up before giving up.
+    final alt = _chapterAnchorEstimate(audioChAlt, offset, total, bookEnd);
+    debugPrint('[FindAudio] retrying on runner-up "${audioChAlt['title']}" '
+        'est=${alt.est.toStringAsFixed(1)}');
+    return _probeForTarget(
+      si: si,
+      offset: offset,
+      estimate: alt.est,
+      lo: alt.lo,
+      hi: alt.hi.isFinite ? alt.hi : alt.est + 3600,
+      rate: alt.rate,
+      duration: audio.duration,
+      maxProbes: 2,
+    );
+  }
+
+  /// Initial search window and seconds-per-character pacing from an audio
+  /// chapter anchor.
+  ({double lo, double hi, double rate, double est}) _chapterAnchorEstimate(
+      Map<String, dynamic> ch, double offset, double total, double bookEnd) {
+    final chStart = (ch['start'] as num?)?.toDouble() ?? 0;
+    final chEnd = (ch['end'] as num?)?.toDouble() ?? bookEnd;
+    final chRate = (chEnd - chStart) / total;
+    if (chRate >= 0.03 && chRate <= 0.2) {
+      return (
+        lo: chStart,
+        hi: chEnd,
+        rate: chRate,
+        est: chStart + offset * chRate,
+      );
+    }
+    // Mis-tagged audio chapters (a 3-second "chapter" was seen in the wild)
+    // give an absurd rate. Trust the chapter START as an anchor, pace the
+    // estimate at normal narration speed, leave the end open.
+    return (
+      lo: chStart,
+      hi: bookEnd,
+      rate: _fallbackSecPerChar,
+      est: chStart + offset * _fallbackSecPerChar,
+    );
+  }
+
+  /// Probe-transcribes around [estimate], correcting toward the selection at
+  /// [offset] each round. Returns the resolved global time, or null when
+  /// [maxProbes] rounds never matched the section text.
+  Future<double?> _probeForTarget({
+    required int si,
+    required double offset,
+    required double estimate,
+    required double lo,
+    required double hi,
+    required double rate,
+    required double duration,
+    required int maxProbes,
+  }) async {
+    var est = estimate;
     final baseEst = est;
     var scanStep = 0;
-    for (var attempt = 0; attempt < _maxProbes; attempt++) {
+    for (var attempt = 0; attempt < maxProbes; attempt++) {
       final maxStart =
           (hi - _probeWindowSeconds) > lo ? hi - _probeWindowSeconds : lo;
       final probeStart = (est - _probeWindowSeconds / 2).clamp(lo, maxStart);
@@ -2170,7 +2307,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
           acc += lens[i];
         }
         debugPrint('[FindAudio] resolved t=${t.toStringAsFixed(1)}s');
-        return audio.duration > 0 ? t.clamp(0.0, audio.duration) : t;
+        return duration > 0 ? t.clamp(0.0, duration) : t;
       }
 
       // Probe landed off-target: correct by the miss distance and retry. A
@@ -2184,7 +2321,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       }
       est = (est + correction).clamp(lo, hi);
     }
-    debugPrint('[FindAudio] gave up after $_maxProbes probes');
+    debugPrint('[FindAudio] gave up after $maxProbes probes');
     return null;
   }
 
