@@ -163,6 +163,7 @@ class BackupService {
       'bassBoost': await ScopedPrefs.getDouble('eq_bassBoost') ?? 0.0,
       'virtualizer': await ScopedPrefs.getDouble('eq_virtualizer') ?? 0.0,
       'loudnessGain': await ScopedPrefs.getDouble('eq_loudnessGain') ?? 0.0,
+      'deEsser': await ScopedPrefs.getDouble('eq_deEsser') ?? 0.0,
       'bands': await ScopedPrefs.getString('eq_bands'),
       'mono': await ScopedPrefs.getBool('eq_mono') ?? false,
       'skipSilence': await ScopedPrefs.getBool('eq_skipSilence') ?? false,
@@ -701,6 +702,7 @@ class BackupService {
       await ScopedPrefs.setDouble('eq_bassBoost', (eq['bassBoost'] as num?)?.toDouble() ?? 0.0);
       await ScopedPrefs.setDouble('eq_virtualizer', (eq['virtualizer'] as num?)?.toDouble() ?? 0.0);
       await ScopedPrefs.setDouble('eq_loudnessGain', (eq['loudnessGain'] as num?)?.toDouble() ?? 0.0);
+      await ScopedPrefs.setDouble('eq_deEsser', (eq['deEsser'] as num?)?.toDouble() ?? 0.0);
       if (eq['bands'] != null) {
         await ScopedPrefs.setString('eq_bands', eq['bands'] as String);
       }

@@ -33,6 +33,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Set bass boost strength (0-1000).
 - (void)setBassBoostStrength:(int)strength;
 
+/// Set de-esser strength (0-1000). 0 disables the effect.
+- (void)setDeEsserStrength:(int)strength;
+
 /// Set loudness gain in millibels (added on top of output).
 - (void)setLoudnessGain:(int)gainMb;
 
