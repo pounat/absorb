@@ -182,7 +182,8 @@ class HomeWidgetService {
       final stashedEpisode = await HomeWidget.getWidgetData<String>(
         'np_episode_id',
       );
-      if (stashedEpisode != episodeId) return null;
+      // '' is the stored form of "no episode" (see updateNowPlaying).
+      if ((stashedEpisode ?? '') != (episodeId ?? '')) return null;
       final pos = await HomeWidget.getWidgetData<double>('np_position_s');
       return pos;
     } catch (e) {
@@ -717,9 +718,12 @@ class HomeWidgetService {
     final itemId = player.currentItemId;
     if (itemId == null) return;
     await HomeWidget.saveWidgetData<String>('np_item_id', itemId);
-    await HomeWidget.saveWidgetData<String?>(
+    // Dart null crosses the channel as NSNull, which NSUserDefaults rejects -
+    // binaries linked against the iOS 27 SDK turn that into an uncaught
+    // exception. Store '' for "no episode"; readers treat '' as absent.
+    await HomeWidget.saveWidgetData<String>(
       'np_episode_id',
-      player.currentEpisodeId,
+      player.currentEpisodeId ?? '',
     );
 
     final posSec = player.position.inMilliseconds / 1000.0;
@@ -1181,7 +1185,9 @@ class HomeWidgetService {
     );
 
     try {
-      await HomeWidget.saveWidgetData<String?>('widget_cover_path', coverPath);
+      // '' instead of null: NSNull isn't a valid NSUserDefaults value (see
+      // np_episode_id above). Readers on both platforms skip '' paths.
+      await HomeWidget.saveWidgetData<String>('widget_cover_path', coverPath ?? '');
       await _updateAllWidgets();
     } catch (e) {
       debugPrint('[WidgetDebug] cover save failed: $e');
