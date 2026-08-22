@@ -236,6 +236,25 @@ class MainActivity : AudioServiceActivity() {
         return super.onKeyUp(keyCode, event)
     }
 
+    // Physical page-turn keys - e-ink devices like the Boox Palma map their
+    // side button to these. They must be grabbed BEFORE the view tree: a
+    // focused WebView treats PAGE_UP/DOWN as scroll keys and shifts the
+    // paginated book vertically instead of letting the app turn the page.
+    // The Dart side decides what they do (page turn in the reader, play/pause
+    // toggle otherwise).
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_PAGE_UP ||
+            event.keyCode == KeyEvent.KEYCODE_PAGE_DOWN) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                volumeKeysChannel?.invokeMethod(
+                    "pagePressed",
+                    if (event.keyCode == KeyEvent.KEYCODE_PAGE_UP) "up" else "down")
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     // Move downloaded temp files into the user's SAF folder, creating the nested
     // [subfolder] (e.g. "Author/Title") under the granted tree via the DocumentFile
     // chain so files nest correctly and stay readable through the original grant.
