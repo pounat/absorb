@@ -383,10 +383,9 @@ packages:
   flutter_epub_viewer:
     dependency: "direct main"
     description:
-      name: flutter_epub_viewer
-      sha256: "39d8ff469700fea41f103ae1ec01e06c805c3602eef0fecb1c5b325688dcb5b2"
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/flutter_epub_viewer"
+      relative: true
+    source: path
     version: "1.2.8"
   flutter_inappwebview:
     dependency: "direct main"

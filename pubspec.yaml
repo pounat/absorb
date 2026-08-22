@@ -106,8 +106,11 @@ dependencies:
   flutter_markdown_plus: ^1.0.7
   palette_generator: ^0.3.3+7
 
-  # eBook reader
-  flutter_epub_viewer: ^1.2.6
+  # eBook reader - vendored to stream book bytes into the WebView in chunks;
+  # upstream serializes the whole file into one script string, which crashed
+  # the app with OOM on a 322MB illustrated epub
+  flutter_epub_viewer:
+    path: packages/flutter_epub_viewer
 
   # PDF reader (non-EPUB ebooks route here)
   pdfrx: ^2.4.7
