@@ -24,6 +24,7 @@ import android.view.KeyEvent
 import com.ryanheise.audioservice.AudioService
 import com.ryanheise.audioservice.AudioServiceActivity
 import com.ryanheise.audioservice.AudioServicePlugin
+import com.ryanheise.just_audio.AbsorbSilenceController
 import com.ryanheise.just_audio.MonoController
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
@@ -116,6 +117,13 @@ class MainActivity : AudioServiceActivity() {
                     "setMono" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
                         MonoController.setMonoEnabled(enabled)
+                        result.success(true)
+                    }
+                    "setSkipSilence" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        val paddingMs = call.argument<Int>("paddingMs") ?: 20
+                        val thresholdDb = call.argument<Int>("thresholdDb") ?: -30
+                        AbsorbSilenceController.setParameters(enabled, paddingMs, thresholdDb)
                         result.success(true)
                     }
                     else -> result.notImplemented()

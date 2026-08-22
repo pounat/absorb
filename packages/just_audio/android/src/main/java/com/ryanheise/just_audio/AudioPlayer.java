@@ -162,6 +162,8 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
     private ExoPlayer player;
     private androidx.media3.common.audio.ChannelMixingAudioProcessor monoProcessor;
     private static androidx.media3.common.audio.ChannelMixingAudioProcessor sMonoProcessor;
+    private AbsorbSilenceAudioProcessor silenceProcessor;
+    private static AbsorbSilenceAudioProcessor sSilenceProcessor;
     private Integer audioSessionId;
     private MediaSource mediaSource;
     private Integer currentIndex;
@@ -515,7 +517,16 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
                 result.success(new HashMap<String, Object>());
                 break;
             case "setSkipSilence":
-                setSkipSilenceEnabled((Boolean) call.argument("enabled"));
+                Boolean skipEnabled = (Boolean) call.argument("enabled");
+                Integer paddingMs = call.argument("paddingMs");
+                Integer thresholdDb = call.argument("thresholdDb");
+                if (silenceProcessor != null) {
+                    silenceProcessor.setParameters(
+                        skipEnabled != null && skipEnabled,
+                        paddingMs != null ? paddingMs : AbsorbSilenceAudioProcessor.DEFAULT_PADDING_MS,
+                        thresholdDb != null ? thresholdDb : AbsorbSilenceAudioProcessor.DEFAULT_THRESHOLD_DB
+                    );
+                }
                 result.success(new HashMap<String, Object>());
                 break;
             case "setMono":
@@ -950,17 +961,20 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
                 }));
             sMonoProcessor = monoProcessor;
             MonoController.register(AudioPlayer::setMonoEnabled);
+            silenceProcessor = new AbsorbSilenceAudioProcessor();
+            sSilenceProcessor = silenceProcessor;
+            AbsorbSilenceController.register(AudioPlayer::setSilenceParameters);
             RenderersFactory renderersFactory = new DefaultRenderersFactory(context) {
                 @Override
                 protected AudioSink buildAudioSink(
                         Context context,
                         boolean enableFloatOutput,
                         boolean enableAudioTrackPlaybackParams) {
-                    Log.i(TAG, "PATCH ACTIVE: buildAudioSink with SonicAudioProcessor + MonoProcessor, AudioTrack speed DISABLED");
+                    Log.i(TAG, "PATCH ACTIVE: buildAudioSink with SonicAudioProcessor + MonoProcessor + AbsorbSilenceAudioProcessor, AudioTrack speed DISABLED");
                     return new DefaultAudioSink.Builder(context)
                         .setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(false)
-                        .setAudioProcessors(new androidx.media3.common.audio.AudioProcessor[]{sonicAudioProcessor, monoProcessor})
+                        .setAudioProcessors(new androidx.media3.common.audio.AudioProcessor[]{sonicAudioProcessor, monoProcessor, silenceProcessor})
                         .build();
                 }
             };
@@ -1190,7 +1204,13 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
     }
 
     public void setSkipSilenceEnabled(final boolean enabled) {
-        player.setSkipSilenceEnabled(enabled);
+        setSilenceParameters(enabled, AbsorbSilenceAudioProcessor.DEFAULT_PADDING_MS, AbsorbSilenceAudioProcessor.DEFAULT_THRESHOLD_DB);
+    }
+
+    public static void setSilenceParameters(final boolean enabled, final int paddingMs, final int thresholdDb) {
+        if (sSilenceProcessor != null) {
+            sSilenceProcessor.setParameters(enabled, paddingMs, thresholdDb);
+        }
     }
 
     private static void setMonoEnabled(final boolean enabled) {

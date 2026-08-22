@@ -2532,7 +2532,7 @@ class AudioPlayerService extends ChangeNotifier {
       // Wire the EQ service's skip-silence toggle through to just_audio.
       // Android-only: just_audio's setSkipSilenceEnabled is a no-op on iOS.
       if (Platform.isAndroid) {
-        EqualizerService().setSkipSilenceApplier((enabled) {
+        EqualizerService().setSkipSilenceApplier((enabled, paddingMs, thresholdDb) {
           try {
             _handler?.player.setSkipSilenceEnabled(enabled);
           } catch (e) {
