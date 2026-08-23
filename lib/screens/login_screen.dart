@@ -11,6 +11,7 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/backup_service.dart';
 import '../services/oidc_service.dart';
+import '../services/settings_sync_service.dart';
 import '../services/setup_link_service.dart';
 import '../services/user_account_service.dart';
 import '../widgets/absorb_wave_icon.dart';
@@ -1008,6 +1009,8 @@ class _LoginScreenState extends State<LoginScreen>
         final l3 = AppLocalizations.of(context)!;
         showOverlayToast(context, l3.loginSettingsRestored, icon: Icons.check_circle_outline_rounded);
       }
+
+      await SettingsSyncService().resolveSourceAfterRestore();
     } catch (e) {
       if (mounted) {
         final l4 = AppLocalizations.of(context)!;

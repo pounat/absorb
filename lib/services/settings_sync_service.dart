@@ -459,6 +459,82 @@ class SettingsSyncService {
     );
   }
 
+  /// A restored backup can carry the sync setup, but its content is a copy of
+  /// another phone's past, not edits made here - so it must not race the
+  /// server. Fingerprint the restored state as already-uploaded first (nothing
+  /// pushes on its own), start syncing, then ask which copy wins: the server's
+  /// last sync, or this backup - which replaces the file on the server for
+  /// every synced device. Dismissing the dialog leaves the server as the
+  /// source: the cleared last-seen stamp means the next pull applies it.
+  Future<void> resolveSourceAfterRestore() async {
+    if (!await getEnabled()) return;
+    try {
+      await _setLastHash(_hash(await buildPayload()));
+    } catch (_) {}
+    start();
+    final navigator = rootNavigatorKey.currentState;
+    final context = navigator?.context;
+    if (context == null || !context.mounted) return;
+    final l = AppLocalizations.of(context)!;
+    final useBackup = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.syncSourceTitle),
+        content: Text(l.syncSourceBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.syncSourceUseBackup),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.syncSourceUseServer),
+          ),
+        ],
+      ),
+    );
+    if (useBackup == null) return;
+    if (useBackup) {
+      final r = await push();
+      r.ok ? _toastUploaded() : _toastProblem();
+      return;
+    }
+    var r = await pull(force: true);
+    if (r.status == SyncStatus.noRemote) {
+      // Nothing on the server to prefer - seed it with what this device has.
+      r = await push();
+      r.ok ? _toastUploaded() : _toastProblem();
+      return;
+    }
+    if (r.ok && r.message == 'applied') {
+      _toastApplied(_lastApplyCount);
+    } else if (!r.ok) {
+      _toastProblem();
+    }
+  }
+
+  void _toastUploaded() {
+    final navigator = rootNavigatorKey.currentState;
+    if (navigator == null) return;
+    final l = AppLocalizations.of(navigator.context);
+    showNavigatorOverlayToast(
+      navigator,
+      l?.syncSettingsUploaded ?? 'Settings uploaded',
+      icon: Icons.cloud_upload_rounded,
+    );
+  }
+
+  void _toastProblem() {
+    final navigator = rootNavigatorKey.currentState;
+    if (navigator == null) return;
+    final l = AppLocalizations.of(navigator.context);
+    showNavigatorOverlayToast(
+      navigator,
+      l?.syncSettingsStatusProblem ?? 'Could not reach your server',
+      icon: Icons.cloud_off_rounded,
+    );
+  }
+
   /// Whether this device is holding changes it has not managed to upload.
   Future<bool> _hasUnsentChanges() async {
     try {

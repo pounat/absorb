@@ -347,6 +347,9 @@ class _BackupSyncScreenState extends State<BackupSyncScreen> {
         showOverlayToast(context, l.settingsRestoredSuccessfully,
             icon: Icons.check_circle_outline_rounded);
       }
+
+      await _sync.resolveSourceAfterRestore();
+      await _load();
     } catch (e) {
       if (mounted) {
         showOverlayToast(context, l.restoreFailed(e.toString()),
