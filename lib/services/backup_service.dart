@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../widgets/nav_hold_options.dart'
+    show navHoldTabs, navHoldPrefKey, navHoldMenuPrefKey;
 import 'audio_player_service.dart';
 import 'reader_font_service.dart';
 import 'scoped_prefs.dart';
@@ -309,6 +311,20 @@ class BackupService {
       'volumeNavWhilePlaying': await PlayerSettings.getEreaderVolumeNavWhilePlaying(),
     };
 
+    // Nav-tab hold shortcuts (scoped): one entry per tab plus the arrangement
+    // of the hold menu. A shortcut that means nothing on the receiving device
+    // (an admin page, ReadMeABook) is filtered out when the menu is drawn, so
+    // travelling is safe.
+    final navHold = <String, dynamic>{};
+    for (final tab in navHoldTabs) {
+      final v = await ScopedPrefs.getString(navHoldPrefKey(tab));
+      if (v != null && v.isNotEmpty) navHold[tab] = v;
+    }
+    final navHoldMenu = await ScopedPrefs.getString(navHoldMenuPrefKey);
+    if (navHoldMenu != null && navHoldMenu.isNotEmpty) {
+      navHold['menuIds'] = navHoldMenu;
+    }
+
     // Per-podcast UI prefs (GLOBAL, not scoped - keyed by itemId)
     final podcastPrefs = <String, Map<String, dynamic>>{};
     void collectPodcast(String prefix, String bucket, Object? Function(String) read) {
@@ -399,6 +415,7 @@ class BackupService {
       'metadataOverrides': metadataOverrides,
       'ebookAnnotations': ebookAnnotations,
       'ereader': ereader,
+      if (navHold.isNotEmpty) 'navHold': navHold,
       'podcastPrefs': podcastPrefs,
       'customDownloadPath': customDownloadPath,
       if (settingsSync.isNotEmpty) 'settingsSync': settingsSync,
@@ -926,6 +943,21 @@ class BackupService {
       }
       if (er['volumeNav'] != null) await PlayerSettings.setEreaderVolumeNav(er['volumeNav'] as String);
       if (er['volumeNavWhilePlaying'] != null) await PlayerSettings.setEreaderVolumeNavWhilePlaying(er['volumeNavWhilePlaying'] as bool);
+    }
+
+    // Nav-tab hold shortcuts (scoped)
+    final navHold = data['navHold'] as Map<String, dynamic>?;
+    if (navHold != null) {
+      for (final tab in navHoldTabs) {
+        final v = navHold[tab];
+        if (v is String && v.isNotEmpty) {
+          await ScopedPrefs.setString(navHoldPrefKey(tab), v);
+        }
+      }
+      final menuIds = navHold['menuIds'];
+      if (menuIds is String && menuIds.isNotEmpty) {
+        await ScopedPrefs.setString(navHoldMenuPrefKey, menuIds);
+      }
     }
 
     // Per-podcast UI prefs (GLOBAL, not scoped)

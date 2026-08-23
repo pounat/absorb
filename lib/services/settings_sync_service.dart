@@ -109,6 +109,7 @@ class SettingsSyncService {
     'metadataOverrides',
     'ebookAnnotations',
     'ereader',
+    'navHold',
     'podcastPrefs',
   };
 
