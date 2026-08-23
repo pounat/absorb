@@ -14211,6 +14211,66 @@ abstract class AppLocalizations {
   /// **'Stop playback'**
   String get navHoldStop;
 
+  /// No description provided for @navHoldRmabSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'ReadMeABook search'**
+  String get navHoldRmabSearch;
+
+  /// No description provided for @navHoldRmabRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'My book requests'**
+  String get navHoldRmabRequests;
+
+  /// No description provided for @navHoldRmabWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'ReadMeABook site'**
+  String get navHoldRmabWeb;
+
+  /// No description provided for @navHoldAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get navHoldAdd;
+
+  /// No description provided for @navHoldMoveLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Move left'**
+  String get navHoldMoveLeft;
+
+  /// No description provided for @navHoldMoveRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Move right'**
+  String get navHoldMoveRight;
+
+  /// No description provided for @navHoldRemoveFromMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from menu'**
+  String get navHoldRemoveFromMenu;
+
+  /// No description provided for @navHoldEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold an item to move or remove it'**
+  String get navHoldEditHint;
+
+  /// No description provided for @navHoldResetMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset the hold menu items'**
+  String get navHoldResetMenu;
+
+  /// No description provided for @navHoldMenuReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu items reset'**
+  String get navHoldMenuReset;
+
   /// No description provided for @bookStatsAction.
   ///
   /// In en, this message translates to:

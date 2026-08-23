@@ -8226,6 +8226,36 @@ class AppLocalizationsJa extends AppLocalizations {
   String get navHoldStop => 'Stop playback';
 
   @override
+  String get navHoldRmabSearch => 'ReadMeABook search';
+
+  @override
+  String get navHoldRmabRequests => 'My book requests';
+
+  @override
+  String get navHoldRmabWeb => 'ReadMeABook site';
+
+  @override
+  String get navHoldAdd => 'Add';
+
+  @override
+  String get navHoldMoveLeft => 'Move left';
+
+  @override
+  String get navHoldMoveRight => 'Move right';
+
+  @override
+  String get navHoldRemoveFromMenu => 'Remove from menu';
+
+  @override
+  String get navHoldEditHint => 'Hold an item to move or remove it';
+
+  @override
+  String get navHoldResetMenu => 'Reset the hold menu items';
+
+  @override
+  String get navHoldMenuReset => 'Menu items reset';
+
+  @override
   String get bookStatsAction => 'Listening stats';
 
   @override
