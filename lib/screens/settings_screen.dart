@@ -504,6 +504,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           actions: [
             TextButton(
+              onPressed: () async {
+                await ScopedPrefs.remove(navHoldMenuPrefKey);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                showOverlayToast(context, l.navHoldMenuReset,
+                    icon: Icons.refresh_rounded);
+              },
+              child: Text(l.navHoldResetMenu),
+            ),
+            TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: Text(l.done),
             ),

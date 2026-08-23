@@ -30,6 +30,9 @@ const navHoldOptions = [
   NavHoldOption('offline', Icons.cloud_off_rounded),
   NavHoldOption('readBook', Icons.menu_book_rounded),
   NavHoldOption('scanSeries', Icons.travel_explore_rounded),
+  NavHoldOption('rmabSearch', Icons.auto_stories_rounded),
+  NavHoldOption('rmabRequests', Icons.playlist_add_check_rounded),
+  NavHoldOption('rmabWeb', Icons.public_rounded),
   NavHoldOption('admin', Icons.admin_panel_settings_rounded, isFolder: true),
   NavHoldOption('scan', Icons.sync_rounded, isFolder: true),
   NavHoldOption('menu', Icons.apps_rounded),
@@ -110,6 +113,9 @@ String navHoldLabel(
     'offline' => l.navHoldOfflineMode,
     'readBook' => l.navHoldReadBook,
     'scanSeries' => l.upcomingReleasesScanSeries,
+    'rmabSearch' => l.navHoldRmabSearch,
+    'rmabRequests' => l.navHoldRmabRequests,
+    'rmabWeb' => l.navHoldRmabWeb,
     'menu' => l.navHoldMenu,
     'none' => l.navHoldNothing,
     _ => id,
@@ -117,20 +123,63 @@ String navHoldLabel(
 }
 
 /// Every id a saved choice may hold, in the order the settings dropdown shows
-/// them. Admin entries and server scans are only offered to admins.
+/// them. Admin entries and server scans are only offered to admins, and the
+/// ReadMeABook ones only once it is set up.
 List<String> navHoldAllIds({
   required bool isAdmin,
   required List<String> libraryIds,
+  bool rmabConfigured = true,
+  bool rmabWeb = true,
 }) =>
     [
       for (final o in navHoldOptions)
-        if (!o.isFolder) o.id,
+        if (!o.isFolder && navHoldIdAvailable(o.id,
+            isAdmin: isAdmin, rmabConfigured: rmabConfigured, rmabWeb: rmabWeb))
+          o.id,
       if (isAdmin) ...[
         for (final p in navHoldAdminPages) 'admin:$p',
         'scan:all',
         for (final id in libraryIds) 'scan:$id',
       ],
     ];
+
+/// Whether an id can do anything on this account right now. A choice that
+/// can't (admin pages after losing admin, ReadMeABook before it is set up)
+/// is hidden rather than offered as a dead end.
+bool navHoldIdAvailable(
+  String id, {
+  required bool isAdmin,
+  required bool rmabConfigured,
+  required bool rmabWeb,
+}) {
+  if (id.startsWith('admin') || id.startsWith('scan:')) return isAdmin;
+  if (id == 'rmabWeb') return rmabWeb;
+  if (id.startsWith('rmab')) return rmabConfigured;
+  return true;
+}
+
+/// What the "Always show menu" grid holds until the user edits it: every
+/// simple action available to them, folders included so admin pages and
+/// scans are still reachable.
+List<String> navHoldDefaultMenu({
+  required bool isAdmin,
+  required bool rmabConfigured,
+  required bool rmabWeb,
+}) =>
+    [
+      for (final o in navHoldOptions)
+        if (o.id != 'menu' &&
+            o.id != 'none' &&
+            navHoldIdAvailable(o.id,
+                isAdmin: isAdmin,
+                rmabConfigured: rmabConfigured,
+                rmabWeb: rmabWeb))
+          o.id,
+    ];
+
+/// The user's own arrangement of the hold menu (ordered ids, folders and
+/// composites allowed). Absent means they haven't customised it.
+const navHoldMenuPrefKey = 'navHoldMenuIds';
 
 /// Stable per-tab keys, so a hold choice follows the tab rather than its
 /// position - the Podcasts tab appears and disappears, which would shift

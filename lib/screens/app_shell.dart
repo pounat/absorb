@@ -18,8 +18,13 @@ import '../utils/cover_accent.dart';
 import '../main.dart'
     show snappyTransitionsNotifier, einkModeNotifier, coverSchemeNotifier, rootNavigatorKey, applyOrientationLock, applyEinkModeTheme;
 import '../services/scoped_prefs.dart';
+import 'dart:convert';
 import 'admin_screen.dart';
 import 'admin_api_keys_screen.dart';
+import 'admin_rmab_screen.dart';
+import '../widgets/rmab_config_sheet.dart'
+    show showRmabConfigSheet, kRmabBaseUrlKey, kRmabApiTokenKey, kRmabLegacyUrlKey;
+import '../widgets/rmab_search_results_sheet.dart';
 import 'admin_email_screen.dart';
 import 'admin_libraries_screen.dart';
 import 'admin_server_logs_screen.dart';
@@ -892,14 +897,35 @@ class _AppShellState extends State<AppShell>
     };
   }
 
+  bool _rmabConfigured = false;
+  bool _rmabWeb = false;
+
+  Future<void> _loadRmabAvailability() async {
+    final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
+    final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+    final legacy = await ScopedPrefs.getString(kRmabLegacyUrlKey);
+    _rmabConfigured =
+        (base?.isNotEmpty ?? false) && (token?.isNotEmpty ?? false);
+    // The site opens from the legacy URL when there is one, otherwise the
+    // API base's origin - same rule the setup sheet's button uses.
+    _rmabWeb = (legacy?.isNotEmpty ?? false) || (base?.isNotEmpty ?? false);
+  }
+
   Future<void> _runNavHold(String tab) async {
     final key = navHoldPrefKey(tab);
     var id = await ScopedPrefs.getString(key) ?? navHoldDefaults[tab];
     if (!mounted) return;
     final isAdmin = context.read<AuthProvider>().isAdmin;
-    // A saved admin or scan choice is dead weight on an account that lost its
-    // admin rights - ask again rather than doing nothing.
-    if (!isAdmin && (id?.startsWith('admin') == true || id?.startsWith('scan:') == true)) {
+    await _loadRmabAvailability();
+    if (!mounted) return;
+    // A choice that can't act on this account - admin pages after losing
+    // admin, ReadMeABook before it is set up - asks again instead of doing
+    // nothing.
+    if (id != null &&
+        !navHoldIdAvailable(id,
+            isAdmin: isAdmin,
+            rmabConfigured: _rmabConfigured,
+            rmabWeb: _rmabWeb)) {
       id = null;
     }
     if (id == null) {
@@ -930,57 +956,217 @@ class _AppShellState extends State<AppShell>
   Future<String?> _showNavHoldPicker(String tab, bool isAdmin,
       {bool forRun = false}) async {
     final l = AppLocalizations.of(context)!;
+    // Launcher mode shows the user's own arrangement, which they can edit in
+    // place; setup mode always offers everything.
+    var ids = forRun ? await _launcherIds(isAdmin) : <String>[];
+    if (!mounted) return null;
     final picked = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (ctx) {
-        final tt = Theme.of(ctx).textTheme;
-        final cs = Theme.of(ctx).colorScheme;
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    forRun
-                        ? navHoldTabLabel(tab, l)
-                        : l.navHoldPickTitle(navHoldTabLabel(tab, l)),
-                    style: tt.titleMedium,
-                  ),
-                  if (!forRun) ...[
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final tt = Theme.of(ctx).textTheme;
+          final cs = Theme.of(ctx).colorScheme;
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      forRun
+                          ? navHoldTabLabel(tab, l)
+                          : l.navHoldPickTitle(navHoldTabLabel(tab, l)),
+                      style: tt.titleMedium,
+                    ),
                     const SizedBox(height: 6),
                     Text(
-                      l.navHoldPickBody,
+                      forRun ? l.navHoldEditHint : l.navHoldPickBody,
                       style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                     ),
-                  ],
-                  const SizedBox(height: 14),
-                  ActionPillGrid(items: [
-                    for (final o in navHoldOptions)
-                      if ((isAdmin || (o.id != 'admin' && o.id != 'scan')) &&
-                          (!forRun || (o.id != 'menu' && o.id != 'none')))
+                    const SizedBox(height: 14),
+                    if (forRun)
+                      ActionPillGrid(items: [
+                        for (final id in ids)
+                          ActionPillData(
+                            icon: _iconForId(id),
+                            label: navHoldLabel(id, l,
+                                libraryName: _libraryNameOf),
+                            onTap: () => Navigator.pop(ctx, id),
+                            onLongPress: () async {
+                              final next = await _editMenuItem(ids, id);
+                              if (next != null) setSheetState(() => ids = next);
+                            },
+                          ),
                         ActionPillData(
-                          icon: o.icon,
-                          label: navHoldLabel(o.id, l),
-                          onTap: () => Navigator.pop(ctx, o.id),
+                          icon: Icons.add_rounded,
+                          label: l.navHoldAdd,
+                          onTap: () async {
+                            final next = await _addMenuItem(ids, isAdmin);
+                            if (next != null) setSheetState(() => ids = next);
+                          },
                         ),
-                  ]),
-                ],
+                      ])
+                    else
+                      ActionPillGrid(items: [
+                        for (final o in navHoldOptions)
+                          if ((o.isFolder
+                                  ? isAdmin
+                                  : navHoldIdAvailable(o.id,
+                                      isAdmin: isAdmin,
+                                      rmabConfigured: _rmabConfigured,
+                                      rmabWeb: _rmabWeb)))
+                            ActionPillData(
+                              icon: o.icon,
+                              label: navHoldLabel(o.id, l),
+                              onTap: () => Navigator.pop(ctx, o.id),
+                            ),
+                      ]),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
     if (picked == null || !mounted) return null;
     // Folders open a second sheet; anything else is the answer.
     if (picked == 'admin') return _showNavHoldSubSheet(_adminSubItems());
     if (picked == 'scan') return _showNavHoldSubSheet(_scanSubItems());
     return picked;
+  }
+
+  /// The hold menu's contents: the user's saved arrangement, minus anything
+  /// that no longer applies, or the default set when untouched.
+  Future<List<String>> _launcherIds(bool isAdmin) async {
+    final raw = await ScopedPrefs.getString(navHoldMenuPrefKey);
+    List<String>? saved;
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        saved = (jsonDecode(raw) as List<dynamic>).cast<String>();
+      } catch (_) {}
+    }
+    final ids = saved ??
+        navHoldDefaultMenu(
+          isAdmin: isAdmin,
+          rmabConfigured: _rmabConfigured,
+          rmabWeb: _rmabWeb,
+        );
+    return [
+      for (final id in ids)
+        if (navHoldIdAvailable(id,
+            isAdmin: isAdmin,
+            rmabConfigured: _rmabConfigured,
+            rmabWeb: _rmabWeb))
+          id,
+    ];
+  }
+
+  Future<void> _saveLauncherIds(List<String> ids) =>
+      ScopedPrefs.setString(navHoldMenuPrefKey, jsonEncode(ids));
+
+  IconData _iconForId(String id) {
+    if (id.startsWith('admin:')) return navHoldAdminIcon(id.substring(6));
+    if (id.startsWith('scan:')) {
+      return id == 'scan:all' ? Icons.sync_rounded : Icons.folder_rounded;
+    }
+    for (final o in navHoldOptions) {
+      if (o.id == id) return o.icon;
+    }
+    return Icons.bolt_rounded;
+  }
+
+  String? _libraryNameOf(String libraryId) {
+    for (final lib in context.read<LibraryProvider>().libraries) {
+      if (lib['id'] == libraryId) return lib['name'] as String?;
+    }
+    return null;
+  }
+
+  /// Hold a menu pill: shuffle it along or drop it. Returns the new order, or
+  /// null when nothing changed.
+  Future<List<String>?> _editMenuItem(List<String> ids, String id) async {
+    final l = AppLocalizations.of(context)!;
+    final i = ids.indexOf(id);
+    if (i < 0) return null;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+            child: Text(navHoldLabel(id, AppLocalizations.of(ctx)!,
+                libraryName: _libraryNameOf)),
+          ),
+          if (i > 0)
+            ListTile(
+              leading: const Icon(Icons.arrow_back_rounded),
+              title: Text(l.navHoldMoveLeft),
+              onTap: () => Navigator.pop(ctx, 'left'),
+            ),
+          if (i < ids.length - 1)
+            ListTile(
+              leading: const Icon(Icons.arrow_forward_rounded),
+              title: Text(l.navHoldMoveRight),
+              onTap: () => Navigator.pop(ctx, 'right'),
+            ),
+          ListTile(
+            leading: Icon(Icons.remove_circle_outline_rounded,
+                color: Theme.of(ctx).colorScheme.error),
+            title: Text(l.navHoldRemoveFromMenu,
+                style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+            onTap: () => Navigator.pop(ctx, 'remove'),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (action == null) return null;
+    final next = [...ids];
+    switch (action) {
+      case 'left':
+        next
+          ..removeAt(i)
+          ..insert(i - 1, id);
+      case 'right':
+        next
+          ..removeAt(i)
+          ..insert(i + 1, id);
+      case 'remove':
+        next.removeAt(i);
+    }
+    await _saveLauncherIds(next);
+    return next;
+  }
+
+  /// Add anything not already in the menu, admin pages and library scans
+  /// included, so a page like Users can sit on the front grid.
+  Future<List<String>?> _addMenuItem(List<String> ids, bool isAdmin) async {
+    final l = AppLocalizations.of(context)!;
+    final all = navHoldAllIds(
+      isAdmin: isAdmin,
+      libraryIds: [
+        for (final lib in context.read<LibraryProvider>().libraries)
+          if ((lib['id'] as String?)?.isNotEmpty == true) lib['id'] as String,
+      ],
+      rmabConfigured: _rmabConfigured,
+      rmabWeb: _rmabWeb,
+    ).where((id) =>
+        id != 'menu' && id != 'none' && !ids.contains(id)).toList();
+    if (all.isEmpty) return null;
+    final picked = await _showNavHoldSubSheet([
+      for (final id in all)
+        (id, _iconForId(id), navHoldLabel(id, l, libraryName: _libraryNameOf)),
+    ]);
+    if (picked == null) return null;
+    final next = [...ids, picked];
+    await _saveLauncherIds(next);
+    return next;
   }
 
   List<(String, IconData, String)> _adminSubItems() {
@@ -1106,6 +1292,14 @@ class _AppShellState extends State<AppShell>
             MaterialPageRoute(
                 builder: (_) =>
                     const UpcomingReleasesScreen(openScanChooser: true)));
+      case 'rmabSearch':
+        showRmabSearchResultsSheet(context, initialQuery: '');
+      case 'rmabRequests':
+        // The setup sheet opens on its My Requests tab.
+        showRmabConfigSheet(context,
+            isAdminContext: context.read<AuthProvider>().isAdmin);
+      case 'rmabWeb':
+        unawaited(_openRmabSite());
       case 'none':
         break;
     }
@@ -1151,6 +1345,23 @@ class _AppShellState extends State<AppShell>
     if (!mounted) return;
     await Navigator.push(
         context, MaterialPageRoute(builder: (_) => screen!));
+  }
+
+  /// Open the ReadMeABook site in the in-app browser: the legacy URL when one
+  /// is set, otherwise the API base's origin.
+  Future<void> _openRmabSite() async {
+    final legacy = await ScopedPrefs.getString(kRmabLegacyUrlKey);
+    var target = legacy ?? '';
+    if (target.isEmpty) {
+      final base = await ScopedPrefs.getString(kRmabBaseUrlKey) ?? '';
+      final uri = Uri.tryParse(base.trim());
+      target = (uri != null && uri.hasScheme && uri.host.isNotEmpty)
+          ? uri.origin
+          : '';
+    }
+    if (!mounted || target.isEmpty) return;
+    await Navigator.push(
+        context, MaterialPageRoute(builder: (_) => AdminRmabScreen(url: target)));
   }
 
   /// Kick off a server-side scan of one library, or every library.
