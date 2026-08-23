@@ -72,7 +72,12 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   String? _shelfError;
   int _shelfReq = 0;
 
-  bool get _isShelfFilter => _filter == 'upnext' || _filter == 'new';
+  /// Filters that don't come from the paged recent-episodes feed. "Finished"
+  /// is one of them because that endpoint deliberately leaves finished
+  /// episodes out, so filtering its pages for them could only ever come back
+  /// empty.
+  bool get _isShelfFilter =>
+      _filter == 'upnext' || _filter == 'new' || _filter == 'finished';
 
   @override
   void initState() {
@@ -152,11 +157,11 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     }
   }
 
-  /// "Up Next" maps to the personalized view's continue-listening shelf,
-  /// "New" to newest-episodes - the shelves the old podcast home page
-  /// showed before the Podcasts tab replaced it. Always refetches on entry
-  /// (progress changes reshape Up Next server-side); previous rows for the
-  /// same shelf stay visible while the refresh runs.
+  /// "New" maps to the personalized view's newest-episodes shelf. "Up Next"
+  /// is worked out here instead: the server's continue-listening shelf only
+  /// knows about episodes already started, so a show you are partway through
+  /// disappeared from Up Next the moment you finished an episode, and the one
+  /// waiting for you never showed up at all.
   Future<void> _loadShelf() async {
     final wanted = _filter;
     final req = ++_shelfReq;
@@ -167,6 +172,10 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       _shelfError = null;
       if (_loadedShelfFilter != wanted) _shelfEpisodes.clear();
     });
+    if (wanted == 'upnext' || wanted == 'finished') {
+      await _loadFromShows(req, wanted);
+      return;
+    }
     final shelves = await api.getPersonalizedView(widget.libraryId, limit: 50);
     // The token guards A -> B -> A chip flips, where the filter check alone
     // would let the first A response overwrite the second's.
@@ -182,8 +191,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       });
       return;
     }
-    final shelfId =
-        wanted == 'upnext' ? 'continue-listening' : 'newest-episodes';
+    const shelfId = 'newest-episodes';
     final shelf = shelves.whereType<Map<String, dynamic>>().firstWhere(
           (s) => s['id'] == shelfId && s['type'] == 'episode',
           orElse: () => const <String, dynamic>{},
@@ -198,6 +206,123 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       _shelfLoading = false;
     });
   }
+
+  /// Show payloads keep their episode lists for the session - Up Next has to
+  /// walk every started show, and a podcast item is a heavy fetch.
+  static final _showCache = <String, Map<String, dynamic>>{};
+
+  /// Both of these are built from the shows the user has actually listened
+  /// to, because the library's recent-episodes feed can't answer either one:
+  /// it never returns finished episodes, and it knows nothing about which
+  /// episode comes next in a show.
+  ///
+  /// Up Next: per show, the episode being listened to plus the next one
+  /// waiting after it - a show that is fully caught up contributes nothing.
+  /// Finished: every episode marked finished, most recent first.
+  Future<void> _loadFromShows(int req, String wanted) async {
+    final api = context.read<AuthProvider>().apiService;
+    final lib = context.read<LibraryProvider>();
+    if (api == null) return;
+    final showIds = lib.podcastShowIdsWithProgress();
+    final rows = <Map<String, dynamic>>[];
+    final finishedAt = <String, int>{};
+    var scanned = 0;
+    for (final showId in showIds) {
+      var show = _showCache[showId];
+      if (show == null) {
+        final fetched = await api.getLibraryItem(showId);
+        if (!mounted || _filter != wanted || req != _shelfReq) return;
+        if (fetched == null) continue;
+        _showCache[showId] = fetched;
+        show = fetched;
+      }
+      // Progress is app-wide; this feed only speaks for its own library.
+      if ((show['libraryId'] as String?) != widget.libraryId) continue;
+      scanned++;
+      final media = show['media'] as Map<String, dynamic>? ?? const {};
+      final episodes = (media['episodes'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (episodes.isEmpty) continue;
+      // Oldest first, so "the next one" is the next one released.
+      episodes.sort((a, b) {
+        final pa = (a['publishedAt'] as num?)?.toInt() ??
+            (a['index'] as num?)?.toInt() ??
+            0;
+        final pb = (b['publishedAt'] as num?)?.toInt() ??
+            (b['index'] as num?)?.toInt() ??
+            0;
+        return pa.compareTo(pb);
+      });
+      if (wanted == 'finished') {
+        for (final ep in episodes) {
+          final epId = ep['id'] as String? ?? '';
+          if (epId.isEmpty) continue;
+          final pd = lib.getEpisodeProgressData(showId, epId);
+          if (pd?['isFinished'] != true) continue;
+          finishedAt['$showId-$epId'] =
+              (pd?['finishedAt'] as num?)?.toInt() ?? 0;
+          rows.add(_showEpisodeRow(ep, showId, show));
+        }
+        continue;
+      }
+      Map<String, dynamic>? inProgress;
+      Map<String, dynamic>? next;
+      var lastTouched = -1;
+      for (var i = 0; i < episodes.length; i++) {
+        final epId = episodes[i]['id'] as String? ?? '';
+        if (epId.isEmpty) continue;
+        final pd = lib.getEpisodeProgressData(showId, epId);
+        final finished = pd?['isFinished'] == true;
+        final progress = lib.getEpisodeProgress(showId, epId);
+        if (pd != null && (finished || progress > 0)) lastTouched = i;
+        if (!finished && progress > 0) inProgress ??= episodes[i];
+      }
+      for (var i = lastTouched + 1; i < episodes.length; i++) {
+        final epId = episodes[i]['id'] as String? ?? '';
+        if (epId.isEmpty) continue;
+        final pd = lib.getEpisodeProgressData(showId, epId);
+        if (pd?['isFinished'] == true) continue;
+        if (lib.getEpisodeProgress(showId, epId) > 0) continue;
+        next = episodes[i];
+        break;
+      }
+      for (final ep in [if (inProgress != null) inProgress, if (next != null) next]) {
+        rows.add(_showEpisodeRow(ep, showId, show));
+      }
+    }
+    if (!mounted || _filter != wanted || req != _shelfReq) return;
+    if (wanted == 'finished') {
+      rows.sort((a, b) {
+        final ka = '${a['libraryItemId']}-${a['id']}';
+        final kb = '${b['libraryItemId']}-${b['id']}';
+        return (finishedAt[kb] ?? 0).compareTo(finishedAt[ka] ?? 0);
+      });
+    }
+    debugPrint('[EpisodeFeed] $wanted: ${showIds.length} started shows, '
+        '$scanned in this library -> ${rows.length} episodes');
+    setState(() {
+      _shelfEpisodes
+        ..clear()
+        ..addAll(rows);
+      _loadedShelfFilter = wanted;
+      _shelfLoading = false;
+    });
+  }
+
+  Map<String, dynamic> _showEpisodeRow(
+    Map<String, dynamic> ep,
+    String showId,
+    Map<String, dynamic> show,
+  ) =>
+      <String, dynamic>{
+        ...ep,
+        'duration': ep['duration'] ??
+            (ep['audioFile'] as Map<String, dynamic>?)?['duration'],
+        'libraryItemId': showId,
+        'libraryId': widget.libraryId,
+        'podcast': show,
+      };
 
   /// Personalized shelf entities are minified library items with the episode
   /// attached as `recentEpisode`. Flatten to the feed's episode shape.

@@ -764,6 +764,20 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     return data;
   }
 
+  /// Shows the user has started or finished at least one episode of. The
+  /// progress map is the only place that knows this without walking every
+  /// show's episode list.
+  Set<String> podcastShowIdsWithProgress() {
+    final out = <String>{};
+    for (final p in _progressMap.values) {
+      final ep = p['episodeId'];
+      if (ep is! String || ep.isEmpty) continue;
+      final id = p['libraryItemId'];
+      if (id is String && id.isNotEmpty) out.add(id);
+    }
+    return out;
+  }
+
   /// Count of episodes in [show] that the user hasn't finished (includes
   /// partially-played and never-started episodes). Used by tile badges and
   /// the show sheet header.
