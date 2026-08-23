@@ -14139,6 +14139,240 @@ abstract class AppLocalizations {
   /// **'Not synced yet'**
   String get syncSettingsNever;
 
+  /// No description provided for @navHoldPickTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Holding {tab} will...'**
+  String navHoldPickTitle(String tab);
+
+  /// No description provided for @navHoldPickBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what a long press on this tab does. You can change it later in Settings.'**
+  String get navHoldPickBody;
+
+  /// No description provided for @navHoldSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tab hold shortcuts'**
+  String get navHoldSettingTitle;
+
+  /// No description provided for @navHoldSettingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What holding each tab does'**
+  String get navHoldSettingSubtitle;
+
+  /// No description provided for @navHoldAskNextTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask next time'**
+  String get navHoldAskNextTime;
+
+  /// No description provided for @navHoldNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing'**
+  String get navHoldNothing;
+
+  /// No description provided for @navHoldPlayPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Play / pause'**
+  String get navHoldPlayPause;
+
+  /// No description provided for @navHoldOfflineMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline mode'**
+  String get navHoldOfflineMode;
+
+  /// No description provided for @navHoldOfflineOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline mode on'**
+  String get navHoldOfflineOn;
+
+  /// No description provided for @navHoldOfflineOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline mode off'**
+  String get navHoldOfflineOff;
+
+  /// No description provided for @navHoldMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Always show menu'**
+  String get navHoldMenu;
+
+  /// No description provided for @navHoldStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop playback'**
+  String get navHoldStop;
+
+  /// No description provided for @bookStatsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening stats'**
+  String get bookStatsAction;
+
+  /// No description provided for @bookStatsYou.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get bookStatsYou;
+
+  /// No description provided for @bookStatsEveryone.
+  ///
+  /// In en, this message translates to:
+  /// **'Everyone'**
+  String get bookStatsEveryone;
+
+  /// No description provided for @bookStatsListened.
+  ///
+  /// In en, this message translates to:
+  /// **'Time listened'**
+  String get bookStatsListened;
+
+  /// No description provided for @bookStatsSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get bookStatsSessions;
+
+  /// No description provided for @bookStatsFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'First listened'**
+  String get bookStatsFirst;
+
+  /// No description provided for @bookStatsLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Last listened'**
+  String get bookStatsLast;
+
+  /// No description provided for @bookStatsListeners.
+  ///
+  /// In en, this message translates to:
+  /// **'People who started it'**
+  String get bookStatsListeners;
+
+  /// No description provided for @bookStatsFinishedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'People who finished it'**
+  String get bookStatsFinishedCount;
+
+  /// No description provided for @bookStatsTotalTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time listened by everyone'**
+  String get bookStatsTotalTime;
+
+  /// No description provided for @bookStatsNobody.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has started this yet'**
+  String get bookStatsNobody;
+
+  /// No description provided for @bookStatsScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning through sessions, this could take a while...'**
+  String get bookStatsScanning;
+
+  /// No description provided for @bookStatsScanningCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning through sessions, {done} of {total} people...'**
+  String bookStatsScanningCount(int done, int total);
+
+  /// No description provided for @bookStatsLastChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked {when}'**
+  String bookStatsLastChecked(String when);
+
+  /// No description provided for @navHoldServerScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Server scan'**
+  String get navHoldServerScan;
+
+  /// No description provided for @navHoldScanAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan all libraries'**
+  String get navHoldScanAll;
+
+  /// No description provided for @navHoldScanLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan {name}'**
+  String navHoldScanLibrary(String name);
+
+  /// No description provided for @navHoldScanStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan started'**
+  String get navHoldScanStarted;
+
+  /// No description provided for @navHoldScanFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start the scan'**
+  String get navHoldScanFailed;
+
+  /// No description provided for @navHoldAdminLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Server logs'**
+  String get navHoldAdminLogs;
+
+  /// No description provided for @navHoldAdminPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin: {page}'**
+  String navHoldAdminPage(String page);
+
+  /// No description provided for @navHoldNothingPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to play yet'**
+  String get navHoldNothingPlaying;
+
+  /// No description provided for @navHoldReadBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Read current book'**
+  String get navHoldReadBook;
+
+  /// No description provided for @syncSourceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Which copy should sync keep?'**
+  String get syncSourceTitle;
+
+  /// No description provided for @syncSourceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This backup turned settings sync on. Use the server\'s last sync, or make this backup the source of truth? Choosing the backup replaces the copy on the server for all your synced devices.'**
+  String get syncSourceBody;
+
+  /// No description provided for @syncSourceUseServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server\'s last sync'**
+  String get syncSourceUseServer;
+
+  /// No description provided for @syncSourceUseBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'This backup'**
+  String get syncSourceUseBackup;
+
   /// No description provided for @syncSettingsWhatTravels.
   ///
   /// In en, this message translates to:

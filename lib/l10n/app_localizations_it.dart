@@ -8187,6 +8187,136 @@ class AppLocalizationsIt extends AppLocalizations {
   String get syncSettingsNever => 'Not synced yet';
 
   @override
+  String navHoldPickTitle(String tab) {
+    return 'Holding $tab will...';
+  }
+
+  @override
+  String get navHoldPickBody =>
+      'Choose what a long press on this tab does. You can change it later in Settings.';
+
+  @override
+  String get navHoldSettingTitle => 'Tab hold shortcuts';
+
+  @override
+  String get navHoldSettingSubtitle => 'What holding each tab does';
+
+  @override
+  String get navHoldAskNextTime => 'Ask next time';
+
+  @override
+  String get navHoldNothing => 'Nothing';
+
+  @override
+  String get navHoldPlayPause => 'Play / pause';
+
+  @override
+  String get navHoldOfflineMode => 'Offline mode';
+
+  @override
+  String get navHoldOfflineOn => 'Offline mode on';
+
+  @override
+  String get navHoldOfflineOff => 'Offline mode off';
+
+  @override
+  String get navHoldMenu => 'Always show menu';
+
+  @override
+  String get navHoldStop => 'Stop playback';
+
+  @override
+  String get bookStatsAction => 'Listening stats';
+
+  @override
+  String get bookStatsYou => 'You';
+
+  @override
+  String get bookStatsEveryone => 'Everyone';
+
+  @override
+  String get bookStatsListened => 'Time listened';
+
+  @override
+  String get bookStatsSessions => 'Sessions';
+
+  @override
+  String get bookStatsFirst => 'First listened';
+
+  @override
+  String get bookStatsLast => 'Last listened';
+
+  @override
+  String get bookStatsListeners => 'People who started it';
+
+  @override
+  String get bookStatsFinishedCount => 'People who finished it';
+
+  @override
+  String get bookStatsTotalTime => 'Time listened by everyone';
+
+  @override
+  String get bookStatsNobody => 'Nobody has started this yet';
+
+  @override
+  String get bookStatsScanning =>
+      'Scanning through sessions, this could take a while...';
+
+  @override
+  String bookStatsScanningCount(int done, int total) {
+    return 'Scanning through sessions, $done of $total people...';
+  }
+
+  @override
+  String bookStatsLastChecked(String when) {
+    return 'Checked $when';
+  }
+
+  @override
+  String get navHoldServerScan => 'Server scan';
+
+  @override
+  String get navHoldScanAll => 'Scan all libraries';
+
+  @override
+  String navHoldScanLibrary(String name) {
+    return 'Scan $name';
+  }
+
+  @override
+  String get navHoldScanStarted => 'Scan started';
+
+  @override
+  String get navHoldScanFailed => 'Could not start the scan';
+
+  @override
+  String get navHoldAdminLogs => 'Server logs';
+
+  @override
+  String navHoldAdminPage(String page) {
+    return 'Admin: $page';
+  }
+
+  @override
+  String get navHoldNothingPlaying => 'Nothing to play yet';
+
+  @override
+  String get navHoldReadBook => 'Read current book';
+
+  @override
+  String get syncSourceTitle => 'Which copy should sync keep?';
+
+  @override
+  String get syncSourceBody =>
+      'This backup turned settings sync on. Use the server\'s last sync, or make this backup the source of truth? Choosing the backup replaces the copy on the server for all your synced devices.';
+
+  @override
+  String get syncSourceUseServer => 'Server\'s last sync';
+
+  @override
+  String get syncSourceUseBackup => 'This backup';
+
+  @override
   String get syncSettingsWhatTravels =>
       'Your preferences, per-book speeds, home layout, notes and ebook highlights travel. Logins, download folders and anything not yet sent to your server stay on this device.';
 

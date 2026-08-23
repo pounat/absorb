@@ -4707,6 +4707,71 @@
     }
   },
   "syncSettingsNever": "Not synced yet",
+  "navHoldPickTitle": "Holding {tab} will...",
+  "@navHoldPickTitle": {
+    "placeholders": {
+      "tab": {"type": "String"}
+    }
+  },
+  "navHoldPickBody": "Choose what a long press on this tab does. You can change it later in Settings.",
+  "navHoldSettingTitle": "Tab hold shortcuts",
+  "navHoldSettingSubtitle": "What holding each tab does",
+  "navHoldAskNextTime": "Ask next time",
+  "navHoldNothing": "Nothing",
+  "navHoldPlayPause": "Play / pause",
+  "navHoldOfflineMode": "Offline mode",
+  "navHoldOfflineOn": "Offline mode on",
+  "navHoldOfflineOff": "Offline mode off",
+  "navHoldMenu": "Always show menu",
+  "navHoldStop": "Stop playback",
+  "bookStatsAction": "Listening stats",
+  "bookStatsYou": "You",
+  "bookStatsEveryone": "Everyone",
+  "bookStatsListened": "Time listened",
+  "bookStatsSessions": "Sessions",
+  "bookStatsFirst": "First listened",
+  "bookStatsLast": "Last listened",
+  "bookStatsListeners": "People who started it",
+  "bookStatsFinishedCount": "People who finished it",
+  "bookStatsTotalTime": "Time listened by everyone",
+  "bookStatsNobody": "Nobody has started this yet",
+  "bookStatsScanning": "Scanning through sessions, this could take a while...",
+  "bookStatsScanningCount": "Scanning through sessions, {done} of {total} people...",
+  "@bookStatsScanningCount": {
+    "placeholders": {
+      "done": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "bookStatsLastChecked": "Checked {when}",
+  "@bookStatsLastChecked": {
+    "placeholders": {
+      "when": {"type": "String"}
+    }
+  },
+  "navHoldServerScan": "Server scan",
+  "navHoldScanAll": "Scan all libraries",
+  "navHoldScanLibrary": "Scan {name}",
+  "@navHoldScanLibrary": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "navHoldScanStarted": "Scan started",
+  "navHoldScanFailed": "Could not start the scan",
+  "navHoldAdminLogs": "Server logs",
+  "navHoldAdminPage": "Admin: {page}",
+  "@navHoldAdminPage": {
+    "placeholders": {
+      "page": {"type": "String"}
+    }
+  },
+  "navHoldNothingPlaying": "Nothing to play yet",
+  "navHoldReadBook": "Read current book",
+  "syncSourceTitle": "Which copy should sync keep?",
+  "syncSourceBody": "This backup turned settings sync on. Use the server's last sync, or make this backup the source of truth? Choosing the backup replaces the copy on the server for all your synced devices.",
+  "syncSourceUseServer": "Server's last sync",
+  "syncSourceUseBackup": "This backup",
   "syncSettingsWhatTravels": "Your preferences, per-book speeds, home layout, notes and ebook highlights travel. Logins, download folders and anything not yet sent to your server stay on this device.",
   "syncSettingsDownloadWarnTitle": "Replace this device's settings?",
   "syncSettingsDownloadWarnBody": "The synced copy will overwrite the settings on this device.",
