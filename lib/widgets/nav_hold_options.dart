@@ -1,0 +1,154 @@
+import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
+
+/// One choice for what holding a nav tab does. The shell maps ids to the
+/// actual actions; the settings dialog only needs ids, icons and labels for
+/// its pickers, so the two can't drift apart on what exists.
+///
+/// Ids are flat strings, including the composite ones (`admin:users`,
+/// `scan:<libraryId>`), so a choice is one value in prefs and one value in a
+/// dropdown.
+class NavHoldOption {
+  final String id;
+  final IconData icon;
+
+  /// Opens a second sheet of choices rather than doing something itself.
+  final bool isFolder;
+  const NavHoldOption(this.id, this.icon, {this.isFolder = false});
+}
+
+const navHoldOptions = [
+  NavHoldOption('search', Icons.search_rounded),
+  NavHoldOption('switchLibrary', Icons.swap_horiz_rounded),
+  NavHoldOption('bookmarks', Icons.bookmarks_rounded),
+  NavHoldOption('downloads', Icons.download_rounded),
+  NavHoldOption('sleep', Icons.bedtime_rounded),
+  NavHoldOption('eink', Icons.contrast),
+  NavHoldOption('playPause', Icons.play_arrow_rounded),
+  NavHoldOption('stop', Icons.stop_rounded),
+  NavHoldOption('queue', Icons.queue_music_rounded),
+  NavHoldOption('offline', Icons.cloud_off_rounded),
+  NavHoldOption('readBook', Icons.menu_book_rounded),
+  NavHoldOption('scanSeries', Icons.travel_explore_rounded),
+  NavHoldOption('admin', Icons.admin_panel_settings_rounded, isFolder: true),
+  NavHoldOption('scan', Icons.sync_rounded, isFolder: true),
+  NavHoldOption('menu', Icons.apps_rounded),
+  NavHoldOption('none', Icons.block_rounded),
+];
+
+/// Pages inside the Admin area a hold can open directly, as `admin:<page>`.
+const navHoldAdminPages = [
+  'home',
+  'users',
+  'sessions',
+  'libraries',
+  'upload',
+  'email',
+  'apikeys',
+  'settings',
+  'logs',
+  'stats',
+];
+
+IconData navHoldAdminIcon(String page) => switch (page) {
+      'home' => Icons.admin_panel_settings_rounded,
+      'users' => Icons.people_rounded,
+      'sessions' => Icons.history_rounded,
+      'libraries' => Icons.library_books_rounded,
+      'upload' => Icons.cloud_upload_rounded,
+      'email' => Icons.email_rounded,
+      'apikeys' => Icons.vpn_key_rounded,
+      'settings' => Icons.tune_rounded,
+      'logs' => Icons.description_outlined,
+      _ => Icons.bar_chart_rounded,
+    };
+
+String navHoldAdminPageLabel(String page, AppLocalizations l) => switch (page) {
+      'home' => l.adminTitle,
+      'users' => l.adminUsers,
+      'sessions' => l.adminAllSessions,
+      'libraries' => l.adminLibrariesManage,
+      'upload' => l.adminUploadTitle,
+      'email' => l.adminEmail,
+      'apikeys' => l.adminApiKeys,
+      'settings' => l.adminServerSettings,
+      'logs' => l.navHoldAdminLogs,
+      _ => l.adminStats,
+    };
+
+/// Label for any id, composites included. [libraryName] resolves a library id
+/// for `scan:<id>`; without it the scan falls back to the generic label.
+String navHoldLabel(
+  String id,
+  AppLocalizations l, {
+  String? Function(String libraryId)? libraryName,
+}) {
+  if (id.startsWith('admin:')) {
+    final page = id.substring(6);
+    return page == 'home'
+        ? l.adminTitle
+        : l.navHoldAdminPage(navHoldAdminPageLabel(page, l));
+  }
+  if (id.startsWith('scan:')) {
+    final target = id.substring(5);
+    if (target == 'all') return l.navHoldScanAll;
+    final name = libraryName?.call(target);
+    return name == null ? l.navHoldServerScan : l.navHoldScanLibrary(name);
+  }
+  return switch (id) {
+    'search' => l.search,
+    'switchLibrary' => l.switchLibraryTooltip,
+    'bookmarks' => l.bookmarksTitle,
+    'downloads' => l.downloads,
+    'admin' => l.admin,
+    'scan' => l.navHoldServerScan,
+    'sleep' => l.sleepTimer,
+    'eink' => l.einkModeLabel,
+    'playPause' => l.navHoldPlayPause,
+    'stop' => l.navHoldStop,
+    'queue' => l.absorbingManageQueue,
+    'offline' => l.navHoldOfflineMode,
+    'readBook' => l.navHoldReadBook,
+    'scanSeries' => l.upcomingReleasesScanSeries,
+    'menu' => l.navHoldMenu,
+    'none' => l.navHoldNothing,
+    _ => id,
+  };
+}
+
+/// Every id a saved choice may hold, in the order the settings dropdown shows
+/// them. Admin entries and server scans are only offered to admins.
+List<String> navHoldAllIds({
+  required bool isAdmin,
+  required List<String> libraryIds,
+}) =>
+    [
+      for (final o in navHoldOptions)
+        if (!o.isFolder) o.id,
+      if (isAdmin) ...[
+        for (final p in navHoldAdminPages) 'admin:$p',
+        'scan:all',
+        for (final id in libraryIds) 'scan:$id',
+      ],
+    ];
+
+/// Stable per-tab keys, so a hold choice follows the tab rather than its
+/// position - the Podcasts tab appears and disappears, which would shift
+/// every slot index after it.
+const navHoldTabs = ['home', 'library', 'podcasts', 'absorbing', 'stats', 'settings'];
+
+/// Absorbing has toggled playback on hold since before this was
+/// configurable; keep that as its starting point instead of asking.
+const navHoldDefaults = {'absorbing': 'playPause'};
+
+String navHoldPrefKey(String tab) => 'navHold_$tab';
+
+String navHoldTabLabel(String tab, AppLocalizations l) => switch (tab) {
+      'home' => l.appShellHomeTab,
+      'library' => l.appShellLibraryTab,
+      'podcasts' => l.appShellPodcastsTab,
+      'absorbing' => l.appShellAbsorbingTab,
+      'stats' => l.appShellStatsTab,
+      'settings' => l.appShellSettingsTab,
+      _ => tab,
+    };

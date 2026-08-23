@@ -23,6 +23,7 @@ import '../build_info.dart';
 import '../services/update_checker_service.dart';
 import '../services/audiobookshelf_update_service.dart';
 import '../widgets/update_dialog.dart';
+import '../widgets/nav_hold_options.dart';
 import '../screens/admin_screen.dart';
 import '../screens/downloads_screen.dart';
 import '../screens/bookmarks_screen.dart';
@@ -429,6 +430,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? Icon(Icons.check_rounded, size: 20,
                   color: ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black)
               : null,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showNavHoldDialog() async {
+    final l = AppLocalizations.of(context)!;
+    final isAdmin = context.read<AuthProvider>().isAdmin;
+    final libraries = context.read<LibraryProvider>().libraries;
+    final ids = navHoldAllIds(
+      isAdmin: isAdmin,
+      libraryIds: [
+        for (final lib in libraries)
+          if ((lib['id'] as String?)?.isNotEmpty == true) lib['id'] as String,
+      ],
+    );
+    final validIds = ids.toSet();
+    final podcastTab = await PlayerSettings.getPodcastTabEnabled();
+    final tabs = navHoldTabs
+        .where((t) => t != 'podcasts' || podcastTab)
+        .toList();
+    final chosen = <String, String?>{};
+    for (final tab in tabs) {
+      final saved = await ScopedPrefs.getString(navHoldPrefKey(tab)) ??
+          navHoldDefaults[tab];
+      chosen[tab] = validIds.contains(saved) ? saved : null;
+    }
+    if (!mounted) return;
+    String? libraryName(String id) {
+      for (final lib in libraries) {
+        if (lib['id'] == id) return lib['name'] as String?;
+      }
+      return null;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(l.navHoldSettingTitle),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final tab in tabs) ...[
+                  DropdownButtonFormField<String?>(
+                    initialValue: chosen[tab],
+                    decoration:
+                        InputDecoration(labelText: navHoldTabLabel(tab, l)),
+                    items: [
+                      DropdownMenuItem<String?>(
+                          value: null, child: Text(l.navHoldAskNextTime)),
+                      for (final id in ids)
+                        DropdownMenuItem<String?>(
+                          value: id,
+                          child: Text(
+                            navHoldLabel(id, l, libraryName: libraryName),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (v) {
+                      setDialogState(() => chosen[tab] = v);
+                      v == null
+                          ? ScopedPrefs.remove(navHoldPrefKey(tab))
+                          : ScopedPrefs.setString(navHoldPrefKey(tab), v);
+                    },
+                  ),
+                  if (tab != tabs.last) const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l.done),
+            ),
+          ],
         ),
       ),
     );
@@ -3762,6 +3841,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Advanced',
                   onExpansionChanged: (v) => _onSectionExpanded('Advanced', v),
                   children: [
+                    ListTile(
+                      title: Text(l.navHoldSettingTitle),
+                      subtitle: Text(l.navHoldSettingSubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: _showNavHoldDialog,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     SwitchListTile(
                       title: Row(children: [
                         Flexible(child: Text(l.localServer)),

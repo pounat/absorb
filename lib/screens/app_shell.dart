@@ -16,7 +16,26 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../main.dart'
-    show snappyTransitionsNotifier, einkModeNotifier, coverSchemeNotifier, rootNavigatorKey, applyOrientationLock;
+    show snappyTransitionsNotifier, einkModeNotifier, coverSchemeNotifier, rootNavigatorKey, applyOrientationLock, applyEinkModeTheme;
+import '../services/scoped_prefs.dart';
+import 'admin_screen.dart';
+import 'admin_api_keys_screen.dart';
+import 'admin_email_screen.dart';
+import 'admin_libraries_screen.dart';
+import 'admin_server_logs_screen.dart';
+import 'admin_server_settings_screen.dart';
+import 'admin_sessions_screen.dart';
+import 'admin_stats_screen.dart';
+import 'admin_upload_screen.dart';
+import 'admin_users_screen.dart';
+import 'bookmarks_screen.dart';
+import 'downloads_screen.dart';
+import 'upcoming_releases_screen.dart';
+import '../services/ebook_cache.dart';
+import '../widgets/action_pill.dart';
+import '../widgets/ebook_router.dart';
+import '../widgets/nav_hold_options.dart';
+import '../widgets/sleep_timer_sheet.dart';
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../services/android_auto_service.dart';
@@ -854,29 +873,415 @@ class _AppShellState extends State<AppShell>
     final width = MediaQuery.sizeOf(context).width;
     if (width <= 0 || destCount <= 0) return;
     final slot = (dx / (width / destCount)).floor().clamp(0, destCount - 1);
-    final absorbingSlot = destCount >= 6 ? 3 : 2;
-    if (slot == 0) {
-      // Home: quick library switcher.
-      final lib = context.read<LibraryProvider>();
-      if (lib.libraries.length < 2) return;
-      HapticFeedback.mediumImpact();
-      showLibraryPickerSheet(context, lib);
-    } else if (slot == 1) {
-      // Library: focus search.
-      HapticFeedback.mediumImpact();
-      final lib = context.read<LibraryProvider>();
-      if (_podcastsShown(lib)) _syncTabLibrary(1, true);
-      _openSearch();
-    } else if (slot == absorbingSlot) {
-      // Absorbing: toggle playback without leaving the current tab.
-      if (!_player.hasBook) return;
-      HapticFeedback.mediumImpact();
-      if (_player.isPlaying) {
-        _player.pause();
-      } else {
-        _player.play(fromUi: true);
+    HapticFeedback.mediumImpact();
+    unawaited(_runNavHold(_tabForSlot(slot, destCount)));
+  }
+
+  /// Slot index to stable tab key. The Podcasts tab only exists sometimes, so
+  /// everything after it shifts by one without this.
+  String _tabForSlot(int slot, int destCount) {
+    final hasPodcasts = destCount >= 6;
+    if (slot == 0) return 'home';
+    if (slot == 1) return 'library';
+    if (hasPodcasts && slot == 2) return 'podcasts';
+    final rest = hasPodcasts ? slot - 3 : slot - 2;
+    return switch (rest) {
+      0 => 'absorbing',
+      1 => 'stats',
+      _ => 'settings',
+    };
+  }
+
+  Future<void> _runNavHold(String tab) async {
+    final key = navHoldPrefKey(tab);
+    var id = await ScopedPrefs.getString(key) ?? navHoldDefaults[tab];
+    if (!mounted) return;
+    final isAdmin = context.read<AuthProvider>().isAdmin;
+    // A saved admin or scan choice is dead weight on an account that lost its
+    // admin rights - ask again rather than doing nothing.
+    if (!isAdmin && (id?.startsWith('admin') == true || id?.startsWith('scan:') == true)) {
+      id = null;
+    }
+    if (id == null) {
+      final chosen = await _showNavHoldPicker(tab, isAdmin);
+      if (chosen == null || !mounted) return;
+      await ScopedPrefs.setString(key, chosen);
+      if (!mounted) return;
+      id = chosen;
+      debugPrint('[NavHold] $tab set to $id');
+    }
+    if (id == 'menu') {
+      // Always-show-menu: the saved choice stays 'menu' forever - what gets
+      // tapped here runs once and is deliberately NOT written back, otherwise
+      // the first pick would quietly replace the menu.
+      final picked = await _showNavHoldPicker(tab, isAdmin, forRun: true);
+      if (picked == null || !mounted) return;
+      debugPrint('[NavHold] $tab menu ran $picked (still menu)');
+      _runNavHoldAction(picked);
+      return;
+    }
+    debugPrint('[NavHold] $tab ran $id');
+    _runNavHoldAction(id);
+  }
+
+  /// The action grid. [forRun] is launcher mode - the sheet is the menu itself
+  /// rather than a one-time setup, so the entries that only make sense as a
+  /// saved choice are left out.
+  Future<String?> _showNavHoldPicker(String tab, bool isAdmin,
+      {bool forRun = false}) async {
+    final l = AppLocalizations.of(context)!;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final tt = Theme.of(ctx).textTheme;
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    forRun
+                        ? navHoldTabLabel(tab, l)
+                        : l.navHoldPickTitle(navHoldTabLabel(tab, l)),
+                    style: tt.titleMedium,
+                  ),
+                  if (!forRun) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      l.navHoldPickBody,
+                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  ActionPillGrid(items: [
+                    for (final o in navHoldOptions)
+                      if ((isAdmin || (o.id != 'admin' && o.id != 'scan')) &&
+                          (!forRun || (o.id != 'menu' && o.id != 'none')))
+                        ActionPillData(
+                          icon: o.icon,
+                          label: navHoldLabel(o.id, l),
+                          onTap: () => Navigator.pop(ctx, o.id),
+                        ),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    if (picked == null || !mounted) return null;
+    // Folders open a second sheet; anything else is the answer.
+    if (picked == 'admin') return _showNavHoldSubSheet(_adminSubItems());
+    if (picked == 'scan') return _showNavHoldSubSheet(_scanSubItems());
+    return picked;
+  }
+
+  List<(String, IconData, String)> _adminSubItems() {
+    final l = AppLocalizations.of(context)!;
+    return [
+      for (final p in navHoldAdminPages)
+        ('admin:$p', navHoldAdminIcon(p), navHoldAdminPageLabel(p, l)),
+    ];
+  }
+
+  List<(String, IconData, String)> _scanSubItems() {
+    final l = AppLocalizations.of(context)!;
+    final libs = context.read<LibraryProvider>().libraries;
+    return [
+      ('scan:all', Icons.sync_rounded, l.navHoldScanAll),
+      for (final lib in libs)
+        if ((lib['id'] as String?)?.isNotEmpty == true)
+          (
+            'scan:${lib['id']}',
+            Icons.folder_rounded,
+            (lib['name'] as String?) ?? '',
+          ),
+    ];
+  }
+
+  Future<String?> _showNavHoldSubSheet(List<(String, IconData, String)> items) {
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: ActionPillGrid(items: [
+              for (final (id, icon, label) in items)
+                ActionPillData(
+                  icon: icon,
+                  label: label,
+                  onTap: () => Navigator.pop(ctx, id),
+                ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _runNavHoldAction(String id) {
+    if (id.startsWith('admin:')) {
+      unawaited(_openAdminPage(id.substring(6)));
+      return;
+    }
+    if (id.startsWith('scan:')) {
+      unawaited(_runServerScan(id.substring(5)));
+      return;
+    }
+    switch (id) {
+      case 'search':
+        final lib = context.read<LibraryProvider>();
+        if (_podcastsShown(lib)) _syncTabLibrary(1, true);
+        _openSearch();
+      case 'switchLibrary':
+        final lib = context.read<LibraryProvider>();
+        if (lib.libraries.length < 2) return;
+        showLibraryPickerSheet(context, lib);
+      case 'bookmarks':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const BookmarksScreen()));
+      case 'downloads':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const DownloadsScreen()));
+      case 'admin':
+        Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const AdminScreen()));
+      case 'sleep':
+        showSleepTimerSheet(context, Theme.of(context).colorScheme.primary);
+      case 'eink':
+        final v = !PlayerSettings.einkMode;
+        PlayerSettings.setEinkMode(v);
+        applyEinkModeTheme(v);
+        context.read<LibraryProvider>().applyEinkMode(v);
+      case 'playPause':
+        // Nothing loaded at all: start the front card rather than doing
+        // nothing, so the shortcut always plays something.
+        if (!_player.hasBook) {
+          unawaited(_playFrontCard());
+          return;
+        }
+        if (_player.isPlaying) {
+          _player.pause();
+        } else {
+          _player.play(fromUi: true);
+        }
+      case 'stop':
+        if (!_player.hasBook) return;
+        unawaited(_player.stop());
+      case 'queue':
+        // The Absorbing page is built lazily, and the sheet lives on it - if
+        // it isn't up yet, switch to the tab and open the sheet once it is.
+        if (!AbsorbingScreen.openQueueManager(context)) {
+          _switchToAbsorbing();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) AbsorbingScreen.openQueueManager(context);
+          });
+        }
+      case 'offline':
+        final lib = context.read<LibraryProvider>();
+        final going = !lib.isOffline;
+        unawaited(lib.setManualOffline(going));
+        showOverlayToast(
+          context,
+          going
+              ? AppLocalizations.of(context)!.navHoldOfflineOn
+              : AppLocalizations.of(context)!.navHoldOfflineOff,
+          icon: going ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
+        );
+      case 'readBook':
+        unawaited(_openCurrentEbook());
+      case 'scanSeries':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) =>
+                    const UpcomingReleasesScreen(openScanChooser: true)));
+      case 'none':
+        break;
+    }
+  }
+
+  /// Push an Admin page straight from the nav bar. Most of them need the user
+  /// or library lists the Admin hub normally loads, so fetch just those first
+  /// - the hub itself stays the fallback if a fetch comes back empty.
+  Future<void> _openAdminPage(String page) async {
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    Widget? screen;
+    switch (page) {
+      case 'settings':
+        screen = const AdminServerSettingsScreen();
+      case 'logs':
+        screen = const AdminServerLogsScreen();
+      case 'stats':
+        screen = const AdminStatsScreen();
+      case 'users':
+        final r = await Future.wait(
+            [api.getUsers(), api.getOnlineUsers(), api.getLibraries()]);
+        screen = AdminUsersScreen(
+            users: r[0], onlineUsers: r[1], libraries: r[2]);
+      case 'sessions':
+        screen = AdminSessionsScreen(users: await api.getUsers());
+      case 'email':
+        screen = AdminEmailScreen(users: await api.getUsers());
+      case 'apikeys':
+        screen = AdminApiKeysScreen(users: await api.getUsers());
+      case 'libraries':
+        screen = AdminLibrariesScreen(libraries: await api.getLibraries());
+      case 'upload':
+        if (!mounted) return;
+        screen = AdminUploadScreen(
+          libraries: await api.getLibraries(),
+          initialLibraryId: context.read<AuthProvider>().defaultLibraryId,
+          apiService: api,
+        );
+      default:
+        screen = const AdminScreen();
+    }
+    if (!mounted) return;
+    await Navigator.push(
+        context, MaterialPageRoute(builder: (_) => screen!));
+  }
+
+  /// Kick off a server-side scan of one library, or every library.
+  Future<void> _runServerScan(String target) async {
+    final l = AppLocalizations.of(context)!;
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    final libs = context.read<LibraryProvider>().libraries;
+    final ids = target == 'all'
+        ? [
+            for (final lib in libs)
+              if ((lib['id'] as String?)?.isNotEmpty == true) lib['id'] as String
+          ]
+        : [target];
+    if (ids.isEmpty) return;
+    var ok = false;
+    for (final id in ids) {
+      if (await api.scanLibrary(id)) ok = true;
+    }
+    if (!mounted) return;
+    showOverlayToast(
+      context,
+      ok ? l.navHoldScanStarted : l.navHoldScanFailed,
+      icon: ok ? Icons.sync_rounded : Icons.error_outline_rounded,
+    );
+  }
+
+  /// The item behind the front Absorbing card - what the user sees first when
+  /// nothing is playing. The absorbing order is the card order.
+  Map<String, dynamic>? _frontAbsorbingItem() {
+    final lib = context.read<LibraryProvider>();
+    for (final key in lib.absorbingBookIds) {
+      final item = lib.absorbingItemCache[key];
+      if (item != null) return item;
+    }
+    return null;
+  }
+
+  /// Start the front Absorbing card. Podcast episodes carry their episode in
+  /// the cached entry; books need the full item for chapters and duration.
+  Future<void> _playFrontCard() async {
+    final l = AppLocalizations.of(context)!;
+    final item = _frontAbsorbingItem();
+    final api = context.read<AuthProvider>().apiService;
+    final itemId = item?['id'] as String?;
+    if (item == null || itemId == null || api == null) {
+      showOverlayToast(context, l.navHoldNothingPlaying,
+          icon: Icons.play_disabled_rounded);
+      return;
+    }
+    final lib = context.read<LibraryProvider>();
+    final coverUrl = lib.getCoverUrl(itemId);
+    final episode = item['recentEpisode'] as Map<String, dynamic>?;
+    if (episode != null) {
+      final media = item['media'] as Map<String, dynamic>? ?? {};
+      final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
+      final error = await _player.playItem(
+        api: api,
+        itemId: itemId,
+        title: episode['title'] as String? ?? '',
+        author: metadata['title'] as String? ?? '',
+        coverUrl: coverUrl,
+        totalDuration: (episode['duration'] as num?)?.toDouble() ?? 0,
+        chapters: const [],
+        episodeId: episode['id'] as String?,
+        episodeTitle: episode['title'] as String?,
+        libraryId: item['libraryId'] as String?,
+        fromUi: true,
+      );
+      if (mounted && error != null) showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+      return;
+    }
+    final full = await api.getLibraryItem(itemId) ?? item;
+    if (!mounted) return;
+    final media = full['media'] as Map<String, dynamic>? ?? {};
+    final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
+    final error = await _player.playItem(
+      api: api,
+      itemId: itemId,
+      title: metadata['title'] as String? ?? '',
+      author: metadata['authorName'] as String? ?? '',
+      coverUrl: coverUrl,
+      totalDuration: (media['duration'] as num?)?.toDouble() ?? 0,
+      chapters: (media['chapters'] as List<dynamic>?) ?? const [],
+      libraryId: full['libraryId'] as String?,
+      fromUi: true,
+    );
+    if (mounted && error != null) showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+  }
+
+  /// Open the playing (or last-played) book's ebook, falling back to the front
+  /// Absorbing card when nothing is loaded. The reader cache is checked first
+  /// so this works with no signal, same as the player card's Read button.
+  Future<void> _openCurrentEbook() async {
+    final l = AppLocalizations.of(context)!;
+    final front = _player.hasBook ? null : _frontAbsorbingItem();
+    final itemId = _player.currentItemId ?? front?['id'] as String?;
+    var title = _player.currentTitle ?? '';
+    if (front != null) {
+      final metadata = (front['media'] as Map<String, dynamic>?)?['metadata']
+          as Map<String, dynamic>?;
+      title = metadata?['title'] as String? ?? title;
+    }
+    if (itemId == null) {
+      showOverlayToast(context, l.noEbookFileFound,
+          icon: Icons.menu_book_outlined);
+      return;
+    }
+    var ebookFile = await cachedEbookFileFor(itemId);
+    if (!mounted) return;
+    if (ebookFile == null) {
+      final api = context.read<AuthProvider>().apiService;
+      if (api != null) {
+        try {
+          final item = await api.getLibraryItem(itemId);
+          ebookFile = resolveEbookFile(item);
+        } catch (_) {}
       }
     }
+    if (!mounted) return;
+    if (ebookFile == null) {
+      showOverlayToast(context, l.noEbookFileFound,
+          icon: Icons.menu_book_outlined);
+      return;
+    }
+    await openEbookReader(
+      context,
+      itemId: itemId,
+      title: title,
+      ebookFile: ebookFile,
+    );
   }
 
   List<NavigationDestination> _buildDestinations(

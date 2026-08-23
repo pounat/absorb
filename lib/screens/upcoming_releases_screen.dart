@@ -20,7 +20,10 @@ import '../widgets/stackable_sheet.dart';
 import '../l10n/app_localizations.dart';
 
 class UpcomingReleasesScreen extends StatefulWidget {
-  const UpcomingReleasesScreen({super.key});
+  /// Opens the Scan series chooser as soon as the screen is up, for entry
+  /// points whose whole purpose is starting a scan (the nav-tab shortcut).
+  final bool openScanChooser;
+  const UpcomingReleasesScreen({super.key, this.openScanChooser = false});
 
   @override
   State<UpcomingReleasesScreen> createState() => _UpcomingReleasesScreenState();
@@ -43,6 +46,13 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
     _service.addListener(_onServiceChanged);
     _initAndStart();
     _loadRmabConfigured();
+    if (widget.openScanChooser) {
+      // After the first frame so the sheet has a laid-out screen behind it,
+      // and not while a scan the screen kicked off itself is already running.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_service.isRunning) _showScanChooserSheet();
+      });
+    }
   }
 
   Future<void> _loadRmabConfigured() async {

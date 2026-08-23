@@ -32,6 +32,17 @@ class AbsorbingScreen extends StatefulWidget {
     globalKey.currentState?._scrollToActiveCard();
   }
 
+  /// Open the Manage Queue sheet from outside the screen (the nav-tab hold
+  /// shortcut). Returns false when the screen hasn't been built yet, so the
+  /// caller can switch to the tab and try again.
+  static bool openQueueManager(BuildContext context) {
+    final state = globalKey.currentState;
+    if (state == null || !state.mounted) return false;
+    final lib = context.read<LibraryProvider>();
+    state._showReorderSheet(state.context, lib, state._getAbsorbingBooks(lib));
+    return true;
+  }
+
   /// Scroll to the first card (used when re-tapping the Absorbing tab)
   static void scrollToFirst() {
     final state = globalKey.currentState;
