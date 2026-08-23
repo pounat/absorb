@@ -1260,6 +1260,30 @@ class ApiService {
     return null;
   }
 
+  /// Every listening session this user has for one item - the whole history,
+  /// not a page of it, so the totals below are the real totals.
+  Future<List<dynamic>> getMyItemListeningSessions(
+    String itemId, {
+    String? episodeId,
+  }) async {
+    try {
+      final path = episodeId != null && episodeId.isNotEmpty
+          ? '/api/me/item/listening-sessions/$itemId/$episodeId'
+          : '/api/me/item/listening-sessions/$itemId';
+      final response = await _authGet(
+        Uri.parse('$_cleanBaseUrl$path?itemsPerPage=1000'),
+        timeout: const Duration(seconds: 15),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return (data['sessions'] as List<dynamic>?) ?? [];
+      }
+    } catch (e) {
+      debugPrint('getMyItemListeningSessions error: $e');
+    }
+    return [];
+  }
+
   /// Get user's listening sessions (paginated).
   Future<Map<String, dynamic>?> getListeningSessions({int page = 0, int itemsPerPage = 20}) async {
     try {

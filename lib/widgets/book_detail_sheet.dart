@@ -18,6 +18,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../l10n/app_localizations.dart';
+import 'book_stats_sheet.dart';
 import '../services/wording.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -990,6 +991,17 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 ])),
               ]));
           })]],
+      if (!lib.isOffline) ...[const SizedBox(height: 20),
+        OutlinedButton.icon(
+          onPressed: () => showBookStatsSheet(context, itemId: widget.itemId, title: title),
+          icon: const Icon(Icons.insights_rounded, size: 18),
+          label: Text(l.bookStatsAction),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: cs.onSurfaceVariant,
+            side: BorderSide(color: cs.onSurface.withValues(alpha: 0.15)),
+            minimumSize: const Size.fromHeight(44),
+          ),
+        )],
       ]);
   }
 
