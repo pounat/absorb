@@ -8445,6 +8445,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get navHoldReadBook => 'Read current book';
 
   @override
+  String get navHoldBookDetails => 'Current book details';
+
+  @override
   String get syncSourceTitle => 'Which copy should sync keep?';
 
   @override

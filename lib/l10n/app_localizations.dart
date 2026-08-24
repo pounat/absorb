@@ -14409,6 +14409,12 @@ abstract class AppLocalizations {
   /// **'Read current book'**
   String get navHoldReadBook;
 
+  /// No description provided for @navHoldBookDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Current book details'**
+  String get navHoldBookDetails;
+
   /// No description provided for @syncSourceTitle.
   ///
   /// In en, this message translates to:

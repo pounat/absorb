@@ -38,6 +38,7 @@ import 'downloads_screen.dart';
 import 'upcoming_releases_screen.dart';
 import '../services/ebook_cache.dart';
 import '../widgets/action_pill.dart';
+import '../widgets/book_detail_sheet.dart' show showBookDetailSheet;
 import '../widgets/ebook_router.dart';
 import '../widgets/nav_hold_options.dart';
 import '../widgets/sleep_timer_sheet.dart';
@@ -1286,6 +1287,18 @@ class _AppShellState extends State<AppShell>
         );
       case 'readBook':
         unawaited(_openCurrentEbook());
+      case 'bookDetails':
+        // Playing book if there is one, otherwise the front Absorbing card,
+        // so this works before anything has been started.
+        final itemId =
+            _player.currentItemId ?? _frontAbsorbingItem()?['id'] as String?;
+        if (itemId == null) {
+          showOverlayToast(
+              context, AppLocalizations.of(context)!.navHoldNothingPlaying,
+              icon: Icons.info_outline_rounded);
+          return;
+        }
+        showBookDetailSheet(context, itemId);
       case 'scanSeries':
         Navigator.push(
             context,

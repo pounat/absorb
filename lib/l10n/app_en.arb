@@ -4778,6 +4778,7 @@
   },
   "navHoldNothingPlaying": "Nothing to play yet",
   "navHoldReadBook": "Read current book",
+  "navHoldBookDetails": "Current book details",
   "syncSourceTitle": "Which copy should sync keep?",
   "syncSourceBody": "This backup turned settings sync on. Use the server's last sync, or make this backup the source of truth? Choosing the backup replaces the copy on the server for all your synced devices.",
   "syncSourceUseServer": "Server's last sync",
