@@ -2472,6 +2472,7 @@
   "tipsSheetAudibleSeriesDesc": "Ouvrez une série et utilisez le menu de débordement (les trois points) pour récupérer la liste complète des séries d'Audible, y compris les entrées manquantes et les livres que vous n'avez pas commencés.",
   "tipsSheetTranscribeBookmarkDesc": "Transformez l'audio de n'importe quel signet en texte, entièrement sur votre appareil. Activez-le dans Paramètres sous Avancé > Transcription et téléchargez un modèle, puis appuyez sur Transcrire un signet - le texte se retrouve dans sa note, prêt à être corrigé ou partagé.",
   "tipsSheetFindBetweenFormatsDesc": "Avec la transcription activée et le livre téléchargé, mettre en pause et appuyer sur Rechercher la position dans l'ebook sur le lecteur pour ouvrir l'ebook au passage que vous venez d'entendre. Dans le lecteur, sélectionnez du texte et touchez les écouteurs pour démarrer le livre audionumérique à cette position.",
+  "tipsSheetShareQuoteDesc": "Partagez un surlignage d'ebook ou une note de signets comme image avec la citation sur la couverture du livre. Recherchez l'option partage sur les points forts et dans la page de signets.",
   "bookCardUnknownTitle": "Titre inconnu",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Terminé",
@@ -2873,6 +2874,7 @@
   "syncSettingsWhatTravels": "Vos préférences, vitesses par livre, mise en page d'accueil, notes et surlignage dans vos ebooks sont envoyés. Les identifiants, les dossiers de téléchargement et tout ce qui n'a pas encore été envoyé à votre serveur restent sur cet appareil.",
   "readerTooltipCopy": "Copier",
   "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez.",
+  "transcriptionDisclaimer": "Fonctionne entièrement sur votre appareil, rien n'est envoyé nulle part. Cela utilise de la batterie supplémentaire et de la puissance de calcul pendant que cela fonctionne, et seuls les livres téléchargés peuvent être transcrits.",
   "transcriptionIntroBody": "Cela permet d'écouter la quantité d'audio choisie, en commençant juste avant le signet, et en la transformant en texte sur votre appareil. Les clips plus longs prennent plus de temps, et la transcription n'est pas précise à 100%. Le texte est sauvegardé dans la note du favori une fois terminé, prêt à être corrigé ou partagé.",
   "findInAudiobookIntroBody": "Cela permet d'écouter le livre audio près de l'endroit où vous lisez et de le faire correspondre à ce passage, le tout sur votre appareil. Cela peut prendre jusqu'à une minute. Si l'emplacement ne peut pas être associé en toute confiance, rien ne bouge."
 }
