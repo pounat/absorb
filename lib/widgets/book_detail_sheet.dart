@@ -2492,6 +2492,19 @@ class _FullCoverViewer extends StatefulWidget {
 
 class _FullCoverViewerState extends State<_FullCoverViewer> {
   bool _saving = false;
+  final _transform = TransformationController();
+
+  // How far a one-finger drag has pulled the (unzoomed) cover, so it follows
+  // the finger and a flick dismisses like every other sheet in the app.
+  double _dragY = 0;
+
+  bool get _zoomed => _transform.value.getMaxScaleOnAxis() > 1.05;
+
+  @override
+  void dispose() {
+    _transform.dispose();
+    super.dispose();
+  }
 
   Future<void> _saveAndShare() async {
     if (_saving) return;
@@ -2529,21 +2542,49 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(children: [
-        // Dismiss on tap outside image
-        GestureDetector(onTap: () => Navigator.pop(context)),
-        // Zoomable cover — fills screen so zoomed content can pan freely
+        // Tap closes (a tap on a zoomed cover just zooms it back out first).
+        // A one-finger swipe drags the unzoomed cover along and dismisses -
+        // tracked through the viewer's own callbacks, because the viewer
+        // claims every gesture and a competing detector would never win.
         Positioned.fill(
-          child: InteractiveViewer(
-            clipBehavior: Clip.none,
-            minScale: 1.0,
-            maxScale: 5.0,
-            child: Center(
-              child: CachedNetworkImage(
-                imageUrl: widget.url,
-                httpHeaders: widget.headers,
-                fit: BoxFit.contain,
-                placeholder: (_, __) => const CircularProgressIndicator(strokeWidth: 2),
-                errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 48, color: Colors.white54),
+          child: GestureDetector(
+            onTap: () {
+              if (_zoomed) {
+                setState(() => _transform.value = Matrix4.identity());
+              } else {
+                Navigator.pop(context);
+              }
+            },
+            child: Transform.translate(
+              offset: Offset(0, _dragY),
+              child: InteractiveViewer(
+                transformationController: _transform,
+                clipBehavior: Clip.none,
+                minScale: 1.0,
+                maxScale: 5.0,
+                onInteractionUpdate: (d) {
+                  if (!_zoomed && d.pointerCount == 1) {
+                    setState(() => _dragY += d.focalPointDelta.dy);
+                  }
+                },
+                onInteractionEnd: (d) {
+                  if (_zoomed) return;
+                  if (_dragY.abs() > 120 ||
+                      d.velocity.pixelsPerSecond.dy.abs() > 800) {
+                    Navigator.pop(context);
+                  } else if (_dragY != 0) {
+                    setState(() => _dragY = 0);
+                  }
+                },
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: widget.url,
+                    httpHeaders: widget.headers,
+                    fit: BoxFit.contain,
+                    placeholder: (_, __) => const CircularProgressIndicator(strokeWidth: 2),
+                    errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 48, color: Colors.white54),
+                  ),
+                ),
               ),
             ),
           ),
