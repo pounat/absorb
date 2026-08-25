@@ -40,6 +40,30 @@ object AudioWindowExtractor {
         durationSeconds: Double,
         outPath: String,
     ): Boolean {
+        // An MP3 can't be seeked accurately (see [Mp3Slicer]), so cut the window
+        // out by frame count first and decode that instead. Anything else - an
+        // M4B book, a streamed URL - goes straight through untouched.
+        val sliced = Mp3Slicer.prepare(context, sourcePath, startSeconds, durationSeconds)
+        return try {
+            decodeToWav(
+                context,
+                sliced?.path ?: sourcePath,
+                sliced?.startSeconds ?: startSeconds,
+                durationSeconds,
+                outPath,
+            )
+        } finally {
+            sliced?.temp?.delete()
+        }
+    }
+
+    private fun decodeToWav(
+        context: Context,
+        sourcePath: String,
+        startSeconds: Double,
+        durationSeconds: Double,
+        outPath: String,
+    ): Boolean {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
@@ -64,7 +88,11 @@ object AudioWindowExtractor {
 
             val startUs = (startSeconds * 1_000_000L).toLong()
             val durationUs = (durationSeconds * 1_000_000L).toLong()
-            extractor.seekTo(startUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            val landedUs = AudioSeek.seekTo(extractor, startUs)
+            // Logged every time, not just when it drifts: on an MP3 the landing
+            // time is the extractor's own estimate, so "landed == want" here can
+            // still mean the audio is somewhere else entirely.
+            Log.d(TAG, "seek want=${startUs / 1000}ms landed=${landedUs / 1000}ms mime=$mime")
 
             codec = MediaCodec.createDecoderByType(mime)
             codec.configure(inputFormat, null, null, 0)
@@ -80,7 +108,6 @@ object AudioWindowExtractor {
                 inputFormat.getInteger(MediaFormat.KEY_PCM_ENCODING) else 2
 
             val mono = FloatBuf((srcRate * durationSeconds).toInt())
-            var firstSampleUs = -1L
             var collectedUs = 0L
 
             while (!sawOutputEOS) {
@@ -108,9 +135,15 @@ object AudioWindowExtractor {
                 } else if (outIndex >= 0) {
                     val outBuf = codec.getOutputBuffer(outIndex)
                     if (outBuf != null && info.size > 0) {
-                        if (firstSampleUs < 0) firstSampleUs = info.presentationTimeUs
-                        appendMono(outBuf, info, outChannels, pcmEncoding, mono)
-                        collectedUs = info.presentationTimeUs - firstSampleUs
+                        // Decoding starts on a frame boundary at or before the
+                        // requested time, so drop whatever came out ahead of it -
+                        // otherwise the window runs early and the bookmarked
+                        // moment falls off the end of it (or out of it entirely).
+                        val aheadUs = startUs - info.presentationTimeUs
+                        val skipFrames =
+                            if (aheadUs > 0) (aheadUs * outRate / 1_000_000L).toInt() else 0
+                        appendMono(outBuf, info, outChannels, pcmEncoding, mono, skipFrames)
+                        collectedUs = mono.size.toLong() * 1_000_000L / outRate
                     }
                     codec.releaseOutputBuffer(outIndex, false)
                     if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) sawOutputEOS = true
@@ -144,15 +177,28 @@ object AudioWindowExtractor {
         return -1
     }
 
-    /** Append decoded frames, downmixing all channels to a single mono float. */
-    private fun appendMono(buf: ByteBuffer, info: MediaCodec.BufferInfo, channels: Int, pcmEncoding: Int, out: FloatBuf) {
+    /**
+     * Append decoded frames, downmixing all channels to a single mono float.
+     * [skipFrames] drops that many frames off the front, for a buffer that
+     * starts before the window the caller asked for.
+     */
+    private fun appendMono(
+        buf: ByteBuffer,
+        info: MediaCodec.BufferInfo,
+        channels: Int,
+        pcmEncoding: Int,
+        out: FloatBuf,
+        skipFrames: Int = 0,
+    ) {
         buf.position(info.offset)
         buf.limit(info.offset + info.size)
         val ch = if (channels <= 0) 1 else channels
         if (pcmEncoding == 4) { // ENCODING_PCM_FLOAT
             val fb = buf.order(ByteOrder.nativeOrder()).asFloatBuffer()
             val frames = fb.remaining() / ch
-            for (f in 0 until frames) {
+            val skip = skipFrames.coerceIn(0, frames)
+            fb.position(skip * ch)
+            for (f in skip until frames) {
                 var sum = 0f
                 for (c in 0 until ch) sum += fb.get()
                 out.add(sum / ch)
@@ -160,7 +206,9 @@ object AudioWindowExtractor {
         } else { // 16-bit PCM
             val sb = buf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
             val frames = sb.remaining() / ch
-            for (f in 0 until frames) {
+            val skip = skipFrames.coerceIn(0, frames)
+            sb.position(skip * ch)
+            for (f in skip until frames) {
                 var sum = 0
                 for (c in 0 until ch) sum += sb.get().toInt()
                 out.add((sum.toFloat() / ch) / 32768f)
