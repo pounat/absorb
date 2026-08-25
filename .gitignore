@@ -78,3 +78,10 @@ android/key.properties
 **/macos/Flutter/ephemeral/
 packages/audio_service/pubspec.lock
 packages/audio_service/example/pubspec.lock
+
+# Native build intermediates Gradle writes inside vendored plugins
+packages/*/android/.cxx/
+packages/whisper_ggml_plus/pubspec.lock
+
+# Kotlin build session caches
+**/android/.kotlin/

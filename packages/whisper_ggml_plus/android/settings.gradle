@@ -1,0 +1,3 @@
+package android
+
+rootProject.name = 'whisper_ggml_plus'

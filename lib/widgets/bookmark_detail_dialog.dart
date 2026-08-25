@@ -351,6 +351,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
         itemId: widget.itemId,
         positionSeconds: _seconds,
         windowSeconds: window.toDouble(),
+        preferAccuracy: _epubForCrossRef == null,
       );
       // No review playback anymore, so the extracted clip is done with.
       try {

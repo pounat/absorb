@@ -14550,7 +14550,7 @@ abstract class AppLocalizations {
   /// No description provided for @transcriptionModelSection.
   ///
   /// In en, this message translates to:
-  /// **'Model'**
+  /// **'Models'**
   String get transcriptionModelSection;
 
   /// No description provided for @transcriptionModelTiny.
@@ -14562,8 +14562,20 @@ abstract class AppLocalizations {
   /// No description provided for @transcriptionModelTinyDesc.
   ///
   /// In en, this message translates to:
-  /// **'Fastest, less accurate. About 31 MB.'**
+  /// **'Quickest, less accurate. About 31 MB.'**
   String get transcriptionModelTinyDesc;
+
+  /// No description provided for @transcriptionModelBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Base'**
+  String get transcriptionModelBase;
+
+  /// No description provided for @transcriptionModelBaseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'A good middle ground. About 57 MB.'**
+  String get transcriptionModelBaseDesc;
 
   /// No description provided for @transcriptionModelSmall.
   ///
@@ -14574,8 +14586,14 @@ abstract class AppLocalizations {
   /// No description provided for @transcriptionModelSmallDesc.
   ///
   /// In en, this message translates to:
-  /// **'Slower, more accurate. About 182 MB.'**
+  /// **'Slower but most accurate - best on a high-end phone. About 182 MB.'**
   String get transcriptionModelSmallDesc;
+
+  /// No description provided for @transcriptionAutoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'With more than one downloaded, each job picks between them. Books with an ebook get the quickest one, since the exact words come from the ebook anyway. Bookmarks on books without one get the most accurate.'**
+  String get transcriptionAutoHint;
 
   /// No description provided for @transcriptionDownload.
   ///
@@ -14688,7 +14706,7 @@ abstract class AppLocalizations {
   /// No description provided for @findInEbook.
   ///
   /// In en, this message translates to:
-  /// **'Find position in ebook'**
+  /// **'Find in ebook'**
   String get findInEbook;
 
   /// No description provided for @findInEbookSearching.

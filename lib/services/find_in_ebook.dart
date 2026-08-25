@@ -108,6 +108,9 @@ Future<void> launchFindInEbook(
       positionSeconds: position,
       windowSeconds: findInEbookWindowSeconds,
       leadSeconds: findInEbookWindowSeconds,
+      // Matched against the ebook, never shown: speed beats accuracy.
+      preferAccuracy: false,
+      feature: TranscriptionFeature.readAlong,
     );
     text = result.text.trim();
     // No playback review here, so the extracted clip is done with.

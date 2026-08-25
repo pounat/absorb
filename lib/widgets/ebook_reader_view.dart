@@ -1854,6 +1854,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
             positionSeconds: pos,
             windowSeconds: _findRetryWindowSeconds,
             leadSeconds: _findRetryWindowSeconds,
+            preferAccuracy: false,
+            feature: TranscriptionFeature.readAlong,
           );
           try {
             final f = File(longer.audioPath);

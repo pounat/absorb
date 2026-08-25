@@ -21,7 +21,11 @@ import 'player_settings.dart';
 /// Audio is decoded to the 16kHz mono WAV Whisper requires by native code
 /// (Android MediaCodec / iOS AVAssetReader) - no ffmpeg ships in the app.
 
-enum TranscriptionModelSize { tiny, small }
+enum TranscriptionModelSize { tiny, base, small }
+
+/// Which user-facing feature a transcription job belongs to, so it can run
+/// the model the user assigned to that feature.
+enum TranscriptionFeature { bookmarks, readAlong }
 
 /// Static description of a downloadable model. We deliberately pull the q5_1
 /// quantized weights (roughly half the size, negligible accuracy loss) but
@@ -51,6 +55,15 @@ class TranscriptionModelInfo {
     approxBytes: 32 * 1024 * 1024, // ~31 MB
   );
 
+  static const base = TranscriptionModelInfo(
+    size: TranscriptionModelSize.base,
+    whisperModel: WhisperModel.base,
+    downloadUrl:
+        'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin',
+    fileName: 'ggml-base.bin',
+    approxBytes: 60 * 1024 * 1024, // ~57 MB
+  );
+
   static const small = TranscriptionModelInfo(
     size: TranscriptionModelSize.small,
     whisperModel: WhisperModel.small,
@@ -61,10 +74,12 @@ class TranscriptionModelInfo {
   );
 
   static TranscriptionModelInfo forSize(TranscriptionModelSize size) =>
-      size == TranscriptionModelSize.small ? small : tiny;
+      switch (size) {
+        TranscriptionModelSize.tiny => tiny,
+        TranscriptionModelSize.base => base,
+        TranscriptionModelSize.small => small,
+      };
 
-  static TranscriptionModelInfo fromPref(String value) =>
-      value == 'small' ? small : tiny;
 }
 
 /// Why a transcription could not be produced. The UI maps these to localized,
@@ -122,6 +137,11 @@ class TranscriptionService {
 
   bool _busy = false;
   bool _cancelDownload = false;
+
+  // Detected language per book. 'auto' makes whisper run the encoder twice
+  // (once to detect, once to transcribe), so pay that only on a book's first
+  // window and pass the answer explicitly from then on.
+  final Map<String, String> _bookLang = {};
 
   // Model management
 
@@ -213,14 +233,15 @@ class TranscriptionService {
     required double positionSeconds,
     double windowSeconds = _windowSeconds,
     double leadSeconds = _leadSeconds,
+    bool? preferAccuracy,
+    TranscriptionFeature feature = TranscriptionFeature.bookmarks,
   }) async {
     if (!await PlayerSettings.getTranscriptionEnabled()) {
       throw TranscriptionException(TranscriptionError.disabled);
     }
     if (_busy) throw TranscriptionException(TranscriptionError.busy);
 
-    final info = TranscriptionModelInfo.fromPref(
-        await PlayerSettings.getTranscriptionModel());
+    final info = await _modelFor(preferAccuracy, feature);
     if (!await isModelDownloaded(info.size)) {
       throw TranscriptionException(TranscriptionError.modelMissing);
     }
@@ -285,27 +306,27 @@ class TranscriptionService {
       // inferred rather than naming it. `.transcription` is a (exported)
       // WhisperTranscribeResponse whose `.text` is the full transcript.
       final String text;
+      final lang = _bookLang[itemId] ?? 'auto';
       try {
         final result = await _whisper.transcribe(
           model: info.whisperModel,
           audioPath: wavPath,
-          lang: 'auto',
+          lang: lang,
           convert: false, // we always hand it a ready 16kHz WAV
           withTimestamps: false,
-          // Must be auto/enabled, NOT disabled: with disabled the package sends
-          // vad_model_path as JSON null and the native parser does .get<string>()
-          // on it, throwing "type must be string, but is null". auto makes the
-          // package extract its bundled Silero VAD model and pass a real path.
-          vadMode: WhisperVadMode.auto,
+          // Audiobooks are wall-to-wall speech, and Silero turned out to cost
+          // more per window than the transcription itself.
+          vadMode: WhisperVadMode.disabled,
           threads: _threads(),
         );
         text = (result?.transcription.text ?? '').trim();
+        _cacheLanguage(itemId, result?.language, text.isNotEmpty);
       } catch (e) {
         if (e is TranscriptionException) rethrow;
         throw TranscriptionException(TranscriptionError.transcribeFailed, e);
       }
       debugPrint('[Transcribe] window=${window.toStringAsFixed(1)}s '
-          'model=${info.fileName} extract=${extractMs}ms '
+          'model=${info.fileName} lang=$lang extract=${extractMs}ms '
           'whisper=${watch.elapsedMilliseconds - extractMs}ms '
           'chars=${text.length}');
       if (text.isEmpty) throw TranscriptionException(TranscriptionError.empty);
@@ -335,14 +356,15 @@ class TranscriptionService {
     required String itemId,
     required double startSeconds,
     required double windowSeconds,
+    bool? preferAccuracy,
+    TranscriptionFeature feature = TranscriptionFeature.readAlong,
   }) async {
     if (!await PlayerSettings.getTranscriptionEnabled()) {
       throw TranscriptionException(TranscriptionError.disabled);
     }
     if (_busy) throw TranscriptionException(TranscriptionError.busy);
 
-    final info = TranscriptionModelInfo.fromPref(
-        await PlayerSettings.getTranscriptionModel());
+    final info = await _modelFor(preferAccuracy, feature);
     if (!await isModelDownloaded(info.size)) {
       throw TranscriptionException(TranscriptionError.modelMissing);
     }
@@ -398,15 +420,19 @@ class TranscriptionService {
       }
 
       final List<({double start, double end, String text})> segments;
+      final lang = _bookLang[itemId] ?? 'auto';
       try {
         final result = await _whisper.transcribe(
           model: info.whisperModel,
           audioPath: wavPath,
-          lang: 'auto',
+          lang: lang,
           convert: false,
           withTimestamps: true,
-          // Must be auto, not disabled - see transcribeAt.
-          vadMode: WhisperVadMode.auto,
+          // See transcribeAt - Silero cost more per window than whisper.
+          vadMode: WhisperVadMode.disabled,
+          // This path feeds alignment, where a late answer is as bad as a
+          // wrong one. A failed window just gets skipped over.
+          noFallback: true,
           threads: _threads(),
         );
         segments = (result?.transcription.segments ?? const [])
@@ -417,12 +443,13 @@ class TranscriptionService {
                 ))
             .where((s) => s.text.isNotEmpty)
             .toList();
+        _cacheLanguage(itemId, result?.language, segments.isNotEmpty);
       } catch (e) {
         if (e is TranscriptionException) rethrow;
         throw TranscriptionException(TranscriptionError.transcribeFailed, e);
       }
       debugPrint('[Transcribe] segments window=${window.toStringAsFixed(1)}s '
-          'model=${info.fileName} extract=${extractMs}ms '
+          'model=${info.fileName} lang=$lang extract=${extractMs}ms '
           'whisper=${watch.elapsedMilliseconds - extractMs}ms '
           'segments=${segments.length}');
       if (segments.isEmpty) throw TranscriptionException(TranscriptionError.empty);
@@ -442,6 +469,53 @@ class TranscriptionService {
 
   int _threads() => (Platform.numberOfProcessors - 1).clamp(2, 6);
 
+  /// Which model to run for one job.
+  ///
+  /// [preferAccuracy] says whether the words have to stand on their own. When
+  /// the book's EPUB is there, every word gets matched against the book's own
+  /// anyway, so tiny is enough - and it is several times faster. With no ebook
+  /// the transcript IS the text, so a bigger model earns its time: small for a
+  /// one-shot bookmark, base for continuous alignment work.
+  Future<TranscriptionModelInfo> _modelFor(
+      bool? preferAccuracy, TranscriptionFeature feature) async {
+    final want = preferAccuracy == false
+        ? TranscriptionModelSize.tiny
+        : feature == TranscriptionFeature.bookmarks
+            ? TranscriptionModelSize.small
+            : TranscriptionModelSize.base;
+    // Only run what is actually on the device. When the intended model is
+    // missing, the nearest smaller one stands in (base for small) before
+    // anything bigger gets a turn.
+    const ladder = [
+      TranscriptionModelSize.small,
+      TranscriptionModelSize.base,
+      TranscriptionModelSize.tiny,
+    ];
+    final i = ladder.indexOf(want);
+    final order = [...ladder.sublist(i), ...ladder.sublist(0, i).reversed];
+    for (final s in order) {
+      if (!await isModelDownloaded(s)) continue;
+      final picked = TranscriptionModelInfo.forSize(s);
+      if (s != want) {
+        debugPrint('[Transcribe] using ${picked.fileName} - '
+            '${TranscriptionModelInfo.forSize(want).fileName} is not downloaded');
+      }
+      return picked;
+    }
+    // Nothing downloaded at all - the caller turns this into modelMissing.
+    return TranscriptionModelInfo.forSize(want);
+  }
+
+  /// Remember what language detection settled on, but only from a window that
+  /// actually produced output - a detection made on silence or music would
+  /// pin the whole book to a garbage language.
+  void _cacheLanguage(String itemId, String? detected, bool hadOutput) {
+    if (!hadOutput || _bookLang.containsKey(itemId)) return;
+    if (detected == null || detected.isEmpty || detected == 'auto') return;
+    _bookLang[itemId] = detected;
+    debugPrint('[Transcribe] $itemId speaks "$detected"');
+  }
+
   /// Per-track durations (seconds) from the cached offline session metadata,
   /// index-aligned with the downloaded track files. Null when unavailable.
   List<double>? _trackDurations(String itemId) {
@@ -458,6 +532,21 @@ class TranscriptionService {
       return null;
     }
   }
+
+  /// Decode a clip of [sourcePath] into a playable standalone WAV, for
+  /// surfaces that need a small file instead of the original (the bookmark
+  /// audition falls back to this when a second player can't open a huge
+  /// single-file book). Never touches the whisper engine, so no gating.
+  Future<String?> extractClipWav({
+    required String sourcePath,
+    required double startSeconds,
+    required double durationSeconds,
+  }) =>
+      _extractWav(
+        sourcePath: sourcePath,
+        startSeconds: startSeconds,
+        durationSeconds: durationSeconds,
+      );
 
   /// Ask native code to decode [durationSeconds] of [sourcePath] starting at
   /// [startSeconds] into a 16kHz mono WAV, returning the temp file path.

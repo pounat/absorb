@@ -8329,21 +8329,31 @@ class AppLocalizationsZh extends AppLocalizations {
       'Download a model below to start transcribing.';
 
   @override
-  String get transcriptionModelSection => 'Model';
+  String get transcriptionModelSection => 'Models';
 
   @override
   String get transcriptionModelTiny => 'Tiny';
 
   @override
   String get transcriptionModelTinyDesc =>
-      'Fastest, less accurate. About 31 MB.';
+      'Quickest, less accurate. About 31 MB.';
+
+  @override
+  String get transcriptionModelBase => 'Base';
+
+  @override
+  String get transcriptionModelBaseDesc => 'A good middle ground. About 57 MB.';
 
   @override
   String get transcriptionModelSmall => 'Small';
 
   @override
   String get transcriptionModelSmallDesc =>
-      'Slower, more accurate. About 182 MB.';
+      'Slower but most accurate - best on a high-end phone. About 182 MB.';
+
+  @override
+  String get transcriptionAutoHint =>
+      'With more than one downloaded, each job picks between them. Books with an ebook get the quickest one, since the exact words come from the ebook anyway. Bookmarks on books without one get the most accurate.';
 
   @override
   String get transcriptionDownload => 'Download';
@@ -8409,7 +8419,7 @@ class AppLocalizationsZh extends AppLocalizations {
       'Use the ebook\'s exact text when it can be matched';
 
   @override
-  String get findInEbook => 'Find position in ebook';
+  String get findInEbook => 'Find in ebook';
 
   @override
   String get findInEbookSearching => 'Finding this spot in the ebook...';

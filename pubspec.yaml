@@ -1,7 +1,7 @@
 name: absorb
 description: An Audiobookshelf Client
 publish_to: 'none'
-version: 1.9.3+246
+version: 1.9.3+247
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -35,7 +35,11 @@ dependencies:
 
   # On-device bookmark transcription (Whisper, opt-in). No ffmpeg companion:
   # we feed it 16kHz mono WAV produced by native decoders (MediaCodec / AVAssetReader).
-  whisper_ggml_plus: ^1.5.2
+  # Vendored from 1.5.2: the arm64 build was plain armv8-a with no dotprod/fp16
+  # kernels, no_fallback was never read out of the request, and there was no way
+  # to see where inference time went. See packages/whisper_ggml_plus.
+  whisper_ggml_plus:
+    path: packages/whisper_ggml_plus
 
   # Reading EPUB text without a WebView (transcript ebook cross-reference).
   archive: ^4.0.9

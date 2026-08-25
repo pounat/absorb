@@ -240,17 +240,6 @@ class PlayerSettings {
     await prefs.setBool('findInAudiobookGoToPlayer', value);
   }
 
-  /// Which Whisper model the transcriber loads: 'tiny' (default) or 'small'.
-  static Future<String> getTranscriptionModel() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('transcriptionModel') ?? 'tiny';
-  }
-  static Future<void> setTranscriptionModel(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('transcriptionModel', value);
-    _notify();
-  }
-
   // The dedicated Podcasts tab implies merged behavior: playback must survive
   // the tab-driven library flips and the Absorbing tab must keep showing the
   // playing item from either tab.

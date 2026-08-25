@@ -1649,10 +1649,9 @@ packages:
   whisper_ggml_plus:
     dependency: "direct main"
     description:
-      name: whisper_ggml_plus
-      sha256: "484950d7767078bd3256fbb256d663322e33de359537a3f3ae0c82607ebebc5c"
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/whisper_ggml_plus"
+      relative: true
+    source: path
     version: "1.5.2"
   win32:
     dependency: transitive

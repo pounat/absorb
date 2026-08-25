@@ -20,7 +20,6 @@ class _TranscriptionSettingsScreenState
     extends State<TranscriptionSettingsScreen> {
   bool _loaded = false;
   bool _enabled = false;
-  String _model = 'tiny';
   final Map<TranscriptionModelSize, bool> _downloaded = {};
   TranscriptionModelSize? _downloading;
   double _progress = 0;
@@ -33,7 +32,6 @@ class _TranscriptionSettingsScreenState
 
   Future<void> _load() async {
     _enabled = await PlayerSettings.getTranscriptionEnabled();
-    _model = await PlayerSettings.getTranscriptionModel();
     for (final s in TranscriptionModelSize.values) {
       _downloaded[s] = await TranscriptionService.instance.isModelDownloaded(s);
     }
@@ -43,12 +41,6 @@ class _TranscriptionSettingsScreenState
   Future<void> _setEnabled(bool v) async {
     setState(() => _enabled = v);
     await PlayerSettings.setTranscriptionEnabled(v);
-  }
-
-  Future<void> _selectModel(TranscriptionModelSize size) async {
-    final value = size == TranscriptionModelSize.small ? 'small' : 'tiny';
-    setState(() => _model = value);
-    await PlayerSettings.setTranscriptionModel(value);
   }
 
   Future<void> _download(TranscriptionModelSize size) async {
@@ -187,12 +179,28 @@ class _TranscriptionSettingsScreenState
                   l: l,
                 ),
                 _modelTile(
+                  size: TranscriptionModelSize.base,
+                  label: l.transcriptionModelBase,
+                  desc: l.transcriptionModelBaseDesc,
+                  cs: cs,
+                  tt: tt,
+                  l: l,
+                ),
+                _modelTile(
                   size: TranscriptionModelSize.small,
                   label: l.transcriptionModelSmall,
                   desc: l.transcriptionModelSmallDesc,
                   cs: cs,
                   tt: tt,
                   l: l,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Text(
+                    l.transcriptionAutoHint,
+                    style: tt.bodySmall
+                        ?.copyWith(color: cs.onSurfaceVariant, height: 1.35),
+                  ),
                 ),
               ],
             ),
@@ -209,7 +217,6 @@ class _TranscriptionSettingsScreenState
   }) {
     final isDownloaded = _downloaded[size] ?? false;
     final isDownloading = _downloading == size;
-    final selected = (_model == 'small') == (size == TranscriptionModelSize.small);
 
     Widget trailing;
     if (isDownloading) {
@@ -244,15 +251,12 @@ class _TranscriptionSettingsScreenState
       );
     }
 
-    return RadioListTile<bool>(
-      value: true,
-      groupValue: selected ? true : null,
-      onChanged: isDownloaded ? (_) => _selectModel(size) : null,
-      controlAffinity: ListTileControlAffinity.leading,
+    return ListTile(
       title: Text(label),
       subtitle: Text(desc,
-          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-      secondary: trailing,
+          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+      trailing: trailing,
     );
   }
+
 }
