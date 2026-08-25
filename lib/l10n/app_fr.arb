@@ -2875,6 +2875,8 @@
   "readerTooltipCopy": "Copier",
   "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez.",
   "transcriptionDisclaimer": "Fonctionne entièrement sur votre appareil, rien n'est envoyé nulle part. Cela utilise de la batterie supplémentaire et de la puissance de calcul pendant que cela fonctionne, et seuls les livres téléchargés peuvent être transcrits.",
+  "transcriptionAutoHint": "Avec plus d'un téléchargement, chaque tâche choisit entre eux. Les livres avec un ebook sont les plus rapides, car les mots exacts viennent de toute façon de l'ebook. Les signets sur les livres sans ebook ont le plus précis possible.",
   "transcriptionIntroBody": "Cela permet d'écouter la quantité d'audio choisie, en commençant juste avant le signet, et en la transformant en texte sur votre appareil. Les clips plus longs prennent plus de temps, et la transcription n'est pas précise à 100%. Le texte est sauvegardé dans la note du favori une fois terminé, prêt à être corrigé ou partagé.",
+  "transcriptionWhisperInfo": "La transcription est alimentée par Whisper, un modèle ouvert de reconnaissance vocale qui écoute la narration et écrit les mots - le tout sur cet appareil.",
   "findInAudiobookIntroBody": "Cela permet d'écouter le livre audio près de l'endroit où vous lisez et de le faire correspondre à ce passage, le tout sur votre appareil. Cela peut prendre jusqu'à une minute. Si l'emplacement ne peut pas être associé en toute confiance, rien ne bouge."
 }
