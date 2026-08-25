@@ -15,6 +15,7 @@ import '../services/chapter_lookup.dart';
 import '../services/download_service.dart';
 import '../services/ebook_cache.dart';
 import '../services/transcription_service.dart';
+import '../utils/episode_key.dart';
 import '../utils/passage_match.dart';
 import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
@@ -33,14 +34,22 @@ typedef BookmarkDetailResult = ({String action, double position});
 /// the [ClipEditorSheet]. Persists on Save/Jump, then pops a [BookmarkDetailResult].
 class BookmarkDetailSheet extends StatefulWidget {
   final String itemId;
+
+  /// Set when the bookmark belongs to a podcast episode: storage, audio and
+  /// downloads are keyed 'itemId-episodeId', while anything the server answers
+  /// still goes by [itemId].
+  final String? episodeId;
   final Bookmark bookmark;
   final ApiService? api;
   const BookmarkDetailSheet({
     super.key,
     required this.itemId,
+    this.episodeId,
     required this.bookmark,
     this.api,
   });
+
+  String get _key => episodeKeyFor(itemId, episodeId);
 
   @override
   State<BookmarkDetailSheet> createState() => _BookmarkDetailSheetState();
@@ -72,7 +81,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     // self-heals to 0 if the user saves.
     _seconds = widget.bookmark.positionSeconds < 0 ? 0.0 : widget.bookmark.positionSeconds;
     _preview = BookmarkPreviewPlayer(
-        itemId: widget.itemId, api: widget.api, label: 'bookmark')
+        itemId: widget._key, api: widget.api, label: 'bookmark')
       ..clipLength = const Duration(seconds: 60)
       ..addListener(_onPreview);
     _loadDisplaySpeed();
@@ -86,6 +95,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
   /// the cached copy first, then the item's metadata (fetched lazily at
   /// transcribe time when it isn't cached yet).
   Future<void> _resolveEpubForCrossRef() async {
+    if (widget.episodeId != null) return; // podcasts have no ebook to match
     var ef = await cachedEbookFileFor(widget.itemId);
     if (ef == null && widget.api != null) {
       try {
@@ -100,7 +110,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
   Future<void> _loadDisplaySpeed() async {
     if (!await PlayerSettings.getSpeedAdjustedTime()) return;
     final player = AudioPlayerService();
-    final speed = player.currentItemId == widget.itemId
+    final speed = player.currentItemId == widget.itemId &&
+            (widget.episodeId == null ||
+                player.currentEpisodeId == widget.episodeId)
         ? player.speed
         : (await PlayerSettings.getBookSpeed(widget.itemId) ??
             await PlayerSettings.getDefaultSpeed());
@@ -157,7 +169,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     // iOS can't export from a streaming book, so prompt to download up front
     // rather than letting the user trim a clip and only fail at Save. Android
     // exports streamed clips fine, so it always opens the editor.
-    if (Platform.isIOS && !DownloadService().isDownloaded(widget.itemId)) {
+    if (Platform.isIOS && !DownloadService().isDownloaded(widget._key)) {
       await _promptDownload();
       return;
     }
@@ -170,7 +182,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => ClipEditorSheet(
-        itemId: widget.itemId,
+        itemId: widget._key,
         bookmarkSeconds: _seconds,
         bookmarkTitle:
             _titleC.text.trim().isEmpty ? widget.bookmark.title : _titleC.text.trim(),
@@ -209,14 +221,25 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     var author = '';
     try {
       final item = await api.getLibraryItem(widget.itemId);
-      final meta = (item?['media'] as Map<String, dynamic>?)?['metadata']
-          as Map<String, dynamic>?;
+      final media = item?['media'] as Map<String, dynamic>? ?? const {};
+      final meta = media['metadata'] as Map<String, dynamic>?;
       title = meta?['title'] as String? ?? title;
       author = meta?['authorName'] as String? ?? '';
+      // A podcast bookmark downloads its own episode, under the episode's name.
+      if (widget.episodeId != null) {
+        final ep = ((media['episodes'] as List<dynamic>?) ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .where((e) => e['id'] == widget.episodeId)
+            .firstOrNull;
+        final epTitle = ep?['title'] as String?;
+        if (author.isEmpty) author = title;
+        if (epTitle != null && epTitle.isNotEmpty) title = epTitle;
+      }
     } catch (_) {}
     await DownloadService().downloadItem(
       api: api,
-      itemId: widget.itemId,
+      itemId: widget._key,
+      episodeId: widget.episodeId,
       title: title,
       author: author,
       coverUrl: api.getCoverUrl(widget.itemId, width: 400),
@@ -271,7 +294,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     final l = AppLocalizations.of(context)!;
     await _preview.stop();
     if (!mounted) return;
-    if (!TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
+    if (!TranscriptionService.instance.canTranscribeBook(widget._key)) {
       showOverlayToast(context, l.transcriptionNotDownloadedBook,
           icon: Icons.download_rounded);
       return;
@@ -348,7 +371,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     String? error;
     try {
       final result = await TranscriptionService.instance.transcribeAt(
-        itemId: widget.itemId,
+        itemId: widget._key,
         positionSeconds: _seconds,
         windowSeconds: window.toDouble(),
         preferAccuracy: _epubForCrossRef == null,
@@ -406,7 +429,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     if (!mounted) return;
     await showQuoteShareSheet(
       context,
-      itemId: widget.itemId,
+      itemId: widget._key,
       quote: quote,
       bookTitle: meta.title,
       author: meta.author,
@@ -422,17 +445,19 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     final player = AudioPlayerService();
     List<dynamic> chapters = const [];
     double duration = 0;
-    if (player.currentItemId == widget.itemId) {
+    if (player.currentItemId == widget.itemId &&
+        (widget.episodeId == null ||
+            player.currentEpisodeId == widget.episodeId)) {
       chapters = player.chapters;
       duration = player.totalDuration;
     }
 
-    final info = DownloadService().getInfo(widget.itemId);
+    final info = DownloadService().getInfo(widget._key);
     String? title = info.title;
     String? author = info.author;
 
     if (chapters.isEmpty) {
-      final raw = DownloadService().getCachedSessionData(widget.itemId);
+      final raw = DownloadService().getCachedSessionData(widget._key);
       if (raw != null && raw.isNotEmpty) {
         try {
           final session = jsonDecode(raw) as Map<String, dynamic>;
@@ -449,13 +474,25 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
         final item = await widget.api!.getLibraryItem(widget.itemId);
         final media = item?['media'] as Map<String, dynamic>? ?? {};
         final meta = media['metadata'] as Map<String, dynamic>? ?? {};
-        if ((title ?? '').isEmpty) title = meta['title'] as String?;
-        if ((author ?? '').isEmpty) author = meta['authorName'] as String?;
+        final ep = widget.episodeId == null
+            ? null
+            : ((media['episodes'] as List<dynamic>?) ?? const [])
+                .whereType<Map<String, dynamic>>()
+                .where((e) => e['id'] == widget.episodeId)
+                .firstOrNull;
+        if ((title ?? '').isEmpty) {
+          title = (ep?['title'] as String?) ?? meta['title'] as String?;
+        }
+        if ((author ?? '').isEmpty) {
+          author = (meta['authorName'] as String?) ??
+              (ep != null ? meta['title'] as String? : null);
+        }
         if (chapters.isEmpty) {
-          chapters = media['chapters'] as List<dynamic>? ?? const [];
+          chapters = (ep?['chapters'] ?? media['chapters']) as List<dynamic>? ??
+              const [];
         }
         if (duration <= 0) {
-          duration = (media['duration'] as num?)?.toDouble() ?? 0;
+          duration = ((ep?['duration'] ?? media['duration']) as num?)?.toDouble() ?? 0;
         }
       } catch (_) {}
     }
@@ -479,7 +516,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     final newNote = _noteC.text.trim();
     final svc = BookmarkService();
     await svc.updateBookmark(
-      itemId: widget.itemId,
+      itemId: widget._key,
       bookmarkId: widget.bookmark.id,
       title: newTitle,
       note: newNote,
@@ -487,7 +524,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     );
     if ((_seconds - widget.bookmark.positionSeconds).abs() >= 0.05) {
       await svc.moveBookmark(
-        itemId: widget.itemId,
+        itemId: widget._key,
         bookmarkId: widget.bookmark.id,
         newPositionSeconds: _seconds,
         api: widget.api,

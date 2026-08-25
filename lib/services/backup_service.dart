@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../utils/episode_key.dart';
 import '../widgets/nav_hold_options.dart'
     show navHoldTabs, navHoldPrefKey, navHoldMenuPrefKey;
 import 'audio_player_service.dart';
@@ -286,6 +287,25 @@ class BackupService {
       if (value != null && value.isNotEmpty) metadataOverrides[itemId] = value;
     }
 
+    // Podcast bookmarks (scoped, keyed 'showId-episodeId'). An ABS bookmark
+    // has no episode id, so these never go to the server - the backup is the
+    // only way they reach another device. Book bookmarks are left out: they
+    // round-trip through ABS already.
+    final podcastBookmarks = <String, List<String>>{};
+    final bookmarkPrefix = '${scopePrefix}bookmarks_';
+    for (final key in prefs.getKeys()) {
+      if (!key.startsWith(bookmarkPrefix)) continue;
+      final itemKey = key.substring(bookmarkPrefix.length);
+      if (!isEpisodeKey(itemKey)) continue;
+      final List<String> stored;
+      try {
+        stored = prefs.getStringList(key) ?? const [];
+      } catch (_) {
+        continue; // the pending-create/delete keys are Strings, not lists
+      }
+      if (stored.isNotEmpty) podcastBookmarks[itemKey] = stored;
+    }
+
     // Ebook annotations (scoped, keyed by itemId). Highlights, bookmarks and
     // their notes live only on-device (ABS has no ebook annotation API), so
     // the backup is their only way to survive a reinstall.
@@ -414,6 +434,7 @@ class BackupService {
       'librarySettings': librarySettings,
       'metadataOverrides': metadataOverrides,
       'ebookAnnotations': ebookAnnotations,
+      'podcastBookmarks': podcastBookmarks,
       'ereader': ereader,
       if (navHold.isNotEmpty) 'navHold': navHold,
       'podcastPrefs': podcastPrefs,
@@ -921,6 +942,40 @@ class BackupService {
     if (ebookAnnotations != null) {
       for (final entry in ebookAnnotations.entries) {
         await ScopedPrefs.setString('ebook_annotations_${entry.key}', entry.value as String);
+      }
+    }
+
+    // Podcast bookmarks (scoped, keyed 'showId-episodeId'). Merged rather than
+    // overwritten: this device's own episode bookmarks live nowhere else, so a
+    // straight replace would throw away anything made since the file was
+    // written. Same position (within a second) counts as the same bookmark.
+    final podcastBookmarks = data['podcastBookmarks'] as Map<String, dynamic>?;
+    if (podcastBookmarks != null) {
+      for (final entry in podcastBookmarks.entries) {
+        final incoming = (entry.value as List<dynamic>?)?.whereType<String>().toList();
+        if (incoming == null || incoming.isEmpty) continue;
+        final key = 'bookmarks_${entry.key}';
+        final existing = (await ScopedPrefs.getStringList(key)).toList();
+        final positions = <double>[];
+        for (final raw in existing) {
+          try {
+            final pos = (jsonDecode(raw) as Map<String, dynamic>)['pos'] as num?;
+            if (pos != null) positions.add(pos.toDouble());
+          } catch (_) {}
+        }
+        for (final raw in incoming) {
+          double? pos;
+          try {
+            pos = ((jsonDecode(raw) as Map<String, dynamic>)['pos'] as num?)?.toDouble();
+          } catch (_) {
+            continue; // not a bookmark we can read - leave it out
+          }
+          if (pos == null) continue;
+          if (positions.any((p) => (p - pos!).abs() < 1.0)) continue;
+          positions.add(pos);
+          existing.add(raw);
+        }
+        await ScopedPrefs.setStringList(key, existing);
       }
     }
 

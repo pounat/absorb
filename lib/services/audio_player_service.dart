@@ -27,10 +27,11 @@ import 'session_cache.dart';
 import 'home_widget_service.dart';
 import 'bookmark_service.dart';
 import 'review_service.dart';
+import '../utils/episode_key.dart';
 export 'player_settings.dart';
 
 String playbackDownloadKey(String itemId, String? episodeId) =>
-    episodeId == null ? itemId : '$itemId-$episodeId';
+    episodeKeyFor(itemId, episodeId);
 
 // ─── AudioHandler (runs in background, controls notification) ───
 
@@ -951,18 +952,17 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   /// Save a bookmark at the current position, mirroring the in-app car-mode
   /// button (chapter title as the label, pushed to the server via the API).
+  /// A podcast episode is bookmarked under its own key, which keeps it on the
+  /// device - ABS bookmarks have nowhere to put an episode id.
   Future<bool> _bookmarkCurrentPosition() async {
     final svc = _service;
     if (svc == null) return false;
-    // Podcasts don't support bookmarks - the button stays for a consistent car
-    // layout but does nothing on an episode.
-    if (svc.currentEpisodeId != null) return false;
     final itemId = svc.currentItemId;
     if (itemId == null) return false;
     final pos = svc.position.inMilliseconds / 1000.0;
     final chTitle = svc.currentChapter?['title'] as String?;
     await BookmarkService().addBookmark(
-      itemId: itemId,
+      itemId: playbackDownloadKey(itemId, svc.currentEpisodeId),
       positionSeconds: pos,
       title: (chTitle != null && chTitle.isNotEmpty) ? chTitle : 'Bookmark',
       api: svc.currentApi,

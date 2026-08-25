@@ -87,6 +87,10 @@ class SettingsSyncService {
   ///   [getSyncRmab].
   /// - customDownloadPath: a path that is only true on one phone.
   /// - offlineMode: a per-device switch.
+  ///
+  /// `podcastBookmarks` is here for the opposite reason: ABS bookmarks carry no
+  /// episode id, so those never reach the server and this is the only way they
+  /// reach another device. It is content, not a pending ledger.
   static const _syncedKeys = <String>{
     'settings',
     'autoRewind',
@@ -108,6 +112,7 @@ class SettingsSyncService {
     'librarySettings',
     'metadataOverrides',
     'ebookAnnotations',
+    'podcastBookmarks',
     'ereader',
     'navHold',
     'podcastPrefs',

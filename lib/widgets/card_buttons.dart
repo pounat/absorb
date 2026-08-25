@@ -17,6 +17,7 @@ import '../services/equalizer_service.dart';
 import '../services/playback_history_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/sleep_timer_service.dart';
+import '../utils/episode_key.dart';
 import 'absorb_slider.dart';
 import 'absorbing_shared.dart';
 import 'book_detail_sheet.dart';
@@ -430,11 +431,17 @@ class CardBookmarkButtonInline extends StatefulWidget {
   final Color accent;
   final bool isActive;
   final String itemId;
+  final String? episodeId;
   final bool large;
   final bool compact;
   final bool short;
   final bool iconsOnly;
-  const CardBookmarkButtonInline({super.key, required this.player, required this.accent, required this.isActive, required this.itemId, this.large = false, this.compact = false, this.short = false, this.iconsOnly = false});
+  const CardBookmarkButtonInline({super.key, required this.player, required this.accent, required this.isActive, required this.itemId, this.episodeId, this.large = false, this.compact = false, this.short = false, this.iconsOnly = false});
+
+  // Podcast bookmarks are keyed 'showId-episodeId' so each episode keeps its
+  // own; books use the plain itemId.
+  String get _key => episodeKeyFor(itemId, episodeId);
+
   @override State<CardBookmarkButtonInline> createState() => _CardBookmarkButtonInlineState();
 }
 
@@ -447,17 +454,19 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
     _loadCount();
     // Then sync with server and update. The player's api is null when no book
     // is loaded (browsing a not-playing book), so fall back to the signed-in
-    // one - server bookmarks should appear either way.
+    // one - server bookmarks should appear either way. Episode bookmarks never
+    // go to the server, so there is nothing to wait for.
+    if (widget.episodeId != null) return;
     final api = AudioPlayerService().currentApi ??
         (mounted ? context.read<AuthProvider>().apiService : null);
     if (api != null) {
-      await BookmarkService().syncBookmarks(widget.itemId, api);
+      await BookmarkService().syncBookmarks(widget._key, api);
       _loadCount();
     }
   }
 
   Future<void> _loadCount() async {
-    final c = await BookmarkService().getCount(widget.itemId);
+    final c = await BookmarkService().getCount(widget._key);
     if (mounted) setState(() => _count = c);
   }
 
@@ -517,7 +526,7 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       final e = (m['end'] as num?)?.toDouble() ?? 0;
       if (pos >= s && pos < e) { chTitle = m['title'] as String?; break; }
     }
-    await BookmarkService().addBookmark(itemId: widget.itemId, positionSeconds: pos, title: chTitle ?? l.bookmark, api: AudioPlayerService().currentApi);
+    await BookmarkService().addBookmark(itemId: widget._key, positionSeconds: pos, title: chTitle ?? l.bookmark, api: AudioPlayerService().currentApi);
     _loadCount();
     if (ctx.mounted) {
       showOverlayToast(ctx, l.bookmarkAdded,
@@ -530,7 +539,7 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       context: context, backgroundColor: Colors.transparent, isScrollControlled: true, useSafeArea: true,
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
-        builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
+        builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, episodeId: widget.episodeId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
       ),
     );
   }
@@ -780,8 +789,12 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
 // ─── BOOKMARK SHEET ──────────────────────────────────────────
 
 class SimpleBookmarkSheet extends StatefulWidget {
-  final String itemId; final AudioPlayerService player; final Color accent; final ScrollController scrollController; final VoidCallback onChanged;
-  const SimpleBookmarkSheet({super.key, required this.itemId, required this.player, required this.accent, required this.scrollController, required this.onChanged});
+  final String itemId; final String? episodeId; final AudioPlayerService player; final Color accent; final ScrollController scrollController; final VoidCallback onChanged;
+  const SimpleBookmarkSheet({super.key, required this.itemId, this.episodeId, required this.player, required this.accent, required this.scrollController, required this.onChanged});
+
+  /// Storage key: 'showId-episodeId' for a podcast episode, the item id for a
+  /// book. [itemId] stays the library item for anything the server answers.
+  String get _key => episodeKeyFor(itemId, episodeId);
   @override State<SimpleBookmarkSheet> createState() => _SimpleBookmarkSheetState();
 }
 
@@ -817,19 +830,20 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     // background and refresh with whatever it pulled in. The player's api is
     // null when this book isn't loaded - fall back to the signed-in one.
     await _load();
+    if (widget.episodeId != null) return; // episode bookmarks stay local
     final api = AudioPlayerService().currentApi ??
         (mounted ? context.read<AuthProvider>().apiService : null);
     if (api != null) {
       try {
         await BookmarkService()
-            .syncBookmarks(widget.itemId, api)
+            .syncBookmarks(widget._key, api)
             .timeout(const Duration(seconds: 12));
       } catch (_) {}
       await _load();
     }
   }
   Future<void> _load() async {
-    final bm = await BookmarkService().getBookmarks(widget.itemId, sort: _sort);
+    final bm = await BookmarkService().getBookmarks(widget._key, sort: _sort);
     if (mounted) setState(() => _bookmarks = bm);
     widget.onChanged();
   }
@@ -912,6 +926,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                             ),
                             builder: (_) => BookmarkDetailSheet(
                               itemId: widget.itemId,
+                              episodeId: widget.episodeId,
                               bookmark: bm,
                               api: context.read<AuthProvider>().apiService,
                             ),
@@ -922,7 +937,9 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                             return;
                           }
                           final position = result.position;
-                          final isActive = widget.player.currentItemId == widget.itemId;
+                          final isActive = widget.player.currentItemId == widget.itemId &&
+                              (widget.episodeId == null ||
+                                  widget.player.currentEpisodeId == widget.episodeId);
                           Navigator.pop(ctx); // Close bookmark sheet first
                           if (isActive || _isCasting) {
                             final seekDur = Duration(seconds: position.round());
@@ -1012,7 +1029,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     );
     if (!mounted || confirmed != true) return;
     await BookmarkService().deleteBookmark(
-      itemId: widget.itemId,
+      itemId: widget._key,
       bookmarkId: bookmark.id,
       api: AudioPlayerService().currentApi,
     );
@@ -1034,14 +1051,32 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final media = fullItem['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final title = metadata['title'] as String? ?? '';
-    final author = metadata['authorName'] as String? ?? '';
-    final coverUrl = lib.getCoverUrl(widget.itemId);
-    final duration = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
-    final chapters = (media['chapters'] as List<dynamic>?) ?? [];
+    var author = metadata['authorName'] as String? ?? '';
+    final coverUrl = lib.getCoverUrl(widget._key);
+    var duration = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
+    var chapters = (media['chapters'] as List<dynamic>?) ?? [];
+    // A podcast bookmark belongs to one episode, so play that episode - its
+    // own duration and chapters, not the show's.
+    String? episodeTitle;
+    final epId = widget.episodeId;
+    if (epId != null) {
+      final ep = ((media['episodes'] as List<dynamic>?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .where((e) => e['id'] == epId)
+          .firstOrNull;
+      if (ep == null) return;
+      episodeTitle = ep['title'] as String?;
+      if (author.isEmpty) author = title; // the show stands in for the author
+      duration = (ep['duration'] as num?)?.toDouble() ??
+          ((ep['audioFile'] as Map<String, dynamic>?)?['duration'] as num?)?.toDouble() ??
+          0.0;
+      chapters = (ep['chapters'] as List<dynamic>?) ?? const [];
+    }
     await player.playItem(
       api: api, itemId: widget.itemId,
-      title: title, author: author, coverUrl: coverUrl,
+      title: episodeTitle ?? title, author: author, coverUrl: coverUrl,
       totalDuration: duration, chapters: chapters,
+      episodeId: epId, episodeTitle: episodeTitle,
       startTime: positionSeconds, forceStartTime: true,
       libraryId: fullItem['libraryId'] as String?,
     );
@@ -1095,7 +1130,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     ));
     if (result != null && result['title']!.isNotEmpty) {
       final note = result['note']?.isNotEmpty == true ? result['note'] : null;
-      await BookmarkService().addBookmark(itemId: widget.itemId, positionSeconds: pos, title: result['title']!, note: note, api: AudioPlayerService().currentApi);
+      await BookmarkService().addBookmark(itemId: widget._key, positionSeconds: pos, title: result['title']!, note: note, api: AudioPlayerService().currentApi);
       _load();
     }
   }
@@ -1129,7 +1164,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     ));
     if (result != null && result['title']!.isNotEmpty) {
       await BookmarkService().updateBookmark(
-        itemId: widget.itemId, bookmarkId: bm.id,
+        itemId: widget._key, bookmarkId: bm.id,
         title: result['title']!, note: result['note']?.isNotEmpty == true ? result['note'] : null,
         api: AudioPlayerService().currentApi,
       );
@@ -1500,6 +1535,11 @@ class CardActionDelegate {
 
   Map<String, dynamic> get _media => item['media'] as Map<String, dynamic>? ?? {};
 
+  /// Which episode the bookmark surfaces belong to. A card that knows its own
+  /// episode wins; an active podcast card falls back to what is playing.
+  String? get _bookmarkEpisodeId =>
+      episodeId ?? (isPodcastEpisode ? player.currentEpisodeId : null);
+
   int get visibleButtonCount => visibleCount;
 
   // Predefined row groupings per button count.
@@ -1637,7 +1677,8 @@ class CardActionDelegate {
           accent: accent, isActive: isPlaybackActive, large: large, compact: compact, iconsOnly: iconsOnly,
           child: CardBookmarkButtonInline(
             player: player, accent: accent,
-            isActive: isActive, itemId: itemId, large: large, compact: compact, short: short, iconsOnly: iconsOnly,
+            isActive: isActive, itemId: itemId, episodeId: _bookmarkEpisodeId,
+            large: large, compact: compact, short: short, iconsOnly: iconsOnly,
           ),
         );
       case 'details':
@@ -1791,7 +1832,7 @@ class CardActionDelegate {
             showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, useSafeArea: true,
               builder: (_) => DraggableScrollableSheet(
                 initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
-                builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
+                builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, episodeId: _bookmarkEpisodeId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
               ),
             );
           },

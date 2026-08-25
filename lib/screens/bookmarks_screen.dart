@@ -17,6 +17,7 @@ import '../widgets/card_buttons.dart';
 import '../services/download_service.dart';
 import '../services/ebook_annotation_service.dart';
 import '../services/ebook_cache.dart';
+import '../utils/episode_key.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/adaptive_modal.dart';
 import '../widgets/ebook_router.dart';
@@ -119,7 +120,8 @@ class _BookmarksScreenState extends State<BookmarksScreen>
   Future<void> _loadBookSpeeds() async {
     _defaultSpeed = await PlayerSettings.getDefaultSpeed();
     var changed = false;
-    for (final itemId in _allBookmarks.keys) {
+    for (final key in _allBookmarks.keys) {
+      final itemId = splitEpisodeKey(key).itemId;
       if (_bookSpeeds.containsKey(itemId)) continue;
       final s = await PlayerSettings.getBookSpeed(itemId);
       if (s != null) {
@@ -130,8 +132,11 @@ class _BookmarksScreenState extends State<BookmarksScreen>
     if (mounted && changed) setState(() {});
   }
 
-  double _displaySpeedFor(String itemId) {
+  double _displaySpeedFor(String key) {
     if (!_speedAdjustedTime) return 1.0;
+    // Speed is saved per book, and a podcast's per-show, so an episode key has
+    // to come apart before either lookup.
+    final itemId = splitEpisodeKey(key).itemId;
     final player = AudioPlayerService();
     if (player.currentItemId == itemId) return player.speed;
     return _bookSpeeds[itemId] ?? _defaultSpeed;
@@ -193,9 +198,12 @@ class _BookmarksScreenState extends State<BookmarksScreen>
         serverByItem.putIfAbsent(id, () => []).add(b);
       }
     }
-    // Sync each item with pre-loaded server data
+    // Sync each item with pre-loaded server data. Podcast episodes are keyed
+    // 'showId-episodeId' and never leave the device, so they have nothing to
+    // merge and an empty server list must not be read as "deleted".
     for (final itemId in itemIds) {
       if (!mounted) break;
+      if (isEpisodeKey(itemId)) continue;
       await BookmarkService().syncBookmarks(itemId, api,
         preloadedServerBookmarks: serverByItem[itemId] ?? []);
     }
@@ -207,13 +215,32 @@ class _BookmarksScreenState extends State<BookmarksScreen>
       // Only need a server fetch when no cache (library/download/title) has it.
       final resolved = _resolveTitle(itemId);
       if (resolved == null) {
-        final item = await api.getLibraryItem(itemId);
+        final ids = splitEpisodeKey(itemId);
+        final item = await api.getLibraryItem(ids.itemId);
         if (item != null) {
           final media = item['media'] as Map<String, dynamic>? ?? {};
           final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
-          final title = metadata['title'] as String?;
+          // An episode's group is named after the episode, so the show title
+          // is only the fallback when the episode has gone from the feed.
+          final episodeTitle = ids.episodeId == null
+              ? null
+              : ((media['episodes'] as List<dynamic>?) ?? const [])
+                  .whereType<Map<String, dynamic>>()
+                  .where((e) => e['id'] == ids.episodeId)
+                  .firstOrNull?['title'] as String?;
+          final showTitle = metadata['title'] as String?;
+          final title =
+              (episodeTitle?.isNotEmpty ?? false) ? episodeTitle : showTitle;
           if (title != null && title.isNotEmpty) {
             _titleCache[itemId] = title;
+            titleCacheDirty = true;
+          }
+          // Cache the show under its own id too, so the episode group can name
+          // the feed it came from without a second fetch.
+          if (ids.episodeId != null &&
+              showTitle != null &&
+              showTitle.isNotEmpty) {
+            _titleCache[ids.itemId] = showTitle;
             titleCacheDirty = true;
           }
         }
@@ -397,25 +424,51 @@ class _BookmarksScreenState extends State<BookmarksScreen>
   /// Returns the book title for [itemId] from any available cache, or null
   /// when the title isn't known locally yet. Callers should render a neutral
   /// placeholder on null rather than the raw item ID.
-  String? _resolveTitle(String itemId) {
-    final cached = _titleCache[itemId];
+  String? _resolveTitle(String key) {
+    final cached = _titleCache[key];
     if (cached != null && cached.isNotEmpty) return cached;
-    final libCache =
-        context.read<LibraryProvider>().absorbingItemCache[itemId];
+    // A downloaded podcast episode is stored under the episode key and carries
+    // the episode's own name - better than the show title the caches hold.
+    if (isEpisodeKey(key)) {
+      final ep = DownloadService().getInfo(key);
+      if (ep.title != null && ep.title!.isNotEmpty) return ep.title!;
+    }
+    final libCache = context.read<LibraryProvider>().absorbingItemCache[key];
     if (libCache != null) {
       final media = libCache['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
       final title = metadata['title'] as String?;
       if (title != null && title.isNotEmpty) return title;
     }
-    final dl = DownloadService().getInfo(itemId);
+    final dl = DownloadService().getInfo(key);
     if (dl.title != null && dl.title!.isNotEmpty) return dl.title!;
     return null;
   }
 
-  Future<void> _jumpToBookmark(String itemId, Bookmark bookmark, String bookTitle) async {
+  /// The show a podcast episode belongs to, shown under the episode name so a
+  /// row of episodes from different feeds can be told apart. Null for books.
+  String? _resolveShowTitle(String key) {
+    final ids = splitEpisodeKey(key);
+    if (ids.episodeId == null) return null;
+    final libCache =
+        context.read<LibraryProvider>().absorbingItemCache[ids.itemId];
+    final metadata = (libCache?['media'] as Map<String, dynamic>?)?['metadata']
+        as Map<String, dynamic>?;
+    final title = metadata?['title'] as String?;
+    if (title != null && title.isNotEmpty) return title;
+    final cached = _titleCache[ids.itemId];
+    if (cached != null && cached.isNotEmpty) return cached;
+    final dl = DownloadService().getInfo(key);
+    if (dl.author != null && dl.author!.isNotEmpty) return dl.author;
+    return null;
+  }
+
+  Future<void> _jumpToBookmark(String key, Bookmark bookmark, String bookTitle) async {
     final l = AppLocalizations.of(context)!;
     final api = context.read<AuthProvider>().apiService;
+    final ids = splitEpisodeKey(key);
+    final itemId = ids.itemId;
+    final episodeId = ids.episodeId;
     final result = await showModalBottomSheet<BookmarkDetailResult>(
       context: context,
       isScrollControlled: true,
@@ -426,6 +479,7 @@ class _BookmarksScreenState extends State<BookmarksScreen>
       ),
       builder: (ctx) => BookmarkDetailSheet(
         itemId: itemId,
+        episodeId: episodeId,
         bookmark: bookmark,
         api: api,
       ),
@@ -453,8 +507,9 @@ class _BookmarksScreenState extends State<BookmarksScreen>
       return;
     }
 
-    // Same book already loaded: just seek.
-    if (player.currentItemId == itemId) {
+    // Same book or episode already loaded: just seek.
+    if (player.currentItemId == itemId &&
+        (episodeId == null || player.currentEpisodeId == episodeId)) {
       await player.seekTo(Duration(seconds: position.round()));
       if (!player.isPlaying) player.play();
       if (mounted) Navigator.pop(context);
@@ -482,20 +537,45 @@ class _BookmarksScreenState extends State<BookmarksScreen>
     final media = fullItem['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final title = metadata['title'] as String? ?? '';
-    final author = metadata['authorName'] as String? ?? '';
-    final coverUrl = lib.getCoverUrl(itemId);
-    final duration = (media['duration'] is num)
+    var author = metadata['authorName'] as String? ?? '';
+    final coverUrl = lib.getCoverUrl(key);
+    var duration = (media['duration'] is num)
         ? (media['duration'] as num).toDouble() : 0.0;
-    final chapters = (media['chapters'] as List<dynamic>?) ?? [];
+    var chapters = (media['chapters'] as List<dynamic>?) ?? [];
+
+    // A podcast bookmark's time belongs to one episode, so play that episode.
+    String? episodeTitle;
+    if (episodeId != null) {
+      final ep = ((media['episodes'] as List<dynamic>?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .where((e) => e['id'] == episodeId)
+          .firstOrNull;
+      if (ep == null) {
+        if (mounted) {
+          showOverlayToast(context, l.bookmarksCouldNotLoad,
+              icon: Icons.error_outline_rounded);
+        }
+        return;
+      }
+      episodeTitle = ep['title'] as String?;
+      if (author.isEmpty) author = title;
+      duration = (ep['duration'] as num?)?.toDouble() ??
+          ((ep['audioFile'] as Map<String, dynamic>?)?['duration'] as num?)
+              ?.toDouble() ??
+          0.0;
+      chapters = (ep['chapters'] as List<dynamic>?) ?? const [];
+    }
 
     final error = await player.playItem(
       api: api,
       itemId: itemId,
-      title: title,
+      title: episodeTitle ?? title,
       author: author,
       coverUrl: coverUrl,
       totalDuration: duration,
       chapters: chapters,
+      episodeId: episodeId,
+      episodeTitle: episodeTitle,
       startTime: position,
       forceStartTime: true,
       libraryId: fullItem['libraryId'] as String?,
@@ -663,6 +743,7 @@ class _BookmarksScreenState extends State<BookmarksScreen>
         return _BookGroup(
           itemId: itemId,
           title: resolvedTitle,
+          subtitle: _resolveShowTitle(itemId),
           coverUrl: coverUrl,
           mediaHeaders: lib.mediaHeaders,
           bookmarks: bookmarks,
@@ -863,6 +944,8 @@ class _BookmarksScreenState extends State<BookmarksScreen>
 class _BookGroup extends StatelessWidget {
   final String itemId;
   final String? title;
+  /// Show name under a podcast episode's title. Null for books.
+  final String? subtitle;
   final String? coverUrl;
   final Map<String, String> mediaHeaders;
   final List<Bookmark> bookmarks;
@@ -879,6 +962,7 @@ class _BookGroup extends StatelessWidget {
   const _BookGroup({
     required this.itemId,
     required this.title,
+    this.subtitle,
     this.coverUrl,
     this.mediaHeaders = const {},
     required this.bookmarks,
@@ -935,12 +1019,26 @@ class _BookGroup extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                             ),
                           )
-                        : Text(
-                            title!,
-                            style: tt.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                title!,
+                                style: tt.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (subtitle != null && subtitle!.isNotEmpty)
+                                Text(
+                                  subtitle!,
+                                  style: tt.labelSmall
+                                      ?.copyWith(color: cs.onSurfaceVariant),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
                           ),
                   ),
                   Text(
