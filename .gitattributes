@@ -1,0 +1,6 @@
+# Everything under packages/ is a third-party plugin vendored so it can carry
+# local patches (whisper.cpp, epub viewer OOM fix, audio_service WorkManager
+# fix, CarPlay, just_audio downmix). Marking it vendored keeps GitHub's
+# language stats about Absorb rather than about ggml's 32MB of C++, which
+# otherwise outweighs lib/ four to one.
+packages/** linguist-vendored
