@@ -27,6 +27,7 @@
 		BB10020000000000000E0005 /* AudioEQProcessor.m in Sources */ = {isa = PBXBuildFile; fileRef = BB10010000000000000E0005 /* AudioEQProcessor.m */; };
 		BB10020000000000000E0007 /* AbsorbAudioBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB10010000000000000E0007 /* AbsorbAudioBridge.swift */; };
 		BB10020000000000000E0008 /* CarPlayNowPlaying.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB10010000000000000E0008 /* CarPlayNowPlaying.swift */; };
+		BB10020000000000000E0009 /* NowPlayingPrimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB10010000000000000E0009 /* NowPlayingPrimer.swift */; };
 		BB10020000000000000E0020 /* AbsorbPlayerCore in Frameworks */ = {isa = PBXBuildFile; productRef = BB10010000000000000E0020 /* AbsorbPlayerCore */; };
 		BB10020000000000000E0021 /* AbsorbPlayerCore in Frameworks */ = {isa = PBXBuildFile; productRef = BB10010000000000000E0021 /* AbsorbPlayerCore */; };
 /* End PBXBuildFile section */
@@ -107,6 +108,7 @@
 		BB10010000000000000E0006 /* AudioEQProcessor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioEQProcessor.h; sourceTree = "<group>"; };
 		BB10010000000000000E0007 /* AbsorbAudioBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsorbAudioBridge.swift; sourceTree = "<group>"; };
 		BB10010000000000000E0008 /* CarPlayNowPlaying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayNowPlaying.swift; sourceTree = "<group>"; };
+		BB10010000000000000E0009 /* NowPlayingPrimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingPrimer.swift; sourceTree = "<group>"; };
 		B7990BE5669E13951B2BAD46 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		DAACD72AEC68ADA3FA213E6C /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4A191144C46AC47851AEE49 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
@@ -221,6 +223,7 @@
 				BB10010000000000000E0001 /* AbsorbPlayerCore.swift */,
 				BB10010000000000000E0002 /* IOSQueueAdvancer.swift */,
 				BB10010000000000000E0008 /* CarPlayNowPlaying.swift */,
+				BB10010000000000000E0009 /* NowPlayingPrimer.swift */,
 				BB10010000000000000E0030 /* Audio */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
@@ -530,6 +533,7 @@
 				BB10020000000000000E0005 /* AudioEQProcessor.m in Sources */,
 				BB10020000000000000E0007 /* AbsorbAudioBridge.swift in Sources */,
 				BB10020000000000000E0008 /* CarPlayNowPlaying.swift in Sources */,
+				BB10020000000000000E0009 /* NowPlayingPrimer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

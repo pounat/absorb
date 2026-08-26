@@ -32,11 +32,11 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 
     // Pre-configure the audio session category for playback so iOS knows this
     // app plays long-form audio (lock screen / Control Center controls) before
-    // the Flutter engine finishes initializing. Do NOT activate the session
-    // here: setActive(true) at launch interrupts other apps' audio (e.g.
-    // Spotify) the moment Absorb opens, before the user presses play. The
-    // playback paths (AbsorbAudioEngine / AbsorbPlayerCore / IOSQueueAdvancer)
-    // activate the session themselves when audio actually starts.
+    // the Flutter engine finishes initializing. Activating the session is left
+    // to [NowPlayingPrimer], which only does it when no other app is playing -
+    // activating unconditionally here would interrupt Spotify the moment
+    // Absorb opens. The playback paths (AbsorbAudioEngine / AbsorbPlayerCore /
+    // IOSQueueAdvancer) activate it themselves when audio actually starts.
     let session = AVAudioSession.sharedInstance()
     do {
       try session.setCategory(.playback, mode: .spokenAudio)
@@ -59,6 +59,18 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       DispatchQueue.main.async {
         self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
       }
+    }
+
+    NowPlayingPrimer.logSink = { [weak self] line in
+      DispatchQueue.main.async {
+        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
+      }
+    }
+    // Take the Now Playing slot for the last-played book, so the headset works
+    // before the user has pressed play in the app. Slightly after launch so the
+    // audio session plugin has settled and the log channel is listening.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+      NowPlayingPrimer.primeAtLaunch()
     }
 
     // Same routing for the EQ tap's format diagnostics, so when a user
