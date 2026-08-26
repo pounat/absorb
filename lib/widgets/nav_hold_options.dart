@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/wording.dart';
 
 /// One choice for what holding a nav tab does. The shell maps ids to the
 /// actual actions; the settings dialog only needs ids, icons and labels for
@@ -210,7 +211,9 @@ String navHoldTabLabel(String tab, AppLocalizations l) => switch (tab) {
       'home' => l.appShellHomeTab,
       'library' => l.appShellLibraryTab,
       'podcasts' => l.appShellPodcastsTab,
-      'absorbing' => l.appShellAbsorbingTab,
+      // Through Wording, so the tab reads "Now Playing" under classic wording
+      // exactly as the nav bar itself does.
+      'absorbing' => Wording.from(l).appShellAbsorbingTab,
       'stats' => l.appShellStatsTab,
       'settings' => l.appShellSettingsTab,
       _ => tab,

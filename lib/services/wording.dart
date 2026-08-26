@@ -17,6 +17,11 @@ class Wording {
   static Wording of(BuildContext context) =>
       Wording._(AppLocalizations.of(context)!, classicWordingNotifier.value);
 
+  /// For code that already holds the strings but has no context to hand -
+  /// helpers called from a build method's callee, mostly.
+  static Wording from(AppLocalizations l) =>
+      Wording._(l, classicWordingNotifier.value);
+
   // ── Card primary action ──
   String get absorb => classic ? 'Play' : _l.absorb;
   String get absorbing => classic ? 'Playing...' : _l.absorbing;
