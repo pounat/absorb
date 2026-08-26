@@ -1620,6 +1620,12 @@ class _AnimatedWaveIconState extends State<_AnimatedWaveIcon>
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final playing = _player.isPlaying;
+    // Painted rather than an Icon, so the nav bar's icon theme passes it by.
+    // That only matters in e-ink mode, where the selected pill is solid black
+    // and the theme is what turns a selected icon white - without this the
+    // wave paints black on black and the tab looks empty.
+    final einkColor =
+        PlayerSettings.einkMode ? IconTheme.of(context).color : null;
 
     return AnimatedBuilder(
       animation: _ctrl,
@@ -1627,7 +1633,8 @@ class _AnimatedWaveIconState extends State<_AnimatedWaveIcon>
         size: Size(widget.size, widget.size),
         painter: _NavWavePainter(
           phase: _ctrl.value,
-          color: widget.active ? cs.primary : cs.onSurfaceVariant,
+          color: einkColor ??
+              (widget.active ? cs.primary : cs.onSurfaceVariant),
           playing: playing,
         ),
       ),
