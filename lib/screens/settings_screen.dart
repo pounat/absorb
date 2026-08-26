@@ -492,9 +492,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                     onChanged: (v) {
                       setDialogState(() => chosen[tab] = v);
-                      v == null
-                          ? ScopedPrefs.remove(navHoldPrefKey(tab))
-                          : ScopedPrefs.setString(navHoldPrefKey(tab), v);
+                      // Store the ask marker rather than clearing the key:
+                      // a cleared key reads as "never chose" and runs the
+                      // tab's default instead of asking.
+                      ScopedPrefs.setString(
+                          navHoldPrefKey(tab), v ?? navHoldAskValue);
                     },
                   ),
                   if (tab != tabs.last) const SizedBox(height: 12),

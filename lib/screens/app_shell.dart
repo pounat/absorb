@@ -914,7 +914,7 @@ class _AppShellState extends State<AppShell>
 
   Future<void> _runNavHold(String tab) async {
     final key = navHoldPrefKey(tab);
-    var id = await ScopedPrefs.getString(key) ?? navHoldDefaults[tab];
+    var id = navHoldResolve(await ScopedPrefs.getString(key), tab);
     if (!mounted) return;
     final isAdmin = context.read<AuthProvider>().isAdmin;
     await _loadRmabAvailability();

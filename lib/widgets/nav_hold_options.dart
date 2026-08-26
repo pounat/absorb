@@ -192,7 +192,19 @@ const navHoldTabs = ['home', 'library', 'podcasts', 'absorbing', 'stats', 'setti
 /// configurable; keep that as its starting point instead of asking.
 const navHoldDefaults = {'absorbing': 'playPause'};
 
+/// Stored when the user picks "Ask next time". Absent means "never chose",
+/// which is what [navHoldDefaults] answers - so the two can't be the same
+/// value, or asking to be asked would silently run Absorbing's default.
+const navHoldAskValue = 'ask';
+
 String navHoldPrefKey(String tab) => 'navHold_$tab';
+
+/// What holding [tab] should do, given what is stored for it. Null means ask
+/// the user. The three states are deliberately distinct: [navHoldAskValue] was
+/// chosen and must always ask, absent means never chosen and lets a tab
+/// default answer, anything else is the saved action.
+String? navHoldResolve(String? saved, String tab) =>
+    saved == navHoldAskValue ? null : (saved ?? navHoldDefaults[tab]);
 
 String navHoldTabLabel(String tab, AppLocalizations l) => switch (tab) {
       'home' => l.appShellHomeTab,
