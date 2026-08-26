@@ -1933,7 +1933,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   Future<void> _doLoadPlaylists() async {
     _isLoadingPlaylists = true;
     try {
-      _playlists = await _api!.getLibraryPlaylists(_selectedLibraryId!);
+      // Keep whatever we already had when the request fails, rather than
+      // blanking the shelves over one bad response.
+      final loaded = await _api!.getLibraryPlaylists(_selectedLibraryId!);
+      if (loaded != null) _playlists = loaded;
     } catch (_) {}
     _isLoadingPlaylists = false;
     notifyListeners();
@@ -2039,7 +2042,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   Future<void> _doLoadCollections() async {
     _isLoadingCollections = true;
     try {
-      _collections = await _api!.getLibraryCollections(_selectedLibraryId!);
+      final loaded = await _api!.getLibraryCollections(_selectedLibraryId!);
+      if (loaded != null) _collections = loaded;
     } catch (_) {}
     _isLoadingCollections = false;
     notifyListeners();

@@ -148,6 +148,30 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// No description provided for @listsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No collections or playlists'**
+  String get listsNone;
+
+  /// No description provided for @listsNoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Collections and playlists are made on your Audiobookshelf server, and show up here.'**
+  String get listsNoneHint;
+
+  /// No description provided for @listsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your lists'**
+  String get listsLoadFailed;
+
+  /// No description provided for @listsLoadFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Absorb couldn\'t reach your server for collections and playlists.'**
+  String get listsLoadFailedHint;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:

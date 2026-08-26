@@ -393,15 +393,11 @@ class LibraryScreenState extends State<LibraryScreen>
   LibrarySort _listsSort = LibrarySort.alphabetical;
   bool _listsSortAsc = true;
   final _listsScrollController = ScrollController();
-  // Remembered per library (persisted): once a library is known to have lists,
-  // keep the Lists pill shown immediately on later opens and don't let it blink
-  // out while the lists reload. Cleared only when a load confirms zero lists.
-  bool _cachedHasLists = false;
-  bool get _showLists =>
-      _tabController != null &&
-      (_collections.isNotEmpty || _playlists.isNotEmpty || _cachedHasLists);
-
-  String _listsPresentKey(String libId) => 'lists_present_$libId';
+  // The Lists tab is always offered. It used to appear only once lists were
+  // known to exist, which made "the request failed", "the server returned
+  // none" and "you have none" all look identical - an absent tab, with nowhere
+  // to say which it was (#362).
+  bool _listsFailed = false;
 
   bool _isLoadingPage = false;
   bool _hasMore = true;
@@ -608,9 +604,7 @@ class LibraryScreenState extends State<LibraryScreen>
         _narrators.clear();
         _narratorsLoaded = false;
         _isLoadingNarrators = false;
-        // Different library: drop the old Lists state; _fetchLists re-seeds the
-        // pill from the new library's remembered flag.
-        _cachedHasLists = false;
+        _listsFailed = false;
         _allNarratorsCache = null;
         _allNarratorsCacheLibraryId = null;
         _searchNarratorResults = [];
@@ -711,12 +705,6 @@ class LibraryScreenState extends State<LibraryScreen>
     final podcastFilterValueLabel = results[24] as String;
     final lib = context.read<LibraryProvider>();
     final isPodcast = lib.isPodcastLibrary;
-    // Read the remembered "has lists" flag so the Lists tab (and its pill) can
-    // be restored immediately on cold start, before the lists finish loading.
-    final libId = lib.selectedLibraryId;
-    final hasListsRemembered = libId != null
-        ? (await ScopedPrefs.getBool(_listsPresentKey(libId)) ?? false)
-        : false;
     if (!mounted) return;
     setState(() {
       // Book library sort/filter
@@ -821,12 +809,8 @@ class LibraryScreenState extends State<LibraryScreen>
         _sort = _podcastSort;
         _sortAsc = _podcastSortAsc;
       }
-      // Seed the Lists pill from the remembered flag so it (and the restored
-      // Lists tab) show right away, before the lists load.
-      if (hasListsRemembered) _cachedHasLists = true;
-      // Restore last active tab (only for book libraries with tabs). The Lists
-      // tab (4) is only restorable if the library is known to have lists.
-      final maxRestorableTab = hasListsRemembered ? 4 : 3;
+      // Restore last active tab (only for book libraries with tabs).
+      const maxRestorableTab = 4;
       if (!isPodcast && savedTab > 0 && savedTab <= maxRestorableTab) {
         _currentTab = savedTab;
         _tabController?.animateTo(savedTab);
@@ -1894,17 +1878,13 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   Future<void> _fetchLists(String key, ApiService api, String libId) async {
-    // Seed the Lists pill from the remembered flag so it shows right away (and
-    // doesn't blink out while reloading) before the network confirms.
-    final remembered =
-        await ScopedPrefs.getBool(_listsPresentKey(libId)) ?? false;
     if (!mounted || _listsLoadingKey != key) return;
     // New key (library/account changed) or first load: drop the previous lists
     // before fetching the new ones.
     setState(() {
       _collections = [];
       _playlists = [];
-      _cachedHasLists = remembered;
+      _listsFailed = false;
     });
     try {
       final results = await Future.wait([
@@ -1912,23 +1892,21 @@ class LibraryScreenState extends State<LibraryScreen>
         api.getLibraryPlaylists(libId),
       ]);
       if (!mounted || _listsLoadingKey != key) return;
-      final cols = results[0].whereType<Map<String, dynamic>>().toList();
-      final pls = results[1].whereType<Map<String, dynamic>>().toList();
-      final hasLists = cols.isNotEmpty || pls.isNotEmpty;
+      // Either call returning null means the server never answered. Saying
+      // "no collections or playlists" to that is how #362 went unexplained for
+      // a user who had plenty of both.
+      final failed = results[0] == null && results[1] == null;
+      final cols =
+          (results[0] ?? const []).whereType<Map<String, dynamic>>().toList();
+      final pls =
+          (results[1] ?? const []).whereType<Map<String, dynamic>>().toList();
       setState(() {
         _collections = cols;
         _playlists = pls;
-        _listsLoadedKey = key;
-        _cachedHasLists = hasLists;
-        // Fall back to Library if the Lists tab is open but has nothing.
-        if (_currentTab == 4 && !_showLists) {
-          _currentTab = 0;
-          _tabController?.animateTo(0);
-        }
+        _listsFailed = failed;
+        // A failed load is not a loaded one - let the next visit retry.
+        if (!failed) _listsLoadedKey = key;
       });
-      // Remember for next time so the pill is instant, and forget once a load
-      // confirms the library genuinely has none.
-      await ScopedPrefs.setBool(_listsPresentKey(libId), hasLists);
     } finally {
       if (_listsLoadingKey == key) _listsLoadFuture = null;
     }
@@ -2976,7 +2954,7 @@ class LibraryScreenState extends State<LibraryScreen>
       l.libraryTabSeries,
       l.libraryTabAuthors,
       l.libraryTabNarrators,
-      if (_showLists) 'Lists',
+      'Lists',
     ];
     return Center(
       child: Padding(
@@ -3261,8 +3239,7 @@ class LibraryScreenState extends State<LibraryScreen>
     // the SearchBar inside binds to the screen-level _focusNode. Inactive
     // tabs' SearchBars use their own internal focus, avoiding the multi-bind
     // bug that left the search bar unresponsive on first tap.
-    // If we're somehow on the Lists tab without any lists, fall back to Library.
-    final effectiveTab = (_currentTab == 4 && !_showLists) ? 0 : _currentTab;
+    final effectiveTab = _currentTab;
     Widget headerFor(int i) =>
         _buildHeaderSliver(context, useSharedFocus: i == effectiveTab);
     return IndexedStack(
@@ -3279,11 +3256,13 @@ class LibraryScreenState extends State<LibraryScreen>
 
   Widget _buildListsGrid(Widget headerSliver) {
     final entries = _sortedLists();
+    final loading = _listsLoadFuture != null;
     return LibraryListsTab(
       entries: entries,
-      // We expect lists (the remembered flag is set) but haven't loaded them
-      // yet - show a spinner instead of flashing the empty state.
-      isLoading: entries.isEmpty && _cachedHasLists,
+      // Only claim the library has none once a load has actually said so.
+      isLoading: entries.isEmpty && loading && !_listsFailed,
+      hasError: _listsFailed,
+      onRetry: _refreshLists,
       coverAspectRatio: _coverAspectRatio,
       onOpenCollection: (c) {
         final id = c['id'] as String?;

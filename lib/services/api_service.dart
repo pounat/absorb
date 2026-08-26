@@ -4043,7 +4043,8 @@ class ApiService {
   // ── Playlists ──────────────────────────────────────────────────────────
 
   /// GET /api/libraries/:libraryId/playlists
-  Future<List<dynamic>> getLibraryPlaylists(String libraryId) async {
+  /// Null means the request failed - see [getLibraryCollections].
+  Future<List<dynamic>?> getLibraryPlaylists(String libraryId) async {
     try {
       final resp = await _authGet(
         Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/playlists'),
@@ -4052,8 +4053,11 @@ class ApiService {
         final data = jsonDecode(resp.body);
         return (data['results'] as List<dynamic>?) ?? [];
       }
-    } catch (_) {}
-    return [];
+      debugPrint('[API] getLibraryPlaylists failed: HTTP ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[API] getLibraryPlaylists error: $e');
+    }
+    return null;
   }
 
   /// GET /api/playlists/:id
@@ -4165,7 +4169,9 @@ class ApiService {
   // ── Collections ────────────────────────────────────────────────────────
 
   /// GET /api/libraries/:libraryId/collections
-  Future<List<dynamic>> getLibraryCollections(String libraryId) async {
+  /// Null means the request failed, which is not the same as a library with no
+  /// collections - the Lists tab tells the user which of the two happened.
+  Future<List<dynamic>?> getLibraryCollections(String libraryId) async {
     try {
       final resp = await _authGet(
         Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/collections'),
@@ -4174,8 +4180,11 @@ class ApiService {
         final data = jsonDecode(resp.body);
         return (data['results'] as List<dynamic>?) ?? [];
       }
-    } catch (_) {}
-    return [];
+      debugPrint('[API] getLibraryCollections failed: HTTP ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[API] getLibraryCollections error: $e');
+    }
+    return null;
   }
 
   /// GET /api/collections/:id
