@@ -153,7 +153,11 @@ json transcribe(json jsonBody)
     params.diarize = jsonBody["diarize"];
     params.speed_up = jsonBody["speed_up"];
     params.vad_mode = parse_vad_mode(jsonBody);
-    params.vad_model_path = jsonBody.value("vad_model_path", std::string(""));
+    // Dart always sends the key and it is null whenever VAD is off, and
+    // value() only falls back for a MISSING key - a present null throws.
+    if (jsonBody.contains("vad_model_path") && jsonBody["vad_model_path"].is_string()) {
+        params.vad_model_path = jsonBody["vad_model_path"].get<std::string>();
+    }
 
     json jsonResult;
     jsonResult["@type"] = "transcribe";
