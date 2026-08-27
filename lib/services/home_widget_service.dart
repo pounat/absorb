@@ -102,6 +102,15 @@ class HomeWidgetService {
         }
         return null;
       });
+
+      // Native buffers its early log lines (Flutter keeps only one
+      // pre-handler message per channel); this tells AppDelegate the handler
+      // is live so it can flush them and switch to sending directly.
+      try {
+        await _widgetChannel.invokeMethod('logReady');
+      } catch (e) {
+        debugPrint('[WidgetDebug] logReady failed: $e');
+      }
     }
 
     final player = AudioPlayerService();

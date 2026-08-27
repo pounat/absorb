@@ -16,6 +16,16 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
   private var volumeKeysChannel: FlutterMethodChannel?
   private let volumeKeyWatcher = VolumeKeyWatcher()
 
+  // Native log lines emitted before Dart's channel handler registers, kept
+  // with their uptime so the flush can stamp when they happened. Flutter
+  // buffers only ONE pre-handler message per channel, so early lines
+  // (notably [NowPlayingPrimer]) otherwise overwrite each other and never
+  // reach the shared log.
+  private var pendingNativeLogs: [(Double, String)] = []
+  private var dartLogReady = false
+  private let launchUptime = ProcessInfo.processInfo.systemUptime
+  private var hasScheduledNowPlayingPrime = false
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -56,21 +66,30 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     // "log" method, which surfaces lines as `[WidgetDebug] [NativeCore] ...`
     // in absorb's in-app log viewer. No Mac/Xcode needed to verify behavior.
     AbsorbPlayerCore.logSink = { [weak self] line in
-      DispatchQueue.main.async {
-        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
-      }
+      self?.logToFlutter(line)
     }
 
     NowPlayingPrimer.logSink = { [weak self] line in
-      DispatchQueue.main.async {
-        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
-      }
+      self?.logToFlutter(line)
     }
     // Take the Now Playing slot for the last-played book, so the headset works
-    // before the user has pressed play in the app. Slightly after launch so the
-    // audio session plugin has settled and the log channel is listening.
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-      NowPlayingPrimer.primeAtLaunch()
+    // before the user has pressed play in the app. Anchored to scene activation
+    // rather than a timer after launch: iOS quietly refuses audio started by an
+    // app that is not active yet, which would leave us half-claimed - session
+    // active and info published, but no audio ever rendered, so a headset press
+    // still launches whichever app genuinely played last. This notification
+    // also fires for the CarPlay scene, covering launches from the car with the
+    // phone locked. Primed once per process; foregrounding again is a no-op.
+    NotificationCenter.default.addObserver(
+      forName: UIScene.didActivateNotification,
+      object: nil, queue: .main
+    ) { [weak self] _ in
+      guard let self, !self.hasScheduledNowPlayingPrime else { return }
+      self.hasScheduledNowPlayingPrime = true
+      // A beat after activation so the audio session plugin has settled.
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        NowPlayingPrimer.primeAtLaunch()
+      }
     }
 
     // Same routing for the EQ tap's format diagnostics, so when a user
@@ -78,31 +97,21 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     // PCM format the tap actually received (low-bitrate AAC m4b often
     // shows up here as mono / unusual sample rate).
     AudioEQProcessor.setFormatLogger { [weak self] line in
-      DispatchQueue.main.async {
-        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
-      }
+      self?.logToFlutter(line)
     }
     AbsorbAudioEQProcessor.setFormatLogger { [weak self] line in
-      DispatchQueue.main.async {
-        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
-      }
+      self?.logToFlutter(line)
     }
 
     IOSQueueAdvancer.logSink = { [weak self] line in
-      DispatchQueue.main.async {
-        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
-      }
+      self?.logToFlutter(line)
     }
 
     AbsorbAudioEngine.logSink = { [weak self] line in
-      DispatchQueue.main.async {
-        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
-      }
+      self?.logToFlutter(line)
     }
     AbsorbAudioBridge.logSink = { [weak self] line in
-      DispatchQueue.main.async {
-        self?.widgetChannel?.invokeMethod("log", arguments: ["msg": line])
-      }
+      self?.logToFlutter(line)
     }
 
     // Register the native player core as an AppIntent dependency. The widget
@@ -224,11 +233,20 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 
   /// Forwards a log line to the Dart LogService via the widget channel so it
   /// appears in the in-app log viewer (NSLog alone only shows in Xcode /
-  /// Console.app on a Mac).
+  /// Console.app on a Mac). Lines emitted before Dart signals "logReady" are
+  /// buffered and flushed then.
   private func logToFlutter(_ message: String) {
     NSLog("[WidgetDebug] %@", message)
     DispatchQueue.main.async { [weak self] in
-      self?.widgetChannel?.invokeMethod("log", arguments: ["msg": message])
+      guard let self else { return }
+      if self.dartLogReady {
+        self.widgetChannel?.invokeMethod("log", arguments: ["msg": message])
+      } else {
+        self.pendingNativeLogs.append((ProcessInfo.processInfo.systemUptime, message))
+        if self.pendingNativeLogs.count > 400 {
+          self.pendingNativeLogs.removeFirst(self.pendingNativeLogs.count - 400)
+        }
+      }
     }
   }
 
@@ -497,8 +515,21 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     let widgetChannel = FlutterMethodChannel(name: "com.absorb.widget",
                                                binaryMessenger: messenger)
     self.widgetChannel = widgetChannel
-    widgetChannel.setMethodCallHandler { (call, result) in
+    widgetChannel.setMethodCallHandler { [weak self] (call, result) in
       switch call.method {
+      case "logReady":
+        // Dart's log listener is live - flush everything buffered since
+        // launch, stamped with seconds-after-launch so timing survives the
+        // batch delivery.
+        guard let self else { result(true); return }
+        self.dartLogReady = true
+        let pending = self.pendingNativeLogs
+        self.pendingNativeLogs = []
+        for (uptime, line) in pending {
+          let stamp = String(format: "%.1f", uptime - self.launchUptime)
+          self.widgetChannel?.invokeMethod("log", arguments: ["msg": "[+\(stamp)s] \(line)"])
+        }
+        result(true)
       case "getGroupContainerPath":
         if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.barnabas.absorb") {
           NSLog("[WidgetDebug] getGroupContainerPath resolved: %@", url.path)

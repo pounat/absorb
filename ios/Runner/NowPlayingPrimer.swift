@@ -27,12 +27,55 @@ enum NowPlayingPrimer {
 
   /// The silent player has to outlive this function or it deallocates before
   /// the blip finishes and the claim never lands.
-  private static var blipPlayer: AVPlayer?
+  private static var blipPlayer: AVAudioPlayer?
 
-  /// A 44-byte WAV header with no samples: enough for iOS to count as playback,
-  /// too short to be heard even if the volume guard failed.
-  private static let silentWav =
-    "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
+  /// Logs whether the blip actually rendered. play() returning true only means
+  /// the request was accepted; this is the ground truth.
+  private final class BlipDelegate: NSObject, AVAudioPlayerDelegate {
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+      DispatchQueue.main.async {
+        NowPlayingPrimer.logSink?("[NowPlayingPrimer] blip finished (rendered=\(flag))")
+        NowPlayingPrimer.blipPlayer = nil
+      }
+    }
+
+    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+      DispatchQueue.main.async {
+        NowPlayingPrimer.logSink?(
+          "[NowPlayingPrimer] blip decode error: \(error?.localizedDescription ?? "unknown")")
+        NowPlayingPrimer.blipPlayer = nil
+      }
+    }
+  }
+
+  private static let blipDelegate = BlipDelegate()
+
+  /// True silence as 16-bit mono 8kHz PCM. The samples must exist: a
+  /// header-only WAV with an empty data chunk renders nothing, and iOS does
+  /// not hand over the Now Playing slot for audio that never reached the
+  /// mixer - the whole point of the blip.
+  private static func makeSilentWav(durationMs: Int) -> Data {
+    let sampleRate = 8000
+    let dataSize = sampleRate * durationMs / 1000 * 2
+    var wav = Data(capacity: 44 + dataSize)
+    func u32(_ v: UInt32) { var x = v.littleEndian; wav.append(Data(bytes: &x, count: 4)) }
+    func u16(_ v: UInt16) { var x = v.littleEndian; wav.append(Data(bytes: &x, count: 2)) }
+    wav.append("RIFF".data(using: .ascii)!)
+    u32(UInt32(36 + dataSize))
+    wav.append("WAVE".data(using: .ascii)!)
+    wav.append("fmt ".data(using: .ascii)!)
+    u32(16)                          // PCM fmt chunk size
+    u16(1)                           // audio format = PCM
+    u16(1)                           // channels
+    u32(UInt32(sampleRate))
+    u32(UInt32(sampleRate * 2))      // byte rate
+    u16(2)                           // block align
+    u16(16)                          // bits per sample
+    wav.append("data".data(using: .ascii)!)
+    u32(UInt32(dataSize))
+    wav.append(Data(count: dataSize))
+    return wav
+  }
 
   /// In the car the controls have to reach us even if something else is
   /// playing, so CarPlay overrides the other-audio guard.
@@ -106,18 +149,24 @@ enum NowPlayingPrimer {
     }
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
-    guard let url = URL(string: silentWav) else { return }
-    let player = AVPlayer(url: url)
-    player.allowsExternalPlayback = false
-    player.volume = 0
-    blipPlayer = player
-    player.play()
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-      blipPlayer = nil
+    do {
+      let player = try AVAudioPlayer(data: makeSilentWav(durationMs: 600))
+      player.volume = 0
+      player.delegate = blipDelegate
+      blipPlayer = player
+      let started = player.play()
+      logSink?(
+        "[NowPlayingPrimer] claimed Now Playing for \"\(title)\" at "
+          + "\(Int(elapsed))s (paused, blip started=\(started))")
+    } catch {
+      logSink?("[NowPlayingPrimer] blip init failed: \(error.localizedDescription)")
+      return
     }
-
-    logSink?(
-      "[NowPlayingPrimer] claimed Now Playing for \"\(title)\" at "
-        + "\(Int(elapsed))s (paused)")
+    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+      if blipPlayer != nil {
+        logSink?("[NowPlayingPrimer] blip never finished - releasing")
+        blipPlayer = nil
+      }
+    }
   }
 }
