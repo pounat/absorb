@@ -991,7 +991,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 ])),
               ]));
           })]],
-      if (!lib.isOffline) ...[const SizedBox(height: 20),
+      const SizedBox(height: 20),
+      if (!lib.isOffline) ...[const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () => showBookStatsSheet(context, itemId: widget.itemId, title: title),
           icon: const Icon(Icons.insights_rounded, size: 18),

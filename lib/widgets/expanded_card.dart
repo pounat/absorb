@@ -16,6 +16,8 @@ import 'card_progress_bar.dart';
 import 'card_playback_controls.dart';
 import 'card_buttons.dart';
 import 'ebook_router.dart';
+import '../services/lyrics_service.dart';
+import 'lyrics_overlay.dart';
 import 'overlay_toast.dart';
 import '../services/ebook_cache.dart';
 import '../services/find_in_ebook.dart';
@@ -122,6 +124,10 @@ class _ExpandedCardState extends State<ExpandedCard> {
   late Map<String, dynamic> _item;
 
   String get _itemId => _item['id'] as String? ?? '';
+  /// The store key the live transcript runs under for this card.
+  String get _lyricsKey =>
+      _episodeId != null ? '$_itemId-$_episodeId' : _itemId;
+
   Map<String, dynamic> get _media => _item['media'] as Map<String, dynamic>? ?? {};
   Map<String, dynamic> get _metadata => _media['metadata'] as Map<String, dynamic>? ?? {};
   String get _title {
@@ -813,8 +819,16 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                       child: Stack(
                                         fit: StackFit.expand,
                                         children: [
-                                          // Cover image
-                                          EinkCoverTone(child: _coverUrl != null
+                                          // Cover image - hidden while the
+                                          // transcript has the cover.
+                                          AnimatedBuilder(
+                                            animation: LyricsService.instance,
+                                            builder: (context, child) =>
+                                                LyricsService.instance
+                                                        .coversArtFor(_lyricsKey)
+                                                    ? Offstage(child: child)
+                                                    : child!,
+                                            child: EinkCoverTone(child: _coverUrl != null
                                               ? _isLocalCover
                                                   ? BlurPaddedCover(blurChild: Image.file(File(_coverUrl!), fit: BoxFit.cover,
                                                       errorBuilder: (_, __, ___) => const SizedBox.shrink()),
@@ -827,11 +841,20 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                                         httpHeaders: mediaHeaders,
                                                         placeholder: (_, __) => CoverPlaceholder(title: _title, author: _author),
                                                         errorWidget: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
-                                              : CoverPlaceholder(title: _title, author: _author)),
-                                          // Play/pause overlay
+                                              : CoverPlaceholder(title: _title, author: _author))),
+                                          // Play/pause overlay - the tap still
+                                          // works with the transcript up, but
+                                          // the button would sit on the words.
                                           if (_coverPlayButton && !isCastingThis && !isFinished)
                                             Positioned.fill(
-                                              child: AnimatedContainer(
+                                              child: AnimatedBuilder(
+                                                animation: LyricsService.instance,
+                                                builder: (context, child) =>
+                                                    LyricsService.instance
+                                                            .coversArtFor(_lyricsKey)
+                                                        ? Offstage(child: child)
+                                                        : child!,
+                                                child: AnimatedContainer(
                                                 duration: const Duration(milliseconds: 200),
                                                 decoration: BoxDecoration(
                                                   color: coverPlaying ? Colors.transparent : Colors.black.withValues(alpha: 0.25),
@@ -866,7 +889,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                                         ),
                                                 ),
                                               ),
-                                            ),
+                                            )),
                                           // Casting overlay
                                           if (isCastingThis) ...[
                                             Positioned.fill(
@@ -899,6 +922,11 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                               ),
                                             ),
                                           ],
+                                          // Live transcript (lyrics mode)
+                                          LyricsOverlay(
+                                              forKey: _lyricsKey,
+                                              surface: cs.surface,
+                                              onSurface: cs.onSurface),
                                         ],
                                       ),
                                     ),

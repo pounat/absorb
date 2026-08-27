@@ -45,6 +45,8 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
       return 'Read';
     case 'findinebook':
       return l.findInEbook;
+    case 'lyrics':
+      return l.lyricsMode;
   }
   return def.label;
 }
@@ -76,6 +78,7 @@ const _allCardButtons = [
   CardButtonDef('download', 'Download', Icons.download_outlined),
   CardButtonDef('ebook', 'Read', Icons.menu_book_rounded),
   CardButtonDef('findinebook', 'Find position in ebook', Icons.manage_search_rounded),
+  CardButtonDef('lyrics', 'Live transcript', Icons.subtitles_rounded),
 ];
 
 /// Card buttons filtered for the current platform.

@@ -105,7 +105,6 @@
             android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
-
         <!-- background_downloader runs downloads in WorkManager's foreground
              service. Declare its dataSync type so startForeground doesn't crash
              on API 34+ (the library's own declaration has no type). -->

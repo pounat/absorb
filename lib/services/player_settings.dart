@@ -229,15 +229,99 @@ class PlayerSettings {
     await prefs.setBool('transcriptionUseEbookText', value);
   }
 
+  /// Live transcript overlay: line font size and how many lines may wrap.
+  static Future<double> getLyricsFontSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('lyricsFontSize') ?? 16;
+  }
+  static Future<void> setLyricsFontSize(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('lyricsFontSize', value);
+  }
+  static Future<bool> getLyricsIntroShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('lyricsIntroShown') ?? false;
+  }
+  static Future<void> setLyricsIntroShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('lyricsIntroShown', true);
+  }
+
+  /// Color the spoken words are painted in for read along and the live
+  /// transcript overlay, as an ARGB value. Amber by default: it stays legible
+  /// on the light, sepia and dark reader themes alike.
+  static const int defaultReadAlongColor = 0xFFFFC400;
+  static Future<int> getReadAlongColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('readAlongColor') ?? defaultReadAlongColor;
+  }
+  static Future<void> setReadAlongColor(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('readAlongColor', value);
+  }
+
+  /// How closely read along follows the narration: 'word' colors one word at
+  /// a time with the rest of the sentence dimmed, 'sentence' colors the whole
+  /// sentence at once.
+  static Future<String> getReadAlongMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('readAlongMode') ?? 'word';
+  }
+  static Future<void> setReadAlongMode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('readAlongMode', value);
+  }
+
+  /// How far ahead of your ears the playhead runs, in milliseconds, so the
+  /// transcript can be held back to match. Bluetooth adds a couple of hundred
+  /// milliseconds that the phone's own speaker doesn't, so the two are
+  /// remembered separately and picked by whatever you are listening on.
+  static Future<int> getTranscriptOffsetMs({required bool bluetooth}) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(bluetooth ? 'transcriptOffsetBt' : 'transcriptOffset') ?? 0;
+  }
+  static Future<void> setTranscriptOffsetMs(int value,
+      {required bool bluetooth}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+        bluetooth ? 'transcriptOffsetBt' : 'transcriptOffset', value);
+  }
+
+  /// Whether the live transcript takes over the whole cover instead of
+  /// sitting in a strip across the bottom of it.
+  static Future<bool> getLyricsFullCover() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('lyricsFullCover') ?? true;
+  }
+  static Future<void> setLyricsFullCover(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('lyricsFullCover', value);
+  }
+
+  static Future<int> getLyricsMaxLines() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('lyricsMaxLines') ?? 3;
+  }
+  static Future<void> setLyricsMaxLines(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lyricsMaxLines', value);
+  }
+
   /// Where Find in audiobook lands on success: true = switch to the player,
   /// false = stay in the reader while the audio plays.
-  static Future<bool> getFindInAudiobookGoToPlayer() async {
+  /// Where a successful Find in audiobook lands: 'stay' in the reader,
+  /// 'player', or 'readalong' - stay and switch read along on from there.
+  static Future<String> getFindInAudiobookAfter() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('findInAudiobookGoToPlayer') ?? true;
+    final v = prefs.getString('findInAudiobookAfter');
+    if (v != null) return v;
+    // The setting used to be a two-way switch.
+    final old = prefs.getBool('findInAudiobookGoToPlayer');
+    return old == false ? 'stay' : 'player';
   }
-  static Future<void> setFindInAudiobookGoToPlayer(bool value) async {
+  static Future<void> setFindInAudiobookAfter(String value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('findInAudiobookGoToPlayer', value);
+    await prefs.setString('findInAudiobookAfter', value);
   }
 
   // The dedicated Podcasts tab implies merged behavior: playback must survive
@@ -1055,7 +1139,7 @@ class PlayerSettings {
 
   // ── Card button order ──
 
-  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'download'];
+  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'lyrics', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'download'];
 
   static Future<List<String>> getCardButtonOrder() async {
     final stored = await ScopedPrefs.getStringList('card_button_order');

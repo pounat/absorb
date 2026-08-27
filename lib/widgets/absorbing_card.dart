@@ -16,6 +16,8 @@ import 'ebook_router.dart';
 import 'overlay_toast.dart';
 import '../services/ebook_cache.dart';
 import '../services/find_in_ebook.dart';
+import '../services/lyrics_service.dart';
+import 'lyrics_overlay.dart';
 import 'card_edge_progress_bar.dart';
 import 'card_progress_bar.dart';
 import 'card_playback_controls.dart';
@@ -592,6 +594,10 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   }
 
 
+  /// The store key the live transcript runs under for this card.
+  String get _lyricsKey =>
+      _episodeId != null ? '$_itemId-$_episodeId' : _itemId;
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // required for AutomaticKeepAliveClientMixin
@@ -924,8 +930,16 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                // Cover image
-                                EinkCoverTone(child: coverUrl != null && coverIdentity != null
+                                // Cover image - hidden while the transcript
+                                // has the cover.
+                                AnimatedBuilder(
+                                  animation: LyricsService.instance,
+                                  builder: (context, child) =>
+                                      LyricsService.instance
+                                              .coversArtFor(_lyricsKey)
+                                          ? Offstage(child: child)
+                                          : child!,
+                                  child: EinkCoverTone(child: coverUrl != null && coverIdentity != null
                                     ? isLocalCover
                                         ? BlurPaddedCover(blurChild: Image.file(File(coverUrl), fit: BoxFit.cover,
                                             gaplessPlayback: true,
@@ -945,7 +959,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                                               },
                                               placeholder: (_, __) => CoverPlaceholder(title: _title, author: _author),
                                               errorWidget: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
-                                    : CoverPlaceholder(title: _title, author: _author)),
+                                    : CoverPlaceholder(title: _title, author: _author))),
                                                 // Casting overlay
                                 if (isCastingThis) ...[
                                   Positioned.fill(
@@ -978,9 +992,18 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                                     ),
                                   ),
                                 ],
-                                // Play/pause overlay
+                                // Play/pause overlay - the tap still works
+                                // with the transcript up, but the button would
+                                // sit on the words.
                                 if (_coverPlayButton) Positioned.fill(
-                                  child: AnimatedContainer(
+                                  child: AnimatedBuilder(
+                                    animation: LyricsService.instance,
+                                    builder: (context, child) =>
+                                        LyricsService.instance
+                                                .coversArtFor(_lyricsKey)
+                                            ? Offstage(child: child)
+                                            : child!,
+                                    child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 200),
                                     decoration: BoxDecoration(
                                       color: coverPlaying ? Colors.transparent : Colors.black.withValues(alpha: 0.25),
@@ -1015,7 +1038,13 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                                             ),
                                     ),
                                   ),
-                                ),
+                                )),
+                                // Live transcript (lyrics mode)
+                                LyricsOverlay(
+                                    compact: true,
+                                    forKey: _lyricsKey,
+                                    surface: cs.surface,
+                                    onSurface: cs.onSurface),
                               ],
                             ),
                           ),

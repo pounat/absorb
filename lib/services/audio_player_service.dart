@@ -1333,6 +1333,17 @@ class AudioPlayerService extends ChangeNotifier {
   /// instead of a live `/play` session. Position still syncs via /me/progress.
   bool _localSessionMode = false;
 
+  // Set when a loadOnly playItem skipped starting the local session; the
+  // first real play() begins it, so listening time still gets recorded.
+  ({
+    String progressKey,
+    String itemId,
+    String? episodeId,
+    double duration,
+    String title,
+    String author,
+  })? _pendingLoadOnlySession;
+
   /// Externally-pushed signal that the server is currently unreachable.
   /// AuthProvider mirrors `serverReachable` here on each ping result so we
   /// can short-circuit pre-play server calls (e.g. session creation) for
@@ -2661,6 +2672,11 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
+  /// Public view of the BT check, for callers that need to compensate for
+  /// the delay Bluetooth adds between the playhead and your ears.
+  static Future<bool> isBluetoothAudioConnected() =>
+      _isBluetoothAudioConnected();
+
   /// True when BT/headphones just disconnected — callers can check before
   /// starting new playback to avoid blasting audio on the phone speaker.
   static bool get wasNoisyPause => _noisyPause;
@@ -3039,6 +3055,11 @@ class AudioPlayerService extends ChangeNotifier {
     // Auto, the widget, headphones or a cold-start restore begin at the
     // phone's own position immediately. See play().
     bool fromUi = false,
+    // Load the item into the player at its resume position but leave it
+    // paused, with no playback session: the live transcript needs the book
+    // up so its runway can build, without deciding for the user that audio
+    // starts now. Downloaded items only - a streamed item plays normally.
+    bool loadOnly = false,
   }) async {
     _pauseRequested = false;
     _playFromUi = fromUi;
@@ -3102,6 +3123,7 @@ class AudioPlayerService extends ChangeNotifier {
     // for downloaded items. Without this it leaks from a prior downloaded play
     // into a following streaming play and misroutes the listening time.
     _localSessionMode = false;
+    _pendingLoadOnlySession = null;
     _currentEpisodeTitle = episodeTitle;
     _currentTitle = title;
     _currentAuthor = author;
@@ -3197,6 +3219,7 @@ class AudioPlayerService extends ChangeNotifier {
         chapters,
         startTime,
         forceStartTime,
+        loadOnly,
       );
     } else {
       // Check manual offline — don't stream from server
@@ -3533,6 +3556,7 @@ class AudioPlayerService extends ChangeNotifier {
     List<dynamic> chapters,
     double startTime, [
     bool forceStartTime = false,
+    bool loadOnly = false,
   ]) async {
     debugPrint('[Player] Playing from local files: $title');
     // Alpha [PodDur]: trace podcast-episode duration loading. Symptom:
@@ -3773,6 +3797,25 @@ class AudioPlayerService extends ChangeNotifier {
         chapter: initChapter,
       );
       await EqualizerService().switchItem(speedKey);
+      if (loadOnly) {
+        // Loaded and idle at the resume position: the transcript can build
+        // its runway and the lock screen shows the book paused, but nothing
+        // plays and no session exists until the user presses play - the
+        // normal play() path creates the session then.
+        debugPrint('[Player] Loaded paused (no session) at '
+            '${startTime.toStringAsFixed(0)}s');
+        _pendingLoadOnlySession = (
+          progressKey: pKey,
+          itemId: _currentItemId!,
+          episodeId: _currentEpisodeId,
+          duration: totalDuration,
+          title: title,
+          author: author,
+        );
+        _handler?.refreshPlaybackState();
+        notifyListeners();
+        return null;
+      }
       debugPrint('[Player] Starting local playback at ${speed}x');
       _handler?.refreshPlaybackState();
       await Future.delayed(const Duration(milliseconds: 200));
@@ -6028,6 +6071,24 @@ class AudioPlayerService extends ChangeNotifier {
     _noisyPause =
         false; // User explicitly resumed — allow interrupt-resume again
     _handler?._noisyPauseAt = null; // Clear noisy suppression window
+    // A loadOnly playItem left the item paused with no session; this first
+    // real play is where listening actually starts, so the session does too.
+    final pendingSession = _pendingLoadOnlySession;
+    if (pendingSession != null) {
+      _pendingLoadOnlySession = null;
+      if (_currentItemId == pendingSession.itemId) {
+        await LocalSessionService().beginSession(
+          progressKey: pendingSession.progressKey,
+          libraryItemId: pendingSession.itemId,
+          episodeId: pendingSession.episodeId,
+          mediaType: pendingSession.episodeId != null ? 'podcast' : 'book',
+          duration: pendingSession.duration,
+          startTime: position.inMilliseconds / 1000.0,
+          displayTitle: pendingSession.title,
+          displayAuthor: pendingSession.author,
+        );
+      }
+    }
     // A seek while paused (user, or the socket adopting another device's
     // position) is the position the user expects to hear next - don't let
     // the server check below override it.

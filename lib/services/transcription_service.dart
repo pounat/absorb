@@ -138,6 +138,9 @@ class TranscriptionService {
   bool _busy = false;
   bool _cancelDownload = false;
 
+  /// Which model the last run actually used, after [_modelFor] had its say.
+  TranscriptionModelSize? lastModelUsed;
+
   // Detected language per book. 'auto' makes whisper run the encoder twice
   // (once to detect, once to transcribe), so pay that only on a book's first
   // window and pass the answer explicitly from then on.
@@ -224,6 +227,44 @@ class TranscriptionService {
   bool canTranscribeBook(String itemId) =>
       DownloadService().getLocalPaths(itemId)?.isNotEmpty ?? false;
 
+  /// Which model to run for one job.
+  ///
+  /// [preferAccuracy] says whether the words have to stand on their own. When
+  /// the book's EPUB is there, every word gets replaced by the book's own
+  /// anyway, so tiny is enough - and being several times faster is what keeps
+  /// the live transcript ahead of the narration. With no ebook the transcript
+  /// IS the text, so a bigger model earns its time: small for a one-shot
+  /// bookmark, base for read along, which small cannot keep realtime on.
+  Future<TranscriptionModelInfo> _modelFor(
+      bool? preferAccuracy, TranscriptionFeature feature) async {
+    final want = preferAccuracy == false
+        ? TranscriptionModelSize.tiny
+        : feature == TranscriptionFeature.bookmarks
+            ? TranscriptionModelSize.small
+            : TranscriptionModelSize.base;
+    // Only run what is actually on the device. When the intended model is
+    // missing, the nearest smaller one stands in (base for small) before
+    // anything bigger gets a turn.
+    const ladder = [
+      TranscriptionModelSize.small,
+      TranscriptionModelSize.base,
+      TranscriptionModelSize.tiny,
+    ];
+    final i = ladder.indexOf(want);
+    final order = [...ladder.sublist(i), ...ladder.sublist(0, i).reversed];
+    for (final s in order) {
+      if (!await isModelDownloaded(s)) continue;
+      final picked = TranscriptionModelInfo.forSize(s);
+      if (s != want) {
+        debugPrint('[Transcribe] using ${picked.fileName} - '
+            '${TranscriptionModelInfo.forSize(want).fileName} is not downloaded');
+      }
+      return picked;
+    }
+    // Nothing downloaded at all - the caller turns this into modelMissing.
+    return TranscriptionModelInfo.forSize(want);
+  }
+
   /// Transcribe the audio around [positionSeconds] of [itemId]. Returns the
   /// transcript text plus the path to the extracted 16kHz WAV clip, which the
   /// caller can play back for review and MUST delete when finished. Throws
@@ -245,6 +286,7 @@ class TranscriptionService {
     if (!await isModelDownloaded(info.size)) {
       throw TranscriptionException(TranscriptionError.modelMissing);
     }
+    lastModelUsed = info.size;
 
     final localPaths = DownloadService().getLocalPaths(itemId);
     if (localPaths == null || localPaths.isEmpty) {
@@ -368,6 +410,7 @@ class TranscriptionService {
     if (!await isModelDownloaded(info.size)) {
       throw TranscriptionException(TranscriptionError.modelMissing);
     }
+    lastModelUsed = info.size;
 
     final localPaths = DownloadService().getLocalPaths(itemId);
     if (localPaths == null || localPaths.isEmpty) {
@@ -430,8 +473,8 @@ class TranscriptionService {
           withTimestamps: true,
           // See transcribeAt - Silero cost more per window than whisper.
           vadMode: WhisperVadMode.disabled,
-          // This path feeds alignment, where a late answer is as bad as a
-          // wrong one. A failed window just gets skipped over.
+          // This path feeds the live transcript, where a late answer is as
+          // bad as a wrong one. A failed window just gets skipped over.
           noFallback: true,
           threads: _threads(),
         );
@@ -451,7 +494,7 @@ class TranscriptionService {
       debugPrint('[Transcribe] segments window=${window.toStringAsFixed(1)}s '
           'model=${info.fileName} lang=$lang extract=${extractMs}ms '
           'whisper=${watch.elapsedMilliseconds - extractMs}ms '
-          'segments=${segments.length}');
+          'threads=${_threads()} segments=${segments.length}');
       if (segments.isEmpty) throw TranscriptionException(TranscriptionError.empty);
       return segments;
     } finally {
@@ -467,44 +510,12 @@ class TranscriptionService {
 
   // Internals
 
-  int _threads() => (Platform.numberOfProcessors - 1).clamp(2, 6);
-
-  /// Which model to run for one job.
-  ///
-  /// [preferAccuracy] says whether the words have to stand on their own. When
-  /// the book's EPUB is there, every word gets matched against the book's own
-  /// anyway, so tiny is enough - and it is several times faster. With no ebook
-  /// the transcript IS the text, so a bigger model earns its time: small for a
-  /// one-shot bookmark, base for continuous alignment work.
-  Future<TranscriptionModelInfo> _modelFor(
-      bool? preferAccuracy, TranscriptionFeature feature) async {
-    final want = preferAccuracy == false
-        ? TranscriptionModelSize.tiny
-        : feature == TranscriptionFeature.bookmarks
-            ? TranscriptionModelSize.small
-            : TranscriptionModelSize.base;
-    // Only run what is actually on the device. When the intended model is
-    // missing, the nearest smaller one stands in (base for small) before
-    // anything bigger gets a turn.
-    const ladder = [
-      TranscriptionModelSize.small,
-      TranscriptionModelSize.base,
-      TranscriptionModelSize.tiny,
-    ];
-    final i = ladder.indexOf(want);
-    final order = [...ladder.sublist(i), ...ladder.sublist(0, i).reversed];
-    for (final s in order) {
-      if (!await isModelDownloaded(s)) continue;
-      final picked = TranscriptionModelInfo.forSize(s);
-      if (s != want) {
-        debugPrint('[Transcribe] using ${picked.fileName} - '
-            '${TranscriptionModelInfo.forSize(want).fileName} is not downloaded');
-      }
-      return picked;
-    }
-    // Nothing downloaded at all - the caller turns this into modelMissing.
-    return TranscriptionModelInfo.forSize(want);
-  }
+  // Capped at 4, not core count: whisper barriers its threads at every layer,
+  // so the slowest thread gates each step. On big.LITTLE phones a fifth and
+  // sixth thread land on little cores, and once Android's touch boost decays
+  // those drop to idle clocks and drag a 7s window out past 30s. Four threads
+  // stay on the big and mid cores and hold their speed unboosted.
+  int _threads() => (Platform.numberOfProcessors - 1).clamp(2, 4);
 
   /// Remember what language detection settled on, but only from a window that
   /// actually produced output - a detection made on silence or music would

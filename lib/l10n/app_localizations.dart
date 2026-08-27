@@ -14616,7 +14616,7 @@ abstract class AppLocalizations {
   /// No description provided for @transcriptionAutoHint.
   ///
   /// In en, this message translates to:
-  /// **'With more than one downloaded, each job picks between them. Books with an ebook get the quickest one, since the exact words come from the ebook anyway. Bookmarks on books without one get the most accurate.'**
+  /// **'With more than one downloaded, each job picks between them. Books with an ebook get the quickest one, since the exact words come from the ebook anyway. Books without one get the most accurate - except read along, which stays below Small so it can keep up with the narration.'**
   String get transcriptionAutoHint;
 
   /// No description provided for @transcriptionDownload.
@@ -14726,6 +14726,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use the ebook\'s exact text when it can be matched'**
   String get transcriptionUseEbookText;
+
+  /// No description provided for @lyricsMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Live transcript'**
+  String get lyricsMode;
+
+  /// No description provided for @lyricsListeningAhead.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening ahead...'**
+  String get lyricsListeningAhead;
+
+  /// No description provided for @lyricsDisplaySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Live transcript'**
+  String get lyricsDisplaySection;
+
+  /// No description provided for @lyricsFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Line size'**
+  String get lyricsFontSize;
+
+  /// No description provided for @lyricsMaxLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Lines shown'**
+  String get lyricsMaxLines;
+
+  /// No description provided for @lyricsFullCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the whole cover'**
+  String get lyricsFullCover;
+
+  /// No description provided for @lyricsFullCoverHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows the transcript in place of the artwork while it runs, fitting as many lines as there is room for.'**
+  String get lyricsFullCoverHint;
+
+  /// No description provided for @lyricsBatteryInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Live transcript and read along use extra battery and processing while they run. On phones with slower processors, lines can take longer to appear.'**
+  String get lyricsBatteryInfo;
+
+  /// No description provided for @lyricsIntroBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This listens a little ahead of the narration and shows each line as it is spoken, transcribed on your phone - nothing leaves the device. After turning it on, hold off on pressing play for a few seconds while it gets ahead. The transcript appears once its head start is ready, and starting paused gives it the smoothest run. It uses extra battery and processing while it runs.'**
+  String get lyricsIntroBody;
+
+  /// No description provided for @lyricsBuildingLead.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting ahead of the narration... {percent}'**
+  String lyricsBuildingLead(String percent);
+
+  /// No description provided for @lyricsCantKeepUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t transcribe as fast as you\'re listening at {speed}'**
+  String lyricsCantKeepUp(String speed);
+
+  /// No description provided for @lyricsTurnOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get lyricsTurnOn;
+
+  /// No description provided for @readAlong.
+  ///
+  /// In en, this message translates to:
+  /// **'Read along'**
+  String get readAlong;
+
+  /// No description provided for @readAlongNeedsPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Play this book\'s audiobook first'**
+  String get readAlongNeedsPlaying;
+
+  /// No description provided for @transcriptionNeedsDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'This needs the audio on your phone. Download it now?'**
+  String get transcriptionNeedsDownload;
+
+  /// No description provided for @transcriptionDownloadStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading. Turn this on again when it finishes'**
+  String get transcriptionDownloadStarted;
+
+  /// No description provided for @readAlongFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Read along follows'**
+  String get readAlongFollow;
+
+  /// No description provided for @readAlongFollowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Word timing is worked out between the transcript\'s timestamps, so it can drift slightly inside a sentence.'**
+  String get readAlongFollowHint;
+
+  /// No description provided for @readAlongFollowWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Word'**
+  String get readAlongFollowWord;
+
+  /// No description provided for @readAlongFollowSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentence'**
+  String get readAlongFollowSentence;
+
+  /// No description provided for @readAlongColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Read along color'**
+  String get readAlongColor;
 
   /// No description provided for @findInEbook.
   ///

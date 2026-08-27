@@ -3,7 +3,21 @@ import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/player_settings.dart';
 import '../services/transcription_service.dart';
+import '../services/lyrics_service.dart';
 import '../widgets/overlay_toast.dart';
+
+/// Colors the spoken words can be painted in. Vivid enough to read on the
+/// light, sepia and dark reader pages alike, and over cover art.
+const _readAlongPalette = [
+  0xFFFFC400,
+  0xFFFF6D00,
+  0xFFFF1744,
+  0xFFFF4081,
+  0xFFD500F9,
+  0xFF2979FF,
+  0xFF00B8D4,
+  0xFF00C853,
+];
 
 /// Advanced > Bookmark transcription settings: opt-in toggle and on-device
 /// Whisper model management (download / pick / delete). Everything here runs
@@ -20,6 +34,11 @@ class _TranscriptionSettingsScreenState
     extends State<TranscriptionSettingsScreen> {
   bool _loaded = false;
   bool _enabled = false;
+  double _lyricsFontSize = 16;
+  int _lyricsMaxLines = 3;
+  bool _lyricsFullCover = true;
+  String _readAlongMode = 'word';
+  int _readAlongColor = PlayerSettings.defaultReadAlongColor;
   final Map<TranscriptionModelSize, bool> _downloaded = {};
   TranscriptionModelSize? _downloading;
   double _progress = 0;
@@ -32,6 +51,11 @@ class _TranscriptionSettingsScreenState
 
   Future<void> _load() async {
     _enabled = await PlayerSettings.getTranscriptionEnabled();
+    _lyricsFontSize = await PlayerSettings.getLyricsFontSize();
+    _lyricsMaxLines = await PlayerSettings.getLyricsMaxLines();
+    _lyricsFullCover = await PlayerSettings.getLyricsFullCover();
+    _readAlongMode = await PlayerSettings.getReadAlongMode();
+    _readAlongColor = await PlayerSettings.getReadAlongColor();
     for (final s in TranscriptionModelSize.values) {
       _downloaded[s] = await TranscriptionService.instance.isModelDownloaded(s);
     }
@@ -202,8 +226,154 @@ class _TranscriptionSettingsScreenState
                         ?.copyWith(color: cs.onSurfaceVariant, height: 1.35),
                   ),
                 ),
+                const Divider(height: 24),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: Text(l.lyricsDisplaySection,
+                      style: tt.titleSmall?.copyWith(color: cs.primary)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.battery_alert_rounded, size: 18, color: cs.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            l.lyricsBatteryInfo,
+                            style: tt.bodySmall
+                                ?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                ListTile(
+                  title: Text(l.lyricsFontSize),
+                  subtitle: Slider(
+                    value: _lyricsFontSize,
+                    min: 12,
+                    max: 24,
+                    divisions: 12,
+                    label: _lyricsFontSize.toStringAsFixed(0),
+                    onChanged: (v) => setState(() => _lyricsFontSize = v),
+                    onChangeEnd: (v) async {
+                      await PlayerSettings.setLyricsFontSize(v);
+                      await LyricsService.instance.reloadDisplayPrefs();
+                    },
+                  ),
+                  trailing: Text(_lyricsFontSize.toStringAsFixed(0),
+                      style: tt.titleMedium),
+                ),
+                SwitchListTile(
+                  title: Text(l.lyricsFullCover),
+                  subtitle: Text(l.lyricsFullCoverHint,
+                      style: tt.bodySmall
+                          ?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+                  value: _lyricsFullCover,
+                  onChanged: (v) async {
+                    setState(() => _lyricsFullCover = v);
+                    await PlayerSettings.setLyricsFullCover(v);
+                    await LyricsService.instance.reloadDisplayPrefs();
+                  },
+                ),
+                // Taking the whole cover fits as many lines as the space
+                // allows, so the count only applies to the strip.
+                if (!_lyricsFullCover)
+                ListTile(
+                  title: Text(l.lyricsMaxLines),
+                  trailing: SegmentedButton<int>(
+                    segments: [
+                      for (final n in const [2, 3, 4, 5])
+                        ButtonSegment(value: n, label: Text('$n')),
+                    ],
+                    selected: {_lyricsMaxLines},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (sel) async {
+                      setState(() => _lyricsMaxLines = sel.first);
+                      await PlayerSettings.setLyricsMaxLines(sel.first);
+                      await LyricsService.instance.reloadDisplayPrefs();
+                    },
+                  ),
+                ),
+                ListTile(
+                  title: Text(l.readAlongFollow),
+                  subtitle: Text(l.readAlongFollowHint,
+                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                  trailing: SegmentedButton<String>(
+                    segments: [
+                      ButtonSegment(
+                          value: 'word', label: Text(l.readAlongFollowWord)),
+                      ButtonSegment(
+                          value: 'sentence',
+                          label: Text(l.readAlongFollowSentence)),
+                    ],
+                    selected: {_readAlongMode},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (sel) async {
+                      setState(() => _readAlongMode = sel.first);
+                      await PlayerSettings.setReadAlongMode(sel.first);
+                      await LyricsService.instance.reloadDisplayPrefs();
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(l.readAlongColor, style: tt.bodyLarge),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      for (final c in _readAlongPalette)
+                        _colorSwatch(c, cs),
+                    ],
+                  ),
+                ),
               ],
             ),
+    );
+  }
+
+
+  Widget _colorSwatch(int argb, ColorScheme cs) {
+    final selected = _readAlongColor == argb;
+    return GestureDetector(
+      onTap: () async {
+        setState(() => _readAlongColor = argb);
+        await PlayerSettings.setReadAlongColor(argb);
+        await LyricsService.instance.reloadDisplayPrefs();
+      },
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Color(argb),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? cs.onSurface : cs.outlineVariant,
+            width: selected ? 3 : 1,
+          ),
+        ),
+        child: selected
+            ? Icon(Icons.check_rounded,
+                size: 20,
+                color: ThemeData.estimateBrightnessForColor(Color(argb)) ==
+                        Brightness.dark
+                    ? Colors.white
+                    : Colors.black)
+            : null,
+      ),
     );
   }
 

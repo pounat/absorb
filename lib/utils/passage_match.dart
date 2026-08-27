@@ -116,6 +116,57 @@ String? correctFromEpub(({String epubPath, String transcript}) args) {
   return _snapToSentences(sections[b.section], b.start, b.end);
 }
 
+/// What the book says next, after a matched passage.
+typedef PassageWithNext = ({String passage, String continuation});
+
+/// [correctFromEpub], plus the book's next couple of sentences after the
+/// matched passage. The continuation is text the audio window never reached -
+/// the live transcript shows it as an estimated preview until the real
+/// transcription of that stretch lands.
+PassageWithNext? correctFromEpubWithNext(
+    ({String epubPath, String transcript}) args) {
+  final passage = correctFromEpub(args);
+  if (passage == null) return null;
+  // Find the passage again to know where it ends. Cheap next to the match
+  // itself, and it keeps correctFromEpub's shape untouched for its other
+  // callers.
+  try {
+    for (final text in _epubSectionTexts(args.epubPath)) {
+      final normalized = text.replaceAll(RegExp(r'\s+'), ' ');
+      final idx = normalized.indexOf(passage);
+      if (idx < 0) continue;
+      return (
+        passage: passage,
+        continuation: _followingSentences(normalized, idx + passage.length),
+      );
+    }
+  } catch (e) {
+    debugPrint('[PassageMatch] continuation lookup failed: $e');
+  }
+  return (passage: passage, continuation: '');
+}
+
+/// Up to two sentences (bounded) after [from], for the estimated preview.
+String _followingSentences(String text, int from) {
+  final maxE = (from + 320).clamp(0, text.length);
+  var sentences = 0;
+  var e = maxE;
+  for (var i = from; i < maxE; i++) {
+    final c = text[i];
+    if (c == '.' || c == '!' || c == '?') {
+      var j = i + 1;
+      while (j < text.length && const ['"', "'", '”', '’'].contains(text[j])) {
+        j++;
+      }
+      if (++sentences >= 2) {
+        e = j;
+        break;
+      }
+    }
+  }
+  return text.substring(from, e).trim();
+}
+
 class _Candidate {
   final int section;
   final int start;

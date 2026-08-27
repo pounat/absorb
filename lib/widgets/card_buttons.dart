@@ -13,6 +13,8 @@ import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
+import '../services/lyrics_service.dart';
+import '../services/transcription_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/playback_history_service.dart';
 import '../services/scoped_prefs.dart';
@@ -33,6 +35,7 @@ import 'listening_session_card.dart';
 import 'notes_sheet.dart';
 import 'overlay_toast.dart';
 import 'sleep_timer_sheet.dart';
+import 'transcription_download_prompt.dart';
 
 /// E-ink screens dither faint greys and cover-colored accents into noise, so
 /// the card controls bump to near-black when e-ink mode is on. Disabled stays
@@ -1542,6 +1545,87 @@ class CardActionDelegate {
 
   int get visibleButtonCount => visibleCount;
 
+  /// Toggle the live transcript (lyrics) overlay for whatever is loaded in
+  /// the player. Guards mirror the other transcription entry points.
+  Future<void> _toggleLyrics() async {
+    final l = AppLocalizations.of(context)!;
+    if (LyricsService.instance.isOn) {
+      LyricsService.instance.disable();
+      return;
+    }
+    if (!await PlayerSettings.getTranscriptionEnabled()) {
+      if (context.mounted) {
+        showOverlayToast(context, l.transcriptionDisabledHint,
+            icon: Icons.record_voice_over_rounded);
+      }
+      return;
+    }
+    final cardKey = episodeId != null ? '$itemId-$episodeId' : itemId;
+    if (!TranscriptionService.instance.canTranscribeBook(cardKey)) {
+      if (context.mounted) {
+        await promptDownloadForTranscription(context,
+            itemId: itemId,
+            episodeId: episodeId,
+            title: title,
+            author: author,
+            coverUrl: coverUrl);
+      }
+      return;
+    }
+    // One-time expectation setting: what this does, why to let the head
+    // start build before pressing play, and the battery cost.
+    if (!await PlayerSettings.getLyricsIntroShown()) {
+      if (!context.mounted) return;
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.subtitles_rounded),
+          title: Text(l.lyricsMode),
+          content: Text(l.lyricsIntroBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.lyricsTurnOn),
+            ),
+          ],
+        ),
+      );
+      if (go != true) return;
+      await PlayerSettings.setLyricsIntroShown();
+    }
+    // The transcript is for THIS card's book. When something else (or
+    // nothing) is loaded, load it paused with no session - the runway builds
+    // while it sits ready, and pressing play is still the user's move.
+    if (LyricsService.playerKey() != cardKey) {
+      if (!context.mounted) return;
+      final api = context.read<AuthProvider>().apiService;
+      if (api == null) return;
+      final error = await player.playItem(
+        api: api,
+        itemId: itemId,
+        episodeId: episodeId,
+        title: title,
+        author: author ?? '',
+        coverUrl: coverUrl,
+        totalDuration: duration,
+        chapters: chapters,
+        libraryId: item['libraryId'] as String?,
+        loadOnly: true,
+      );
+      if (error != null) {
+        if (context.mounted) {
+          showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+        }
+        return;
+      }
+    }
+    await LyricsService.instance.enableForCurrent();
+  }
+
   // Predefined row groupings per button count.
   // Labels: max 3 per row. Icons: max 4 per row (5 allowed at count=5).
   static const _labelRows = <int, List<int>>{
@@ -1786,6 +1870,16 @@ class CardActionDelegate {
           accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
           onTap: () => onFindInEbookTap?.call(),
         );
+      case 'lyrics':
+        // Usable with nothing playing: the handler hot-loads this card's
+        // book paused so the runway can build before the user presses play.
+        return CardWideButton(
+          icon: Icons.subtitles_rounded,
+          label: l.lyricsMode,
+          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          highlighted: LyricsService.instance.isOn,
+          onTap: _toggleLyrics,
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -1967,6 +2061,15 @@ class CardActionDelegate {
           onTap: () {
             Navigator.pop(ctx);
             onFindInEbookTap?.call();
+          },
+        );
+      case 'lyrics':
+        return MoreMenuItem(
+          icon: Icons.subtitles_rounded,
+          label: l.lyricsMode, accent: accent,
+          onTap: () {
+            Navigator.pop(ctx);
+            _toggleLyrics();
           },
         );
       default:
