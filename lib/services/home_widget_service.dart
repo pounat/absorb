@@ -35,6 +35,7 @@ class HomeWidgetService {
   Timer? _statsTimer;
   Timer? _heartbeatTimer;
   Timer? _pendingUpdate;
+  bool _backgrounded = false;
   String? _lastCoverItemId;
   DateTime? _lastUpdate;
   DateTime? _lastStatsFetch;
@@ -1215,6 +1216,20 @@ class HomeWidgetService {
   void _startProgressTimer() {
     if (_progressTimer?.isActive == true) return;
     _progressTimer = Timer.periodic(const Duration(seconds: 120), (_) {
+      if (_backgrounded) {
+        // Off-screen, widget reloads are budgeted by iOS and pointless, but
+        // the np_* stash must keep tracking background playback: it is what
+        // the cold-launch Now Playing primer and the post-kill resume read.
+        // Without this, a process killed during a long background listen
+        // leaves them minutes stale.
+        final player = AudioPlayerService();
+        if (!player.isPlaying) {
+          _stopProgressTimer();
+          return;
+        }
+        _stashPlaybackStateForNativeCore(player);
+        return;
+      }
       _scheduleUpdate();
       // Piggyback a stats refresh; the 15-min throttle inside refreshStats
       // keeps this cheap even though the timer ticks every 2 minutes.
@@ -1233,7 +1248,13 @@ class HomeWidgetService {
   }
 
   void onAppBackgrounded() {
-    _stopProgressTimer();
+    _backgrounded = true;
+    // While playing, the progress timer stays alive in stash-only mode (see
+    // _startProgressTimer) so the position the primer and post-kill resume
+    // read keeps up with background playback.
+    if (!AudioPlayerService().isPlaying) {
+      _stopProgressTimer();
+    }
     // Stop polling stats while backgrounded-and-paused - nothing is accruing.
     // Keep it running if we're still playing so the widget's "today" total
     // keeps ticking during long background listening sessions.
@@ -1244,6 +1265,7 @@ class HomeWidgetService {
   }
 
   void onAppForegrounded() {
+    _backgrounded = false;
     if (AudioPlayerService().isPlaying) {
       _startProgressTimer();
       _scheduleUpdate();
