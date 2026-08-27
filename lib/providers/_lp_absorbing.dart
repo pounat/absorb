@@ -275,7 +275,13 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
           'title': 'Episode',
         };
         syntheticEntry['_absorbingKey'] = key;
-        _absorbingIdsAdd(key, atFront: false);
+        // The playing episode goes back to the front it held when it started;
+        // everything else joins at the end so the queue order is untouched.
+        final isActive = player.hasBook && key == activeKey;
+        if (isActive) {
+          debugPrint('[Absorbing] backfilled playing episode $key at front');
+        }
+        _absorbingIdsAdd(key, atFront: isActive);
         _absorbingItemCache[key] = syntheticEntry;
         allowedKeys.add(key);
       }
@@ -294,7 +300,17 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       final hasProgress = key.length > 36
           ? _progressMap.containsKey(key)
           : _progressMap.keys.any((k) => k == key || k.startsWith('$key-'));
-      if (!hasProgress) toRemove.add(key);
+      if (!hasProgress) {
+        // A just-started episode has no fetched progress yet, and the sections
+        // can still name an older recentEpisode - evicting it here dumps the
+        // playing item to the end of the queue once the backfill re-adds it.
+        if (player.hasBook && key == activeKey) {
+          debugPrint(
+              '[Absorbing] sweep spared the playing item $key (no progress fetched yet)');
+          continue;
+        }
+        toRemove.add(key);
+      }
     }
     for (final id in toRemove) {
       _absorbingBookIds.remove(id);
@@ -327,7 +343,8 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       _absorbingItemCache.remove(old);
     }
     for (final entry in migrateAdd.entries) {
-      _absorbingIdsAdd(entry.key, atFront: false);
+      _absorbingIdsAdd(entry.key,
+          atFront: player.hasBook && entry.key == activeKey);
       _absorbingItemCache[entry.key] = entry.value;
     }
 
