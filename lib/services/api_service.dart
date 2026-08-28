@@ -4044,20 +4044,40 @@ class ApiService {
 
   /// GET /api/libraries/:libraryId/playlists
   /// Null means the request failed - see [getLibraryCollections].
-  Future<List<dynamic>?> getLibraryPlaylists(String libraryId) async {
+  Future<List<dynamic>?> getLibraryPlaylists(String libraryId) =>
+      _getAllPaged('/api/libraries/$libraryId/playlists');
+
+  /// Fetch a paged results endpoint to completion. Collections and playlists
+  /// come back with every book expanded, so a server with a hundred-plus of
+  /// them produces a single response big enough to time out or choke the
+  /// decoder (#362) - pages keep each response bounded. Null on any failure
+  /// rather than a partial list: partial would read as collections silently
+  /// missing instead of a load that failed.
+  Future<List<dynamic>?> _getAllPaged(String path, {int pageSize = 25}) async {
     try {
-      final resp = await _authGet(
-        Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/playlists'),
-      );
-      if (resp.statusCode == 200) {
+      final out = <dynamic>[];
+      for (var page = 0; page < 80; page++) {
+        final resp = await _authGet(
+          Uri.parse('$_cleanBaseUrl$path?limit=$pageSize&page=$page'),
+          timeout: const Duration(seconds: 30),
+        );
+        if (resp.statusCode != 200) {
+          debugPrint('[API] $path failed: HTTP ${resp.statusCode} (page $page)');
+          return null;
+        }
         final data = jsonDecode(resp.body);
-        return (data['results'] as List<dynamic>?) ?? [];
+        final results = (data['results'] as List<dynamic>?) ?? [];
+        out.addAll(results);
+        // Servers that ignore limit/page return everything with total equal
+        // to the result count, so this exits after one round trip there.
+        final total = (data['total'] as num?)?.toInt() ?? out.length;
+        if (results.isEmpty || out.length >= total) return out;
       }
-      debugPrint('[API] getLibraryPlaylists failed: HTTP ${resp.statusCode}');
+      return out;
     } catch (e) {
-      debugPrint('[API] getLibraryPlaylists error: $e');
+      debugPrint('[API] $path error: $e');
+      return null;
     }
-    return null;
   }
 
   /// GET /api/playlists/:id
@@ -4171,21 +4191,8 @@ class ApiService {
   /// GET /api/libraries/:libraryId/collections
   /// Null means the request failed, which is not the same as a library with no
   /// collections - the Lists tab tells the user which of the two happened.
-  Future<List<dynamic>?> getLibraryCollections(String libraryId) async {
-    try {
-      final resp = await _authGet(
-        Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/collections'),
-      );
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        return (data['results'] as List<dynamic>?) ?? [];
-      }
-      debugPrint('[API] getLibraryCollections failed: HTTP ${resp.statusCode}');
-    } catch (e) {
-      debugPrint('[API] getLibraryCollections error: $e');
-    }
-    return null;
-  }
+  Future<List<dynamic>?> getLibraryCollections(String libraryId) =>
+      _getAllPaged('/api/libraries/$libraryId/collections');
 
   /// GET /api/collections/:id
   Future<Map<String, dynamic>?> getCollection(String collectionId) async {
