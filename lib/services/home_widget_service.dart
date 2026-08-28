@@ -177,6 +177,17 @@ class HomeWidgetService {
       ? stashedPosition
       : null;
 
+  /// Overwrite the stashed position with a live engine reading, so a restore
+  /// that prefers the stash resumes exactly where the audio actually is
+  /// instead of jumping back to an older save.
+  Future<void> stashLivePosition(double seconds) async {
+    try {
+      await HomeWidget.saveWidgetData<double>('np_position_s', seconds);
+    } catch (e) {
+      debugPrint('[WidgetDebug] stashLivePosition failed: $e');
+    }
+  }
+
   /// Read the last stashed playback position for an item. On iOS the native
   /// player may have advanced it while Flutter was dead. On Android it is an
   /// independent fallback when a headless Android Auto launch has stale

@@ -2148,6 +2148,37 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
+  /// iOS: a headset press can cold-launch the app into the background with
+  /// the native core already driving the shared engine (its remote commands
+  /// arm at app launch). Dart then boots with no book loaded, so
+  /// audio_service publishes a blank Now Playing over the native core's and
+  /// every later press defers to a player that knows nothing - the lock
+  /// screen shows audio running with no title, cover or progress. Adopt
+  /// instead: restore the last-played item at the engine's own live position,
+  /// which re-publishes full metadata and puts Dart in charge of the audio
+  /// that is already running. Called once from main.dart after init.
+  Future<void> adoptBackgroundEngineIfRunning() async {
+    if (!Platform.isIOS) return;
+    if (_currentItemId != null) return;
+    final player = _player;
+    if (player == null) return;
+    try {
+      final state = await player.engineState();
+      if (state == null || !state.isLoaded || !state.isPlaying) return;
+      debugPrint(
+        '[Player] boot: native engine already playing at '
+        '${state.globalPositionS.toStringAsFixed(1)}s with no book loaded - adopting',
+      );
+      if (state.globalPositionS > 0) {
+        await HomeWidgetService().stashLivePosition(state.globalPositionS);
+      }
+      final restore = AudioPlayerService.onColdStartPlayRequested;
+      if (restore != null) await restore();
+    } catch (e) {
+      debugPrint('[Player] boot engine adopt failed: $e');
+    }
+  }
+
   /// iOS foreground reconciliation after a possible widget-driven session.
   ///
   /// The shared engine (AbsorbAudioEngine) persists across Flutter suspension,

@@ -782,6 +782,10 @@ class _AuthGateState extends State<AuthGate> {
     // circular import between AudioPlayerService and HomeWidgetService.
     AudioPlayerService.onColdStartPlayRequested =
         HomeWidgetService().resumeLastPlayedIfAvailable;
+    // A headset press may have cold-launched this process into the background
+    // with the native core already playing - adopt that audio now rather than
+    // leaving the lock screen blank until the next press.
+    unawaited(AudioPlayerService().adoptBackgroundEngineIfRunning());
     debugPrint('[Init] AudioPlayerService done (${sw.elapsedMilliseconds}ms)');
 
     try {
