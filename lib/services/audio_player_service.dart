@@ -2148,6 +2148,38 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
+  /// iOS: re-take the Now Playing claim after something may have knocked it
+  /// out while paused - an interruption (call, Siri, nav, another app's
+  /// session), or a stretch suspended in the background where the
+  /// interruption came and went unseen. iOS deactivates the session for the
+  /// interrupter, and a paused app that never re-activates quietly falls out
+  /// of Now Playing candidacy: the next headset press then goes to Apple
+  /// Music instead. Re-activation happens only when nothing else is audibly
+  /// playing (the primer's politeness guard) - the claim matters exactly
+  /// when the next press should reach this app, and grabbing it out from
+  /// under an app mid-playback would be rude.
+  Future<void> reassertIosClaimWhilePaused(String reason) async {
+    if (!Platform.isIOS || !hasBook || isPlaying) return;
+    try {
+      final info = await _eqChannelForDiag
+          .invokeMethod<Map<dynamic, dynamic>>('getAudioDiagnostics');
+      if (info?['isOtherAudioPlaying'] == true ||
+          info?['secondaryAudioShouldBeSilencedHint'] == true) {
+        debugPrint(
+          '[AudioSession] claim reassert skipped ($reason) - other audio is playing',
+        );
+        return;
+      }
+      await (await AudioSession.instance).setActive(true);
+      _handler?.refreshPlaybackState();
+      debugPrint(
+        '[AudioSession] re-asserted Now Playing claim while paused ($reason)',
+      );
+    } catch (e) {
+      debugPrint('[AudioSession] claim reassert failed ($reason): $e');
+    }
+  }
+
   /// iOS: a headset press can cold-launch the app into the background with
   /// the native core already driving the shared engine (its remote commands
   /// arm at app launch). Dart then boots with no book loaded, so
@@ -2804,6 +2836,14 @@ class AudioPlayerService extends ChangeNotifier {
               service._wasPlayingBeforeInterrupt = false;
               return;
             }
+            if (!service._wasPlayingBeforeInterrupt) {
+              // Interrupted while paused: nothing here was going to resume,
+              // and iOS deactivated the session for the interrupter - left
+              // alone, the Now Playing claim dies and the next headset press
+              // falls to Apple Music. Take the claim back without playing.
+              await service.reassertIosClaimWhilePaused('interruption end');
+              return;
+            }
             if (service._wasPlayingBeforeInterrupt) {
               service._wasPlayingBeforeInterrupt = false;
               await Future.delayed(const Duration(milliseconds: 600));
@@ -3009,6 +3049,12 @@ class AudioPlayerService extends ChangeNotifier {
       try {
         (await AudioSession.instance).setActive(true);
       } catch (_) {}
+    } else if (Platform.isIOS && service.hasBook) {
+      // Paused with a book loaded: an interruption while iOS had this app
+      // suspended may have silently dropped the Now Playing claim. The
+      // Android concern above (activation grabbing focus and pausing other
+      // apps) doesn't apply - the reassert has its own other-audio guard.
+      await service.reassertIosClaimWhilePaused('foreground');
     }
     // Re-push playback state so the system re-registers the MediaSession
     _handler?.refreshPlaybackState();
