@@ -101,6 +101,16 @@ class HomeWidgetService {
         } else if (call.method == 'log') {
           final msg = (call.arguments as Map?)?['msg'] as String?;
           if (msg != null) debugPrint('[WidgetDebug] $msg');
+        } else if (call.method == 'reassertClaim') {
+          // Native saw the session torn down with no ended event coming
+          // (headphones disconnected while paused) - take the claim back so
+          // the next press still reaches this app. Slight delay so the route
+          // change finishes settling first.
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            AudioPlayerService().reassertIosClaimWhilePaused(
+              'route disconnected',
+            );
+          });
         }
         return null;
       });
