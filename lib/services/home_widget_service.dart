@@ -68,6 +68,7 @@ class HomeWidgetService {
     // Set up App Group for iOS widget data sharing.
     if (Platform.isIOS) {
       await HomeWidget.setAppGroupId(_appGroupId);
+      _appGroupSet = true;
       debugPrint('[WidgetDebug] setAppGroupId=$_appGroupId');
       try {
         _groupContainerPath = await _widgetChannel.invokeMethod<String>(
@@ -177,11 +178,23 @@ class HomeWidgetService {
       ? stashedPosition
       : null;
 
+  /// The stash readers/writers below can run before [init] (the boot-time
+  /// engine adopt fires right after the player service starts), and the
+  /// HomeWidget plugin throws on iOS until it has been told the app group.
+  /// Idempotent, so calling it again from [init] is fine.
+  bool _appGroupSet = false;
+  Future<void> _ensureAppGroupId() async {
+    if (_appGroupSet || !Platform.isIOS) return;
+    await HomeWidget.setAppGroupId(_appGroupId);
+    _appGroupSet = true;
+  }
+
   /// Overwrite the stashed position with a live engine reading, so a restore
   /// that prefers the stash resumes exactly where the audio actually is
   /// instead of jumping back to an older save.
   Future<void> stashLivePosition(double seconds) async {
     try {
+      await _ensureAppGroupId();
       await HomeWidget.saveWidgetData<double>('np_position_s', seconds);
     } catch (e) {
       debugPrint('[WidgetDebug] stashLivePosition failed: $e');
@@ -198,6 +211,7 @@ class HomeWidgetService {
   ) async {
     if (!supportsStashedNowPlayingPosition(defaultTargetPlatform)) return null;
     try {
+      await _ensureAppGroupId();
       final stashedItem = await HomeWidget.getWidgetData<String>('np_item_id');
       if (stashedItem != itemId) return null;
       final stashedEpisode = await HomeWidget.getWidgetData<String>(
