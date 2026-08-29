@@ -2554,6 +2554,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         PlayerSettings.setForwardSkip(v.round());
                       } : null,
                     ),
+                    if (Platform.isIOS)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                        child: Text(
+                          l.iosLockScreenSkipHint,
+                          style: tt.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant, height: 1.35),
+                        ),
+                      ),
                     SwitchListTile(
                       title: Row(children: [
                         Expanded(child: Text(l.chapterBarrierOnRewind)),

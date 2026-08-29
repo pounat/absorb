@@ -749,6 +749,7 @@
   "defaultSpeedSubtitle": "New books start at this speed - each book remembers its own",
   "skipBack": "Skip back",
   "skipForward": "Skip forward",
+  "iosLockScreenSkipHint": "The lock screen only draws the numbers iOS has icons for (5, 10, 15, 30, 45, 60, 75, 90). Other amounts show + on the button but still skip by your setting.",
   "longSkipButtons": "Long skip buttons",
   "longSkipButtonsOnSubtitle": "On - the player shows a second, bigger skip pair",
   "longSkipButtonsOffSubtitle": "Off - just the regular skip buttons",

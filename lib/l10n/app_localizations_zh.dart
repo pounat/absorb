@@ -1563,6 +1563,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skipForward => '快进';
 
   @override
+  String get iosLockScreenSkipHint =>
+      'The lock screen only draws the numbers iOS has icons for (5, 10, 15, 30, 45, 60, 75, 90). Other amounts show + on the button but still skip by your setting.';
+
+  @override
   String get longSkipButtons => 'Long skip buttons';
 
   @override
