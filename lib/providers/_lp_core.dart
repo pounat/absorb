@@ -2453,8 +2453,24 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
               }
               break;
             default:
-              _absorbingIdsAdd(key, atFront: true);
-              startFrontKey = key;
+              // The slot under the needle stays put: when the front card is
+              // the item that is loaded in the player, a new episode lands
+              // right behind it instead of on top - otherwise the card you
+              // are listening to "drops" to #2 the moment you pause.
+              final p = AudioPlayerService();
+              final activeKey = p.currentEpisodeId != null
+                  ? '${p.currentItemId}-${p.currentEpisodeId}'
+                  : p.currentItemId;
+              final frontIsActive = p.hasBook &&
+                  activeKey != null &&
+                  _absorbingBookIds.isNotEmpty &&
+                  _absorbingBookIds.first == activeKey;
+              if (frontIsActive) {
+                _absorbingIdsAdd(key, atIndex: 1);
+              } else {
+                _absorbingIdsAdd(key, atFront: true);
+                startFrontKey = key;
+              }
           }
           // Only cache what the queue will render. A queue-less show would
           // otherwise grow this cache with entries nothing ever reads.
