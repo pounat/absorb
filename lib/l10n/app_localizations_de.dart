@@ -2018,6 +2018,18 @@ class AppLocalizationsDe extends AppLocalizations {
       'Aus - alle Bibliothekselemente werden angezeigt';
 
   @override
+  String get hideFinishedInCarTitle =>
+      'Hide finished in CarPlay & Android Auto';
+
+  @override
+  String get hideFinishedInCarOnSubtitle =>
+      'Finished books and episodes are hidden while browsing in the car (Continue is unaffected)';
+
+  @override
+  String get hideFinishedInCarOffSubtitle =>
+      'Off - finished items shown in the car';
+
+  @override
   String get showGoodreadsButton => 'Goodreads-Button anzeigen';
 
   @override

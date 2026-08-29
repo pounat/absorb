@@ -1958,6 +1958,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get hideEbookOnlyOffSubtitle => '关 - 显示所有媒体库项目';
 
   @override
+  String get hideFinishedInCarTitle =>
+      'Hide finished in CarPlay & Android Auto';
+
+  @override
+  String get hideFinishedInCarOnSubtitle =>
+      'Finished books and episodes are hidden while browsing in the car (Continue is unaffected)';
+
+  @override
+  String get hideFinishedInCarOffSubtitle =>
+      'Off - finished items shown in the car';
+
+  @override
   String get showGoodreadsButton => '显示 Goodreads 按钮';
 
   @override

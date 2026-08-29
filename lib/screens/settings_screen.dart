@@ -131,6 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _episodeNotifMinutes = 0;
   int _maxConcurrentDownloads = 1;
   bool _hideEbookOnly = false;
+  bool _hideFinishedInCar = false;
   bool _showGoodreadsButton = false;
   bool _showExplicitBadge = true;
   bool _loggingEnabled = false;
@@ -1010,6 +1011,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final podcastTabLibraryId = await PlayerSettings.getPodcastTabLibraryId();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
+    final hideFinishedInCar = await PlayerSettings.getHideFinishedInCar();
     if (mounted) setState(() {
       _podcastTabEnabled = podcastTabEnabled;
       _podcastTabLibraryId = podcastTabLibraryId;
@@ -1044,6 +1046,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _mergeAbsorbingLibraries = mergeLibs;
       _maxConcurrentDownloads = maxConc;
       _hideEbookOnly = hideEbook;
+      _hideFinishedInCar = hideFinishedInCar;
       _showGoodreadsButton = showGoodreads;
       _loggingEnabled = logging;
       _fullScreenPlayer = fullScreen;
@@ -3514,6 +3517,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onChanged: _loaded ? (v) {
                         setState(() => _hideEbookOnly = v);
                         PlayerSettings.setHideEbookOnly(v);
+                      } : null,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(l.hideFinishedInCarTitle),
+                      subtitle: Text(
+                        _hideFinishedInCar
+                            ? l.hideFinishedInCarOnSubtitle
+                            : l.hideFinishedInCarOffSubtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _hideFinishedInCar,
+                      onChanged: _loaded ? (v) {
+                        setState(() => _hideFinishedInCar = v);
+                        PlayerSettings.setHideFinishedInCar(v);
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
