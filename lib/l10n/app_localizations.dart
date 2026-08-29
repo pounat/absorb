@@ -2998,6 +2998,12 @@ abstract class AppLocalizations {
   /// **'Skip forward'**
   String get skipForward;
 
+  /// No description provided for @iosLockScreenSkipHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The lock screen only draws the numbers iOS has icons for (5, 10, 15, 30, 45, 60, 75, 90). Other amounts show + on the button but still skip by your setting.'**
+  String get iosLockScreenSkipHint;
+
   /// No description provided for @longSkipButtons.
   ///
   /// In en, this message translates to:
