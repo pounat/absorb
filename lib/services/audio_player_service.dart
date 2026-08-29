@@ -2207,16 +2207,24 @@ class AudioPlayerService extends ChangeNotifier {
     if (player == null) return;
     try {
       final state = await player.engineState();
-      if (state == null || !state.isLoaded || !state.isPlaying) return;
-      debugPrint(
-        '[Player] boot: native engine already playing at '
-        '${state.globalPositionS.toStringAsFixed(1)}s with no book loaded - adopting',
-      );
-      if (state.globalPositionS > 0) {
-        await HomeWidgetService().stashLivePosition(state.globalPositionS);
+      if (state != null && state.isLoaded && state.isPlaying) {
+        debugPrint(
+          '[Player] boot: native engine already playing at '
+          '${state.globalPositionS.toStringAsFixed(1)}s with no book loaded - adopting',
+        );
+        if (state.globalPositionS > 0) {
+          await HomeWidgetService().stashLivePosition(state.globalPositionS);
+        }
+        final restore = AudioPlayerService.onColdStartPlayRequested;
+        if (restore != null) await restore();
+        return;
       }
-      final restore = AudioPlayerService.onColdStartPlayRequested;
-      if (restore != null) await restore();
+      // Idle engine: load the last played item paused instead, so a headset
+      // press in the first seconds of a cold start has a live target - the
+      // native core defers presses to Flutter the moment its heartbeat
+      // exists, and with nothing loaded that press used to land on neither
+      // layer.
+      await HomeWidgetService().loadLastPlayedPaused();
     } catch (e) {
       debugPrint('[Player] boot engine adopt failed: $e');
     }
@@ -3133,9 +3141,10 @@ class AudioPlayerService extends ChangeNotifier {
     // phone's own position immediately. See play().
     bool fromUi = false,
     // Load the item into the player at its resume position but leave it
-    // paused, with no playback session: the live transcript needs the book
-    // up so its runway can build, without deciding for the user that audio
-    // starts now. Downloaded items only - a streamed item plays normally.
+    // paused, with no playback session: a headset press then always has a
+    // live target and the live transcript can build its runway, without
+    // deciding for the user that audio starts now. Downloaded items only -
+    // a streamed item plays normally.
     bool loadOnly = false,
   }) async {
     _pauseRequested = false;
@@ -3875,10 +3884,10 @@ class AudioPlayerService extends ChangeNotifier {
       );
       await EqualizerService().switchItem(speedKey);
       if (loadOnly) {
-        // Loaded and idle at the resume position: the transcript can build
-        // its runway and the lock screen shows the book paused, but nothing
-        // plays and no session exists until the user presses play - the
-        // normal play() path creates the session then.
+        // Loaded and idle at the resume position: the lock screen shows the
+        // book paused, a headset press has a live target, and the transcript
+        // can build its runway - but nothing plays and no session exists
+        // until the user presses play, which creates the session then.
         debugPrint('[Player] Loaded paused (no session) at '
             '${startTime.toStringAsFixed(0)}s');
         _pendingLoadOnlySession = (

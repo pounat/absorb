@@ -428,41 +428,11 @@ class HomeWidgetService {
     debugPrint('[HomeWidget] play_pause: cold resume, itemId=$itemId');
     if (itemId == null) return;
 
-    final serverUrl = prefs.getString('server_url');
-    final token = prefs.getString('token');
-    final refreshToken = prefs.getString('refresh_token');
-    final username = prefs.getString('username');
+    final api = _apiFromPrefs(prefs);
     debugPrint(
-      '[HomeWidget] play_pause: server=${serverUrl != null}, token=${token != null}',
+      '[HomeWidget] play_pause: api=${api != null}',
     );
-    if (serverUrl == null || token == null) return;
-
-    Map<String, String>? customHeaders;
-    final headersJson = prefs.getString('custom_headers');
-    if (headersJson != null) {
-      try {
-        customHeaders = Map<String, String>.from(
-          jsonDecode(headersJson) as Map,
-        );
-      } catch (_) {}
-    }
-
-    final api = ApiService(
-      baseUrl: serverUrl,
-      token: token,
-      refreshToken: refreshToken,
-      isLegacyToken: refreshToken == null,
-      customHeaders: customHeaders ?? const {},
-      loadPersistedTokens: () =>
-          UserAccountService().loadPersistedTokens(serverUrl, username),
-      onTokensRefreshed: (access, refresh) =>
-          UserAccountService().persistRefreshedTokens(
-            access,
-            refresh,
-            serverUrl: serverUrl,
-            username: username,
-          ),
-    );
+    if (api == null) return;
 
     final episodeId = prefs.getString('widget_episode_id');
 
@@ -535,12 +505,80 @@ class HomeWidgetService {
   /// Cold-resume a downloaded item straight from its download record. Returns
   /// false when the item isn't downloaded (or the record is unusable) so the
   /// caller falls back to fetching it from the server.
+  /// A saved session rebuilt from prefs, for paths that run before (or
+  /// without) the providers - the widget cold resume and the launch-time
+  /// load-paused. Null when no server credentials are saved.
+  ApiService? _apiFromPrefs(SharedPreferences prefs) {
+    final serverUrl = prefs.getString('server_url');
+    final token = prefs.getString('token');
+    if (serverUrl == null || token == null) return null;
+    final refreshToken = prefs.getString('refresh_token');
+    final username = prefs.getString('username');
+    Map<String, String>? customHeaders;
+    final headersJson = prefs.getString('custom_headers');
+    if (headersJson != null) {
+      try {
+        customHeaders = Map<String, String>.from(
+          jsonDecode(headersJson) as Map,
+        );
+      } catch (_) {}
+    }
+    return ApiService(
+      baseUrl: serverUrl,
+      token: token,
+      refreshToken: refreshToken,
+      isLegacyToken: refreshToken == null,
+      customHeaders: customHeaders ?? const {},
+      loadPersistedTokens: () =>
+          UserAccountService().loadPersistedTokens(serverUrl, username),
+      onTokensRefreshed: (access, refresh) =>
+          UserAccountService().persistRefreshedTokens(
+            access,
+            refresh,
+            serverUrl: serverUrl,
+            username: username,
+          ),
+    );
+  }
+
+  /// iOS cold start: load the last played item into the player paused, so a
+  /// headset press always has a live target. Without this, a press arriving
+  /// after Dart boots gets deferred by the native core to an audio_service
+  /// with nothing loaded, and lands on neither layer. Downloaded items only
+  /// (a stream would need a server session just to sit paused); no session
+  /// starts until a real play.
+  Future<void> loadLastPlayedPaused() async {
+    final player = AudioPlayerService();
+    if (player.hasBook) return;
+    final prefs = await SharedPreferences.getInstance();
+    final itemId = prefs.getString('widget_item_id');
+    if (itemId == null) return;
+    final api = _apiFromPrefs(prefs);
+    if (api == null) return;
+    final episodeId = prefs.getString('widget_episode_id');
+    try {
+      final ok = await _resumeFromDownloadRecord(
+        player,
+        api,
+        itemId,
+        episodeId,
+        loadOnly: true,
+      );
+      debugPrint(
+        '[HomeWidget] launch load-paused: ${ok ? "loaded $itemId" : "last played not downloaded - skipped"}',
+      );
+    } catch (e) {
+      debugPrint('[HomeWidget] launch load-paused failed: $e');
+    }
+  }
+
   Future<bool> _resumeFromDownloadRecord(
     AudioPlayerService player,
     ApiService api,
     String itemId,
-    String? episodeId,
-  ) async {
+    String? episodeId, {
+    bool loadOnly = false,
+  }) async {
     final downloads = DownloadService();
     final dlKey = episodeId != null ? '$itemId-$episodeId' : itemId;
     if (!downloads.isDownloaded(dlKey)) return false;
@@ -573,6 +611,7 @@ class HomeWidgetService {
       episodeId: episodeId,
       episodeTitle: episodeId != null ? title : null,
       libraryId: info.libraryId,
+      loadOnly: loadOnly,
     );
     return true;
   }
