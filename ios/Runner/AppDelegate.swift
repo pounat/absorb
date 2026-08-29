@@ -191,12 +191,22 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
         let opts = AVAudioSession.InterruptionOptions(rawValue: optionsRaw)
         details.append("shouldResume=\(opts.contains(.shouldResume))")
       }
+      var reasonRaw: UInt = 0
       if #available(iOS 14.5, *) {
-        if let reasonRaw = note.userInfo?[AVAudioSessionInterruptionReasonKey] as? UInt {
-          details.append("reasonRaw=\(reasonRaw)")
+        if let r = note.userInfo?[AVAudioSessionInterruptionReasonKey] as? UInt {
+          reasonRaw = r
+          details.append("reasonRaw=\(r)")
         }
       }
       self?.logToFlutter("[AudioSession] interruption \(details.joined(separator: " "))")
+      // reason 4 = routeDisconnected: the headphones left, so iOS tore the
+      // session down as an "interruption" that never gets an ended event -
+      // waiting for one leaves the Now Playing claim dead and the next
+      // headset press goes to Apple Music. There is no interrupter to yield
+      // to here, so Dart takes the claim back right away.
+      if typeName == "began", reasonRaw == 4 {
+        self?.widgetChannel?.invokeMethod("reassertClaim", arguments: nil)
+      }
     }
 
     nc.addObserver(
