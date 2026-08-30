@@ -119,6 +119,16 @@ enum NowPlayingPrimer {
       return false
     }
 
+    // Our own engine is already playing (a headset press launched the process
+    // and the native core streamed from the stash before the scene activated).
+    // The other-audio check below can't see it - isOtherAudioPlaying only
+    // reports OTHER apps - and stamping the stash's paused, stale info over
+    // live audio put a frozen tile on the lock screen in the field.
+    if AbsorbAudioEngine.shared.isPlaying {
+      logSink?("[NowPlayingPrimer] \(reason): skipped, our own engine is playing")
+      return false
+    }
+
     // Someone else is playing. Claiming here would interrupt them the moment
     // Absorb opens, which is exactly what the user did not ask for. CarPlay is
     // the exception: in the car the controls have to reach us regardless.
