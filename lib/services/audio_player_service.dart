@@ -6181,6 +6181,12 @@ class AudioPlayerService extends ChangeNotifier {
           displayTitle: pendingSession.title,
           displayAuthor: pendingSession.author,
         );
+        // The loadOnly playItem returned before _setupSync, so this session
+        // has no completion listener, no position sync, no EQ attach and no
+        // stats accrual yet. Without it a hot-loaded book that plays to the
+        // end just sits there: completed arrives, nobody reacts, the card
+        // stays until a manual stop and the book is never marked finished.
+        _setupSync();
       }
     }
     // A seek while paused (user, or the socket adopting another device's
