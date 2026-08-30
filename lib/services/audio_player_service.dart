@@ -2221,17 +2221,19 @@ class AudioPlayerService extends ChangeNotifier {
     if (player == null) return;
     try {
       var state = await player.engineState();
-      // A press-launched stream is usually still buffering when init reaches
-      // this check - the native core has loaded the engine but isPlaying only
-      // flips once audio actually starts. Deciding on that first read sent a
-      // streamed relaunch down the hot-load path (which skips streamed books)
-      // and left the lock screen blank over live audio. A loaded engine in a
-      // fresh process can only mean the native core is starting it, so wait
-      // for the buffer instead of giving up.
+      // A press-launched process races this check twice over: Dart init can
+      // get here before the native core has even LOADED the engine (a field
+      // log had this check lose by two milliseconds), and a stream then
+      // buffers for a while before isPlaying flips. Deciding on the first
+      // read sent a streamed relaunch down the hot-load path (which skips
+      // streamed books) and left Dart bookless under live audio. So poll: a
+      // press-loaded engine shows up within the first second, and once it is
+      // loaded, give the buffer the rest of the budget. On a normal launch
+      // nothing ever loads and this waits out the budget before the
+      // hot-load - harmless, since the primer has the lock screen and the
+      // command center routes any early press to the cold-start restore.
       var waited = 0;
-      while (state != null &&
-          state.isLoaded &&
-          !state.isPlaying &&
+      while ((state == null || !state.isLoaded || !state.isPlaying) &&
           waited < 4000) {
         await Future.delayed(const Duration(milliseconds: 500));
         waited += 500;
