@@ -2220,11 +2220,28 @@ class AudioPlayerService extends ChangeNotifier {
     final player = _player;
     if (player == null) return;
     try {
-      final state = await player.engineState();
+      var state = await player.engineState();
+      // A press-launched stream is usually still buffering when init reaches
+      // this check - the native core has loaded the engine but isPlaying only
+      // flips once audio actually starts. Deciding on that first read sent a
+      // streamed relaunch down the hot-load path (which skips streamed books)
+      // and left the lock screen blank over live audio. A loaded engine in a
+      // fresh process can only mean the native core is starting it, so wait
+      // for the buffer instead of giving up.
+      var waited = 0;
+      while (state != null &&
+          state.isLoaded &&
+          !state.isPlaying &&
+          waited < 4000) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        waited += 500;
+        state = await player.engineState();
+      }
       if (state != null && state.isLoaded && state.isPlaying) {
         debugPrint(
           '[Player] boot: native engine already playing at '
-          '${state.globalPositionS.toStringAsFixed(1)}s with no book loaded - adopting',
+          '${state.globalPositionS.toStringAsFixed(1)}s with no book loaded - adopting'
+          '${waited > 0 ? " (waited ${waited}ms for the stream to start)" : ""}',
         );
         if (state.globalPositionS > 0) {
           await HomeWidgetService().stashLivePosition(state.globalPositionS);
