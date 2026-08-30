@@ -2161,14 +2161,22 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// iOS: re-take the Now Playing claim after something may have knocked it
   /// out while paused - an interruption (call, Siri, nav, another app's
-  /// session), or a stretch suspended in the background where the
-  /// interruption came and went unseen. iOS deactivates the session for the
-  /// interrupter, and a paused app that never re-activates quietly falls out
-  /// of Now Playing candidacy: the next headset press then goes to Apple
-  /// Music instead. Re-activation happens only when nothing else is audibly
-  /// playing (the primer's politeness guard) - the claim matters exactly
-  /// when the next press should reach this app, and grabbing it out from
-  /// under an app mid-playback would be rude.
+  /// session), a stretch suspended in the background where the interruption
+  /// came and went unseen, or simply the user opening another app that played
+  /// something. iOS deactivates the session for the interrupter, and a paused
+  /// app that never re-activates quietly falls out of Now Playing candidacy:
+  /// the next headset press then goes to Apple Music instead.
+  ///
+  /// Re-activating and republishing metadata is NOT enough on its own. iOS
+  /// only hands the slot to an app that has actually rendered audio, which is
+  /// what build 249 got wrong and 251 fixed with a silent blip - so the claim
+  /// goes through the native primer rather than being done here. Doing it in
+  /// Dart looked like it worked, because setActive succeeds either way.
+  ///
+  /// Only runs when nothing else is audibly playing (the primer's politeness
+  /// guard, checked on both sides): the claim matters exactly when the next
+  /// press should reach this app, and grabbing it out from under an app
+  /// mid-playback would be rude.
   Future<void> reassertIosClaimWhilePaused(String reason) async {
     if (!Platform.isIOS || !hasBook || isPlaying) return;
     try {
@@ -2182,9 +2190,15 @@ class AudioPlayerService extends ChangeNotifier {
         return;
       }
       await (await AudioSession.instance).setActive(true);
+      // Publish this book before the blip, so the slot we take back shows the
+      // right title rather than whatever the app that stole it left behind.
       _handler?.refreshPlaybackState();
+      final started = await _eqChannelForDiag.invokeMethod<bool>(
+        'reclaimNowPlaying',
+        {'reason': reason},
+      );
       debugPrint(
-        '[AudioSession] re-asserted Now Playing claim while paused ($reason)',
+        '[AudioSession] claim reassert ($reason): blip started=$started',
       );
     } catch (e) {
       debugPrint('[AudioSession] claim reassert failed ($reason): $e');

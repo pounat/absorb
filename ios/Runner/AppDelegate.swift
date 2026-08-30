@@ -620,6 +620,14 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
         ]
         result(info)
 
+      case "reclaimNowPlaying":
+        // Something else may have taken the Now Playing slot while Absorb sat
+        // paused. Activating the session and republishing metadata is not
+        // enough to get it back - only rendered audio moves the slot - so the
+        // reassert goes through the primer rather than doing it in Dart.
+        let reclaimReason = args?["reason"] as? String ?? "unknown"
+        result(NowPlayingPrimer.reclaim(reason: reclaimReason))
+
       case "primeNowPlaying":
         let title = args?["title"] as? String ?? ""
         let artist = args?["artist"] as? String ?? ""

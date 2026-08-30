@@ -2,8 +2,8 @@ import AVFoundation
 import MediaPlayer
 import UIKit
 
-/// Claims the iOS Now Playing slot at launch, so a headset play button reaches
-/// Absorb before anything has been played in this process.
+/// Claims the iOS Now Playing slot for Absorb, so a headset play button reaches
+/// this app rather than whatever played last.
 ///
 /// iOS hands remote control commands to whichever app it considers "now
 /// playing", and an app only becomes a candidate once it has an active audio
@@ -19,7 +19,10 @@ import UIKit
 ///   actually playing, so the guard below is what makes it safe rather than
 ///   skipping it entirely.
 /// - render half a second of silence, because an active session that never
-///   produces audio does not reliably win the slot.
+///   produces audio does not reliably win the slot. Build 249 activated and
+///   published metadata without rendering, and lost the slot twice in the
+///   field; 251 added real samples and held it. Anything that wants the slot
+///   back has to come through here for that reason.
 enum NowPlayingPrimer {
   static var logSink: ((String) -> Void)?
 
@@ -83,11 +86,38 @@ enum NowPlayingPrimer {
     session.currentRoute.outputs.contains { $0.portType == .carAudio }
   }
 
-  /// Publish what the last-played book was and take the slot for it. Reads the
-  /// app-group stash the widget already keeps up to date, so this needs neither
-  /// the Flutter engine nor the network - it runs before either is ready.
+  /// Launch: publish what the last-played book was and take the slot for it.
+  /// Reads the app-group stash the widget already keeps up to date, so this
+  /// needs neither the Flutter engine nor the network - it runs before either
+  /// is ready.
   static func primeAtLaunch() {
+    _ = claim(reason: "launch", publishFromStash: true)
+  }
+
+  /// Take the slot back mid-session, after something else may have won it: the
+  /// user opened another app that played audio, an interruption came and went
+  /// while Absorb sat suspended, or the headphones were stowed. Metadata is
+  /// already live in audio_service by this point, so nothing is republished
+  /// here - only the activation and the blip, which is the part that actually
+  /// moves the slot. Returns whether the blip started; the "blip finished
+  /// (rendered=)" line is the ground truth for whether it landed.
+  @discardableResult
+  static func reclaim(reason: String) -> Bool {
+    return claim(reason: reason, publishFromStash: false)
+  }
+
+  @discardableResult
+  private static func claim(reason: String, publishFromStash: Bool) -> Bool {
     let session = AVAudioSession.sharedInstance()
+
+    // A blip already on its way is the same claim. Starting a second one
+    // replaces the player and deallocates the first mid-render, so neither
+    // lands - and at launch the scene-activate prime and the first foreground
+    // reassert can arrive within a few hundred milliseconds of each other.
+    if blipPlayer != nil {
+      logSink?("[NowPlayingPrimer] \(reason): skipped, a claim is already in flight")
+      return false
+    }
 
     // Someone else is playing. Claiming here would interrupt them the moment
     // Absorb opens, which is exactly what the user did not ask for. CarPlay is
@@ -96,58 +126,70 @@ enum NowPlayingPrimer {
     let shouldSilence = session.secondaryAudioShouldBeSilencedHint
     if (otherAudio || shouldSilence), !isCarPlayConnected(session) {
       logSink?(
-        "[NowPlayingPrimer] skipped, other audio is playing "
+        "[NowPlayingPrimer] \(reason): skipped, other audio is playing "
           + "(isOtherAudioPlaying=\(otherAudio) silenceHint=\(shouldSilence))")
-      return
+      return false
     }
 
     let defaults = UserDefaults(suiteName: appGroup)
-    guard let itemId = defaults?.string(forKey: "np_item_id"), !itemId.isEmpty else {
-      logSink?("[NowPlayingPrimer] skipped, nothing has been played on this device yet")
-      return
-    }
+    var title = ""
+    var elapsed: Double = 0
 
-    // Launched by the widget to start playing, so audio is already on its way.
-    // Priming now would stamp a paused, stale state over the real one.
-    if defaults?.bool(forKey: "widget_is_playing") == true {
-      logSink?("[NowPlayingPrimer] skipped, playback is already running")
-      return
+    if publishFromStash {
+      guard let itemId = defaults?.string(forKey: "np_item_id"), !itemId.isEmpty else {
+        logSink?("[NowPlayingPrimer] skipped, nothing has been played on this device yet")
+        return false
+      }
+
+      // Launched by the widget to start playing, so audio is already on its
+      // way. Priming now would stamp a paused, stale state over the real one.
+      if defaults?.bool(forKey: "widget_is_playing") == true {
+        logSink?("[NowPlayingPrimer] skipped, playback is already running")
+        return false
+      }
     }
 
     do {
-      try session.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
+      // Re-setting a category that already matches makes iOS emit a route
+      // change, which is log noise on every foreground reassert.
+      if session.category != .playback {
+        try session.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
+      }
       try session.setActive(true)
     } catch {
-      logSink?("[NowPlayingPrimer] session activate failed: \(error.localizedDescription)")
-      return
+      logSink?(
+        "[NowPlayingPrimer] \(reason): session activate failed: \(error.localizedDescription)")
+      return false
     }
 
-    let title = defaults?.string(forKey: "np_title")
-      ?? defaults?.string(forKey: "widget_title") ?? ""
-    let author = defaults?.string(forKey: "np_author")
-      ?? defaults?.string(forKey: "widget_author") ?? ""
-    let coverPath = defaults?.string(forKey: "np_cover_path")
-      ?? defaults?.string(forKey: "widget_cover_path")
-    let elapsed = defaults?.double(forKey: "np_position_s") ?? 0
-    let duration = defaults?.double(forKey: "np_total_s") ?? 0
+    if publishFromStash {
+      title = defaults?.string(forKey: "np_title")
+        ?? defaults?.string(forKey: "widget_title") ?? ""
+      let author = defaults?.string(forKey: "np_author")
+        ?? defaults?.string(forKey: "widget_author") ?? ""
+      let coverPath = defaults?.string(forKey: "np_cover_path")
+        ?? defaults?.string(forKey: "widget_cover_path")
+      elapsed = defaults?.double(forKey: "np_position_s") ?? 0
+      let duration = defaults?.double(forKey: "np_total_s") ?? 0
 
-    var info: [String: Any] = [
-      MPMediaItemPropertyTitle: title,
-      MPMediaItemPropertyArtist: author,
-      MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
-      // Paused: nothing is playing yet, we are only claiming the controls.
-      MPNowPlayingInfoPropertyPlaybackRate: 0.0,
-      MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
-      MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
-      MPMediaItemPropertyMediaType: MPMediaType.audioBook.rawValue,
-    ]
-    if duration > 0 {
-      info[MPMediaItemPropertyPlaybackDuration] = duration
+      var info: [String: Any] = [
+        MPMediaItemPropertyTitle: title,
+        MPMediaItemPropertyArtist: author,
+        MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
+        // Paused: nothing is playing yet, we are only claiming the controls.
+        MPNowPlayingInfoPropertyPlaybackRate: 0.0,
+        MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
+        MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
+        MPMediaItemPropertyMediaType: MPMediaType.audioBook.rawValue,
+      ]
+      if duration > 0 {
+        info[MPMediaItemPropertyPlaybackDuration] = duration
+      }
+      if let coverPath, let img = UIImage(contentsOfFile: coverPath) {
+        info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: img.size) { _ in img }
+      }
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
-    if let coverPath, let img = UIImage(contentsOfFile: coverPath) {
-      info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: img.size) { _ in img }
-    }
-    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
     do {
       let player = try AVAudioPlayer(data: makeSilentWav(durationMs: 600))
@@ -155,18 +197,20 @@ enum NowPlayingPrimer {
       player.delegate = blipDelegate
       blipPlayer = player
       let started = player.play()
-      logSink?(
-        "[NowPlayingPrimer] claimed Now Playing for \"\(title)\" at "
-          + "\(Int(elapsed))s (paused, blip started=\(started))")
-    } catch {
-      logSink?("[NowPlayingPrimer] blip init failed: \(error.localizedDescription)")
-      return
-    }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-      if blipPlayer != nil {
-        logSink?("[NowPlayingPrimer] blip never finished - releasing")
-        blipPlayer = nil
+      let opening = publishFromStash
+        ? "claimed Now Playing for \"\(title)\" at \(Int(elapsed))s (paused"
+        : "reclaimed Now Playing (\(reason)"
+      logSink?("[NowPlayingPrimer] \(opening), blip started=\(started))")
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+        if blipPlayer != nil {
+          logSink?("[NowPlayingPrimer] blip never finished - releasing")
+          blipPlayer = nil
+        }
       }
+      return started
+    } catch {
+      logSink?("[NowPlayingPrimer] \(reason): blip init failed: \(error.localizedDescription)")
+      return false
     }
   }
 }
