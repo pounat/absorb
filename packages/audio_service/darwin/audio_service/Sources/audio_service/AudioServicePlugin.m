@@ -213,6 +213,20 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         result(@{});
     } else if ([@"setMediaItem" isEqualToString:call.method]) {
         NSDictionary *args = (NSDictionary *)call.arguments;
+        // Absorb patch: upstream only activates the command center on the
+        // first playing=true state, so a book loaded paused (the launch
+        // hot-load) had no registered remote command targets - a lock screen
+        // or headset play press before the first in-app play reached only the
+        // app's native core, which defers to audio_service, and the press
+        // died between the layers. Having a media item is the real signal
+        // that presses should reach the handler, playing or not.
+        if (!commandCenter) {
+#if TARGET_OS_IPHONE
+            [AVAudioSession sharedInstance];
+#endif
+            [self activateCommandCenter];
+            [self updateControls];
+        }
         mediaItem = args[@"mediaItem"];
         NSString* artUri = mediaItem[@"artUri"];
         artwork = nil;
