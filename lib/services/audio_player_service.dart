@@ -3296,6 +3296,29 @@ class AudioPlayerService extends ChangeNotifier {
         startTime = newerStashedPos;
         localTimestampAtStart = DateTime.now().millisecondsSinceEpoch;
       }
+      // iOS: the shared engine may be playing this very item right now (the
+      // native core started it from a headset press and Dart never adopted
+      // it). Its position is the live truth - the stash was written once at
+      // press time and local progress stopped at the last pause, so resuming
+      // from either threw away everything listened since. The stash match
+      // above ties the engine's content to this episode; the engine itself
+      // only knows the library item.
+      if (Platform.isIOS && (episodeId == null || stashedPos != null)) {
+        try {
+          final engine = await _player?.engineState();
+          if (engine != null &&
+              engine.isLoaded &&
+              engine.itemId == itemId &&
+              engine.globalPositionS > startTime + 1.0) {
+            debugPrint(
+              '[Player] Resuming from live engine position: '
+              '${engine.globalPositionS.toStringAsFixed(1)}s (was ${startTime}s)',
+            );
+            startTime = engine.globalPositionS;
+            localTimestampAtStart = DateTime.now().millisecondsSinceEpoch;
+          }
+        } catch (_) {}
+      }
     }
 
     // Set seek target early so the UI doesn't flash chapter 1 while loading
