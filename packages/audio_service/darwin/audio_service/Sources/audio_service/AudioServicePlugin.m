@@ -141,6 +141,22 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         NSDictionary *configMap = (NSDictionary *)args[@"config"];
         fastForwardInterval = configMap[@"fastForwardInterval"];
         rewindInterval = configMap[@"rewindInterval"];
+        // Absorb patch: register the remote command targets right away instead
+        // of waiting for the first playing=true state. With nothing loaded yet
+        // (a streamed book can't be pre-loaded at launch) a headset press had
+        // no target here at all - the app's native core defers to
+        // audio_service, and the press died between the layers. With the
+        // targets live, the press reaches the Dart handler, whose bookless
+        // play() already knows how to cold-resume the last played item.
+        // togglePlayPause is force-enabled by activateCommandCenter, which is
+        // what a headset stem sends.
+        if (!commandCenter) {
+#if TARGET_OS_IPHONE
+            [AVAudioSession sharedInstance];
+#endif
+            [self activateCommandCenter];
+            [self updateControls];
+        }
         result(@{});
     } else if ([@"updateSkipIntervals" isEqualToString:call.method]) {
         // Absorb patch: the skip amounts were only ever read from the config at
@@ -213,13 +229,10 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         result(@{});
     } else if ([@"setMediaItem" isEqualToString:call.method]) {
         NSDictionary *args = (NSDictionary *)call.arguments;
-        // Absorb patch: upstream only activates the command center on the
-        // first playing=true state, so a book loaded paused (the launch
-        // hot-load) had no registered remote command targets - a lock screen
-        // or headset play press before the first in-app play reached only the
-        // app's native core, which defers to audio_service, and the press
-        // died between the layers. Having a media item is the real signal
-        // that presses should reach the handler, playing or not.
+        // Absorb patch: re-activate the command center if stopService tore it
+        // down (it nils commandCenter) - loading the next book means presses
+        // should reach the handler again, playing or not. First activation
+        // normally happens in configure above.
         if (!commandCenter) {
 #if TARGET_OS_IPHONE
             [AVAudioSession sharedInstance];
