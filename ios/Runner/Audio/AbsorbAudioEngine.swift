@@ -88,8 +88,11 @@ final class AbsorbAudioEngine: NSObject {
             completion: @escaping (Double?) -> Void) {
     queue.async { [weak self] in
       guard let self = self else { completion(nil); return }
-      self.activateSession()
-
+      // No session activation here: loading is silent, and play() activates
+      // before any audio starts. Activating on load stole the audio from
+      // whatever was playing (Spotify stopped the moment Absorb opened) when
+      // the launch hot-load began loading the last book paused - exactly the
+      // case the NowPlayingPrimer's other-audio guard exists to avoid.
       if let itemId = itemId { self._currentItemId = itemId }
       self.trackUrls = tracks.map { $0.url }
       self.trackHeaders = tracks.first?.headers ?? [:]
