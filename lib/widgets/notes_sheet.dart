@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/notes_service.dart';
+import '../utils/share_origin.dart';
 
 /// Bottom sheet displaying notes for a library item.
 class NotesSheet extends StatefulWidget {
@@ -161,11 +162,10 @@ class _NotesSheetState extends State<NotesSheet> {
     final safe = widget.itemTitle.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
     final file = File('${dir.path}/${safe}_notes.$format');
     await file.writeAsString(buffer.toString());
-    final box = context.findRenderObject() as RenderBox?;
-    final origin = box != null
-        ? box.localToGlobal(Offset.zero) & box.size
-        : null;
-    await Share.shareXFiles([XFile(file.path)], sharePositionOrigin: origin);
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      sharePositionOrigin: shareOriginFor(context),
+    );
   }
 
   Future<_NoteEditResult?> _showEditor(BuildContext context, {String title = '', String body = ''}) {

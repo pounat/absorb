@@ -34,6 +34,7 @@ import '../screens/auth_sessions_screen.dart';
 import '../screens/transcription_settings_screen.dart';
 import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
+import '../utils/share_origin.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/theme_presets.dart';
 import '../widgets/color_wheel_picker.dart';
@@ -3817,13 +3818,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () async {
                           try {
-                            final box = context.findRenderObject() as RenderBox?;
-                            final origin = box != null
-                                ? box.localToGlobal(Offset.zero) & box.size
-                                : null;
                             await LogService().shareLogs(
                               serverVersion: auth.serverVersion,
-                              sharePositionOrigin: origin,
+                              sharePositionOrigin: shareOriginFor(context),
                             );
                           } catch (e) {
                             if (mounted) {

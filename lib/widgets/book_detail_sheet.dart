@@ -49,6 +49,7 @@ import 'absorb_wave_icon.dart';
 import 'stackable_sheet.dart';
 import 'ebook_router.dart';
 import '../utils/duration_format.dart';
+import '../utils/share_origin.dart';
 
 // ─── BOOK DETAIL BOTTOM SHEET ───────────────────────────────
 
@@ -2518,11 +2519,10 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
       final file = File('${dir.path}/$safeTitle$ext');
       await file.writeAsBytes(response.bodyBytes);
       if (!mounted) return;
-      final box = context.findRenderObject() as RenderBox?;
-      final origin = box != null
-          ? box.localToGlobal(Offset.zero) & box.size
-          : null;
-      await Share.shareXFiles([XFile(file.path)], sharePositionOrigin: origin);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        sharePositionOrigin: shareOriginFor(context),
+      );
     } catch (e) {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
