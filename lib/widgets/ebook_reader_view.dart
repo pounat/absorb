@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_epub_viewer/flutter_epub_viewer.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dictionary_sheet.dart';
+import '../services/dictionary_service.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -1084,12 +1086,21 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _dismissSelection();
   }
 
-  void _defineSelection() {
+  Future<void> _defineSelection() async {
     if (_selectionText == null) return;
-    final word = _selectionText!.trim().split(RegExp(r'\s+')).first;
-    final query = Uri.encodeComponent('define $word');
-    launchUrl(Uri.parse('https://www.google.com/search?q=$query'), mode: LaunchMode.externalApplication);
+    // Strip surrounding punctuation so selecting "dragon," still looks up
+    // "dragon"; multi-word selections look up their first word.
+    final word = _selectionText!
+        .trim()
+        .split(RegExp(r'\s+'))
+        .first
+        .replaceAll(RegExp(r'''^[^\w'-]+|[^\w'-]+$'''), '');
     _dismissSelection();
+    if (word.isEmpty) return;
+    // The platform dictionary first (offline, any language); the in-app
+    // English lookup sheet only when the device has nothing to offer.
+    if (await NativeDictionary.define(word)) return;
+    if (mounted) showDictionarySheet(context, word);
   }
 
   void _onSelection(String text, String cfi, Rect selRect, Rect vRect) {

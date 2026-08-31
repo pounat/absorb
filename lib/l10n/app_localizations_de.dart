@@ -8517,6 +8517,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get readerCopied => 'In Zwischenablage kopiert';
 
   @override
+  String get dictionaryNotFound => 'No definition found for this word.';
+
+  @override
+  String get dictionaryError =>
+      'Couldn\'t reach the dictionary. Check your connection.';
+
+  @override
+  String get dictionaryRetry => 'Retry';
+
+  @override
+  String get dictionarySearchWeb => 'Search the web';
+
+  @override
   String get readerTooltipCopy => 'Kopieren';
 
   @override

@@ -625,6 +625,31 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         result(true)
 
+      case "defineWord":
+        // Reader dictionary: present the system dictionary (offline, uses the
+        // user's own downloaded dictionaries, any language). It has its own
+        // no-definition page, so present unconditionally.
+        let word = args?["word"] as? String ?? ""
+        if word.isEmpty {
+          result(false)
+        } else {
+          DispatchQueue.main.async {
+            let scene = UIApplication.shared.connectedScenes
+              .compactMap { $0 as? UIWindowScene }
+              .first { $0.activationState == .foregroundActive }
+            let window = scene?.windows.first { $0.isKeyWindow } ?? scene?.windows.first
+            guard var presenter = window?.rootViewController else {
+              result(false)
+              return
+            }
+            while let presented = presenter.presentedViewController {
+              presenter = presented
+            }
+            presenter.present(UIReferenceLibraryViewController(term: word), animated: true)
+            result(true)
+          }
+        }
+
       case "init":
         result([
           "bands": 5,

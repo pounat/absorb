@@ -14535,6 +14535,30 @@ abstract class AppLocalizations {
   /// **'Copied to clipboard'**
   String get readerCopied;
 
+  /// No description provided for @dictionaryNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No definition found for this word.'**
+  String get dictionaryNotFound;
+
+  /// No description provided for @dictionaryError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the dictionary. Check your connection.'**
+  String get dictionaryError;
+
+  /// No description provided for @dictionaryRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get dictionaryRetry;
+
+  /// No description provided for @dictionarySearchWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Search the web'**
+  String get dictionarySearchWeb;
+
   /// No description provided for @readerTooltipCopy.
   ///
   /// In en, this message translates to:

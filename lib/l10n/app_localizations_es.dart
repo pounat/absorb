@@ -8408,6 +8408,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String get readerCopied => 'Copied to clipboard';
 
   @override
+  String get dictionaryNotFound => 'No definition found for this word.';
+
+  @override
+  String get dictionaryError =>
+      'Couldn\'t reach the dictionary. Check your connection.';
+
+  @override
+  String get dictionaryRetry => 'Retry';
+
+  @override
+  String get dictionarySearchWeb => 'Search the web';
+
+  @override
   String get readerTooltipCopy => 'Copy';
 
   @override
