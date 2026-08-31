@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/chapter_lookup.dart';
 import '../services/download_service.dart';
+import '../services/progress_sync_service.dart';
 import '../services/transcription_service.dart';
 import '../widgets/ebook_router.dart';
 import '../widgets/overlay_toast.dart';
@@ -85,16 +86,34 @@ Future<void> launchFindInEbook(
   }
 
   final player = AudioPlayerService();
-  if (player.isPlaying) player.pause();
-  final position = player.position.inMilliseconds / 1000.0;
+  double position;
+  List<dynamic> chapters;
+  double totalDuration;
+  if (player.currentItemId == itemId) {
+    if (player.isPlaying) player.pause();
+    position = player.position.inMilliseconds / 1000.0;
+    chapters = player.chapters;
+    totalDuration = player.totalDuration;
+  } else {
+    // The book isn't loaded in the player (fresh app open, or Find launched
+    // from an inactive card). player.position would read 0:00 and the
+    // transcription would match the book's OPENING - intro music, narrator
+    // credits - which the ebook text never contains, so the find "always
+    // failed" before audio started. Use the saved listening position and
+    // the chapters from whoever knows them instead.
+    position = await ProgressSyncService().getSavedPosition(itemId);
+    final audio = await resolveAudioChapters(itemId, null);
+    chapters = audio.chapters;
+    totalDuration = audio.duration;
+  }
+  if (!context.mounted) return;
 
   // The audio chapter at the pause point, used by the reader to search the
   // matching ebook chapter first and to cross-check the hit's location.
   String? chapterHint;
-  final chIdx = ChapterLookup.indexAtWithGrace(
-      player.chapters, position, player.totalDuration);
+  final chIdx = ChapterLookup.indexAtWithGrace(chapters, position, totalDuration);
   if (chIdx != null) {
-    final t = ((player.chapters[chIdx] as Map<String, dynamic>)['title'] as String?)?.trim();
+    final t = ((chapters[chIdx] as Map<String, dynamic>)['title'] as String?)?.trim();
     if (t != null && t.isNotEmpty) chapterHint = t;
   }
 
