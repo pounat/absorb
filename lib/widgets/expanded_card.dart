@@ -190,7 +190,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     }
 
     final lib = context.read<LibraryProvider>();
-    return lib.getCoverUrl(_itemId, width: 800);
+    return lib.getCoverUrl(_itemId, width: 1200);
   }
   bool get _isLocalCover => _coverUrl != null && _coverUrl!.startsWith('/');
 

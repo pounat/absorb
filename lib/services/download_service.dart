@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -310,6 +311,10 @@ class DownloadService extends ChangeNotifier {
   static bool backgroundIsolateMode = false;
 
   final Map<String, DownloadInfo> _downloads = {};
+
+  // Items whose stored cover was already checked (and upgraded if it was an
+  // old 400px thumbnail) this session - see enrichMetadata.
+  final Set<String> _coverUpgradeChecked = {};
   final Set<String> _activeDownloadIds = {};
   final Set<String> _cancelledIds = {};
   /// SAF tree URI (content://) for the Android custom download folder, or null
@@ -1138,7 +1143,7 @@ class DownloadService extends ChangeNotifier {
             final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
             title = metadata['title'] as String? ?? title;
             author = metadata['authorName'] as String? ?? author;
-            coverUrl = api.getCoverUrl(apiItemId);
+            coverUrl = api.getCoverUrl(apiItemId, width: 1200);
             needsUpdate = true;
             debugPrint('[Download] Enriched metadata for ${info.itemId}: $title');
           }
@@ -1164,7 +1169,7 @@ class DownloadService extends ChangeNotifier {
             needsUpdate = true;
           } else {
             // Download from server into internal storage
-            final url = coverUrl ?? api.getCoverUrl(apiItemId);
+            final url = _hiResCoverUrl(coverUrl ?? api.getCoverUrl(apiItemId, width: 1200));
             try {
               final resp = await http.get(Uri.parse(url), headers: api.mediaHeaders)
                   .timeout(const Duration(seconds: 10));
@@ -1183,6 +1188,29 @@ class DownloadService extends ChangeNotifier {
             } catch (e) {
               debugPrint('[Download] Cover cache failed for ${info.itemId}: $e');
             }
+          }
+        }
+      } else if (_coverUpgradeChecked.add(info.itemId)) {
+        // Covers saved before the 1200px fetch were 400px thumbnails, which
+        // look blurry now that the card and full screen player render them at
+        // near screen width. Replace them in place, once per item per
+        // session (a book whose original cover really is small would
+        // otherwise refetch forever).
+        final width = await _imageFileWidth(localCoverPath);
+        if (width != null && width < 800) {
+          final url = _hiResCoverUrl(coverUrl ?? api.getCoverUrl(apiItemId, width: 1200));
+          try {
+            final resp = await http.get(Uri.parse(url), headers: api.mediaHeaders)
+                .timeout(const Duration(seconds: 10));
+            if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+              final coverFile = File(localCoverPath);
+              await coverFile.writeAsBytes(resp.bodyBytes);
+              PaintingBinding.instance.imageCache.evict(FileImage(coverFile));
+              debugPrint('[Download] Upgraded ${width}px cover for ${info.itemId} '
+                  '(${resp.bodyBytes.length} bytes)');
+            }
+          } catch (e) {
+            debugPrint('[Download] Cover upgrade failed for ${info.itemId}: $e');
           }
         }
       }
@@ -1739,12 +1767,34 @@ class DownloadService extends ChangeNotifier {
     return 'track_${i.toString().padLeft(3, '0')}.$ext';
   }
 
+  /// The player card and full screen player render the downloaded cover at
+  /// near screen width, so the stored copy has to be sharper than the 400px
+  /// thumbnail URL most callers hold. Leaves local paths and widthless URLs
+  /// alone.
+  static String _hiResCoverUrl(String url) =>
+      url.replaceAllMapped(RegExp(r'width=\d+'), (_) => 'width=1200');
+
+  /// Pixel width of an image file without fully decoding it. Returns null
+  /// when the file can't be read as an image.
+  static Future<int?> _imageFileWidth(String path) async {
+    try {
+      final buffer = await ui.ImmutableBuffer.fromFilePath(path);
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final w = descriptor.width;
+      descriptor.dispose();
+      buffer.dispose();
+      return w;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Cache the cover into INTERNAL storage (lockscreen / Android Auto / offline).
   /// Always internal, since a custom external audio path may lack write access.
   Future<String?> _cacheCover(ApiService api, String itemId, String? coverUrl) async {
     if (coverUrl == null || coverUrl.isEmpty) return null;
     try {
-      final coverResp = await http.get(Uri.parse(coverUrl), headers: api.mediaHeaders)
+      final coverResp = await http.get(Uri.parse(_hiResCoverUrl(coverUrl)), headers: api.mediaHeaders)
           .timeout(const Duration(seconds: 10));
       if (coverResp.statusCode == 200 && coverResp.bodyBytes.isNotEmpty) {
         final internalBase = await _internalBasePath;

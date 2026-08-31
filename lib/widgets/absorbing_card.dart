@@ -151,7 +151,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
   String? get _coverUrl {
     final lib = context.read<LibraryProvider>();
-    return lib.getCoverUrl(_itemId, width: 800);
+    return lib.getCoverUrl(_itemId, width: 1200);
   }
 
   int? _coverUpdatedAt(LibraryProvider lib) {
@@ -188,7 +188,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
   String? _currentCoverIdentity() {
     final lib = context.read<LibraryProvider>();
-    return _coverIdentity(lib.getCoverUrl(_itemId, width: 800), lib);
+    return _coverIdentity(lib.getCoverUrl(_itemId, width: 1200), lib);
   }
 
   @override
@@ -604,7 +604,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     final l = AppLocalizations.of(context)!;
 
     final lib = context.watch<LibraryProvider>();
-    final coverUrl = lib.getCoverUrl(_itemId, width: 800);
+    final coverUrl = lib.getCoverUrl(_itemId, width: 1200);
     final coverIdentity = _coverIdentity(coverUrl, lib);
     final isLocalCover = coverUrl?.startsWith('/') ?? false;
     _maybeRefetchOnServerChange(lib);
@@ -852,7 +852,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                     listenable: Listenable.merge([ChromecastService(), widget.player]),
                     builder: (context, _) => LayoutBuilder(
                     builder: (context, constraints) {
-                      final maxW = constraints.maxWidth * 0.75;
+                      final maxW = constraints.maxWidth * 0.85;
                       final rawH = constraints.maxHeight.isFinite ? constraints.maxHeight : maxW;
                       final maxH = rawH - 24;
                       double coverW, coverH;
