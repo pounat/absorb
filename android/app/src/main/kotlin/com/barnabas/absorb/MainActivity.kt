@@ -1,7 +1,6 @@
 package com.barnabas.absorb
 
 import android.content.Context
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -118,10 +117,6 @@ class MainActivity : AudioServiceActivity() {
                         val enabled = call.argument<Boolean>("enabled") ?: false
                         MonoController.setMonoEnabled(enabled)
                         result.success(true)
-                    }
-                    "defineWord" -> {
-                        val word = call.argument<String>("word") ?: ""
-                        result.success(if (word.isEmpty()) false else launchDefineIntent(word))
                     }
                     else -> result.notImplemented()
                 }
@@ -508,36 +503,6 @@ class MainActivity : AudioServiceActivity() {
         loudnessEnhancer = null
         eqLoudnessGainMb = 0
         eqEnabled = false
-    }
-
-    // Reader dictionary: hand the word to the system's definition UI.
-    // Android 13+ has a dedicated DEFINE action; anything older (or without a
-    // DEFINE handler) falls back to the text-processing chooser (Translate,
-    // dictionary apps). Returns false when the device has neither, so Dart
-    // can fall back to the app's own lookup sheet.
-    private fun launchDefineIntent(word: String): Boolean {
-        if (Build.VERSION.SDK_INT >= 33) {
-            val define = Intent(Intent.ACTION_DEFINE).putExtra(Intent.EXTRA_TEXT, word)
-            if (define.resolveActivity(packageManager) != null) {
-                try {
-                    startActivity(define)
-                    return true
-                } catch (_: ActivityNotFoundException) {
-                }
-            }
-        }
-        val process = Intent(Intent.ACTION_PROCESS_TEXT)
-            .setType("text/plain")
-            .putExtra(Intent.EXTRA_PROCESS_TEXT, word)
-            .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
-        if (process.resolveActivity(packageManager) != null) {
-            try {
-                startActivity(Intent.createChooser(process, null))
-                return true
-            } catch (_: ActivityNotFoundException) {
-            }
-        }
-        return false
     }
 
     private fun isBluetoothAudioConnected(): Boolean {

@@ -135,9 +135,13 @@ class _DictionarySheetState extends State<_DictionarySheet> {
       DictionaryResult result, ColorScheme cs, TextTheme tt) {
     final widgets = <Widget>[];
     for (final m in result.meanings) {
+      final language = m.language;
+      final label = (language == null || language.isEmpty || language == 'English')
+          ? m.partOfSpeech
+          : '$language · ${m.partOfSpeech}';
       widgets.add(Padding(
         padding: const EdgeInsets.only(top: 10, bottom: 4),
-        child: Text(m.partOfSpeech,
+        child: Text(label,
             style: tt.titleSmall?.copyWith(
                 color: cs.primary,
                 fontStyle: FontStyle.italic,

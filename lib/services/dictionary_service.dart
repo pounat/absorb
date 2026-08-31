@@ -1,18 +1,19 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
-/// The platform's own dictionary UI: UIReferenceLibraryViewController on iOS
-/// (offline, the user's own dictionaries, any language), the system DEFINE
-/// action / text-processing chooser on Android. Returns false when the
-/// platform had nothing to show, so the caller can fall back to the in-app
-/// lookup sheet.
+/// iOS only: present the system dictionary (UIReferenceLibraryViewController -
+/// offline, the user's own downloaded dictionaries, any language). Android has
+/// no equivalent (the DEFINE intent just bounces into the Google app), so it
+/// returns false there and the caller shows the in-app Wiktionary sheet.
 class NativeDictionary {
   static const _channel = MethodChannel('com.absorb.equalizer');
 
   static Future<bool> define(String word) async {
+    if (!Platform.isIOS) return false;
     try {
       final ok = await _channel.invokeMethod<bool>('defineWord', {'word': word});
       return ok ?? false;
@@ -35,7 +36,11 @@ class DictionaryMeaning {
   final String partOfSpeech;
   final List<DictionaryDefinition> definitions;
   final List<String> synonyms;
-  const DictionaryMeaning(this.partOfSpeech, this.definitions, this.synonyms);
+  /// Display name of the word's language section ("German", "French"), so a
+  /// foreign word's entry can be labeled. Null/"English" renders unlabeled.
+  final String? language;
+  const DictionaryMeaning(this.partOfSpeech, this.definitions, this.synonyms,
+      {this.language});
 }
 
 class DictionaryResult {
@@ -47,71 +52,97 @@ class DictionaryResult {
       {this.phonetic, this.meanings = const []});
 }
 
-/// Word lookups against the free dictionaryapi.dev endpoint (English), so a
-/// definition opens in an in-app sheet instead of bouncing to a browser.
+/// Word lookups against Wiktionary's definition API, so a definition opens in
+/// an in-app sheet instead of bouncing to a browser or the Google app. Covers
+/// words in most languages (definitions written in English); the exact
+/// capitalization is tried first (German nouns), lowercase second.
 class DictionaryService {
   static Future<DictionaryResult> lookup(String word) async {
-    final clean = word.trim().toLowerCase();
+    final clean = word.trim();
+    final result = await _fetch(clean);
+    if (result.status == DictionaryStatus.notFound &&
+        clean != clean.toLowerCase()) {
+      final lower = await _fetch(clean.toLowerCase());
+      if (lower.status == DictionaryStatus.found) return lower;
+    }
+    return result;
+  }
+
+  static Future<DictionaryResult> _fetch(String word) async {
     try {
-      final resp = await http
-          .get(Uri.parse(
-              'https://api.dictionaryapi.dev/api/v2/entries/en/${Uri.encodeComponent(clean)}'))
-          .timeout(const Duration(seconds: 8));
+      final resp = await http.get(
+        Uri.parse(
+            'https://en.wiktionary.org/api/rest_v1/page/definition/${Uri.encodeComponent(word)}'),
+        headers: const {'User-Agent': 'Absorb audiobook app'},
+      ).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 404) {
-        return DictionaryResult(DictionaryStatus.notFound, clean);
+        return DictionaryResult(DictionaryStatus.notFound, word);
       }
       if (resp.statusCode != 200) {
-        return DictionaryResult(DictionaryStatus.error, clean);
+        return DictionaryResult(DictionaryStatus.error, word);
       }
       final data = jsonDecode(resp.body);
-      if (data is! List || data.isEmpty) {
-        return DictionaryResult(DictionaryStatus.notFound, clean);
+      if (data is! Map<String, dynamic> || data.isEmpty) {
+        return DictionaryResult(DictionaryStatus.notFound, word);
       }
 
-      String? phonetic;
+      // English section first, other languages after in response order.
+      final keys = [
+        if (data.containsKey('en')) 'en',
+        ...data.keys.where((k) => k != 'en'),
+      ];
       final meanings = <DictionaryMeaning>[];
-      for (final entry in data.whereType<Map<String, dynamic>>()) {
-        phonetic ??= (entry['phonetic'] as String?)?.trim();
-        if (phonetic == null || phonetic.isEmpty) {
-          final phonetics =
-              (entry['phonetics'] as List<dynamic>? ?? const [])
-                  .whereType<Map<String, dynamic>>();
-          for (final p in phonetics) {
-            final t = (p['text'] as String?)?.trim();
-            if (t != null && t.isNotEmpty) {
-              phonetic = t;
-              break;
-            }
-          }
-        }
-        for (final m in (entry['meanings'] as List<dynamic>? ?? const [])
-            .whereType<Map<String, dynamic>>()) {
+      for (final key in keys) {
+        final section = data[key];
+        if (section is! List) continue;
+        for (final entry in section.whereType<Map<String, dynamic>>()) {
+          final language = (entry['language'] as String?)?.trim();
           final defs = <DictionaryDefinition>[];
-          for (final d in (m['definitions'] as List<dynamic>? ?? const [])
+          for (final d in (entry['definitions'] as List<dynamic>? ?? const [])
               .whereType<Map<String, dynamic>>()) {
-            final text = (d['definition'] as String?)?.trim();
-            if (text == null || text.isEmpty) continue;
-            defs.add(DictionaryDefinition(
-                text, (d['example'] as String?)?.trim()));
+            final text = _stripHtml((d['definition'] as String?) ?? '');
+            if (text.isEmpty) continue;
+            String? example;
+            final parsed = (d['parsedExamples'] as List<dynamic>? ?? const [])
+                .whereType<Map<String, dynamic>>();
+            for (final p in parsed) {
+              final e = _stripHtml((p['example'] as String?) ?? '');
+              if (e.isNotEmpty) {
+                example = e;
+                break;
+              }
+            }
+            example ??= (d['examples'] as List<dynamic>? ?? const [])
+                .whereType<String>()
+                .map(_stripHtml)
+                .where((e) => e.isNotEmpty)
+                .firstOrNull;
+            defs.add(DictionaryDefinition(text, example));
           }
           if (defs.isEmpty) continue;
-          final synonyms = (m['synonyms'] as List<dynamic>? ?? const [])
-              .whereType<String>()
-              .where((s) => s.trim().isNotEmpty)
-              .take(8)
-              .toList();
           meanings.add(DictionaryMeaning(
-              (m['partOfSpeech'] as String?) ?? '', defs, synonyms));
+              (entry['partOfSpeech'] as String?) ?? '', defs, const [],
+              language: language));
         }
       }
       if (meanings.isEmpty) {
-        return DictionaryResult(DictionaryStatus.notFound, clean);
+        return DictionaryResult(DictionaryStatus.notFound, word);
       }
-      return DictionaryResult(DictionaryStatus.found, clean,
-          phonetic: phonetic, meanings: meanings);
+      return DictionaryResult(DictionaryStatus.found, word,
+          meanings: meanings);
     } catch (e) {
-      debugPrint('[Dictionary] lookup failed for "$clean": $e');
-      return DictionaryResult(DictionaryStatus.error, clean);
+      debugPrint('[Dictionary] lookup failed for "$word": $e');
+      return DictionaryResult(DictionaryStatus.error, word);
     }
   }
+
+  static String _stripHtml(String s) => s
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&quot;', '"')
+      .replaceAll('&nbsp;', ' ')
+      .trim();
 }
