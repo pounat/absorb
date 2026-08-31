@@ -2655,14 +2655,28 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       var out = {};
       try {
         var contents = (typeof rendition.getContents === 'function') ? rendition.getContents() : [];
-        for (var i = 0; i < contents.length; i++) {
-          var c = contents[i], doc = c.document;
+        // The CFI names its spine section; only that section may resolve it.
+        // Chapter documents are structurally identical, so epub.js happily
+        // "resolves" a chapter-5 CFI inside a pre-rendered chapter-4 DOM at
+        // the same path - which sent Find in audiobook to the wrong chapter.
+        var wantSi = -1;
+        try {
+          var pos = new ePub.CFI(cfi).spinePos;
+          if (typeof pos === 'number' && pos >= 0) wantSi = pos;
+        } catch(eS){}
+        var ordered = [];
+        for (var i = 0; i < contents.length; i++) { if (contents[i].sectionIndex === wantSi) ordered.push(contents[i]); }
+        for (var i = 0; i < contents.length; i++) { if (contents[i].sectionIndex !== wantSi) ordered.push(contents[i]); }
+        for (var i = 0; i < ordered.length; i++) {
+          var c = ordered[i], doc = c.document;
           if (!doc) continue;
           var tw = doc.createTreeWalker(doc.body||doc, NodeFilter.SHOW_TEXT, null, false);
           var nodes=[], text='', node;
           while (node = tw.nextNode()) { nodes.push({node:node, start:text.length, len:node.textContent.length}); text += node.textContent; }
           var off = -1, r = null;
-          try { r = c.range(cfi); } catch(e){}
+          if (wantSi < 0 || c.sectionIndex === wantSi) {
+            try { r = c.range(cfi); } catch(e){}
+          }
           if (r) {
             for (var k=0;k<nodes.length;k++){ if (nodes[k].node === r.startContainer) { off = nodes[k].start + r.startOffset; break; } }
           }
