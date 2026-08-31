@@ -107,13 +107,15 @@ class LibrarySeriesTab extends StatelessWidget {
       );
     }
 
-    // Tablets: the first page may not fill the screen, so nothing scrolls and
-    // the bottom-trigger never fires. After layout, if the grid isn't scrollable
-    // yet and there's more to load, pull the next page until the viewport fills.
+    // Tablets: a page of results can land entirely within the current screen,
+    // so nothing scrolls and the bottom-trigger never fires. After layout,
+    // keep pulling pages while there's less content below the fold than the
+    // scroll-trigger's own 400px margin - stopping merely at "technically
+    // scrollable" left a visible, forever-spinning loader on iPads.
     if (hasMoreSeries && !isLoadingSeriesPage && seriesItems.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final c = scrollController;
-        if (c != null && c.hasClients && c.position.maxScrollExtent <= 0) {
+        if (c != null && c.hasClients && c.position.extentAfter < 400) {
           onLoadMore();
         }
       });
