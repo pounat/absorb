@@ -24,7 +24,6 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
   private var pendingNativeLogs: [(Double, String)] = []
   private var dartLogReady = false
   private let launchUptime = ProcessInfo.processInfo.systemUptime
-  private var hasScheduledNowPlayingPrime = false
 
   override func application(
     _ application: UIApplication,
@@ -71,25 +70,6 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 
     NowPlayingPrimer.logSink = { [weak self] line in
       self?.logToFlutter(line)
-    }
-    // Take the Now Playing slot for the last-played book, so the headset works
-    // before the user has pressed play in the app. Anchored to scene activation
-    // rather than a timer after launch: iOS quietly refuses audio started by an
-    // app that is not active yet, which would leave us half-claimed - session
-    // active and info published, but no audio ever rendered, so a headset press
-    // still launches whichever app genuinely played last. This notification
-    // also fires for the CarPlay scene, covering launches from the car with the
-    // phone locked. Primed once per process; foregrounding again is a no-op.
-    NotificationCenter.default.addObserver(
-      forName: UIScene.didActivateNotification,
-      object: nil, queue: .main
-    ) { [weak self] _ in
-      guard let self, !self.hasScheduledNowPlayingPrime else { return }
-      self.hasScheduledNowPlayingPrime = true
-      // A beat after activation so the audio session plugin has settled.
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-        NowPlayingPrimer.primeAtLaunch()
-      }
     }
 
     // Same routing for the EQ tap's format diagnostics, so when a user

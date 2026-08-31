@@ -2265,13 +2265,12 @@ class AudioPlayerService extends ChangeNotifier {
       // get here before the native core has even LOADED the engine (a field
       // log had this check lose by two milliseconds), and a stream then
       // buffers for a while before isPlaying flips. Deciding on the first
-      // read sent a streamed relaunch down the hot-load path (which skips
-      // streamed books) and left Dart bookless under live audio. So poll: a
-      // press-loaded engine shows up within the first second, and once it is
-      // loaded, give the buffer the rest of the budget. On a normal launch
-      // nothing ever loads and this waits out the budget before the
-      // hot-load - harmless, since the primer has the lock screen and the
-      // command center routes any early press to the cold-start restore.
+      // read left Dart bookless under live audio. So poll: a press-loaded
+      // engine shows up within the first second, and once it is loaded, give
+      // the buffer the rest of the budget. On a normal launch nothing ever
+      // loads and this waits out the budget then does nothing - harmless,
+      // since the primer has the lock screen and the command center routes
+      // any early press to the cold-start restore.
       var waited = 0;
       while ((state == null || !state.isLoaded || !state.isPlaying) &&
           waited < 4000) {
@@ -2292,12 +2291,11 @@ class AudioPlayerService extends ChangeNotifier {
         if (restore != null) await restore();
         return;
       }
-      // Idle engine: load the last played item paused instead, so a headset
-      // press in the first seconds of a cold start has a live target - the
-      // native core defers presses to Flutter the moment its heartbeat
-      // exists, and with nothing loaded that press used to land on neither
-      // layer.
-      await HomeWidgetService().loadLastPlayedPaused();
+      // Idle engine: leave the player empty. The book only loads when the
+      // user actually plays - an early headset press still works because the
+      // handler routes play-with-nothing-loaded to the cold-start restore.
+      // (This used to load the last played book paused as a press target,
+      // which put an unasked-for book in the player on every launch.)
     } catch (e) {
       debugPrint('[Player] boot engine adopt failed: $e');
     }

@@ -541,37 +541,6 @@ class HomeWidgetService {
     );
   }
 
-  /// iOS cold start: load the last played item into the player paused, so a
-  /// headset press always has a live target. Without this, a press arriving
-  /// after Dart boots gets deferred by the native core to an audio_service
-  /// with nothing loaded, and lands on neither layer. Downloaded items only
-  /// (a stream would need a server session just to sit paused); no session
-  /// starts until a real play.
-  Future<void> loadLastPlayedPaused() async {
-    final player = AudioPlayerService();
-    if (player.hasBook) return;
-    final prefs = await SharedPreferences.getInstance();
-    final itemId = prefs.getString('widget_item_id');
-    if (itemId == null) return;
-    final api = _apiFromPrefs(prefs);
-    if (api == null) return;
-    final episodeId = prefs.getString('widget_episode_id');
-    try {
-      final ok = await _resumeFromDownloadRecord(
-        player,
-        api,
-        itemId,
-        episodeId,
-        loadOnly: true,
-      );
-      debugPrint(
-        '[HomeWidget] launch load-paused: ${ok ? "loaded $itemId" : "last played not downloaded - skipped"}',
-      );
-    } catch (e) {
-      debugPrint('[HomeWidget] launch load-paused failed: $e');
-    }
-  }
-
   Future<bool> _resumeFromDownloadRecord(
     AudioPlayerService player,
     ApiService api,
