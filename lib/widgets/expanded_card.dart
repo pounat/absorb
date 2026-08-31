@@ -719,7 +719,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                             isDark ? 0.3 : 0.4,
                           ));
                     final statsRow = Padding(
-                        padding: EdgeInsets.fromLTRB(24, compact ? 4 : 12, 24, 0),
+                        padding: EdgeInsets.fromLTRB(24, compact ? 4 : 6, 24, 0),
                         child: Center(
                           child: Text('${(bookProgress * 100).clamp(0, 100).toStringAsFixed(1)}%',
                             style: tt.labelSmall?.copyWith(
@@ -734,7 +734,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
 
                     final bookProgressBar = Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: progress, staticDuration: _effectiveDuration, chapters: _chapters, showBookBar: showBookBar, showChapterBar: false, itemId: _itemId),
+                        child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: progress, staticDuration: _effectiveDuration, chapters: _chapters, showBookBar: showBookBar, showChapterBar: false, itemId: _itemId, showCenterPercent: true),
                       );
 
                     final coverArea = Padding(
@@ -743,7 +743,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                             listenable: ChromecastService(),
                             builder: (context, _) => LayoutBuilder(
                               builder: (context, constraints) {
-                                final maxW = constraints.maxWidth * 0.90;
+                                final maxW = constraints.maxWidth * 0.95;
                                 final maxH = constraints.maxHeight - 24;
                                 double coverW, coverH;
                                 if (_rectangleCovers) {
@@ -989,7 +989,10 @@ class _ExpandedCardState extends State<ExpandedCard> {
                           Expanded(child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              statsRow,
+                              // The book bar carries the percent centered in
+                              // its time row; the standalone line is only for
+                              // layouts with no book bar at all.
+                              if (!showBookBar) statsRow,
                               if (showBookBar) bookProgressBar,
                               if (showBookBar) SizedBox(height: compact ? 4 : 16),
                               chapterScrubber,
@@ -1002,11 +1005,14 @@ class _ExpandedCardState extends State<ExpandedCard> {
 
                     return Column(
                       children: [
-                        statsRow,
+                        // The book bar carries the percent centered in its
+                        // time row; the standalone line is only for layouts
+                        // with no book bar at all.
+                        if (!showBookBar) statsRow,
                         if (showBookBar) bookProgressBar,
-                        if (showBookBar) SizedBox(height: compact ? 4 : 16),
+                        if (showBookBar) SizedBox(height: compact ? 4 : 8),
                         Expanded(child: coverArea),
-                        SizedBox(height: compact ? 6 : 24),
+                        SizedBox(height: compact ? 6 : 12),
                         chapterScrubber,
                         controlsAndButtons,
                       ],
