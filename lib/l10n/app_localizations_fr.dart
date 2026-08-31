@@ -6931,7 +6931,16 @@ class AppLocalizationsFr extends AppLocalizations {
   String get androidAutoTabDownloads => 'Téléchargements';
 
   @override
+  String get settingsSearchHint => 'Search settings...';
+
+  @override
+  String get settingsSearchNoResults => 'No matching settings';
+
+  @override
   String get carConnectAutoplay => 'Start playback when Android Auto connects';
+
+  @override
+  String get carConnectAutoplayIos => 'Start playback when CarPlay connects';
 
   @override
   String get carConnectAutoplayOnSubtitle =>

@@ -11781,11 +11781,29 @@ abstract class AppLocalizations {
   /// **'Downloads'**
   String get androidAutoTabDownloads;
 
+  /// No description provided for @settingsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search settings...'**
+  String get settingsSearchHint;
+
+  /// No description provided for @settingsSearchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching settings'**
+  String get settingsSearchNoResults;
+
   /// No description provided for @carConnectAutoplay.
   ///
   /// In en, this message translates to:
   /// **'Start playback when Android Auto connects'**
   String get carConnectAutoplay;
+
+  /// No description provided for @carConnectAutoplayIos.
+  ///
+  /// In en, this message translates to:
+  /// **'Start playback when CarPlay connects'**
+  String get carConnectAutoplayIos;
 
   /// No description provided for @carConnectAutoplayOnSubtitle.
   ///
