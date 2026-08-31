@@ -11781,6 +11781,24 @@ abstract class AppLocalizations {
   /// **'Downloads'**
   String get androidAutoTabDownloads;
 
+  /// No description provided for @carConnectAutoplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Start playback when Android Auto connects'**
+  String get carConnectAutoplay;
+
+  /// No description provided for @carConnectAutoplayOnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The last book you were listening to starts by itself when the car connects'**
+  String get carConnectAutoplayOnSubtitle;
+
+  /// No description provided for @carConnectAutoplayOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback waits for you to press play'**
+  String get carConnectAutoplayOffSubtitle;
+
   /// No description provided for @androidAutoCatBooks.
   ///
   /// In en, this message translates to:

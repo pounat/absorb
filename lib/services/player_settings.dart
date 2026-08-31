@@ -748,6 +748,14 @@ class PlayerSettings {
   static Future<void> setDuckBriefInterruptions(bool value) =>
       _set('duckBriefInterruptions', value, notify: true);
 
+  // Android only (GH #371): start the last played book when Android Auto
+  // connects and nothing is loaded yet. The warm case (session alive but
+  // paused) is Android Auto's own "automatically resume media" setting; this
+  // covers the cold start where no session exists for it to resume.
+  static Future<bool> getAutoplayOnCarConnect() => _get('autoplayOnCarConnect', false);
+  static Future<void> setAutoplayOnCarConnect(bool value) =>
+      _set('autoplayOnCarConnect', value);
+
   // When true, the system media scrubber still shows progress but can't be
   // dragged to seek - stops accidental position jumps from the notification,
   // lockscreen, Android Auto and CarPlay. Implemented by dropping the seek

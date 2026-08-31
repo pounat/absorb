@@ -1023,9 +1023,49 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     Map<String, dynamic>? options,
   ]) async {
     debugPrint('[Handler] getChildren($parentMediaId)');
+    if (Platform.isAndroid) unawaited(_maybeAutoplayOnCarConnect());
     // Don't await refresh() here — getChildrenOf() handles it:
     // downloads are populated instantly, server data loads in background.
     return _autoService.getChildrenOf(parentMediaId);
+  }
+
+  DateTime? _lastCarBrowseSeen;
+
+  /// GH #371: opt-in autoplay when Android Auto connects with nothing loaded.
+  ///
+  /// A browse request alone isn't a car - Bluetooth stereos browse over AVRCP
+  /// too - so this trusts the Java-side gearhead stamp, and only a stamp a few
+  /// seconds old counts as "the car just connected". A book already loaded
+  /// means the session is alive and Android Auto's own resume setting owns the
+  /// warm case (and it keeps a deliberate mid-drive pause from being undone by
+  /// a later browse). Browses during the same drive keep refreshing
+  /// [_lastCarBrowseSeen], so only a fresh stamp after a quiet gap fires.
+  Future<void> _maybeAutoplayOnCarConnect() async {
+    try {
+      final service = _service;
+      if (service == null) return;
+      final snap = await _absorbDiagSnapshot();
+      final age = snap?['carClientAgeMs'];
+      final carFresh = age is int && age >= 0 && age < 15000;
+      if (!carFresh) return;
+      final now = DateTime.now();
+      final last = _lastCarBrowseSeen;
+      _lastCarBrowseSeen = now;
+      final isNewConnection =
+          last == null || now.difference(last) > const Duration(minutes: 5);
+      if (!isNewConnection) return;
+      if (service.hasBook) return;
+      if (!await PlayerSettings.getAutoplayOnCarConnect()) return;
+      // Let the browse tree and session setup settle before starting audio.
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (service.hasBook || service.isPlaying) return;
+      final restore = AudioPlayerService.onColdStartPlayRequested;
+      if (restore == null) return;
+      debugPrint('[AutoPlay] Android Auto connected - resuming last played');
+      await restore();
+    } catch (e) {
+      debugPrint('[AutoPlay] car-connect autoplay failed: $e');
+    }
   }
 
   @override

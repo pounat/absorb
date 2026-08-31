@@ -89,6 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifChapterProgress = false;
   bool _notifSpeedBookmark = false;
   bool _duckBriefInterruptions = false;
+  bool _autoplayOnCarConnect = false;
   bool _lockSeekBar = false;
   bool _mp3IndexSeeking = false;
   bool _speedAdjustedTime = true;
@@ -1011,6 +1012,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final podcastTabLibraryId = await PlayerSettings.getPodcastTabLibraryId();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
+    final autoplayOnCarConnect = await PlayerSettings.getAutoplayOnCarConnect();
     if (mounted) setState(() {
       _podcastTabEnabled = podcastTabEnabled;
       _podcastTabLibraryId = podcastTabLibraryId;
@@ -1030,6 +1032,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _notifChapterProgress = notifChapter;
       _notifSpeedBookmark = notifSpeedBookmark;
       _duckBriefInterruptions = duckBriefInterruptions;
+      _autoplayOnCarConnect = autoplayOnCarConnect;
       _lockSeekBar = lockSeek;
       _speedAdjustedTime = speedAdj;
       _forwardSkip = fwd;
@@ -2851,6 +2854,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onChanged: _loaded ? (v) {
                           setState(() => _duckBriefInterruptions = v);
                           PlayerSettings.setDuckBriefInterruptions(v);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: Text(l.carConnectAutoplay),
+                        subtitle: Text(
+                          _autoplayOnCarConnect
+                              ? l.carConnectAutoplayOnSubtitle
+                              : l.carConnectAutoplayOffSubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        value: _autoplayOnCarConnect,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _autoplayOnCarConnect = v);
+                          PlayerSettings.setAutoplayOnCarConnect(v);
                         } : null,
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),

@@ -6931,6 +6931,17 @@ class AppLocalizationsFr extends AppLocalizations {
   String get androidAutoTabDownloads => 'Téléchargements';
 
   @override
+  String get carConnectAutoplay => 'Start playback when Android Auto connects';
+
+  @override
+  String get carConnectAutoplayOnSubtitle =>
+      'The last book you were listening to starts by itself when the car connects';
+
+  @override
+  String get carConnectAutoplayOffSubtitle =>
+      'Playback waits for you to press play';
+
+  @override
   String get androidAutoCatBooks => 'Livres';
 
   @override
