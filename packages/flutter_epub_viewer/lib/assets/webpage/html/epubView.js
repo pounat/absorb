@@ -14,6 +14,52 @@ var selectionTimeout = null;
 var hasSentSelection = false; // Track if we've actually sent a selection event to Flutter
 var lastTapCoords = null; // Store the last tap coordinates for onTouchDown/onTouchUp callbacks
 
+// Absorb patch: the browser's native text-selection auto-scroll (notably
+// Samsung's) drags the paginated container to arbitrary offsets to keep the
+// selection handles visible, leaving the view stuck showing the halves of two
+// adjacent pages until a layout toggle forces a re-render. epub.js never
+// re-aligns on its own. Watch for any scroll that SETTLES off a page
+// boundary and snap it back - legitimate page turns settle exactly on a
+// boundary, so this is a no-op for them.
+var snapGuardAttached = false;
+var snapGuardTimer = null;
+
+function snapToPageBoundary() {
+  try {
+    if (!rendition || !rendition.manager || !rendition.manager.container) return;
+    var settings = rendition.settings || {};
+    // Only paginated horizontal flows have page boundaries to snap to.
+    if (settings.flow && String(settings.flow).indexOf('scrolled') === 0) return;
+    if (settings.defaultDirection === 'rtl') return;
+    var manager = rendition.manager;
+    if (manager.settings && manager.settings.axis === 'vertical') return;
+    var container = manager.container;
+    var step = (manager.layout && manager.layout.delta) || container.clientWidth;
+    if (!step || step <= 0) return;
+    var off = container.scrollLeft;
+    var mis = off % step;
+    if (mis < 2 || step - mis < 2) return; // already aligned (within rounding)
+    container.scrollLeft = Math.round(off / step) * step;
+  } catch (e) {
+    // Never let the guard break reading.
+  }
+}
+
+function attachSnapGuard() {
+  if (snapGuardAttached) return;
+  try {
+    if (!rendition || !rendition.manager || !rendition.manager.container) return;
+    var container = rendition.manager.container;
+    snapGuardAttached = true;
+    container.addEventListener('scroll', function () {
+      if (snapGuardTimer) clearTimeout(snapGuardTimer);
+      snapGuardTimer = setTimeout(snapToPageBoundary, 250);
+    }, { passive: true });
+  } catch (e) {
+    // Ignore - guard just won't arm.
+  }
+}
+
 // Book bytes arrive from Flutter in base64 chunks so no single string ever
 // holds the whole file; loadBook(null, ...) assembles them.
 var bookParts = [];
@@ -35,6 +81,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   initialXPathProcessed = false;
   xpathDisplayInProgress = false;
   initialPositionLoading = false;
+  snapGuardAttached = false; // new rendition = new container to watch
   // Store the clearSelectionOnPageChange setting
   clearSelectionOnPageChange = clearSelectionOnNav !== undefined ? clearSelectionOnNav : true;
   // Store the selectAnnotationRange setting
@@ -97,6 +144,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
 
   rendition.on("displayed", function (renderer) {
     window.flutter_inappwebview.callHandler('displayed');
+    attachSnapGuard();
     // If we were loading initial position, notify that it's complete
     if (initialPositionLoading) {
       initialPositionLoading = false;
