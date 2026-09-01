@@ -216,6 +216,7 @@ class BackupService {
     final absorbingFinishedManualAdds =
         await ScopedPrefs.getStringList('absorbing_finished_manual_adds');
     final absorbingManualRemoves = await ScopedPrefs.getStringList('absorbing_manual_removes');
+    final absorbingOrder = await ScopedPrefs.getStringList('absorbing_seen_ids');
     // Books hidden from the local "finished this year" count and list
     final yearHiddenIds = await ScopedPrefs.getStringList('year_hidden_ids');
 
@@ -422,6 +423,9 @@ class BackupService {
       'absorbingManualAdds': absorbingManualAdds,
       'absorbingFinishedManualAdds': absorbingFinishedManualAdds,
       'absorbingManualRemoves': absorbingManualRemoves,
+      // Only when there is one: an empty list from a device that has not
+      // loaded its shelf yet must not wipe the order everywhere else.
+      if (absorbingOrder.isNotEmpty) 'absorbingOrder': absorbingOrder,
       'yearHiddenIds': yearHiddenIds,
       'pendingSyncs': pendingSyncs,
       'pendingOfflineListening': pendingOfflineListening,
@@ -828,6 +832,10 @@ class BackupService {
     final absorbingManualRemoves = data['absorbingManualRemoves'] as List<dynamic>?;
     if (absorbingManualRemoves != null) {
       await ScopedPrefs.setStringList('absorbing_manual_removes', absorbingManualRemoves.cast<String>());
+    }
+    final absorbingOrder = data['absorbingOrder'] as List<dynamic>?;
+    if (absorbingOrder != null && absorbingOrder.isNotEmpty) {
+      await ScopedPrefs.setStringList('absorbing_seen_ids', absorbingOrder.cast<String>());
     }
     final yearHiddenIds = data['yearHiddenIds'] as List<dynamic>?;
     if (yearHiddenIds != null) {

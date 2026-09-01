@@ -87,10 +87,21 @@ class SettingsSyncService {
   ///   [getSyncRmab].
   /// - customDownloadPath: a path that is only true on one phone.
   /// - offlineMode: a per-device switch.
+  /// - rollingDownloadSeries: switching auto-download on for a series is a
+  ///   decision about THIS device's storage. Synced, the other phone quietly
+  ///   started pulling the same books down. The global download switches
+  ///   stay home for the same reason - see [_deviceLocalSettings].
+  /// - ereader: font, size, margins, theme. A phone and a tablet want
+  ///   different ones, and the reading position already travels through the
+  ///   server.
   ///
   /// `podcastBookmarks` is here for the opposite reason: ABS bookmarks carry no
   /// episode id, so those never reach the server and this is the only way they
   /// reach another device. It is content, not a pending ledger.
+  ///
+  /// `absorbingOrder` travels so the Absorbing shelf reads the same way on
+  /// every device. Membership already did (the manual adds and removes); the
+  /// order is what made a second device look scrambled.
   static const _syncedKeys = <String>{
     'settings',
     'autoRewind',
@@ -99,7 +110,6 @@ class SettingsSyncService {
     'bookSpeeds',
     'notes',
     'savedEbooks',
-    'rollingDownloadSeries',
     'upcomingAlwaysScan',
     'upcomingNeverScan',
     'upcomingIgnoredBooks',
@@ -113,7 +123,7 @@ class SettingsSyncService {
     'metadataOverrides',
     'ebookAnnotations',
     'podcastBookmarks',
-    'ereader',
+    'absorbingOrder',
     'navHold',
     'podcastPrefs',
   };
@@ -130,12 +140,20 @@ class SettingsSyncService {
   /// `loggingEnabled` is here for a duller reason - you turn debug logging on
   /// for the device you are debugging, not for all of them.
   ///
+  /// The download switches are here because a download is a decision about
+  /// this device's storage and connection: one phone turning on queue
+  /// auto-download must not start filling the other.
+  ///
   /// The local server address deliberately is NOT here: it travels with
   /// everything else, on the basis that a user's devices are usually on the
   /// same network as their server.
   static const _deviceLocalSettings = <String>{
     'loggingEnabled',
     'trustAllCerts',
+    'queueAutoDownload',
+    'autoDownloadOnStream',
+    'rollingDownloadCount',
+    'rollingDownloadDeleteFinished',
   };
 
   /// Refuse to push anything bigger than this. Ebook annotations and per-item

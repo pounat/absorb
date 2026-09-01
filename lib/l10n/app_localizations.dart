@@ -11280,7 +11280,7 @@ abstract class AppLocalizations {
   /// No description provided for @tipsSheetSettingsSyncDesc.
   ///
   /// In en, this message translates to:
-  /// **'Keep your settings, per-book speeds and reader preferences in step across devices through your own WebDAV server. Set it up in Settings under Backup and sync.'**
+  /// **'Keep your settings, per-book speeds and Absorbing order in step across devices through your own WebDAV server. Set it up in Settings under Backup and sync.'**
   String get tipsSheetSettingsSyncDesc;
 
   /// No description provided for @tipsSheetNavLongPressTitle.
@@ -14508,7 +14508,7 @@ abstract class AppLocalizations {
   /// No description provided for @syncSettingsWhatTravels.
   ///
   /// In en, this message translates to:
-  /// **'Your preferences, per-book speeds, home layout, notes and ebook highlights travel. Logins, download folders and anything not yet sent to your server stay on this device.'**
+  /// **'Your preferences, per-book speeds, home layout, Absorbing order, notes and ebook highlights travel. Logins, download folders, auto-download switches, reader looks and anything not yet sent to your server stay on this device.'**
   String get syncSettingsWhatTravels;
 
   /// No description provided for @syncSettingsDownloadWarnTitle.
