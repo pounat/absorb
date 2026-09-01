@@ -39,10 +39,14 @@ String normalizeWord(String w) {
 
 /// Every word of [segments], timed inside its own segment by character share.
 /// The segment bounds are real Whisper timestamps, so a word is never more
-/// than one segment away from solid ground.
+/// than one segment away from solid ground - and with the word-per-segment
+/// transcription mode each word simply takes its segment's real bounds.
+/// Starts are clamped monotonic: token timestamps can step back a hair at
+/// segment joins, and everything downstream assumes time moves forward.
 List<TimedWord> wordsFromSegments(
     List<({double start, double end, String text})> segments) {
   final out = <TimedWord>[];
+  var floor = double.negativeInfinity;
   for (final seg in segments) {
     final text = seg.text;
     final matches = _wordRe.allMatches(text).toList();
@@ -53,9 +57,11 @@ List<TimedWord> wordsFromSegments(
         chars <= 0 ? seg.start : seg.start + span * (offset / chars);
     for (var i = 0; i < matches.length; i++) {
       final m = matches[i];
-      final start = at(m.start);
+      var start = at(m.start);
+      if (start < floor) start = floor;
       final end = i + 1 < matches.length ? at(matches[i + 1].start) : seg.end;
       out.add(TimedWord(m.group(0)!, start, end < start ? start : end));
+      floor = start;
     }
   }
   return out;

@@ -477,6 +477,10 @@ class TranscriptionService {
           // This path feeds the live transcript, where a late answer is as
           // bad as a wrong one. A failed window just gets skipped over.
           noFallback: true,
+          // One word per segment with real token timestamps. Without this,
+          // word timing is interpolated across multi-second segments and the
+          // read-along highlight drifts between anchors.
+          splitOnWord: true,
           threads: _threads(),
         );
         segments = (result?.transcription.segments ?? const [])
