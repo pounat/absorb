@@ -469,18 +469,19 @@ class LyricsService extends ChangeNotifier {
     _working = true;
     _transcribingVisible = true;
     notifyListeners();
-    // Starting fresh at the playhead, begin a few seconds early: pressing
-    // play auto-rewinds, and a runway that starts exactly at the enable
-    // position leaves that rewind in a hole with zero lead. Overlap with
-    // anything already stored is dropped by the store.
-    var start = covered > pos
-        ? covered
-        : (_rate == null && covered <= pos ? (pos - 5).clamp(0.0, pos) : pos);
-    if (covered <= pos + 1 && _rate != null) {
-      // Behind the playhead. Transcribing from where you are now hands back
+    // Starting at or behind the playhead, begin a few seconds early: pressing
+    // play auto-rewinds, and a runway that starts exactly at the playhead
+    // leaves that rewind in a hole with zero lead. Overlap with anything
+    // already stored is dropped by the store.
+    var start = covered > pos ? covered : (pos - 5).clamp(0.0, pos);
+    if (covered <= pos + 1 && _rate != null && AudioPlayerService().isPlaying) {
+      // Behind while playing. Transcribing from where you are now hands back
       // audio you have already heard by the time it finishes, and it never
       // catches up - so aim at where the playhead will BE when this chunk is
       // done. The stretch in between is skipped rather than shown late.
+      // Only while playing: a paused playhead never moves into the chunk, and
+      // an aim past the store's gap tolerance would pin the lead at zero
+      // forever - the loop re-aims at the same unreachable spot every pass.
       final wall = _chunkSeconds / _rate!;
       start = pos + wall * speed + 1.5;
       debugPrint('[Lyrics] behind the playhead, aiming '
@@ -500,12 +501,19 @@ class LyricsService extends ChangeNotifier {
         windowSeconds: _rate == null ? 12.0 : _chunkSeconds,
         preferAccuracy: !_forceFastModel,
       );
+      // A chunk can outlive its session - whisper can't be interrupted, so a
+      // book switch mid-transcription lets the old item's chunk finish after
+      // the new session started. Its lines landed in the right store, but its
+      // timing must not steer this session's rate (a slow model's wall time
+      // would skip the sprint and mis-aim the catch-up).
+      if (!_on || key != _key) return;
       _noteRate(out.span, out.wall, speed);
       if (out.lines > 0) {
         debugPrint('[Lyrics] chunk at ${start.toStringAsFixed(1)}s: '
             '${out.lines} lines, exact=${out.exact}');
       }
     } on TranscriptionException catch (e) {
+      if (!_on || key != _key) return;
       if (e.kind == TranscriptionError.empty) {
         // Silence or music: mark the stretch covered so the loop moves past
         // it instead of retrying the same window forever.
