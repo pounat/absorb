@@ -83,10 +83,13 @@ int cachedEbookBytesSync(String itemId) {
 /// downloads persisted before the trimmed libraryItem was kept). The format
 /// comes from the cached file's extension, which [ebookCacheFileFor] derived
 /// from the real ebookFile at download time, so the reader routing (EPUB vs
-/// PDF vs foliate) stays correct. Returns null when nothing is cached.
+/// PDF vs foliate) stays correct. When several formats are cached for one item
+/// the EPUB wins, mirroring [resolveEbookFile]'s pick (and transcript
+/// correction can only read EPUBs). Returns null when nothing is cached.
 Future<Map<String, dynamic>?> cachedEbookFileFor(String itemId) async {
   try {
     final dir = await _ebookCacheDir();
+    Map<String, dynamic>? first;
     for (final f in dir.listSync()) {
       if (f is! File) continue;
       final name = f.uri.pathSegments.last;
@@ -94,11 +97,14 @@ Future<Map<String, dynamic>?> cachedEbookFileFor(String itemId) async {
       if (await f.length() <= 0) continue;
       final ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase();
       if (!allEbookFormats.contains(ext)) continue;
-      return {
+      final entry = {
         'ebookFormat': ext,
         'metadata': {'filename': name},
       };
+      if (ext == 'epub') return entry;
+      first ??= entry;
     }
+    return first;
   } catch (_) {}
   return null;
 }

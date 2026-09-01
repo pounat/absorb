@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 import 'audio_player_service.dart';
+import 'ebook_cache.dart';
 import 'transcript_chunker.dart';
 import 'transcript_line_store.dart';
 import 'transcription_service.dart';
@@ -170,6 +171,58 @@ class LyricsService extends ChangeNotifier {
     debugPrint('[Lyrics] enabled for $key (epub lookup: ${_epubItemId != null}, '
         'saved runway ${(covered - pos).clamp(0, double.infinity).toStringAsFixed(0)}s '
         'from pos ${pos.toStringAsFixed(0)}s)');
+    unawaited(_autoCacheEpub());
+  }
+
+  bool _epubFetching = false;
+
+  /// Correction scans the whole EPUB per chunk, so a giant one is a per-chunk
+  /// CPU tax on top of an unasked-for background download - past this size the
+  /// book only gets corrections once the user opens it in the reader.
+  static const int _epubAutoFetchCapBytes = 50 * 1024 * 1024;
+
+  /// Downloads the book's EPUB into the reader cache when it isn't there yet,
+  /// so chunk correction has the author's words even on a device where the
+  /// book was never opened in the reader. Fire-and-forget: the chunker
+  /// re-checks the cache each chunk, so corrections start with the first
+  /// chunk after the file lands (and the model pick flips to tiny with it).
+  /// Every failure just leaves honest Whisper.
+  Future<void> _autoCacheEpub() async {
+    final itemId = _epubItemId;
+    if (itemId == null || _epubFetching) return;
+    _epubFetching = true;
+    try {
+      final cached = await cachedEbookFileFor(itemId);
+      if (cached != null && ebookExtFromFile(cached) == '.epub') return;
+      final api = AudioPlayerService().currentApi;
+      if (api == null) return;
+      final item = await api.getLibraryItem(itemId);
+      if (item == null) {
+        debugPrint('[Lyrics] epub auto-fetch skipped - item lookup failed');
+        return;
+      }
+      final ef = resolveEbookFile(item);
+      if (ef == null || ebookExtFromFile(ef) != '.epub') {
+        debugPrint('[Lyrics] no epub to correct against');
+        return;
+      }
+      final size =
+          ((ef['metadata'] as Map<String, dynamic>?)?['size'] as num?)?.toInt() ?? 0;
+      if (size > _epubAutoFetchCapBytes) {
+        debugPrint('[Lyrics] epub too big to auto-fetch '
+            '(${(size / (1024 * 1024)).toStringAsFixed(0)} MB) - open it in '
+            'the reader once to get corrected lines');
+        return;
+      }
+      final f = await fetchEbookToCache(api, itemId, ef, '');
+      final mb = (await f.length()) / (1024 * 1024);
+      debugPrint(
+          '[Lyrics] epub cached for correction (${mb.toStringAsFixed(1)} MB)');
+    } catch (e) {
+      debugPrint('[Lyrics] epub auto-fetch failed: $e');
+    } finally {
+      _epubFetching = false;
+    }
   }
 
   /// Re-read the overlay display settings; the settings screen calls this so
