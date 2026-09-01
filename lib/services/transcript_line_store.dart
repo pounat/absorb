@@ -250,6 +250,37 @@ class TranscriptLineStore {
     _scheduleFlush();
   }
 
+  /// Total bytes the on-disk transcript cache occupies.
+  Future<int> cacheBytes() async {
+    var total = 0;
+    try {
+      final dir = await _dir();
+      for (final f in dir.listSync()) {
+        if (f is File) total += f.lengthSync();
+      }
+    } catch (_) {}
+    return total;
+  }
+
+  /// Wipe every cached transcript, memory and disk. Emptying [_cache] also
+  /// defuses any flush in flight - it re-reads the cache per key and skips
+  /// keys that are gone, so a pending write can't resurrect a file.
+  Future<void> clearAll() async {
+    _cache.clear();
+    _dirty.clear();
+    try {
+      final dir = await _dir();
+      for (final f in dir.listSync()) {
+        if (f is! File) continue;
+        try {
+          await f.delete();
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('[Lyrics] store clear failed: $e');
+    }
+  }
+
   void _scheduleFlush() {
     if (_flushScheduled) return;
     _flushScheduled = true;

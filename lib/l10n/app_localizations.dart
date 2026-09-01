@@ -14841,6 +14841,30 @@ abstract class AppLocalizations {
   /// **'Live transcript and read along use extra battery and processing while they run. On phones with slower processors, lines can take longer to appear.'**
   String get lyricsBatteryInfo;
 
+  /// No description provided for @lyricsClearCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear transcript cache'**
+  String get lyricsClearCache;
+
+  /// No description provided for @lyricsClearCacheHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} of saved transcript lines. Cleared books and episodes are transcribed again as you listen.'**
+  String lyricsClearCacheHint(String size);
+
+  /// No description provided for @lyricsClearCacheConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the saved transcripts for every book and episode? They rebuild automatically as you listen.'**
+  String get lyricsClearCacheConfirm;
+
+  /// No description provided for @lyricsCacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript cache cleared'**
+  String get lyricsCacheCleared;
+
   /// No description provided for @lyricsIntroBody.
   ///
   /// In en, this message translates to:

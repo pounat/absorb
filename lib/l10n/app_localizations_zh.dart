@@ -8496,6 +8496,21 @@ class AppLocalizationsZh extends AppLocalizations {
       'Live transcript and read along use extra battery and processing while they run. On phones with slower processors, lines can take longer to appear.';
 
   @override
+  String get lyricsClearCache => 'Clear transcript cache';
+
+  @override
+  String lyricsClearCacheHint(String size) {
+    return '$size of saved transcript lines. Cleared books and episodes are transcribed again as you listen.';
+  }
+
+  @override
+  String get lyricsClearCacheConfirm =>
+      'Delete the saved transcripts for every book and episode? They rebuild automatically as you listen.';
+
+  @override
+  String get lyricsCacheCleared => 'Transcript cache cleared';
+
+  @override
   String get lyricsIntroBody =>
       'This listens a little ahead of the narration and shows each line as it is spoken, transcribed on your phone - nothing leaves the device. After turning it on, hold off on pressing play for a few seconds while it gets ahead. The transcript appears once its head start is ready, and starting paused gives it the smoothest run. It uses extra battery and processing while it runs.';
 

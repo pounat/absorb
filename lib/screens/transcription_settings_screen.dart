@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../services/player_settings.dart';
 import '../services/transcription_service.dart';
 import '../services/lyrics_service.dart';
+import '../services/transcript_line_store.dart';
 import '../widgets/overlay_toast.dart';
 
 /// Colors the spoken words can be painted in. Vivid enough to read on the
@@ -42,6 +43,7 @@ class _TranscriptionSettingsScreenState
   final Map<TranscriptionModelSize, bool> _downloaded = {};
   TranscriptionModelSize? _downloading;
   double _progress = 0;
+  int _transcriptCacheBytes = 0;
 
   @override
   void initState() {
@@ -59,7 +61,37 @@ class _TranscriptionSettingsScreenState
     for (final s in TranscriptionModelSize.values) {
       _downloaded[s] = await TranscriptionService.instance.isModelDownloaded(s);
     }
+    _transcriptCacheBytes = await TranscriptLineStore.instance.cacheBytes();
     if (mounted) setState(() => _loaded = true);
+  }
+
+  String _fmtBytes(int b) => b >= 1024 * 1024
+      ? '${(b / (1024 * 1024)).toStringAsFixed(1)} MB'
+      : '${(b / 1024).ceil()} KB';
+
+  Future<void> _clearTranscriptCache() async {
+    final l = AppLocalizations.of(context)!;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.lyricsClearCache),
+        content: Text(l.lyricsClearCacheConfirm),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.clearCache)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await TranscriptLineStore.instance.clearAll();
+    if (!mounted) return;
+    setState(() => _transcriptCacheBytes = 0);
+    showOverlayToast(context, l.lyricsCacheCleared,
+        icon: Icons.delete_outline_rounded);
   }
 
   Future<void> _setEnabled(bool v) async {
@@ -338,6 +370,20 @@ class _TranscriptionSettingsScreenState
                       for (final c in _readAlongPalette)
                         _colorSwatch(c, cs),
                     ],
+                  ),
+                ),
+                ListTile(
+                  title: Text(l.lyricsClearCache),
+                  subtitle: Text(
+                      l.lyricsClearCacheHint(_fmtBytes(_transcriptCacheBytes)),
+                      style: tt.bodySmall
+                          ?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+                  trailing: TextButton.icon(
+                    icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                    label: Text(l.clearCache),
+                    onPressed: _transcriptCacheBytes > 0
+                        ? _clearTranscriptCache
+                        : null,
                   ),
                 ),
               ],
