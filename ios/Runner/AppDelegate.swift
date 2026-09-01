@@ -24,7 +24,6 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
   private var pendingNativeLogs: [(Double, String)] = []
   private var dartLogReady = false
   private let launchUptime = ProcessInfo.processInfo.systemUptime
-  private var hasScheduledNowPlayingPrime = false
 
   override func application(
     _ application: UIApplication,
@@ -71,25 +70,6 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 
     NowPlayingPrimer.logSink = { [weak self] line in
       self?.logToFlutter(line)
-    }
-    // Take the Now Playing slot for the last-played book, so the headset works
-    // before the user has pressed play in the app. Anchored to scene activation
-    // rather than a timer after launch: iOS quietly refuses audio started by an
-    // app that is not active yet, which would leave us half-claimed - session
-    // active and info published, but no audio ever rendered, so a headset press
-    // still launches whichever app genuinely played last. This notification
-    // also fires for the CarPlay scene, covering launches from the car with the
-    // phone locked. Primed once per process; foregrounding again is a no-op.
-    NotificationCenter.default.addObserver(
-      forName: UIScene.didActivateNotification,
-      object: nil, queue: .main
-    ) { [weak self] _ in
-      guard let self, !self.hasScheduledNowPlayingPrime else { return }
-      self.hasScheduledNowPlayingPrime = true
-      // A beat after activation so the audio session plugin has settled.
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-        NowPlayingPrimer.primeAtLaunch()
-      }
     }
 
     // Same routing for the EQ tap's format diagnostics, so when a user
@@ -620,6 +600,14 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
         ]
         result(info)
 
+      case "reclaimNowPlaying":
+        // Something else may have taken the Now Playing slot while Absorb sat
+        // paused. Activating the session and republishing metadata is not
+        // enough to get it back - only rendered audio moves the slot - so the
+        // reassert goes through the primer rather than doing it in Dart.
+        let reclaimReason = args?["reason"] as? String ?? "unknown"
+        result(NowPlayingPrimer.reclaim(reason: reclaimReason))
+
       case "primeNowPlaying":
         let title = args?["title"] as? String ?? ""
         let artist = args?["artist"] as? String ?? ""
@@ -636,6 +624,31 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         result(true)
+
+      case "defineWord":
+        // Reader dictionary: present the system dictionary (offline, uses the
+        // user's own downloaded dictionaries, any language). It has its own
+        // no-definition page, so present unconditionally.
+        let word = args?["word"] as? String ?? ""
+        if word.isEmpty {
+          result(false)
+        } else {
+          DispatchQueue.main.async {
+            let scene = UIApplication.shared.connectedScenes
+              .compactMap { $0 as? UIWindowScene }
+              .first { $0.activationState == .foregroundActive }
+            let window = scene?.windows.first { $0.isKeyWindow } ?? scene?.windows.first
+            guard var presenter = window?.rootViewController else {
+              result(false)
+              return
+            }
+            while let presented = presenter.presentedViewController {
+              presenter = presented
+            }
+            presenter.present(UIReferenceLibraryViewController(term: word), animated: true)
+            result(true)
+          }
+        }
 
       case "init":
         result([

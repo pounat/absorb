@@ -1023,9 +1023,49 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     Map<String, dynamic>? options,
   ]) async {
     debugPrint('[Handler] getChildren($parentMediaId)');
+    if (Platform.isAndroid) unawaited(_maybeAutoplayOnCarConnect());
     // Don't await refresh() here — getChildrenOf() handles it:
     // downloads are populated instantly, server data loads in background.
     return _autoService.getChildrenOf(parentMediaId);
+  }
+
+  DateTime? _lastCarBrowseSeen;
+
+  /// GH #371: opt-in autoplay when Android Auto connects with nothing loaded.
+  ///
+  /// A browse request alone isn't a car - Bluetooth stereos browse over AVRCP
+  /// too - so this trusts the Java-side gearhead stamp, and only a stamp a few
+  /// seconds old counts as "the car just connected". A book already loaded
+  /// means the session is alive and Android Auto's own resume setting owns the
+  /// warm case (and it keeps a deliberate mid-drive pause from being undone by
+  /// a later browse). Browses during the same drive keep refreshing
+  /// [_lastCarBrowseSeen], so only a fresh stamp after a quiet gap fires.
+  Future<void> _maybeAutoplayOnCarConnect() async {
+    try {
+      final service = _service;
+      if (service == null) return;
+      final snap = await _absorbDiagSnapshot();
+      final age = snap?['carClientAgeMs'];
+      final carFresh = age is int && age >= 0 && age < 15000;
+      if (!carFresh) return;
+      final now = DateTime.now();
+      final last = _lastCarBrowseSeen;
+      _lastCarBrowseSeen = now;
+      final isNewConnection =
+          last == null || now.difference(last) > const Duration(minutes: 5);
+      if (!isNewConnection) return;
+      if (service.hasBook) return;
+      if (!await PlayerSettings.getAutoplayOnCarConnect()) return;
+      // Let the browse tree and session setup settle before starting audio.
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (service.hasBook || service.isPlaying) return;
+      final restore = AudioPlayerService.onColdStartPlayRequested;
+      if (restore == null) return;
+      debugPrint('[AutoPlay] Android Auto connected - resuming last played');
+      await restore();
+    } catch (e) {
+      debugPrint('[AutoPlay] car-connect autoplay failed: $e');
+    }
   }
 
   @override
@@ -2161,14 +2201,22 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// iOS: re-take the Now Playing claim after something may have knocked it
   /// out while paused - an interruption (call, Siri, nav, another app's
-  /// session), or a stretch suspended in the background where the
-  /// interruption came and went unseen. iOS deactivates the session for the
-  /// interrupter, and a paused app that never re-activates quietly falls out
-  /// of Now Playing candidacy: the next headset press then goes to Apple
-  /// Music instead. Re-activation happens only when nothing else is audibly
-  /// playing (the primer's politeness guard) - the claim matters exactly
-  /// when the next press should reach this app, and grabbing it out from
-  /// under an app mid-playback would be rude.
+  /// session), a stretch suspended in the background where the interruption
+  /// came and went unseen, or simply the user opening another app that played
+  /// something. iOS deactivates the session for the interrupter, and a paused
+  /// app that never re-activates quietly falls out of Now Playing candidacy:
+  /// the next headset press then goes to Apple Music instead.
+  ///
+  /// Re-activating and republishing metadata is NOT enough on its own. iOS
+  /// only hands the slot to an app that has actually rendered audio, which is
+  /// what build 249 got wrong and 251 fixed with a silent blip - so the claim
+  /// goes through the native primer rather than being done here. Doing it in
+  /// Dart looked like it worked, because setActive succeeds either way.
+  ///
+  /// Only runs when nothing else is audibly playing (the primer's politeness
+  /// guard, checked on both sides): the claim matters exactly when the next
+  /// press should reach this app, and grabbing it out from under an app
+  /// mid-playback would be rude.
   Future<void> reassertIosClaimWhilePaused(String reason) async {
     if (!Platform.isIOS || !hasBook || isPlaying) return;
     try {
@@ -2182,9 +2230,15 @@ class AudioPlayerService extends ChangeNotifier {
         return;
       }
       await (await AudioSession.instance).setActive(true);
+      // Publish this book before the blip, so the slot we take back shows the
+      // right title rather than whatever the app that stole it left behind.
       _handler?.refreshPlaybackState();
+      final started = await _eqChannelForDiag.invokeMethod<bool>(
+        'reclaimNowPlaying',
+        {'reason': reason},
+      );
       debugPrint(
-        '[AudioSession] re-asserted Now Playing claim while paused ($reason)',
+        '[AudioSession] claim reassert ($reason): blip started=$started',
       );
     } catch (e) {
       debugPrint('[AudioSession] claim reassert failed ($reason): $e');
@@ -2206,11 +2260,29 @@ class AudioPlayerService extends ChangeNotifier {
     final player = _player;
     if (player == null) return;
     try {
-      final state = await player.engineState();
+      var state = await player.engineState();
+      // A press-launched process races this check twice over: Dart init can
+      // get here before the native core has even LOADED the engine (a field
+      // log had this check lose by two milliseconds), and a stream then
+      // buffers for a while before isPlaying flips. Deciding on the first
+      // read left Dart bookless under live audio. So poll: a press-loaded
+      // engine shows up within the first second, and once it is loaded, give
+      // the buffer the rest of the budget. On a normal launch nothing ever
+      // loads and this waits out the budget then does nothing - harmless,
+      // since the primer has the lock screen and the command center routes
+      // any early press to the cold-start restore.
+      var waited = 0;
+      while ((state == null || !state.isLoaded || !state.isPlaying) &&
+          waited < 4000) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        waited += 500;
+        state = await player.engineState();
+      }
       if (state != null && state.isLoaded && state.isPlaying) {
         debugPrint(
           '[Player] boot: native engine already playing at '
-          '${state.globalPositionS.toStringAsFixed(1)}s with no book loaded - adopting',
+          '${state.globalPositionS.toStringAsFixed(1)}s with no book loaded - adopting'
+          '${waited > 0 ? " (waited ${waited}ms for the stream to start)" : ""}',
         );
         if (state.globalPositionS > 0) {
           await HomeWidgetService().stashLivePosition(state.globalPositionS);
@@ -2219,12 +2291,11 @@ class AudioPlayerService extends ChangeNotifier {
         if (restore != null) await restore();
         return;
       }
-      // Idle engine: load the last played item paused instead, so a headset
-      // press in the first seconds of a cold start has a live target - the
-      // native core defers presses to Flutter the moment its heartbeat
-      // exists, and with nothing loaded that press used to land on neither
-      // layer.
-      await HomeWidgetService().loadLastPlayedPaused();
+      // Idle engine: leave the player empty. The book only loads when the
+      // user actually plays - an early headset press still works because the
+      // handler routes play-with-nothing-loaded to the cold-start restore.
+      // (This used to load the last played book paused as a press target,
+      // which put an unasked-for book in the player on every launch.)
     } catch (e) {
       debugPrint('[Player] boot engine adopt failed: $e');
     }
@@ -3268,6 +3339,29 @@ class AudioPlayerService extends ChangeNotifier {
         );
         startTime = newerStashedPos;
         localTimestampAtStart = DateTime.now().millisecondsSinceEpoch;
+      }
+      // iOS: the shared engine may be playing this very item right now (the
+      // native core started it from a headset press and Dart never adopted
+      // it). Its position is the live truth - the stash was written once at
+      // press time and local progress stopped at the last pause, so resuming
+      // from either threw away everything listened since. The stash match
+      // above ties the engine's content to this episode; the engine itself
+      // only knows the library item.
+      if (Platform.isIOS && (episodeId == null || stashedPos != null)) {
+        try {
+          final engine = await _player?.engineState();
+          if (engine != null &&
+              engine.isLoaded &&
+              engine.itemId == itemId &&
+              engine.globalPositionS > startTime + 1.0) {
+            debugPrint(
+              '[Player] Resuming from live engine position: '
+              '${engine.globalPositionS.toStringAsFixed(1)}s (was ${startTime}s)',
+            );
+            startTime = engine.globalPositionS;
+            localTimestampAtStart = DateTime.now().millisecondsSinceEpoch;
+          }
+        } catch (_) {}
       }
     }
 
@@ -6173,6 +6267,12 @@ class AudioPlayerService extends ChangeNotifier {
           displayTitle: pendingSession.title,
           displayAuthor: pendingSession.author,
         );
+        // The loadOnly playItem returned before _setupSync, so this session
+        // has no completion listener, no position sync, no EQ attach and no
+        // stats accrual yet. Without it a hot-loaded book that plays to the
+        // end just sits there: completed arrives, nobody reacts, the card
+        // stays until a manual stop and the book is never marked finished.
+        _setupSync();
       }
     }
     // A seek while paused (user, or the socket adopting another device's

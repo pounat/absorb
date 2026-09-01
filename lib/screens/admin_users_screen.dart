@@ -18,6 +18,7 @@ import '../widgets/setup_link_share_sheet.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/duration_format.dart';
 import '../utils/app_platform.dart';
+import '../utils/share_origin.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   final List<dynamic> users;
@@ -871,14 +872,10 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
           username: username,
           setupLink: setupLink,
           onShare: () async {
-            final box = sheetContext.findRenderObject() as RenderBox?;
-            final origin = box == null
-                ? null
-                : box.localToGlobal(Offset.zero) & box.size;
             await Share.share(
               setupLink.toString(),
               subject: l.setupLinkShareSubject(username),
-              sharePositionOrigin: origin,
+              sharePositionOrigin: shareOriginFor(sheetContext),
             );
           },
           onCopy: () async {

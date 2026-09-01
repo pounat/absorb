@@ -489,6 +489,10 @@ class AndroidAutoService {
         } catch (_) {}
       }
 
+      // GH #361: ebook-only books register as downloads with no audio files -
+      // nothing to play in the car, so keep them out of the Downloads tab.
+      if (dl.localPaths.isEmpty && duration <= 0) continue;
+
       final localPos = await ProgressSyncService().getSavedPosition(dl.itemId);
 
       // Detect podcast episode downloads via compound key (showId-episodeId).
@@ -758,6 +762,9 @@ class AndroidAutoService {
   AutoBookEntry? _entityToEntry(Map<String, dynamic> entity, ApiService api) {
     final id = entity['id'] as String?;
     if (id == null) return null;
+    // GH #361: ebook-only items can't play in a car - keep them off the
+    // Continue and New shelves (CarPlay reuses these lists too).
+    if (PlayerSettings.isEbookOnly(entity)) return null;
 
     final media = entity['media'] as Map<String, dynamic>?;
     final metadata = media?['metadata'] as Map<String, dynamic>? ?? {};
@@ -858,6 +865,9 @@ class AndroidAutoService {
       Map<String, dynamic> item, ApiService api) {
     final id = item['id'] as String?;
     if (id == null) return null;
+    // GH #361: ebook-only items can't play in a car - hide them from the
+    // library drilldowns (CarPlay reuses these lists too).
+    if (PlayerSettings.isEbookOnly(item)) return null;
 
     final updatedAt = (item['updatedAt'] as num?)?.toInt();
     if (updatedAt != null) _itemUpdatedAt[id] = updatedAt;

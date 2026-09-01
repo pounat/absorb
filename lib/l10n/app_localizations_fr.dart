@@ -6931,6 +6931,26 @@ class AppLocalizationsFr extends AppLocalizations {
   String get androidAutoTabDownloads => 'Téléchargements';
 
   @override
+  String get settingsSearchHint => 'Search settings...';
+
+  @override
+  String get settingsSearchNoResults => 'No matching settings';
+
+  @override
+  String get carConnectAutoplay => 'Start playback when Android Auto connects';
+
+  @override
+  String get carConnectAutoplayIos => 'Start playback when CarPlay connects';
+
+  @override
+  String get carConnectAutoplayOnSubtitle =>
+      'The last book you were listening to starts by itself when the car connects';
+
+  @override
+  String get carConnectAutoplayOffSubtitle =>
+      'Playback waits for you to press play';
+
+  @override
   String get androidAutoCatBooks => 'Livres';
 
   @override
@@ -8432,6 +8452,19 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get readerCopied => 'Copied to clipboard';
+
+  @override
+  String get dictionaryNotFound => 'No definition found for this word.';
+
+  @override
+  String get dictionaryError =>
+      'Couldn\'t reach the dictionary. Check your connection.';
+
+  @override
+  String get dictionaryRetry => 'Retry';
+
+  @override
+  String get dictionarySearchWeb => 'Search the web';
 
   @override
   String get readerTooltipCopy => 'Copier';

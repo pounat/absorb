@@ -187,15 +187,16 @@ class LibraryBooksTab extends StatelessWidget {
       );
     }
 
-    // On a tall/wide viewport (tablets) the first page often doesn't fill the
-    // screen, so nothing scrolls and the bottom-trigger below never fires. After
-    // layout, if the grid isn't scrollable yet and there's more to load, pull
-    // the next page. Repeats on each rebuild until the viewport fills or we run
-    // out of items.
+    // On a tall/wide viewport (tablets) a page of results can land entirely
+    // within the current screen, so nothing scrolls and the bottom-trigger
+    // below never fires. After layout, keep pulling pages while there's less
+    // content below the fold than the scroll-trigger's own 400px margin -
+    // stopping merely at "technically scrollable" left iPads sitting on a
+    // visible, forever-spinning loader until the user nudged the grid.
     if (hasMore && !isLoadingPage && items.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final c = scrollController;
-        if (c != null && c.hasClients && c.position.maxScrollExtent <= 0) {
+        if (c != null && c.hasClients && c.position.extentAfter < 400) {
           onLoadMore();
         }
       });

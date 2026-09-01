@@ -764,10 +764,10 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
               ? _PageDots(count: books.length, controller: _pageController)
               : null;
 
-          // Compact landscape header: one row containing the ABSORB branding,
+          // Compact phone header: one row containing the ABSORB branding,
           // offline icon, page dots, and actions. Skips the large "Absorbing"
           // title row to give the card more vertical breathing room.
-          final landscapeHeader = Padding(
+          final compactHeader = Padding(
             padding: const EdgeInsets.fromLTRB(20, 6, 20, 2),
             child: Row(
               children: [
@@ -792,7 +792,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
             ),
           );
 
-          final portraitHeader = AbsorbPageHeader(
+          final fullHeader = AbsorbPageHeader(
             title: Wording.of(context).absorbingTitle,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             trailing: offlineIcon,
@@ -804,7 +804,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
             // ── Header ──
             // Phone landscape uses the compact single-row header; everything
             // else (portrait, tablets in any orientation) keeps the full header.
-            if (isPhoneLandscape) landscapeHeader else portraitHeader,
+            if (isPhoneLandscape) compactHeader else fullHeader,
             // Hide Up Next when the session is stopped (not merely paused) -
             // hasActiveSession stays true while paused but goes false once the
             // engine is stopped, so a stopped session with items still in the
@@ -832,7 +832,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                   }),
                 ),
               ),
-            // ── Page Dots (compact header inlines them in phone landscape) ──
+            // ── Page Dots (the compact landscape header inlines them) ──
             if (!isPhoneLandscape && pageDots != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4, bottom: 2),
@@ -1034,8 +1034,14 @@ class _PageDots extends StatelessWidget {
         listenable: controller,
         builder: (_, __) {
           final page = controller.hasClients && controller.positions.length == 1 ? (controller.page ?? 0).round() : 0;
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          // The compact phone header can leave less width than the dots'
+          // minimum footprint (padding bottoms out at 1.5); an unclipped Row
+          // then paints under the Stop button. Scale the whole strip down
+          // instead when it genuinely doesn't fit.
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: List.generate(count, (i) {
               final active = i == page;
               return GestureDetector(
@@ -1058,6 +1064,7 @@ class _PageDots extends StatelessWidget {
                 ),
               );
             }),
+            ),
           );
         },
       );

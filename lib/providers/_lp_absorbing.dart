@@ -873,6 +873,30 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     }
   }
 
+  // Per-series server book list with a short TTL: the up-next label refreshes
+  // on every player item change and shouldn't refetch the same series each
+  // time, but a freshly added book should still show up within minutes.
+  final Map<String, (DateTime, List<dynamic>)> _upNextSeriesCache = {};
+
+  Future<List<dynamic>?> _seriesBooksFor(String libraryId, String seriesId) async {
+    final cached = _upNextSeriesCache[seriesId];
+    if (cached != null &&
+        DateTime.now().difference(cached.$1) < const Duration(minutes: 5)) {
+      return cached.$2;
+    }
+    if (_api == null) return null;
+    try {
+      final books = await _api!.getBooksBySeries(libraryId, seriesId, limit: 100);
+      if (books.isNotEmpty) {
+        _upNextSeriesCache[seriesId] = (DateTime.now(), books);
+      }
+      return books;
+    } catch (e) {
+      debugPrint('[UpNext] series fetch failed: $e');
+      return null;
+    }
+  }
+
   Future<void> _addNextSeriesBookToAbsorbing(String finishedBookId) async {
     var finished = _itemDataWithSeries(finishedBookId);
     var (seriesId, currentSeq) =
@@ -898,44 +922,51 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
 
     final candidates = <double, MapEntry<String, Map<String, dynamic>>>{};
 
-    for (final entry in _absorbingItemCache.entries) {
-      final key = entry.key;
-      if (key == finishedBookId || key.length > 36) continue;
-      if (_manualAbsorbRemoves.contains(key)) continue;
-      if ((this as LibraryProvider).isItemFinishedByKey(key)) continue;
-      final (sid, seq) = _StateMixin._extractSeries(entry.value);
-      if (sid != seriesId || seq == null || seq <= currentSeq) continue;
-      candidates[seq] = MapEntry(key, entry.value);
+    // Same server-first ordering as _peekNextBookInSeries, and for the same
+    // reason: partial local series metadata used to advance to whichever
+    // book happened to have it, not the actual next one.
+    final advLibraryId =
+        finished?['libraryId'] as String? ?? _selectedLibraryId;
+    var usedServerList = false;
+    if (_api != null && advLibraryId != null) {
+      final books = await _seriesBooksFor(advLibraryId, seriesId);
+      if (books != null && books.isNotEmpty) {
+        usedServerList = true;
+        for (final book in books) {
+          if (book is! Map<String, dynamic>) continue;
+          final id = book['id'] as String?;
+          if (id == null || id == finishedBookId) continue;
+          if (_manualAbsorbRemoves.contains(id)) continue;
+          if (_progressMap[id]?['isFinished'] == true) continue;
+          final (sid, seq) = _StateMixin._extractSeries(book);
+          if (sid != seriesId || seq == null || seq <= currentSeq) continue;
+          candidates[seq] = MapEntry(id, book);
+        }
+      }
     }
 
-    for (final dlInfo in DownloadService().downloadedItems) {
-      final id = dlInfo.itemId;
-      if (id == finishedBookId || id.length > 36) continue;
-      if (_manualAbsorbRemoves.contains(id)) continue;
-      if (candidates.values.any((e) => e.key == id)) continue;
-      if (_progressMap[id]?['isFinished'] == true) continue;
-      final data = _itemDataWithSeries(id);
-      if (data == null) continue;
-      final (sid, seq) = _StateMixin._extractSeries(data);
-      if (sid != seriesId || seq == null || seq <= currentSeq) continue;
-      candidates[seq] = MapEntry(id, data);
-    }
-
-    if (candidates.isEmpty && _api != null && _selectedLibraryId != null) {
-      final books = await _api!.getBooksBySeries(
-        _selectedLibraryId!,
-        seriesId,
-        limit: 100,
-      );
-      for (final book in books) {
-        if (book is! Map<String, dynamic>) continue;
-        final id = book['id'] as String?;
-        if (id == null || id == finishedBookId) continue;
-        if (_manualAbsorbRemoves.contains(id)) continue;
-        if (_progressMap[id]?['isFinished'] == true) continue;
-        final (sid, seq) = _StateMixin._extractSeries(book);
+    if (!usedServerList) {
+      for (final entry in _absorbingItemCache.entries) {
+        final key = entry.key;
+        if (key == finishedBookId || key.length > 36) continue;
+        if (_manualAbsorbRemoves.contains(key)) continue;
+        if ((this as LibraryProvider).isItemFinishedByKey(key)) continue;
+        final (sid, seq) = _StateMixin._extractSeries(entry.value);
         if (sid != seriesId || seq == null || seq <= currentSeq) continue;
-        candidates[seq] = MapEntry(id, book);
+        candidates[seq] = MapEntry(key, entry.value);
+      }
+
+      for (final dlInfo in DownloadService().downloadedItems) {
+        final id = dlInfo.itemId;
+        if (id == finishedBookId || id.length > 36) continue;
+        if (_manualAbsorbRemoves.contains(id)) continue;
+        if (candidates.values.any((e) => e.key == id)) continue;
+        if (_progressMap[id]?['isFinished'] == true) continue;
+        final data = _itemDataWithSeries(id);
+        if (data == null) continue;
+        final (sid, seq) = _StateMixin._extractSeries(data);
+        if (sid != seriesId || seq == null || seq <= currentSeq) continue;
+        candidates[seq] = MapEntry(id, data);
       }
     }
 
@@ -2042,37 +2073,39 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       candidates[seq] = d;
     }
 
-    for (final entry in _absorbingItemCache.entries) {
-      consider(entry.key, entry.value);
-    }
-    final dl = DownloadService();
-    for (final dlInfo in dl.downloadedItems) {
-      final id = dlInfo.itemId;
-      if (id.length > 36) continue;
-      if (candidates.values.any((d) => d['id'] == id)) continue;
-      final d = _itemDataWithSeries(id);
-      if (d != null) consider(id, d);
-    }
-
-    // Server fallback when next book isn't loaded locally. Mirrors what
-    // _addNextSeriesBookToAbsorbing does so the peek matches the eventual
-    // advance behaviour.
+    // Server order is the truth for what comes next. Local metadata - old
+    // download records especially - often lacks the series block, and a
+    // fallback that only ran on ZERO local candidates let a partial set win:
+    // the one shelf-cached book with series info (typically the newest add)
+    // became "up next" even when it was the LAST book of the series, while
+    // the downloaded actual-next books were silently skipped. So consult the
+    // server first and scan local data only when it's unreachable.
     final libraryId = data?['libraryId'] as String? ?? _selectedLibraryId;
-    if (candidates.isEmpty && _api != null && libraryId != null) {
-      try {
-        final books = await _api!.getBooksBySeries(
-          libraryId,
-          seriesId,
-          limit: 100,
-        );
+    var usedServerList = false;
+    if (_api != null && libraryId != null) {
+      final books = await _seriesBooksFor(libraryId, seriesId);
+      if (books != null && books.isNotEmpty) {
+        usedServerList = true;
         for (final book in books) {
           if (book is! Map<String, dynamic>) continue;
           final id = book['id'] as String?;
           if (id == null) continue;
           consider(id, book);
         }
-      } catch (e) {
-        debugPrint('[UpNext] series fetch failed: $e');
+      }
+    }
+
+    if (!usedServerList) {
+      for (final entry in _absorbingItemCache.entries) {
+        consider(entry.key, entry.value);
+      }
+      final dl = DownloadService();
+      for (final dlInfo in dl.downloadedItems) {
+        final id = dlInfo.itemId;
+        if (id.length > 36) continue;
+        if (candidates.values.any((d) => d['id'] == id)) continue;
+        final d = _itemDataWithSeries(id);
+        if (d != null) consider(id, d);
       }
     }
 

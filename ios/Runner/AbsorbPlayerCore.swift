@@ -406,6 +406,15 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
   /// app on relaunch) see the right position. Best-effort - no retry on
   /// failure since we'll try again on the next 60s tick.
   private func pushProgressToServer() {
+    // Flutter has come up and owns sync now - it reports through its own
+    // playback session, while this path PATCHes bare progress. Keeping the
+    // timer running past the handoff double-reported the position (and once
+    // Dart replaces the stream it 404s against a session the server closed).
+    if flutterIsAlive() {
+      emit("[NativeCore] server sync stopped - Flutter took over")
+      stopServerSyncTimer()
+      return
+    }
     // Runs every 60s while the native core drives playback - keeps the
     // widget's audio-activity signal fresh so it renders as playing.
     if AbsorbAudioEngine.shared.isPlaying { absorbStampAudioActivity() }

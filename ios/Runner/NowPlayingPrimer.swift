@@ -1,29 +1,28 @@
 import AVFoundation
-import MediaPlayer
-import UIKit
 
-/// Claims the iOS Now Playing slot at launch, so a headset play button reaches
-/// Absorb before anything has been played in this process.
+/// Takes the iOS Now Playing slot back for Absorb mid-session, so headset
+/// controls keep reaching this app after something else played.
 ///
 /// iOS hands remote control commands to whichever app it considers "now
 /// playing", and an app only becomes a candidate once it has an active audio
-/// session AND has actually rendered audio. Absorb used to do neither until the
-/// user pressed play inside the app, which is why a headset press after a cold
-/// launch went nowhere - or worse, to another device on a multipoint headset.
-/// Users reported having to pull the phone out, open Absorb and press play
-/// before their headphones would work at all.
-///
-/// Two parts, both needed:
-/// - activate the session, which the app deliberately avoided at launch because
-///   it interrupts other apps' audio. That only happens when something else is
-///   actually playing, so the guard below is what makes it safe rather than
-///   skipping it entirely.
+/// session AND has actually rendered audio. So the reclaim is two parts, both
+/// needed:
+/// - activate the session, guarded so it never interrupts another app that is
+///   actually playing (CarPlay excepted - in the car the controls must reach
+///   us regardless).
 /// - render half a second of silence, because an active session that never
-///   produces audio does not reliably win the slot.
+///   produces audio does not reliably win the slot. Build 249 activated and
+///   published metadata without rendering, and lost the slot twice in the
+///   field; 251 added real samples and held it. Anything that wants the slot
+///   back has to come through here for that reason.
+///
+/// This used to also claim the slot at every launch from the app-group stash,
+/// so a headset press worked before the user ever pressed play in the app -
+/// that never worked reliably in the field and put a phantom paused book on
+/// the lock screen at every app open, so it was removed. Until the user
+/// plays, Absorb makes no claim.
 enum NowPlayingPrimer {
   static var logSink: ((String) -> Void)?
-
-  private static let appGroup = "group.com.barnabas.absorb"
 
   /// The silent player has to outlive this function or it deallocates before
   /// the blip finishes and the claim never lands.
@@ -83,11 +82,40 @@ enum NowPlayingPrimer {
     session.currentRoute.outputs.contains { $0.portType == .carAudio }
   }
 
-  /// Publish what the last-played book was and take the slot for it. Reads the
-  /// app-group stash the widget already keeps up to date, so this needs neither
-  /// the Flutter engine nor the network - it runs before either is ready.
-  static func primeAtLaunch() {
+  /// Take the slot back mid-session, after something else may have won it: the
+  /// user opened another app that played audio, an interruption came and went
+  /// while Absorb sat suspended, or the headphones were stowed. Metadata is
+  /// already live in audio_service by this point, so nothing is republished
+  /// here - only the activation and the blip, which is the part that actually
+  /// moves the slot. Returns whether the blip started; the "blip finished
+  /// (rendered=)" line is the ground truth for whether it landed.
+  @discardableResult
+  static func reclaim(reason: String) -> Bool {
+    return claim(reason: reason)
+  }
+
+  @discardableResult
+  private static func claim(reason: String) -> Bool {
     let session = AVAudioSession.sharedInstance()
+
+    // A blip already on its way is the same claim. Starting a second one
+    // replaces the player and deallocates the first mid-render, so neither
+    // lands - reasserts from different triggers can arrive within a few
+    // hundred milliseconds of each other.
+    if blipPlayer != nil {
+      logSink?("[NowPlayingPrimer] \(reason): skipped, a claim is already in flight")
+      return false
+    }
+
+    // Our own engine is already playing (a headset press launched the process
+    // and the native core streamed from the stash before Flutter came up).
+    // The other-audio check below can't see it - isOtherAudioPlaying only
+    // reports OTHER apps - and it already owns the slot; blipping over live
+    // audio has nothing to win.
+    if AbsorbAudioEngine.shared.isPlaying {
+      logSink?("[NowPlayingPrimer] \(reason): skipped, our own engine is playing")
+      return false
+    }
 
     // Someone else is playing. Claiming here would interrupt them the moment
     // Absorb opens, which is exactly what the user did not ask for. CarPlay is
@@ -96,58 +124,23 @@ enum NowPlayingPrimer {
     let shouldSilence = session.secondaryAudioShouldBeSilencedHint
     if (otherAudio || shouldSilence), !isCarPlayConnected(session) {
       logSink?(
-        "[NowPlayingPrimer] skipped, other audio is playing "
+        "[NowPlayingPrimer] \(reason): skipped, other audio is playing "
           + "(isOtherAudioPlaying=\(otherAudio) silenceHint=\(shouldSilence))")
-      return
-    }
-
-    let defaults = UserDefaults(suiteName: appGroup)
-    guard let itemId = defaults?.string(forKey: "np_item_id"), !itemId.isEmpty else {
-      logSink?("[NowPlayingPrimer] skipped, nothing has been played on this device yet")
-      return
-    }
-
-    // Launched by the widget to start playing, so audio is already on its way.
-    // Priming now would stamp a paused, stale state over the real one.
-    if defaults?.bool(forKey: "widget_is_playing") == true {
-      logSink?("[NowPlayingPrimer] skipped, playback is already running")
-      return
+      return false
     }
 
     do {
-      try session.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
+      // Re-setting a category that already matches makes iOS emit a route
+      // change, which is log noise on every foreground reassert.
+      if session.category != .playback {
+        try session.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
+      }
       try session.setActive(true)
     } catch {
-      logSink?("[NowPlayingPrimer] session activate failed: \(error.localizedDescription)")
-      return
+      logSink?(
+        "[NowPlayingPrimer] \(reason): session activate failed: \(error.localizedDescription)")
+      return false
     }
-
-    let title = defaults?.string(forKey: "np_title")
-      ?? defaults?.string(forKey: "widget_title") ?? ""
-    let author = defaults?.string(forKey: "np_author")
-      ?? defaults?.string(forKey: "widget_author") ?? ""
-    let coverPath = defaults?.string(forKey: "np_cover_path")
-      ?? defaults?.string(forKey: "widget_cover_path")
-    let elapsed = defaults?.double(forKey: "np_position_s") ?? 0
-    let duration = defaults?.double(forKey: "np_total_s") ?? 0
-
-    var info: [String: Any] = [
-      MPMediaItemPropertyTitle: title,
-      MPMediaItemPropertyArtist: author,
-      MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
-      // Paused: nothing is playing yet, we are only claiming the controls.
-      MPNowPlayingInfoPropertyPlaybackRate: 0.0,
-      MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
-      MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
-      MPMediaItemPropertyMediaType: MPMediaType.audioBook.rawValue,
-    ]
-    if duration > 0 {
-      info[MPMediaItemPropertyPlaybackDuration] = duration
-    }
-    if let coverPath, let img = UIImage(contentsOfFile: coverPath) {
-      info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: img.size) { _ in img }
-    }
-    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
     do {
       let player = try AVAudioPlayer(data: makeSilentWav(durationMs: 600))
@@ -155,18 +148,17 @@ enum NowPlayingPrimer {
       player.delegate = blipDelegate
       blipPlayer = player
       let started = player.play()
-      logSink?(
-        "[NowPlayingPrimer] claimed Now Playing for \"\(title)\" at "
-          + "\(Int(elapsed))s (paused, blip started=\(started))")
-    } catch {
-      logSink?("[NowPlayingPrimer] blip init failed: \(error.localizedDescription)")
-      return
-    }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-      if blipPlayer != nil {
-        logSink?("[NowPlayingPrimer] blip never finished - releasing")
-        blipPlayer = nil
+      logSink?("[NowPlayingPrimer] reclaimed Now Playing (\(reason), blip started=\(started))")
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+        if blipPlayer != nil {
+          logSink?("[NowPlayingPrimer] blip never finished - releasing")
+          blipPlayer = nil
+        }
       }
+      return started
+    } catch {
+      logSink?("[NowPlayingPrimer] \(reason): blip init failed: \(error.localizedDescription)")
+      return false
     }
   }
 }

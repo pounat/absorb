@@ -34,6 +34,9 @@ import '../screens/auth_sessions_screen.dart';
 import '../screens/transcription_settings_screen.dart';
 import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
+import '../utils/share_origin.dart';
+import '../widgets/settings_search.dart';
+import 'settings_search_index.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/theme_presets.dart';
 import '../widgets/color_wheel_picker.dart';
@@ -88,6 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifChapterProgress = false;
   bool _notifSpeedBookmark = false;
   bool _duckBriefInterruptions = false;
+  bool _autoplayOnCarConnect = false;
   bool _lockSeekBar = false;
   bool _mp3IndexSeeking = false;
   bool _speedAdjustedTime = true;
@@ -199,6 +203,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _appVersion = '';
   String? _expandedSection;
   final Map<String, GlobalKey> _sectionKeys = {};
+  final TextEditingController _settingsSearchController = TextEditingController();
+  String _settingsQuery = '';
 
   GlobalKey _keyFor(String section) => _sectionKeys.putIfAbsent(section, () => GlobalKey());
 
@@ -283,7 +289,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _issueBadgeDebounce?.cancel();
     PlayerSettings.settingsChanged.removeListener(_onExternalSettingsChange);
     _localServerController.dispose();
+    _settingsSearchController.dispose();
     super.dispose();
+  }
+
+  void _openSearchResult(SettingSearchEntry entry) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _settingsSearchController.clear();
+      _settingsQuery = '';
+      _expandedSection = entry.sectionId;
+    });
+    // The section list re-appears and the target section expands; once the
+    // expansion animation and the section-level auto-scroll have settled,
+    // locate the tile by its rendered title text and pulse it.
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      final ctx = _keyFor(entry.sectionId).currentContext;
+      if (ctx == null) return;
+      highlightSettingInSection(sectionContext: ctx, title: entry.title);
+    });
   }
 
   void _onExternalSettingsChange() async {
@@ -1010,6 +1035,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final podcastTabLibraryId = await PlayerSettings.getPodcastTabLibraryId();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
+    final autoplayOnCarConnect = await PlayerSettings.getAutoplayOnCarConnect();
     if (mounted) setState(() {
       _podcastTabEnabled = podcastTabEnabled;
       _podcastTabLibraryId = podcastTabLibraryId;
@@ -1029,6 +1055,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _notifChapterProgress = notifChapter;
       _notifSpeedBookmark = notifSpeedBookmark;
       _duckBriefInterruptions = duckBriefInterruptions;
+      _autoplayOnCarConnect = autoplayOnCarConnect;
       _lockSeekBar = lockSeek;
       _speedAdjustedTime = speedAdj;
       _forwardSkip = fwd;
@@ -1475,6 +1502,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
             ),
           ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Row(children: [
+                  const SizedBox(width: 14),
+                  Icon(Icons.search_rounded, size: 20, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _settingsSearchController,
+                      onChanged: (v) => setState(() => _settingsQuery = v),
+                      decoration: InputDecoration(
+                        hintText: l.settingsSearchHint,
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                      style: tt.bodyMedium,
+                    ),
+                  ),
+                  if (_settingsQuery.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      color: cs.onSurfaceVariant,
+                      onPressed: () => setState(() {
+                        _settingsSearchController.clear();
+                        _settingsQuery = '';
+                      }),
+                    ),
+                  const SizedBox(width: 4),
+                ]),
+              ),
+            ),
+          ),
+          if (_settingsQuery.trim().isEmpty)
           SliverToBoxAdapter(
             child: Column(
               children: [
@@ -2835,6 +2902,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         PlayerSettings.setLockSeekBar(v);
                       } : null,
                     ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(Platform.isIOS
+                          ? l.carConnectAutoplayIos
+                          : l.carConnectAutoplay),
+                      subtitle: Text(
+                        _autoplayOnCarConnect
+                            ? l.carConnectAutoplayOnSubtitle
+                            : l.carConnectAutoplayOffSubtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _autoplayOnCarConnect,
+                      onChanged: _loaded ? (v) {
+                        setState(() => _autoplayOnCarConnect = v);
+                        PlayerSettings.setAutoplayOnCarConnect(v);
+                      } : null,
+                    ),
                     // Android only: chooses which pair fills the phone media
                     // player's two extra slots. iOS uses CarPlay's own buttons.
                     if (Platform.isAndroid) ...[
@@ -3817,13 +3900,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () async {
                           try {
-                            final box = context.findRenderObject() as RenderBox?;
-                            final origin = box != null
-                                ? box.localToGlobal(Offset.zero) & box.size
-                                : null;
                             await LogService().shareLogs(
                               serverVersion: auth.serverVersion,
-                              sharePositionOrigin: origin,
+                              sharePositionOrigin: shareOriginFor(context),
                             );
                           } catch (e) {
                             if (mounted) {
@@ -4135,7 +4214,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 100),
               ],
             ),
-          ),
+          )
+          else
+            SliverToBoxAdapter(
+              child: SettingsSearchResults(
+                results: filterSettingEntries(
+                    settingsSearchEntries(context), _settingsQuery),
+                onOpen: _openSearchResult,
+              ),
+            ),
         ],
       ),
       ),

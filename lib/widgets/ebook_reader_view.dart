@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_epub_viewer/flutter_epub_viewer.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dictionary_sheet.dart';
+import '../services/dictionary_service.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -1120,12 +1122,21 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _dismissSelection();
   }
 
-  void _defineSelection() {
+  Future<void> _defineSelection() async {
     if (_selectionText == null) return;
-    final word = _selectionText!.trim().split(RegExp(r'\s+')).first;
-    final query = Uri.encodeComponent('define $word');
-    launchUrl(Uri.parse('https://www.google.com/search?q=$query'), mode: LaunchMode.externalApplication);
+    // Strip surrounding punctuation so selecting "dragon," still looks up
+    // "dragon"; multi-word selections look up their first word.
+    final word = _selectionText!
+        .trim()
+        .split(RegExp(r'\s+'))
+        .first
+        .replaceAll(RegExp(r'''^[^\w'-]+|[^\w'-]+$'''), '');
     _dismissSelection();
+    if (word.isEmpty) return;
+    // The platform dictionary first (offline, any language); the in-app
+    // English lookup sheet only when the device has nothing to offer.
+    if (await NativeDictionary.define(word)) return;
+    if (mounted) showDictionarySheet(context, word);
   }
 
   void _onSelection(String text, String cfi, Rect selRect, Rect vRect) {
@@ -2697,14 +2708,28 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       var out = {};
       try {
         var contents = (typeof rendition.getContents === 'function') ? rendition.getContents() : [];
-        for (var i = 0; i < contents.length; i++) {
-          var c = contents[i], doc = c.document;
+        // The CFI names its spine section; only that section may resolve it.
+        // Chapter documents are structurally identical, so epub.js happily
+        // "resolves" a chapter-5 CFI inside a pre-rendered chapter-4 DOM at
+        // the same path - which sent Find in audiobook to the wrong chapter.
+        var wantSi = -1;
+        try {
+          var pos = new ePub.CFI(cfi).spinePos;
+          if (typeof pos === 'number' && pos >= 0) wantSi = pos;
+        } catch(eS){}
+        var ordered = [];
+        for (var i = 0; i < contents.length; i++) { if (contents[i].sectionIndex === wantSi) ordered.push(contents[i]); }
+        for (var i = 0; i < contents.length; i++) { if (contents[i].sectionIndex !== wantSi) ordered.push(contents[i]); }
+        for (var i = 0; i < ordered.length; i++) {
+          var c = ordered[i], doc = c.document;
           if (!doc) continue;
           var tw = doc.createTreeWalker(doc.body||doc, NodeFilter.SHOW_TEXT, null, false);
           var nodes=[], text='', node;
           while (node = tw.nextNode()) { nodes.push({node:node, start:text.length, len:node.textContent.length}); text += node.textContent; }
           var off = -1, r = null;
-          try { r = c.range(cfi); } catch(e){}
+          if (wantSi < 0 || c.sectionIndex === wantSi) {
+            try { r = c.range(cfi); } catch(e){}
+          }
           if (r) {
             for (var k=0;k<nodes.length;k++){ if (nodes[k].node === r.startContainer) { off = nodes[k].start + r.startOffset; break; } }
           }

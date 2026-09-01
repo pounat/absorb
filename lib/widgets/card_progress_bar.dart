@@ -23,7 +23,11 @@ class CardDualProgressBar extends StatefulWidget {
   final int totalChapters;
   final String? itemId;
   final bool compact;
-  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false});
+  /// Render the book percentage centered in the book bar's own time row
+  /// (between elapsed and remaining) instead of the caller stacking a
+  /// separate percent line above - saves a row on the full screen player.
+  final bool showCenterPercent;
+  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showCenterPercent = false});
   @override State<CardDualProgressBar> createState() => _CardDualProgressBarState();
 }
 
@@ -353,15 +357,30 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
                   child: CustomPaint(size: Size(w, 32), painter: AbsorbProgressPainter(progress: p, accent: widget.accent.withValues(alpha: 0.5), isDragging: _bookDragValue != null)),
                 );
               })),
-              Padding(padding: const EdgeInsets.only(top: 2, bottom: 6), child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Padding(padding: const EdgeInsets.only(top: 2, bottom: 6), child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  Text(_fmt(_bookDragValue != null ? _bookDragValue! * totalDur / speedDiv : bookElapsed), style: tt.labelSmall?.copyWith(color: _bookDragValue != null ? cs.onSurface.withValues(alpha: 0.7) : cs.onSurfaceVariant, fontSize: 12 * _progressTextScale, fontWeight: FontWeight.w600, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
-                  if (_bookDragValue != null && _bookScrubSpeed < 1.0) Text(_scrubSpeedLabel(l, _bookScrubSpeed), style: tt.labelSmall?.copyWith(color: widget.accent, fontSize: 11, fontWeight: FontWeight.w500)),
-                  Text('-${_fmt(_bookDragValue != null ? (1.0 - _bookDragValue!) * totalDur / speedDiv : bookRemaining)}', style: tt.labelSmall?.copyWith(color: _bookDragValue != null ? cs.onSurface.withValues(alpha: 0.7) : cs.onSurfaceVariant, fontSize: 12 * _progressTextScale, fontWeight: FontWeight.w600, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(_fmt(_bookDragValue != null ? _bookDragValue! * totalDur / speedDiv : bookElapsed), style: tt.labelSmall?.copyWith(color: _bookDragValue != null ? cs.onSurface.withValues(alpha: 0.7) : cs.onSurfaceVariant, fontSize: 12 * _progressTextScale, fontWeight: FontWeight.w600, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
+                      Text('-${_fmt(_bookDragValue != null ? (1.0 - _bookDragValue!) * totalDur / speedDiv : bookRemaining)}', style: tt.labelSmall?.copyWith(color: _bookDragValue != null ? cs.onSurface.withValues(alpha: 0.7) : cs.onSurfaceVariant, fontSize: 12 * _progressTextScale, fontWeight: FontWeight.w600, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
+                    ],
+                  ),
+                  if (_bookDragValue != null && _bookScrubSpeed < 1.0)
+                    Text(_scrubSpeedLabel(l, _bookScrubSpeed), style: tt.labelSmall?.copyWith(color: widget.accent, fontSize: 11, fontWeight: FontWeight.w500))
+                  else if (widget.showCenterPercent)
+                    Text('${(( _bookDragValue ?? bookProgress) * 100).clamp(0, 100).toStringAsFixed(1)}%', style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 12 * _progressTextScale, fontWeight: FontWeight.w600, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
                 ],
               )),
             ] else ...[
+              // No book seeking: the caller relying on showCenterPercent has
+              // dropped its own percent line, so render one here instead.
+              if (widget.showCenterPercent)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text('${(bookProgress * 100).clamp(0, 100).toStringAsFixed(1)}%', style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11 * _progressTextScale, fontWeight: FontWeight.w500, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
+                ),
               Row(children: [
                 Text(_fmt(_bookDragValue != null ? _bookDragValue! * totalDur / speedDiv : bookElapsed), style: tt.labelSmall?.copyWith(color: _bookDragValue != null ? cs.onSurface.withValues(alpha: 0.6) : cs.onSurface.withValues(alpha: 0.5), fontSize: 11 * _progressTextScale, fontWeight: FontWeight.w500, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
                 const SizedBox(width: 8),

@@ -11781,6 +11781,42 @@ abstract class AppLocalizations {
   /// **'Downloads'**
   String get androidAutoTabDownloads;
 
+  /// No description provided for @settingsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search settings...'**
+  String get settingsSearchHint;
+
+  /// No description provided for @settingsSearchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching settings'**
+  String get settingsSearchNoResults;
+
+  /// No description provided for @carConnectAutoplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Start playback when Android Auto connects'**
+  String get carConnectAutoplay;
+
+  /// No description provided for @carConnectAutoplayIos.
+  ///
+  /// In en, this message translates to:
+  /// **'Start playback when CarPlay connects'**
+  String get carConnectAutoplayIos;
+
+  /// No description provided for @carConnectAutoplayOnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The last book you were listening to starts by itself when the car connects'**
+  String get carConnectAutoplayOnSubtitle;
+
+  /// No description provided for @carConnectAutoplayOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback waits for you to press play'**
+  String get carConnectAutoplayOffSubtitle;
+
   /// No description provided for @androidAutoCatBooks.
   ///
   /// In en, this message translates to:
@@ -14498,6 +14534,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copied to clipboard'**
   String get readerCopied;
+
+  /// No description provided for @dictionaryNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No definition found for this word.'**
+  String get dictionaryNotFound;
+
+  /// No description provided for @dictionaryError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the dictionary. Check your connection.'**
+  String get dictionaryError;
+
+  /// No description provided for @dictionaryRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get dictionaryRetry;
+
+  /// No description provided for @dictionarySearchWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Search the web'**
+  String get dictionarySearchWeb;
 
   /// No description provided for @readerTooltipCopy.
   ///

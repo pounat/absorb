@@ -14,6 +14,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/library_provider.dart';
 import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
+import '../utils/share_origin.dart';
 
 /// Card shapes offered for a shared quote, as width/height.
 enum _QuoteShape {
@@ -182,12 +183,9 @@ class _QuoteShareSheetState extends State<_QuoteShareSheet> {
       await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
 
       if (!mounted) return;
-      final box = context.findRenderObject() as RenderBox?;
-      final origin =
-          box != null ? box.localToGlobal(Offset.zero) & box.size : null;
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'image/png')],
-        sharePositionOrigin: origin,
+        sharePositionOrigin: shareOriginFor(context),
       );
     } catch (e) {
       debugPrint('[QuoteShare] Failed: $e');
