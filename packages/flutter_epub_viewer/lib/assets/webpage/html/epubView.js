@@ -24,6 +24,16 @@ var lastTapCoords = null; // Store the last tap coordinates for onTouchDown/onTo
 var snapGuardAttached = false;
 var snapGuardTimer = null;
 
+// Absorb patch: dragging a selection handle into the page margin makes the
+// browser map the touch point to a far-away document position - the selection
+// balloons to the whole page for a beat, then collapses to nothing. Remember
+// the last sane range while handles are being dragged; refuse the balloon and
+// resurrect the selection when the balloon's collapse follows. Programmatic
+// clears (tap-to-dismiss, page turns) suppress the resurrection.
+var lastGoodSelection = null; // {win, range, len}
+var selectionBlowUpAt = 0;
+var suppressSelectionGuard = false;
+
 function snapToPageBoundary() {
   try {
     if (!rendition || !rendition.manager || !rendition.manager.container) return;
@@ -52,6 +62,15 @@ function attachSnapGuard() {
     var container = rendition.manager.container;
     snapGuardAttached = true;
     container.addEventListener('scroll', function () {
+      // While a selection is active, any container scroll is the browser
+      // chasing the drag handles (page turns are blocked during selection).
+      // Correct it immediately: letting it settle first shifted the content
+      // under the finger, which both flashed a misaligned page and collapsed
+      // the selection when a handle was dragged into the margin.
+      if (isSelecting) {
+        snapToPageBoundary();
+        return;
+      }
       if (snapGuardTimer) clearTimeout(snapGuardTimer);
       snapGuardTimer = setTimeout(snapToPageBoundary, 250);
     }, { passive: true });
@@ -433,6 +452,21 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
         }
 
         if (!stillHasSelection) {
+          // A margin-drag balloon usually collapses right after - bring the
+          // last sane selection back instead of losing it. Programmatic
+          // clears suppress this so tap-to-dismiss still works.
+          if (!suppressSelectionGuard && lastGoodSelection &&
+              selectionBlowUpAt && Date.now() - selectionBlowUpAt < 1200) {
+            try {
+              var rsel = lastGoodSelection.win.getSelection();
+              rsel.removeAllRanges();
+              rsel.addRange(lastGoodSelection.range.cloneRange());
+              selectionBlowUpAt = 0;
+              return;
+            } catch (eR) {}
+          }
+          lastGoodSelection = null;
+          selectionBlowUpAt = 0;
           // Clear flags if they're set (even if we haven't sent a selection yet)
           // This handles the case where checkAndProcessSelection set flags but selection was cleared before timeout
           if (isSelecting || lastCfiRange) {
@@ -451,6 +485,30 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
           }
         }
       } else if (isSelecting) {
+        // Margin-drag guard: a sudden many-fold jump in selection size is the
+        // browser ballooning to the whole page, not the user extending word
+        // by word - put the last sane range back and ignore the event.
+        if (hasNonCollapsedRange && lastGoodSelection) {
+          var curLen = selectedText.length;
+          if (curLen > Math.max(lastGoodSelection.len * 5, lastGoodSelection.len + 400)) {
+            selectionBlowUpAt = Date.now();
+            try {
+              var gsel = contents.window.getSelection();
+              gsel.removeAllRanges();
+              gsel.addRange(lastGoodSelection.range.cloneRange());
+            } catch (eG) {}
+            return;
+          }
+        }
+        if (hasNonCollapsedRange && selectedText) {
+          try {
+            lastGoodSelection = {
+              win: contents.window,
+              range: selection.getRangeAt(0).cloneRange(),
+              len: selectedText.length,
+            };
+          } catch (eG2) {}
+        }
         // Selection is being modified (dragging handles)
         // Notify Flutter to hide the widget
         window.flutter_inappwebview.callHandler('selectionChanging');
@@ -2104,6 +2162,11 @@ function removeMark(cfiString) {
 }
 
 function clearSelection() {
+  // Deliberate clear: the margin-drag guard must not resurrect it.
+  suppressSelectionGuard = true;
+  lastGoodSelection = null;
+  selectionBlowUpAt = 0;
+  setTimeout(function () { suppressSelectionGuard = false; }, 500);
   try {
     if (typeof rendition !== 'undefined' && rendition) {
       // Clear selection in all content frames (iframes)
