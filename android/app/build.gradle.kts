@@ -147,6 +147,11 @@ dependencies {
     // SAF document moves for custom download folders (MainActivity.moveBookToSaf).
     implementation("androidx.documentfile:documentfile:1.0.1")
 
+    // Baseline armv8-a whisper engine for CPUs without dotprod/fp16 (Boox
+    // Palma and friends); the plugin's Dart side picks it over the fast lib
+    // at runtime.
+    implementation(project(":whisper_ggml_plus_compat"))
+
     // Google Play Services — Chromecast + Wearable Data Layer (pushes ABS
     // session credentials to the paired Wear OS app so the watch can sign in
     // without typing on the watch keyboard). Scoped to github + playstore so

@@ -370,6 +370,7 @@ class TranscriptionService {
       debugPrint('[Transcribe] window=${window.toStringAsFixed(1)}s '
           'model=${info.fileName} lang=$lang extract=${extractMs}ms '
           'whisper=${watch.elapsedMilliseconds - extractMs}ms '
+          'engine=${Whisper.usesCompatEngine ? 'compat' : 'fast'} '
           'chars=${text.length}');
       if (text.isEmpty) throw TranscriptionException(TranscriptionError.empty);
       // Hand the extracted clip to the caller (for review playback). Ownership
@@ -494,7 +495,8 @@ class TranscriptionService {
       debugPrint('[Transcribe] segments window=${window.toStringAsFixed(1)}s '
           'model=${info.fileName} lang=$lang extract=${extractMs}ms '
           'whisper=${watch.elapsedMilliseconds - extractMs}ms '
-          'threads=${_threads()} segments=${segments.length}');
+          'threads=${_threads()} engine=${Whisper.usesCompatEngine ? 'compat' : 'fast'} '
+          'segments=${segments.length}');
       if (segments.isEmpty) throw TranscriptionException(TranscriptionError.empty);
       return segments;
     } finally {

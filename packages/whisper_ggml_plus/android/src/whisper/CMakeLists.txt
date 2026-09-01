@@ -25,8 +25,12 @@ set(WHISPER_OPENVINO OFF CACHE BOOL "" FORCE)
 
 # Without an arch baseline ggml compiles plain armv8-a and loses the dotprod
 # and fp16 kernels that quantized whisper spends nearly all its time in.
-# armv8.2-a+dotprod+fp16 needs Cortex-A75/A55 (2018) or newer.
-if (ANDROID_ABI STREQUAL "arm64-v8a")
+# armv8.2-a+dotprod+fp16 needs Cortex-A75/A55 (2018) or newer; cores older
+# than that SIGILL on it, so ../../../android_compat builds this same file a
+# second time with WHISPER_COMPAT on, producing a plain armv8-a
+# libwhisper_compat.so that the Dart side picks at runtime instead.
+option(WHISPER_COMPAT "Baseline armv8-a build for CPUs without dotprod/fp16" OFF)
+if (ANDROID_ABI STREQUAL "arm64-v8a" AND NOT WHISPER_COMPAT)
     set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
 endif()
 
@@ -59,7 +63,13 @@ if (ANDROID)
     )
 endif()
 
+if (WHISPER_COMPAT)
+    set(WHISPER_OUTPUT_NAME "whisper_compat")
+else()
+    set(WHISPER_OUTPUT_NAME "whisper")
+endif()
+
 set_target_properties(whisper_flutter PROPERTIES
     PUBLIC_HEADER src/whisper.h
-    OUTPUT_NAME "whisper"
+    OUTPUT_NAME "${WHISPER_OUTPUT_NAME}"
 )

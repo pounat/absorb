@@ -37,8 +37,38 @@ class Whisper {
   /// override of model storage path
   final String? modelDir;
 
+  /// The arm64 libwhisper.so is compiled for armv8.2-a+dotprod+fp16, which
+  /// Cortex-A73-class and older cores (Boox Palma, SD835-era phones) cannot
+  /// execute - the first call SIGILLs. Those CPUs get the baseline
+  /// libwhisper_compat.so instead. Requiring the extensions on every core
+  /// keeps mixed-cluster devices on the safe side.
+  static final bool usesCompatEngine = _detectCompatEngine();
+
+  static bool _detectCompatEngine() {
+    if (!Platform.isAndroid) return false;
+    try {
+      final features = File('/proc/cpuinfo')
+          .readAsLinesSync()
+          .where((line) => line.startsWith('Features'));
+      if (features.isEmpty) return false;
+      return !features.every(
+        (line) => line.contains('asimddp') && line.contains('asimdhp'),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   DynamicLibrary _openLib() {
     if (Platform.isAndroid) {
+      if (usesCompatEngine) {
+        try {
+          return DynamicLibrary.open('libwhisper_compat.so');
+        } catch (_) {
+          // Only packaged for arm64-v8a; every other ABI's libwhisper.so is
+          // already a baseline build.
+        }
+      }
       return DynamicLibrary.open('libwhisper.so');
     } else if (Platform.isWindows) {
       return DynamicLibrary.open('whisper_ggml_plus.dll');

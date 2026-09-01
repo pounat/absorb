@@ -24,3 +24,9 @@ plugins {
 }
 
 include(":app")
+
+// Fallback whisper engine for CPUs that can't run the fast arm64 build
+// (see packages/whisper_ggml_plus/android_compat).
+include(":whisper_ggml_plus_compat")
+project(":whisper_ggml_plus_compat").projectDir =
+    settingsDir.resolve("../packages/whisper_ggml_plus/android_compat")
