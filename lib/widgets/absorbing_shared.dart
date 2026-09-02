@@ -300,7 +300,7 @@ class _DownloadWideButtonState extends State<DownloadWideButton> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
           TextButton(onPressed: () {
-            _dl.deleteDownload(widget.itemId);
+            _dl.deleteDownload(widget.itemId, byUser: true);
             Navigator.pop(ctx);
             showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
           },

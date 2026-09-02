@@ -2577,6 +2577,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       dl.downloadItem(
         api: _api!,
         itemId: key,
+        automatic: true,
         title: ep?['title'] as String? ?? 'Episode',
         author: metadata['title'] as String? ?? '',
         coverUrl: getCoverUrl(podcastId),
@@ -3251,6 +3252,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       final error = await downloads.downloadItem(
         api: api,
         itemId: key,
+        automatic: true,
         title: title,
         author: author,
         coverUrl: getCoverUrl(libraryItemId),
@@ -3355,6 +3357,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       dl.downloadItem(
         api: _api!,
         itemId: bookId,
+        automatic: true,
         title: md['title'] as String? ?? '',
         author: md['authorName'] as String? ?? '',
         coverUrl: getCoverUrl(bookId),
@@ -3395,6 +3398,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       dl.downloadItem(
         api: _api!,
         itemId: id,
+        automatic: true,
         title: metadata['title'] as String? ?? '',
         author: metadata['authorName'] as String? ?? '',
         coverUrl: getCoverUrl(id),
@@ -3451,6 +3455,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       dl.downloadItem(
         api: _api!,
         itemId: compoundKey,
+        automatic: true,
         title: curEp['title'] as String? ?? 'Episode',
         author: metadata['title'] as String? ?? '',
         coverUrl: getCoverUrl(showId),
@@ -3476,6 +3481,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       dl.downloadItem(
         api: _api!,
         itemId: key,
+        automatic: true,
         title: ep['title'] as String? ?? 'Episode',
         author: metadata['title'] as String? ?? '',
         coverUrl: getCoverUrl(showId),

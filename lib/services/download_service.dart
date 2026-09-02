@@ -345,6 +345,14 @@ class DownloadService extends ChangeNotifier {
   /// Queue of pending download requests.
   final List<_QueuedDownload> _queue = [];
 
+  // Items the user deleted by hand. Every auto-download planner (rolling
+  // series and show, queue window, playlist and collection, new subscribed
+  // episodes) funnels through [downloadItem] with automatic: true and skips
+  // these, so a half-finished book that was deleted stops coming back on the
+  // next launch. Global like the downloads themselves, not per account.
+  final Set<String> _autoDownloadBlocked = {};
+  static const _autoDownloadBlockedKey = 'auto_download_blocked';
+
   /// The current Android SAF folder URI (content://), or null if using default.
   String? get customDownloadUri => _customDownloadUri;
 
@@ -668,6 +676,7 @@ class DownloadService extends ChangeNotifier {
     _updatesSub ??= FileDownloader().updates.listen(_onTaskUpdate);
     await FileDownloader().trackTasks();
     await _loadPending();
+    await _loadAutoDownloadBlocks();
     await _rehydratePending();
     await FileDownloader().resumeFromBackground();
     _startReconciler();
@@ -1295,6 +1304,10 @@ class DownloadService extends ChangeNotifier {
     String? episodeId,
     String? libraryId,
     bool Function()? shouldStart,
+    // Set by the auto-download planners. An item the user deleted by hand is
+    // skipped when automatic; a manual (or download-on-stream) call clears
+    // that block, since the user asked for it back.
+    bool automatic = false,
   }) async {
     if (shouldStart?.call() == false) return null;
     try {
@@ -1307,6 +1320,15 @@ class DownloadService extends ChangeNotifier {
       return 'Downloads could not start. Please try again.';
     }
     if (shouldStart?.call() == false) return null;
+
+    if (automatic && _autoDownloadBlocked.contains(itemId)) {
+      debugPrint(
+          '[Download] skipped auto-download of "$title" ($itemId): the user deleted it. A manual download, or playing it with download-on-stream on, brings it back');
+      return null;
+    }
+    if (!automatic && _autoDownloadBlocked.remove(itemId)) {
+      await _saveAutoDownloadBlocks();
+    }
 
     if (_activeDownloadIds.contains(itemId)) return null;
     if (isDownloaded(itemId)) return null;
@@ -2327,6 +2349,23 @@ class DownloadService extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadAutoDownloadBlocks() async {
+    final prefs = await SharedPreferences.getInstance();
+    _autoDownloadBlocked
+      ..clear()
+      ..addAll(prefs.getStringList(_autoDownloadBlockedKey) ?? const []);
+  }
+
+  Future<void> _saveAutoDownloadBlocks() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_autoDownloadBlocked.isEmpty) {
+      await prefs.remove(_autoDownloadBlockedKey);
+    } else {
+      await prefs.setStringList(
+          _autoDownloadBlockedKey, _autoDownloadBlocked.toList());
+    }
+  }
+
   /// Rebuild in-flight progress from the package task DB after a relaunch, then
   /// finalize books that finished while we were dead and drop ones whose tasks
   /// are gone. Tasks still in flight keep running; their updates (plus
@@ -2382,10 +2421,22 @@ class DownloadService extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteDownload(String itemId, {bool skipStopCheck = false}) async {
-    // If this is still downloading, cancel the in-flight transfer (which cleans
-    // up partial files and the background tasks) rather than deleting.
-    if (_pending.containsKey(itemId)) {
+  /// [byUser] marks a deliberate removal: the auto-download planners then
+  /// leave this item alone until a manual download, or a play with
+  /// download-on-stream on, brings it back - see [downloadItem].
+  Future<void> deleteDownload(
+    String itemId, {
+    bool skipStopCheck = false,
+    bool byUser = false,
+  }) async {
+    if (byUser && _autoDownloadBlocked.add(itemId)) {
+      debugPrint(
+          '[Download] $itemId removed by the user - auto-download leaves it alone from now on');
+      await _saveAutoDownloadBlocks();
+    }
+    // If this is still downloading or waiting for a slot, cancel it (which
+    // cleans up partial files and the background tasks) rather than deleting.
+    if (_pending.containsKey(itemId) || _queue.any((q) => q.itemId == itemId)) {
       cancelDownload(itemId);
       return;
     }

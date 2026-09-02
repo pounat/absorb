@@ -405,7 +405,7 @@ class CardDownloadButtonInline extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
           TextButton(onPressed: () {
-            dl.deleteDownload(_key);
+            dl.deleteDownload(_key, byUser: true);
             Navigator.pop(ctx);
             showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
           }, child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
@@ -1929,7 +1929,7 @@ class CardActionDelegate {
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(l.cancel)),
                       TextButton(onPressed: () {
-                        dl.deleteDownload(dlKey);
+                        dl.deleteDownload(dlKey, byUser: true);
                         Navigator.pop(dCtx);
                         showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
                       }, child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),

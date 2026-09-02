@@ -1857,7 +1857,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
   Future<void> _removeEbookOffline(BuildContext context) async {
     final l = AppLocalizations.of(context)!;
-    await DownloadService().deleteDownload(widget.itemId);
+    await DownloadService().deleteDownload(widget.itemId, byUser: true);
     if (mounted) showOverlayToast(context, l.ebookRemovedOffline, icon: Icons.delete_outline_rounded);
   }
 

@@ -306,7 +306,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
         TextButton(onPressed: () {
-          DownloadService().deleteDownload(dlKey);
+          DownloadService().deleteDownload(dlKey, byUser: true);
           Navigator.pop(ctx);
           showOverlayToast(
             context,
