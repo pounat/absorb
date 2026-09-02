@@ -152,6 +152,7 @@ class SettingsSyncService {
     'trustAllCerts',
     'queueAutoDownload',
     'autoDownloadOnStream',
+    'autoSeriesDownloadDefault',
     'rollingDownloadCount',
     'rollingDownloadDeleteFinished',
   };

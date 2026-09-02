@@ -3920,6 +3920,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         leading: Icon(Icons.delete_outline_rounded, color: cs.error),
                         title: Text(l.clearLogs),
                         onTap: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text(l.clearLogsQuestion),
+                              content: Text(l.clearLogsContent),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
+                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.clear)),
+                              ],
+                            ),
+                          );
+                          if (confirmed != true || !mounted) return;
                           await LogService().clearLogs();
                           if (mounted) {
                             showOverlayToast(context, l.logsCleared,

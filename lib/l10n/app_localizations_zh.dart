@@ -2045,6 +2045,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logsCleared => '日志已清除';
 
   @override
+  String get clearLogsQuestion => 'Clear logs?';
+
+  @override
+  String get clearLogsContent =>
+      'This can\'t be undone. Send them first if you might want them.';
+
+  @override
   String get sectionAdvanced => '高级';
 
   @override

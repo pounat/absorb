@@ -2089,6 +2089,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String get logsCleared => 'Logs cleared';
 
   @override
+  String get clearLogsQuestion => 'Clear logs?';
+
+  @override
+  String get clearLogsContent =>
+      'This can\'t be undone. Send them first if you might want them.';
+
+  @override
   String get sectionAdvanced => 'Advanced';
 
   @override

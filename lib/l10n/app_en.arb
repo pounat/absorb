@@ -1004,6 +1004,8 @@
   },
   "clearLogs": "Clear logs",
   "logsCleared": "Logs cleared",
+  "clearLogsQuestion": "Clear logs?",
+  "clearLogsContent": "This can't be undone. Send them first if you might want them.",
   "sectionAdvanced": "Advanced",
   "localServer": "Local server",
   "localServerInfoTitle": "Local Server",

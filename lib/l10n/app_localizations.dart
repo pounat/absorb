@@ -3874,6 +3874,18 @@ abstract class AppLocalizations {
   /// **'Logs cleared'**
   String get logsCleared;
 
+  /// No description provided for @clearLogsQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear logs?'**
+  String get clearLogsQuestion;
+
+  /// No description provided for @clearLogsContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This can\'t be undone. Send them first if you might want them.'**
+  String get clearLogsContent;
+
   /// No description provided for @sectionAdvanced.
   ///
   /// In en, this message translates to:
