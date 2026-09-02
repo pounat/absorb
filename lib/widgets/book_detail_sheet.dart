@@ -955,7 +955,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         const SizedBox(height: 6),
         HtmlDescription(
           html: descRaw,
-          maxLines: 6,
+          maxLines: null,
           style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.7), height: 1.5),
           linkColor: accent,
         )],
