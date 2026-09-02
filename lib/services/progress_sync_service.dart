@@ -81,14 +81,19 @@ class ProgressSyncService {
   /// Skips items with a pending sync so unsynced local writes (e.g. a finished
   /// state saved while offline) are not clobbered by a stale server snapshot.
   /// Returns true if the cache was written, false if it was refused.
+  ///
+  /// [overridePending] is for the flush itself: it has just compared the
+  /// pending entry against a fresh server read and decided the server wins,
+  /// so the guard would only be refusing the very entry being resolved.
   Future<bool> cacheServerProgress({
     required String itemId,
     required double currentTime,
     required double duration,
     bool isFinished = false,
+    bool overridePending = false,
   }) async {
     final pendingList = await ScopedPrefs.getStringList('pending_syncs');
-    if (pendingList.contains(itemId)) {
+    if (!overridePending && pendingList.contains(itemId)) {
       debugPrint('[Sync] Skipping server cache for $itemId - pending local sync would be clobbered (isFinished=$isFinished)');
       return false;
     }
@@ -247,11 +252,13 @@ class ProgressSyncService {
     _isFlushing = true;
     final flushCompleter = Completer<void>();
     _flushCompleter = flushCompleter;
+    var pendingAtStart = 0;
     try {
       final pendingList = List<String>.from(
           await ScopedPrefs.getStringList('pending_syncs'));
 
       if (pendingList.isEmpty) return;
+      pendingAtStart = pendingList.length;
 
       final batch = pendingList.take(maxItems).toList();
       debugPrint('[Sync] Flushing ${batch.length}/${pendingList.length} pending syncs');
@@ -295,22 +302,35 @@ class ProgressSyncService {
               hasOfflineListening: hasOfflineListening,
             )) {
               debugPrint('[Sync] Server is newer for $itemId: server=$serverTime s ($serverTimestamp) vs local=$localTime s ($localTimestamp) — pulling');
-              final cached = await cacheServerProgress(
+              // The player may have saved again while the server read was in
+              // flight. Then the entry we compared is gone: leave it pending
+              // and let the next flush compare the new one, which will push.
+              final latest = await getLocal(itemId);
+              final latestTimestamp =
+                  (latest?['timestamp'] as num?)?.toInt() ?? 0;
+              if (latestTimestamp != localTimestamp) {
+                debugPrint('[Sync] Local changed during the pull for $itemId - comparing again on the next flush');
+                continue;
+              }
+              // This entry lost to the server, so it is no longer worth
+              // protecting: replace it and clear it from pending. Refusing the
+              // write here (as the clobber guard used to) and keeping the
+              // entry pending retried every 250ms forever - hundreds of
+              // server reads a minute, and the other device's newer position
+              // never landed.
+              await cacheServerProgress(
                 itemId: itemId,
                 currentTime: serverTime,
                 duration: localDuration,
                 isFinished: serverProgress['isFinished'] as bool? ?? false,
+                overridePending: true,
               );
-              if (cached) {
-                // Pull succeeded - safe to clear pending.
-                final updated = await ScopedPrefs.getStringList('pending_syncs');
-                updated.remove(itemId);
-                await ScopedPrefs.setStringList('pending_syncs', updated);
-              } else {
-                // Clobber guard refused. Keep pending so the next flush retries
-                // and eventually pushes local; otherwise the unsynced local
-                // entry sits in limbo and gets overwritten on next playback.
-                debugPrint('[Sync] Keeping $itemId in pending_syncs after pull was refused by clobber guard');
+              final updated = await ScopedPrefs.getStringList('pending_syncs');
+              updated.remove(itemId);
+              await ScopedPrefs.setStringList('pending_syncs', updated);
+              if (_consecutiveFailures > 0) {
+                debugPrint('[Sync] Backoff reset (was $_consecutiveFailures)');
+                _consecutiveFailures = 0;
               }
               continue;
             }
@@ -393,6 +413,17 @@ class ProgressSyncService {
     if ((_flushAgain || remaining.isNotEmpty || pendingOffline.isNotEmpty || pendingEbook.isNotEmpty) && _isOnline) {
       _flushAgain = false;
 
+      // A flush that cleared nothing without a network error is stuck on
+      // something the next attempt will hit again (a server error, an entry
+      // that keeps losing the comparison). The 250ms fast retry is for
+      // finishing a partial batch, not for that - count it as a failure so
+      // the backoff below applies instead of hammering the server.
+      if (_consecutiveFailures == 0 &&
+          pendingAtStart > 0 &&
+          remaining.length >= pendingAtStart) {
+        _consecutiveFailures++;
+        debugPrint('[Sync] Flush made no progress (${remaining.length} still pending) - backing off');
+      }
       // Exponential backoff: 5s, 10s, 20s, 40s, ... capped at 5 minutes
       if (_consecutiveFailures >= _maxConsecutiveFailures) {
         debugPrint('[Sync] Too many consecutive failures ($_consecutiveFailures) - waiting for next connectivity change');

@@ -2358,9 +2358,14 @@ class AudioPlayerService extends ChangeNotifier {
       '[Player] iOS resume: adopted engine state playing=${state.isPlaying} '
       '(was $wasPlaying) global=${state.globalPositionS.toStringAsFixed(1)}s',
     );
-    // Persist the adopted position locally so a subsequent sync/save doesn't
-    // overwrite it with a stale value.
-    if (state.globalPositionS > 0) {
+    // Persist the adopted position only when the engine actually moved on
+    // while Flutter was suspended (a widget or lock screen session), so a
+    // later save can't overwrite it with a stale value. A paused engine
+    // sitting where Dart left it has nothing new to say: saving it anyway
+    // re-stamped a stale position as fresh on every foreground, which blocked
+    // pulling another device's newer progress and, after a session-start
+    // rewind, pushed the server a few seconds backwards per relaunch.
+    if (state.globalPositionS > _lastKnownPositionSec + 1.0) {
       _lastKnownPositionSec = state.globalPositionS;
       await _saveProgressLocal(
         Duration(milliseconds: (state.globalPositionS * 1000).round()),
