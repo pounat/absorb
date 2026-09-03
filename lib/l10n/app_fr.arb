@@ -2871,7 +2871,6 @@
   "syncSettingsExperimentalBody": "La synchronisation est nouvelle et est toujours en cours de développement. Si deux appareils changent les choses pendant qu'ils sont séparés, un côté peut perdre ses changements. Conservez un fichier de sauvegarde comme une copie sécurisée.",
   "syncSettingsNeedServerSub": "N'importe quel serveur WebDAV fonctionne. Nextcloud est un serveur gratuit auto-hébergé.",
   "syncSourceBody": "Cette sauvegarde a activé la synchronisation des paramètres. Utiliser la dernière synchronisation du serveur, ou faire de cette sauvegarde la source de vérité ? Choisir la sauvegarde remplace la copie sur le serveur pour tous vos périphériques synchronisés.",
-  "syncSettingsWhatTravels": "Vos préférences, vitesses par livre, mise en page d'accueil, notes et surlignage dans vos ebooks sont envoyés. Les identifiants, les dossiers de téléchargement et tout ce qui n'a pas encore été envoyé à votre serveur restent sur cet appareil.",
   "readerTooltipCopy": "Copier",
   "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez.",
   "transcriptionDisclaimer": "Fonctionne entièrement sur votre appareil, rien n'est envoyé nulle part. Cela utilise de la batterie supplémentaire et de la puissance de calcul pendant que cela fonctionne, et seuls les livres téléchargés peuvent être transcrits.",
