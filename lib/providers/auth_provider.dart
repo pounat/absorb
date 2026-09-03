@@ -728,6 +728,10 @@ class AuthProvider extends ChangeNotifier {
     _accessToken = tokens.token;
     _refreshToken = tokens.refreshToken;
     debugPrint('[Auth] Login response keys: ${result.keys.toList()}');
+    final serverSettings = result['serverSettings'];
+    debugPrint('[Auth] Server version='
+        '${serverSettings is Map ? serverSettings['version'] : null} '
+        'source=${result['Source']}');
     debugPrint('[Auth] Login user keys: ${user.keys.toList()}');
     debugPrint(
       '[Auth] accessToken=${tokens.accessToken != null}, refreshToken=${tokens.refreshToken != null}, legacyToken=${tokens.legacyToken != null}, isLegacy=$_isLegacyToken',

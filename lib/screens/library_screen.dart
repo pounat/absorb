@@ -331,6 +331,12 @@ class LibraryScreenState extends State<LibraryScreen>
   String? _allNarratorsCacheLibraryId;
   bool _isSearching = false;
   bool _hasSearched = false;
+  // One server search in flight at a time; the newest query typed meanwhile
+  // waits in _pendingSearch. _searchGen drops responses that a newer query
+  // (or clearing the search) has made stale.
+  int _searchGen = 0;
+  bool _searchInFlight = false;
+  String? _pendingSearch;
   bool get _isInSearchMode => _searchController.text.trim().isNotEmpty;
 
   // ── Batch selection (books tab and authors tab) ──
@@ -401,6 +407,9 @@ class LibraryScreenState extends State<LibraryScreen>
 
   bool _isLoadingPage = false;
   bool _hasMore = true;
+  // The last page request timed out or errored: the grid shows a retry in the
+  // loader slot and stops auto-fetching until the user asks.
+  bool _loadFailed = false;
   // Tracks the offline state so the grid reloads when it flips (offline shows
   // only downloads; back online shows the full library again).
   bool _wasOffline = false;
@@ -408,7 +417,14 @@ class LibraryScreenState extends State<LibraryScreen>
   int _totalItems = 0;
   int? _randomSeed;
   int _loadGeneration = 0; // prevents stale async loads from corrupting state
-  static const _pageSize = 20;
+  // Largest grid page. The first request asks for 20 so something paints
+  // fast, then sizes double (20, 40, 80) and stay at 80: on a slow server a
+  // page costs roughly per item, and 80 at a time means a screenful or more
+  // between waits instead of one.
+  static const _pageSize = 80;
+  // Raw items received for the current view; page*limit offsets are computed
+  // from it so the growing page sizes stay aligned.
+  int _loadedCount = 0;
 
   final _scrollController = ScrollController();
 
@@ -431,6 +447,13 @@ class LibraryScreenState extends State<LibraryScreen>
   List<Map<String, dynamic>> _authors = [];
   bool _isLoadingAuthors = false;
   bool _authorsLoaded = false;
+  // Authors come in pages of 100, sorted server-side, so a library with tens
+  // of thousands of authors never needs one response holding all of them.
+  int _authorsPage = 0;
+  bool _hasMoreAuthors = true;
+  int _totalAuthors = 0;
+  int _authorsGen = 0;
+  static const _authorsPageSize = 100;
   LibrarySort _authorSort = LibrarySort.alphabetical;
   bool _authorSortAsc = true;
   final _authorsScrollController = ScrollController();
@@ -495,11 +518,28 @@ class LibraryScreenState extends State<LibraryScreen>
       final lib = context.read<LibraryProvider>();
       final api = context.read<AuthProvider>().apiService;
       if (api == null || lib.selectedLibraryId == null || lib.isOffline) return;
-      final authors = await api.getLibraryAuthors(lib.selectedLibraryId!);
-      if (!mounted) return;
+      // Re-fetch the pages already on screen and swap them in.
+      final libId = lib.selectedLibraryId!;
+      final pages = _authorsPage;
+      final gen = _authorsGen;
+      final fresh = <Map<String, dynamic>>[];
+      int? total;
+      for (var p = 0; p < pages; p++) {
+        final result = await api.getLibraryAuthorsPage(
+          libId,
+          page: p,
+          limit: _authorsPageSize,
+          sort: _authorServerSort,
+          desc: _authorSortAsc ? 0 : 1,
+        );
+        if (!mounted || gen != _authorsGen || result == null) return;
+        fresh.addAll(_authorPageResults(result));
+        total = (result['total'] as num?)?.toInt() ?? total;
+      }
       setState(() {
-        _authors = authors;
+        _authors = fresh;
         _sortAuthors();
+        if (total != null) _totalAuthors = total;
       });
     });
   }
@@ -601,6 +641,10 @@ class LibraryScreenState extends State<LibraryScreen>
         _authors.clear();
         _authorsLoaded = false;
         _isLoadingAuthors = false;
+        _authorsPage = 0;
+        _hasMoreAuthors = true;
+        _totalAuthors = 0;
+        _authorsGen++;
         _narrators.clear();
         _narratorsLoaded = false;
         _isLoadingNarrators = false;
@@ -999,7 +1043,10 @@ class LibraryScreenState extends State<LibraryScreen>
   // ══════════════════════════════════════════════════════════════
   Future<void> _loadPage() async {
     if (_isLoadingPage || !_hasMore) return;
-    setState(() => _isLoadingPage = true);
+    setState(() {
+      _isLoadingPage = true;
+      _loadFailed = false;
+    });
     final gen = ++_loadGeneration;
 
     final auth = context.read<AuthProvider>();
@@ -1118,6 +1165,10 @@ class LibraryScreenState extends State<LibraryScreen>
           collapseSeries:
               _collapseSeries && !useClientFilter && !lib.isPodcastLibrary,
         );
+        if (result == null) {
+          debugPrint('[LibPage] fetch-all page=$fetchPage failed, showing '
+              'what loaded so far');
+        }
         if (result == null || !mounted || gen != _loadGeneration) break;
         final results = (result['results'] as List<dynamic>?) ?? [];
         total = (result['total'] as int?) ?? 0;
@@ -1155,10 +1206,17 @@ class LibraryScreenState extends State<LibraryScreen>
         });
       }
     } else {
+      if (_page == 0) _loadedCount = 0;
+      // Each size divides the count loaded so far (20, 40, 80, 160, ...),
+      // which is what a page*limit offset needs.
+      final limit =
+          _loadedCount < 40 ? 20 : (_loadedCount < 80 ? 40 : _pageSize);
+      final pageIndex = _loadedCount ~/ limit;
+      final sw = Stopwatch()..start();
       final result = await api.getLibraryItems(
         lib.selectedLibraryId!,
-        page: _page,
-        limit: _pageSize,
+        page: pageIndex,
+        limit: limit,
         sort: sort,
         desc: desc,
         filter: filter,
@@ -1189,11 +1247,12 @@ class LibraryScreenState extends State<LibraryScreen>
               _items.add(r);
             }
           }
+          _loadedCount += results.length;
           _page++;
           // Compare raw server results to page size, not filtered _items to total.
           // Client-side filters (e.g. hide-ebook-only) reduce _items below total,
           // which would leave _hasMore permanently true and the loader spinning.
-          _hasMore = results.length >= _pageSize;
+          _hasMore = results.length >= limit;
           // Alpha: memory next to the page count, for the dense-grid OOM
           // kills (no [CRASH] line, log just stops). rss is the whole
           // process; imgCache is Flutter's decoded-cover cache (count/MB, and
@@ -1201,13 +1260,21 @@ class LibraryScreenState extends State<LibraryScreen>
           final imgCache = PaintingBinding.instance.imageCache;
           final rssMb = kIsWeb ? -1 : ProcessInfo.currentRss ~/ 1048576;
           debugPrint(
-            '[LibPage] page=${_page - 1} results=${results.length} pageSize=$_pageSize filtered=${_items.length} total=$total hideEbook=$_hideEbookOnly hasMore=$_hasMore '
+            '[LibPage] page=$pageIndex ms=${sw.elapsedMilliseconds} results=${results.length} pageSize=$limit loaded=$_loadedCount filtered=${_items.length} total=$total hideEbook=$_hideEbookOnly hasMore=$_hasMore '
             'rss=${rssMb}MB imgCache=${imgCache.currentSize}/${imgCache.currentSizeBytes ~/ 1048576}MB live=${imgCache.liveImageCount} cols=${responsiveGridCount(context)}',
           );
           _isLoadingPage = false;
         });
       } else if (mounted && gen == _loadGeneration) {
-        setState(() => _isLoadingPage = false);
+        // Timed out or errored. Show a retry in the loader slot instead of a
+        // spinner, and stop the fill loop refetching on every rebuild - on a
+        // struggling server that was one more request every 15s, forever.
+        debugPrint('[LibPage] page=$pageIndex limit=$limit failed after '
+            '${sw.elapsedMilliseconds}ms, waiting for retry');
+        setState(() {
+          _isLoadingPage = false;
+          _loadFailed = true;
+        });
       }
     }
   }
@@ -1278,14 +1345,23 @@ class LibraryScreenState extends State<LibraryScreen>
   ) {
     if (filter == SeriesFilter.none) return true;
     final books = series['books'] as List<dynamic>? ?? const [];
-    if (books.isEmpty) return false;
+    // Servers that send only libraryItemIds (no books) still give us enough
+    // for a progress filter.
+    final ids = books.isNotEmpty
+        ? books
+            .whereType<Map<String, dynamic>>()
+            .map((b) => b['id'] as String? ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList()
+        : ((series['libraryItemIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const <String>[]);
+    if (ids.isEmpty) return false;
 
     var finishedCount = 0;
     var startedCount = 0;
-    for (final b in books) {
-      if (b is! Map<String, dynamic>) continue;
-      final id = b['id'] as String?;
-      if (id == null || id.isEmpty) continue;
+    for (final id in ids) {
       final pd = lib.getProgressData(id);
       final isFinished = pd?['isFinished'] == true;
       final progress = lib.getProgress(id);
@@ -1299,7 +1375,7 @@ class LibraryScreenState extends State<LibraryScreen>
 
     return seriesProgressMatchesFilter(
       filter,
-      bookCount: books.length,
+      bookCount: ids.length,
       startedCount: startedCount,
       finishedCount: finishedCount,
     );
@@ -1405,6 +1481,7 @@ class LibraryScreenState extends State<LibraryScreen>
       }
     }
 
+    final sw = Stopwatch()..start();
     final result = await api.getLibrarySeries(
       lib.selectedLibraryId!,
       page: _seriesPage,
@@ -1416,6 +1493,12 @@ class LibraryScreenState extends State<LibraryScreen>
     if (result != null && mounted) {
       final results = (result['results'] as List<dynamic>?) ?? [];
       final total = (result['total'] as int?) ?? 0;
+      final first =
+          results.isNotEmpty ? results.first as Map<String, dynamic>? : null;
+      debugPrint('[SeriesPage] page=$_seriesPage ms=${sw.elapsedMilliseconds} '
+          'results=${results.length} total=$total '
+          'firstBooks=${(first?['books'] as List?)?.length} '
+          'firstKeys=${first?.keys.join(',')}');
       setState(() {
         _totalSeries = total;
         for (final r in results) {
@@ -1436,6 +1519,8 @@ class LibraryScreenState extends State<LibraryScreen>
         );
       }
     } else if (mounted) {
+      debugPrint('[SeriesPage] page=$_seriesPage failed after '
+          '${sw.elapsedMilliseconds}ms');
       setState(() => _isLoadingSeriesPage = false);
     }
   }
@@ -1449,7 +1534,11 @@ class LibraryScreenState extends State<LibraryScreen>
     final allItems = <Map<String, dynamic>>[];
     int page = 0;
     int total = 0;
-    while (true) {
+    // Only refresh libraries of up to 5000 series (100 pages). A 244k-book
+    // library has far more, and walking them all was thousands of heavy
+    // requests every time the tab opened, queued ahead of whatever the user
+    // tapped next; there the on-demand paging is all we do.
+    while (page < 100) {
       final result = await api.getLibrarySeries(
         lib.selectedLibraryId!,
         page: page,
@@ -1460,6 +1549,10 @@ class LibraryScreenState extends State<LibraryScreen>
       if (result == null) break;
       final results = (result['results'] as List<dynamic>?) ?? [];
       total = (result['total'] as int?) ?? 0;
+      if (total > 5000) {
+        debugPrint('[SeriesPage] background refresh skipped: $total series');
+        return;
+      }
       for (final r in results) {
         if (r is Map<String, dynamic>) allItems.add(r);
       }
@@ -1481,8 +1574,28 @@ class LibraryScreenState extends State<LibraryScreen>
   // ══════════════════════════════════════════════════════════════
   // AUTHORS TAB - Load all authors
   // ══════════════════════════════════════════════════════════════
+  String get _authorServerSort =>
+      _authorSort == LibrarySort.totalDuration ? 'numBooks' : 'name';
+
+  List<Map<String, dynamic>> _authorPageResults(Map<String, dynamic>? result) =>
+      ((result?['results'] ?? result?['authors']) as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+  void _resetAuthors() {
+    _authorsGen++;
+    setState(() {
+      _authors.clear();
+      _authorsLoaded = false;
+      _isLoadingAuthors = false;
+      _authorsPage = 0;
+      _hasMoreAuthors = true;
+      _totalAuthors = 0;
+    });
+  }
+
   Future<void> _loadAuthors() async {
-    if (_isLoadingAuthors) return;
+    if (_isLoadingAuthors || (_authorsLoaded && !_hasMoreAuthors)) return;
     setState(() => _isLoadingAuthors = true);
 
     final auth = context.read<AuthProvider>();
@@ -1492,19 +1605,38 @@ class LibraryScreenState extends State<LibraryScreen>
       setState(() {
         _isLoadingAuthors = false;
         _authorsLoaded = true;
+        _hasMoreAuthors = false;
       });
       return;
     }
 
-    final authors = await api.getLibraryAuthors(lib.selectedLibraryId!);
-    if (mounted) {
-      setState(() {
-        _authors = authors;
-        _sortAuthors();
-        _isLoadingAuthors = false;
-        _authorsLoaded = true;
-      });
-    }
+    final gen = _authorsGen;
+    final result = await api.getLibraryAuthorsPage(
+      lib.selectedLibraryId!,
+      page: _authorsPage,
+      limit: _authorsPageSize,
+      sort: _authorServerSort,
+      desc: _authorSortAsc ? 0 : 1,
+    );
+    if (!mounted || gen != _authorsGen) return;
+    final results = _authorPageResults(result);
+    final total = (result?['total'] as num?)?.toInt();
+    setState(() {
+      final seen = _authors.map((a) => a['id']).toSet();
+      final fresh = results.where((a) => !seen.contains(a['id'])).toList();
+      _authors.addAll(fresh);
+      _sortAuthors();
+      _authorsPage++;
+      _totalAuthors = total ?? _authors.length;
+      // A server that ignores paging answers with everything at once, which
+      // shows as a page of the wrong size or nothing new.
+      _hasMoreAuthors = result != null &&
+          fresh.isNotEmpty &&
+          results.length == _authorsPageSize &&
+          (total == null || _authors.length < total);
+      _isLoadingAuthors = false;
+      _authorsLoaded = true;
+    });
   }
 
   void _sortAuthors() {
@@ -1664,7 +1796,14 @@ class LibraryScreenState extends State<LibraryScreen>
     }
     PlayerSettings.setAuthorSort(_authorSort.name);
     PlayerSettings.setAuthorSortAsc(_authorSortAsc);
-    setState(() => _sortAuthors());
+    if (_hasMoreAuthors) {
+      // Only part of the list is here, so the new order has to come from the
+      // server.
+      _resetAuthors();
+      _loadAuthors();
+    } else {
+      setState(() => _sortAuthors());
+    }
     if (_authorsScrollController.hasClients) _authorsScrollController.jumpTo(0);
   }
 
@@ -1955,6 +2094,8 @@ class LibraryScreenState extends State<LibraryScreen>
     // Always show bars when entering/exiting search
     _revealDriver.resetToShown();
     if (query.trim().isEmpty) {
+      _searchGen++;
+      _pendingSearch = null;
       setState(() {
         _searchBookResults = [];
         _searchSeriesResults = [];
@@ -1974,21 +2115,45 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   Future<void> _performSearch(String query) async {
+    // On a huge library every server search is several full-table scans, so
+    // stacking one per keystroke left the server unable to answer anything
+    // else, and a slow early response could land after a later one and
+    // overwrite it. Serialize: one in flight, the newest query waits its turn.
+    if (_searchInFlight) {
+      _pendingSearch = query;
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final lib = context.read<LibraryProvider>();
     final api = auth.apiService;
     if (api == null || lib.selectedLibraryId == null) return;
 
     setState(() => _isSearching = true);
-
+    final gen = ++_searchGen;
     final isPodcast = lib.isPodcastLibrary;
-    final result = await api.searchLibrary(lib.selectedLibraryId!, query);
-    if (result != null && mounted) {
+    final libId = lib.selectedLibraryId!;
+    Map<String, dynamic>? result;
+    _searchInFlight = true;
+    try {
+      result = await api.searchLibrary(libId, query);
+    } finally {
+      _searchInFlight = false;
+      final pending = _pendingSearch;
+      _pendingSearch = null;
+      if (pending != null && pending != query && mounted) {
+        unawaited(_performSearch(pending));
+      }
+    }
+    // A newer query took over while this one was out, or the search was
+    // cleared: leave whatever is showing alone.
+    if (!mounted || gen != _searchGen) return;
+    final data = result;
+    if (data != null) {
       setState(() {
         if (isPodcast) {
-          _searchBookResults = (result['podcast'] as List<dynamic>?) ?? [];
+          _searchBookResults = (data['podcast'] as List<dynamic>?) ?? [];
         } else {
-          _searchBookResults = (result['book'] as List<dynamic>?) ?? [];
+          _searchBookResults = (data['book'] as List<dynamic>?) ?? [];
           if (_hideEbookOnly) {
             _searchBookResults = _searchBookResults.where((r) {
               final item =
@@ -1998,8 +2163,8 @@ class LibraryScreenState extends State<LibraryScreen>
             }).toList();
           }
         }
-        _searchSeriesResults = (result['series'] as List<dynamic>?) ?? [];
-        _searchAuthorResults = (result['authors'] as List<dynamic>?) ?? [];
+        _searchSeriesResults = (data['series'] as List<dynamic>?) ?? [];
+        _searchAuthorResults = (data['authors'] as List<dynamic>?) ?? [];
         if (!isPodcast) {
           final q = query.toLowerCase();
           _searchTagResults = _availableTags
@@ -2038,9 +2203,9 @@ class LibraryScreenState extends State<LibraryScreen>
     // Only override when the index actually built, so a failed fetch keeps the
     // server results instead of blanking them.
     if (!isPodcast) {
-      final libId = lib.selectedLibraryId!;
       await BookSearchIndex().ensureIndex(api, libId);
       if (mounted &&
+          gen == _searchGen &&
           BookSearchIndex().isReady(libId) &&
           _searchController.text.trim() == query) {
         var books = BookSearchIndex()
@@ -3096,7 +3261,7 @@ class LibraryScreenState extends State<LibraryScreen>
         countText = l.librarySeriesCount(_totalSeries);
         break;
       case 2:
-        countText = l.libraryAuthorsCount(_authors.length);
+        countText = l.libraryAuthorsCount(max(_totalAuthors, _authors.length));
         break;
       case 3:
         countText = l.libraryNarratorsCount(_narrators.length);
@@ -3305,11 +3470,7 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   Future<void> _refreshAuthors() async {
-    setState(() {
-      _authors.clear();
-      _authorsLoaded = false;
-      _isLoadingAuthors = false;
-    });
+    _resetAuthors();
     await _loadAuthors();
   }
 
@@ -3322,6 +3483,7 @@ class LibraryScreenState extends State<LibraryScreen>
       items: _visibleLibraryItems(lib),
       isLoadingPage: _isLoadingPage,
       hasMore: _hasMore,
+      loadFailed: _loadFailed,
       filter: _filter,
       genreFilter: _genreFilter,
       tagFilter: _tagFilter,
@@ -3587,6 +3749,8 @@ class LibraryScreenState extends State<LibraryScreen>
       authors: _authors,
       isLoadingAuthors: _isLoadingAuthors,
       authorsLoaded: _authorsLoaded,
+      hasMore: _hasMoreAuthors,
+      onLoadMore: _loadAuthors,
       onRefresh: _refreshAuthors,
       headerSliver: headerSliver,
       scrollController: _authorsScrollController,

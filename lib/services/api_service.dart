@@ -993,8 +993,10 @@ class ApiService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
+      debugPrint('[API] getLibraryItems page=$page limit=$limit: '
+          'HTTP ${response.statusCode}');
     } catch (e) {
-      // ignore
+      debugPrint('[API] getLibraryItems page=$page limit=$limit failed: $e');
     }
     return null;
   }
@@ -1373,8 +1375,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
+      debugPrint('[API] getLibrarySeries page=$page: HTTP ${response.statusCode}');
     } catch (e) {
-      // ignore
+      debugPrint('[API] getLibrarySeries page=$page failed: $e');
     }
     return null;
   }
@@ -1445,6 +1448,61 @@ class ApiService {
       debugPrint('[API] getLibraryAuthors error: $e');
     }
     return [];
+  }
+
+  /// One page of a library's authors, sorted server-side. [sort] is `name`,
+  /// `lastFirst`, `addedAt`, `updatedAt` or `numBooks`. Stock ABS answers
+  /// `{results, total, ...}`; a server that ignores paging answers `{authors}`
+  /// with everything, which callers treat as the only page.
+  Future<Map<String, dynamic>?> getLibraryAuthorsPage(
+    String libraryId, {
+    int page = 0,
+    int limit = 100,
+    String sort = 'name',
+    int desc = 0,
+  }) async {
+    try {
+      final sw = Stopwatch()..start();
+      final response = await _authGet(
+        Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/authors'
+            '?limit=$limit&page=$page&sort=$sort&desc=$desc'),
+        timeout: const Duration(seconds: 30),
+      );
+      debugPrint('[API] getLibraryAuthorsPage page=$page: HTTP '
+          '${response.statusCode} in ${sw.elapsedMilliseconds}ms');
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('[API] getLibraryAuthorsPage page=$page failed: $e');
+    }
+    return null;
+  }
+
+  /// Fetch several items by id in one request. One indexed query server-side,
+  /// unlike the filtered items listing, which sorts the whole library first.
+  Future<List<Map<String, dynamic>>> getLibraryItemsBatch(
+      List<String> ids) async {
+    if (ids.isEmpty) return const [];
+    try {
+      final sw = Stopwatch()..start();
+      final response = await _authPost(
+        Uri.parse('$_cleanBaseUrl/api/items/batch/get'),
+        body: jsonEncode({'libraryItemIds': ids}),
+        timeout: const Duration(seconds: 30),
+      );
+      debugPrint('[API] getLibraryItemsBatch ${ids.length} ids: HTTP '
+          '${response.statusCode} in ${sw.elapsedMilliseconds}ms');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return (data['libraryItems'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('[API] getLibraryItemsBatch failed: $e');
+    }
+    return const [];
   }
 
   /// Get all narrators for a library. ABS exposes narrators only via the
@@ -2514,55 +2572,78 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>?> getSeries(String seriesId, {String? libraryId, void Function(List<dynamic> books, int total, {double? totalDuration})? onPageLoaded}) async {
+    if (libraryId == null) return null;
     try {
-      Map<String, dynamic>? seriesMeta;
-
-      // Get series metadata
-      if (libraryId != null) {
-        final metaResp = await _authGet(
-          Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/series/$seriesId'),
-          timeout: const Duration(seconds: 30));
-        if (metaResp.statusCode == 200) {
-          seriesMeta = jsonDecode(metaResp.body) as Map<String, dynamic>;
-        }
-      }
-
-      // Get all books in the series, paginating if needed.
       // ABS filter format: series.<base64(seriesId)>
-      if (libraryId != null) {
-        final filterValue = base64Encode(utf8.encode(seriesId));
-        const pageSize = 100;
-        final allResults = <dynamic>[];
-        int total = 0;
-        int page = 0;
-        while (true) {
-          final url = '$_cleanBaseUrl/api/libraries/$libraryId/items?filter=series.$filterValue&sort=media.metadata.series.sequence&limit=$pageSize&page=$page&collapseseries=0';
-          final itemsResp = await _authGet(
-            Uri.parse(url),
+      final filterValue = base64Encode(utf8.encode(seriesId));
+      const pageSize = 100;
+      final allResults = <dynamic>[];
+      int total = 0;
+      int page = 0;
+
+      Future<Map<String, dynamic>?> fetchMeta() async {
+        final sw = Stopwatch()..start();
+        try {
+          final resp = await _authGet(
+            Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/series/$seriesId'),
             timeout: const Duration(seconds: 30));
-          if (itemsResp.statusCode != 200) {
-            debugPrint('[API] getSeries items page $page failed: ${itemsResp.statusCode}');
-            break;
+          debugPrint('[API] getSeries $seriesId meta: HTTP ${resp.statusCode} '
+              'in ${sw.elapsedMilliseconds}ms');
+          if (resp.statusCode == 200) {
+            return jsonDecode(resp.body) as Map<String, dynamic>;
           }
-          final data = jsonDecode(itemsResp.body) as Map<String, dynamic>;
-          final results = data['results'] as List<dynamic>? ?? [];
-          total = (data['total'] as num?)?.toInt() ?? results.length;
-          allResults.addAll(results);
-          onPageLoaded?.call(allResults, total, totalDuration: (seriesMeta?['totalDuration'] as num?)?.toDouble());
-          if (allResults.length >= total || results.isEmpty) break;
-          page++;
+        } catch (e) {
+          debugPrint('[API] getSeries $seriesId meta failed after '
+              '${sw.elapsedMilliseconds}ms: $e');
         }
-        if (allResults.isNotEmpty) {
-          return {
-            'id': seriesId,
-            'name': seriesMeta?['name'] ?? '',
-            'books': allResults,
-            'total': total,
-            if (seriesMeta != null) 'totalDuration': seriesMeta['totalDuration'],
-          };
-        }
+        return null;
       }
-    } catch (_) {
+
+      Future<http.Response> fetchItems(int p) => _authGet(
+        Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/items?filter=series.$filterValue&sort=media.metadata.series.sequence&limit=$pageSize&page=$p&collapseseries=0'),
+        timeout: const Duration(seconds: 30));
+
+      // The books are what the sheet shows; the series record only adds the
+      // name and total duration. Ask for the first page of books before the
+      // record so a slow server answers the important one first, and let the
+      // record land whenever it does.
+      var itemsFuture = fetchItems(0);
+      final metaFuture = fetchMeta();
+      while (true) {
+        final pageSw = Stopwatch()..start();
+        final itemsResp = await itemsFuture;
+        if (itemsResp.statusCode != 200) {
+          debugPrint('[API] getSeries $seriesId items page $page failed: ${itemsResp.statusCode}');
+          break;
+        }
+        final data = jsonDecode(itemsResp.body) as Map<String, dynamic>;
+        final results = data['results'] as List<dynamic>? ?? [];
+        total = (data['total'] as num?)?.toInt() ?? results.length;
+        debugPrint('[API] getSeries $seriesId items page=$page results=${results.length} '
+            'total=$total in ${pageSw.elapsedMilliseconds}ms');
+        allResults.addAll(results);
+        onPageLoaded?.call(allResults, total);
+        if (allResults.length >= total || results.isEmpty) break;
+        page++;
+        itemsFuture = fetchItems(page);
+      }
+
+      final seriesMeta = await metaFuture;
+      final totalDuration = (seriesMeta?['totalDuration'] as num?)?.toDouble();
+      if (allResults.isNotEmpty) {
+        if (totalDuration != null) {
+          onPageLoaded?.call(allResults, total, totalDuration: totalDuration);
+        }
+        return {
+          'id': seriesId,
+          'name': seriesMeta?['name'] ?? '',
+          'books': allResults,
+          'total': total,
+          if (seriesMeta != null) 'totalDuration': seriesMeta['totalDuration'],
+        };
+      }
+    } catch (e) {
+      debugPrint('[API] getSeries $seriesId failed: $e');
     }
     return null;
   }
@@ -2575,6 +2656,7 @@ class ApiService {
       final filterValue = base64Encode(utf8.encode(seriesId));
       final allResults = <dynamic>[];
       int page = 0;
+      final sw = Stopwatch()..start();
       while (true) {
         final url = '$_cleanBaseUrl/api/libraries/$libraryId/items?filter=series.$filterValue&sort=addedAt&limit=100&page=$page&collapseseries=1';
         final resp = await _authGet(Uri.parse(url), timeout: const Duration(seconds: 60));
@@ -2585,6 +2667,9 @@ class ApiService {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         final results = data['results'] as List<dynamic>? ?? [];
         final total = (data['total'] as num?)?.toInt() ?? results.length;
+        debugPrint('[API] getSeriesCollapsed page=$page results=${results.length} '
+            'total=$total in ${sw.elapsedMilliseconds}ms');
+        sw.reset();
         allResults.addAll(results);
         if (allResults.length >= total || results.isEmpty) break;
         page++;

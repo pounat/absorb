@@ -7,6 +7,11 @@ class LibraryAuthorsTab extends StatelessWidget {
   final List<Map<String, dynamic>> authors;
   final bool isLoadingAuthors;
   final bool authorsLoaded;
+
+  /// More pages exist past [authors]: the grid shows a loader cell and calls
+  /// [onLoadMore] as the user nears the bottom.
+  final bool hasMore;
+  final VoidCallback? onLoadMore;
   final Future<void> Function() onRefresh;
   final Widget? headerSliver;
   final ScrollController? scrollController;
@@ -21,6 +26,8 @@ class LibraryAuthorsTab extends StatelessWidget {
     required this.authors,
     required this.isLoadingAuthors,
     required this.authorsLoaded,
+    this.hasMore = false,
+    this.onLoadMore,
     required this.onRefresh,
     this.headerSliver,
     this.scrollController,
@@ -39,7 +46,7 @@ class LibraryAuthorsTab extends StatelessWidget {
     final headers = <Widget>[if (headerSliver != null) headerSliver!];
 
     Widget body;
-    if (isLoadingAuthors) {
+    if (isLoadingAuthors && authors.isEmpty) {
       body = CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -91,6 +98,14 @@ class LibraryAuthorsTab extends StatelessWidget {
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
+                  if (index >= authors.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  }
                   final author = authors[index];
                   final authorId = author['id'] as String? ?? '';
                   return GridAuthorTile(
@@ -103,7 +118,7 @@ class LibraryAuthorsTab extends StatelessWidget {
                         : () => onSelectionToggle!(author, index),
                   );
                 },
-                childCount: authors.length,
+                childCount: authors.length + (hasMore ? 1 : 0),
               ),
             ),
           ),
@@ -111,6 +126,32 @@ class LibraryAuthorsTab extends StatelessWidget {
       );
     }
 
-    return RefreshIndicator(onRefresh: onRefresh, child: body);
+    // Same load-ahead as the books grid: pull the next page while there is
+    // less than ~two screens left, and stay quiet while a sheet is on top.
+    const loadAheadPx = 1200.0;
+    final loadMore = onLoadMore;
+    if (hasMore && !isLoadingAuthors && authors.isNotEmpty && loadMore != null) {
+      final route = ModalRoute.of(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (route != null && !route.isCurrent) return;
+        final c = scrollController;
+        if (c != null && c.hasClients && c.position.extentAfter < loadAheadPx) {
+          loadMore();
+        }
+      });
+    }
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (hasMore &&
+            loadMore != null &&
+            n is ScrollUpdateNotification &&
+            n.metrics.pixels >= n.metrics.maxScrollExtent - loadAheadPx) {
+          loadMore();
+        }
+        return false;
+      },
+      child: RefreshIndicator(onRefresh: onRefresh, child: body),
+    );
   }
 }

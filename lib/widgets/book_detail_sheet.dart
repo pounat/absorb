@@ -1811,10 +1811,14 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     if (seriesId == null) return;
     final auth = context.read<AuthProvider>();
     final itemLibraryId = _item?['libraryId'] as String?;
+    // This book is in the series by definition, so the sheet can show it at
+    // once instead of a spinner while the server answers.
+    final item = _item;
     showSeriesBooksSheet(
       context,
       seriesName: seriesName,
       seriesId: seriesId,
+      books: item != null ? [item] : const [],
       serverUrl: auth.serverUrl,
       token: auth.token,
       libraryId: itemLibraryId,

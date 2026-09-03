@@ -38,9 +38,13 @@ class BookSearchIndex {
 
   final Map<String, List<_Indexed>> _cache = {};
   final Map<String, Future<void>> _inFlight = {};
-  // Libraries whose index hit the item cap: their search results are missing
-  // the newest items, so callers must merge the server's results in rather
-  // than replacing them (GH #349 - books past 10k vanished from search).
+  // Libraries past the item cap are never indexed: the cap would cover a
+  // sliver of them (4% of a 244k-book library) and fetching it is the heaviest
+  // burst the app can put on a server. Search stays server-side for these.
+  final Set<String> _serverOnly = {};
+  // Libraries whose index is missing items because a page failed mid-build:
+  // callers must merge the server's results in rather than replacing them, or
+  // the missing books vanish from search for the session (GH #349 shape).
   final Set<String> _truncated = {};
 
   void _onItemUpdated(Map<String, dynamic> item) => patchItem(item);
@@ -73,8 +77,8 @@ class BookSearchIndex {
 
   bool isReady(String libraryId) => _cache.containsKey(libraryId);
 
-  /// True when the library has more items than the index cap, meaning search
-  /// results from this index are incomplete for the newest items.
+  /// True when the index is missing some of the library's items (a page failed
+  /// to fetch while building), so results from it alone are incomplete.
   bool isTruncated(String libraryId) => _truncated.contains(libraryId);
 
   /// Drop everything (call on logout / account switch so a reused libraryId
@@ -82,14 +86,18 @@ class BookSearchIndex {
   void clear() {
     _cache.clear();
     _inFlight.clear();
+    _serverOnly.clear();
     _truncated.clear();
   }
 
   /// Build the index for [libraryId] if not already cached. Concurrent callers
   /// share the same in-flight build. A failed fetch is not cached, so the next
-  /// call retries.
+  /// call retries. Libraries over the cap are remembered and never built, so
+  /// this returns at once for them without a request.
   Future<void> ensureIndex(ApiService api, String libraryId) {
-    if (_cache.containsKey(libraryId)) return Future.value();
+    if (_cache.containsKey(libraryId) || _serverOnly.contains(libraryId)) {
+      return Future.value();
+    }
     final existing = _inFlight[libraryId];
     if (existing != null) return existing;
     final f = _build(api, libraryId);
@@ -100,6 +108,12 @@ class BookSearchIndex {
   Future<void> _build(ApiService api, String libraryId) async {
     const pageSize = 100;
     const maxPages = 100; // ~10k items safety cap
+    // Pages fetched at once. This used to fire every page in one go, which on
+    // a 244k-book server queued a few hundred SQLite queries ahead of everything
+    // else the app asked for (grid pages, the library list) until they all
+    // timed out, and the server kept grinding through them after the phone
+    // had given up.
+    const concurrency = 3;
 
     final first =
         await api.getLibraryItems(libraryId, page: 0, limit: pageSize);
@@ -108,21 +122,38 @@ class BookSearchIndex {
     _collect(first, items);
     final total = (first['total'] as num?)?.toInt() ?? items.length;
     final pages = (total / pageSize).ceil();
-    final lastPage = pages > maxPages ? maxPages : pages;
+    if (pages > maxPages) {
+      _serverOnly.add(libraryId);
+      debugPrint('[BookSearchIndex] $libraryId has $total items, over the '
+          '${maxPages * pageSize} cap - not indexing, search stays server-side.');
+      return;
+    }
 
-    if (lastPage > 1) {
-      final futures = <Future<Map<String, dynamic>?>>[
-        for (var p = 1; p < lastPage; p++)
-          api.getLibraryItems(libraryId, page: p, limit: pageSize),
-      ];
-      for (final pd in await Future.wait(futures)) {
-        if (pd != null) _collect(pd, items);
+    final fetched = <int, Map<String, dynamic>>{};
+    var failed = false;
+    var next = 1;
+    Future<void> worker() async {
+      while (next < pages) {
+        final p = next++;
+        var pd = await api.getLibraryItems(libraryId, page: p, limit: pageSize);
+        pd ??= await api.getLibraryItems(libraryId, page: p, limit: pageSize);
+        if (pd == null) {
+          failed = true;
+        } else {
+          fetched[p] = pd;
+        }
       }
     }
-    if (pages > maxPages) {
+
+    await Future.wait([for (var i = 0; i < concurrency; i++) worker()]);
+    for (var p = 1; p < pages; p++) {
+      final pd = fetched[p];
+      if (pd != null) _collect(pd, items);
+    }
+    if (failed) {
       _truncated.add(libraryId);
-      debugPrint('[BookSearchIndex] $libraryId has $total items; indexed first '
-          '${maxPages * pageSize}. Callers merge server results for the rest.');
+      debugPrint('[BookSearchIndex] $libraryId: some pages failed, indexed '
+          '${items.length} of $total. Callers merge server results.');
     } else {
       _truncated.remove(libraryId);
     }

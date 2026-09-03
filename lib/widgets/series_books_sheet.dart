@@ -29,6 +29,7 @@ void showSeriesBooksSheet(BuildContext context, {
   required String seriesName,
   String? seriesId,
   List<dynamic> books = const [],
+  List<String> itemIds = const [],
   String? serverUrl,
   String? token,
   String? libraryId,
@@ -41,6 +42,7 @@ void showSeriesBooksSheet(BuildContext context, {
       seriesName: seriesName,
       seriesId: seriesId,
       books: books,
+      itemIds: itemIds,
       serverUrl: serverUrl,
       token: token,
       libraryId: libraryId,
@@ -53,6 +55,11 @@ void showSeriesBooksSheet(BuildContext context, {
 class SeriesBooksSheet extends StatefulWidget {
   final String seriesName;
   final String? seriesId;
+
+  /// Ids of the books in the series when the caller already has them (series
+  /// lists that carry libraryItemIds). Lets the sheet fetch them in one batch
+  /// instead of the filtered items query.
+  final List<String> itemIds;
   final List<dynamic> books;
   final String? serverUrl;
   final String? token;
@@ -65,6 +72,7 @@ class SeriesBooksSheet extends StatefulWidget {
     required this.seriesName,
     this.seriesId,
     required this.books,
+    this.itemIds = const [],
     required this.serverUrl,
     required this.token,
     this.libraryId,
@@ -79,6 +87,9 @@ class SeriesBooksSheet extends StatefulWidget {
 class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
   List<Map<String, dynamic>> _books = [];
   bool _isLoading = true;
+  // The server fetch failed and there is nothing to show; offer a retry
+  // instead of claiming the series has no books.
+  bool _loadFailed = false;
   bool _isDownloadingAll = false;
   bool _isMarkingAll = false;
   bool _autoDownloadEnabled = false;
@@ -551,6 +562,30 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final lib = context.read<LibraryProvider>();
     final libraryId = widget.libraryId ?? lib.selectedLibraryId;
 
+    // Series lists that carry libraryItemIds: hydrate those in one batch
+    // request. That is one indexed query, where the filtered items listing
+    // below makes the server sort the whole library first - 30s and more on
+    // a 244k-book server.
+    if (_books.isEmpty && widget.itemIds.isNotEmpty) {
+      final items = await api.getLibraryItemsBatch(widget.itemIds);
+      if (!mounted) return;
+      if (items.isNotEmpty) {
+        final fetched = _unwrapBooks(items);
+        setState(() {
+          _books = fetched;
+          _sortBooks();
+          _isLoading = false;
+          _totalBooks = fetched.length;
+        });
+        if (!_didAutoScroll) _scrollToUpNext();
+        try {
+          lib.setSeriesBooksCache(seriesId, items, items.length);
+        } catch (_) {}
+        if (_collapseSeries && !_subSeriesLoaded) _loadSubSeriesData();
+        return;
+      }
+    }
+
     // For large series (100+ books), serve cached data instantly
     // then refresh in background. Small series always fetch fresh.
     final cached = lib.getSeriesBooksCache(seriesId);
@@ -589,7 +624,12 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         }
       },
     );
-    if (data == null && mounted) setState(() => _isLoading = false);
+    if (data == null && mounted) {
+      setState(() {
+        _isLoading = false;
+        _loadFailed = _books.isEmpty;
+      });
+    }
     // If collapse is enabled and we now have books, load sub-series data
     if (_collapseSeries && _books.isNotEmpty && !_subSeriesLoaded) {
       _loadSubSeriesData();
@@ -1049,6 +1089,26 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         if (_isLoading && _books.isEmpty)
           const Expanded(
               child: Center(child: CircularProgressIndicator()))
+        else if (_books.isEmpty && _loadFailed)
+          Expanded(
+            child: Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(l.failedToLoad,
+                    style: tt.bodyLarge
+                        ?.copyWith(color: cs.onSurfaceVariant)),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isLoading = true;
+                      _loadFailed = false;
+                    });
+                    _fetchFromApi();
+                  },
+                  child: Text(l.retry),
+                ),
+              ]),
+            ),
+          )
         else if (_books.isEmpty)
           Expanded(
             child: Center(

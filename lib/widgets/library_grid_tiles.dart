@@ -541,6 +541,7 @@ class GridSeriesTile extends StatelessWidget {
             seriesName: seriesName,
             seriesId: seriesId,
             books: const [],
+            itemIds: itemIds,
             serverUrl: auth.serverUrl,
             token: auth.token,
           );
@@ -610,7 +611,22 @@ class GridSeriesTileDirect extends StatelessWidget {
     final seriesName = series['name'] as String? ?? l.libraryGridTilesUnknownSeries;
     final seriesId = series['id'] as String? ?? '';
     final books = series['books'] as List<dynamic>? ?? [];
-    final numBooks = books.length;
+    // Some servers send the series list without the books, carrying only
+    // libraryItemIds + numBooks (the collapsed-series shape). Covers, count and
+    // progress only need the ids, so fall back to those.
+    final itemIds = books.isNotEmpty
+        ? books
+            .map((b) => (b as Map<String, dynamic>)['id'] as String? ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList()
+        : ((series['libraryItemIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const <String>[]);
+    final rawNumBooks = series['numBooks'] as int? ?? 0;
+    final numBooks = books.isNotEmpty
+        ? books.length
+        : (rawNumBooks > 0 ? rawNumBooks : itemIds.length);
 
     // Get author from first book
     String author = '';
@@ -621,21 +637,13 @@ class GridSeriesTileDirect extends StatelessWidget {
       author = metadata['authorName'] as String? ?? '';
     }
 
-    // Gather up to 4 cover URLs from books
-    final coverUrls = books
-        .take(4)
-        .map((b) {
-          final bookId = (b as Map<String, dynamic>)['id'] as String? ?? '';
-          return bookId.isNotEmpty ? lib.getCoverUrl(bookId) : null;
-        })
-        .toList();
+    // Gather up to 4 cover URLs
+    final coverUrls = itemIds.take(4).map((id) => lib.getCoverUrl(id)).toList();
 
     // Calculate series progress
     double totalProgress = 0;
     int finished = 0;
-    for (final b in books) {
-      final bookId = (b as Map<String, dynamic>)['id'] as String? ?? '';
-      if (bookId.isEmpty) continue;
+    for (final bookId in itemIds) {
       final pd = lib.getProgressData(bookId);
       if (pd?['isFinished'] == true) {
         finished++;
@@ -644,7 +652,8 @@ class GridSeriesTileDirect extends StatelessWidget {
         totalProgress += lib.getProgress(bookId);
       }
     }
-    final seriesProgress = books.isNotEmpty ? totalProgress / books.length : 0.0;
+    final seriesProgress =
+        itemIds.isNotEmpty ? totalProgress / itemIds.length : 0.0;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -657,6 +666,7 @@ class GridSeriesTileDirect extends StatelessWidget {
           seriesName: seriesName,
           seriesId: seriesId.isEmpty ? null : seriesId,
           books: seriesId.isEmpty ? books : const [],
+          itemIds: itemIds,
           serverUrl: auth.serverUrl,
           token: auth.token,
           parentSeriesId: parentSeriesId,
