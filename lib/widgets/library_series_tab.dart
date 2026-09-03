@@ -124,6 +124,8 @@ class LibrarySeriesTab extends StatelessWidget {
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
         if (n is ScrollUpdateNotification &&
+            n.depth == 0 &&
+            n.metrics.axis == Axis.vertical &&
             n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
           onLoadMore();
         }

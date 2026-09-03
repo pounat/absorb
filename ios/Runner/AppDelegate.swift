@@ -619,14 +619,23 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
         let artist = args?["artist"] as? String ?? ""
         let duration = args?["duration"] as? Double ?? 0
         let elapsed = args?["elapsed"] as? Double ?? 0
-        var info: [String: Any] = [
-          MPMediaItemPropertyTitle: title,
-          MPMediaItemPropertyArtist: artist,
-          MPNowPlayingInfoPropertyPlaybackRate: 1.0,
-          MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
-        ]
+        // Merge into what is on the tile for the same book rather than
+        // replacing it: a full replace dropped the artwork audio_service had
+        // set, and audio_service only rewrites when its own copy changes, so
+        // the cover stayed missing on a locked phone until the next chapter.
+        // The subtitle is "Author · Book", so a match means the same book and
+        // its artwork is still right; anything else starts clean.
+        let existing = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+        let sameBook = (existing[MPMediaItemPropertyArtist] as? String) == artist
+        var info: [String: Any] = sameBook ? existing : [:]
+        info[MPMediaItemPropertyTitle] = title
+        info[MPMediaItemPropertyArtist] = artist
+        info[MPNowPlayingInfoPropertyPlaybackRate] = 1.0
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
         if duration > 0 {
           info[MPMediaItemPropertyPlaybackDuration] = duration
+        } else {
+          info.removeValue(forKey: MPMediaItemPropertyPlaybackDuration)
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         result(true)

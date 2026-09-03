@@ -82,6 +82,22 @@ class LibraryAuthorsTab extends StatelessWidget {
         ],
       );
     } else {
+      // Same next-page trigger as the books grid: driven by which tile index
+      // the viewport builds, not by scroll metrics, which go stale after
+      // items are appended beyond the fold (see LibraryBooksTab).
+      final cols = responsiveGridCount(context);
+      final loadAheadAt = authors.length - cols * 8;
+      final route = ModalRoute.of(context);
+      final loadMore = onLoadMore;
+      void maybeLoadAhead(int index) {
+        if (!hasMore || isLoadingAuthors || loadMore == null) return;
+        if (index < loadAheadAt) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (route != null && !route.isCurrent) return;
+          loadMore();
+        });
+      }
+
       body = CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -91,13 +107,14 @@ class LibraryAuthorsTab extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding),
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: responsiveGridCount(context),
+                crossAxisCount: cols,
                 childAspectRatio: 0.68,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
+                  maybeLoadAhead(index);
                   if (index >= authors.length) {
                     return const Center(
                       child: Padding(
@@ -126,32 +143,6 @@ class LibraryAuthorsTab extends StatelessWidget {
       );
     }
 
-    // Same load-ahead as the books grid: pull the next page while there is
-    // less than ~two screens left, and stay quiet while a sheet is on top.
-    const loadAheadPx = 1200.0;
-    final loadMore = onLoadMore;
-    if (hasMore && !isLoadingAuthors && authors.isNotEmpty && loadMore != null) {
-      final route = ModalRoute.of(context);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (route != null && !route.isCurrent) return;
-        final c = scrollController;
-        if (c != null && c.hasClients && c.position.extentAfter < loadAheadPx) {
-          loadMore();
-        }
-      });
-    }
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (hasMore &&
-            loadMore != null &&
-            n is ScrollUpdateNotification &&
-            n.metrics.pixels >= n.metrics.maxScrollExtent - loadAheadPx) {
-          loadMore();
-        }
-        return false;
-      },
-      child: RefreshIndicator(onRefresh: onRefresh, child: body),
-    );
+    return RefreshIndicator(onRefresh: onRefresh, child: body);
   }
 }

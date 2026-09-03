@@ -26,14 +26,15 @@ class LibraryBooksTab extends StatelessWidget {
   /// floats independently.
   final Widget? headerSliver;
 
-  /// Called when the user scrolls within [_loadAheadPx] of the bottom, or taps
-  /// retry after a failed page; library_screen owns the actual page-fetch
-  /// logic.
+  /// Called when the grid gets within [_loadAheadRows] rows of its end, or the
+  /// user taps retry after a failed page; library_screen owns the actual
+  /// page-fetch logic.
   final VoidCallback onLoadMore;
 
-  // How far above the bottom the next page is requested. About two phone
-  // screens, so the fetch is usually done before the user gets there.
-  static const double _loadAheadPx = 1200;
+  // How many rows before the end the next page is requested. Eight rows is
+  // about two phone screens, so the fetch is usually done before the user
+  // gets there.
+  static const _loadAheadRows = 8;
 
   /// Optional explicit ScrollController. When tabs are kept alive in an
   /// IndexedStack each one needs its own controller so scroll positions don't
@@ -177,6 +178,29 @@ class LibraryBooksTab extends StatelessWidget {
         ],
       );
     } else {
+      // Next-page trigger, driven by what the viewport actually builds rather
+      // than by scroll metrics. A sliver only re-measures when a child it has
+      // already laid out changes, so after appending items beyond the fold it
+      // kept quoting the old extent; an extent-based "is there less than two
+      // screens left" check then read true on every rebuild and pulled the
+      // whole library while the user sat at the top. A tile index can only be
+      // built when it is really within a screen or so of the viewport, and
+      // the loader cell itself gets built on a tall viewport a page can't
+      // fill - so this covers both the scroll case and the iPad fill case.
+      final cols = responsiveGridCount(context);
+      final loadAheadAt = items.length - cols * _loadAheadRows;
+      // Not while a sheet is open on top: on a slow server every grid page
+      // is seconds of work, queued ahead of whatever the sheet is asking for.
+      final route = ModalRoute.of(context);
+      void maybeLoadAhead(int index) {
+        if (!hasMore || isLoadingPage || loadFailed) return;
+        if (index < loadAheadAt) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (route != null && !route.isCurrent) return;
+          onLoadMore();
+        });
+      }
+
       body = CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -186,13 +210,14 @@ class LibraryBooksTab extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, libraryGridBottomPadding),
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: responsiveGridCount(context),
+                crossAxisCount: cols,
                 childAspectRatio: rectangleCovers ? 0.48 : 0.68,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
+                  maybeLoadAhead(index);
                   if (index >= items.length) {
                     if (loadFailed) {
                       return Center(
@@ -239,38 +264,6 @@ class LibraryBooksTab extends StatelessWidget {
       );
     }
 
-    // On a tall/wide viewport (tablets) a page of results can land entirely
-    // within the current screen, so nothing scrolls and the bottom-trigger
-    // below never fires. After layout, keep pulling pages while there's less
-    // content below the fold than the scroll-trigger's own margin -
-    // stopping merely at "technically scrollable" left iPads sitting on a
-    // visible, forever-spinning loader until the user nudged the grid.
-    if (hasMore && !isLoadingPage && !loadFailed && items.isNotEmpty) {
-      // Don't keep pulling pages while a sheet is open on top: on a slow
-      // server every grid page is seconds of work, queued ahead of whatever
-      // the sheet is asking for.
-      final route = ModalRoute.of(context);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (route != null && !route.isCurrent) return;
-        final c = scrollController;
-        if (c != null &&
-            c.hasClients &&
-            c.position.extentAfter < _loadAheadPx) {
-          onLoadMore();
-        }
-      });
-    }
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (!loadFailed &&
-            n is ScrollUpdateNotification &&
-            n.metrics.pixels >= n.metrics.maxScrollExtent - _loadAheadPx) {
-          onLoadMore();
-        }
-        return false;
-      },
-      child: RefreshIndicator(onRefresh: onRefresh, child: body),
-    );
+    return RefreshIndicator(onRefresh: onRefresh, child: body);
   }
 }

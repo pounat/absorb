@@ -1212,6 +1212,7 @@ class LibraryScreenState extends State<LibraryScreen>
       final limit =
           _loadedCount < 40 ? 20 : (_loadedCount < 80 ? 40 : _pageSize);
       final pageIndex = _loadedCount ~/ limit;
+      debugPrint('[LibPage] request page=$pageIndex limit=$limit loaded=$_loadedCount');
       final sw = Stopwatch()..start();
       final result = await api.getLibraryItems(
         lib.selectedLibraryId!,

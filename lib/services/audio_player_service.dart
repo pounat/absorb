@@ -2371,6 +2371,24 @@ class AudioPlayerService extends ChangeNotifier {
         Duration(milliseconds: (state.globalPositionS * 1000).round()),
       );
     }
+    // The engine may have crossed chapters while Dart was suspended (a widget
+    // or headset session driven by the native core). Chapter detection runs
+    // off position ticks and a paused engine emits none, so the lock screen
+    // kept the old chapter clamped at its end with no progress while the book
+    // was chapters ahead. Work out the chapter for the adopted position and
+    // republish.
+    final adoptedItemId = _currentItemId;
+    if (adoptedItemId != null) {
+      final chapterTitle = _initChapterInfo(state.globalPositionS);
+      _pushMediaItem(
+        adoptedItemId,
+        _currentTitle ?? '',
+        _currentAuthor ?? '',
+        _currentCoverUrl,
+        _totalDuration,
+        chapter: chapterTitle,
+      );
+    }
     _handler?.refreshPlaybackState();
     notifyListeners();
   }
@@ -3066,6 +3084,22 @@ class AudioPlayerService extends ChangeNotifier {
   static void onAppBackgrounded() {
     _instance._isBackgrounded = true;
     debugPrint('[ClickDebug] App backgrounded');
+    if (Platform.isIOS) _trimMemoryForBackground();
+  }
+
+  /// iOS: a paused app in the background has no audio keeping it alive, is
+  /// suspended within seconds, and is a jetsam candidate whenever memory gets
+  /// tight. When iOS evicts it, the audio session goes with it, and any app
+  /// Absorb interrupted earlier is told to resume - it starts playing and owns
+  /// Now Playing from then on. Nothing keeps a paused app alive for hours, so
+  /// the lever is footprint: drop the decoded covers (up to 100MB) on the way
+  /// out. They reload lazily on return, and the screen is off meanwhile.
+  static void _trimMemoryForBackground() {
+    final cache = PaintingBinding.instance.imageCache;
+    final beforeMb = cache.currentSizeBytes ~/ 1048576;
+    cache.clear();
+    cache.clearLiveImages();
+    debugPrint('[Memory] Backgrounded: dropped ${beforeMb}MB of decoded covers');
   }
 
   static Future<void> onAppForegrounded() async {

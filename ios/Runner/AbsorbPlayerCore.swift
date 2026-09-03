@@ -308,7 +308,18 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
       volume: 1.0,
       eqEnabled: eqEnabled,
       itemId: itemId
-    ) { _ in }
+    ) { [weak self] _ in
+      // The stamp below goes out before the engine has the track, so it
+      // carries no position and, when the stash has no length, no duration -
+      // the lock screen showed no timestamps. Stamp again once the engine is
+      // loaded, unless Flutter has come up and owns the tile by now.
+      self?.queue.async {
+        guard let self = self, self._currentItemId != nil, !self.flutterIsAlive() else { return }
+        let rate = AbsorbAudioEngine.shared.isPlaying ? Double(self.currentSpeed()) : 0
+        self.updateNowPlayingInfo(rate: rate)
+        self.emit("[NativeCore] engine loaded - re-stamped Now Playing at \(self.globalPosition())s")
+      }
+    }
 
     configureRemoteCommandsIfNeeded()
     updateNowPlayingInfo(rate: 0)
