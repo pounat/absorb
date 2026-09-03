@@ -2377,9 +2377,13 @@ class AudioPlayerService extends ChangeNotifier {
     // kept the old chapter clamped at its end with no progress while the book
     // was chapters ahead. Work out the chapter for the adopted position and
     // republish.
+    // Use this service's own position, which adds the track offset: when Dart
+    // drives the engine one track at a time, the engine's "global" position is
+    // the position within the current track (160s into track 25, not 11026s
+    // into the book), and the chapter for that number is the wrong one.
     final adoptedItemId = _currentItemId;
     if (adoptedItemId != null) {
-      final chapterTitle = _initChapterInfo(state.globalPositionS);
+      final chapterTitle = _initChapterInfo(position.inMilliseconds / 1000.0);
       _pushMediaItem(
         adoptedItemId,
         _currentTitle ?? '',
@@ -2952,6 +2956,22 @@ class AudioPlayerService extends ChangeNotifier {
               return;
             }
 
+            // iOS says whether the interrupter wants us back: shouldResume is
+            // set after a call, Siri or an alarm, and clear when the user
+            // started another app's audio. audio_session surfaces that as
+            // type `pause` (resume) versus `unknown` (don't). Resuming over a
+            // clear flag would cut off the app the user had just chosen - it
+            // only failed to because the activation was refused while that
+            // app still held the audio.
+            if (Platform.isIOS &&
+                event.type == AudioInterruptionType.unknown &&
+                service._wasPlayingBeforeInterrupt) {
+              debugPrint(
+                '[AudioSession] Interruption ended without shouldResume - staying paused',
+              );
+              service._wasPlayingBeforeInterrupt = false;
+              return;
+            }
             // Don't auto-resume if the pause was caused by BT/headphone disconnect.
             // Some devices fire interruption-end AFTER becoming-noisy, which would
             // resume playback on the phone speaker.
@@ -3099,7 +3119,11 @@ class AudioPlayerService extends ChangeNotifier {
     final beforeMb = cache.currentSizeBytes ~/ 1048576;
     cache.clear();
     cache.clearLiveImages();
-    debugPrint('[Memory] Backgrounded: dropped ${beforeMb}MB of decoded covers');
+    // rss is the whole process, before the drop: the number iOS weighs when
+    // it looks for something to evict.
+    final rssMb = ProcessInfo.currentRss ~/ 1048576;
+    debugPrint('[Memory] Backgrounded: rss=${rssMb}MB, dropped ${beforeMb}MB '
+        'of decoded covers');
   }
 
   static Future<void> onAppForegrounded() async {
@@ -5730,8 +5754,17 @@ class AudioPlayerService extends ChangeNotifier {
         '(state=${state.name}, pos=${currentPos.toStringAsFixed(1)}s, '
         'posAtPlay=${posAtPlay.toStringAsFixed(1)}s)',
       );
-      // Re-seek to current position to kick the decoder, then retry play
+      // Re-seek to current position to kick the decoder, then retry play.
+      // Activate the session first: a resume right after an interruption can
+      // fail with "cannot interrupt others" while the interrupter still holds
+      // the audio, and a bare play() on a never-activated session stays
+      // silent even once it has let go.
       await _seekAbsolute(currentPos > 0 ? currentPos : posAtPlay);
+      try {
+        await (await AudioSession.instance).setActive(true);
+      } catch (e) {
+        debugPrint('[Player] Play verify: session activate failed: $e');
+      }
       _player?.play();
       notifyListeners();
     });
