@@ -228,7 +228,9 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
       emit("[NativeCore] ensureLoaded: no np_item_id in app group")
       return false
     }
-    let episodeId = defaults?.string(forKey: "np_episode_id")
+    // '' is the stored form of "no episode" (NSUserDefaults can't hold null).
+    let storedEpisodeId = defaults?.string(forKey: "np_episode_id")
+    let episodeId = (storedEpisodeId?.isEmpty ?? true) ? nil : storedEpisodeId
 
     // Engine already holds this exact book: adopt it, no reload.
     if AbsorbAudioEngine.shared.currentItemId == itemId, AbsorbAudioEngine.shared.isLoaded {
