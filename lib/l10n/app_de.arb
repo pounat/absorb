@@ -4592,11 +4592,5 @@
   "transcriptionWhisperInfo": "Transkriptionen werden von Whisper erstellt. Einer Open-Source Spracherkennung. Alles lokal auf diesem Gerät.",
   "transcriptionWhisperLearnMore": "Mehr über Whisper erfahren",
   "findInAudiobookStay": "Weiterlesen",
-  "findInAudiobookGoPlayer": "Im Player öffnen",
-  "settingsEpisodeNotifsDesc": "Abonnierte Podcasts im Hintergrund prüfen",
-  "speedAdjustedTimeOnSubtitle": "An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit",
-  "librarySortFilterUpcomingReleasesSubtitle": "Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen",
-  "tipsSheetSpeedAdjustedTimeDesc": "Restzeit und Kapitelzeiten passen sich automatisch deiner Wiedergabegeschwindigkeit an. Hörst du mit 1,5x? Die angezeigte Zeit zeigt, wie lange es tatsächlich dauert.",
-  "keepNextInfoContent": "Die Anzahl der Elemente, die heruntergeladen bleiben sollen, einschließlich des Elements, das du gerade hörst. Beispiel: \"Nächste 3 behalten\" bedeutet, das aktuelle Buch plus die nächsten 2 in der Serie oder im Podcast bleiben heruntergeladen.",
-  "deleteAbsorbedDownloadsInfoContent": "Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von diesem Gerät gelöscht, nachdem du sie in Absorb zu Ende gehört hast. Wenn du einen Titel im Web oder auf einem anderen Gerät beendest, bleibt der Download hier erhalten."
+  "findInAudiobookGoPlayer": "Im Player öffnen"
 }
