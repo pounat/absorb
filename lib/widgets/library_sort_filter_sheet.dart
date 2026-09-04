@@ -45,6 +45,9 @@ class SortFilterSheet extends StatefulWidget {
   final bool canAccessExplicitContent;
   final LibraryTab libraryTab;
   final VoidCallback? onUpcomingReleases;
+  /// Authors tab only, and only when the user may write metadata - the sheet
+  /// hides the row entirely when this is null.
+  final VoidCallback? onMatchAllAuthors;
   /// Series-tab progress filter (computed client-side). Optional so other
   /// callers don't have to pass it; null = no filter active.
   final SeriesFilter currentSeriesFilter;
@@ -71,6 +74,7 @@ class SortFilterSheet extends StatefulWidget {
     required this.isPodcastLibrary,
     this.canAccessExplicitContent = false,
     this.libraryTab = LibraryTab.library,
+    this.onMatchAllAuthors,
     this.onUpcomingReleases,
     this.currentSeriesFilter = SeriesFilter.none,
     this.onSeriesFilterChanged,
@@ -202,7 +206,9 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
       if (_showFilterTab && _tabCtrl.index == 1) return 280;
       return widget.onUpcomingReleases != null ? 330 : 230;
     }
-    if (widget.libraryTab == LibraryTab.authors) return 230;
+    if (widget.libraryTab == LibraryTab.authors) {
+      return widget.onMatchAllAuthors != null ? 330 : 230;
+    }
     if (widget.libraryTab == LibraryTab.narrators) return 180;
     if (widget.libraryTab == LibraryTab.lists) return 230;
     if (_genreExpanded ||
@@ -279,6 +285,36 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
               ]),
             ),
           ),
+        if (widget.libraryTab == LibraryTab.authors && widget.onMatchAllAuthors != null) ...[
+          const Divider(height: 24),
+          GestureDetector(
+            onTap: widget.onMatchAllAuthors,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+              ),
+              child: Row(children: [
+                Icon(Icons.auto_fix_high_rounded, size: 20, color: cs.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l.adminMatchAll, style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600, color: cs.primary)),
+                      Text(l.librarySortFilterMatchAllAuthorsSubtitle, style: TextStyle(
+                        fontSize: 11, color: cs.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, size: 20, color: cs.primary),
+              ]),
+            ),
+          ),
+        ],
         if (widget.libraryTab == LibraryTab.series && widget.onUpcomingReleases != null) ...[
           const Divider(height: 24),
           GestureDetector(

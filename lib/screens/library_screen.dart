@@ -2466,6 +2466,18 @@ class LibraryScreenState extends State<LibraryScreen>
         cs: cs,
         tt: tt,
         libraryTab: tab,
+        onMatchAllAuthors:
+            _currentTab == 2 &&
+                !_selectionMode &&
+                _authors.isNotEmpty &&
+                !_matchingAuthors &&
+                context.read<AuthProvider>().canUpdateMetadata &&
+                !context.read<LibraryProvider>().isOffline
+            ? () {
+                Navigator.pop(ctx);
+                _quickMatchAllAuthors();
+              }
+            : null,
         onSortChanged: (sort) {
           Navigator.pop(ctx);
           _changeSort(sort);
@@ -3409,28 +3421,13 @@ class LibraryScreenState extends State<LibraryScreen>
               ),
             ),
           ],
-          if (_currentTab == 2 &&
-              !_selectionMode &&
-              _authors.isNotEmpty &&
-              context.read<AuthProvider>().canUpdateMetadata &&
-              !context.read<LibraryProvider>().isOffline)
-            TextButton.icon(
-              onPressed: _matchingAuthors ? null : _quickMatchAllAuthors,
-              icon: _matchingAuthors
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_fix_high_rounded, size: 18),
-              label: Text(
-                _matchingAuthors && _authorMatchTotal > 0
-                    ? '${l.adminMatching} '
-                          '$_authorMatchPosition/$_authorMatchTotal'
-                    : _matchingAuthors
-                    ? l.adminMatching
-                    : l.adminMatchAll,
-              ),
+          if (_currentTab == 2 && _matchingAuthors)
+            Text(
+              _authorMatchTotal > 0
+                  ? '${l.adminMatching} '
+                        '$_authorMatchPosition/$_authorMatchTotal'
+                  : l.adminMatching,
+              style: tt.labelSmall?.copyWith(color: cs.primary),
             ),
           const Spacer(),
           Text(

@@ -3617,6 +3617,7 @@
   "notesExport": "Export",
   "notesNewNote": "New note",
   "librarySortFilterUpcomingReleases": "Scan Series",
+  "librarySortFilterMatchAllAuthorsSubtitle": "Fetch a photo and bio for every author from the metadata provider",
   "librarySortFilterUpcomingReleasesSubtitle": "Check Audible for upcoming and missing books in your series",
   "sleepTimerSheetChaptersLeft": "{count, plural, =1{1 chapter left} other{{count} chapters left}}",
   "@sleepTimerSheetChaptersLeft": {

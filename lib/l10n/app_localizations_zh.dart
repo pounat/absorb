@@ -6078,6 +6078,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get librarySortFilterUpcomingReleases => '即将发布';
 
   @override
+  String get librarySortFilterMatchAllAuthorsSubtitle =>
+      'Fetch a photo and bio for every author from the metadata provider';
+
+  @override
   String get librarySortFilterUpcomingReleasesSubtitle => 'Audible 中检查系列新书';
 
   @override

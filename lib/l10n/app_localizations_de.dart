@@ -6252,6 +6252,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get librarySortFilterUpcomingReleases => 'Serien Scan';
 
   @override
+  String get librarySortFilterMatchAllAuthorsSubtitle =>
+      'Fetch a photo and bio for every author from the metadata provider';
+
+  @override
   String get librarySortFilterUpcomingReleasesSubtitle =>
       'Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen';
 

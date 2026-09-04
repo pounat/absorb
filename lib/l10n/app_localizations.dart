@@ -10707,6 +10707,12 @@ abstract class AppLocalizations {
   /// **'Scan Series'**
   String get librarySortFilterUpcomingReleases;
 
+  /// No description provided for @librarySortFilterMatchAllAuthorsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch a photo and bio for every author from the metadata provider'**
+  String get librarySortFilterMatchAllAuthorsSubtitle;
+
   /// No description provided for @librarySortFilterUpcomingReleasesSubtitle.
   ///
   /// In en, this message translates to:
