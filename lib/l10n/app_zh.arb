@@ -63,6 +63,32 @@
   "loginUsernameRequired": "请输入用户名",
   "loginPassword": "密码",
   "loginSignIn": "登录",
+  "loginSignInAs": "以 {username} 登录？",
+  "@loginSignInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSignInToServer": "登录到此服务器？",
+  "loginSignedInAs": "已登录为 {username}",
+  "@loginSignedInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminCreateSetupFile": "共享登录",
+  "adminSetupFileDescription": "为 {username} 创建私密登录链接，只能用于 Absorb。",
+  "@adminSetupFileDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "loginFailed": "登录失败",
   "loginSsoFailed": "单点登录失败或已取消",
   "loginSsoAuthFailed": "单点登录认证失败，请重试。",
@@ -180,11 +206,17 @@
   "notStarted": "未开始",
   "downloaded": "已下载",
   "hasEbook": "含电子书",
+  "missingMetadata": "缺失元数据",
   "genre": "分类",
   "clearFilter": "清除筛选",
   "noGenresFound": "未找到分类",
   "asc": "升序",
   "desc": "降序",
+  "progressSort": "进度",
+  "dateStarted": "开始日期",
+  "dateFinished": "完成日期",
+  "episodeCount": "集数",
+  "sequence": "系列序号",
   "absorbingTitle": "正在收听",
   "absorbingStop": "停止",
   "absorbingManageQueue": "管理队列",
@@ -336,6 +368,21 @@
   "statsEpisodesFinished": "单集",
   "statsBooksThisYear": "今年书籍",
   "statsEpisodesThisYear": "今年单集",
+  "statsChartDays7": "7 天",
+  "statsChartDays30": "30天",
+  "statsLast30Days": "过去 30 天",
+  "statsThisYearTitle": "今年",
+  "statsHeatmapLess": "更少",
+  "statsHeatmapMore": "更多",
+  "statsDayOfWeek": "每周日均",
+  "statsTimeSavedSince": "自 {date} 起",
+  "@statsTimeSavedSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "statsDaysActive": "活跃天数",
   "statsDailyAverage": "日均时长",
   "statsLast7Days": "过去7天",
@@ -348,6 +395,25 @@
   "appShellSettingsTab": "设置",
   "appShellDiscoverTab": "发现",
   "appShellShowsTab": "节目",
+  "notifIntervalOff": "关闭",
+  "notifIntervalMinutes": "每 {n} 分钟",
+  "@notifIntervalMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "notifIntervalHour": "每小时",
+  "notifIntervalHours": "每 {n} 小时",
+  "@notifIntervalHours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsBatteryUnrestricted": "允许不受限制地使用电池",
   "appShellPressBackToExit": "再按一次返回键退出",
   "settingsTitle": "设置",
   "sectionAppearance": "外观",
@@ -364,6 +430,9 @@
   "colorSourceWallpaperDescription": "应用颜色跟随系统壁纸",
   "colorSourceWallpaper": "壁纸",
   "colorSourceNowPlaying": "正在播放",
+  "colorSourceDynamic": "动态",
+  "colorSourceManual": "手动",
+  "colorSourceCustom": "自定义",
   "startScreenLabel": "启动画面",
   "startScreenSubtitle": "应用启动时打开的标签页",
   "startScreenHome": "首页",
@@ -383,8 +452,9 @@
   "fullBookScrubber": "全书进度条",
   "fullBookScrubberOnSubtitle": "开启 - 可拖动滑块跳转至全书任意位置",
   "fullBookScrubberOffSubtitle": "关闭 - 仅显示进度条",
+  "cardScrubbersChapter": "章节",
+  "cardScrubbersLocked": "已锁定",
   "speedAdjustedTime": "变速后时间",
-  "speedAdjustedTimeOnSubtitle": "开启 - 剩余时间会根据播放速度变化",
   "speedAdjustedTimeOffSubtitle": "关闭 - 显示原始音频时长",
   "buttonLayout": "按钮布局",
   "buttonLayoutSubtitle": "卡片上操作按钮的排列方式",
@@ -409,7 +479,19 @@
   "queueModeManual": "手动",
   "queueModeAuto": "自动",
   "queueModePlaylist": "播放列表",
+  "queueModeInfoPlaylist": "播放队列",
   "queueModeInfoPlaylistDesc": "按所选播放列表的顺序播放，跳过已完成的项目，并在列表结束时停止。",
+  "queuePlaylistPickerTitle": "选择一个播放列表",
+  "queuePlaylistNone": "没有选择播放列表",
+  "queuePlaylistActiveLabel": "播放列表：{name}",
+  "@queuePlaylistActiveLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "exit": "退出",
   "playlistPlayAction": "播放列表",
   "queueModeBooks": "书籍",
   "queueModePodcasts": "播客",
@@ -558,13 +640,10 @@
   "autoDownloadOnWifiOffSubtitle": "关闭",
   "concurrentDownloads": "同时下载数",
   "autoDownload": "自动下载",
-  "autoDownloadSubtitle": "在系列或播客详情页单独启用",
   "keepNext": "保留接下来",
   "keepNextInfoTitle": "保留接下来",
-  "keepNextInfoContent": "要保留下载的项目数量，包括你当前正在收听的项目。例如，\"保留接下来3个\"意味着当前书籍加上系列或播客中的下2本将保持下载状态。",
   "deleteAbsorbedDownloads": "删除已完成的下载",
   "deleteAbsorbedDownloadsInfoTitle": "删除已完成的下载",
-  "deleteAbsorbedDownloadsInfoContent": "启用后，在 Absorb 中听完的已下载书籍或剧集会自动从此设备删除。如果你在网页端或其他设备上听完，保存在此设备上的下载不会被删除。",
   "deleteAbsorbedOnSubtitle": "已完成项目将被移除以节省空间",
   "deleteAbsorbedOffSubtitle": "关闭 - 保留已完成的下载",
   "downloadLocation": "下载位置",
@@ -1349,8 +1428,6 @@
     }
   },
   "equalizerPerBookEq": "每本书单独配置",
-  "librarySortFilterUpcomingReleases": "即将发布",
-  "librarySortFilterUpcomingReleasesSubtitle": "Audible 中检查系列新书",
   "sleepTimerSheetStartChapterSleep": "{count, plural, =1{听完 1 章结束} other{听完 {count} 章结束}}",
   "@sleepTimerSheetStartChapterSleep": {
     "placeholders": {
@@ -1407,7 +1484,6 @@
   "tipsSheetTapToSeekTitle": "点击跳转",
   "tipsSheetTapToSeekDesc": "点击章节或书籍进度条的任意位置即可直接跳转到对应进度。你也可以拖动进度条以进行更精细的控制。",
   "tipsSheetSpeedAdjustedTimeTitle": "实际播放时长",
-  "tipsSheetSpeedAdjustedTimeDesc": "剩余时间和章节时长会根据你的播放速度自动调整。用 1.5×倍播放？界面显示的时间就是你实际需要的时长。",
   "tipsSheetPlaybackHistoryTitle": "播放历史",
   "tipsSheetPlaybackHistoryDesc": "点击任意卡片上的历史按钮即可查看所有播放、暂停、跳转和倍速调整的时间线。点击任意事件即可跳回对应位置。",
   "tipsSheetAutoRewindTitle": "自动回退",
@@ -1448,6 +1524,13 @@
   "resetSpeedPresetsSubtitle": "恢复默认的播放速度选项",
   "speedPresetsReset": "速度预设已重置",
   "editTabDetails": "详情",
+  "speedAdjustedTimeOnSubtitle": "开启 - 剩余时间会根据播放速度变化",
+  "autoDownloadSubtitle": "在系列或播客详情页单独启用",
+  "keepNextInfoContent": "要保留下载的项目数量，包括你当前正在收听的项目。例如，\"保留接下来3个\"意味着当前书籍加上系列或播客中的下2本将保持下载状态。",
+  "deleteAbsorbedDownloadsInfoContent": "启用后，在 Absorb 中听完的已下载书籍或剧集会自动从此设备删除。如果你在网页端或其他设备上听完，保存在此设备上的下载不会被删除。",
+  "librarySortFilterUpcomingReleases": "即将发布",
+  "librarySortFilterUpcomingReleasesSubtitle": "Audible 中检查系列新书",
+  "tipsSheetSpeedAdjustedTimeDesc": "剩余时间和章节时长会根据你的播放速度自动调整。用 1.5×倍播放？界面显示的时间就是你实际需要的时长。",
   "loginRestoreFromBackup": "从备份恢复",
   "chapterProgressInNotification": "通知中显示章节进度",
   "chapterProgressOnSubtitle": "开启 - 锁屏显示章节进度",

@@ -5,6 +5,10 @@
   "offline": "Déconnecté",
   "stillOffline": "Toujours déconnecté. Touchez pour essayer encore.",
   "retry": "Réessayer",
+  "listsNone": "Pas de collection ni de liste de lecture",
+  "listsNoneHint": "Les collections et les listes de lecture sont faites sur votre serveur Audiobookshelf et apparaissent ici.",
+  "listsLoadFailed": "Impossible de charger vos listes",
+  "listsLoadFailedHint": "Absorb n'a pas pu accéder à votre serveur pour les collections et les playlists.",
   "cancel": "Annuler",
   "delete": "Effacer",
   "remove": "Retirer",
@@ -128,6 +132,7 @@
       }
     }
   },
+  "setupLinkShare": "Partager le lien",
   "setupLinkCopy": "Copier le lien",
   "setupLinkCopied": "Lien de connexion copié",
   "setupLinkSaveFile": "Enregistrer le fichier de configuration",
@@ -297,6 +302,8 @@
   "noTracks": "Aucune piste",
   "singleTrack": "Piste unique",
   "multipleTracks": "Multiples pistes",
+  "abridged": "Abrégé",
+  "issues": "Problèmes",
   "rssFeedOpen": "Flux RSS ouvert",
   "explicitContent": "Explicite",
   "missingMetadata": "Métadonnées manquantes",
@@ -317,6 +324,7 @@
   "dateStarted": "Date de démarrage",
   "dateFinished": "Date de complétion",
   "episodeCount": "Nombre d'épisodes",
+  "sequence": "Séquence de séries",
   "absorbingTitle": "Lecture",
   "absorbingStop": "Stop",
   "absorbingManageQueue": "Gérer la file d'attente",
@@ -388,6 +396,50 @@
     }
   },
   "bookmarksTitle": "Tous les signets",
+  "bookmarksTabBookmarks": "Signets",
+  "bookmarksTabHighlights": "Temps forts",
+  "highlightOpenInBook": "Ouvrir dans le livre",
+  "highlightDeleteAction": "Supprimer le temps fort",
+  "highlightDeleted": "Temps fort supprimé",
+  "highlightsDeleteCount": "Supprimer les {count} temps fort(s) ?",
+  "@highlightsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "highlightsDeletedCount": "Supprimer les {count} temps fort(s)",
+  "@highlightsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "quoteShareTitle": "Partager la citation",
+  "quoteShareAction": "Partager",
+  "quoteShapePortrait": "Portrait",
+  "quoteShapeSquare": "Carré",
+  "quoteShapeStory": "Histoire",
+  "quoteStyleBlur": "Flouté",
+  "quoteStyleDim": "Estompé",
+  "quoteStyleNone": "Couverture simple",
+  "quoteTextLight": "Texte clair",
+  "quoteTextDark": "Texte foncé",
+  "quoteFieldTitle": "Titre",
+  "quoteFieldDetail": "Détails",
+  "highlightsMeta": "{chapter} · {date}",
+  "@highlightsMeta": {
+    "placeholders": {
+      "chapter": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "bookmarksCancelSelection": "Annuler la sélection",
   "bookmarksSortedByNewest": "Plus récents d'abord",
   "bookmarksSortedByPosition": "Triés par position",
@@ -604,8 +656,8 @@
   "settingsPodcastTabDesc": "Donner à une bibliothèque de podcast son propre onglet dans la barre du bas",
   "settingsPodcastTabLibrary": "Bibliothèque pour l'onglet podcasts",
   "settingsMergeImpliedByPodcastTab": "Toujours allumé lorsque l'onglet Podcasts est activé",
-  "settingsEpisodeNotifs": "Notifications de nouvel épisode",
-  "settingsEpisodeNotifsDesc": "Vérifier les séries abonnées en arrière-plan",
+  "settingsEpisodeNotifs": "Paramètres des notifications",
+  "settingsEpisodeNotifsDesc": "Nouveaux épisodes de podcast et versions à venir de livres, vérifiés en arrière-plan",
   "notifIntervalOff": "Désactivé",
   "notifIntervalMinutes": "Toutes les {n} minutes",
   "@notifIntervalMinutes": {
@@ -650,6 +702,10 @@
   "useColorEverywhereSubtitle": "Colorer aussi les pages de détail des livres et la carte du lecteur avec ta couleur définie plutôt qu’avec la couverture de chaque livre",
   "flatBackgroundLabel": "Arrière-plan plat",
   "flatBackgroundSubtitle": "Supprime le dégradé d’arrière‑plan. Noir pur en mode sombre pour les écrans OLED.",
+  "einkModeLabel": "Mode encre électronique",
+  "einkModeSubtitle": "Noir et blanc avec contraste élevé, sans animation, fait pour les écrans à encre électronique",
+  "einkModeIntroBody": "Fait pour les écrans d'encre électronique. L'application passe à un aspect noir et blanc plat avec un contraste élevé, les animations sont désactivées, la carte de lecture perd son arrière-plan et la connexion au serveur en direct reste désactivée pour économiser la batterie. La lecture et la progression continuent de se synchroniser normalement. Vos paramètres d'apparence sont conservés et sont réactivés lorsque vous désactivez cette fonction.",
+  "einkModeIntroConfirm": "Activer",
   "backgroundIntensityLabel": "Intensité de l'arrière-plan",
   "startScreenLabel": "Écran d'accueil",
   "startScreenSubtitle": "Quel onglet ouvrir au lancement de l'application",
@@ -664,6 +720,11 @@
   "progressTextSize": "Taille du texte de la progression",
   "rectangleBookCoversOnSubtitle": "Les couvertures s'affichent au format 2:3",
   "rectangleBookCoversOffSubtitle": "Les couvertures sont carrées",
+  "coverSize": "Taille de la couverture",
+  "coverSizeSubtitle": "Nombre de couvertures rentrant dans la grille de la bibliothèque",
+  "coverSizeSmall": "Petit",
+  "coverSizeMedium": "Moyen",
+  "coverSizeLarge": "Grand",
   "sectionAbsorbingCards": "Cartes d'absorption",
   "fullScreenPlayer": "Lecteur plein écran",
   "fullScreenPlayerOnSubtitle": "Activé - livres ouverts en plein écran lors de la lecture",
@@ -679,7 +740,7 @@
   "cardScrubbersChapterSubtitle": "Seul la barre de chapitre peut positionner la lecture",
   "cardScrubbersLockedSubtitle": "La progression est affichée sans positionnement possible",
   "speedAdjustedTime": "Temps ajusté à la vitesse",
-  "speedAdjustedTimeOnSubtitle": "Activé - le temps restant reflète la vitesse de lecture",
+  "speedAdjustedTimeOnSubtitle": "Activé - tous les temps reflètent votre vitesse de lecture",
   "speedAdjustedTimeOffSubtitle": "Désactivé - affichage de la durée audio brute",
   "buttonLayout": "Disposition des boutons",
   "buttonLayoutSubtitle": "Comment les boutons d'action sont disposés sur la carte",
@@ -786,6 +847,7 @@
   "speedBookmarkOffSubtitle": "Désactivé - la notification montre le saut de chapitre, la vitesse et le signet restent dans Android Auto",
   "lockSeekBar": "Verrouiller la barre de lecture",
   "lockSeekBarOnSubtitle": "Activé - la barre dans la notification, l'écran de verrouillage et le mode voiture montre la progression mais ne peut pas être déplacée",
+  "lockSeekBarOffSubtitle": "Désactivé - faites glisser le curseur dans la notification, l'écran de verrouillage et le mode voiture pour vous déplacer ",
   "autoRewindOnResume": "Rembobiner lors de la reprise",
   "autoRewindOnSubtitle": "Activé - {min}s à {max}s en fonction de la longueur de la pause",
   "@autoRewindOnSubtitle": {
@@ -917,6 +979,7 @@
   "autoDownloadOnWifi": "Télécharger automatiquement les livres que vous démarrez",
   "autoDownloadOnWifiInfoTitle": "Télécharger automatiquement les livres que vous démarrez",
   "autoDownloadOnWifiInfoContent": "Lorsque vous commencez à lire un livre, ce dernier se télécharge en arrière‑plan afin que vous l’ayez hors ligne sans lancer le téléchargement vous‑même. Ces téléchargements suivent votre réglage Réseau de téléchargement ci‑dessous, donc réglez‑le sur Toute connexion si vous voulez qu’ils s’exécutent aussi en données mobiles.",
+  "autoDownloadOnWifiOnSubtitle": "Téléchargement automatique des livres en arrière-plan",
   "autoDownloadOnWifiOffSubtitle": "Désactivé",
   "concurrentDownloads": "Téléchargements simultanés",
   "autoDownload": "Téléchargement automatique",
@@ -1007,6 +1070,7 @@
   },
   "clearLogs": "Vider les journaux",
   "logsCleared": "Journaux effacés",
+  "clearLogsQuestion": "Vider les journaux ?",
   "sectionAdvanced": "Avancé",
   "localServer": "Serveur local",
   "localServerInfoTitle": "Serveur local",
@@ -1027,6 +1091,8 @@
   "mp3IndexSeeking": "Recherche d'index MP3",
   "mp3IndexSeekingInfoContent": "Activez cette option uniquement si vous avez des fichiers MP3 qui ne se positionnent pas à la bonne position. Le positionnement inexact provient généralement de MP3 à débit variable (VBR). L'index cherchant à construire une carte temporelle exacte lorsque le fichier est lu, sauter près de la fin d'un grand MP3 peut prendre un moment - surtout en streaming, car le fichier doit être lu jusqu'à ce point. Prend effet la prochaine fois qu'un livre ou un podcast commence.",
   "trustAllCertificatesInfoContent": "Activez cette option si votre serveur Audiobookshelf utilise un certificat auto-signé ou une AC racine personnalisée. Lorsque cette option est activée, Absorb ignorera la vérification du certificat TLS pour toutes les connexions. N'activez cette option que si vous faites confiance à votre réseau.",
+  "trustAllCertificatesOnSubtitle": "Activé - accepter tous les certificats",
+  "trustAllCertificatesOffSubtitle": "Désactivé - seuls les certificats de confiance sont acceptés",
   "supportTheDev": "Soutenir le développeur",
   "buyMeACoffee": "Offrez moi un café",
   "appVersionFormat": "Absorb v{version}",
@@ -1034,6 +1100,15 @@
     "placeholders": {
       "version": {
         "type": "String"
+      }
+    }
+  },
+  "betaLabel": "Beta {number}",
+  "@betaLabel": {
+    "description": "Shown after the version on beta builds, e.g. 1.9.3+240 (Beta 6)",
+    "placeholders": {
+      "number": {
+        "type": "int"
       }
     }
   },
@@ -1168,6 +1243,22 @@
     }
   },
   "editServerAddressField": "Adresse du serveur",
+  "editServerAddressUpdated": "Adresse du serveur mise à jour",
+  "editServerAddressFailed": "Impossible de mettre à jour l'adresse du serveur",
+  "editServerAddressAction": "Modifier l'adresse du serveur",
+  "editServerConnectionTitle": "Modifier la connexion au serveur",
+  "editServerConnectionSubtitle": "Mettre à jour l'adresse du serveur et les en-têtes personnalisés pour {username}. Vos statistiques et vos téléchargements sont conservés.",
+  "@editServerConnectionSubtitle": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "editServerConnectionAction": "Modifier la connexion au serveur",
+  "editServerConnectionUpdated": "Connexion au serveur mise à jour",
+  "editServerConnectionFailed": "Impossible de mettre à jour la connexion au serveur",
+  "editCustomHeadersDescription": "Utilisé pour les tunnels Cloudflare ou les proxy inversés. Ces en-têtes ne s'appliquent qu'à ce compte enregistré.",
   "removeAccountAction": "Supprimer le compte",
   "removeAccountTitle": "Supprimer le compte ?",
   "removeAccountContent": "Supprimer {username} sur {server} des comptes enregistrés ?\n\nVous pouvez toujours l'ajouter plus tard en vous connectant à nouveau.",
@@ -1195,13 +1286,25 @@
   },
   "switchButton": "Changer",
   "downloadLocationSheetTitle": "Emplacement des téléchargements",
+  "downloadLocationSheetSubtitle": "Choisir où les livres audio sont enregistrés",
   "currentLocation": "Emplacement actuel",
   "existingDownloadsWarning": "Les téléchargements existants restent à leur emplacement actuel. Seuls les nouveaux téléchargements utilisent le nouveau chemin.",
   "chooseFolder": "Choisir un dossier",
   "chooseDownloadFolder": "Choisir le dossier de téléchargement",
+  "storagePermissionDenied": "Autorisation d'accès au stockage définitivement refusée - activez-la dans les paramètres de l'application",
   "openSettings": "Ouvrir les paramètres",
+  "storagePermissionRequired": "L'autorisation de stockage est requise pour les emplacements de téléchargement personnalisés",
   "cannotWriteToFolder": "Impossible d'écrire dans ce dossier - choisissez un autre emplacement ou accordez l'accès aux fichiers dans les paramètres système",
+  "downloadLocationSetTo": "Emplacement de téléchargement défini à {label}",
+  "@downloadLocationSetTo": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "resetToDefault": "Réinitialiser aux valeurs par défaut",
+  "resetToDefaultStorage": "Rétablir le stockage par défaut",
   "legacyDownloadsNotice": "{count, plural, =1{1 téléchargement se trouve dans un ancien dossier personnalisé qui ne peut plus être ouvert. Téléchargez-le à nouveau ou ignorez cette notification.} other{{count} téléchargements se trouvent dans un ancien dossier personnalisé qui ne peut plus être ouvert. Téléchargez-les à nouveau ou ignorez cette notification.}}",
   "@legacyDownloadsNotice": {
     "placeholders": {
@@ -1212,9 +1315,35 @@
   },
   "redownload": "Re-télécharger",
   "redownloadStarted": "Re-téléchargement",
+  "dismiss": "Ignorer",
+  "tipsAndHiddenFeatures": "Astuces & fonctionnalités cachées",
+  "tipsSubtitle": "Tirez le maximum de Absorb",
   "adminTitle": "Administrateur du serveur",
   "adminTasksTitle": "Activité du serveur",
+  "adminTasksRunning": "{count, plural, one {}=1{1 tâche en cours} other{{count} Tâches en cours}}",
+  "@adminTasksRunning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminTasksRecent": "Activité récente du serveur",
+  "adminTasksEmpty": "Aucune tâche n'est en cours d'exécution sur le serveur",
+  "adminTaskScanSummary": "{added} ajouté - {updated} mis à jour - {missing} manquant",
+  "@adminTaskScanSummary": {
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "missing": {
+        "type": "int"
+      }
+    }
+  },
   "adminServer": "Serveur",
   "adminVersion": "Version",
   "adminUsers": "Utilisateurs",
@@ -1234,6 +1363,7 @@
     }
   },
   "adminPodcasts": "Podcasts",
+  "adminPodcastsSubtitle": "Recherche, ajout et gestion des séries",
   "adminScan": "Scanner",
   "adminMatchAllContent": "Faire correspondre les métadonnées de tous les éléments dans {name} ? Cela peut prendre un certain temps.",
   "@adminMatchAllContent": {
@@ -1339,6 +1469,14 @@
   "stereo": "Stéréo",
   "startM4bEncode": "Commencer l'encodage M4B",
   "currentlyLabel": "Actuellement :",
+  "encodeOutputPathNote": "Le M4B terminé sera mis dans votre dossier de livre audio à: {path}/",
+  "@encodeOutputPathNote": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "encodeBackupNote": "Une sauvegarde de vos fichiers audio d'origine sera stockée dans : /metadata/cache/items/{itemId}/. Assurez-vous de purger périodiquement le cache des éléments.",
   "@encodeBackupNote": {
     "placeholders": {
@@ -1347,6 +1485,7 @@
       }
     }
   },
+  "encodeRescanNote": "Si vous avez désactivé l'observateur, vous devrez scanner à nouveau ce livre audio.",
   "aboutSection": "À propos",
   "chaptersCount": "Chapitres ({count})",
   "@chaptersCount": {
@@ -1384,10 +1523,13 @@
       }
     }
   },
+  "markAsFullyAbsorbedContent": "Cela définira votre progression à 100% et arrêtera la lecture si ce livre est en cours de lecture.",
+  "markAsNotFinishedContent": "Ceci effacera le statut fini mais conservera votre position actuelle.",
   "unmark": "Désélectionner",
   "resetProgressQuestion": "Réinitialiser la progression ?",
   "resetProgressContent": "Ceci effacera toute la progression de ce livre et le réinitialisera au début. Cela ne peut pas être annulé.",
   "clearLocalMetadataQuestion": "Effacer les métadonnées locales ?",
+  "clearLocalMetadataContent": "Cela supprimera les métadonnées stockées localement et réutilisera ce que le serveur possède.",
   "localMetadataCleared": "Métadonnées locales effacées",
   "saveEbook": "Enregistrer l'eBook",
   "bookmark": "Signet",
@@ -1427,6 +1569,7 @@
   },
   "selectAll": "Tout sélectionner",
   "deselectAll": "Tout désélectionner",
+  "autoDownloadPodcastContent": "Télécharger automatiquement les prochains épisodes au fur et à mesure de votre écoute.",
   "download": "Télécharger",
   "deleteDownload": "Supprimer le téléchargement",
   "castingTo": "Diffusion vers",
@@ -1447,6 +1590,7 @@
   "commaSeparated": "Séparé par des virgules",
   "asinLabel": "ASIN",
   "isbnLabel": "ISBN",
+  "coverRemoveConfirm": "Supprimer la couverture de ce livre ? La carte de titre générée sera visible à la place.",
   "coverUrlLabel": "URL de la couverture",
   "coverUrlHint": "https://...",
   "localMetadata": "Métadonnées locales",
@@ -1466,6 +1610,8 @@
   "skipSilence": "Sauter les silences",
   "resetAll": "Tout réinitialiser",
   "deleteCollection": "Supprimer la collection",
+  "deletePermissionRequired": "La permission de suppression est requise. Demandez à l'administrateur root de vous accorder la permission de suppression.",
+  "deleteFilesUncheckedHint": "Les fichiers restent sur le serveur, la prochaine analyse de la bibliothèque peut le rajouter.",
   "deletePlaylist": "Supprimer la liste de lecture",
   "newPlaylist": "Nouvelle liste de lecture",
   "playlistNameHint": "Nom de la liste de lecture",
@@ -1534,8 +1680,11 @@
   "coverPlayPause": "Lecture/pause sur la couverture",
   "cardBackground": "Arrière-plan de la carte",
   "cardBackgroundGradient": "Dégradé",
+  "queueModeMergedSubtitle": "Arrêts de lecture, file d'attente manuelle ou lecture automatique de l'élément suivant",
   "queueModeSeriesLabel": "Séries",
   "queueModeInfoSeries": "Séries",
+  "queueModeInfoSeriesDesc": "Joue automatiquement le livre suivant dans une série ou le prochain épisode dans une série de podcasts.",
+  "resetButtonGridContent": "Cela restaurera la disposition, l'ordre et les paramètres par défaut des boutons.",
   "reset": "Réinitialiser",
   "buttonGridReset": "Réinitialiser la grille de boutons",
   "resetButtonGrid": "Réinitialiser la grille de boutons",
@@ -1615,6 +1764,7 @@
   "checkForUpdate": "Rechercher les mises à jour",
   "updateAvailable": "Mise à jour disponible",
   "downloadButton": "Télécharger",
+  "updateInstallPermissionDenied": "Autorisation d'installation refusée. Activez \"Installer des applications inconnues\" pour Absorb dans les paramètres du système.",
   "sendToEreader": "Envoyer vers l'E-Reader",
   "sendingToEreader": "Envoi à {device}...",
   "@sendingToEreader": {
@@ -1736,6 +1886,7 @@
       }
     }
   },
+  "serverReturnedErrorPage": "Le serveur a renvoyé une page d'erreur au lieu du fichier ebook",
   "ebookSaved": "{filename} enregistré",
   "@ebookSaved": {
     "placeholders": {
@@ -1902,6 +2053,14 @@
   },
   "adminPodcastsAdding": "Ajout en cours…",
   "adminPodcastsAddToLibrary": "Ajouter à la bibliothèque",
+  "adminPodcastsRemoveShowContent": "Supprimer «{title}» et tous ses épisodes du serveur? Cette action est irréversible.",
+  "@adminPodcastsRemoveShowContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "adminPodcastsSelectMultipleTooltip": "Sélection multiple",
   "adminPodcastsTabDownloaded": "Téléchargé",
   "adminPodcastsTabSettings": "Paramètres",
@@ -1951,6 +2110,7 @@
     }
   },
   "adminPodcastsCheckAndDownload": "Vérifier & Télécharger",
+  "adminPodcastsMaxEpisodesToKeepHelp": "0 conserve tous les épisodes. Après le téléchargement automatique d'un nouvel épisode, Audiobookshelf supprime l'épisode le plus ancien lorsque la série dépasse cette limite.",
   "adminPodcastsFrequency": "Fréquence",
   "adminPodcastsFreqHourly": "Toutes les heures",
   "adminPodcastsFreqDaily": "Quotidiennement",
@@ -2010,6 +2170,7 @@
   "episodeListSortNewest": "Les plus récents",
   "episodeListSortOldest": "Les plus anciens",
   "episodeDetailEpisodeFallback": "Épisode",
+  "episodeDetailMarkAbsorbedContent": "Votre progression sera définie à 100% pour cet épisode.",
   "episodeDetailResetProgressContent": "Ceci effacera toute la progression de cet épisode et le réinitialisera au début. Cela ne peut pas être annulé.",
   "episodeDetailToday": "Aujourd'hui",
   "episodeDetailYesterday": "Hier",
@@ -2184,6 +2345,7 @@
   "statsViewSessions": "Voir les sessions",
   "statsSearchSessions": "Sessions de recherche",
   "sessionDeleteConfirmTitle": "Supprimer la session ?",
+  "sessionDeleteConfirmBody": "Cela supprime la session et réduit vos totaux d'écoute de sa durée. Cela ne peut pas être annulé.",
   "sessionSaved": "Session mise à jour",
   "sessionDeleted": "Session supprimée",
   "statsScreenStarted": "Commencé",
@@ -2211,6 +2373,14 @@
   "statsScreenMonthDec": "Déc",
   "upcomingReleasesTitle": "Sorties à venir",
   "upcomingReleasesRescanTitle": "Rescanner ?",
+  "upcomingReleasesRescanContent": "Ces résultats sont vieux de {days} jours. Les dates de parution ont pu changer - voulez-vous scanner de nouveau ?",
+  "@upcomingReleasesRescanContent": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesNotNow": "Plus tard",
   "upcomingReleasesRescanning": "Nouvelle analyse...",
   "upcomingReleasesUpdatedWithDate": "Mis à jour - {date}",
@@ -2235,6 +2405,11 @@
   },
   "upcomingReleasesBadgeUpcoming": "À VENIR",
   "upcomingReleasesBadgeMissing": "MANQUANT",
+  "upcomingReleasesFinishedAfterDesc": "Séries dont le dernier livre est plus vieux que ceci sont ignorés lors des scans et seulement revérifiés tous les un ou deux mois.",
+  "upcomingReleasesSkippedOtherLibrary": "Cette liste provient d'une bibliothèque différente. Exécutez un rescan pour l'actualiser.",
+  "upcomingReleasesScanDeepOptionDesc": "Trouve également des livres manquants dans chaque série - prend plus de temps",
+  "upcomingReleasesFirstScanNote": "Le premier scan vérifie chaque série sur Audible et peut prendre quelques minutes. Les scans suivants sont plus rapides une fois que vos séries sont triées.",
+  "upcomingReleasesSetAsinInstructions": "Trouvez la série sur audible.com et copiez le lien de la page - l'ASIN est le code à 10 caractères commençant par B0 (comme B08S2YN3YS). Coller l'ensemble du lien fonctionne aussi.",
   "homeScreenEpisodeFallback": "Épisode",
   "libraryScreenUnknownTitle": "Titre inconnu",
   "playlistDetailDefaultName": "Liste de lecture",
@@ -2370,12 +2545,13 @@
   "tipsSheetCoverPlayPauseTitle": "Lecture/pause sur la couverture",
   "tipsSheetCoverPlayPauseDesc": "Appuyez sur la pochette de n'importe quelle carte pour jouer ou mettre en pause. Activez ceci dans Réglages sous Cartes d'Absorption. Une icône de pause pâle apparaît lors de la lecture pour que vous sachiez qu'elle est tappable.",
   "tipsSheetFullScreenPlayerTitle": "Lecteur plein écran",
+  "tipsSheetFullScreenPlayerDesc": "Glissez vers le haut sur n'importe quelle carte d'absorption pour ouvrir le lecteur en plein écran. Glissez vers le bas pour le refermer.",
   "tipsSheetQuickAddAbsorbingDesc": "Glissez à droite sur n'importe quel livre dans une page de liste (séries, auteur, résultats de recherche) pour l'ajouter instantanément à votre file d'attente.",
   "tipsSheetShakeExtendSleepDesc": "Si vous avez un minuteur de sommeil en cours et que vous secouez votre téléphone, cela ajoutera des minutes supplémentaires. Configurez la quantité dans les paramètres sous Minuterie de sommeil.",
   "tipsSheetSeriesNavigationDesc": "Appuyez sur le nom de la série dans la popup de détails de n'importe quel livre pour voir tous les livres de la série, trié en ordre de lecture avec des badges séquentiels sur chaque couverture.",
   "tipsSheetSwipeBetweenBooksDesc": "Glissez vers la gauche et la droite sur l'écran Absorbing pour basculer entre vos livres en cours. Avec le mode file d'attente manuelle activée, les cartes agissent également comme une file d'attente, de sorte que la prochaine jouera automatiquement lorsque la carte actuelle se terminera.",
   "tipsSheetTapToSeekDesc": "Tapotez n'importe où sur la barre de progression du chapitre ou du livre pour passer directement à cette position. Vous pouvez également faire glisser les barres pour un contrôle précis.",
-  "tipsSheetSpeedAdjustedTimeDesc": "Temps restant et temps de chapitre s'ajustent automatiquement en fonction de votre vitesse de lecture. Vous écoutez à 1,5x ? Le temps affiché reflète combien de temps il vous faudra effectivement.",
+  "tipsSheetSpeedAdjustedTimeDesc": "Toutes les durées affichées - position, chapitres, signets - s'ajustent à votre vitesse de lecture. Vous écoutez à 1,5x ? Les durées montrées reflètent combien de temps ils vous prendront effectivement.",
   "tipsSheetPlaybackHistoryTitle": "Historique de lecture",
   "tipsSheetPlaybackHistoryDesc": "Appuyez sur le bouton Historique de n'importe quelle carte pour voir une chronologie de chaque lecture, pause, recherche et changement de vitesse. Appuyez sur n'importe quel événement pour revenir à cette position.",
   "tipsSheetAutoRewindDesc": "Lorsque vous redémarrez après une pause, Absorb revient en arrière automatiquement de quelques secondes pour ne pas perdre votre place. La durée du retour varie avec le temps d'absence. Configurez-le dans les paramètres.",
@@ -2389,7 +2565,11 @@
   "tipsSheetAutoSleepWindowDesc": "Choisissez les heures où vous vous endormez habituellement et le minuteur de sommeil se déclenchera quand vous commencerez à écouter dans cette plage.",
   "tipsSheetSleepFadeChimeDesc": "Quand le minuteur de sommeil se termine, l'audio s'estompe graduellement et une cloche optionnelle joue pour qu'il ne coupe pas au milieu d'une phrase.",
   "tipsSheetCarModeTitle": "Mode voiture",
+  "tipsSheetCarModeDesc": "Appuyez sur l'icône de la voiture pour passer en mode bouton géant conçu pour une utilisation plus sûre pendant la conduite.",
   "tipsSheetAudibleSeriesDesc": "Ouvrez une série et utilisez le menu de débordement (les trois points) pour récupérer la liste complète des séries d'Audible, y compris les entrées manquantes et les livres que vous n'avez pas commencés.",
+  "tipsSheetTranscribeBookmarkDesc": "Transformez l'audio de n'importe quel signet en texte, entièrement sur votre appareil. Activez-le dans Paramètres sous Avancé > Transcription et téléchargez un modèle, puis appuyez sur Transcrire un signet - le texte se retrouve dans sa note, prêt à être corrigé ou partagé.",
+  "tipsSheetFindBetweenFormatsDesc": "Avec la transcription activée et le livre téléchargé, mettre en pause et appuyer sur Rechercher la position dans l'ebook sur le lecteur pour ouvrir l'ebook au passage que vous venez d'entendre. Dans le lecteur, sélectionnez du texte et touchez les écouteurs pour démarrer le livre audionumérique à cette position.",
+  "tipsSheetShareQuoteDesc": "Partagez un surlignage d'ebook ou une note de signets comme image avec la citation sur la couverture du livre. Recherchez l'option partage sur les points forts et dans la page de signets.",
   "bookCardUnknownTitle": "Titre inconnu",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Terminé",
@@ -2473,6 +2653,7 @@
   "cardEdgeProgressQuarterSpeed": "Vitesse /4",
   "cardEdgeProgressHalfSpeed": "Vitesse /2",
   "authInvalidApiKey": "Clé API invalide",
+  "authLoginFailedDetail": "Échec de la connexion - vérifiez l'adresse du serveur et vos identifiants",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
   "lpSubscribedPodcastDownloading": "{showTitle}: {count, plural, =1{1 nouvel épisode en cours de téléchargement} other{{count} nouveaux épisodes en cours de téléchargement}}",
   "@lpSubscribedPodcastDownloading": {
@@ -2555,6 +2736,7 @@
       }
     }
   },
+  "chapterAudibleLonger": "La version Audible est plus longue que votre fichier - les chapitres suivants peuvent ne pas s'aligner.",
   "chapterAudibleShorter": "La version Audible est plus courte que votre fichier - les chapitres peuvent ne pas s'aligner.",
   "coverSearchTitle": "Rechercher une couverture",
   "coverSearchRefineHint": "Affinez le titre/auteur pour nettoyer les résultats - cela ne change pas le livre.",
@@ -2565,6 +2747,7 @@
   "embedNoteInFolder": "Les métadonnées seront intégrées dans les pistes audio dans le dossier de votre livre audio.",
   "embedProgressIndeterminate": "Intégration...",
   "taskStarting": "Démarrage...",
+  "embedBackupNoteIntro": "Une sauvegarde de vos fichiers audio d'origine sera stockée sur le serveur dans ",
   "embedBackupNotePath": "/metadata/cache/items/{itemId}/",
   "@embedBackupNotePath": {
     "placeholders": {
@@ -2668,13 +2851,18 @@
   "adminUploadDestination": "Destination",
   "adminUploadDetails": "Détails de l'élément",
   "adminUploadOptional": "Facultatif",
+  "adminUploadMetadataNoResults": "Aucune métadonnée trouvée. Vous pouvez toujours envoyer cet élément.",
   "adminUploadDestinationPreview": "Serveur destinataire",
   "adminUploadFiles": "Fichiers",
   "adminUploadChooseFiles": "Choisir les fichiers",
   "adminUploadAddFiles": "Ajouter des fichiers",
   "adminUploadBookFilesHint": "Choisissez des fichiers audio ou ebook. Vous pouvez également inclure des fichiers de couvertures et de métadonnées.",
+  "adminUploadPodcastFilesHint": "Choisissez un ou plusieurs fichiers audio. Vous pouvez également inclure des pochettes et des fichiers de métadonnées.",
+  "adminUploadUnsupportedFiles": "Certains fichiers sélectionnés ne sont pas pris en charge par Audiobookshelf.",
   "adminUploadTitleRequired": "Entrez un titre",
   "adminUploadLibraryRequired": "Choisir une bibliothèque",
+  "adminUploadBookFileRequired": "Choisissez au moins un fichier audio ou ebook pour ce livre.",
+  "adminUploadDestinationExists": "Ce dossier de destination existe déjà sur le serveur.",
   "adminUploadUploading": "Envoi...",
   "adminUploadComplete": "Envoyé \"{title}\"",
   "@adminUploadComplete": {
@@ -2777,6 +2965,14 @@
   "readerBookmarkDefault": "Signet",
   "readerNoteTitle": "Note",
   "readerNoteHint": "Ajouter une note...",
+  "syncSettingsExperimentalBody": "La synchronisation est nouvelle et est toujours en cours de développement. Si deux appareils changent les choses pendant qu'ils sont séparés, un côté peut perdre ses changements. Conservez un fichier de sauvegarde comme une copie sécurisée.",
+  "syncSettingsNeedServerSub": "N'importe quel serveur WebDAV fonctionne. Nextcloud est un serveur gratuit auto-hébergé.",
+  "syncSourceBody": "Cette sauvegarde a activé la synchronisation des paramètres. Utiliser la dernière synchronisation du serveur, ou faire de cette sauvegarde la source de vérité ? Choisir la sauvegarde remplace la copie sur le serveur pour tous vos périphériques synchronisés.",
   "readerTooltipCopy": "Copier",
-  "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez."
+  "readerSearchEmpty": "Entrez un mot ou une phrase puis recherchez.",
+  "transcriptionDisclaimer": "Fonctionne entièrement sur votre appareil, rien n'est envoyé nulle part. Cela utilise de la batterie supplémentaire et de la puissance de calcul pendant que cela fonctionne, et seuls les livres téléchargés peuvent être transcrits.",
+  "transcriptionAutoHint": "Avec plus d'un téléchargement, chaque tâche choisit entre eux. Les livres avec un ebook sont les plus rapides, car les mots exacts viennent de toute façon de l'ebook. Les signets sur les livres sans ebook ont le plus précis possible.",
+  "transcriptionIntroBody": "Cela permet d'écouter la quantité d'audio choisie, en commençant juste avant le signet, et en la transformant en texte sur votre appareil. Les clips plus longs prennent plus de temps, et la transcription n'est pas précise à 100%. Le texte est sauvegardé dans la note du favori une fois terminé, prêt à être corrigé ou partagé.",
+  "transcriptionWhisperInfo": "La transcription est alimentée par Whisper, un modèle ouvert de reconnaissance vocale qui écoute la narration et écrit les mots - le tout sur cet appareil.",
+  "findInAudiobookIntroBody": "Cela permet d'écouter le livre audio près de l'endroit où vous lisez et de le faire correspondre à ce passage, le tout sur votre appareil. Cela peut prendre jusqu'à une minute. Si l'emplacement ne peut pas être associé en toute confiance, rien ne bouge."
 }
