@@ -730,6 +730,13 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
         AbsorbAudioEQProcessor.shared.setMonoEnabled(enabled)
         result(true)
 
+      case "setDeEsser":
+        // Book playback runs through the Absorb engine's tap only; the
+        // vendored just_audio copy (sleep-timer chime) has no de-esser.
+        let strength = args?["strength"] as? Int ?? 0
+        AbsorbAudioEQProcessor.shared.setDeEsserStrength(Int32(strength))
+        result(true)
+
       default:
         result(FlutterMethodNotImplemented)
       }

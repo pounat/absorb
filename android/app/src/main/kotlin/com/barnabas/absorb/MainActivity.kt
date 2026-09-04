@@ -24,6 +24,7 @@ import android.view.KeyEvent
 import com.ryanheise.audioservice.AudioService
 import com.ryanheise.audioservice.AudioServiceActivity
 import com.ryanheise.audioservice.AudioServicePlugin
+import com.ryanheise.just_audio.DeEsserController
 import com.ryanheise.just_audio.MonoController
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
@@ -116,6 +117,13 @@ class MainActivity : AudioServiceActivity() {
                     "setMono" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
                         MonoController.setMonoEnabled(enabled)
+                        result.success(true)
+                    }
+                    "setDeEsser" -> {
+                        // Runs in the ExoPlayer pipeline (not a session
+                        // effect), so it isn't gated on effectsAvailable.
+                        val strength = call.argument<Int>("strength") ?: 0
+                        DeEsserController.setStrength(strength)
                         result.success(true)
                     }
                     else -> result.notImplemented()
