@@ -59,6 +59,8 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   double _pBass = 0.0, _pVirt = 0.0, _pLoud = 0.0;
   bool _pMono = false;
   bool _pSkipSilence = false;
+  int _pSkipSilencePadding = 20;
+  int _pSkipSilenceThreshold = -30;
 
   @override
   void initState() {
@@ -97,6 +99,8 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       _pLoud = 0.0;
       _pMono = false;
       _pSkipSilence = false;
+      _pSkipSilencePadding = 20;
+      _pSkipSilenceThreshold = -30;
       _loadPreview();
     } else if (!shouldPreview && _previewMode) {
       _previewMode = false;
@@ -116,6 +120,8 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       _pLoud = snap['loudnessGain'] as double;
       _pMono = snap['mono'] as bool;
       _pSkipSilence = snap['skipSilence'] as bool? ?? false;
+      _pSkipSilencePadding = snap['skipSilencePadding'] as int? ?? 20;
+      _pSkipSilenceThreshold = snap['skipSilenceThreshold'] as int? ?? -30;
       _pBands = List<double>.from((snap['bands'] as List).cast<double>());
     });
   }
@@ -131,6 +137,8 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       'loudnessGain': _pLoud,
       'mono': _pMono,
       'skipSilence': _pSkipSilence,
+      'skipSilencePadding': _pSkipSilencePadding,
+      'skipSilenceThreshold': _pSkipSilenceThreshold,
       'bands': _pBands,
     });
   }
@@ -144,6 +152,8 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   double get _vLoud => _previewMode ? _pLoud : _eq.loudnessGain;
   bool get _vMono => _previewMode ? _pMono : _eq.mono;
   bool get _vSkipSilence => _previewMode ? _pSkipSilence : _eq.skipSilence;
+  int get _vSkipSilencePadding => _previewMode ? _pSkipSilencePadding : _eq.skipSilencePadding;
+  int get _vSkipSilenceThreshold => _previewMode ? _pSkipSilenceThreshold : _eq.skipSilenceThreshold;
 
   void _setEnabled(bool v) {
     if (_previewMode) {
@@ -229,6 +239,24 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
     }
   }
 
+  void _setSkipSilencePadding(int v) {
+    if (_previewMode) {
+      setState(() => _pSkipSilencePadding = v);
+      _savePreview();
+    } else {
+      _eq.setSkipSilencePadding(v);
+    }
+  }
+
+  void _setSkipSilenceThreshold(int v) {
+    if (_previewMode) {
+      setState(() => _pSkipSilenceThreshold = v);
+      _savePreview();
+    } else {
+      _eq.setSkipSilenceThreshold(v);
+    }
+  }
+
   void _resetAll() {
     if (_previewMode) {
       setState(() {
@@ -239,6 +267,8 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
         _pLoud = 0.0;
         _pMono = false;
         _pSkipSilence = false;
+        _pSkipSilencePadding = 20;
+        _pSkipSilenceThreshold = -30;
       });
       _savePreview();
     } else {
@@ -564,6 +594,36 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                       ],
                     ),
                   ),
+                  if (_vSkipSilence) ...[
+                    const SizedBox(height: 6),
+                    _EffectRow(
+                      icon: Icons.timer_outlined,
+                      label: 'Buffer',
+                      value: _vSkipSilencePadding.toDouble(),
+                      min: 0.0,
+                      max: 200.0,
+                      divisions: 40,
+                      defaultValue: 20.0,
+                      valueLabel: '$_vSkipSilencePadding ms',
+                      accent: accent,
+                      enabled: true,
+                      onChanged: (v) => _setSkipSilencePadding(v.round()),
+                    ),
+                    const SizedBox(height: 6),
+                    _EffectRow(
+                      icon: Icons.graphic_eq_rounded,
+                      label: 'Threshold',
+                      value: _vSkipSilenceThreshold.toDouble(),
+                      min: -50.0,
+                      max: -20.0,
+                      divisions: 30,
+                      defaultValue: -30.0,
+                      valueLabel: '$_vSkipSilenceThreshold dB',
+                      accent: accent,
+                      enabled: true,
+                      onChanged: (v) => _setSkipSilenceThreshold(v.round()),
+                    ),
+                  ],
                 ],
 
                 const SizedBox(height: 20),
@@ -660,6 +720,11 @@ class _EffectRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final double value;
+  final double min;
+  final double max;
+  final int? divisions;
+  final String? valueLabel;
+  final double? defaultValue;
   final Color accent;
   final bool enabled;
   final ValueChanged<double> onChanged;
@@ -668,6 +733,11 @@ class _EffectRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.min = 0.0,
+    this.max = 1.0,
+    this.divisions,
+    this.valueLabel,
+    this.defaultValue,
     required this.accent,
     required this.enabled,
     required this.onChanged,
@@ -676,6 +746,7 @@ class _EffectRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final display = valueLabel ?? '${(value * 100).round()}%';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -696,6 +767,12 @@ class _EffectRow extends StatelessWidget {
             child: SliderTheme(
               data: SliderThemeData(
                 trackHeight: 3,
+                trackShape: defaultValue != null && max > min
+                    ? _DefaultMarkerTrackShape(
+                        fraction: (defaultValue! - min) / (max - min),
+                        markerColor: cs.onSurface.withValues(alpha: enabled ? 0.35 : 0.15),
+                      )
+                    : const RoundedRectSliderTrackShape(),
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
                 activeTrackColor: enabled ? accent : cs.onSurface.withValues(alpha: 0.24),
@@ -704,16 +781,17 @@ class _EffectRow extends StatelessWidget {
                 overlayColor: accent.withValues(alpha: 0.15),
               ),
               child: Slider(
-                value: value,
-                min: 0.0,
-                max: 1.0,
+                value: value.clamp(min, max),
+                min: min,
+                max: max,
+                divisions: divisions,
                 onChanged: enabled ? onChanged : null,
               ),
             ),
           ),
           SizedBox(
-            width: 32,
-            child: Text('${(value * 100).round()}%',
+            width: 48,
+            child: Text(display,
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: enabled ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.15),
@@ -721,6 +799,66 @@ class _EffectRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Slider track that draws a subtle vertical tick line at the default value.
+class _DefaultMarkerTrackShape extends RoundedRectSliderTrackShape {
+  final double fraction;
+  final Color markerColor;
+
+  const _DefaultMarkerTrackShape({
+    required this.fraction,
+    required this.markerColor,
+  });
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required Animation<double> enableAnimation,
+    required TextDirection textDirection,
+    required Offset thumbCenter,
+    Offset? secondaryOffset,
+    bool isDiscrete = false,
+    bool isEnabled = false,
+    double additionalActiveTrackHeight = 2,
+  }) {
+    super.paint(
+      context,
+      offset,
+      parentBox: parentBox,
+      sliderTheme: sliderTheme,
+      enableAnimation: enableAnimation,
+      textDirection: textDirection,
+      thumbCenter: thumbCenter,
+      secondaryOffset: secondaryOffset,
+      isDiscrete: isDiscrete,
+      isEnabled: isEnabled,
+      additionalActiveTrackHeight: additionalActiveTrackHeight,
+    );
+
+    final Rect trackRect = getPreferredRect(
+      parentBox: parentBox,
+      offset: offset,
+      sliderTheme: sliderTheme,
+      isEnabled: isEnabled,
+      isDiscrete: isDiscrete,
+    );
+
+    final double markerX = trackRect.left + trackRect.width * fraction.clamp(0.0, 1.0);
+    final Paint paint = Paint()
+      ..color = markerColor
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    context.canvas.drawLine(
+      Offset(markerX, trackRect.center.dy - 5),
+      Offset(markerX, trackRect.center.dy + 5),
+      paint,
     );
   }
 }
