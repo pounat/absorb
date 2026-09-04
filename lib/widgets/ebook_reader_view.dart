@@ -158,6 +158,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   int _marginH = 16; // left + right
   String _volumeNavMode = 'off';
   bool _volumeNavWhilePlaying = false;
+
+  // Auto scroll (rolling blind). Speed is px/sec of blind descent; the text
+  // itself never moves, so this is how fast the next page paints over this one.
+  bool _autoScroll = false;
+  double _autoScrollSpeed = 40;
+  bool _autoScrollPaused = false;
+  LiveOverlayToast? _speedToast;
   int _marginV = 16; // top + bottom
   // Page layout: auto shows two pages on wide screens (tablets), single forces
   // one page, two forces a spread. Stored as index 0=auto/1=single/2=two.
@@ -386,9 +393,18 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
           s.textContent = window.__absorbFontFace;
           doc.head.appendChild(s);
         }
+        // Exposed so the auto-scroll blind can stamp the same @font-face into
+        // its own iframe - a downloadable font is a per-document declaration,
+        // so a second rendition without this hook renders in a fallback face.
+        window.__absorbApplyFontToDoc = applyTo;
         window.__absorbApplyFont = function(css){
           window.__absorbFontFace = css || '';
           try { rendition.getContents().forEach(function(c){ applyTo(c.document); }); } catch(e){}
+          try {
+            if (window.__absorbBlindRendition) {
+              window.__absorbBlindRendition.getContents().forEach(function(c){ applyTo(c.document); });
+            }
+          } catch(e){}
         };
         try { rendition.hooks.content.register(function(contents){ applyTo(contents.document); }); } catch(e){}
       })();
@@ -500,6 +516,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   @override
   void dispose() {
+    _speedToast?.dismiss();
+    if (_autoScroll) _epubController?.autoScrollStop();
     _quietLib.setReaderQuiet(false);
     WidgetsBinding.instance.removeObserver(this);
     _volumeNav.detach();
@@ -540,6 +558,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// the action commits after a short grace window that the highlight tap can
   /// cancel. No highlights, no added latency.
   void _readerTapAt(double frac, String source) {
+    // While auto scroll runs, the in-WebView pad owns taps: pause, resume and
+    // press-and-hold to stop. This Listener sees raw pointers regardless of the
+    // platform view, so without this it turned pages under the blind.
+    if (_autoScroll) return;
     final now = DateTime.now();
     final sinceMs = now.difference(_lastReaderTap).inMilliseconds;
     if (sinceMs < 350) {
@@ -1493,6 +1515,96 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         },
       ),
     );
+  }
+
+  static const double _autoScrollMin = 6;
+  static const double _autoScrollMax = 220;
+
+  int get _autoScrollPercent =>
+      (((_autoScrollSpeed - _autoScrollMin) / (_autoScrollMax - _autoScrollMin)) * 100)
+          .round()
+          .clamp(1, 100);
+
+  void _setupAutoScrollHandlers() {
+    _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'absorbAutoScrollSpeed',
+      callback: (args) {
+        final v = args.isNotEmpty ? (args[0] as num?)?.toDouble() : null;
+        if (v == null || !mounted) return;
+        setState(() => _autoScrollSpeed = v);
+        PlayerSettings.setEreaderAutoScrollSpeed(v);
+        final l = AppLocalizations.of(context)!;
+        _speedToast ??= LiveOverlayToast.show(
+          context,
+          l.readerAutoScrollSpeed(_autoScrollPercent),
+          icon: Icons.speed_rounded,
+        );
+        _speedToast?.update(
+          l.readerAutoScrollSpeed(_autoScrollPercent),
+          icon: Icons.speed_rounded,
+        );
+      },
+    );
+    _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'absorbAutoScrollDragEnd',
+      callback: (args) {
+        _speedToast?.dismiss();
+        _speedToast = null;
+      },
+    );
+    _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'absorbAutoScrollLongPress',
+      callback: (args) {
+        if (!mounted || !_autoScroll) return;
+        _speedToast?.dismiss();
+        _speedToast = null;
+        _toggleAutoScroll();
+        showOverlayToast(context, AppLocalizations.of(context)!.readerAutoScrollStopped,
+            icon: Icons.stop_circle_outlined);
+      },
+    );
+    _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'absorbAutoScrollTap',
+      callback: (args) {
+        if (!mounted) return;
+        // With the reader's bars up, a tap dismisses those - otherwise there is
+        // no way to clear them without also interrupting the scroll.
+        if (_showControls) {
+          _toggleControls();
+          _epubController?.autoScrollPause(_autoScrollPaused);
+          return;
+        }
+        setState(() => _autoScrollPaused = !_autoScrollPaused);
+        _epubController?.autoScrollPause(_autoScrollPaused);
+        final l = AppLocalizations.of(context)!;
+        showOverlayToast(
+          context,
+          _autoScrollPaused ? l.readerAutoScrollPaused : l.readerAutoScrollResumed,
+          icon: _autoScrollPaused ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleAutoScroll() async {
+    if (_autoScroll) {
+      await _epubController?.autoScrollStop();
+      if (mounted) setState(() {
+        _autoScroll = false;
+        _autoScrollPaused = false;
+      });
+      return;
+    }
+    await _epubController?.autoScrollStart(speed: _autoScrollSpeed);
+    if (mounted) {
+      showOverlayToast(context, AppLocalizations.of(context)!.readerAutoScrollStarted,
+          icon: Icons.swap_vert_rounded);
+    }
+    if (mounted) setState(() {
+      _autoScroll = true;
+      _autoScrollPaused = false;
+      if (_showControls) _showControls = false;
+    });
   }
 
   Widget _themeSwatch(_ReaderPalette p, bool selected, VoidCallback onTap, ColorScheme cs) {
@@ -3435,6 +3547,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   _loadAnnotations().then((_) => _restoreHighlights());
                   _setupPageInfoHandler();
                   _setupTapHandler();
+                  _setupAutoScrollHandlers();
                   _setupFontInjector();
                   _applyFontFace();
                 }
@@ -3491,7 +3604,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               },
           )),
 
-          // Top bar overlay
+          // Top overlay: what you are reading and how far in. Controls live
+          // at the bottom now, in thumb reach.
           AnimatedOpacity(
             opacity: _showControls ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 200),
@@ -3502,61 +3616,68 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [bg.withValues(alpha: 1.0), bg.withValues(alpha: 0.6)],
+                    colors: [
+                      bg.withValues(alpha: 1.0),
+                      bg.withValues(alpha: 1.0),
+                      bg.withValues(alpha: 0.0),
+                    ],
+                    stops: const [0.0, 0.86, 1.0],
                   ),
                 ),
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                    child: Row(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.arrow_back_rounded,
+                        Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
                             color: fg,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
                           ),
-                          onPressed: _handleClose,
                         ),
-                        Expanded(
-                          child: Text(
-                            widget.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: fg,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: _progress.clamp(0.0, 1.0),
+                            minHeight: 3,
+                            backgroundColor: fg.withValues(alpha: 0.1),
+                            valueColor: AlwaysStoppedAnimation(accent),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (_chapterPageTotal > 0)
+                              Text(
+                                '$_chapterPage / $_chapterPageTotal',
+                                style: TextStyle(color: fgDim, fontSize: 11),
+                              ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  _currentChapterTitle ?? '',
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: fgDim, fontSize: 11),
+                                ),
+                              ),
                             ),
-                          ),
+                            Text(
+                              '${(_progress * 100).toStringAsFixed(1)}%',
+                              style: TextStyle(color: fgDim, fontSize: 11),
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          icon: Icon(
-                            _hasBookmarkAtCurrent
-                                ? Icons.bookmark_rounded
-                                : Icons.bookmark_border_rounded,
-                            color: _hasBookmarkAtCurrent ? accent : fg,
-                          ),
-                          onPressed: _toggleBookmark,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.search_rounded, color: fg),
-                          tooltip: AppLocalizations.of(context)!.readerTooltipSearch,
-                          onPressed: _openSearchScreen,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.sticky_note_2_outlined, color: fg),
-                          onPressed: _showAnnotationsSheet,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.text_fields_rounded, color: fg),
-                          onPressed: _showSettingsSheet,
-                        ),
-                        if (_chapters.isNotEmpty)
-                          IconButton(
-                            icon: Icon(Icons.list_rounded, color: fg),
-                            onPressed: _showChapterList,
-                          ),
                       ],
                     ),
                   ),
@@ -3565,7 +3686,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
             ),
           ),
 
-          // Bottom progress bar overlay
+          // Bottom overlay: every control, centred and within thumb reach.
           Positioned(
             left: 0, right: 0, bottom: 0,
             child: AnimatedOpacity(
@@ -3578,50 +3699,67 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [bg.withValues(alpha: 1.0), bg.withValues(alpha: 0.6)],
+                      colors: [
+                        bg.withValues(alpha: 1.0),
+                        bg.withValues(alpha: 1.0),
+                        bg.withValues(alpha: 0.0),
+                      ],
+                      stops: const [0.0, 0.86, 1.0],
                     ),
                   ),
                   child: SafeArea(
                     top: false,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildMediaBar(fg, accent),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: LinearProgressIndicator(
-                              value: _progress.clamp(0.0, 1.0),
-                              minHeight: 3,
-                              backgroundColor: fg.withValues(alpha: 0.1),
-                              valueColor: AlwaysStoppedAnimation(accent),
-                            ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _buildMediaBar(fg, accent),
                           ),
-                          const SizedBox(height: 4),
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              if (_chapterPageTotal > 0)
-                                Text(
-                                  '$_chapterPage / $_chapterPageTotal',
-                                  style: TextStyle(color: fgDim, fontSize: 11),
-                                ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: Text(
-                                    _currentChapterTitle ?? '',
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(color: fgDim, fontSize: 11),
-                                  ),
-                                ),
+                              IconButton(
+                                icon: Icon(Icons.arrow_back_rounded, color: fg),
+                                onPressed: _handleClose,
                               ),
-                              Text(
-                                '${(_progress * 100).toStringAsFixed(1)}%',
-                                style: TextStyle(color: fgDim, fontSize: 11),
+                              IconButton(
+                                icon: Icon(
+                                  _hasBookmarkAtCurrent
+                                      ? Icons.bookmark_rounded
+                                      : Icons.bookmark_border_rounded,
+                                  color: _hasBookmarkAtCurrent ? accent : fg,
+                                ),
+                                onPressed: _toggleBookmark,
                               ),
+                              IconButton(
+                                icon: Icon(Icons.search_rounded, color: fg),
+                                tooltip: AppLocalizations.of(context)!.readerTooltipSearch,
+                                onPressed: _openSearchScreen,
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.sticky_note_2_outlined, color: fg),
+                                onPressed: _showAnnotationsSheet,
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.swap_vert_rounded,
+                                  color: _autoScroll ? accent : fg,
+                                ),
+                                tooltip: AppLocalizations.of(context)!.readerAutoScroll,
+                                onPressed: _toggleAutoScroll,
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.text_fields_rounded, color: fg),
+                                onPressed: _showSettingsSheet,
+                              ),
+                              if (_chapters.isNotEmpty)
+                                IconButton(
+                                  icon: Icon(Icons.list_rounded, color: fg),
+                                  onPressed: _showChapterList,
+                                ),
                             ],
                           ),
                         ],

@@ -13947,6 +13947,48 @@ abstract class AppLocalizations {
   /// **'Mirrored'**
   String get readerVolumeNavMirrored;
 
+  /// No description provided for @readerAutoScroll.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto scroll'**
+  String get readerAutoScroll;
+
+  /// No description provided for @readerAutoScrollSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The next page paints over this one from the top down - drag the middle of the screen to change speed, tap to stop'**
+  String get readerAutoScrollSubtitle;
+
+  /// No description provided for @readerAutoScrollStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto scroll started'**
+  String get readerAutoScrollStarted;
+
+  /// No description provided for @readerAutoScrollPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused - press and hold to stop'**
+  String get readerAutoScrollPaused;
+
+  /// No description provided for @readerAutoScrollResumed.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto scroll resumed'**
+  String get readerAutoScrollResumed;
+
+  /// No description provided for @readerAutoScrollStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto scroll off'**
+  String get readerAutoScrollStopped;
+
+  /// No description provided for @readerAutoScrollSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed {percent}%'**
+  String readerAutoScrollSpeed(int percent);
+
   /// No description provided for @readerVolumeNavWhilePlaying.
   ///
   /// In en, this message translates to:

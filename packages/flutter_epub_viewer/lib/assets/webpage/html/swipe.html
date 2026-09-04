@@ -30,6 +30,41 @@
         background: white;
       }
 
+      #viewerNext {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      #blindLine {
+        display: none;
+        position: fixed;
+        height: 2px;
+        /* above the blind and the touch pad - nothing should cover it */
+        z-index: 4;
+        pointer-events: none;
+        background: rgba(150, 150, 150, 0.9);
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
+      }
+
+      #autoScrollTouch {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 3;
+        background: transparent;
+        touch-action: none;
+      }
+
       @media only screen and (min-device-width: 320px) and (max-device-width: 667px) {
         .arrow {
           position: inherit;
@@ -40,6 +75,17 @@
   </head>
   <body>
     <div id="viewer"></div>
+    <!-- Auto-scroll blind: the next page, stacked over the live one and
+         revealed top-down. Never interactive - the live rendition below owns
+         every touch, selection and highlight. -->
+    <div id="viewerNext"></div>
+    <!-- Swallows every touch while auto-scroll runs. A Flutter overlay cannot
+         do this job: the WebView is a platform view and claims touches first,
+         so taps fell through to the live page underneath the blind. -->
+    <div id="autoScrollTouch"></div>
+    <!-- Subtle rule at the blind's leading edge, so the boundary is findable
+         once the incoming page matches the current one exactly. -->
+    <div id="blindLine"></div>
     <script src="epubView.js"></script>
   </body>
 </html>

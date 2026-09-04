@@ -82,6 +82,10 @@ function attachSnapGuard() {
 // Book bytes arrive from Flutter in base64 chunks so no single string ever
 // holds the whole file; loadBook(null, ...) assembles them.
 var bookParts = [];
+// Settings the live rendition was built with. The blind has to be laid out
+// identically or its page boundaries drift from the real ones.
+var lastRenderOpts = null;
+var lastTheme = {bg: null, fg: null, css: null, fontSize: null};
 var bookPartsLen = 0;
 function beginBookData() {
   bookParts = [];
@@ -122,7 +126,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
     bookPartsLen = 0;
   }
   book.open(uint8Array,)
-  rendition = book.renderTo("viewer", {
+  lastRenderOpts = {
     manager: manager,
     flow: flow,
     spread: spread,
@@ -131,7 +135,12 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
     snap: snap && !useCustomSwipe,
     allowScriptedContent: allowScriptedContent,
     defaultDirection: direction
-  });
+  };
+  lastTheme.bg = backgroundColor;
+  lastTheme.fg = foregroundColor;
+  lastTheme.css = customCss;
+  lastTheme.fontSize = fontSize;
+  rendition = book.renderTo("viewer", lastRenderOpts);
 
   // Apply initial theme
   updateTheme(backgroundColor, foregroundColor, customCss);
@@ -2234,9 +2243,494 @@ function setManager(manager) {
   rendition.manager(manager);
 }
 
+// ══════════════════════════════════════════════════════════════
+// Auto-scroll: rolling blind
+//
+// The text never moves. The next page is rendered into its own stacked
+// rendition and revealed from the top down, so by the time the eye gets back
+// to the top of the screen it is already reading the next page. Stopping
+// retracts the blind, leaving the current page whole.
+//
+// The blind rendition is deliberately dumb: no selection wiring, no highlight
+// forwarding, no location reporting. Only the live rendition below it owns
+// reading position, or auto-scroll would quietly corrupt saved progress.
+// ══════════════════════════════════════════════════════════════
+
+var blindRendition = null;
+var blindY = 0;              // how far down the blind has come, px
+var blindSpeed = 40;         // px per second
+var blindRaf = null;
+var blindLastTs = 0;
+var blindSwapping = false;
+var blindPaused = false;   // the reader asked for it, survives touches
+var blindTouchHold = false; // finger is down, transient
+
+function blindHeight() {
+  var host = document.getElementById("viewerNext");
+  if (host && host.offsetHeight) return host.offsetHeight;
+  return window.innerHeight || document.documentElement.clientHeight || 0;
+}
+
+// The blind has to occupy the live viewer's exact box. #viewer sits in a
+// centred flex body with margins, so a full-screen blind paginates at a
+// different width and its "next page" is not the live rendition's next page.
+function blindMatchViewerBox() {
+  var live = document.getElementById("viewer");
+  var host = document.getElementById("viewerNext");
+  if (!live || !host) return;
+  var r = live.getBoundingClientRect();
+  host.style.left = r.left + "px";
+  host.style.top = r.top + "px";
+  host.style.width = r.width + "px";
+  host.style.height = r.height + "px";
+}
+
+// The line has to read on white, black, grey and cream alike, so it borrows
+// the page's own text colour - whatever contrasts with that theme's background
+// by definition - rather than a fixed grey that washes out on the light ones.
+var blindLineRgb = null;
+
+function blindResolveLineColor() {
+  blindLineRgb = null;
+  try {
+    var contents = rendition.getContents();
+    if (contents && contents.length) {
+      var doc = contents[0].document;
+      var col = contents[0].window.getComputedStyle(doc.body).color;
+      var m = col && col.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+      if (m) blindLineRgb = m[1] + ", " + m[2] + ", " + m[3];
+    }
+  } catch (e) {}
+}
+
+function blindLineColor(paused) {
+  var rgb = blindLineRgb || "150, 150, 150";
+  return "rgba(" + rgb + ", " + (paused ? 0.95 : 0.45) + ")";
+}
+
+function blindApply() {
+  var host = document.getElementById("viewerNext");
+  if (!host) return;
+  var h = blindHeight();
+  var y = Math.max(0, Math.min(h, blindY));
+  host.style.clipPath = "inset(0px 0px " + (h - y) + "px 0px)";
+  host.style.webkitClipPath = "inset(0px 0px " + (h - y) + "px 0px)";
+  var line = document.getElementById("blindLine");
+  if (line) {
+    if (y <= 0.5 || y >= h - 0.5) {
+      line.style.display = "none";
+    } else {
+      var box = host.getBoundingClientRect();
+      line.style.display = "block";
+      line.style.left = box.left + "px";
+      line.style.width = box.width + "px";
+      line.style.top = (box.top + y) + "px";
+      // Frozen white while paused, so the stopped edge is unmistakable.
+      line.style.height = blindPaused ? "3px" : "2px";
+      line.style.background = blindLineColor(blindPaused);
+    }
+  }
+}
+
+// Mirror whatever the live rendition actually has, rather than rebuilding it
+// from remembered arguments. Themes get registered, selected and overridden
+// from several places (load, theme change, font size), so a reconstruction
+// drifts - copying the live objects cannot.
+function blindThemeApply(r) {
+  if (!r || !rendition) return;
+  try {
+    var liveThemes = rendition.themes;
+    var name = liveThemes._current;
+    var defs = liveThemes._themes || {};
+    Object.keys(defs).forEach(function (key) {
+      var def = defs[key];
+      if (def && def.rules) r.themes.register(key, def.rules);
+    });
+    if (name && defs[name]) r.themes.select(name);
+    // font-size and friends live in overrides, not in the theme rules
+    var ov = liveThemes._overrides || {};
+    Object.keys(ov).forEach(function (key) {
+      var o = ov[key];
+      if (o && typeof o.value !== "undefined") r.themes.override(key, o.value, o.priority);
+    });
+  } catch (e) {}
+  // A downloadable font is an @font-face inside each iframe's own document,
+  // so it has to be stamped into the blind's document too.
+  try {
+    if (window.__absorbApplyFontToDoc) {
+      r.getContents().forEach(function (c) { window.__absorbApplyFontToDoc(c.document); });
+    }
+  } catch (e) {}
+}
+
+// ── Auto-scroll touch handling ──
+// Lives here rather than in Flutter because the WebView is a platform view:
+// a Flutter overlay never wins these touches, so taps and drags fell straight
+// through to the live page and turned pages or selected text under the blind.
+
+var blindTouchY = 0;
+var blindTouchStartAt = 0;
+var blindSpeedAtTouch = 0;
+var blindTouchMoved = 0;
+var BLIND_DRAG_SLOP = 12;      // px before a touch counts as a speed drag
+var BLIND_LONG_PRESS_MS = 550; // hold this long to stop instead of pause
+// A 200px drag moves the speed about a fifth of its range. It used to be two
+// thirds, which made 5% to 12% a flick of the thumb.
+var BLIND_DRAG_GAIN = 45;
+// Android's gesture nav lives along the bottom edge. A swipe up from there is
+// the system's, not ours - claiming it sent the speed to 100% and resumed.
+var BLIND_SYS_GESTURE_PX = 56;
+var blindLongPressTimer = null;
+var blindTouchIgnored = false;
+var blindLongPressFired = false;
+
+function blindNotify(name, value) {
+  try {
+    if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+      window.flutter_inappwebview.callHandler(name, value);
+    }
+  } catch (e) {}
+}
+
+function blindTouchStart(e) {
+  var t = e.touches ? e.touches[0] : e;
+  // Leave the system gesture strip alone - no preventDefault, no speed change,
+  // so swiping up for recents or home behaves like it does everywhere else.
+  var h = window.innerHeight || document.documentElement.clientHeight || 0;
+  if (h && t.clientY > h - BLIND_SYS_GESTURE_PX) {
+    blindTouchIgnored = true;
+    return;
+  }
+  blindTouchIgnored = false;
+  blindTouchHold = true;
+  blindTouchY = t.clientY;
+  blindTouchStartAt = Date.now();
+  blindSpeedAtTouch = blindSpeed;
+  blindTouchMoved = 0;
+  blindLongPressFired = false;
+  if (blindLongPressTimer) clearTimeout(blindLongPressTimer);
+  blindLongPressTimer = setTimeout(function () {
+    if (blindTouchMoved < 8) {
+      blindLongPressFired = true;
+      blindNotify("absorbAutoScrollLongPress", true);
+    }
+  }, BLIND_LONG_PRESS_MS);
+  e.preventDefault();
+}
+
+function blindTouchMove(e) {
+  if (blindTouchIgnored) return;
+  var t = e.touches ? e.touches[0] : e;
+  var dy = blindTouchY - t.clientY;
+  if (Math.abs(dy) > blindTouchMoved) blindTouchMoved = Math.abs(dy);
+  if (blindTouchMoved >= BLIND_DRAG_SLOP && blindLongPressTimer) {
+    clearTimeout(blindLongPressTimer);
+    blindLongPressTimer = null;
+  }
+  if (blindLongPressFired) return;
+  // Below the slop this is a tap being held, not a drag. Without this a
+  // one-pixel wobble opened the speed toast and nudged the speed.
+  if (blindTouchMoved < BLIND_DRAG_SLOP) {
+    e.preventDefault();
+    return;
+  }
+  // up = faster, and 200px of travel covers most of the range
+  var next = blindSpeedAtTouch + (dy / 200) * BLIND_DRAG_GAIN;
+  next = Math.max(6, Math.min(220, next));
+  blindSpeed = next;
+  blindNotify("absorbAutoScrollSpeed", next);
+  blindNotify("absorbAutoScrollDragging", true);
+  e.preventDefault();
+}
+
+function blindTouchEnd(e) {
+  if (blindTouchIgnored) {
+    blindTouchIgnored = false;
+    blindTouchHold = false;
+    return;
+  }
+  if (blindLongPressTimer) {
+    clearTimeout(blindLongPressTimer);
+    blindLongPressTimer = null;
+  }
+  if (blindLongPressFired) {
+    blindLongPressFired = false;
+    return;
+  }
+  var quick = Date.now() - blindTouchStartAt < BLIND_LONG_PRESS_MS;
+  blindTouchHold = false;
+  if (quick && blindTouchMoved < BLIND_DRAG_SLOP) {
+    // Flutter decides what a tap means - with the reader's control bars up it
+    // dismisses those instead of pausing.
+    blindNotify("absorbAutoScrollTap", true);
+  } else {
+    blindNotify("absorbAutoScrollDragEnd", true);
+  }
+  if (e && e.preventDefault) e.preventDefault();
+}
+
+// The system stealing a gesture (nav swipe, notification shade) arrives here.
+// Put the speed back where it was and just resume - it was never our gesture.
+function blindTouchCancel(e) {
+  if (blindLongPressTimer) {
+    clearTimeout(blindLongPressTimer);
+    blindLongPressTimer = null;
+  }
+  blindLongPressFired = false;
+  blindTouchIgnored = false;
+  if (blindTouchMoved >= BLIND_DRAG_SLOP) {
+    blindSpeed = blindSpeedAtTouch;
+    blindNotify("absorbAutoScrollSpeed", blindSpeed);
+  }
+  blindNotify("absorbAutoScrollDragEnd", true);
+  blindTouchHold = false;
+  blindApply();
+}
+
+function blindTouchAttach() {
+  var pad = document.getElementById("autoScrollTouch");
+  if (!pad) return;
+  pad.style.display = "block";
+  pad.addEventListener("touchstart", blindTouchStart, {passive: false});
+  pad.addEventListener("touchmove", blindTouchMove, {passive: false});
+  pad.addEventListener("touchend", blindTouchEnd, {passive: false});
+  pad.addEventListener("touchcancel", blindTouchCancel, {passive: false});
+  pad.addEventListener("mousedown", blindTouchStart);
+  pad.addEventListener("mousemove", function (e) { if (blindTouchHold) blindTouchMove(e); });
+  pad.addEventListener("mouseup", blindTouchEnd);
+  pad.addEventListener("click", blindSwallow, true);
+  pad.addEventListener("pointerdown", blindSwallow, true);
+  pad.addEventListener("pointerup", blindSwallow, true);
+}
+
+function blindSwallow(e) {
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function blindTouchDetach() {
+  var pad = document.getElementById("autoScrollTouch");
+  if (!pad) return;
+  pad.removeEventListener("touchstart", blindTouchStart);
+  pad.removeEventListener("touchmove", blindTouchMove);
+  pad.removeEventListener("touchend", blindTouchEnd);
+  pad.removeEventListener("touchcancel", blindTouchCancel);
+  pad.removeEventListener("click", blindSwallow, true);
+  pad.removeEventListener("pointerdown", blindSwallow, true);
+  pad.removeEventListener("pointerup", blindSwallow, true);
+  pad.style.display = "none";
+}
+
+// epub.js resolves display() before its manager has finished laying the
+// section out in columns, and next() on an unlaid-out manager quietly does
+// nothing - which left the blind showing the live page. Give layout a couple
+// of frames, then advance, then confirm it actually moved and retry if not.
+function blindFrames(n) {
+  return new Promise(function (resolve) {
+    var left = n;
+    (function step() {
+      if (left-- <= 0) return resolve();
+      requestAnimationFrame(step);
+    })();
+  });
+}
+
+function blindCfiOf(r) {
+  try {
+    var loc = r.currentLocation();
+    return loc && loc.start ? loc.start.cfi : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// "Different CFI" is too weak a test: the blind could move and still show the
+// same text, because a page is a span and two different positions can sit
+// inside one visible page. The real question is whether the blind starts at or
+// after where the live page ends, which epub.js can answer positionally.
+function blindIsAhead() {
+  try {
+    var live = rendition.currentLocation();
+    var blind = blindRendition.currentLocation();
+    if (!live || !live.end || !blind || !blind.start) return false;
+    var cmp = new ePub.CFI().compare(blind.start.cfi, live.end.cfi);
+    return cmp >= 0;
+  } catch (e) {
+    var a = blindCfiOf(blindRendition);
+    var b = blindCfiOf(rendition);
+    return !!(a && b && a !== b);
+  }
+}
+
+// Advance the blind until its first visible position is past the live page's
+// last one, confirming each step rather than trusting next() to have worked.
+function blindAdvancePastLive(attempt) {
+  attempt = attempt || 0;
+  if (!blindRendition) return Promise.resolve();
+  var before = blindCfiOf(blindRendition);
+  return blindFrames(2)
+    .then(function () { return blindRendition.next(); })
+    .then(function () { return blindFrames(1); })
+    .then(function () {
+      var moved = blindCfiOf(blindRendition) !== before;
+      if (blindIsAhead() || attempt >= 5) return;
+      // Not moving at all means layout still is not ready; give it longer.
+      return blindFrames(moved ? 0 : 3)
+        .then(function () { return blindAdvancePastLive(attempt + 1); });
+    });
+}
+
+function autoScrollStart(speed) {
+  if (!rendition || blindRendition) return;
+  if (typeof speed === "number" && speed > 0) blindSpeed = speed;
+  var host = document.getElementById("viewerNext");
+  if (!host) return;
+  host.style.display = "block";
+  blindMatchViewerBox();
+  if (lastTheme.bg && lastTheme.bg !== "null") host.style.background = lastTheme.bg;
+  // A live selection makes rendition.next() a no-op (setupRenditionBlocking),
+  // which would leave the reader stuck on one page for the whole run.
+  try { clearSelection(); } catch (e) {}
+  blindY = 0;
+  blindApply();
+  blindTouchAttach();
+  blindResolveLineColor();
+  blindPaused = false;
+  var liveRendition = rendition;
+  blindRendition = book.renderTo("viewerNext", lastRenderOpts);
+  window.__absorbBlindRendition = blindRendition;
+  try {
+    blindRendition.hooks.content.register(function (contents) {
+      if (window.__absorbApplyFontToDoc) window.__absorbApplyFontToDoc(contents.document);
+    });
+  } catch (e) {}
+  // renderTo points book.rendition at whatever it just made - epub.js internals
+  // still expect the live one.
+  book.rendition = liveRendition;
+  blindThemeApply(blindRendition);
+  var loc = rendition.currentLocation();
+  var cfi = loc && loc.start ? loc.start.cfi : null;
+  blindRendition.on("rendered", function () { blindThemeApply(blindRendition); });
+  Promise.resolve(cfi ? blindRendition.display(cfi) : blindRendition.display())
+    .then(function () { return blindAdvancePastLive(0); })
+    .then(function () {
+      blindThemeApply(blindRendition);
+      blindLastTs = 0;
+      blindRaf = requestAnimationFrame(blindTick);
+    })
+    .catch(function () { autoScrollStop(); });
+}
+
+function blindTick(ts) {
+  if (!blindRendition) return;
+  if (!blindLastTs) blindLastTs = ts;
+  var dt = (ts - blindLastTs) / 1000;
+  blindLastTs = ts;
+  // rAF stops while the app is away; the first frame back carries the whole gap
+  if (dt > 0.25) dt = 0;
+  if (!blindPaused && !blindTouchHold && !blindSwapping) {
+    blindY += blindSpeed * dt;
+    var h = blindHeight();
+    if (blindY >= h) {
+      blindY = h;
+      blindApply();
+      blindSwap();
+    } else {
+      blindApply();
+    }
+  }
+  blindRaf = requestAnimationFrame(blindTick);
+}
+
+// The blind is fully open here, so the screen is already showing the next page.
+// Advancing the live rendition underneath it is therefore invisible, and the
+// blind can snap back to zero before it fetches the page after that.
+function blindSwap() {
+  blindSwapping = true;
+  try { clearSelection(); } catch (e) {}
+  Promise.resolve(rendition.next())
+    // next() resolving does not mean the live page has painted. Retracting the
+    // blind on that promise showed the old page for a frame, which read as a
+    // page turn. Hold the blind up until the live page is actually there.
+    .then(function () { return blindFrames(2); })
+    .then(function () {
+      blindY = 0;
+      blindApply();
+      return blindAdvancePastLive(0);
+    })
+    .then(function () {
+      blindThemeApply(blindRendition);
+      blindSwapping = false;
+    })
+    .catch(function () { autoScrollStop(); });
+}
+
+window.addEventListener("resize", function () {
+  if (blindRendition) {
+    blindMatchViewerBox();
+    autoScrollResync();
+  }
+});
+
+function autoScrollSpeed(speed) {
+  if (typeof speed === "number" && speed >= 0) blindSpeed = speed;
+}
+
+function autoScrollPause(paused) {
+  blindPaused = !!paused;
+  blindApply();
+}
+
+// Re-seat the blind on the page after the live one. Used when the live
+// rendition moves for any reason other than our own swap - a font size change,
+// a manual page turn, a jump from the table of contents.
+function autoScrollResync() {
+  if (!blindRendition || !rendition) return;
+  blindSwapping = true;
+  blindY = 0;
+  blindApply();
+  var loc = rendition.currentLocation();
+  var cfi = loc && loc.start ? loc.start.cfi : null;
+  Promise.resolve(cfi ? blindRendition.display(cfi) : blindRendition.display())
+    .then(function () { return blindAdvancePastLive(0); })
+    .then(function () { blindSwapping = false; })
+    .catch(function () { autoScrollStop(); });
+}
+
+function autoScrollStop() {
+  blindTouchHold = false;
+  if (blindRaf) cancelAnimationFrame(blindRaf);
+  blindRaf = null;
+  blindLastTs = 0;
+  blindSwapping = false;
+  blindPaused = false;
+  blindY = 0;
+  var line = document.getElementById("blindLine");
+  if (line) line.style.display = "none";
+  var host = document.getElementById("viewerNext");
+  if (host) {
+    host.style.clipPath = "inset(0px 0px 100% 0px)";
+    host.style.webkitClipPath = "inset(0px 0px 100% 0px)";
+    host.style.display = "none";
+  }
+  if (blindRendition) {
+    try { blindRendition.destroy(); } catch (e) {}
+    blindRendition = null;
+  }
+  window.__absorbBlindRendition = null;
+  if (host) host.innerHTML = "";
+  blindTouchDetach();
+}
+
+function autoScrollActive() {
+  return blindRendition !== null;
+}
+
 function setFontSize(fontSize) {
+  lastTheme.fontSize = fontSize;
   rendition.themes.fontSize(`${fontSize}px`);
   rendition.reportLocation();
+  if (blindRendition) autoScrollResync();
 }
 
 //get current page text
@@ -2277,32 +2771,45 @@ function getTextFromCfi(startCfi, endCfi) {
 
 ///update theme
 function updateTheme(backgroundColor, foregroundColor, customCss) {
-  var rules = {};
-  var themeObj = {};
-
-  // Build theme object with available colors
-  // Only include properties that are provided and not empty
-  if (backgroundColor && backgroundColor !== "" && backgroundColor !== "null") {
-    themeObj["background"] = backgroundColor;
+  lastTheme.bg = backgroundColor;
+  lastTheme.fg = foregroundColor;
+  lastTheme.css = customCss;
+  var host = document.getElementById("viewerNext");
+  if (host && backgroundColor && backgroundColor !== "null") {
+    host.style.background = backgroundColor;
   }
-  if (foregroundColor && foregroundColor !== "" && foregroundColor !== "null") {
-    themeObj["color"] = foregroundColor;
+  if (blindRendition) {
+    blindThemeApply(blindRendition);
+    blindResolveLineColor();
   }
-
-  if (Object.keys(themeObj).length > 0) {
-    rules["body"] = themeObj;
-  }
-
-  // Merge custom CSS
-  if (customCss && customCss !== "null" && typeof customCss === 'object') {
-    Object.assign(rules, customCss);
-  }
+  var rules = buildThemeRules(backgroundColor, foregroundColor, customCss);
 
   // Update theme if there are rules
   if (Object.keys(rules).length > 0) {
     rendition.themes.register("user-theme", rules);
     rendition.themes.select("user-theme");
   }
+}
+
+// Shared by the live rendition and the auto-scroll blind. The blind used to
+// build its own cut-down version and lost customCss, which is where the
+// reader's font lives - so the incoming page came in with the wrong typeface.
+function buildThemeRules(backgroundColor, foregroundColor, customCss) {
+  var rules = {};
+  var themeObj = {};
+  if (backgroundColor && backgroundColor !== "" && backgroundColor !== "null") {
+    themeObj["background"] = backgroundColor;
+  }
+  if (foregroundColor && foregroundColor !== "" && foregroundColor !== "null") {
+    themeObj["color"] = foregroundColor;
+  }
+  if (Object.keys(themeObj).length > 0) {
+    rules["body"] = themeObj;
+  }
+  if (customCss && customCss !== "null" && typeof customCss === "object") {
+    Object.assign(rules, customCss);
+  }
+  return rules;
 }
 
 const makeRangeCfi = (a, b) => {
