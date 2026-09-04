@@ -5,6 +5,10 @@
   "offline": "Déconnecté",
   "stillOffline": "Toujours déconnecté. Touchez pour essayer encore.",
   "retry": "Réessayer",
+  "listsNone": "Pas de collection ni de liste de lecture",
+  "listsNoneHint": "Les collections et les listes de lecture sont faites sur votre serveur Audiobookshelf et apparaissent ici.",
+  "listsLoadFailed": "Impossible de charger vos listes",
+  "listsLoadFailedHint": "Absorb n'a pas pu accéder à votre serveur pour les collections et les playlists.",
   "cancel": "Annuler",
   "delete": "Effacer",
   "remove": "Retirer",
@@ -128,6 +132,7 @@
       }
     }
   },
+  "setupLinkShare": "Partager le lien",
   "setupLinkCopy": "Copier le lien",
   "setupLinkCopied": "Lien de connexion copié",
   "setupLinkSaveFile": "Enregistrer le fichier de configuration",
@@ -297,6 +302,8 @@
   "noTracks": "Aucune piste",
   "singleTrack": "Piste unique",
   "multipleTracks": "Multiples pistes",
+  "abridged": "Abrégé",
+  "issues": "Problèmes",
   "rssFeedOpen": "Flux RSS ouvert",
   "explicitContent": "Explicite",
   "missingMetadata": "Métadonnées manquantes",
@@ -317,6 +324,7 @@
   "dateStarted": "Date de démarrage",
   "dateFinished": "Date de complétion",
   "episodeCount": "Nombre d'épisodes",
+  "sequence": "Séquence de séries",
   "absorbingTitle": "Lecture",
   "absorbingStop": "Stop",
   "absorbingManageQueue": "Gérer la file d'attente",
@@ -388,6 +396,50 @@
     }
   },
   "bookmarksTitle": "Tous les signets",
+  "bookmarksTabBookmarks": "Signets",
+  "bookmarksTabHighlights": "Temps forts",
+  "highlightOpenInBook": "Ouvrir dans le livre",
+  "highlightDeleteAction": "Supprimer le temps fort",
+  "highlightDeleted": "Temps fort supprimé",
+  "highlightsDeleteCount": "Supprimer les {count} temps fort(s) ?",
+  "@highlightsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "highlightsDeletedCount": "Supprimer les {count} temps fort(s)",
+  "@highlightsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "quoteShareTitle": "Partager la citation",
+  "quoteShareAction": "Partager",
+  "quoteShapePortrait": "Portrait",
+  "quoteShapeSquare": "Carré",
+  "quoteShapeStory": "Histoire",
+  "quoteStyleBlur": "Flouté",
+  "quoteStyleDim": "Estompé",
+  "quoteStyleNone": "Couverture simple",
+  "quoteTextLight": "Texte clair",
+  "quoteTextDark": "Texte foncé",
+  "quoteFieldTitle": "Titre",
+  "quoteFieldDetail": "Détails",
+  "highlightsMeta": "{chapter} · {date}",
+  "@highlightsMeta": {
+    "placeholders": {
+      "chapter": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "bookmarksCancelSelection": "Annuler la sélection",
   "bookmarksSortedByNewest": "Plus récents d'abord",
   "bookmarksSortedByPosition": "Triés par position",
@@ -650,7 +702,10 @@
   "useColorEverywhereSubtitle": "Colorer aussi les pages de détail des livres et la carte du lecteur avec ta couleur définie plutôt qu’avec la couverture de chaque livre",
   "flatBackgroundLabel": "Arrière-plan plat",
   "flatBackgroundSubtitle": "Supprime le dégradé d’arrière‑plan. Noir pur en mode sombre pour les écrans OLED.",
+  "einkModeLabel": "Mode encre électronique",
+  "einkModeSubtitle": "Noir et blanc avec contraste élevé, sans animation, fait pour les écrans à encre électronique",
   "einkModeIntroBody": "Fait pour les écrans d'encre électronique. L'application passe à un aspect noir et blanc plat avec un contraste élevé, les animations sont désactivées, la carte de lecture perd son arrière-plan et la connexion au serveur en direct reste désactivée pour économiser la batterie. La lecture et la progression continuent de se synchroniser normalement. Vos paramètres d'apparence sont conservés et sont réactivés lorsque vous désactivez cette fonction.",
+  "einkModeIntroConfirm": "Activer",
   "backgroundIntensityLabel": "Intensité de l'arrière-plan",
   "startScreenLabel": "Écran d'accueil",
   "startScreenSubtitle": "Quel onglet ouvrir au lancement de l'application",
@@ -665,6 +720,11 @@
   "progressTextSize": "Taille du texte de la progression",
   "rectangleBookCoversOnSubtitle": "Les couvertures s'affichent au format 2:3",
   "rectangleBookCoversOffSubtitle": "Les couvertures sont carrées",
+  "coverSize": "Taille de la couverture",
+  "coverSizeSubtitle": "Nombre de couvertures rentrant dans la grille de la bibliothèque",
+  "coverSizeSmall": "Petit",
+  "coverSizeMedium": "Moyen",
+  "coverSizeLarge": "Grand",
   "sectionAbsorbingCards": "Cartes d'absorption",
   "fullScreenPlayer": "Lecteur plein écran",
   "fullScreenPlayerOnSubtitle": "Activé - livres ouverts en plein écran lors de la lecture",
@@ -1010,6 +1070,7 @@
   },
   "clearLogs": "Vider les journaux",
   "logsCleared": "Journaux effacés",
+  "clearLogsQuestion": "Vider les journaux ?",
   "sectionAdvanced": "Avancé",
   "localServer": "Serveur local",
   "localServerInfoTitle": "Serveur local",
@@ -1030,6 +1091,8 @@
   "mp3IndexSeeking": "Recherche d'index MP3",
   "mp3IndexSeekingInfoContent": "Activez cette option uniquement si vous avez des fichiers MP3 qui ne se positionnent pas à la bonne position. Le positionnement inexact provient généralement de MP3 à débit variable (VBR). L'index cherchant à construire une carte temporelle exacte lorsque le fichier est lu, sauter près de la fin d'un grand MP3 peut prendre un moment - surtout en streaming, car le fichier doit être lu jusqu'à ce point. Prend effet la prochaine fois qu'un livre ou un podcast commence.",
   "trustAllCertificatesInfoContent": "Activez cette option si votre serveur Audiobookshelf utilise un certificat auto-signé ou une AC racine personnalisée. Lorsque cette option est activée, Absorb ignorera la vérification du certificat TLS pour toutes les connexions. N'activez cette option que si vous faites confiance à votre réseau.",
+  "trustAllCertificatesOnSubtitle": "Activé - accepter tous les certificats",
+  "trustAllCertificatesOffSubtitle": "Désactivé - seuls les certificats de confiance sont acceptés",
   "supportTheDev": "Soutenir le développeur",
   "buyMeACoffee": "Offrez moi un café",
   "appVersionFormat": "Absorb v{version}",
@@ -1037,6 +1100,15 @@
     "placeholders": {
       "version": {
         "type": "String"
+      }
+    }
+  },
+  "betaLabel": "Beta {number}",
+  "@betaLabel": {
+    "description": "Shown after the version on beta builds, e.g. 1.9.3+240 (Beta 6)",
+    "placeholders": {
+      "number": {
+        "type": "int"
       }
     }
   },
@@ -1171,6 +1243,8 @@
     }
   },
   "editServerAddressField": "Adresse du serveur",
+  "editServerAddressUpdated": "Adresse du serveur mise à jour",
+  "editServerAddressFailed": "Impossible de mettre à jour l'adresse du serveur",
   "editServerAddressAction": "Modifier l'adresse du serveur",
   "editServerConnectionTitle": "Modifier la connexion au serveur",
   "editServerConnectionSubtitle": "Mettre à jour l'adresse du serveur et les en-têtes personnalisés pour {username}. Vos statistiques et vos téléchargements sont conservés.",
@@ -1246,8 +1320,30 @@
   "tipsSubtitle": "Tirez le maximum de Absorb",
   "adminTitle": "Administrateur du serveur",
   "adminTasksTitle": "Activité du serveur",
+  "adminTasksRunning": "{count, plural, one {}=1{1 tâche en cours} other{{count} Tâches en cours}}",
+  "@adminTasksRunning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminTasksRecent": "Activité récente du serveur",
   "adminTasksEmpty": "Aucune tâche n'est en cours d'exécution sur le serveur",
+  "adminTaskScanSummary": "{added} ajouté - {updated} mis à jour - {missing} manquant",
+  "@adminTaskScanSummary": {
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "missing": {
+        "type": "int"
+      }
+    }
+  },
   "adminServer": "Serveur",
   "adminVersion": "Version",
   "adminUsers": "Utilisateurs",
@@ -1267,6 +1363,7 @@
     }
   },
   "adminPodcasts": "Podcasts",
+  "adminPodcastsSubtitle": "Recherche, ajout et gestion des séries",
   "adminScan": "Scanner",
   "adminMatchAllContent": "Faire correspondre les métadonnées de tous les éléments dans {name} ? Cela peut prendre un certain temps.",
   "@adminMatchAllContent": {
