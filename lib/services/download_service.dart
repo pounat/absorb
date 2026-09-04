@@ -351,6 +351,12 @@ class DownloadService extends ChangeNotifier {
   // these, so a half-finished book that was deleted stops coming back on the
   // next launch. Global like the downloads themselves, not per account.
   final Set<String> _autoDownloadBlocked = {};
+
+  /// True when the user deleted this download, so an automatic download of it
+  /// would be skipped. Callers that count or announce downloads need to know
+  /// before they call, or they announce work that never happens.
+  bool isAutoDownloadBlocked(String itemId) =>
+      _autoDownloadBlocked.contains(itemId);
   static const _autoDownloadBlockedKey = 'auto_download_blocked';
 
   /// The current Android SAF folder URI (content://), or null if using default.

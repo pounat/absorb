@@ -3450,7 +3450,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     final anchorFinished = _progressMap[compoundKey]?['isFinished'] == true;
     if (!anchorFinished &&
         !dl.isDownloaded(compoundKey) &&
-        !dl.isDownloading(compoundKey)) {
+        !dl.isDownloading(compoundKey) &&
+        !dl.isAutoDownloadBlocked(compoundKey)) {
       final curEp = episodes[currentIdx] as Map<String, dynamic>;
       dl.downloadItem(
         api: _api!,
@@ -3477,6 +3478,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         continue;
       }
       if (_progressMap[key]?['isFinished'] == true) continue;
+      // Deleted by hand: downloadItem would skip it anyway, and counting it
+      // here is what announced "Downloading 2 episodes" on every launch while
+      // nothing downloaded.
+      if (dl.isAutoDownloadBlocked(key)) continue;
 
       dl.downloadItem(
         api: _api!,
