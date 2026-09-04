@@ -632,6 +632,11 @@ class _AppShellState extends State<AppShell>
   }
 
   @override
+  void didHaveMemoryPressure() {
+    AudioPlayerService.onMemoryPressure();
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:

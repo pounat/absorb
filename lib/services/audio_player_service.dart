@@ -2760,6 +2760,7 @@ class AudioPlayerService extends ChangeNotifier {
           await PlayerSettings.getMediaControlsSpeedBookmark();
       _handler!._cachedLockSeekBar = await PlayerSettings.getLockSeekBar();
       debugPrint('[Player] AudioService initialized');
+      if (Platform.isIOS) unawaited(_reportPreviousBackgroundDeath());
       // Configure streaming cache if enabled
       final cacheSizeMb = await PlayerSettings.getStreamingCacheSizeMb();
       debugPrint('[Player] Streaming cache setting: $cacheSizeMb MB');
@@ -3119,17 +3120,97 @@ class AudioPlayerService extends ChangeNotifier {
     final beforeMb = cache.currentSizeBytes ~/ 1048576;
     cache.clear();
     cache.clearLiveImages();
-    // rss is the whole process, before the drop: the number iOS weighs when
-    // it looks for something to evict.
     final rssMb = ProcessInfo.currentRss ~/ 1048576;
-    debugPrint('[Memory] Backgrounded: rss=${rssMb}MB, dropped ${beforeMb}MB '
-        'of decoded covers');
+    unawaited(_logBackgroundMemory(rssMb, beforeMb));
+  }
+
+  static const _bgMarkerKey = 'ios_bg_marker';
+
+  /// iOS memory figures from the native side: `footprint` is what jetsam
+  /// judges (phys_footprint, not RSS) and `available` is how much more the
+  /// process may take before it is killed. Both in MB, -1 when unavailable.
+  static Future<({int footprintMb, int availableMb})> _iosMemoryInfo() async {
+    try {
+      final info = await _eqChannelForDiag
+          .invokeMethod<Map<dynamic, dynamic>>('getMemoryInfo');
+      int mb(dynamic v) {
+        final n = (v as num?)?.toInt() ?? -1;
+        return n < 0 ? -1 : n ~/ 1048576;
+      }
+      return (
+        footprintMb: mb(info?['footprint']),
+        availableMb: mb(info?['available']),
+      );
+    } catch (_) {
+      return (footprintMb: -1, availableMb: -1);
+    }
+  }
+
+  /// Log the footprint on the way out and leave a marker that the next
+  /// foreground clears. If a later launch still finds it, the process never
+  /// came back from the background: iOS ended it there (or the user swiped
+  /// it away).
+  static Future<void> _logBackgroundMemory(int rssMb, int droppedMb) async {
+    final m = await _iosMemoryInfo();
+    final playing = _instance.isPlaying;
+    debugPrint('[Memory] Backgrounded: footprint=${m.footprintMb}MB '
+        'available=${m.availableMb}MB rss=${rssMb}MB playing=$playing, '
+        'dropped ${droppedMb}MB of decoded covers');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _bgMarkerKey,
+        '${DateTime.now().millisecondsSinceEpoch}|${m.footprintMb}|'
+        '${m.availableMb}|$playing',
+      );
+    } catch (_) {}
+  }
+
+  static Future<void> _logForegroundMemory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_bgMarkerKey);
+    } catch (_) {}
+    final m = await _iosMemoryInfo();
+    debugPrint('[Memory] Foregrounded: footprint=${m.footprintMb}MB '
+        'available=${m.availableMb}MB');
+  }
+
+  static Future<void> _reportPreviousBackgroundDeath() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_bgMarkerKey);
+      if (raw == null) return;
+      await prefs.remove(_bgMarkerKey);
+      final parts = raw.split('|');
+      final at = int.tryParse(parts[0]) ?? 0;
+      final ago = DateTime.now()
+          .difference(DateTime.fromMillisecondsSinceEpoch(at))
+          .inMinutes;
+      String part(int i) => parts.length > i ? parts[i] : '?';
+      debugPrint('[Memory] Previous process ended in the background, '
+          '${ago}min after it went there (or was swiped away): '
+          'footprint=${part(1)}MB available=${part(2)}MB playing=${part(3)}');
+    } catch (_) {}
+  }
+
+  /// Flutter forwards iOS memory warnings here (and drops its image cache on
+  /// its own). Logging them with the numbers says how close to the edge the
+  /// app was, before jetsam makes the decision for it.
+  static void onMemoryPressure() {
+    if (!Platform.isIOS) return;
+    unawaited(() async {
+      final m = await _iosMemoryInfo();
+      debugPrint('[Memory] iOS memory warning: footprint=${m.footprintMb}MB '
+          'available=${m.availableMb}MB');
+    }());
   }
 
   static Future<void> onAppForegrounded() async {
     final service = _instance;
     service._isBackgrounded = false;
     _lastForegroundAt = DateTime.now();
+    if (Platform.isIOS) unawaited(_logForegroundMemory());
     // Relative timing on foreground arrival is the second half of the
     // AA-disconnect fingerprint (variant 3): raw pause, then foreground
     // within ~2s. Log sincePrevPauseMs / sincePrevPlayMs so the disconnect

@@ -7,6 +7,7 @@ import AVKit
 import CoreMedia
 import MediaPlayer
 import just_audio
+import os
 
 let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadlessExecution: true)
 
@@ -562,6 +563,22 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       switch call.method {
       case "isBluetoothAudioConnected":
         result(self?.isBluetoothAudioConnected() ?? false)
+
+      case "getMemoryInfo":
+        // The two numbers that matter for eviction: phys_footprint is what
+        // jetsam judges (RSS is not), and os_proc_available_memory is how
+        // much more this process may take before it is killed.
+        var vmInfo = task_vm_info_data_t()
+        var vmCount = mach_msg_type_number_t(
+          MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let kr = withUnsafeMutablePointer(to: &vmInfo) {
+          $0.withMemoryRebound(to: integer_t.self, capacity: Int(vmCount)) {
+            task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &vmCount)
+          }
+        }
+        let footprint: Int64 = kr == KERN_SUCCESS ? Int64(vmInfo.phys_footprint) : -1
+        let available = Int64(os_proc_available_memory())
+        result(["footprint": footprint, "available": available])
 
       case "getAudioDiagnostics":
         // Snapshot of AVAudioSession state for the "tap play, no sound"
