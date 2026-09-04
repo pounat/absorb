@@ -5,6 +5,10 @@ import 'narrator_books_sheet.dart';
 
 class LibraryNarratorsTab extends StatelessWidget {
   final List<String> narrators;
+
+  /// Book count per narrator, when the server has answered; rows without an
+  /// entry show no count.
+  final Map<String, int> narratorCounts;
   final bool isLoading;
   final bool loaded;
   final Future<void> Function() onRefresh;
@@ -14,6 +18,7 @@ class LibraryNarratorsTab extends StatelessWidget {
   const LibraryNarratorsTab({
     super.key,
     required this.narrators,
+    this.narratorCounts = const {},
     required this.isLoading,
     required this.loaded,
     required this.onRefresh,
@@ -103,6 +108,15 @@ class LibraryNarratorsTab extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (narratorCounts[name] case final count?) ...[
+                          Text(
+                            l.seriesBooksBookCount(count),
+                            style: tt.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         Icon(Icons.chevron_right_rounded,
                             size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
                       ],

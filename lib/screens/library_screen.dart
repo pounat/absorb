@@ -460,6 +460,9 @@ class LibraryScreenState extends State<LibraryScreen>
 
   // ── Narrators tab state ──
   List<String> _narrators = [];
+  // Book count per narrator, from the narrators endpoint; empty until it
+  // answers. Drives the "number of books" sort and the count on each row.
+  Map<String, int> _narratorCounts = {};
   bool _isLoadingNarrators = false;
   bool _narratorsLoaded = false;
   LibrarySort _narratorSort = LibrarySort.alphabetical;
@@ -646,6 +649,7 @@ class LibraryScreenState extends State<LibraryScreen>
         _totalAuthors = 0;
         _authorsGen++;
         _narrators.clear();
+        _narratorCounts = {};
         _narratorsLoaded = false;
         _isLoadingNarrators = false;
         _listsFailed = false;
@@ -1575,8 +1579,11 @@ class LibraryScreenState extends State<LibraryScreen>
   // ══════════════════════════════════════════════════════════════
   // AUTHORS TAB - Load all authors
   // ══════════════════════════════════════════════════════════════
-  String get _authorServerSort =>
-      _authorSort == LibrarySort.totalDuration ? 'numBooks' : 'name';
+  String get _authorServerSort => switch (_authorSort) {
+        LibrarySort.totalDuration => 'numBooks',
+        LibrarySort.recentlyAdded => 'addedAt',
+        _ => 'name',
+      };
 
   List<Map<String, dynamic>> _authorPageResults(Map<String, dynamic>? result) =>
       ((result?['results'] ?? result?['authors']) as List<dynamic>? ?? const [])
@@ -1649,6 +1656,13 @@ class LibraryScreenState extends State<LibraryScreen>
             ? aCount.compareTo(bCount)
             : bCount.compareTo(aCount);
       }
+      if (_authorSort == LibrarySort.recentlyAdded) {
+        final aAdded = (a['addedAt'] as num?)?.toInt() ?? 0;
+        final bAdded = (b['addedAt'] as num?)?.toInt() ?? 0;
+        return _authorSortAsc
+            ? aAdded.compareTo(bAdded)
+            : bAdded.compareTo(aAdded);
+      }
       final aName = (a['name'] as String? ?? '').toLowerCase();
       final bName = (b['name'] as String? ?? '').toLowerCase();
       return _authorSortAsc ? aName.compareTo(bName) : bName.compareTo(aName);
@@ -1670,21 +1684,39 @@ class LibraryScreenState extends State<LibraryScreen>
       return;
     }
 
-    final narrators = await api.getLibraryNarrators(lib.selectedLibraryId!);
-    if (mounted) {
-      setState(() {
-        _narrators = narrators;
-        _sortNarrators();
-        _isLoadingNarrators = false;
-        _narratorsLoaded = true;
-      });
-    }
+    final libId = lib.selectedLibraryId!;
+    final narrators = await api.getLibraryNarrators(libId);
+    if (!mounted) return;
+    setState(() {
+      _narrators = narrators;
+      _sortNarrators();
+      _isLoadingNarrators = false;
+      _narratorsLoaded = true;
+    });
+    // Book counts come from a separate endpoint that walks every book with a
+    // narrator, so they land after the names and re-sort the list then.
+    final counts = await api.getLibraryNarratorCounts(libId);
+    if (!mounted || counts.isEmpty || lib.selectedLibraryId != libId) return;
+    setState(() {
+      _narratorCounts = counts;
+      _sortNarrators();
+    });
   }
 
   void _sortNarrators() {
     _narrators.sort((a, b) {
       final aLower = a.toLowerCase();
       final bLower = b.toLowerCase();
+      if (_narratorSort == LibrarySort.totalDuration) {
+        final aCount = _narratorCounts[a] ?? 0;
+        final bCount = _narratorCounts[b] ?? 0;
+        if (aCount != bCount) {
+          return _narratorSortAsc
+              ? aCount.compareTo(bCount)
+              : bCount.compareTo(aCount);
+        }
+        return aLower.compareTo(bLower);
+      }
       return _narratorSortAsc
           ? aLower.compareTo(bLower)
           : bLower.compareTo(aLower);
@@ -1816,7 +1848,7 @@ class LibraryScreenState extends State<LibraryScreen>
     } else {
       setState(() {
         _narratorSort = newSort;
-        _narratorSortAsc = true;
+        _narratorSortAsc = newSort == LibrarySort.alphabetical;
       });
     }
     PlayerSettings.setNarratorSort(_narratorSort.name);
@@ -3768,6 +3800,7 @@ class LibraryScreenState extends State<LibraryScreen>
   Future<void> _refreshNarrators() async {
     setState(() {
       _narrators.clear();
+      _narratorCounts = {};
       _narratorsLoaded = false;
       _isLoadingNarrators = false;
     });
@@ -3777,6 +3810,7 @@ class LibraryScreenState extends State<LibraryScreen>
   Widget _buildNarratorsGrid(Widget headerSliver) {
     return LibraryNarratorsTab(
       narrators: _narrators,
+      narratorCounts: _narratorCounts,
       isLoading: _isLoadingNarrators,
       loaded: _narratorsLoaded,
       onRefresh: _refreshNarrators,

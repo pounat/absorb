@@ -202,8 +202,8 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
       if (_showFilterTab && _tabCtrl.index == 1) return 280;
       return widget.onUpcomingReleases != null ? 330 : 230;
     }
-    if (widget.libraryTab == LibraryTab.authors) return 180;
-    if (widget.libraryTab == LibraryTab.narrators) return 130;
+    if (widget.libraryTab == LibraryTab.authors) return 230;
+    if (widget.libraryTab == LibraryTab.narrators) return 180;
     if (widget.libraryTab == LibraryTab.lists) return 230;
     if (_genreExpanded ||
         _tagExpanded ||
@@ -324,11 +324,13 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
       case LibraryTab.authors:
         return [
           (LibrarySort.alphabetical, l.name, Icons.sort_by_alpha_rounded),
+          (LibrarySort.recentlyAdded, l.dateAdded, Icons.schedule_rounded),
           (LibrarySort.totalDuration, l.numberOfBooks, Icons.auto_stories_rounded),
         ];
       case LibraryTab.narrators:
         return [
           (LibrarySort.alphabetical, l.name, Icons.sort_by_alpha_rounded),
+          (LibrarySort.totalDuration, l.numberOfBooks, Icons.auto_stories_rounded),
         ];
       case LibraryTab.lists:
         return [

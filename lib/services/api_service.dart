@@ -1522,6 +1522,35 @@ class ApiService {
     return [];
   }
 
+  /// Book count per narrator name. The narrators endpoint walks every book
+  /// with a narrator server-side, so it is slower than filterdata; callers
+  /// fetch it after the names and treat an empty map as "not available".
+  Future<Map<String, int>> getLibraryNarratorCounts(String libraryId) async {
+    try {
+      final response = await _authGet(
+        Uri.parse('$_cleanBaseUrl/api/libraries/$libraryId/narrators'),
+        timeout: const Duration(seconds: 30),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final counts = <String, int>{};
+        for (final n in data['narrators'] as List<dynamic>? ?? const []) {
+          if (n is! Map<String, dynamic>) continue;
+          final name = n['name'] as String?;
+          final count = (n['numBooks'] as num?)?.toInt();
+          if (name != null && name.isNotEmpty && count != null) {
+            counts[name] = count;
+          }
+        }
+        return counts;
+      }
+      debugPrint('[API] getLibraryNarratorCounts: HTTP ${response.statusCode}');
+    } catch (e) {
+      debugPrint('[API] getLibraryNarratorCounts failed: $e');
+    }
+    return const {};
+  }
+
   /// Get books narrated by a specific person.
   /// Filter format: narrators.<base64(name)>
   Future<List<dynamic>> getBooksByNarrator(
