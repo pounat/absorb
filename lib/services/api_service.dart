@@ -1579,7 +1579,7 @@ class ApiService {
   /// Get full author details including description/bio.
   Future<Map<String, dynamic>?> getAuthorById(String authorId, {String? libraryId}) async {
     try {
-      var url = '$_cleanBaseUrl/api/authors/$authorId?include=items';
+      var url = '$_cleanBaseUrl/api/authors/$authorId?include=items,series';
       if (libraryId != null) url += '&library=$libraryId';
       final response = await _authGet(
         Uri.parse(url),
