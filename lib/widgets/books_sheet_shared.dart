@@ -37,15 +37,23 @@ int coverGridCount(BuildContext context) {
   }
 }
 
+/// Width of one tile in a cover grid at the current cover size.
+double coverGridTileWidth(BuildContext context) {
+  final columns = coverGridCount(context);
+  final width = MediaQuery.of(context).size.width;
+  return (width - 32 - 10 * (columns - 1)) / columns;
+}
+
 /// Label scale for cover-grid tiles: 1.0 at the stock phone tile width and
 /// growing with the tile, so big tablet or large-cover grids don't pair big
 /// covers with tiny labels. Never shrinks below 1.0 on dense grids.
-double coverGridTextScale(BuildContext context) {
-  final columns = coverGridCount(context);
-  final width = MediaQuery.of(context).size.width;
-  final tile = (width - 32 - 10 * (columns - 1)) / columns;
-  return (tile / 120).clamp(1.0, 1.5);
-}
+double coverGridTextScale(BuildContext context) =>
+    (coverGridTileWidth(context) / 120).clamp(1.0, 1.5);
+
+/// Height a subtitle adds to a tile: one line of label text at the tile's
+/// scale, plus a little so rounding can't clip it.
+double coverGridSubtitleHeight(BuildContext context) =>
+    10 * coverGridTextScale(context) * 1.6;
 
 /// Decode width in physical pixels for a cover in the current grid. Disk
 /// caching only saves the download - every tile scrolled into view still

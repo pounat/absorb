@@ -3058,6 +3058,48 @@ abstract class AppLocalizations {
   /// **'Cover shape'**
   String get coverShapeLabel;
 
+  /// No description provided for @showSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Show subtitles'**
+  String get showSubtitles;
+
+  /// No description provided for @showSubtitlesOnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles show under book titles in the library and on home'**
+  String get showSubtitlesOnSubtitle;
+
+  /// No description provided for @showSubtitlesOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Off - subtitles only on the book details sheet'**
+  String get showSubtitlesOffSubtitle;
+
+  /// No description provided for @subtitleVisibilityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles'**
+  String get subtitleVisibilityLabel;
+
+  /// No description provided for @subtitleVisibilityDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get subtitleVisibilityDefault;
+
+  /// No description provided for @subtitleVisibilityShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get subtitleVisibilityShow;
+
+  /// No description provided for @subtitleVisibilityHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get subtitleVisibilityHide;
+
   /// No description provided for @currentLibrarySettingsTitle.
   ///
   /// In en, this message translates to:

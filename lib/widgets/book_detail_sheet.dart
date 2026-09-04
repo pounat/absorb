@@ -531,6 +531,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final chapters = media['chapters'] as List<dynamic>? ?? [];
     final title = metadata['title'] as String? ?? l.unknown;
+    final subtitle = metadata['subtitle'] as String? ?? '';
     final authorName = metadata['authorName'] as String? ?? '';
     final descRaw = metadata['description'] as String? ?? '';
     final duration = (media['duration'] as num?)?.toDouble() ?? 0;
@@ -618,6 +619,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         const SizedBox(height: 16),
       ],
       Text(title, textAlign: TextAlign.center, style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
+      if (subtitle.isNotEmpty) ...[
+        const SizedBox(height: 4),
+        Text(subtitle, textAlign: TextAlign.center,
+          style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
+      ],
       const SizedBox(height: 4),
       _buildAuthorLinks(context, metadata, cs, tt, accent),
       _buildNarratorLinks(context, metadata, cs, tt, accent),

@@ -145,12 +145,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _snappyTransitions = false;
   bool _classicWording = false;
   bool _rectangleCovers = false;
+  bool _showSubtitles = false;
   String _coverSize = 'medium';
   // Per-library overrides shown in the Library section, scoped to whichever
   // library is currently selected (scales to accounts with many libraries -
   // no giant list, just "whatever you're browsing right now").
   String? _curLibId;
   String _curLibCoverShape = 'default'; // 'default' | 'square' | 'rect'
+  String _curLibSubtitles = 'default'; // 'default' | 'show' | 'hide'
   bool _curLibSkipOverride = false;
   int _curLibSkipForward = 30;
   int _curLibSkipBack = 10;
@@ -956,6 +958,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final mp3IndexSeek = await PlayerSettings.getMp3IndexSeeking();
     final coverSize = await PlayerSettings.getCoverSize();
     final flatBackground = await PlayerSettings.getFlatBackground();
+    final showSubtitles = await PlayerSettings.getShowSubtitles();
     final einkMode = await PlayerSettings.getEinkMode();
     final colorSource = await PlayerSettings.getColorSource();
     final manualSeed = await PlayerSettings.getManualSeedColor();
@@ -1099,6 +1102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _startScreen = startScreen;
       // cardBtnLayout removed (now managed in edit sheet)
       _rectangleCovers = rectCovers;
+      _showSubtitles = showSubtitles;
       _coverSize = coverSize;
       _coverPlayButton = coverPlay;
       _cardBackground = cardBg;
@@ -1138,14 +1142,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// different library from the list in this same section.
   Future<void> _loadCurrentLibraryOverrides(String libraryId) async {
     final shape = await PlayerSettings.getRectangleCoversOverride(libraryId);
+    final subtitles = await PlayerSettings.getShowSubtitlesOverride(libraryId);
     final skip = await PlayerSettings.getSkipOverride(libraryId);
     if (mounted) setState(() {
       _curLibId = libraryId;
       _curLibCoverShape = shape ?? 'default';
+      _curLibSubtitles = subtitles ?? 'default';
       _curLibSkipOverride = skip != null;
       _curLibSkipForward = skip?.forward ?? 30;
       _curLibSkipBack = skip?.back ?? 10;
     });
+  }
+
+  String _subtitleVisibilityValueLabel(AppLocalizations l, String value) {
+    switch (value) {
+      case 'show': return l.subtitleVisibilityShow;
+      case 'hide': return l.subtitleVisibilityHide;
+      default: return l.subtitleVisibilityDefault;
+    }
+  }
+
+  /// Default/Show/Hide picker for the currently selected library.
+  Future<void> _pickCurrentLibrarySubtitles() async {
+    final libId = _curLibId;
+    if (libId == null) return;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: cs.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.24),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(l.subtitleVisibilityLabel, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            RadioListTile<String>(
+              value: 'default',
+              groupValue: _curLibSubtitles,
+              onChanged: (v) => Navigator.pop(ctx, v),
+              title: Text(l.subtitleVisibilityDefault),
+              subtitle: Text(_showSubtitles ? l.subtitleVisibilityShow : l.subtitleVisibilityHide),
+            ),
+            RadioListTile<String>(
+              value: 'show',
+              groupValue: _curLibSubtitles,
+              onChanged: (v) => Navigator.pop(ctx, v),
+              title: Text(l.subtitleVisibilityShow),
+            ),
+            RadioListTile<String>(
+              value: 'hide',
+              groupValue: _curLibSubtitles,
+              onChanged: (v) => Navigator.pop(ctx, v),
+              title: Text(l.subtitleVisibilityHide),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || picked == _curLibSubtitles) return;
+    setState(() => _curLibSubtitles = picked);
+    await PlayerSettings.setShowSubtitlesOverride(libId, picked == 'default' ? null : picked);
   }
 
   String _coverShapeValueLabel(AppLocalizations l, String value) {
@@ -1938,6 +2012,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         setState(() => _snappyTransitions = v);
                         PlayerSettings.setSnappyTransitions(v);
                         snappyTransitionsNotifier.value = v;
+                      } : null,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(l.showSubtitles),
+                      subtitle: Text(
+                        _showSubtitles ? l.showSubtitlesOnSubtitle : l.showSubtitlesOffSubtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _showSubtitles,
+                      onChanged: _loaded ? (v) {
+                        setState(() => _showSubtitles = v);
+                        PlayerSettings.setShowSubtitles(v);
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -3670,6 +3756,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: Row(children: [
                             Expanded(child: Text(l.coverShapeLabel)),
                             Text(_coverShapeValueLabel(l, _curLibCoverShape),
+                                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                            Icon(Icons.chevron_right_rounded,
+                                color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                          ]),
+                        ),
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      InkWell(
+                        onTap: _loaded ? () => _pickCurrentLibrarySubtitles() : null,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                          child: Row(children: [
+                            Expanded(child: Text(l.subtitleVisibilityLabel)),
+                            Text(_subtitleVisibilityValueLabel(l, _curLibSubtitles),
                                 style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
                             Icon(Icons.chevron_right_rounded,
                                 color: cs.onSurfaceVariant.withValues(alpha: 0.5)),

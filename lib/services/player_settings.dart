@@ -1014,6 +1014,36 @@ class PlayerSettings {
     return getRectangleCovers();
   }
 
+  static Future<bool> getShowSubtitles() => _get('showSubtitles', false);
+  static Future<void> setShowSubtitles(bool value) => _set('showSubtitles', value, notify: true);
+
+  /// Per-library subtitle override: 'show', 'hide', or null (= follow the
+  /// global toggle). Most libraries leave the field empty, so a library that
+  /// does fill it in can show subtitles without the rest going taller.
+  static Future<String?> getShowSubtitlesOverride(String libraryId) async {
+    final v = await ScopedPrefs.getString('showSubtitles_$libraryId');
+    return (v == 'show' || v == 'hide') ? v : null;
+  }
+
+  static Future<void> setShowSubtitlesOverride(String libraryId, String? value) async {
+    if (value == null) {
+      await ScopedPrefs.remove('showSubtitles_$libraryId');
+    } else {
+      await ScopedPrefs.setString('showSubtitles_$libraryId', value);
+    }
+    _notify();
+  }
+
+  /// Subtitle visibility for a library: its override if set, else the global
+  /// toggle.
+  static Future<bool> getShowSubtitlesFor(String? libraryId) async {
+    if (libraryId != null) {
+      final v = await getShowSubtitlesOverride(libraryId);
+      if (v != null) return v == 'show';
+    }
+    return getShowSubtitles();
+  }
+
   static Future<bool> getSectionGridView() => _get('sectionGridView', false);
   static Future<void> setSectionGridView(bool value) => _set('sectionGridView', value);
 

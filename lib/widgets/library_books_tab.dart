@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/library_screen.dart';
+import 'books_sheet_shared.dart';
 import 'library_grid_tiles.dart';
 
 class LibraryBooksTab extends StatelessWidget {
@@ -16,6 +17,7 @@ class LibraryBooksTab extends StatelessWidget {
   final String? tagFilter;
   final bool isPodcastLibrary;
   final bool rectangleCovers;
+  final bool showSubtitles;
   final double coverAspectRatio;
   final Future<void> Function() onRefresh;
   final VoidCallback onClearFilter;
@@ -55,6 +57,7 @@ class LibraryBooksTab extends StatelessWidget {
     this.tagFilter,
     this.isPodcastLibrary = false,
     required this.rectangleCovers,
+    required this.showSubtitles,
     required this.coverAspectRatio,
     required this.onRefresh,
     required this.onClearFilter,
@@ -212,6 +215,13 @@ class LibraryBooksTab extends StatelessWidget {
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: cols,
                 childAspectRatio: rectangleCovers ? 0.48 : 0.68,
+                // Subtitles add a line under every title, and how much room
+                // that needs depends on the cover size, so size the cell from
+                // the tile itself rather than from a second fixed ratio.
+                mainAxisExtent: showSubtitles
+                    ? coverGridTileWidth(context) / (rectangleCovers ? 0.48 : 0.68)
+                        + coverGridSubtitleHeight(context)
+                    : null,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),
@@ -249,6 +259,7 @@ class LibraryBooksTab extends StatelessWidget {
                   return GridBookTile(
                     item: item,
                     coverAspectRatio: coverAspectRatio,
+                    showSubtitle: showSubtitles,
                     selectionMode: selectionMode,
                     selected: itemId != null && selectedItemIds.contains(itemId),
                     onSelectionToggle: itemId == null || onSelectionToggle == null

@@ -14,6 +14,7 @@ import 'episode_list_sheet.dart';
 class BookCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final bool showProgress;
+  final bool showSubtitle;
   final bool isWide;
   final double coverAspectRatio;
   final String? sourcePlaylistId;
@@ -28,6 +29,7 @@ class BookCard extends StatelessWidget {
     super.key,
     required this.item,
     this.showProgress = false,
+    this.showSubtitle = false,
     this.isWide = false,
     this.coverAspectRatio = 1.0,
     this.sourcePlaylistId,
@@ -51,6 +53,7 @@ class BookCard extends StatelessWidget {
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
 
     final title = metadata['title'] as String? ?? l.bookCardUnknownTitle;
+    final subtitle = metadata['subtitle'] as String? ?? '';
     final authorName = metadata['authorName'] as String? ?? '';
     final coverUrl = lib.getCoverUrl(itemId);
 
@@ -69,7 +72,7 @@ class BookCard extends StatelessWidget {
 
     final card = isWide
         ? _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit)
-        : _buildCompactCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
+        : _buildCompactCard(context, cs, tt, l, title, subtitle, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
     if (!selectionMode) return card;
     // Selection sits on top of the finished card rather than inside both
     // layouts: the overlay swallows the tap, so nothing below it can open a
@@ -307,6 +310,7 @@ class BookCard extends StatelessWidget {
     TextTheme tt,
     AppLocalizations l,
     String title,
+    String subtitle,
     String authorName,
     String? coverUrl,
     double progress,
@@ -418,6 +422,20 @@ class BookCard extends StatelessWidget {
             ),
           ),
         ),
+        // Subtitle. Keeps its line even when empty so the author lines stay
+        // level across a shelf.
+        if (showSubtitle)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              subtitle.isEmpty ? ' ' : subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: tt.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.75),
+              ),
+            ),
+          ),
         if (authorName.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2),

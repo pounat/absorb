@@ -1644,6 +1644,29 @@ class AppLocalizationsFr extends AppLocalizations {
   String get coverShapeLabel => 'Forme de couverture';
 
   @override
+  String get showSubtitles => 'Show subtitles';
+
+  @override
+  String get showSubtitlesOnSubtitle =>
+      'Subtitles show under book titles in the library and on home';
+
+  @override
+  String get showSubtitlesOffSubtitle =>
+      'Off - subtitles only on the book details sheet';
+
+  @override
+  String get subtitleVisibilityLabel => 'Subtitles';
+
+  @override
+  String get subtitleVisibilityDefault => 'Default';
+
+  @override
+  String get subtitleVisibilityShow => 'Show';
+
+  @override
+  String get subtitleVisibilityHide => 'Hide';
+
+  @override
   String currentLibrarySettingsTitle(String name) {
     return 'Bibliothèque actuelle : $name';
   }

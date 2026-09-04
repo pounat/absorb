@@ -759,6 +759,13 @@
   "coverShapeSquare": "Square",
   "coverShapeRectangle": "Rectangle",
   "coverShapeLabel": "Cover shape",
+  "showSubtitles": "Show subtitles",
+  "showSubtitlesOnSubtitle": "Subtitles show under book titles in the library and on home",
+  "showSubtitlesOffSubtitle": "Off - subtitles only on the book details sheet",
+  "subtitleVisibilityLabel": "Subtitles",
+  "subtitleVisibilityDefault": "Default",
+  "subtitleVisibilityShow": "Show",
+  "subtitleVisibilityHide": "Hide",
   "currentLibrarySettingsTitle": "Current library: {name}",
   "@currentLibrarySettingsTitle": {
     "placeholders": { "name": { "type": "String" } }

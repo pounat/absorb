@@ -42,6 +42,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
   final _player = AudioPlayerService();
   bool _hideEbookOnly = false;
   bool _rectangleCovers = false;
+  bool _showSubtitles = false;
 
   // ── Batch selection ──
   bool _selectionMode = false;
@@ -210,10 +211,12 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
     final results = await Future.wait([
       PlayerSettings.getHideEbookOnly(),
       PlayerSettings.getRectangleCoversFor(libId),
+      PlayerSettings.getShowSubtitlesFor(libId),
     ]);
     if (mounted) setState(() {
       _hideEbookOnly = results[0];
       _rectangleCovers = results[1];
+      _showSubtitles = results[2];
     });
   }
 
@@ -348,6 +351,9 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
       _coversLibraryId = lib.selectedLibraryId;
       PlayerSettings.getRectangleCoversFor(_coversLibraryId).then((v) {
         if (mounted && v != _rectangleCovers) setState(() => _rectangleCovers = v);
+      });
+      PlayerSettings.getShowSubtitlesFor(_coversLibraryId).then((v) {
+        if (mounted && v != _showSubtitles) setState(() => _showSubtitles = v);
       });
     }
     if (lib.isLoading) {
@@ -768,6 +774,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                           sectionId: id,
                           onTitleTap: _selectionMode ? null : titleTap,
                           coverAspectRatio: _rectangleCovers ? 2 / 3 : 1.0,
+                          showSubtitles: _showSubtitles,
                           selectionMode: selectionAvailable && _selectionMode,
                           selectedItemIds: _selectedItemIds,
                           onSelectionToggle: selectionAvailable

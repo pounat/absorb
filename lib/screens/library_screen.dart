@@ -471,6 +471,7 @@ class LibraryScreenState extends State<LibraryScreen>
 
   // ── Cover aspect ratio ──
   bool _rectangleCovers = false;
+  bool _showSubtitles = false;
   double get _coverAspectRatio => _rectangleCovers ? 2 / 3 : 1.0;
 
   // ── Scroll-to-hide bars ──
@@ -600,10 +601,13 @@ class LibraryScreenState extends State<LibraryScreen>
         lib.selectedLibraryId != null) {
       _lastLibraryId = lib.selectedLibraryId;
       _loadGeneration++;
-      // Cover shape can differ per library.
+      // Cover shape and subtitles can differ per library.
       PlayerSettings.getRectangleCoversFor(lib.selectedLibraryId).then((v) {
         if (mounted && v != _rectangleCovers)
           setState(() => _rectangleCovers = v);
+      });
+      PlayerSettings.getShowSubtitlesFor(lib.selectedLibraryId).then((v) {
+        if (mounted && v != _showSubtitles) setState(() => _showSubtitles = v);
       });
 
       // Rebuild tab controller if library type changed
@@ -680,6 +684,9 @@ class LibraryScreenState extends State<LibraryScreen>
     });
     PlayerSettings.getRectangleCoversFor(lib.selectedLibraryId).then((v) {
       if (mounted) setState(() => _rectangleCovers = v);
+    });
+    PlayerSettings.getShowSubtitlesFor(lib.selectedLibraryId).then((v) {
+      if (mounted) setState(() => _showSubtitles = v);
     });
     _restoreSortFilter().then((_) {
       if (!mounted) return;
@@ -895,14 +902,21 @@ class LibraryScreenState extends State<LibraryScreen>
       PlayerSettings.getRectangleCoversFor(
         context.read<LibraryProvider>().selectedLibraryId,
       ),
+      PlayerSettings.getShowSubtitlesFor(
+        context.read<LibraryProvider>().selectedLibraryId,
+      ),
     ]).then((values) {
       final newHideEbook = values[0];
       final newCollapse = values[1];
       final newRectCovers = values[2];
+      final newShowSubtitles = values[3];
       if (!mounted) return;
       final coversChanged = newRectCovers != _rectangleCovers;
       if (coversChanged) {
         setState(() => _rectangleCovers = newRectCovers);
+      }
+      if (newShowSubtitles != _showSubtitles) {
+        setState(() => _showSubtitles = newShowSubtitles);
       }
       if (newHideEbook != _hideEbookOnly || newCollapse != _collapseSeries) {
         _loadGeneration++;
@@ -3522,6 +3536,7 @@ class LibraryScreenState extends State<LibraryScreen>
       tagFilter: _tagFilter,
       isPodcastLibrary: context.read<LibraryProvider>().isPodcastLibrary,
       rectangleCovers: _rectangleCovers,
+      showSubtitles: _showSubtitles,
       coverAspectRatio: _coverAspectRatio,
       onRefresh: _refreshAll,
       onClearFilter: () => _changeFilter(LibraryFilter.none),

@@ -23,6 +23,7 @@ class GridBookTile extends StatefulWidget {
   final Map<String, dynamic> item;
   final double coverAspectRatio;
   final String? sequenceBadge;
+  final bool showSubtitle;
   final bool selectionMode;
   final bool selected;
   final VoidCallback? onSelectionToggle;
@@ -32,6 +33,7 @@ class GridBookTile extends StatefulWidget {
     required this.item,
     this.coverAspectRatio = 1.0,
     this.sequenceBadge,
+    this.showSubtitle = false,
     this.selectionMode = false,
     this.selected = false,
     this.onSelectionToggle,
@@ -71,6 +73,7 @@ class _GridBookTileState extends State<GridBookTile> {
     final media = widget.item['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final title = metadata['title'] as String? ?? l.unknown;
+    final subtitle = metadata['subtitle'] as String? ?? '';
     final author = metadata['authorName'] as String? ?? '';
     final coverUrl = lib.getCoverUrl(itemId);
     final progress = lib.getProgress(itemId);
@@ -269,6 +272,18 @@ class _GridBookTileState extends State<GridBookTile> {
               fontSize: 11 * coverGridTextScale(context),
             ),
           ),
+          // Subtitle. Keeps its line even when empty so the author rows
+          // stay level across a row of tiles.
+          if (widget.showSubtitle)
+            Text(
+              subtitle.isEmpty ? ' ' : subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: tt.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.75),
+                fontSize: 10 * coverGridTextScale(context),
+              ),
+            ),
           // Author
           if (author.isNotEmpty)
             Text(

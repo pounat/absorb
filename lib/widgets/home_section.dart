@@ -18,6 +18,7 @@ class HomeSection extends StatelessWidget {
   final String sectionId;
   final VoidCallback? onTitleTap;
   final double coverAspectRatio;
+  final bool showSubtitles;
   final bool selectionMode;
   final Set<String> selectedItemIds;
   final ValueChanged<Map<String, dynamic>>? onSelectionToggle;
@@ -31,6 +32,7 @@ class HomeSection extends StatelessWidget {
     required this.sectionId,
     this.onTitleTap,
     this.coverAspectRatio = 1.0,
+    this.showSubtitles = false,
     this.selectionMode = false,
     this.selectedItemIds = const {},
     this.onSelectionToggle,
@@ -66,8 +68,13 @@ class HomeSection extends StatelessWidget {
     final bool isRectCover = coverAspectRatio < 1.0;
     final double cardWidth =
         isContinueListening ? 300 : (isAuthorSection ? 120 : 140);
+    // Book cards grow by a line when subtitles are on; author and episode
+    // cards have no subtitle to show, so they stay as they are.
+    final bool subtitleLine =
+        showSubtitles && !isContinueListening && !effectiveEpisode && !isAuthorSection;
     final double cardHeight =
-        isContinueListening ? 120 : effectiveEpisode ? 200 : (isAuthorSection ? 170 : (isRectCover ? 260 : 200));
+        (isContinueListening ? 120 : effectiveEpisode ? 200 : (isAuthorSection ? 170 : (isRectCover ? 260 : 200)))
+            + (subtitleLine ? 18 : 0);
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -177,6 +184,7 @@ class HomeSection extends StatelessWidget {
                   child: BookCard(
                     item: entity,
                     showProgress: isContinueListening,
+                    showSubtitle: subtitleLine,
                     isWide: isContinueListening,
                     coverAspectRatio: isContinueListening ? 1.0 : coverAspectRatio,
                     sourcePlaylistId: sourcePlaylistId,
