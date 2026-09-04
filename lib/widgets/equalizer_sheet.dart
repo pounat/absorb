@@ -589,6 +589,14 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
 
 // ── EQ Band Vertical Slider ──
 
+/// Band level for display: "+3", "0", "-2". The sliders are continuous, so a
+/// band parked at the middle is rarely exactly zero - round first and only
+/// then pick the sign, or a level a fraction below zero reads as "-0".
+String eqBandLabel(double level) {
+  final rounded = level.round();
+  return '${rounded > 0 ? '+' : ''}$rounded';
+}
+
 class _EQBandSlider extends StatelessWidget {
   final int frequency;
   final double level;
@@ -615,7 +623,7 @@ class _EQBandSlider extends StatelessWidget {
     final label = eq.freqLabel(frequency);
     return Column(
       children: [
-        Text('${level >= 0 ? "+" : ""}${level.toStringAsFixed(0)}',
+        Text(eqBandLabel(level),
           style: TextStyle(
             color: enabled ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.2),
             fontSize: 10, fontWeight: FontWeight.w600)),
