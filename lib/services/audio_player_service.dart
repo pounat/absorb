@@ -3077,6 +3077,18 @@ class AudioPlayerService extends ChangeNotifier {
             if (!service.isPlaying) return;
             final current = await session.getDevices(includeInputs: false);
             if (!lost.any((d) => !current.contains(d))) return;
+            // Android Auto carries the audio itself, over USB or WiFi. The
+            // Bluetooth link to the head unit or a helmet runs beside it and
+            // can drop and come back every few minutes without the audio ever
+            // stopping, and pausing on those drops stopped the book every
+            // 2-3 minutes on a motorcycle head unit (#369). If Android Auto
+            // goes away for real it sends its own pause.
+            if (await AudioPlayerHandler._carClientRecentlySeen()) {
+              debugPrint(
+                '[AudioSession] Output route removed while playing - car client seen, keeping playback',
+              );
+              return;
+            }
             debugPrint(
               '[AudioSession] Output route removed while playing - pausing',
             );
