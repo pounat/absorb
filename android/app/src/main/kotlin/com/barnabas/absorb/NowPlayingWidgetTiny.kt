@@ -394,12 +394,14 @@ class NowPlayingWidgetTiny : AppWidgetProvider() {
                     views.setViewVisibility(R.id.widget_play_pending_tile, View.GONE)
                 }
 
+                // With the app dead the tile shows no play icon, so a tap reads
+                // as "open", not "play" - wired to play it opened the app and
+                // started playback on its own. The larger widgets keep
+                // open-and-play on their actual play button.
                 val tapIntent = if (canControl) {
                     togglePendingIntent(context)
                 } else {
-                    HomeWidgetLaunchIntent.getActivity(
-                        context, MainActivity::class.java, Uri.parse("absorb://widget/play_pause")
-                    )
+                    openAppPendingIntent(context)
                 }
                 views.setOnClickPendingIntent(R.id.widget_root, tapIntent)
             }
