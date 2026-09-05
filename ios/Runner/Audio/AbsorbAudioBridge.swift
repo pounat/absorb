@@ -55,6 +55,7 @@ final class AbsorbAudioBridge: NSObject {
       let volume = (args?["volume"] as? Double).map { Float($0) } ?? 1.0
       let eq = (args?["eqEnabled"] as? Bool) ?? false
       let itemId = args?["itemId"] as? String
+      let startTrackIndex = args?["startTrackIndex"] as? Int
       AbsorbAudioEngine.shared.load(
         tracks: trackList,
         trackOffsets: offsets,
@@ -63,7 +64,8 @@ final class AbsorbAudioBridge: NSObject {
         speed: speed,
         volume: volume,
         eqEnabled: eq,
-        itemId: itemId
+        itemId: itemId,
+        startTrackIndex: startTrackIndex
       ) { duration in
         result(["durationS": duration as Any])
       }

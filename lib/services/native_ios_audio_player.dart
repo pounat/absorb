@@ -78,6 +78,14 @@ class NativeIosAudioPlayer {
 
   // ─── Source loading ───
 
+  // Loads still waiting on the engine. The engine's periodic observer keeps
+  // ticking through a load, and the first ticks after the item swap report
+  // the new item at 0 before its start seek lands. Position readers turned
+  // that into "track offset + 0" and saved it as progress (a book mid-way
+  // through track 2 came back at 20s). Like just_audio, report the requested
+  // start until the load has answered.
+  int _loadsInFlight = 0;
+
   Future<Duration?> setAudioSource(ja.AudioSource source, {
     Duration? initialPosition,
     int? initialIndex,
@@ -93,27 +101,42 @@ class NativeIosAudioPlayer {
     _duration = null;
     _durationController.add(null);
 
+    // `initialPosition` is local to `initialIndex`, the same shape as seek().
+    // The engine needs the index spelled out: the offsets handed to it below
+    // are empty, so deriving the track from the start position would put
+    // every mid-book load on track 0.
+    final startIndex = initialIndex ?? 0;
     final startS = (initialPosition?.inMilliseconds ?? 0) / 1000.0;
-    final eqEnabled = await ScopedPrefs.getBool('eq_enabled') ?? false;
-    final result = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('load', {
-      'tracks': tracks.map(_trackToMap).toList(),
-      'trackOffsets': _buildTrackOffsets(tracks),
-      'startPositionS': startS,
-      'totalDurationS': _totalDurationHint,
-      'speed': _speed,
-      'volume': _volume,
-      'eqEnabled': eqEnabled,
-      // Lets AbsorbPlayerCore recognise this book on a widget-driven resume so
-      // it adopts the live engine instead of starting a duplicate stream.
-      if (itemId != null) 'itemId': itemId,
-    });
-    final durS = (result?['durationS'] as num?)?.toDouble();
-    final loadedDuration = durS != null && durS > 0
-        ? Duration(milliseconds: (durS * 1000).round())
-        : null;
-    _duration = loadedDuration;
-    _durationController.add(loadedDuration);
-    return loadedDuration;
+    _currentIndex = startIndex;
+    _currentIndexController.add(startIndex);
+    _position = initialPosition ?? Duration.zero;
+    _updateTime = DateTime.now();
+    _loadsInFlight++;
+    try {
+      final eqEnabled = await ScopedPrefs.getBool('eq_enabled') ?? false;
+      final result = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('load', {
+        'tracks': tracks.map(_trackToMap).toList(),
+        'trackOffsets': _buildTrackOffsets(tracks),
+        'startTrackIndex': startIndex,
+        'startPositionS': startS,
+        'totalDurationS': _totalDurationHint,
+        'speed': _speed,
+        'volume': _volume,
+        'eqEnabled': eqEnabled,
+        // Lets AbsorbPlayerCore recognise this book on a widget-driven resume so
+        // it adopts the live engine instead of starting a duplicate stream.
+        if (itemId != null) 'itemId': itemId,
+      });
+      final durS = (result?['durationS'] as num?)?.toDouble();
+      final loadedDuration = durS != null && durS > 0
+          ? Duration(milliseconds: (durS * 1000).round())
+          : null;
+      _duration = loadedDuration;
+      _durationController.add(loadedDuration);
+      return loadedDuration;
+    } finally {
+      _loadsInFlight--;
+    }
   }
 
   /// New: pre-buffer the next book so the engine can swap to it gaplessly when
@@ -257,6 +280,7 @@ class NativeIosAudioPlayer {
     final type = raw['type'] as String?;
     switch (type) {
       case 'position':
+        if (_loadsInFlight > 0) break;
         final s = (raw['positionS'] as num?)?.toDouble() ?? 0;
         _position = Duration(milliseconds: (s * 1000).round());
         _updateTime = DateTime.now();

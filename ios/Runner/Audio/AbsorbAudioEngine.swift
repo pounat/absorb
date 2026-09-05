@@ -85,6 +85,7 @@ final class AbsorbAudioEngine: NSObject {
             volume: Float,
             eqEnabled: Bool,
             itemId: String? = nil,
+            startTrackIndex: Int? = nil,
             completion: @escaping (Double?) -> Void) {
     queue.async { [weak self] in
       guard let self = self else { completion(nil); return }
@@ -103,9 +104,21 @@ final class AbsorbAudioEngine: NSObject {
       self.eqEnabled = eqEnabled
       self.player.volume = volume
 
-      let targetIndex = self.trackIndexFor(globalSeconds: startPositionS)
+      // Flutter loads with an explicit track and a track-local start, the
+      // same shape as seek(), because it hands over no offsets: deriving the
+      // track from a "global" start here put every mid-book load on track 0
+      // and clamped the position to that track's end. The widget core still
+      // loads by global position with the offsets it stashed.
+      let targetIndex: Int
+      let localStart: Double
+      if let explicit = startTrackIndex, explicit >= 0, explicit < tracks.count {
+        targetIndex = explicit
+        localStart = max(0, startPositionS)
+      } else {
+        targetIndex = self.trackIndexFor(globalSeconds: startPositionS)
+        localStart = max(0, startPositionS - self.trackOffsets[targetIndex])
+      }
       self.trackIndex = targetIndex
-      let localStart = max(0, startPositionS - self.trackOffsets[targetIndex])
 
       self.loadTrack(atIndex: targetIndex, localStart: localStart, autoPlay: false, completion: completion)
     }

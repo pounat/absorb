@@ -5263,6 +5263,8 @@ class AudioPlayerService extends ChangeNotifier {
       );
       final source = ConcatenatingAudioSource(children: trackSources);
       _resetPreBufferState();
+      // Update index BEFORE loading so positionStream events use the right offset
+      _currentTrackIndex = idx;
       await _player!.setAudioSource(
         source,
         initialIndex: idx,
