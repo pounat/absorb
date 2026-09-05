@@ -639,6 +639,9 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   // Android Auto sends KEYCODE_MEDIA_PAUSE when the user switches to Radio,
   // and the old toggle path bounced it back as a phantom resume (GH #243).
   int? _lastClickKeyCode;
+  // When the debounce-free resume last fired, so a second press arriving just
+  // after it is still read as a double-press skip rather than a fresh click.
+  DateTime? _fastPathPlayAt;
   // True while the click resolver is synchronously calling pause()/play().
   // pause() uses this to skip stamping _noisyPauseAt for click-driven pauses,
   // so legit user pause-then-play flows are not blocked by the disconnect guard.
@@ -805,6 +808,46 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       if (age is int && age >= 0 && age < 500 && kc is int && kc != 0) {
         _lastClickKeyCode = kc;
       }
+    }
+
+    // Second half of the fast path below: a press landing right after an
+    // instant resume is the double-press the debounce would normally have
+    // caught, so honour it as a skip. We are already playing by now, which is
+    // exactly the state a double-press-to-skip expects.
+    final fastPlay = _fastPathPlayAt;
+    if (fastPlay != null &&
+        DateTime.now().difference(fastPlay) < const Duration(milliseconds: 600)) {
+      _fastPathPlayAt = null;
+      debugPrint('[Handler] -> second press after instant play -> SKIP FORWARD');
+      await fastForward();
+      return;
+    }
+
+    // Resume from an explicit MEDIA_PLAY does not wait for the multi-press
+    // window. The 400ms timer is punctual while audio runs - every pause press
+    // resolves in ~407ms - but once paused the process gets throttled and the
+    // same timer fired 7-8 SECONDS late (measured 2026-08-13, with total log
+    // silence in the gap). The keypress itself always arrives instantly.
+    //
+    // Deliberately play-only: pause never had the latency, and pausing
+    // instantly would eat the second press of a double-press-to-skip, which is
+    // the gesture people use while listening. PLAY_PAUSE (85) and HEADSETHOOK
+    // stay on the debounce too - for a single-button remote the second press is
+    // genuinely ambiguous until the window closes.
+    if (_clickCount == 0 &&
+        !(_clickTimer?.isActive ?? false) &&
+        _lastClickKeyCode == 126 &&
+        !_player.playing) {
+      _lastClickKeyCode = null;
+      _inClickResolver = true;
+      try {
+        debugPrint('[Handler] -> MEDIA_PLAY while paused, no debounce -> PLAY');
+        await play();
+      } finally {
+        _inClickResolver = false;
+      }
+      _fastPathPlayAt = DateTime.now();
+      return;
     }
 
     _clickCount++;
