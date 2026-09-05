@@ -419,6 +419,22 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       }
     }
 
+    // Auto scroll in the ebook reader keeps the screen on for as long as it
+    // runs; the reader releases it when the scroll stops or it closes.
+    let screenWakeChannel = FlutterMethodChannel(name: "com.absorb.screen_wake",
+                                                 binaryMessenger: messenger)
+    screenWakeChannel.setMethodCallHandler { (call, result) in
+      switch call.method {
+      case "set":
+        let args = call.arguments as? [String: Any]
+        let on = args?["on"] as? Bool ?? false
+        UIApplication.shared.isIdleTimerDisabled = on
+        result(true)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     let storageChannel = FlutterMethodChannel(name: "com.absorb.storage",
                                               binaryMessenger: messenger)
     storageChannel.setMethodCallHandler { (call, result) in

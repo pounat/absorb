@@ -3,6 +3,18 @@ import 'package:flutter/material.dart';
 
 OverlayEntry? _currentToast;
 
+// remove() is not idempotent, and a toast has two removers: its own exit
+// animation and any newer toast taking its place. When both landed in the
+// same frame (tap to pause, then hold to stop) the second call threw. Every
+// removal goes through here so the second one is a no-op.
+final Expando<bool> _removedToasts = Expando<bool>();
+
+void _removeToast(OverlayEntry entry) {
+  if (_removedToasts[entry] == true) return;
+  _removedToasts[entry] = true;
+  entry.remove();
+}
+
 /// Show a styled toast that renders above modal sheets and overlays.
 ///
 /// Pass [icon] for a leading icon (e.g. Icons.check_circle_rounded).
@@ -25,7 +37,8 @@ void _insertOverlayToast(
   String message, {
   IconData? icon,
 }) {
-  _currentToast?.remove();
+  final previous = _currentToast;
+  if (previous != null) _removeToast(previous);
   _currentToast = null;
 
   // No overlay (startup, account switch, background-triggered callers): drop
@@ -37,7 +50,7 @@ void _insertOverlayToast(
       message: message,
       icon: icon,
       onDone: () {
-        entry.remove();
+        _removeToast(entry);
         if (_currentToast == entry) _currentToast = null;
       },
     ),
@@ -58,7 +71,8 @@ class LiveOverlayToast {
   static LiveOverlayToast? show(BuildContext context, String message, {IconData? icon}) {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return null;
-    _currentToast?.remove();
+    final previous = _currentToast;
+    if (previous != null) _removeToast(previous);
     _currentToast = null;
     final value = ValueNotifier<({String message, IconData? icon})>(
         (message: message, icon: icon));
@@ -73,8 +87,10 @@ class LiveOverlayToast {
   }
 
   void dismiss() {
-    _entry?.remove();
+    final entry = _entry;
+    if (entry == null) return;
     _entry = null;
+    _removeToast(entry);
     _value.dispose();
   }
 }

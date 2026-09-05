@@ -13983,6 +13983,12 @@ abstract class AppLocalizations {
   /// **'Auto scroll off'**
   String get readerAutoScrollStopped;
 
+  /// No description provided for @readerAutoScrollEndOfBook.
+  ///
+  /// In en, this message translates to:
+  /// **'End of book - auto scroll off'**
+  String get readerAutoScrollEndOfBook;
+
   /// No description provided for @readerAutoScrollSpeed.
   ///
   /// In en, this message translates to:

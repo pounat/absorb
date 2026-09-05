@@ -21,6 +21,7 @@ import android.os.StatFs
 
 import android.util.Log
 import android.view.KeyEvent
+import android.view.WindowManager
 import com.ryanheise.audioservice.AudioService
 import com.ryanheise.audioservice.AudioServiceActivity
 import com.ryanheise.audioservice.AudioServicePlugin
@@ -122,6 +123,24 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
         Log.d(TAG, "EQ method channel registered")
+
+        // Auto scroll in the ebook reader keeps the screen on for as long as it
+        // runs; the reader releases it when the scroll stops or it closes.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.screen_wake")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "set" -> {
+                        val on = call.argument<Boolean>("on") ?: false
+                        if (on) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.audio_diag")
             .setMethodCallHandler { call, result ->

@@ -165,9 +165,11 @@ class EpubController {
   ///Set [EpubFlow] value
   /// Start the rolling-blind auto scroll at [speed] pixels per second. The
   /// next page is revealed top-down over the current one; the text itself
-  /// never moves.
-  Future<void> autoScrollStart({double speed = 40}) async {
-    await webViewController?.evaluateJavascript(source: 'autoScrollStart($speed)');
+  /// never moves. Returns whether the blind actually started - it can't
+  /// before the book is displayed.
+  Future<bool> autoScrollStart({double speed = 40}) async {
+    final r = await webViewController?.evaluateJavascript(source: 'autoScrollStart($speed)');
+    return r == true || r == 1 || r == 'true';
   }
 
   /// Change the blind's descent speed while it is running.

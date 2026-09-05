@@ -20,6 +20,7 @@ import '../services/find_in_ebook.dart';
 import '../services/progress_sync_service.dart';
 import '../services/reader_font_service.dart';
 import '../services/scoped_prefs.dart';
+import '../services/screen_wake.dart';
 import '../services/transcription_service.dart';
 import '../services/volume_key_service.dart';
 import 'overlay_toast.dart';
@@ -228,9 +229,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     });
   }
 
+  // Volume-key turns are ignored while auto scroll runs: the blind is already
+  // showing the next page, and a turn underneath it leaves that page unread.
   late final EreaderVolumeNav _volumeNav = EreaderVolumeNav(
-    onPrev: () => _epubController?.prev(),
-    onNext: () => _epubController?.next(),
+    onPrev: () { if (!_autoScroll) _epubController?.prev(); },
+    onNext: () { if (!_autoScroll) _epubController?.next(); },
   );
 
   @override
@@ -249,8 +252,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       _bgCfi = null;
       _bgDrifted = false;
       if (drifted && cfi != null && cfi.isNotEmpty) {
-        Future.delayed(const Duration(milliseconds: 350), () {
-          if (mounted && _readerActive) _epubController?.display(cfi: cfi);
+        Future.delayed(const Duration(milliseconds: 350), () async {
+          if (!mounted || !_readerActive) return;
+          await _epubController?.display(cfi: cfi);
+          // The live page moved under the blind; re-seat it on the page after.
+          if (_autoScroll) await _epubController?.autoScrollResync();
         });
       }
     } else {
@@ -346,6 +352,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _fontId = await ScopedPrefs.getString(_kFont) ?? 'original';
     _volumeNavMode = await PlayerSettings.getEreaderVolumeNav();
     _volumeNavWhilePlaying = await PlayerSettings.getEreaderVolumeNavWhilePlaying();
+    _autoScrollSpeed = (await PlayerSettings.getEreaderAutoScrollSpeed())
+        .clamp(_autoScrollMin, _autoScrollMax)
+        .toDouble();
     if (mounted) setState(() {});
   }
 
@@ -517,7 +526,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   @override
   void dispose() {
     _speedToast?.dismiss();
-    if (_autoScroll) _epubController?.autoScrollStop();
+    if (_autoScroll) {
+      _epubController?.autoScrollStop();
+      ScreenWake.keepOn(false);
+    }
     _quietLib.setReaderQuiet(false);
     WidgetsBinding.instance.removeObserver(this);
     _volumeNav.detach();
@@ -1532,7 +1544,6 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         final v = args.isNotEmpty ? (args[0] as num?)?.toDouble() : null;
         if (v == null || !mounted) return;
         setState(() => _autoScrollSpeed = v);
-        PlayerSettings.setEreaderAutoScrollSpeed(v);
         final l = AppLocalizations.of(context)!;
         _speedToast ??= LiveOverlayToast.show(
           context,
@@ -1546,10 +1557,39 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       },
     );
     _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'absorbAutoScrollLog',
+      callback: (args) {
+        if (args.isNotEmpty) debugPrint('[AutoScroll] ${args[0]}');
+      },
+    );
+    _epubController?.webViewController?.addJavaScriptHandler(
       handlerName: 'absorbAutoScrollDragEnd',
       callback: (args) {
         _speedToast?.dismiss();
         _speedToast = null;
+        PlayerSettings.setEreaderAutoScrollSpeed(_autoScrollSpeed);
+      },
+    );
+    // The blind stopping on its own: the last page of the book, or a page
+    // that failed to load.
+    _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'absorbAutoScrollEnded',
+      callback: (args) {
+        if (!mounted || !_autoScroll) return;
+        final atEnd = args.isNotEmpty && args[0]?.toString() == 'end';
+        _speedToast?.dismiss();
+        _speedToast = null;
+        ScreenWake.keepOn(false);
+        setState(() {
+          _autoScroll = false;
+          _autoScrollPaused = false;
+        });
+        final l = AppLocalizations.of(context)!;
+        showOverlayToast(
+          context,
+          atEnd ? l.readerAutoScrollEndOfBook : l.readerAutoScrollStopped,
+          icon: atEnd ? Icons.menu_book_rounded : Icons.stop_circle_outlined,
+        );
       },
     );
     _epubController?.webViewController?.addJavaScriptHandler(
@@ -1566,7 +1606,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _epubController?.webViewController?.addJavaScriptHandler(
       handlerName: 'absorbAutoScrollTap',
       callback: (args) {
-        if (!mounted) return;
+        if (!mounted || !_autoScroll) return;
         // With the reader's bars up, a tap dismisses those - otherwise there is
         // no way to clear them without also interrupting the scroll.
         if (_showControls) {
@@ -1589,18 +1629,23 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   Future<void> _toggleAutoScroll() async {
     if (_autoScroll) {
       await _epubController?.autoScrollStop();
+      ScreenWake.keepOn(false);
       if (mounted) setState(() {
         _autoScroll = false;
         _autoScrollPaused = false;
       });
       return;
     }
-    await _epubController?.autoScrollStart(speed: _autoScrollSpeed);
-    if (mounted) {
-      showOverlayToast(context, AppLocalizations.of(context)!.readerAutoScrollStarted,
-          icon: Icons.swap_vert_rounded);
-    }
-    if (mounted) setState(() {
+    // The blind can't start before the book is displayed. Flagging auto
+    // scroll on regardless left the reader with its taps swallowed and no
+    // bars to reach this button again.
+    final started =
+        await _epubController?.autoScrollStart(speed: _autoScrollSpeed) ?? false;
+    if (!mounted || !started) return;
+    ScreenWake.keepOn(true);
+    showOverlayToast(context, AppLocalizations.of(context)!.readerAutoScrollStarted,
+        icon: Icons.swap_vert_rounded);
+    setState(() {
       _autoScroll = true;
       _autoScrollPaused = false;
       if (_showControls) _showControls = false;
@@ -3718,47 +3763,62 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: _buildMediaBar(fg, accent),
                           ),
+                          // Equal cells: on a narrow phone they shrink below
+                          // the buttons' 48dp instead of overflowing the row.
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              IconButton(
-                                icon: Icon(Icons.arrow_back_rounded, color: fg),
-                                onPressed: _handleClose,
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _hasBookmarkAtCurrent
-                                      ? Icons.bookmark_rounded
-                                      : Icons.bookmark_border_rounded,
-                                  color: _hasBookmarkAtCurrent ? accent : fg,
+                              Expanded(
+                                child: IconButton(
+                                  icon: Icon(Icons.arrow_back_rounded, color: fg),
+                                  onPressed: _handleClose,
                                 ),
-                                onPressed: _toggleBookmark,
                               ),
-                              IconButton(
-                                icon: Icon(Icons.search_rounded, color: fg),
-                                tooltip: AppLocalizations.of(context)!.readerTooltipSearch,
-                                onPressed: _openSearchScreen,
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.sticky_note_2_outlined, color: fg),
-                                onPressed: _showAnnotationsSheet,
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.swap_vert_rounded,
-                                  color: _autoScroll ? accent : fg,
+                              Expanded(
+                                child: IconButton(
+                                  icon: Icon(
+                                    _hasBookmarkAtCurrent
+                                        ? Icons.bookmark_rounded
+                                        : Icons.bookmark_border_rounded,
+                                    color: _hasBookmarkAtCurrent ? accent : fg,
+                                  ),
+                                  onPressed: _toggleBookmark,
                                 ),
-                                tooltip: AppLocalizations.of(context)!.readerAutoScroll,
-                                onPressed: _toggleAutoScroll,
                               ),
-                              IconButton(
-                                icon: Icon(Icons.text_fields_rounded, color: fg),
-                                onPressed: _showSettingsSheet,
+                              Expanded(
+                                child: IconButton(
+                                  icon: Icon(Icons.search_rounded, color: fg),
+                                  tooltip: AppLocalizations.of(context)!.readerTooltipSearch,
+                                  onPressed: _openSearchScreen,
+                                ),
+                              ),
+                              Expanded(
+                                child: IconButton(
+                                  icon: Icon(Icons.sticky_note_2_outlined, color: fg),
+                                  onPressed: _showAnnotationsSheet,
+                                ),
+                              ),
+                              Expanded(
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.swap_vert_rounded,
+                                    color: _autoScroll ? accent : fg,
+                                  ),
+                                  tooltip: AppLocalizations.of(context)!.readerAutoScroll,
+                                  onPressed: _toggleAutoScroll,
+                                ),
+                              ),
+                              Expanded(
+                                child: IconButton(
+                                  icon: Icon(Icons.text_fields_rounded, color: fg),
+                                  onPressed: _showSettingsSheet,
+                                ),
                               ),
                               if (_chapters.isNotEmpty)
-                                IconButton(
-                                  icon: Icon(Icons.list_rounded, color: fg),
-                                  onPressed: _showChapterList,
+                                Expanded(
+                                  child: IconButton(
+                                    icon: Icon(Icons.list_rounded, color: fg),
+                                    onPressed: _showChapterList,
+                                  ),
                                 ),
                             ],
                           ),

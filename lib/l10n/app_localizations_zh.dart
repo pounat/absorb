@@ -8001,6 +8001,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerAutoScrollStopped => 'Auto scroll off';
 
   @override
+  String get readerAutoScrollEndOfBook => 'End of book - auto scroll off';
+
+  @override
   String readerAutoScrollSpeed(int percent) {
     return 'Speed $percent%';
   }

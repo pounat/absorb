@@ -4656,6 +4656,7 @@
   "readerAutoScrollPaused": "Paused - press and hold to stop",
   "readerAutoScrollResumed": "Auto scroll resumed",
   "readerAutoScrollStopped": "Auto scroll off",
+  "readerAutoScrollEndOfBook": "End of book - auto scroll off",
   "readerAutoScrollSpeed": "Speed {percent}%",
   "@readerAutoScrollSpeed": {
     "placeholders": { "percent": { "type": "int" } }
