@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dev flavor: same launcher icon on a red ground, so the testing install is
+         told apart from the stable one at a glance. -->
+    <color name="ic_launcher_background">#B3261E</color>
+</resources>

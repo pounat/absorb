@@ -62,10 +62,12 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   static const _isPlayStoreBuild = bool.fromEnvironment('PLAYSTORE_BUILD');
   static const _isGithubBuild = bool.fromEnvironment('GITHUB_BUILD');
+  static const _isDevBuild = bool.fromEnvironment('DEV_BUILD');
   // Distribution label shown next to the version. The F-Droid build passes
-  // neither define, so it falls through here.
-  static String get _flavorLabel =>
-      _isGithubBuild ? 'GitHub' : _isPlayStoreBuild ? 'Play Store' : 'F-Droid';
+  // no define, so it falls through here.
+  static String get _flavorLabel => _isDevBuild
+      ? 'Dev'
+      : _isGithubBuild ? 'GitHub' : _isPlayStoreBuild ? 'Play Store' : 'F-Droid';
 
   String _versionLine(AppLocalizations l) {
     final base = Platform.isIOS

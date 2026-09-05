@@ -437,8 +437,9 @@ class AndroidAutoService {
   }
 
   /// Content provider authority for serving local cover images to Android Auto.
-  /// Must match the authority registered in AndroidManifest.xml.
-  static const _coverAuthority = 'com.barnabas.absorb.covers';
+  /// Follows the installed package, as the manifest's `${applicationId}.covers`
+  /// does, so the dev flavor reaches its own provider.
+  static String get _coverAuthority => '${ApiService.packageName}.covers';
 
   // Per-item updatedAt for cover ?ts= cache busting on AA/CarPlay.
   static final Map<String, int> _itemUpdatedAt = {};

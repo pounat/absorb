@@ -202,6 +202,10 @@ class ApiService {
 
   static String appVersion = '1.3.0'; // fallback; overwritten by initVersion()
   static String appBuild = ''; // build number; set by initVersion()
+  // The installed application id. The dev flavor installs beside the stable
+  // app under its own id, so anything that names the package at runtime (the
+  // cover content provider's authority) reads this rather than assuming.
+  static String packageName = 'com.barnabas.absorb'; // set by initVersion()
 
   /// Version plus build (e.g. "1.9.1+198") for logs. `appVersion` stays clean
   /// because it's also sent to the server as clientVersion.
@@ -225,6 +229,7 @@ class ApiService {
       final info = await PackageInfo.fromPlatform();
       appVersion = info.version;
       appBuild = info.buildNumber;
+      if (info.packageName.isNotEmpty) packageName = info.packageName;
     } catch (_) {}
   }
 

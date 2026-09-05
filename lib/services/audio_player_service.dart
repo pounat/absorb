@@ -4986,8 +4986,10 @@ class AudioPlayerService extends ChangeNotifier {
     return null;
   }
 
-  /// Content provider authority — must match CoverContentProvider and AndroidManifest.
-  static const _coverAuthority = 'com.barnabas.absorb.covers';
+  /// Content provider authority. Follows the installed package, as the
+  /// manifest's `${applicationId}.covers` does, so the dev flavor reaches its
+  /// own provider.
+  static String get _coverAuthority => '${ApiService.packageName}.covers';
 
   void _pushMediaItem(
     String itemId,

@@ -20,6 +20,10 @@ const String _androidWidgetName = 'NowPlayingWidget';
 const String _androidWidgetCompactName = 'NowPlayingWidgetCompact';
 const String _androidWidgetTinyName = 'NowPlayingWidgetTiny';
 const String _androidWidgetStatsName = 'StatsWidget';
+// The widgets' Kotlin package. It stays put when the dev flavor changes the
+// application id, and home_widget would otherwise look the classes up under
+// the new id and find nothing.
+const String _androidWidgetPackage = 'com.barnabas.absorb';
 const String _iOSWidgetName = 'NowPlayingWidget';
 const String _iOSArtWidgetName = 'NowPlayingArtWidget';
 const String _iOSStatsWidgetName = 'StatsWidget';
@@ -878,10 +882,17 @@ class HomeWidgetService {
 
   Future<void> _updateAllWidgets() async {
     if (Platform.isAndroid) {
-      await HomeWidget.updateWidget(name: _androidWidgetName);
-      await HomeWidget.updateWidget(name: _androidWidgetCompactName);
-      await HomeWidget.updateWidget(name: _androidWidgetTinyName);
-      await HomeWidget.updateWidget(name: _androidWidgetStatsName);
+      for (final name in [
+        _androidWidgetName,
+        _androidWidgetCompactName,
+        _androidWidgetTinyName,
+        _androidWidgetStatsName,
+      ]) {
+        await HomeWidget.updateWidget(
+          name: name,
+          qualifiedAndroidName: '$_androidWidgetPackage.$name',
+        );
+      }
     } else if (Platform.isIOS) {
       await HomeWidget.updateWidget(iOSName: _iOSWidgetName);
       await HomeWidget.updateWidget(iOSName: _iOSArtWidgetName);
@@ -891,7 +902,10 @@ class HomeWidgetService {
 
   Future<void> _updateStatsWidget() async {
     if (Platform.isAndroid) {
-      await HomeWidget.updateWidget(name: _androidWidgetStatsName);
+      await HomeWidget.updateWidget(
+        name: _androidWidgetStatsName,
+        qualifiedAndroidName: '$_androidWidgetPackage.$_androidWidgetStatsName',
+      );
     } else if (Platform.isIOS) {
       await HomeWidget.updateWidget(iOSName: _iOSStatsWidgetName);
     }
