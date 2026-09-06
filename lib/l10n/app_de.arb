@@ -5,6 +5,10 @@
   "offline": "Offline",
   "stillOffline": "Immer noch offline. Tippe, um es erneut zu versuchen.",
   "retry": "Erneut versuchen",
+  "listsNone": "Keine Sammlungen oder Wiedergabelisten vorhanden",
+  "listsNoneHint": "Sammlungen und Wiedergabelisten werden auf Ihrem Audiobookshelf-Server erstellt und hier angezeigt.",
+  "listsLoadFailed": "Listen konnten nicht geladen werden",
+  "listsLoadFailedHint": "Absorb konnte deinen Server für Sammlungen und Wiedergabelisten nicht erreichen.",
   "cancel": "Abbrechen",
   "delete": "Löschen",
   "remove": "Entfernen",
@@ -393,13 +397,29 @@
   },
   "bookmarksTitle": "Alle Lesezeichen",
   "bookmarksTabBookmarks": "Lesezeichen",
+  "bookmarksTabHighlights": "Highlights",
   "highlightOpenInBook": "In Buch öffnen",
+  "quoteShareTitle": "Zitat teilen",
   "quoteShareAction": "Teilen",
   "quoteShapePortrait": "Portrait",
   "quoteShapeSquare": "Quadrat",
   "quoteShapeStory": "Geschichte",
+  "quoteTextLight": "Heller Text",
+  "quoteTextDark": "Dunkler Text",
   "quoteFieldTitle": "Titel",
   "quoteFieldDetail": "Details",
+  "quoteFieldDetailHint": "Autor, Kapitel, Seite, Wer hat es gesagt",
+  "highlightsMeta": "{chapter} · {date}",
+  "@highlightsMeta": {
+    "placeholders": {
+      "chapter": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "bookmarksCancelSelection": "Auswahl aufheben",
   "bookmarksSortedByNewest": "Sortiert nach neuesten",
   "bookmarksSortedByPosition": "Sortiert nach Position",
@@ -696,6 +716,7 @@
   "cardScrubbersChapterSubtitle": "Nur die Kapitelleiste kann suchen",
   "cardScrubbersLockedSubtitle": "Fortschritt wird angezeigt, ohne zu suchen",
   "speedAdjustedTime": "Geschwindigkeitsangepasste Zeit",
+  "speedAdjustedTimeOnSubtitle": "An - Alle Zeiten spiegeln deine Wiedergabegeschwindigkeit wider",
   "speedAdjustedTimeOffSubtitle": "Aus - zeigt die reine Audiodauer",
   "buttonLayout": "Button-Anordnung",
   "buttonLayoutSubtitle": "Wie die Aktions-Buttons auf der Karte angeordnet sind",
@@ -781,6 +802,12 @@
   "coverShapeSquare": "Quadratisch",
   "coverShapeRectangle": "Rechteck",
   "coverShapeLabel": "Cover Format",
+  "showSubtitles": "Untertitel anzeigen",
+  "showSubtitlesOffSubtitle": "Aus - Untertitel nur bei den Buchdetails",
+  "subtitleVisibilityLabel": "Untertitel",
+  "subtitleVisibilityDefault": "Standard",
+  "subtitleVisibilityShow": "Anzeigen",
+  "subtitleVisibilityHide": "Ausblenden",
   "currentLibrarySettingsTitle": "Aktuelle Bibliothek: {name}",
   "@currentLibrarySettingsTitle": {
     "placeholders": {
@@ -1061,6 +1088,15 @@
     "placeholders": {
       "version": {
         "type": "String"
+      }
+    }
+  },
+  "betaLabel": "Beta {number}",
+  "@betaLabel": {
+    "description": "Shown after the version on beta builds, e.g. 1.9.3+240 (Beta 6)",
+    "placeholders": {
+      "number": {
+        "type": "int"
       }
     }
   },
@@ -3269,11 +3305,28 @@
       }
     }
   },
+  "upcomingReleasesReportFailed": "Fehler beim Überprüfen: {count}",
+  "@upcomingReleasesReportFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesBadgeNew": "NEU",
   "upcomingReleasesOpenLibrarySeries": "Serie in Bibliothek öffnen",
   "upcomingReleasesAsinCopied": "Serien ASIN kopiert",
   "upcomingReleasesSetSeriesAsin": "Serien ASIN setzen",
+  "upcomingReleasesSetAsinHint": "B0… oder audible.com Link",
   "upcomingReleasesSetAsinSave": "Speichern",
+  "upcomingReleasesSetAsinInvalid": "Keine ASIN in diesem Text gefunden",
+  "upcomingReleasesSetAsinSaved": "Serie verknüpft - Scan läuft",
+  "upcomingReleasesRemoveThisScan": "Aus diesem Scan entfernen",
+  "upcomingReleasesRemoveThisScanDesc": "Kann bei einem zukünftigen Scan wieder kommen",
+  "upcomingReleasesRemoveForever": "Von diesem und zukünftigen Scans entfernen",
+  "upcomingReleasesRemovedForeverToast": "Entfernt - wird bei zukünftigen Scans nicht angezeigt",
+  "upcomingReleasesRemovedBooksTitle": "Entfernte Bücher",
+  "upcomingReleasesRemovedNone": "Keine Bücher entfernt",
   "upcomingReleasesRestore": "Wiederherstellen",
   "upcomingReleasesRestoredToast": "Wiederhergestellt",
   "upcomingReleasesRestoredNextScan": "Wiederhergestellt - wird nach dem nächsten Scan angezeigt",
@@ -3694,8 +3747,10 @@
   "tipsSheetAudibleSeriesDesc": "Öffne eine Serie und tippe auf das Drei-Punkte-Symbol, um die komplette Serienliste von Audible zu laden, inklusive fehlender Einträge und noch nicht gestarteter Bücher.",
   "tipsSheetTranscribeBookmarkTitle": "Lesezeichen transkribieren",
   "tipsSheetFindBetweenFormatsTitle": "Wechsel zwischen Hörbuch und eBook",
+  "tipsSheetShareQuoteTitle": "Zitate teilen",
   "tipsSheetClipExportTitle": "Audio-Clips exportieren",
   "tipsSheetClipExportDesc": "Öffne ein Lesezeichen und tippe Clip exportieren um einen kurzen Audioschnipsel des Buches, inklusive Coverart zu erstellen - Super um deine Lieblings Szenen zu teilen.",
+  "tipsSheetAllHighlightsTitle": "Alle Highlights an einem Ort",
   "bookCardUnknownTitle": "Unbekannter Titel",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Fertig",
@@ -4502,6 +4557,9 @@
   "syncSettingsConnection": "Verbindung",
   "syncSettingsConnectionNotSet": "Nicht eingerichtet",
   "syncSettingsIncludeRmab": "ReadMeABook Einstellungen",
+  "syncSettingsTest": "Verbindung testen",
+  "syncSettingsHoldToUpload": "Halten, um jetzt hochzuladen",
+  "syncSettingsUploadNow": "Jetzt hochladen",
   "syncSettingsOk": "Verbunden",
   "syncSettingsNoRemote": "Verbunden - noch nichts Synchronisiert",
   "syncSettingsAuthFailed": "Falscher Benutzername oder Passwort",
@@ -4520,6 +4578,8 @@
     }
   },
   "syncSettingsNever": "Noch nicht synchronisiert",
+  "navHoldPickBody": "Wähle aus, was ein langes Drücken auf diesem Tab bewirkt. Du kannst das Verhalten jederzeit in den Einstellungen ändern.",
+  "navHoldSettingTitle": "Tab hält Verknüpfungen",
   "navHoldAskNextTime": "Erneut fragen",
   "navHoldNothing": "Nichts",
   "navHoldPlayPause": "Play / Pause",
@@ -4528,6 +4588,7 @@
   "navHoldOfflineOff": "Offline Modus aus",
   "navHoldMenu": "Menü immer anzeigen",
   "navHoldStop": "Wiedergabe stoppen",
+  "navHoldAdd": "Hinzufügen",
   "bookStatsAction": "Hörstatistik",
   "bookStatsYou": "Du",
   "bookStatsEveryone": "Jeder",
@@ -4539,6 +4600,15 @@
   "bookStatsFinishedCount": "Nutzer die es beendet haben",
   "bookStatsTotalTime": "Gehörte Zeit aller Nutzer",
   "bookStatsNobody": "Noch niemand hat es gehört",
+  "bookStatsLastChecked": "Überprüft {when}",
+  "@bookStatsLastChecked": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "navHoldServerScan": "Server Scan",
   "navHoldScanAll": "Alle Bibliotheken scannen",
   "navHoldScanLibrary": "Scanne {name}",
   "@navHoldScanLibrary": {
@@ -4559,7 +4629,9 @@
       }
     }
   },
+  "navHoldNothingPlaying": "Noch nichts zum Abspielen",
   "navHoldReadBook": "Aktuelles Buch lesen",
+  "navHoldBookDetails": "Aktuelle Buchdetails",
   "readerCopied": "In Zwischenablage kopiert",
   "readerTooltipCopy": "Kopieren",
   "readerTooltipSearch": "Suchen",
@@ -4585,6 +4657,13 @@
       }
     }
   },
+  "transcriptionEmptyMsg": "An dieser Stelle wurde keine Rede gefunden.",
+  "transcriptionFailedMsg": "Diese Stelle konnte nicht transkribiert werden. Bitte versuche es erneut.",
+  "transcriptionPlaySnippet": "Anhören",
+  "transcriptionPauseSnippet": "Pausieren",
+  "findInEbook": "Im eBook suchen",
+  "findInEbookSearching": "Suche nach dieser Stelle im eBook...",
+  "findInEbookNotFound": "Konnte diese Stelle im eBook nicht finden.",
   "findInEbookNoEbook": "Dieses Buch hat kein eBook.",
   "findInAudiobook": "Im Hörbuch finden",
   "findInAudiobookSearching": "Suche nach dieser Stelle im Hörbuch...",
@@ -4593,10 +4672,5 @@
   "transcriptionWhisperLearnMore": "Mehr über Whisper erfahren",
   "findInAudiobookStay": "Weiterlesen",
   "findInAudiobookGoPlayer": "Im Player öffnen",
-  "settingsEpisodeNotifsDesc": "Abonnierte Podcasts im Hintergrund prüfen",
-  "speedAdjustedTimeOnSubtitle": "An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit",
-  "librarySortFilterUpcomingReleasesSubtitle": "Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen",
-  "tipsSheetSpeedAdjustedTimeDesc": "Restzeit und Kapitelzeiten passen sich automatisch deiner Wiedergabegeschwindigkeit an. Hörst du mit 1,5x? Die angezeigte Zeit zeigt, wie lange es tatsächlich dauert.",
-  "keepNextInfoContent": "Die Anzahl der Elemente, die heruntergeladen bleiben sollen, einschließlich des Elements, das du gerade hörst. Beispiel: \"Nächste 3 behalten\" bedeutet, das aktuelle Buch plus die nächsten 2 in der Serie oder im Podcast bleiben heruntergeladen.",
-  "deleteAbsorbedDownloadsInfoContent": "Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von diesem Gerät gelöscht, nachdem du sie in Absorb zu Ende gehört hast. Wenn du einen Titel im Web oder auf einem anderen Gerät beendest, bleibt der Download hier erhalten."
+  "findInAudiobookPlaying": "Diese Passage im Hörbuch abspielen"
 }
