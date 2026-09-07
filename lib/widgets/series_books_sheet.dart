@@ -25,7 +25,8 @@ import '../utils/duration_format.dart';
 
 /// Show a bottom sheet with all books in a series, sorted by sequence.
 /// Can be called from any screen.
-void showSeriesBooksSheet(BuildContext context, {
+void showSeriesBooksSheet(
+  BuildContext context, {
   required String seriesName,
   String? seriesId,
   List<dynamic> books = const [],
@@ -112,7 +113,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     _sortBooks();
     if (_books.isNotEmpty) {
       _isLoading = false;
-      _scrollToUpNext();
+      _scrollToCurrentOrUpNext();
     }
     // Fetch full data from API for proper sequence info
     _fetchFromApi();
@@ -145,37 +146,55 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
   void _onLibraryChanged() {
     // Just rebuild to pick up progress/cover changes — don't re-fetch
     if (mounted) {
-      try { setState(() {}); } catch (_) {}
+      try {
+        setState(() {});
+      } catch (_) {}
     }
   }
 
-  void _scrollToUpNext() {
+  void _scrollToCurrentOrUpNext({bool allowFallback = false, int retries = 2}) {
     if (_didAutoScroll || _books.isEmpty) return;
-    _didAutoScroll = true;
-    final lib = context.read<LibraryProvider>();
-    int firstUnfinished = -1;
-    for (int i = 0; i < _books.length; i++) {
-      final bookId = _books[i]['id'] as String? ?? '';
-      if (lib.getProgressData(bookId)?['isFinished'] != true) {
-        firstUnfinished = i;
-        break;
-      }
+    final activeItemId = AudioPlayerService().currentItemId;
+    var targetIndex = activeItemId == null
+        ? -1
+        : _books.indexWhere((book) => book['id'] == activeItemId);
+    if (targetIndex < 0 && !allowFallback) return;
+    if (targetIndex < 0) {
+      final lib = context.read<LibraryProvider>();
+      targetIndex = _books.indexWhere(
+        (book) =>
+            lib.getProgressData(book['id'] as String?)?['isFinished'] != true,
+      );
+      if (targetIndex < 0) targetIndex = _books.length - 1;
     }
-    // If all finished, scroll to bottom; if first is unfinished, stay at top
-    final targetIndex = firstUnfinished == -1 ? _books.length - 1 : firstUnfinished;
-    if (targetIndex <= 0) return;
+    if (targetIndex == 0) {
+      _didAutoScroll = true;
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !widget.scrollController.hasClients) return;
-      // Each book card is ~120px (112 height + 8 bottom padding)
-      final offset = (targetIndex * 120.0).clamp(
-        0.0,
-        widget.scrollController.position.maxScrollExtent,
-      );
-      widget.scrollController.animateTo(
-        offset,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOutCubic,
-      );
+      if (!mounted || _didAutoScroll) return;
+      final controller = widget.scrollController;
+      if (!controller.hasClients) {
+        if (retries > 0) {
+          _scrollToCurrentOrUpNext(
+            allowFallback: allowFallback,
+            retries: retries - 1,
+          );
+        }
+        return;
+      }
+      // Book cards are 112px high with 8px spacing. Center the selected book
+      // once the full list is available; partial pages must not pick a false
+      // "next" item near the beginning or end of a large series.
+      const itemExtent = 120.0;
+      final position = controller.position;
+      final offset =
+          (targetIndex * itemExtent -
+                  position.viewportDimension / 2 +
+                  itemExtent / 2)
+              .clamp(0.0, position.maxScrollExtent);
+      controller.jumpTo(offset);
+      _didAutoScroll = true;
     });
   }
 
@@ -196,8 +215,11 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final result = <Map<String, dynamic>>[];
     for (final b in raw) {
       if (b is! Map<String, dynamic>) continue;
-      if (b.containsKey('libraryItem') && b['libraryItem'] is Map<String, dynamic>) {
-        final item = Map<String, dynamic>.from(b['libraryItem'] as Map<String, dynamic>);
+      if (b.containsKey('libraryItem') &&
+          b['libraryItem'] is Map<String, dynamic>) {
+        final item = Map<String, dynamic>.from(
+          b['libraryItem'] as Map<String, dynamic>,
+        );
         if (b['sequence'] != null) item['sequence'] = b['sequence'];
         if (lib != null) registerBookCover(lib, item);
         result.add(item);
@@ -238,7 +260,8 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
           return s['sequence'].toString();
         }
       }
-    } else if (seriesRaw is Map<String, dynamic> && seriesRaw['sequence'] != null) {
+    } else if (seriesRaw is Map<String, dynamic> &&
+        seriesRaw['sequence'] != null) {
       return seriesRaw['sequence'].toString();
     }
     final fallback = metadata['seriesSequence'];
@@ -305,7 +328,9 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final seriesRaw = metadata['series'];
     final list = seriesRaw is List
         ? seriesRaw.whereType<Map<String, dynamic>>()
-        : seriesRaw is Map<String, dynamic> ? [seriesRaw] : const <Map<String, dynamic>>[];
+        : seriesRaw is Map<String, dynamic>
+        ? [seriesRaw]
+        : const <Map<String, dynamic>>[];
     for (final s in list) {
       if ((s['id'] as String? ?? '') == subId && s['sequence'] != null) {
         return s['sequence'].toString();
@@ -336,9 +361,12 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     // Check cache first
     final seriesId = widget.seriesId;
     if (seriesId != null) {
-      final cached = context.read<LibraryProvider>().getSubSeriesCache(seriesId);
+      final cached = context.read<LibraryProvider>().getSubSeriesCache(
+        seriesId,
+      );
       if (cached != null) {
-        _subSeriesList = (cached['subSeries'] as List<Map<String, dynamic>>?) ?? [];
+        _subSeriesList =
+            (cached['subSeries'] as List<Map<String, dynamic>>?) ?? [];
         _assignedBookIds = (cached['assignedIds'] as Set<String>?) ?? {};
         _subSeriesLoaded = true;
         if (mounted) setState(() {});
@@ -353,7 +381,13 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     _subSeriesLoaded = true;
     // Cache the results
     if (seriesId != null) {
-      try { context.read<LibraryProvider>().setSubSeriesCache(seriesId, _subSeriesList, _assignedBookIds); } catch (_) {}
+      try {
+        context.read<LibraryProvider>().setSubSeriesCache(
+          seriesId,
+          _subSeriesList,
+          _assignedBookIds,
+        );
+      } catch (_) {}
     }
     if (mounted) setState(() {});
   }
@@ -368,36 +402,51 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
 
     for (var i = 0; i < _books.length; i += 10) {
       final batch = _books.skip(i).take(10);
-      await Future.wait(batch.map((book) async {
-        final bookId = book['id'] as String? ?? '';
-        if (bookId.isEmpty) return;
-        final fullItem = await api.getLibraryItem(bookId);
-        if (fullItem == null) return;
-        final media = fullItem['media'] as Map<String, dynamic>? ?? {};
-        final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
-        final seriesRaw = metadata['series'];
-        final seriesList = seriesRaw is List
-            ? seriesRaw.whereType<Map<String, dynamic>>().toList()
-            : seriesRaw is Map<String, dynamic> ? [seriesRaw] : <Map<String, dynamic>>[];
+      await Future.wait(
+        batch.map((book) async {
+          final bookId = book['id'] as String? ?? '';
+          if (bookId.isEmpty) return;
+          final fullItem = await api.getLibraryItem(bookId);
+          if (fullItem == null) return;
+          final media = fullItem['media'] as Map<String, dynamic>? ?? {};
+          final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
+          final seriesRaw = metadata['series'];
+          final seriesList = seriesRaw is List
+              ? seriesRaw.whereType<Map<String, dynamic>>().toList()
+              : seriesRaw is Map<String, dynamic>
+              ? [seriesRaw]
+              : <Map<String, dynamic>>[];
 
-        for (final s in seriesList) {
-          final sId = s['id'] as String? ?? '';
-          final sName = s['name'] as String? ?? '';
-          if (sId == currentId || sId == widget.parentSeriesId || sName.toLowerCase() == currentName || sId.isEmpty) continue;
-          subSeriesMap.putIfAbsent(sId, () => {
-            'name': sName, 'id': sId, 'books': <Map<String, dynamic>>[], 'numBooks': 0,
-          });
-          final books = subSeriesMap[sId]!['books'] as List<Map<String, dynamic>>;
-          if (!books.any((b) => b['id'] == bookId)) {
-            // Store the sub-series sequence on the book for sorting
-            final subSeq = s['sequence']?.toString();
-            final bookCopy = Map<String, dynamic>.from(book);
-            if (subSeq != null) bookCopy['_subSequence'] = subSeq;
-            books.add(bookCopy);
-            subSeriesMap[sId]!['numBooks'] = books.length;
+          for (final s in seriesList) {
+            final sId = s['id'] as String? ?? '';
+            final sName = s['name'] as String? ?? '';
+            if (sId == currentId ||
+                sId == widget.parentSeriesId ||
+                sName.toLowerCase() == currentName ||
+                sId.isEmpty)
+              continue;
+            subSeriesMap.putIfAbsent(
+              sId,
+              () => {
+                'name': sName,
+                'id': sId,
+                'books': <Map<String, dynamic>>[],
+                'numBooks': 0,
+              },
+            );
+            final books =
+                subSeriesMap[sId]!['books'] as List<Map<String, dynamic>>;
+            if (!books.any((b) => b['id'] == bookId)) {
+              // Store the sub-series sequence on the book for sorting
+              final subSeq = s['sequence']?.toString();
+              final bookCopy = Map<String, dynamic>.from(book);
+              if (subSeq != null) bookCopy['_subSequence'] = subSeq;
+              books.add(bookCopy);
+              subSeriesMap[sId]!['numBooks'] = books.length;
+            }
           }
-        }
-      }));
+        }),
+      );
     }
 
     subSeriesMap.removeWhere((_, v) => (v['numBooks'] as int) < 2);
@@ -407,18 +456,26 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     }
     _subSeriesList = subSeriesMap.values.toList();
     _assignedBookIds = _subSeriesList
-        .expand((s) => (s['books'] as List<Map<String, dynamic>>).map((b) => b['id'] as String? ?? ''))
+        .expand(
+          (s) => (s['books'] as List<Map<String, dynamic>>).map(
+            (b) => b['id'] as String? ?? '',
+          ),
+        )
         .toSet();
   }
 
   /// Large series: use collapseseries=1 API (one request, server groups them).
   Future<void> _loadSubSeriesFromCollapsed() async {
     final seriesId = widget.seriesId;
-    final libraryId = widget.libraryId ?? context.read<LibraryProvider>().selectedLibraryId;
+    final libraryId =
+        widget.libraryId ?? context.read<LibraryProvider>().selectedLibraryId;
     if (seriesId == null || libraryId == null) return;
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
-    final results = await api.getSeriesCollapsed(seriesId, libraryId: libraryId);
+    final results = await api.getSeriesCollapsed(
+      seriesId,
+      libraryId: libraryId,
+    );
     final byId = {for (final b in _books) (b['id'] as String? ?? ''): b};
 
     for (final raw in results) {
@@ -427,7 +484,8 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       if (collapsed == null) continue;
       final subId = collapsed['id'] as String? ?? '';
       final subName = collapsed['name'] as String? ?? '';
-      final itemIds = (collapsed['libraryItemIds'] as List<dynamic>?)?.cast<String>() ?? [];
+      final itemIds =
+          (collapsed['libraryItemIds'] as List<dynamic>?)?.cast<String>() ?? [];
       final matchingBooks = <Map<String, dynamic>>[];
       for (final id in itemIds) {
         final original = byId[id];
@@ -448,16 +506,28 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         'name': subName,
         'id': subId,
         'books': matchingBooks,
-        'numBooks': (collapsed['numBooks'] as int? ?? 0) > 0 ? collapsed['numBooks'] as int : itemIds.length,
+        'numBooks': (collapsed['numBooks'] as int? ?? 0) > 0
+            ? collapsed['numBooks'] as int
+            : itemIds.length,
       });
       _assignedBookIds.addAll(itemIds);
     }
   }
 
-  ({List<Map<String, dynamic>> subSeries, List<Map<String, dynamic>> standalone}) _buildSubSeriesGroups() {
+  ({
+    List<Map<String, dynamic>> subSeries,
+    List<Map<String, dynamic>> standalone,
+  })
+  _buildSubSeriesGroups() {
     final subSeries = List<Map<String, dynamic>>.from(_subSeriesList)
-      ..sort((a, b) => (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase()));
-    final standalone = _books.where((b) => !_assignedBookIds.contains(b['id'] as String? ?? '')).toList();
+      ..sort(
+        (a, b) => (a['name'] as String).toLowerCase().compareTo(
+          (b['name'] as String).toLowerCase(),
+        ),
+      );
+    final standalone = _books
+        .where((b) => !_assignedBookIds.contains(b['id'] as String? ?? ''))
+        .toList();
     return (subSeries: subSeries, standalone: standalone);
   }
 
@@ -466,15 +536,26 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
 
     return GridView.builder(
       controller: widget.scrollController,
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        24 + MediaQuery.of(context).viewPadding.bottom,
+      ),
       gridDelegate: sheetBookGridDelegate(context, childAspectRatio: 0.65),
       itemCount: parsed.subSeries.length + parsed.standalone.length,
       itemBuilder: (context, index) {
         if (index < parsed.subSeries.length) {
-          return GridSeriesTileDirect(series: parsed.subSeries[index], parentSeriesId: widget.seriesId);
+          return GridSeriesTileDirect(
+            series: parsed.subSeries[index],
+            parentSeriesId: widget.seriesId,
+          );
         }
         final book = parsed.standalone[index - parsed.subSeries.length];
-        return GridBookTile(item: book, sequenceBadge: _getSequenceString(book));
+        return GridBookTile(
+          item: book,
+          sequenceBadge: _getSequenceString(book),
+        );
       },
     );
   }
@@ -485,7 +566,12 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
 
     return ListView(
       controller: widget.scrollController,
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        24 + MediaQuery.of(context).viewPadding.bottom,
+      ),
       children: [
         // Sub-series headers
         for (final series in parsed.subSeries) ...[
@@ -505,37 +591,78 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                 children: [
                   GestureDetector(
                     onTap: () => setState(() {
-                      if (isExpanded) _expandedSubSeries.remove(seriesId);
-                      else _expandedSubSeries.add(seriesId);
+                      if (isExpanded)
+                        _expandedSubSeries.remove(seriesId);
+                      else
+                        _expandedSubSeries.add(seriesId);
                     }),
-                    onLongPress: seriesId.isNotEmpty ? () {
-                      showSeriesBooksSheet(context,
-                        seriesName: seriesName, seriesId: seriesId,
-                        serverUrl: widget.serverUrl, token: widget.token, libraryId: widget.libraryId,
-                        parentSeriesId: widget.seriesId);
-                    } : null,
+                    onLongPress: seriesId.isNotEmpty
+                        ? () {
+                            showSeriesBooksSheet(
+                              context,
+                              seriesName: seriesName,
+                              seriesId: seriesId,
+                              serverUrl: widget.serverUrl,
+                              token: widget.token,
+                              libraryId: widget.libraryId,
+                              parentSeriesId: widget.seriesId,
+                            );
+                          }
+                        : null,
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8, top: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(12)),
-                      child: Row(children: [
-                        AnimatedRotation(
-                          turns: isExpanded ? 0.5 : 0.0,
-                          duration: const Duration(milliseconds: 250),
-                          child: Icon(Icons.expand_more_rounded, size: 20, color: cs.onSurfaceVariant),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(seriesName, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
-                          const SizedBox(height: 2),
-                          Text(l.seriesBooksBookCount(numBooks),
-                            style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5), fontSize: 11)),
-                        ])),
-                      ]),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          AnimatedRotation(
+                            turns: isExpanded ? 0.5 : 0.0,
+                            duration: const Duration(milliseconds: 250),
+                            child: Icon(
+                              Icons.expand_more_rounded,
+                              size: 20,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  seriesName,
+                                  style: tt.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: cs.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  l.seriesBooksBookCount(numBooks),
+                                  style: tt.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   if (isExpanded)
-                    ...subBooks.map((book) => _buildBookCard(cs, tt, lib, book)),
+                    ...subBooks.map(
+                      (book) => _buildBookCard(cs, tt, lib, book),
+                    ),
                 ],
               ),
             );
@@ -577,7 +704,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
           _isLoading = false;
           _totalBooks = fetched.length;
         });
-        if (!_didAutoScroll) _scrollToUpNext();
+        _scrollToCurrentOrUpNext(allowFallback: true);
         try {
           lib.setSeriesBooksCache(seriesId, items, items.length);
         } catch (_) {}
@@ -600,13 +727,17 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
             _isLoading = false;
             _totalBooks = cachedTotal;
           });
-          _scrollToUpNext();
+          _scrollToCurrentOrUpNext(
+            allowFallback: fetched.length >= cachedTotal,
+          );
         }
       }
     }
 
     // Fetch fresh data (updates cache as pages arrive)
-    final data = await api.getSeries(seriesId, libraryId: libraryId,
+    final data = await api.getSeries(
+      seriesId,
+      libraryId: libraryId,
       onPageLoaded: (books, total, {double? totalDuration}) {
         if (!mounted) return;
         final fetched = _unwrapBooks(books);
@@ -615,12 +746,19 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
           _sortBooks();
           _isLoading = false;
           _totalBooks = total;
-          if (totalDuration != null && totalDuration > 0) _seriesDuration = totalDuration;
+          if (totalDuration != null && totalDuration > 0)
+            _seriesDuration = totalDuration;
         });
-        if (!_didAutoScroll) _scrollToUpNext();
+        _scrollToCurrentOrUpNext(allowFallback: fetched.length >= total);
         // Update cache - re-read lib safely, only cache non-empty results
         if (mounted && books.isNotEmpty) {
-          try { context.read<LibraryProvider>().setSeriesBooksCache(seriesId, books, total); } catch (_) {}
+          try {
+            context.read<LibraryProvider>().setSeriesBooksCache(
+              seriesId,
+              books,
+              total,
+            );
+          } catch (_) {}
         }
       },
     );
@@ -635,7 +773,6 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       _loadSubSeriesData();
     }
   }
-
 
   bool get _allFinished {
     final lib = context.read<LibraryProvider>();
@@ -709,8 +846,14 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         title: Text(l.seriesBooksFindMissingTitle),
         content: Text(l.seriesBooksFindMissingContent),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.search)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.search),
+          ),
         ],
       ),
     );
@@ -764,7 +907,10 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         final auth = context.read<AuthProvider>();
         final api = auth.apiService;
         if (api != null) {
-          final results = await api.searchBooks(title: title, author: author.isNotEmpty ? author : null);
+          final results = await api.searchBooks(
+            title: title,
+            author: author.isNotEmpty ? author : null,
+          );
           for (final r in results) {
             final asin = r['asin'] as String? ?? '';
             if (asin.isEmpty) continue;
@@ -783,11 +929,16 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     if (!mounted) return;
 
     if (seriesAsin == null) {
-      showOverlayToast(context, l.seriesBooksCouldNotFindOnAudible, icon: Icons.search_off_rounded);
+      showOverlayToast(
+        context,
+        l.seriesBooksCouldNotFindOnAudible,
+        icon: Icons.search_off_rounded,
+      );
       return;
     }
 
-    showAudibleSeriesSheet(context,
+    showAudibleSeriesSheet(
+      context,
       seriesName: widget.seriesName,
       seriesAsin: seriesAsin,
       ownedTitles: ownedTitles,
@@ -810,7 +961,8 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       return Padding(
         padding: const EdgeInsets.all(12),
         child: SizedBox(
-          width: 18, height: 18,
+          width: 18,
+          height: 18,
           child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
         ),
       );
@@ -818,11 +970,23 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
 
     return IconButton(
       icon: Icon(Icons.more_vert_rounded, color: cs.onSurfaceVariant),
-      onPressed: () => _showSeriesMoreSheet(cs, allDownloaded, downloaded, allDone, hasSeriesId),
+      onPressed: () => _showSeriesMoreSheet(
+        cs,
+        allDownloaded,
+        downloaded,
+        allDone,
+        hasSeriesId,
+      ),
     );
   }
 
-  void _showSeriesMoreSheet(ColorScheme cs, bool allDownloaded, int downloaded, bool allDone, bool hasSeriesId) {
+  void _showSeriesMoreSheet(
+    ColorScheme cs,
+    bool allDownloaded,
+    int downloaded,
+    bool allDone,
+    bool hasSeriesId,
+  ) {
     final l = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
@@ -834,73 +998,148 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
-              ActionPillGrid(items: [
-                if (!allDownloaded)
-                  ActionPillData(
-                    icon: Icons.download_rounded,
-                    label: downloaded > 0 ? l.downloadRemainingCount((_totalBooks > 0 ? _totalBooks : _books.length) - downloaded) : l.downloadAll,
-                    onTap: () { Navigator.pop(ctx); _downloadAll(); }),
-                ActionPillData(
-                  icon: allDone ? Icons.remove_done_rounded : Icons.done_all_rounded,
-                  label: allDone ? l.markAllNotFinished : l.markAllFinished,
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    if (allDone) {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (dlg) => AlertDialog(
-                          title: Text(l.markAllNotFinishedQuestion),
-                          content: Text(l.seriesBooksMarkAllNotFinishedContent(_books.length)),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(dlg, false), child: Text(l.cancel)),
-                            FilledButton(onPressed: () => Navigator.pop(dlg, true), child: Text(l.seriesBooksUnmarkAll)),
-                          ],
-                        ),
-                      );
-                      if (confirmed == true) _markAllNotFinished();
-                    } else {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (dlg) => AlertDialog(
-                          title: Text(Wording.of(context).fullyAbsorbSeries),
-                          content: Text(l.seriesBooksFullyAbsorbContent(_books.length)),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(dlg, false), child: Text(l.cancel)),
-                            FilledButton(onPressed: () => Navigator.pop(dlg, true), child: Text(Wording.of(context).fullyAbsorbAction)),
-                          ],
-                        ),
-                      );
-                      if (confirmed == true) _markAllFinished();
-                    }
-                  }),
-                if (hasSeriesId)
-                  ActionPillData(
-                    icon: _autoDownloadEnabled ? Icons.downloading_rounded : Icons.download_outlined,
-                    label: _autoDownloadEnabled ? l.turnAutoDownloadOff : l.turnAutoDownloadOn,
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      final lib = context.read<LibraryProvider>();
-                      await lib.toggleRollingDownload(widget.seriesId!,
-                          name: widget.seriesName, kind: 'series');
-                      setState(() => _autoDownloadEnabled = lib.isRollingDownloadEnabled(widget.seriesId!));
-                    }),
-                if (hasSeriesId)
-                  ActionPillData(
-                    icon: _scanExcluded ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                    label: _scanExcluded ? l.seriesIncludeInScan : l.seriesExcludeFromScan,
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      final next = !_scanExcluded;
-                      await UpcomingReleasesService.setNeverScan(widget.seriesId!, next);
-                      if (mounted) setState(() => _scanExcluded = next);
-                    }),
-                ActionPillData(icon: Icons.search_rounded, label: l.seriesBooksFindMissingTitle,
-                  onTap: () { Navigator.pop(ctx); _findOnAudible(); }),
-              ]),
-            ]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.24),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                ActionPillGrid(
+                  items: [
+                    if (!allDownloaded)
+                      ActionPillData(
+                        icon: Icons.download_rounded,
+                        label: downloaded > 0
+                            ? l.downloadRemainingCount(
+                                (_totalBooks > 0
+                                        ? _totalBooks
+                                        : _books.length) -
+                                    downloaded,
+                              )
+                            : l.downloadAll,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _downloadAll();
+                        },
+                      ),
+                    ActionPillData(
+                      icon: allDone
+                          ? Icons.remove_done_rounded
+                          : Icons.done_all_rounded,
+                      label: allDone ? l.markAllNotFinished : l.markAllFinished,
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        if (allDone) {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (dlg) => AlertDialog(
+                              title: Text(l.markAllNotFinishedQuestion),
+                              content: Text(
+                                l.seriesBooksMarkAllNotFinishedContent(
+                                  _books.length,
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dlg, false),
+                                  child: Text(l.cancel),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(dlg, true),
+                                  child: Text(l.seriesBooksUnmarkAll),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) _markAllNotFinished();
+                        } else {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (dlg) => AlertDialog(
+                              title: Text(
+                                Wording.of(context).fullyAbsorbSeries,
+                              ),
+                              content: Text(
+                                l.seriesBooksFullyAbsorbContent(_books.length),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dlg, false),
+                                  child: Text(l.cancel),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(dlg, true),
+                                  child: Text(
+                                    Wording.of(context).fullyAbsorbAction,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) _markAllFinished();
+                        }
+                      },
+                    ),
+                    if (hasSeriesId)
+                      ActionPillData(
+                        icon: _autoDownloadEnabled
+                            ? Icons.downloading_rounded
+                            : Icons.download_outlined,
+                        label: _autoDownloadEnabled
+                            ? l.turnAutoDownloadOff
+                            : l.turnAutoDownloadOn,
+                        onTap: () async {
+                          Navigator.pop(ctx);
+                          final lib = context.read<LibraryProvider>();
+                          await lib.toggleRollingDownload(
+                            widget.seriesId!,
+                            name: widget.seriesName,
+                            kind: 'series',
+                          );
+                          setState(
+                            () => _autoDownloadEnabled = lib
+                                .isRollingDownloadEnabled(widget.seriesId!),
+                          );
+                        },
+                      ),
+                    if (hasSeriesId)
+                      ActionPillData(
+                        icon: _scanExcluded
+                            ? Icons.visibility_rounded
+                            : Icons.visibility_off_rounded,
+                        label: _scanExcluded
+                            ? l.seriesIncludeInScan
+                            : l.seriesExcludeFromScan,
+                        onTap: () async {
+                          Navigator.pop(ctx);
+                          final next = !_scanExcluded;
+                          await UpcomingReleasesService.setNeverScan(
+                            widget.seriesId!,
+                            next,
+                          );
+                          if (mounted) setState(() => _scanExcluded = next);
+                        },
+                      ),
+                    ActionPillData(
+                      icon: Icons.search_rounded,
+                      label: l.seriesBooksFindMissingTitle,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _findOnAudible();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -922,15 +1161,24 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
           title: Text(l.autoDownloadThisSeries),
           content: Text(l.autoDownloadSeriesContent),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.noThanks)),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.enable)),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.noThanks),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.enable),
+            ),
           ],
         ),
       );
       if (enable == true && mounted) {
         final lib = context.read<LibraryProvider>();
-        await lib.enableRollingDownload(seriesId,
-            name: widget.seriesName, kind: 'series');
+        await lib.enableRollingDownload(
+          seriesId,
+          name: widget.seriesName,
+          kind: 'series',
+        );
         setState(() => _autoDownloadEnabled = true);
       }
     }
@@ -942,7 +1190,9 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     for (final book in _books) {
       if (!mounted) break;
       final bookId = book['id'] as String? ?? '';
-      if (DownloadService().isDownloaded(bookId) || DownloadService().isDownloading(bookId)) continue;
+      if (DownloadService().isDownloaded(bookId) ||
+          DownloadService().isDownloading(bookId))
+        continue;
 
       final media = book['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
@@ -975,199 +1225,262 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     for (final book in _books) {
       final bookId = book['id'] as String? ?? '';
       final media = book['media'] as Map<String, dynamic>? ?? {};
-      final dur = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
+      final dur = (media['duration'] is num)
+          ? (media['duration'] as num).toDouble()
+          : 0.0;
       final prog = lib.getProgress(bookId);
       totalDuration += dur;
       listenedDuration += dur * prog;
     }
-    final seriesProgress = totalDuration > 0 ? (listenedDuration / totalDuration).clamp(0.0, 1.0) : 0.0;
+    final seriesProgress = totalDuration > 0
+        ? (listenedDuration / totalDuration).clamp(0.0, 1.0)
+        : 0.0;
     final seriesPercent = (seriesProgress * 100).round();
 
-    return ClipRect(child: Column(
-      children: [
-        // Header row: 3-dot menu pinned top-right
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(width: 48),
-            Expanded(
-              child: Column(
-                children: [
-                  Icon(Icons.auto_stories_rounded, size: 20, color: cs.primary),
-                  const SizedBox(height: 4),
-                  Text(widget.seriesName,
+    return ClipRect(
+      child: Column(
+        children: [
+          // Header row: 3-dot menu pinned top-right
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(width: 48),
+              Expanded(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.auto_stories_rounded,
+                      size: 20,
+                      color: cs.primary,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.seriesName,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: tt.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                      style: tt.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 48,
+                child: _books.isNotEmpty ? _buildOverflowMenu(cs) : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: () {
+                    final displayDuration = _seriesDuration > totalDuration
+                        ? _seriesDuration
+                        : totalDuration;
+                    final bookCount = _totalBooks > 0
+                        ? _totalBooks
+                        : _books.length;
+                    final base = l.booksInSeriesCount(bookCount);
+                    return displayDuration > 0
+                        ? '$base · ${formatHm(displayDuration)}'
+                        : base;
+                  }(),
+                ),
+                if (_autoDownloadEnabled) ...[
+                  const TextSpan(text: ' · '),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Icon(
+                      Icons.downloading_rounded,
+                      size: 14,
+                      color: cs.primary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+          ),
+          SizedBox(height: seriesProgress > 0 ? 4 : 12),
+          if (seriesProgress > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: seriesProgress,
+                        minHeight: 4,
+                        backgroundColor: cs.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation(cs.primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    l.percentComplete(seriesPercent.toString()),
+                    style: tt.labelSmall?.copyWith(
+                      color: cs.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
-            SizedBox(
-              width: 48,
-              child: _books.isNotEmpty ? _buildOverflowMenu(cs) : null,
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: () {
-                  final displayDuration = _seriesDuration > totalDuration ? _seriesDuration : totalDuration;
-                  final bookCount = _totalBooks > 0 ? _totalBooks : _books.length;
-                  final base = l.booksInSeriesCount(bookCount);
-                  return displayDuration > 0
-                      ? '$base · ${formatHm(displayDuration)}'
-                      : base;
-                }(),
+          if (_books.isNotEmpty)
+            sheetViewModeBar(
+              context,
+              gridView: _gridView,
+              onChanged: (grid) => setState(() => _gridView = grid),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              leading: IconButton(
+                icon: Icon(
+                  Icons.collections_bookmark_rounded,
+                  size: 20,
+                  color: _collapseSeries ? cs.primary : cs.onSurfaceVariant,
+                ),
+                visualDensity: VisualDensity.compact,
+                tooltip: _collapseSeries
+                    ? l.seriesBooksShowAllBooks
+                    : l.seriesBooksGroupBySubSeries,
+                onPressed: () {
+                  setState(() {
+                    _collapseSeries = !_collapseSeries;
+                    if (_collapseSeries) {
+                      _expandedSubSeries.clear();
+                      if (!_subSeriesLoaded) _loadSubSeriesData();
+                    }
+                  });
+                  PlayerSettings.setCollapseBookSeries(_collapseSeries);
+                },
               ),
-              if (_autoDownloadEnabled) ...[
-                const TextSpan(text: ' · '),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: Icon(Icons.downloading_rounded, size: 14, color: cs.primary),
-                ),
-              ],
-            ],
-          ),
-          style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-        ),
-        SizedBox(height: seriesProgress > 0 ? 4 : 12),
-        if (seriesProgress > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: seriesProgress,
-                      minHeight: 4,
-                      backgroundColor: cs.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation(cs.primary),
+            ),
+          if (_isLoading && _books.isEmpty)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (_books.isEmpty && _loadFailed)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      l.failedToLoad,
+                      style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
                     ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _isLoading = true;
+                          _loadFailed = false;
+                        });
+                        _fetchFromApi();
+                      },
+                      child: Text(l.retry),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_books.isEmpty)
+            Expanded(
+              child: Center(
+                child: Text(
+                  l.noBooksFound,
+                  style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ),
+            )
+          else if (_collapseSeries && !_subSeriesLoaded)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(strokeWidth: 2),
+                    const SizedBox(height: 12),
+                    Text(
+                      l.seriesBooksLoadingSubSeries,
+                      style: tt.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_collapseSeries && _gridView)
+            Expanded(
+              child: ListenableBuilder(
+                listenable: DownloadService(),
+                builder: (context, _) => _buildGroupedGrid(cs, tt, lib),
+              ),
+            )
+          else if (_collapseSeries)
+            Expanded(
+              child: ListenableBuilder(
+                listenable: DownloadService(),
+                builder: (context, _) => _buildGroupedList(cs, tt, lib),
+              ),
+            )
+          else if (_gridView)
+            Expanded(
+              child: ListenableBuilder(
+                listenable: DownloadService(),
+                builder: (context, _) => GridView.builder(
+                  controller: widget.scrollController,
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    0,
+                    16,
+                    24 + MediaQuery.of(context).viewPadding.bottom,
+                  ),
+                  gridDelegate: sheetBookGridDelegate(
+                    context,
+                    childAspectRatio: 0.65,
+                  ),
+                  itemCount: _books.length,
+                  itemBuilder: (context, index) => GridBookTile(
+                    item: _books[index],
+                    sequenceBadge: _getSequenceString(_books[index]),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  l.percentComplete(seriesPercent.toString()),
-                  style: tt.labelSmall?.copyWith(
-                    color: cs.primary,
-                    fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            Expanded(
+              child: ListenableBuilder(
+                listenable: DownloadService(),
+                builder: (context, _) => ListView.builder(
+                  controller: widget.scrollController,
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    0,
+                    16,
+                    24 + MediaQuery.of(context).viewPadding.bottom,
                   ),
+                  itemCount: _books.length,
+                  itemBuilder: (context, index) =>
+                      _buildBookCard(cs, tt, lib, _books[index]),
                 ),
-              ],
+              ),
             ),
-          ),
-        if (_books.isNotEmpty)
-          sheetViewModeBar(
-            context,
-            gridView: _gridView,
-            onChanged: (grid) => setState(() => _gridView = grid),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            leading: IconButton(
-              icon: Icon(Icons.collections_bookmark_rounded, size: 20,
-                color: _collapseSeries ? cs.primary : cs.onSurfaceVariant),
-              visualDensity: VisualDensity.compact,
-              tooltip: _collapseSeries ? l.seriesBooksShowAllBooks : l.seriesBooksGroupBySubSeries,
-              onPressed: () {
-                setState(() {
-                  _collapseSeries = !_collapseSeries;
-                  if (_collapseSeries) {
-                    _expandedSubSeries.clear();
-                    if (!_subSeriesLoaded) _loadSubSeriesData();
-                  }
-                });
-                PlayerSettings.setCollapseBookSeries(_collapseSeries);
-              },
-            ),
-          ),
-        if (_isLoading && _books.isEmpty)
-          const Expanded(
-              child: Center(child: CircularProgressIndicator()))
-        else if (_books.isEmpty && _loadFailed)
-          Expanded(
-            child: Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(l.failedToLoad,
-                    style: tt.bodyLarge
-                        ?.copyWith(color: cs.onSurfaceVariant)),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _isLoading = true;
-                      _loadFailed = false;
-                    });
-                    _fetchFromApi();
-                  },
-                  child: Text(l.retry),
-                ),
-              ]),
-            ),
-          )
-        else if (_books.isEmpty)
-          Expanded(
-            child: Center(
-              child: Text(l.noBooksFound,
-                  style: tt.bodyLarge
-                      ?.copyWith(color: cs.onSurfaceVariant)),
-            ),
-          )
-        else if (_collapseSeries && !_subSeriesLoaded)
-          Expanded(
-            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const CircularProgressIndicator(strokeWidth: 2),
-              const SizedBox(height: 12),
-              Text(l.seriesBooksLoadingSubSeries, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4))),
-            ])),
-          )
-        else if (_collapseSeries && _gridView)
-          Expanded(
-            child: ListenableBuilder(
-              listenable: DownloadService(),
-              builder: (context, _) => _buildGroupedGrid(cs, tt, lib),
-            ),
-          )
-        else if (_collapseSeries)
-          Expanded(
-            child: ListenableBuilder(
-              listenable: DownloadService(),
-              builder: (context, _) => _buildGroupedList(cs, tt, lib),
-            ),
-          )
-        else if (_gridView)
-          Expanded(
-            child: ListenableBuilder(
-              listenable: DownloadService(),
-              builder: (context, _) => GridView.builder(
-              controller: widget.scrollController,
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
-              gridDelegate: sheetBookGridDelegate(context, childAspectRatio: 0.65),
-              itemCount: _books.length,
-              itemBuilder: (context, index) => GridBookTile(item: _books[index], sequenceBadge: _getSequenceString(_books[index])),
-            ),
-          ))
-        else
-          Expanded(
-            child: ListenableBuilder(
-              listenable: DownloadService(),
-              builder: (context, _) => ListView.builder(
-              controller: widget.scrollController,
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
-              itemCount: _books.length,
-              itemBuilder: (context, index) => _buildBookCard(cs, tt, lib, _books[index]),
-            ),
-          ),
-          ),
-      ],
-    ));
+        ],
+      ),
+    );
   }
 
-  Widget _buildBookCard(ColorScheme cs, TextTheme tt, LibraryProvider lib, Map<String, dynamic> book) {
+  Widget _buildBookCard(
+    ColorScheme cs,
+    TextTheme tt,
+    LibraryProvider lib,
+    Map<String, dynamic> book,
+  ) {
     final l = AppLocalizations.of(context)!;
     final bookId = book['id'] as String? ?? '';
     final media = book['media'] as Map<String, dynamic>? ?? {};
@@ -1175,14 +1488,19 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final bookTitle = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
     final sequence = _getSequenceString(book);
-    final duration = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
+    final duration = (media['duration'] is num)
+        ? (media['duration'] as num).toDouble()
+        : 0.0;
 
-    final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
+    final isExplicit =
+        PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final progress = lib.getProgress(bookId);
     final isFinished = lib.getProgressData(bookId)?['isFinished'] == true;
     final isDownloaded = DownloadService().isDownloaded(bookId);
     final isDownloading = DownloadService().isDownloading(bookId);
-    final downloadPct = (DownloadService().downloadProgress(bookId) * 100).clamp(0, 100).round();
+    final downloadPct = (DownloadService().downloadProgress(bookId) * 100)
+        .clamp(0, 100)
+        .round();
     final coverUrl = lib.getCoverUrl(bookId);
     final isOnAbsorbing = lib.isOnAbsorbingList(bookId);
 
@@ -1197,17 +1515,27 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                 color: cs.primary,
                 onTrigger: () async {
                   await lib.addToAbsorbingQueue(bookId);
-                  lib.absorbingItemCache[bookId] = Map<String, dynamic>.from(book);
+                  lib.absorbingItemCache[bookId] = Map<String, dynamic>.from(
+                    book,
+                  );
                   if (context.mounted) {
                     HapticFeedback.mediumImpact();
-                    showOverlayToast(context, Wording.of(context).episodeListAddedToAbsorbing(bookTitle), icon: Icons.add_circle_outline_rounded);
+                    showOverlayToast(
+                      context,
+                      Wording.of(
+                        context,
+                      ).episodeListAddedToAbsorbing(bookTitle),
+                      icon: Icons.add_circle_outline_rounded,
+                    );
                   }
                 },
               ),
         child: Card(
           elevation: 0,
           color: cs.surfaceContainerHigh,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () {
@@ -1222,90 +1550,200 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
             borderRadius: BorderRadius.circular(14),
             child: SizedBox(
               height: 112,
-              child: Row(children: [
-                AspectRatio(
-                  aspectRatio: 1,
-                  child: Stack(children: [
-                    Positioned.fill(
-                      child: coverUrl != null
-                          ? (coverUrl.startsWith('/')
-                              ? Image.file(File(coverUrl), fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _placeholder(cs))
-                              : CachedNetworkImage(
-                                  imageUrl: coverUrl, fit: BoxFit.cover,
-                                  httpHeaders: lib.mediaHeaders,
-                                  placeholder: (_, __) => _placeholder(cs),
-                                  errorWidget: (_, __, ___) => _placeholder(cs)))
-                          : _placeholder(cs),
+              child: Row(
+                children: [
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: coverUrl != null
+                              ? (coverUrl.startsWith('/')
+                                    ? Image.file(
+                                        File(coverUrl),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            _placeholder(cs),
+                                      )
+                                    : CachedNetworkImage(
+                                        imageUrl: coverUrl,
+                                        fit: BoxFit.cover,
+                                        httpHeaders: lib.mediaHeaders,
+                                        placeholder: (_, __) =>
+                                            _placeholder(cs),
+                                        errorWidget: (_, __, ___) =>
+                                            _placeholder(cs),
+                                      ))
+                              : _placeholder(cs),
+                        ),
+                        if (sequence != null && sequence.isNotEmpty)
+                          Positioned(
+                            top: 4,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '#$sequence',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (isExplicit)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                l.seriesBooksExplicitBadge,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (!isDownloaded && isDownloading)
+                          Positioned(
+                            top: isExplicit ? 22 : 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '$downloadPct%',
+                                style: TextStyle(
+                                  color: cs.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (progress > 0 && !isFinished)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: LinearProgressIndicator(
+                              value: progress.clamp(0.0, 1.0),
+                              minHeight: 3,
+                              backgroundColor: Colors.black38,
+                              valueColor: AlwaysStoppedAnimation(cs.primary),
+                            ),
+                          ),
+                        if (isFinished || isDownloaded)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: CoverStateBadges(
+                              isDownloaded: isDownloaded,
+                              isFinished: isFinished,
+                            ),
+                          ),
+                      ],
                     ),
-                    if (sequence != null && sequence.isNotEmpty)
-                      Positioned(top: 4, left: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(6)),
-                          child: Text('#$sequence', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                    if (isExplicit)
-                      Positioned(top: 4, right: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(4)),
-                          child: Text(l.seriesBooksExplicitBadge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                        ),
-                      ),
-                    if (!isDownloaded && isDownloading)
-                      Positioned(top: isExplicit ? 22 : 4, right: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
-                          child: Text('$downloadPct%', style: TextStyle(color: cs.primary, fontSize: 10, fontWeight: FontWeight.w700)),
-                        ),
-                      ),
-                    if (progress > 0 && !isFinished)
-                      Positioned(left: 0, right: 0, bottom: 0,
-                        child: LinearProgressIndicator(
-                          value: progress.clamp(0.0, 1.0), minHeight: 3,
-                          backgroundColor: Colors.black38, valueColor: AlwaysStoppedAnimation(cs.primary)),
-                      ),
-                    if (isFinished || isDownloaded)
-                      Positioned(left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
-                      ),
-                  ]),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                      if (sequence != null && sequence.isNotEmpty)
-                        Text(l.bookNumber(sequence), style: tt.labelSmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
-                      Text(bookTitle, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
-                      if (authorName.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(authorName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                      ],
-                      if (duration > 0) ...[
-                        const SizedBox(height: 2),
-                        Row(children: [
-                          Text(formatHm(duration), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
-                          if (progress > 0 && !isFinished) ...[
-                            const SizedBox(width: 8),
-                            Text('${(progress * 100).round()}%',
-                              style: tt.labelSmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
-                          ],
-                        ]),
-                      ],
-                    ]),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
-                ),
-              ]),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (sequence != null && sequence.isNotEmpty)
+                            Text(
+                              l.bookNumber(sequence),
+                              style: tt.labelSmall?.copyWith(
+                                color: cs.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          Text(
+                            bookTitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: tt.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          if (authorName.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              authorName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: tt.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                          if (duration > 0) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Text(
+                                  formatHm(duration),
+                                  style: tt.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                                if (progress > 0 && !isFinished) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${(progress * 100).round()}%',
+                                    style: tt.labelSmall?.copyWith(
+                                      color: cs.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1317,10 +1755,12 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     return Container(
       color: cs.surfaceContainerHighest,
       child: Center(
-        child: Icon(Icons.headphones_rounded,
-            size: 24, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+        child: Icon(
+          Icons.headphones_rounded,
+          size: 24,
+          color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+        ),
       ),
     );
   }
-
 }

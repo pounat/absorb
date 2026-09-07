@@ -3354,7 +3354,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     final books = await _api!.getBooksBySeries(
       libraryId ?? '',
       seriesId,
-      limit: 100,
+      limit: 0,
     );
     if (books.isEmpty) return;
 
