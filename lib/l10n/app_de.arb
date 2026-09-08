@@ -3080,14 +3080,6 @@
   "statsScreenOs": "Betriebssystem",
   "statsScreenPlayMethod": "Wiedergabemethode",
   "statsScreenLoading": "Lädt...",
-  "statsScreenJumpToSessionStart": "Zum Sitzungsstart springen ({position})",
-  "@statsScreenJumpToSessionStart": {
-    "placeholders": {
-      "position": {
-        "type": "String"
-      }
-    }
-  },
   "statsScreenPlayMethodDirect": "Direktwiedergabe",
   "statsScreenPlayMethodDirectStream": "Direkt-Stream",
   "statsScreenPlayMethodTranscode": "Transcodieren",
