@@ -886,7 +886,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     }
     if (_api == null) return null;
     try {
-      final books = await _api!.getBooksBySeries(libraryId, seriesId, limit: 100);
+      final books = await _api!.getBooksBySeries(libraryId, seriesId, limit: 0);
       if (books.isNotEmpty) {
         _upNextSeriesCache[seriesId] = (DateTime.now(), books);
       }
@@ -1596,7 +1596,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       books = await api.getBooksBySeries(
         libraryId,
         seriesId,
-        limit: 100,
+        limit: 0,
       );
     } catch (error) {
       debugPrint('[QueueDownload] Series fetch failed: $error');
@@ -1787,7 +1787,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
   Future<List<Map<String, dynamic>>> fetchBooksBySeries(
       String libraryId, String seriesId) async {
     if (_api == null) return const [];
-    final books = await _api!.getBooksBySeries(libraryId, seriesId, limit: 100);
+    final books = await _api!.getBooksBySeries(libraryId, seriesId, limit: 0);
     return books.whereType<Map<String, dynamic>>().toList();
   }
 

@@ -157,6 +157,7 @@ dependencies {
 
     // SAF document moves for custom download folders (MainActivity.moveBookToSaf).
     implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("androidx.media:media:1.7.0")
 
     // Google Play Services — Chromecast + Wearable Data Layer (pushes ABS
     // session credentials to the paired Wear OS app so the watch can sign in
