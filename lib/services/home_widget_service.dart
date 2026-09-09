@@ -863,7 +863,8 @@ class HomeWidgetService {
     final coverPath = await HomeWidget.getWidgetData<String>(
       'widget_cover_path',
     );
-    if (coverPath != null) {
+    // '' is the stored form of "no cover" (see _updateCoverArt); don't mirror it.
+    if (coverPath != null && coverPath.isNotEmpty) {
       await HomeWidget.saveWidgetData<String>('np_cover_path', coverPath);
     }
     // GH #298: iOS native now-playing (AbsorbPlayerCore) reads these — feed it
