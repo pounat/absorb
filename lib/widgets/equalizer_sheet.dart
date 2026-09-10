@@ -56,7 +56,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   bool _pEnabled = false;
   String _pPreset = 'flat';
   List<double> _pBands = [];
-  double _pBass = 0.0, _pVirt = 0.0, _pLoud = 0.0;
+  double _pBass = 0.0, _pVirt = 0.0, _pLoud = 0.0, _pDeEss = 0.0;
   bool _pMono = false;
   bool _pSkipSilence = false;
 
@@ -95,6 +95,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       _pBass = 0.0;
       _pVirt = 0.0;
       _pLoud = 0.0;
+      _pDeEss = 0.0;
       _pMono = false;
       _pSkipSilence = false;
       _loadPreview();
@@ -114,6 +115,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       _pBass = snap['bassBoost'] as double;
       _pVirt = snap['virtualizer'] as double;
       _pLoud = snap['loudnessGain'] as double;
+      _pDeEss = snap['deEsser'] as double? ?? 0.0;
       _pMono = snap['mono'] as bool;
       _pSkipSilence = snap['skipSilence'] as bool? ?? false;
       _pBands = List<double>.from((snap['bands'] as List).cast<double>());
@@ -129,6 +131,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       'bassBoost': _pBass,
       'virtualizer': _pVirt,
       'loudnessGain': _pLoud,
+      'deEsser': _pDeEss,
       'mono': _pMono,
       'skipSilence': _pSkipSilence,
       'bands': _pBands,
@@ -142,6 +145,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   double get _vBass => _previewMode ? _pBass : _eq.bassBoost;
   double get _vVirt => _previewMode ? _pVirt : _eq.virtualizer;
   double get _vLoud => _previewMode ? _pLoud : _eq.loudnessGain;
+  double get _vDeEss => _previewMode ? _pDeEss : _eq.deEsser;
   bool get _vMono => _previewMode ? _pMono : _eq.mono;
   bool get _vSkipSilence => _previewMode ? _pSkipSilence : _eq.skipSilence;
 
@@ -211,6 +215,15 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
     }
   }
 
+  void _setDeEss(double v) {
+    if (_previewMode) {
+      setState(() => _pDeEss = v.clamp(0.0, 1.0));
+      _savePreview();
+    } else {
+      _eq.setDeEsser(v);
+    }
+  }
+
   void _setMono(bool v) {
     if (_previewMode) {
       setState(() => _pMono = v);
@@ -237,6 +250,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
         _pBass = 0.0;
         _pVirt = 0.0;
         _pLoud = 0.0;
+        _pDeEss = 0.0;
         _pMono = false;
         _pSkipSilence = false;
       });
@@ -501,6 +515,17 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                   accent: accent,
                   enabled: true,
                   onChanged: (v) => _setLoud(v),
+                ),
+                const SizedBox(height: 8),
+
+                // De-esser (sibilance reduction)
+                _EffectRow(
+                  icon: Icons.record_voice_over_rounded,
+                  label: l.deEsser,
+                  value: _vDeEss,
+                  accent: accent,
+                  enabled: true,
+                  onChanged: (v) => _setDeEss(v),
                 ),
                 const SizedBox(height: 8),
 

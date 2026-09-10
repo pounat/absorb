@@ -3429,6 +3429,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get loudness => '响度';
 
   @override
+  String get deEsser => 'De-esser';
+
+  @override
   String get monoAudio => '单声道音频';
 
   @override
