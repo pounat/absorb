@@ -1597,7 +1597,6 @@
   "markedAsFinishedNiceWork": "Als beendet markiert - gut gemacht!",
   "failedToUpdateCheckConnection": "Aktualisieren fehlgeschlagen - prüfe deine Verbindung",
   "markAsNotFinishedQuestion": "Als nicht beendet markieren?",
-  "markAsNotFinishedContent": "Dadurch wird der Beendet-Status entfernt, deine aktuelle Position bleibt aber erhalten.",
   "unmark": "Markierung entfernen",
   "markedAsNotFinishedBackAtIt": "Als nicht beendet markiert - weiter geht's!",
   "resetProgressQuestion": "Fortschritt zurücksetzen?",
