@@ -1524,7 +1524,6 @@
     }
   },
   "markAsFullyAbsorbedContent": "Cela définira votre progression à 100% et arrêtera la lecture si ce livre est en cours de lecture.",
-  "markAsNotFinishedContent": "Ceci effacera le statut fini mais conservera votre position actuelle.",
   "unmark": "Désélectionner",
   "resetProgressQuestion": "Réinitialiser la progression ?",
   "resetProgressContent": "Ceci effacera toute la progression de ce livre et le réinitialisera au début. Cela ne peut pas être annulé.",
