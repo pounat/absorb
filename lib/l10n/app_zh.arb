@@ -1014,7 +1014,6 @@
   "markedAsFinishedNiceWork": "已标记为完成 - 干得漂亮！",
   "failedToUpdateCheckConnection": "更新失败 - 请检查您的网络连接",
   "markAsNotFinishedQuestion": "标记为未完成？",
-  "markAsNotFinishedContent": "这将清除完成状态，但保留你当前的位置。",
   "unmark": "取消标记",
   "markedAsNotFinishedBackAtIt": "已标记为未完成 - 继续加油！",
   "resetProgressQuestion": "重置进度？",
