@@ -295,7 +295,7 @@
   "hasEbook": "A un eBook",
   "noEbook": "Aucun eBook",
   "hasSupplementaryEbook": "A un eBook supplémentaire",
-  "noSupplementaryEbook": "Pas de eBook supplémentaire",
+  "noSupplementaryEbook": "Aucun eBook supplémentaire",
   "noSeries": "Pas de série",
   "publishedDecade": "Décennie de publication",
   "tracks": "Pistes",
@@ -1576,6 +1576,14 @@
   "historyServerTab": "Sessions",
   "clearHistoryTooltip": "Effacer l'historique",
   "noHistoryYet": "L'historique est vide pour l'instant",
+  "booksInSeriesCount": "{count} livres dans cette série",
+  "@booksInSeriesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "bookNumber": "Livre {number}",
   "@bookNumber": {
     "placeholders": {
@@ -1584,7 +1592,19 @@
       }
     }
   },
+  "downloadRemainingCount": "Téléchargements restants ({count})",
+  "@downloadRemainingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "downloadAll": "Tout télécharger",
+  "turnAutoDownloadOff": "Désactiver le téléchargement automatique",
+  "turnAutoDownloadOn": "Activer le téléchargement automatique",
+  "autoDownloadThisSeries": "Télécharger automatiquement cette série ?",
+  "autoDownloadSeriesContent": "Télécharge automatiquement les livres suivants pendant l'écoute.",
   "standalone": "Autonome",
   "episodes": "Épisodes",
   "markFinished": "Marqué comme terminé",
@@ -1643,6 +1663,23 @@
   "deleteCollection": "Supprimer la collection",
   "deletePermissionRequired": "La permission de suppression est requise. Demandez à l'administrateur root de vous accorder la permission de suppression.",
   "deleteFilesUncheckedHint": "Les fichiers restent sur le serveur, la prochaine analyse de la bibliothèque peut le rajouter.",
+  "deleteFromServerContent": "Supprimer \"{title}\" d'Audiobookshelf ?",
+  "@deleteFromServerContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deletedFromServer": "\"{title}\" supprimé",
+  "@deletedFromServer": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFromServerFailed": "Échec de la suppression. Vérifiez les logs du serveur.",
   "deletePlaylist": "Supprimer la liste de lecture",
   "newPlaylist": "Nouvelle liste de lecture",
   "playlistNameHint": "Nom de la liste de lecture",
@@ -1675,10 +1712,19 @@
   "downloadRemoved": "Téléchargement supprimé",
   "finished": "Terminé",
   "saved": "Téléchargé",
+  "refreshTooltip": "Rafraîchir",
   "userFallback": "Utilisateur",
   "rootAdmin": "Administrateur Root",
   "admin": "Admin",
   "serverAdmin": "Administrateur du serveur",
+  "serverUpdateAvailable": "Mise à jour du serveur disponible {version}",
+  "@serverUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "justNow": "À l'instant",
   "minutesAgo": "Il y a {count} min",
   "@minutesAgo": {
@@ -1722,6 +1768,14 @@
   "chapterBarrierInfoTitle": "Barrière de chapitre",
   "chapterBarrierInfoContent": "Lorsque vous sautez en arrière, la lecture s'accroche au début du chapitre actuel au lieu de passer au précédent.\n\nAppuyez deux fois sur le bouton retour en arrière en 2 secondes pour franchir la barrière.",
   "rewindOnSessionStartInfoContent": "Le retour automatique normal se déclenche lorsque vous redémarrez après une pause dans une session active. Ce paramètre ajoute un retour en arrière lors du démarrage d'une nouvelle session - par exemple après la fermeture de l'application, lorsque la lecture a été arrêtée, ou si vous ouvrez l'application à nouveau.\n\nQuand activé, la lecture redémarre par la quantité maximum de rembobinage au début de chaque nouvelle session afin que vous puissiez réentendre là où vous vous êtiez arrêté.",
+  "rewindActivationDelayValue": "{seconds}s+",
+  "@rewindActivationDelayValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
   "rewindRangeValue": "{min}s – {max}s",
   "@rewindRangeValue": {
     "placeholders": {
@@ -1794,6 +1848,22 @@
   "preReleaseUpdatesInfoContent": "Lorsque cette option est activée, le vérificateur de mise à jour vous informera également des versions alpha et pré-versions de GitHub. Elles peuvent être moins stables mais incluent les dernières fonctionnalités et correctifs.",
   "checkForUpdate": "Rechercher les mises à jour",
   "updateAvailable": "Mise à jour disponible",
+  "updateDialogContent": "Une nouvelle {kind} d'Absorb est disponible : {latest}\n\nVersion actuelle : {current}.",
+  "@updateDialogContent": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "updateKindPreRelease": "pré-release",
+  "updateKindVersion": "version",
   "downloadButton": "Télécharger",
   "updateInstallPermissionDenied": "Autorisation d'installation refusée. Activez \"Installer des applications inconnues\" pour Absorb dans les paramètres du système.",
   "sendToEreader": "Envoyer vers l'E-Reader",
@@ -1885,6 +1955,7 @@
       }
     }
   },
+  "historyShort": "Historique",
   "atPosition": "à {position}",
   "@atPosition": {
     "placeholders": {
@@ -1926,6 +1997,7 @@
       }
     }
   },
+  "adminBackupsLabel": "Sauvegardes",
   "adminListeningNow": "À l'écoute en ce moment",
   "adminLibraries": "Bibliothèques",
   "adminLibraryShows": "séries",
@@ -1934,6 +2006,7 @@
   "adminLibrarySize": "taille",
   "adminLibraryDuration": "durée",
   "adminLibraryReview": "Vérification",
+  "adminInvalidBadge": "Invalide",
   "adminMissingDeleteTitle": "Supprimer l'élément",
   "adminMissingRemovedOne": "{title} supprimé",
   "@adminMissingRemovedOne": {
@@ -1980,7 +2053,10 @@
   "adminUsersPermDelete": "Supprimer",
   "adminUsersPermUpload": "Téléverser",
   "adminUsersPermExplicit": "Contenu explicite",
+  "adminUsersCreateUser": "Créer un utilisateur",
   "adminUsersSaveChanges": "Enregistrer les modifications",
+  "adminUsersUsernameRequired": "Nom d'utilisateur requis",
+  "adminUsersPasswordRequired": "Mot de passe requis",
   "adminUsersUserCreated": "Utilisateur créé",
   "adminUsersUserUpdated": "Utilisateur mis à jour",
   "adminUsersThisUser": "cet utilisateur",
@@ -2115,6 +2191,14 @@
       }
     }
   },
+  "adminPodcastsDeletedEpisodes": "{count} épisode(s) supprimé(s)",
+  "@adminPodcastsDeletedEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminPodcastsDownloadingDots": "Téléchargement...",
   "adminPodcastsDeleteEpisodesCount": "Supprimer {count} épisode(s)",
   "@adminPodcastsDeleteEpisodesCount": {
@@ -2156,6 +2240,7 @@
   "adminPodcastsDaySat": "Sam",
   "adminPodcastsFeedUrl": "URL du flux",
   "adminPodcastsRootOnly": "Root uniquement",
+  "adminPodcastsDeleting": "Suppression...",
   "adminPodcastsSeasonChip": "Saison {season}",
   "@adminPodcastsSeasonChip": {
     "placeholders": {
@@ -2195,11 +2280,16 @@
   "episodeListSubscribe": "S'abonner",
   "episodeListShowFinishedEpisodes": "Afficher les épisodes achevés",
   "episodeListHideFinishedEpisodes": "Cacher les épisodes achevés",
+  "episodeListShowSettings": "Afficher les paramètres",
   "episodeListAutoDownloadChip": "Téléchargement automatique",
   "episodeListSubscribedChip": "Abonné",
   "episodeListExplicitChip": "Explicite",
   "episodeListSortNewest": "Les plus récents",
   "episodeListSortOldest": "Les plus anciens",
+  "episodeListSortTitle": "Titre",
+  "episodeListSortSeason": "Saison",
+  "episodeListSortEpisode": "Numéro d'épisode",
+  "episodeListSortFileName": "Nom de fichier",
   "episodeDetailEpisodeFallback": "Épisode",
   "episodeDetailMarkAbsorbedContent": "Votre progression sera définie à 100% pour cet épisode.",
   "episodeDetailResetProgressContent": "Ceci effacera toute la progression de cet épisode et le réinitialisera au début. Cela ne peut pas être annulé.",
@@ -2369,6 +2459,14 @@
       }
     }
   },
+  "statsScreenByAuthor": "de {author}",
+  "@statsScreenByAuthor": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
   "statsScreenListened": "Écouté",
   "sessionEditTitle": "Modifier la session",
   "sessionDayLabel": "Jour",
@@ -2424,6 +2522,7 @@
   },
   "upcomingReleasesRescanFailed": "Échec du nouveau scan",
   "upcomingReleasesRemoveFromList": "Supprimer de la liste",
+  "upcomingReleasesRemovedFromList": "Retiré de la liste",
   "upcomingReleasesDateChip": "Date",
   "upcomingReleasesScannedToday": "(scanné aujourd'hui)",
   "upcomingReleasesUpcomingCount": "{count} à venir",
@@ -2435,12 +2534,20 @@
     }
   },
   "upcomingReleasesBadgeUpcoming": "À VENIR",
+  "upcomingReleasesBadgeAdded": "AJOUTÉ",
   "upcomingReleasesBadgeMissing": "MANQUANT",
   "upcomingReleasesFinishedAfterDesc": "Séries dont le dernier livre est plus vieux que ceci sont ignorés lors des scans et seulement revérifiés tous les un ou deux mois.",
+  "upcomingReleasesFinishedAfterNever": "Jamais",
   "upcomingReleasesSkippedOtherLibrary": "Cette liste provient d'une bibliothèque différente. Exécutez un rescan pour l'actualiser.",
   "upcomingReleasesScanDeepOptionDesc": "Trouve également des livres manquants dans chaque série - prend plus de temps",
   "upcomingReleasesFirstScanNote": "Le premier scan vérifie chaque série sur Audible et peut prendre quelques minutes. Les scans suivants sont plus rapides une fois que vos séries sont triées.",
+  "upcomingReleasesBadgeNew": "NOUVEAU",
   "upcomingReleasesSetAsinInstructions": "Trouvez la série sur audible.com et copiez le lien de la page - l'ASIN est le code à 10 caractères commençant par B0 (comme B08S2YN3YS). Coller l'ensemble du lien fonctionne aussi.",
+  "upcomingReleasesSetAsinHint": "B0… ou lien audible.com",
+  "upcomingReleasesRestore": "Restaurer",
+  "upcomingReleasesRestoredToast": "Restauré",
+  "upcomingReleasesRestoredNextScan": "Restauré - sera affiché au prochain scan",
+  "upcomingReleasesBulkRemove": "Supprimer",
   "homeScreenEpisodeFallback": "Épisode",
   "libraryScreenUnknownTitle": "Titre inconnu",
   "playlistDetailDefaultName": "Liste de lecture",
@@ -2496,7 +2603,32 @@
   "equalizerPresetLoudness": "Volume",
   "equalizerEditingSavedGeneric": "Édition de l'EQ enregistré",
   "notesDeleteNoteQuestion": "Supprimer la note ?",
+  "notesDeleteNoteContent": "Supprimer \"{title}\" ?",
+  "@notesDeleteNoteContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "notesExport": "Exporter",
   "notesNewNote": "Nouvelle note",
+  "sleepTimerSheetAddMinutesChip": "+{minutes}m",
+  "@sleepTimerSheetAddMinutesChip": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTimerSheetAddChaptersChip": "+{count} ch",
+  "@sleepTimerSheetAddChaptersChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sleepTimerSheetMinShort": "{minutes}m",
   "@sleepTimerSheetMinShort": {
     "placeholders": {
@@ -2508,6 +2640,17 @@
   "sleepTimerSheetSecondsShort": "{seconds}s",
   "@sleepTimerSheetSecondsShort": {
     "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTimerSheetMinSecShort": "{minutes}m {seconds}s",
+  "@sleepTimerSheetMinSecShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
       "seconds": {
         "type": "int"
       }
@@ -2563,10 +2706,13 @@
   "cardChaptersPlay": "Lire",
   "absorbingSharedToday": "Aujourd'hui",
   "absorbingSharedYesterday": "Hier",
+  "absorbingSharedMonday": "Lundi",
   "absorbingSharedTuesday": "Mardi",
   "absorbingSharedWednesday": "Mercredi",
   "absorbingSharedThursday": "Jeudi",
+  "absorbingSharedFriday": "Vendredi",
   "absorbingSharedSaturday": "Samedi",
+  "absorbingSharedSunday": "Dimanche",
   "absorbingSharedAm": "AM",
   "absorbingSharedPm": "PM",
   "sectionDetailDoneBadge": "Terminé",
@@ -2620,6 +2766,17 @@
   "@episodeRowWeeksAgo": {
     "placeholders": {
       "count": {
+        "type": "int"
+      }
+    }
+  },
+  "episodeRowDurationHm": "{hours}h {minutes}m",
+  "@episodeRowDurationHm": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
         "type": "int"
       }
     }
@@ -2683,6 +2840,7 @@
   },
   "cardEdgeProgressQuarterSpeed": "Vitesse /4",
   "cardEdgeProgressHalfSpeed": "Vitesse /2",
+  "authInvalidUsernameOrPassword": "Utilisateur ou mot de passe invalide",
   "authInvalidApiKey": "Clé API invalide",
   "authLoginFailedDetail": "Échec de la connexion - vérifiez l'adresse du serveur et vos identifiants",
   "lpDeletedFinishedDownload": "Téléchargement achevé supprimé",
@@ -2697,6 +2855,7 @@
       }
     }
   },
+  "statsWeekStartsOn": "La semaine commence le",
   "episodeListPositionTop": "En haut de la file d'attente",
   "episodeListPositionSecond": "Deuxième dans la file d'attente",
   "episodeListPositionEnd": "Fin de la file d'attente",
