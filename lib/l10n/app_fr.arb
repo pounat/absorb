@@ -824,6 +824,13 @@
   "coverShapeSquare": "Carré",
   "coverShapeRectangle": "Rectangle",
   "coverShapeLabel": "Forme de couverture",
+  "showSubtitles": "Afficher les sous-titres",
+  "showSubtitlesOnSubtitle": "Les sous-titres s'affichent sous les titres de livres dans la bibliothèque et l'accueil",
+  "showSubtitlesOffSubtitle": "Désactivé - sous-titres uniquement sur la fiche de détails du livre",
+  "subtitleVisibilityLabel": "Sous-titres",
+  "subtitleVisibilityDefault": "Par défaut",
+  "subtitleVisibilityShow": "Afficher",
+  "subtitleVisibilityHide": "Cacher",
   "currentLibrarySettingsTitle": "Bibliothèque actuelle : {name}",
   "@currentLibrarySettingsTitle": {
     "placeholders": {
@@ -847,7 +854,7 @@
   "speedBookmarkOffSubtitle": "Désactivé - la notification montre le saut de chapitre, la vitesse et le signet restent dans Android Auto",
   "lockSeekBar": "Verrouiller la barre de lecture",
   "lockSeekBarOnSubtitle": "Activé - la barre dans la notification, l'écran de verrouillage et le mode voiture montre la progression mais ne peut pas être déplacée",
-  "lockSeekBarOffSubtitle": "Désactivé - faites glisser le curseur dans la notification, l'écran de verrouillage et le mode voiture pour vous déplacer ",
+  "lockSeekBarOffSubtitle": "Désactivé - faites glisser le curseur dans la notification, l'écran de verrouillage et le mode voiture pour vous déplacer",
   "autoRewindOnResume": "Rembobiner lors de la reprise",
   "autoRewindOnSubtitle": "Activé - {min}s à {max}s en fonction de la longueur de la pause",
   "@autoRewindOnSubtitle": {
@@ -1453,7 +1460,23 @@
   "rmabStatusCancelled": "Annulé",
   "rmabStatusDenied": "Refusé",
   "rmabStatusUnknown": "Inconnu",
+  "narratedBy": "Lu par {narrator}",
+  "@narratedBy": {
+    "placeholders": {
+      "narrator": {
+        "type": "String"
+      }
+    }
+  },
   "onAudible": "sur Audible",
+  "percentComplete": "{percent}% lu",
+  "@percentComplete": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
   "absorbing": "Absorption ...",
   "absorbAgain": "Absorber à nouveau",
   "fullyAbsorbed": "Entièrement absorbé",
@@ -1489,6 +1512,14 @@
   "aboutSection": "À propos",
   "chaptersCount": "Chapitres ({count})",
   "@chaptersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "audioTracksCount": "Pistes audio ({count})",
+  "@audioTracksCount": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -1541,6 +1572,7 @@
   "noteOptionalLabel": "Note (facultatif)",
   "bookmarkAdded": "Signet ajouté",
   "playbackHistory": "Historique de lecture",
+  "historyLocalTab": "Historique",
   "historyServerTab": "Sessions",
   "clearHistoryTooltip": "Effacer l'historique",
   "noHistoryYet": "L'historique est vide pour l'instant",
