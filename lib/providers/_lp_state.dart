@@ -115,6 +115,24 @@ mixin _StateMixin on ChangeNotifier {
   String? _freshQueuedFrontKey;
   final Set<String> _locallyFinishedItems = {};
 
+  // ── Strict queue ──
+  // Mirror of PlayerSettings.getStrictQueue(). Cached because the hot absorbing
+  // paths (unblockFromAbsorbing, the absorbing screen's player listener) are
+  // synchronous and must not await prefs on every playback event. Refreshed on
+  // account load, on reloadPrefsBackedState(), at the top of every
+  // _updateAbsorbingCache(), and explicitly by the settings screen on toggle.
+  bool _strictQueue = true;
+  int _strictQueueAdoptSeconds = 30;
+  /// Episodes the user swiped away in the feed. Purely local: nothing is
+  /// marked played on the server, nothing is deleted. This is the only piece
+  /// of AntennaPod's Inbox that the existing filters can't already express -
+  /// "I've seen this and I don't want it" is otherwise indistinguishable from
+  /// "I haven't got to this yet".
+  Set<String> _dismissedEpisodeKeys = {};
+  /// The key the adoption timer is currently counting for, so a rapid
+  /// play A -> play B never adopts A off a stale delayed callback.
+  String? _adoptCandidateKey;
+
   StreamSubscription? _connectivitySub;
   Timer? _connectivityDebounce;
   bool _listeningToDownloads = false;
@@ -145,6 +163,10 @@ mixin _StateMixin on ChangeNotifier {
   Map<String, Map<String, dynamic>> get absorbingItemCache =>
       _absorbingItemCache;
   String? get freshQueuedFrontKey => _freshQueuedFrontKey;
+  bool get strictQueue => _strictQueue;
+  int get strictQueueAdoptSeconds => _strictQueueAdoptSeconds;
+  Set<String> get dismissedEpisodeKeys => _dismissedEpisodeKeys;
+  bool isEpisodeDismissed(String key) => _dismissedEpisodeKeys.contains(key);
 
   Map<String, dynamic>? get selectedLibrary {
     if (_selectedLibraryId == null) return null;

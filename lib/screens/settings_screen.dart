@@ -130,6 +130,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final pi = order.indexOf(_podcastQueueMode);
     return order[(bi < pi ? bi : pi).clamp(0, 2)];
   }
+  bool _strictQueue = true;
+  int _strictQueueAdoptSeconds = 30;
+  String _feedSwipeRight = 'queue';
+  String _feedSwipeLeft = 'dismiss';
   bool _queueAutoDownload = false;
   bool _mergeAbsorbingLibraries = false;
   bool _podcastTabEnabled = false;
@@ -319,11 +323,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final bookMode = await PlayerSettings.getBookQueueMode();
     final podMode = await PlayerSettings.getPodcastQueueMode();
     final qpId = await PlayerSettings.getQueuePlaylistId();
+    final strict = await PlayerSettings.getStrictQueue();
+    final adoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
     if (mounted) {
       setState(() {
         _bookQueueMode = bookMode;
         _podcastQueueMode = podMode;
         _queuePlaylistId = qpId;
+        _strictQueue = strict;
+        _strictQueueAdoptSeconds = adoptSeconds;
       });
     }
   }
@@ -899,6 +907,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await PlayerSettings.setPodcastTabLibraryId(picked);
   }
 
+  Widget _swipeActionTile(
+    String label,
+    String current,
+    Future<void> Function(String) onPick,
+  ) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      trailing: DropdownButton<String>(
+        value: current,
+        underline: const SizedBox.shrink(),
+        items: const [
+          DropdownMenuItem(value: 'queue', child: Text('Add to queue')),
+          DropdownMenuItem(value: 'playnext', child: Text('Play next')),
+          DropdownMenuItem(value: 'dismiss', child: Text('Dismiss')),
+          DropdownMenuItem(value: 'download', child: Text('Download')),
+          DropdownMenuItem(value: 'played', child: Text('Mark played')),
+          DropdownMenuItem(value: 'none', child: Text('Nothing')),
+        ],
+        onChanged: _loaded
+            ? (v) {
+                if (v != null) unawaited(onPick(v));
+              }
+            : null,
+      ),
+    );
+  }
+
   Future<void> _loadSettings() async {
     final results = await Future.wait([
       AutoRewindSettings.load(),                              // 0
@@ -957,6 +994,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ]);
     final s = results[0] as AutoRewindSettings;
     final progressScale = results.last as double;
+    final strictQueue = await PlayerSettings.getStrictQueue();
+    final strictAdoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
+    final feedSwipeRight = await PlayerSettings.getFeedSwipeRight();
+    final feedSwipeLeft = await PlayerSettings.getFeedSwipeLeft();
     final mp3IndexSeek = await PlayerSettings.getMp3IndexSeeking();
     final coverSize = await PlayerSettings.getCoverSize();
     final flatBackground = await PlayerSettings.getFlatBackground();
@@ -1072,6 +1113,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _bookQueueMode = bookQueueMode;
       _podcastQueueMode = podcastQueueMode;
       _queuePlaylistId = qpId;
+      _strictQueue = strictQueue;
+      _strictQueueAdoptSeconds = strictAdoptSeconds;
+      _feedSwipeRight = feedSwipeRight;
+      _feedSwipeLeft = feedSwipeLeft;
       _queueAutoDownload = queueAutoDl;
       _mergeAbsorbingLibraries = mergeLibs;
       _maxConcurrentDownloads = maxConc;
@@ -2518,6 +2563,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             )),
                           ],
                         ],
+                        const SizedBox(height: 4),
+                        SwitchListTile(
+                          title: const Text('Strict queue'),
+                          subtitle: Text(
+                            _strictQueue
+                                ? 'The queue is only what you put in it. Playing '
+                                    'something already queued leaves it in place.'
+                                : 'In-progress, downloaded and continue-listening '
+                                    'items are pulled in automatically, and playing '
+                                    'an item moves it to the top.',
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          value: _strictQueue,
+                          onChanged: _loaded ? (v) async {
+                            setState(() => _strictQueue = v);
+                            await PlayerSettings.setStrictQueue(v);
+                            await lib.refreshStrictQueueSettings();
+                          } : null,
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        if (_strictQueue) ...[
+                          Text('Add to queue after playing for',
+                            style: tt.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          SizedBox(width: double.infinity, child: SegmentedButton<int>(
+                            showSelectedIcon: false,
+                            segments: const [
+                              ButtonSegment(value: 0, label: FittedBox(fit: BoxFit.scaleDown, child: Text('Never'))),
+                              ButtonSegment(value: 15, label: FittedBox(fit: BoxFit.scaleDown, child: Text('15s'))),
+                              ButtonSegment(value: 30, label: FittedBox(fit: BoxFit.scaleDown, child: Text('30s'))),
+                              ButtonSegment(value: 60, label: FittedBox(fit: BoxFit.scaleDown, child: Text('60s'))),
+                            ],
+                            selected: {_strictQueueAdoptSeconds},
+                            onSelectionChanged: _loaded ? (s) async {
+                              if (s.isEmpty) return;
+                              setState(() => _strictQueueAdoptSeconds = s.first);
+                              await PlayerSettings.setStrictQueueAdoptSeconds(s.first);
+                              await lib.refreshStrictQueueSettings();
+                            } : null,
+                            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                          )),
+                        ],
+                        const SizedBox(height: 8),
+                        Text('Episode feed swipe actions',
+                          style: tt.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 2),
+                        Text('Applies to the Episodes list in a podcast library.',
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        const SizedBox(height: 6),
+                        _swipeActionTile('Swipe right', _feedSwipeRight,
+                          (v) async {
+                            await PlayerSettings.setFeedSwipeRight(v);
+                            if (mounted) setState(() => _feedSwipeRight = v);
+                          }),
+                        _swipeActionTile('Swipe left', _feedSwipeLeft,
+                          (v) async {
+                            await PlayerSettings.setFeedSwipeLeft(v);
+                            if (mounted) setState(() => _feedSwipeLeft = v);
+                          }),
                         if (_bookQueueMode != 'off' || _podcastQueueMode != 'off') ...[
                           const SizedBox(height: 4),
                           SwitchListTile(

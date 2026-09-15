@@ -712,6 +712,23 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
             }
           }
         }),
+      // AntennaPod's "after currently playing" enqueue location, as an
+      // explicit action rather than a global setting you have to remember.
+      ActionPillData(
+        icon: Icons.queue_play_next_rounded,
+        label: 'Play next',
+        onTap: () async {
+          dismiss();
+          final cached = Map<String, dynamic>.from(widget.podcastItem);
+          cached['recentEpisode'] = Map<String, dynamic>.from(widget.episode);
+          cached['_absorbingKey'] = dlKey;
+          lib.absorbingItemCache[dlKey] = cached;
+          await lib.playNextInAbsorbing(dlKey);
+          if (context.mounted) {
+            showOverlayToast(context, 'Playing next',
+                icon: Icons.queue_play_next_rounded);
+          }
+        }),
       if (!lib.isOffline)
         ActionPillData(icon: Icons.playlist_add_rounded, label: l.addToPlaylist,
           onTap: () {

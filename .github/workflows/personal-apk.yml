@@ -1,0 +1,121 @@
+name: Personal APK
+
+# Builds a single universal, installable APK and attaches it to the run as an
+# artifact. Nothing is published, tagged or released - this is the "I forked
+# Absorb and want it on my phone" path, not the maintainer release path
+# (see android-release.yml for that).
+#
+# Signing: if you set the ANDROID_KEYSTORE_* secrets, builds are signed with
+# your own key and each new build installs cleanly over the last one. Without
+# them the workflow generates a throwaway keystore so the build still produces
+# something installable - but the signature changes every run, so every update
+# needs an uninstall first. Set the secrets before you get attached to your
+# local state.
+#
+# To create the keystore once, on your own machine:
+#   keytool -genkey -v -keystore absorb.jks -keyalg RSA -keysize 2048 \
+#     -validity 10000 -alias absorb
+#   base64 -w0 absorb.jks    # -> ANDROID_KEYSTORE_BASE64
+# then add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_PASSWORD and ANDROID_KEY_ALIAS under
+# Settings -> Secrets and variables -> Actions. Keep absorb.jks somewhere safe;
+# losing it means uninstall-and-reinstall on the next build.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [queue]
+
+jobs:
+  build:
+    name: Build universal APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned to the version the repo declares, so a Flutter release
+          # can't quietly change what you're building.
+          flutter-version-file: .flutter-version
+          channel: stable
+          cache: true
+
+      - name: Set up signing
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          KS="$RUNNER_TEMP/absorb.jks"
+          if [ -n "${KEYSTORE_B64:-}" ]; then
+            echo "Using the keystore from repo secrets."
+            echo "$KEYSTORE_B64" | base64 -d > "$KS"
+            STORE_PW="$KEYSTORE_PASSWORD"
+            KEY_PW="$KEY_PASSWORD"
+            ALIAS="$KEY_ALIAS"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret set - generating a"
+            echo "::warning::throwaway key. This APK will NOT install over a"
+            echo "::warning::previous build; you'll have to uninstall first."
+            STORE_PW="absorb-ephemeral"
+            KEY_PW="absorb-ephemeral"
+            ALIAS="absorb"
+            keytool -genkeypair -v \
+              -keystore "$KS" -storepass "$STORE_PW" -keypass "$KEY_PW" \
+              -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Absorb Personal Build, OU=None, O=None, L=None, S=None, C=US"
+          fi
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PW
+          keyPassword=$KEY_PW
+          keyAlias=$ALIAS
+          storeFile=$KS
+          EOF
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      # Runs before the build so a type error shows up as a readable analyzer
+      # message instead of 200 lines of Gradle output. Not fatal: upstream
+      # already carries some info-level lint noise, and a warning shouldn't
+      # cost you the APK.
+      - name: flutter analyze
+        continue-on-error: true
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build APK
+        run: |
+          flutter build apk \
+            --release \
+            --flavor github \
+            --dart-define=GITHUB_BUILD=true
+
+      - name: Collect APK
+        id: collect
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          APKS=(build/app/outputs/apk/github/release/*.apk)
+          if [ "${#APKS[@]}" -eq 0 ]; then
+            echo "No APK produced"; exit 1
+          fi
+          mkdir -p dist
+          cp "${APKS[@]}" dist/
+          ls -lh dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: absorb-apk
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 30

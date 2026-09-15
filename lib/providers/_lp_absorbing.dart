@@ -37,7 +37,47 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     }
   }
 
+  /// Re-read the strict-queue prefs into the synchronous mirror. Cheap enough
+  /// to call on every absorbing refresh; the settings screen calls it directly
+  /// on toggle so the change takes effect without waiting for a reload.
+  Future<void> refreshStrictQueueSettings() async {
+    final strict = await PlayerSettings.getStrictQueue();
+    final seconds = await PlayerSettings.getStrictQueueAdoptSeconds();
+    if (strict == _strictQueue && seconds == _strictQueueAdoptSeconds) return;
+    _strictQueue = strict;
+    _strictQueueAdoptSeconds = seconds;
+    notifyListeners();
+  }
+
+  /// Swipe-away for the episode feed's Inbox filter. Local only - the episode
+  /// keeps its unplayed state on the server, it just stops showing up as
+  /// something you still have to decide about.
+  Future<void> dismissEpisode(String key) async {
+    if (!_dismissedEpisodeKeys.add(key)) return;
+    await ScopedPrefs.setStringList(
+        'absorbing_dismissed', _dismissedEpisodeKeys.toList());
+    notifyListeners();
+  }
+
+  Future<void> undismissEpisode(String key) async {
+    if (!_dismissedEpisodeKeys.remove(key)) return;
+    await ScopedPrefs.setStringList(
+        'absorbing_dismissed', _dismissedEpisodeKeys.toList());
+    notifyListeners();
+  }
+
+  Future<void> clearDismissedEpisodes() async {
+    if (_dismissedEpisodeKeys.isEmpty) return;
+    _dismissedEpisodeKeys.clear();
+    await ScopedPrefs.setStringList('absorbing_dismissed', const []);
+    notifyListeners();
+  }
+
   Future<void> _loadManualAbsorbing() async {
+    _strictQueue = await PlayerSettings.getStrictQueue();
+    _strictQueueAdoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
+    _dismissedEpisodeKeys =
+        (await ScopedPrefs.getStringList('absorbing_dismissed')).toSet();
     _manualAbsorbAdds =
         (await ScopedPrefs.getStringList('absorbing_manual_adds')).toSet();
     _finishedManualAbsorbAdds = (await ScopedPrefs.getStringList(
@@ -106,6 +146,20 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
   }
 
   Future<void> _updateAbsorbingCache() async {
+    _strictQueue = await PlayerSettings.getStrictQueue();
+    _strictQueueAdoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
+
+    // Under strict queue the sections are still walked - we need them to keep
+    // _absorbingItemCache populated, or _manualQueueAdvance skips entries with
+    // "no cache entry" - but they no longer put anything INTO the queue.
+    // Everything below funnels its inserts through this one guard.
+    void queueAdd(String key,
+        {String? afterKey, bool atFront = true, int? atIndex}) {
+      if (_strictQueue && !_absorbingBookIds.contains(key)) return;
+      _absorbingIdsAdd(key,
+          afterKey: afterKey, atFront: atFront, atIndex: atIndex);
+    }
+
     final allowedKeys = <String>{};
     final showEntities = <String, Map<String, dynamic>>{};
 
@@ -149,7 +203,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
                 allowedKeys.add(key);
                 showEntities[itemId] = e;
                 if (!_manualAbsorbRemoves.contains(key)) {
-                  _absorbingIdsAdd(key, atFront: false);
+                  queueAdd(key, atFront: false);
                   _absorbingItemCache[key] = {...e, '_absorbingKey': key};
                   if (isContinueSeries) continueSeriesKeys.add(key);
                 }
@@ -163,7 +217,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
               }
               allowedKeys.add(itemId);
               if (!_manualAbsorbRemoves.contains(itemId)) {
-                _absorbingIdsAdd(itemId, atFront: false);
+                queueAdd(itemId, atFront: false);
                 _absorbingItemCache[itemId] = e;
                 if (isContinueSeries) continueSeriesKeys.add(itemId);
               }
@@ -174,7 +228,13 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     }
 
     String? newContinueSeriesKey;
-    if (_lastFinishedItemId != null && continueSeriesKeys.isNotEmpty) {
+    // Strict queue owns its own order: finishing book 3 does not silently
+    // splice book 4 in behind it. Series continuation is what the 'auto_next'
+    // queue mode is for, and that path still works - it just no longer
+    // rewrites a queue you curated by hand.
+    if (!_strictQueue &&
+        _lastFinishedItemId != null &&
+        continueSeriesKeys.isNotEmpty) {
       for (final key in continueSeriesKeys) {
         if (!existingIds.contains(key)) {
           _absorbingIdsAdd(key, afterKey: _lastFinishedItemId);
@@ -281,7 +341,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
         if (isActive) {
           debugPrint('[Absorbing] backfilled playing episode $key at front');
         }
-        _absorbingIdsAdd(key, atFront: isActive);
+        queueAdd(key, atFront: isActive);
         _absorbingItemCache[key] = syntheticEntry;
         allowedKeys.add(key);
       }
@@ -426,6 +486,61 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     unawaited(_catchUpQueueAutoDownloads());
   }
 
+  /// Insert [itemId] directly after whatever is playing, or at the front if
+  /// nothing is. AntennaPod's AFTER_CURRENTLY_PLAYING enqueue location.
+  Future<void> playNextInAbsorbing(String itemId) async {
+    _manualAbsorbAdds.add(itemId);
+    if ((this as LibraryProvider).isItemFinishedByKey(itemId)) {
+      _finishedManualAbsorbAdds.add(itemId);
+    } else {
+      _finishedManualAbsorbAdds.remove(itemId);
+    }
+    _manualAbsorbRemoves.remove(itemId);
+
+    // Re-inserting an item already in the queue is a move, not a no-op:
+    // _absorbingIdsAdd bails early on a key it already holds.
+    _absorbingBookIds.remove(itemId);
+
+    final player = AudioPlayerService();
+    final activeKey = player.currentEpisodeId != null
+        ? '${player.currentItemId}-${player.currentEpisodeId}'
+        : player.currentItemId;
+    final activeIdx =
+        activeKey == null ? -1 : _absorbingBookIds.indexOf(activeKey);
+    _absorbingIdsAdd(itemId, atIndex: activeIdx >= 0 ? activeIdx + 1 : 0);
+
+    setFreshQueuedFront(null);
+    await _saveManualAbsorbing();
+    notifyListeners();
+    unawaited(_catchUpQueueAutoDownloads());
+  }
+
+  /// Strict-queue adoption. Called once an out-of-queue item has been playing
+  /// for the configured dwell time; prepends it so the queue that was there
+  /// before continues underneath it when this finishes.
+  ///
+  /// Prepending (rather than appending) is what makes _manualQueueAdvance do
+  /// the right thing: it resumes from indexOf(finished) + 1, which is the old
+  /// head. Deliberately a no-op for anything already queued - playing queue
+  /// item #5 leaves #5 at position 5.
+  Future<void> adoptPlayingIntoQueue(String key) async {
+    if (!_strictQueue) return;
+    if (_strictQueueAdoptSeconds <= 0) return;
+    if (_absorbingBookIds.contains(key)) return;
+    if ((this as LibraryProvider).isItemFinishedByKey(key)) return;
+
+    debugPrint('[Absorbing] strict adopt: prepending $key after '
+        '${_strictQueueAdoptSeconds}s of playback');
+    _manualAbsorbAdds.add(key);
+    _manualAbsorbRemoves.remove(key);
+    _finishedManualAbsorbAdds.remove(key);
+    _absorbingIdsAdd(key, atFront: true);
+    setFreshQueuedFront(null);
+    await _saveManualAbsorbing();
+    notifyListeners();
+    unawaited(_catchUpQueueAutoDownloads());
+  }
+
   Future<void> reorderAbsorbing(List<String> newOrder) async {
     _absorbingBookIds = newOrder;
     setFreshQueuedFront(null);
@@ -482,8 +597,14 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     bool changed = _manualAbsorbRemoves.remove(key);
     final isCompound = key.length > 36;
     if (!_absorbingBookIds.contains(key)) {
-      _absorbingIdsAdd(key);
-      changed = true;
+      // Strict queue: unblocking clears the "user removed this" flag and warms
+      // the metadata cache, but it does not enqueue. Starting playback goes
+      // through adoptPlayingIntoQueue() after the dwell time instead, and every
+      // other caller is expected to enqueue explicitly.
+      if (!_strictQueue) {
+        _absorbingIdsAdd(key);
+        changed = true;
+      }
       final showId = isCompound ? key.substring(0, 36) : key;
       for (final section in _personalizedSections) {
         for (final e in (section['entities'] as List<dynamic>? ?? [])) {

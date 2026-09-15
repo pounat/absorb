@@ -508,6 +508,44 @@ class PlayerSettings {
     _notify();
   }
 
+  // ── Strict queue (AntennaPod-style) ──
+  //
+  // Off (upstream behaviour): the absorbing list is a derived shelf. Anything
+  // on continue-listening / continue-series / downloaded-books, and every
+  // podcast episode with a scrap of progress, gets swept into it, and playing
+  // an item drags it to position 0.
+  //
+  // On: the list is only what you put there. Nothing is auto-included, and
+  // playing an item that is already queued leaves it where it sits - playback
+  // just continues from that position onward. An item you play that is NOT in
+  // the queue gets prepended once it has survived `strictQueueAdoptSeconds`,
+  // so an accidental tap or a 5-second sample never lands in the queue.
+  static Future<bool> getStrictQueue() => _get('strictQueue', true);
+  static Future<void> setStrictQueue(bool value) =>
+      _set('strictQueue', value, notify: true);
+
+  /// Seconds an out-of-queue item must keep playing before it is prepended.
+  /// 0 disables adoption entirely (play whatever you like, queue never changes).
+  static Future<int> getStrictQueueAdoptSeconds() =>
+      _get('strictQueueAdoptSeconds', 30);
+  static Future<void> setStrictQueueAdoptSeconds(int value) =>
+      _set('strictQueueAdoptSeconds', value, notify: true);
+
+  // ── Episode feed swipe actions ──
+  // Values: 'queue' (append), 'playnext' (after current), 'dismiss' (leave the
+  // Inbox without touching server state), 'download', 'played', 'none'.
+  // Defaults mirror the AntennaPod triage loop: right to enqueue in the order
+  // you want to hear things, left to make it go away.
+  static const List<String> feedSwipeActions = [
+    'queue', 'playnext', 'dismiss', 'download', 'played', 'none',
+  ];
+  static Future<String> getFeedSwipeRight() => _get('feedSwipeRight', 'queue');
+  static Future<void> setFeedSwipeRight(String value) =>
+      _set('feedSwipeRight', value, notify: true);
+  static Future<String> getFeedSwipeLeft() => _get('feedSwipeLeft', 'dismiss');
+  static Future<void> setFeedSwipeLeft(String value) =>
+      _set('feedSwipeLeft', value, notify: true);
+
   // ── Queue mode (replaces autoPlayNextBook + autoPlayNextPodcast) ──
   // Values: 'off', 'manual', 'auto_next', 'playlist'
   static Future<String> getQueueMode() => _get('queueMode', 'off');

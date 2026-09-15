@@ -61,6 +61,30 @@ class LibraryProvider extends ChangeNotifier
     AudioPlayerService.setOnPeekNextItemCallback(peekNextQueueItemForPreBuffer);
     AudioPlayerService.setOnPlayStartedCallback((key, duration) async {
       await _prepareAbsorbingForPlayback(key, duration);
+
+      // ── Strict queue adoption ──
+      // Something you started that isn't in the queue gets prepended, but only
+      // once it has survived the dwell time. Anything shorter is a mis-tap, a
+      // sample, or you bouncing between episodes looking for the right one,
+      // and none of those should rewrite the queue. Already-queued items are
+      // filtered out inside adoptPlayingIntoQueue.
+      _adoptCandidateKey = key;
+      final dwell = await PlayerSettings.getStrictQueueAdoptSeconds();
+      if (await PlayerSettings.getStrictQueue() && dwell > 0) {
+        Future.delayed(Duration(seconds: dwell), () {
+          final player = AudioPlayerService();
+          final currentKey = player.currentEpisodeId == null
+              ? player.currentItemId
+              : '${player.currentItemId}-${player.currentEpisodeId}';
+          // Still the same item, still actually playing, and no newer play
+          // event has superseded this one.
+          if (!player.isPlaying) return;
+          if (currentKey != key) return;
+          if (_adoptCandidateKey != key) return;
+          unawaited(adoptPlayingIntoQueue(key));
+        });
+      }
+
       // Auto-download the book/episode you're listening to kicks off quickly so
       // it doesn't feel broken; the short wait still skips it if you stop or
       // switch right away. Rolling/queue look-ahead stays deferred to keep the

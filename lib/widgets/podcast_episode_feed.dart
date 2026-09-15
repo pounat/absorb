@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -23,7 +24,13 @@ bool podcastEpisodeMatchesFilter(
   required bool finished,
   required bool downloaded,
   required bool subscribed,
+  bool queued = false,
+  bool dismissed = false,
 }) => switch (filter) {
+  // AntennaPod's Inbox: arrived, not triaged. Anything you've queued, started,
+  // finished or swiped away has had a decision made about it and drops out,
+  // so the list empties as you work it instead of growing forever.
+  'inbox' => !finished && progress <= 0 && !queued && !dismissed,
   'downloaded' => downloaded,
   'subscribed' => subscribed,
   'notfinished' => !finished,
@@ -62,6 +69,8 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   int _page = 0;
   String? _error;
   String _filter = 'all';
+  String _swipeRight = 'queue';
+  String _swipeLeft = 'dismiss';
   final _scroll = ScrollController();
 
   // Server-category filters ("Up Next" / "New") show a personalized shelf
@@ -82,6 +91,16 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   @override
   void initState() {
     super.initState();
+    Future.wait([
+      PlayerSettings.getFeedSwipeRight(),
+      PlayerSettings.getFeedSwipeLeft(),
+    ]).then((v) {
+      if (!mounted) return;
+      setState(() {
+        _swipeRight = v[0];
+        _swipeLeft = v[1];
+      });
+    });
     ScopedPrefs.getString('episode_feed_filter_${widget.libraryId}').then((v) {
       if (mounted && v != null && v.isNotEmpty) {
         setState(() => _filter = v);
@@ -444,6 +463,100 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     );
   }
 
+  /// Turn a stored swipe-action name into a spec, or null when the action
+  /// doesn't apply to this episode right now (already queued, already
+  /// dismissed) so the row just doesn't swipe that way.
+  SwipeActionSpec? _swipeSpec(
+    String action,
+    LibraryProvider lib,
+    Map<String, dynamic> ep,
+    ColorScheme cs,
+  ) {
+    final showId = _showIdOf(ep);
+    final epId = ep['id'] as String? ?? '';
+    final key = '$showId-$epId';
+    final queued = lib.isOnAbsorbingList(key);
+    final title = ep['title'] as String? ?? '';
+
+    Future<void> enqueue({required bool next}) async {
+      final cached = Map<String, dynamic>.from(_podcastItemOf(ep));
+      cached['recentEpisode'] = Map<String, dynamic>.from(ep);
+      cached['_absorbingKey'] = key;
+      lib.absorbingItemCache[key] = cached;
+      if (next) {
+        await lib.playNextInAbsorbing(key);
+      } else {
+        await lib.addToAbsorbingQueue(key);
+      }
+      // Queueing is a decision, so it also clears the Inbox flag.
+      await lib.undismissEpisode(key);
+      HapticFeedback.mediumImpact();
+      if (!mounted) return;
+      showOverlayToast(context, next ? 'Playing next' : 'Added to queue',
+          icon: next
+              ? Icons.queue_play_next_rounded
+              : Icons.playlist_add_rounded);
+    }
+
+    switch (action) {
+      case 'queue':
+        if (queued) return null;
+        return SwipeActionSpec(
+          icon: Icons.playlist_add_rounded,
+          color: cs.primary,
+          onTrigger: () => enqueue(next: false),
+        );
+      case 'playnext':
+        return SwipeActionSpec(
+          icon: Icons.queue_play_next_rounded,
+          color: cs.primary,
+          onTrigger: () => enqueue(next: true),
+        );
+      case 'dismiss':
+        final dismissed = lib.isEpisodeDismissed(key);
+        return SwipeActionSpec(
+          icon: dismissed
+              ? Icons.unarchive_rounded
+              : Icons.archive_outlined,
+          color: cs.onSurfaceVariant,
+          onTrigger: () async {
+            if (dismissed) {
+              await lib.undismissEpisode(key);
+            } else {
+              await lib.dismissEpisode(key);
+            }
+            HapticFeedback.mediumImpact();
+            if (!mounted) return;
+            showOverlayToast(
+              context,
+              dismissed ? 'Back in Inbox' : 'Dismissed: $title',
+              icon: dismissed
+                  ? Icons.unarchive_rounded
+                  : Icons.archive_outlined,
+            );
+          },
+        );
+      case 'download':
+        return SwipeActionSpec(
+          icon: Icons.download_rounded,
+          color: cs.secondary,
+          onTrigger: () => _downloadEpisode(ep),
+        );
+      case 'played':
+        final finished =
+            lib.getEpisodeProgressData(showId, epId)?['isFinished'] == true;
+        return SwipeActionSpec(
+          icon: finished
+              ? Icons.radio_button_unchecked_rounded
+              : Icons.check_circle_rounded,
+          color: cs.primary,
+          onTrigger: () => _toggleFinished(ep),
+        );
+      default:
+        return null;
+    }
+  }
+
   bool _matchesFilter(LibraryProvider lib, Map<String, dynamic> ep) {
     final showId = _showIdOf(ep);
     final epId = ep['id'] as String? ?? '';
@@ -456,6 +569,8 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       finished: finished,
       downloaded: DownloadService().isDownloaded('$showId-$epId'),
       subscribed: lib.isPodcastSubscribed(showId),
+      queued: lib.isOnAbsorbingList('$showId-$epId'),
+      dismissed: lib.isEpisodeDismissed('$showId-$epId'),
     );
   }
 
@@ -604,6 +719,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                   child: Row(
                     children: [
                       for (final (key, label) in [
+                        ('inbox', 'Inbox'),
                         ('all', l.filterAllEpisodes),
                         ('upnext', l.podcastFilterUpNext),
                         ('new', l.podcastFilterNew),
@@ -665,24 +781,11 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                 final ep = filtered[i];
                 final showId = _showIdOf(ep);
                 final epId = ep['id'] as String? ?? '';
-                final finished =
-                    lib.getEpisodeProgressData(showId, epId)?['isFinished'] ==
-                    true;
                 return SwipeAction(
                   key: ValueKey('feed-$showId-$epId'),
                   borderRadius: BorderRadius.zero,
-                  onStartToEnd: SwipeActionSpec(
-                    icon: finished
-                        ? Icons.radio_button_unchecked_rounded
-                        : Icons.check_circle_rounded,
-                    color: cs.primary,
-                    onTrigger: () => _toggleFinished(ep),
-                  ),
-                  onEndToStart: SwipeActionSpec(
-                    icon: Icons.download_rounded,
-                    color: cs.secondary,
-                    onTrigger: () => _downloadEpisode(ep),
-                  ),
+                  onStartToEnd: _swipeSpec(_swipeRight, lib, ep, cs),
+                  onEndToStart: _swipeSpec(_swipeLeft, lib, ep, cs),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [

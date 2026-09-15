@@ -251,8 +251,12 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         final currentPage = _pageController.hasClients
             ? (_pageController.page ?? 0).round()
             : 0;
-        _suppressReorder = currentPage > 0;
-        if (!_suppressReorder) {
+        // Strict queue: hitting play on queue item #5 leaves it at #5 and
+        // playback simply continues from there. The page controller below
+        // still scrolls to the card, so it's on screen either way - the list
+        // order just stops being rewritten behind your back.
+        _suppressReorder = lib.strictQueue ? false : currentPage > 0;
+        if (!_suppressReorder && !lib.strictQueue) {
           // No animation needed — persist the move-to-front immediately.
           lib.moveAbsorbingToFront(playingKey);
         }
@@ -287,8 +291,8 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
       ScopedPrefs.setString('absorbing_last_finished', castKey);
       final currentPage = _pageController.hasClients
           ? (_pageController.page ?? 0).round() : 0;
-      _suppressReorder = currentPage > 0;
-      if (!_suppressReorder) {
+      _suppressReorder = lib.strictQueue ? false : currentPage > 0;
+      if (!_suppressReorder && !lib.strictQueue) {
         lib.moveAbsorbingToFront(castKey);
       }
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToActiveCard());
@@ -345,7 +349,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
           _suppressReorder = false;
           // Persist the played item at front so subsequent plays
           // maintain the correct order instead of reverting.
-          if (playingKey != null) {
+          if (playingKey != null && !lib.strictQueue) {
             context.read<LibraryProvider>().moveAbsorbingToFront(playingKey);
           }
           setState(() {});
@@ -524,8 +528,14 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         // Only pull the active item to the top while it's actually playing.
         // When paused, leave the queue order alone so a freshly-queued
         // "beginning" episode stays first instead of being bumped to 2nd.
+        // Strict queue leaves position alone: this is a view-layer reorder, so
+        // without the guard the card visibly jumps to the top even though the
+        // persisted order is untouched, which is worse than either behaviour.
         final activePlaying = _player.hasBook ? _player.isPlaying : _cast.isCasting;
-        if (!_suppressReorder && existingIdx > 0 && activePlaying) {
+        if (!_suppressReorder &&
+            !lib.strictQueue &&
+            existingIdx > 0 &&
+            activePlaying) {
           final item = items.removeAt(existingIdx);
           items.insert(0, item);
         } else if (existingIdx < 0) {
@@ -565,7 +575,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         // episode that's deliberately sitting at the top.
         final freshOnTop = items.isNotEmpty &&
             _absorbingKey(items[0]) == lib.freshQueuedFrontKey;
-        if (finishedIdx > 0 && !freshOnTop) {
+        if (finishedIdx > 0 && !freshOnTop && !lib.strictQueue) {
           final item = items.removeAt(finishedIdx);
           items.insert(0, item);
         }
