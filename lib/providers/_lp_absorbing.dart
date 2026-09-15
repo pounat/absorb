@@ -37,47 +37,118 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     }
   }
 
-  /// Re-read the strict-queue prefs into the synchronous mirror. Cheap enough
-  /// to call on every absorbing refresh; the settings screen calls it directly
-  /// on toggle so the change takes effect without waiting for a reload.
-  Future<void> refreshStrictQueueSettings() async {
-    final strict = await PlayerSettings.getStrictQueue();
-    final seconds = await PlayerSettings.getStrictQueueAdoptSeconds();
-    if (strict == _strictQueue && seconds == _strictQueueAdoptSeconds) return;
-    _strictQueue = strict;
-    _strictQueueAdoptSeconds = seconds;
-    notifyListeners();
-  }
-
   /// Swipe-away for the episode feed's Inbox filter. Local only - the episode
   /// keeps its unplayed state on the server, it just stops showing up as
   /// something you still have to decide about.
-  Future<void> dismissEpisode(String key) async {
-    if (!_dismissedEpisodeKeys.add(key)) return;
-    await ScopedPrefs.setStringList(
-        'absorbing_dismissed', _dismissedEpisodeKeys.toList());
+  ///
+  /// The prefs write is deliberately NOT awaited before notifying. Awaiting a
+  /// SharedPreferences round trip first left the swiped row sitting on screen
+  /// for the duration (SwipeAction springs the row back rather than dismissing
+  /// it, so the row is visibly still there until the rebuild), which read as
+  /// the swipe not having worked.
+  void dismissEpisode(String key) {
+    if (_dismissedEpisodeKeys.containsKey(key)) return;
+    _dismissedEpisodeKeys[key] = DateTime.now().millisecondsSinceEpoch;
     notifyListeners();
+    unawaited(_saveDismissed());
   }
 
-  Future<void> undismissEpisode(String key) async {
-    if (!_dismissedEpisodeKeys.remove(key)) return;
-    await ScopedPrefs.setStringList(
-        'absorbing_dismissed', _dismissedEpisodeKeys.toList());
+  void undismissEpisode(String key) {
+    if (_dismissedEpisodeKeys.remove(key) == null) return;
     notifyListeners();
+    unawaited(_saveDismissed());
   }
 
   Future<void> clearDismissedEpisodes() async {
     if (_dismissedEpisodeKeys.isEmpty) return;
     _dismissedEpisodeKeys.clear();
-    await ScopedPrefs.setStringList('absorbing_dismissed', const []);
+    notifyListeners();
+    await _saveDismissed();
+  }
+
+  Future<void> _saveDismissed() => ScopedPrefs.setString(
+      'absorbing_dismissed_v2', jsonEncode(_dismissedEpisodeKeys));
+
+  /// Drop dismissals that can no longer affect anything.
+  ///
+  /// The Inbox only shows episodes published inside the window, so a dismissal
+  /// older than the window is dead weight - the episode it refers to is out of
+  /// the Inbox on age alone, and on this setup the file is usually gone from
+  /// the server too. Without this the map grows forever: every episode ever
+  /// swiped away, kept in prefs for the life of the install.
+  ///
+  /// Skipped entirely when the window is "All", where an old dismissal is still
+  /// load-bearing.
+  bool _pruneDismissed() {
+    if (_inboxWindowDays <= 0) return false;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: _inboxWindowDays))
+        .millisecondsSinceEpoch;
+    final before = _dismissedEpisodeKeys.length;
+    _dismissedEpisodeKeys.removeWhere((_, at) => at < cutoff);
+    final dropped = before - _dismissedEpisodeKeys.length;
+    if (dropped > 0) {
+      debugPrint('[Inbox] pruned $dropped dismissal(s) older than '
+          '$_inboxWindowDays days');
+    }
+    return dropped > 0;
+  }
+
+  Future<void> _loadDismissed() async {
+    final raw = await ScopedPrefs.getString('absorbing_dismissed_v2');
+    _dismissedEpisodeKeys = {};
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        decoded.forEach((k, v) {
+          final at = (v as num?)?.toInt();
+          if (at != null) _dismissedEpisodeKeys[k] = at;
+        });
+      } catch (e) {
+        debugPrint('[Inbox] dismissed store unreadable, starting empty: $e');
+      }
+    } else {
+      // Migrate the v1 bare-key list. No timestamps to recover, so they're
+      // stamped now: worst case a stale dismissal survives one extra window.
+      final legacy = await ScopedPrefs.getStringList('absorbing_dismissed');
+      if (legacy.isNotEmpty) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        for (final k in legacy) {
+          _dismissedEpisodeKeys[k] = now;
+        }
+        debugPrint('[Inbox] migrated ${legacy.length} v1 dismissal(s)');
+      }
+    }
+    if (_pruneDismissed() || _dismissedEpisodeKeys.isNotEmpty) {
+      unawaited(_saveDismissed());
+    }
+  }
+
+  /// Re-read the prefs behind strict queue and the Inbox into the synchronous
+  /// mirrors. Cheap enough to call on every absorbing refresh; the settings
+  /// screen calls it directly on toggle so changes take effect immediately.
+  Future<void> refreshQueueInboxSettings() async {
+    final strict = await PlayerSettings.getStrictQueue();
+    final seconds = await PlayerSettings.getStrictQueueAdoptSeconds();
+    final window = await PlayerSettings.getInboxWindowDays();
+    final windowChanged = window != _inboxWindowDays;
+    if (strict == _strictQueue &&
+        seconds == _strictQueueAdoptSeconds &&
+        !windowChanged) {
+      return;
+    }
+    _strictQueue = strict;
+    _strictQueueAdoptSeconds = seconds;
+    _inboxWindowDays = window;
+    if (windowChanged && _pruneDismissed()) unawaited(_saveDismissed());
     notifyListeners();
   }
 
   Future<void> _loadManualAbsorbing() async {
     _strictQueue = await PlayerSettings.getStrictQueue();
     _strictQueueAdoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
-    _dismissedEpisodeKeys =
-        (await ScopedPrefs.getStringList('absorbing_dismissed')).toSet();
+    _inboxWindowDays = await PlayerSettings.getInboxWindowDays();
+    await _loadDismissed();
     _manualAbsorbAdds =
         (await ScopedPrefs.getStringList('absorbing_manual_adds')).toSet();
     _finishedManualAbsorbAdds = (await ScopedPrefs.getStringList(
@@ -148,6 +219,8 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
   Future<void> _updateAbsorbingCache() async {
     _strictQueue = await PlayerSettings.getStrictQueue();
     _strictQueueAdoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
+    _inboxWindowDays = await PlayerSettings.getInboxWindowDays();
+    if (_pruneDismissed()) unawaited(_saveDismissed());
 
     // Under strict queue the sections are still walked - we need them to keep
     // _absorbingItemCache populated, or _manualQueueAdvance skips entries with

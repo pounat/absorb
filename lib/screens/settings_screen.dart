@@ -134,6 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _strictQueueAdoptSeconds = 30;
   String _feedSwipeRight = 'queue';
   String _feedSwipeLeft = 'dismiss';
+  int _inboxWindowDays = 21;
   bool _queueAutoDownload = false;
   bool _mergeAbsorbingLibraries = false;
   bool _podcastTabEnabled = false;
@@ -325,6 +326,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final qpId = await PlayerSettings.getQueuePlaylistId();
     final strict = await PlayerSettings.getStrictQueue();
     final adoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
+    final window = await PlayerSettings.getInboxWindowDays();
     if (mounted) {
       setState(() {
         _bookQueueMode = bookMode;
@@ -332,6 +334,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _queuePlaylistId = qpId;
         _strictQueue = strict;
         _strictQueueAdoptSeconds = adoptSeconds;
+        _inboxWindowDays = window;
       });
     }
   }
@@ -998,6 +1001,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final strictAdoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
     final feedSwipeRight = await PlayerSettings.getFeedSwipeRight();
     final feedSwipeLeft = await PlayerSettings.getFeedSwipeLeft();
+    final inboxWindowDays = await PlayerSettings.getInboxWindowDays();
     final mp3IndexSeek = await PlayerSettings.getMp3IndexSeeking();
     final coverSize = await PlayerSettings.getCoverSize();
     final flatBackground = await PlayerSettings.getFlatBackground();
@@ -1117,6 +1121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _strictQueueAdoptSeconds = strictAdoptSeconds;
       _feedSwipeRight = feedSwipeRight;
       _feedSwipeLeft = feedSwipeLeft;
+      _inboxWindowDays = inboxWindowDays;
       _queueAutoDownload = queueAutoDl;
       _mergeAbsorbingLibraries = mergeLibs;
       _maxConcurrentDownloads = maxConc;
@@ -2563,67 +2568,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             )),
                           ],
                         ],
-                        const SizedBox(height: 4),
-                        SwitchListTile(
-                          title: const Text('Strict queue'),
-                          subtitle: Text(
-                            _strictQueue
-                                ? 'The queue is only what you put in it. Playing '
-                                    'something already queued leaves it in place.'
-                                : 'In-progress, downloaded and continue-listening '
-                                    'items are pulled in automatically, and playing '
-                                    'an item moves it to the top.',
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                          value: _strictQueue,
-                          onChanged: _loaded ? (v) async {
-                            setState(() => _strictQueue = v);
-                            await PlayerSettings.setStrictQueue(v);
-                            await lib.refreshStrictQueueSettings();
-                          } : null,
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        if (_strictQueue) ...[
-                          Text('Add to queue after playing for',
-                            style: tt.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 4),
-                          SizedBox(width: double.infinity, child: SegmentedButton<int>(
-                            showSelectedIcon: false,
-                            segments: const [
-                              ButtonSegment(value: 0, label: FittedBox(fit: BoxFit.scaleDown, child: Text('Never'))),
-                              ButtonSegment(value: 15, label: FittedBox(fit: BoxFit.scaleDown, child: Text('15s'))),
-                              ButtonSegment(value: 30, label: FittedBox(fit: BoxFit.scaleDown, child: Text('30s'))),
-                              ButtonSegment(value: 60, label: FittedBox(fit: BoxFit.scaleDown, child: Text('60s'))),
-                            ],
-                            selected: {_strictQueueAdoptSeconds},
-                            onSelectionChanged: _loaded ? (s) async {
-                              if (s.isEmpty) return;
-                              setState(() => _strictQueueAdoptSeconds = s.first);
-                              await PlayerSettings.setStrictQueueAdoptSeconds(s.first);
-                              await lib.refreshStrictQueueSettings();
-                            } : null,
-                            style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                          )),
-                        ],
-                        const SizedBox(height: 8),
-                        Text('Episode feed swipe actions',
-                          style: tt.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        Text('Applies to the Episodes list in a podcast library.',
-                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                        const SizedBox(height: 6),
-                        _swipeActionTile('Swipe right', _feedSwipeRight,
-                          (v) async {
-                            await PlayerSettings.setFeedSwipeRight(v);
-                            if (mounted) setState(() => _feedSwipeRight = v);
-                          }),
-                        _swipeActionTile('Swipe left', _feedSwipeLeft,
-                          (v) async {
-                            await PlayerSettings.setFeedSwipeLeft(v);
-                            if (mounted) setState(() => _feedSwipeLeft = v);
-                          }),
                         if (_bookQueueMode != 'off' || _podcastQueueMode != 'off') ...[
                           const SizedBox(height: 4),
                           SwitchListTile(
@@ -2671,6 +2615,148 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         icon: Icon(Icons.restart_alt_rounded, size: 16, color: cs.onSurfaceVariant),
                         label: Text(l.resetButtonGrid, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
                       )),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // ── Queue & Inbox ──
+                // Everything added on top of upstream lives here rather than
+                // being sprinkled through the stock sections. Two reasons: it's
+                // obvious what's yours when something misbehaves, and it's a
+                // clean insertion at a section boundary, so rebasing onto a new
+                // upstream rarely conflicts.
+                CollapsibleSection(
+                  key: _keyFor('Queue & Inbox'),
+                  icon: Icons.inbox_rounded,
+                  title: 'Queue & Inbox',
+                  cs: cs,
+                  isExpanded: _expandedSection == 'Queue & Inbox',
+                  onExpansionChanged: (v) => _onSectionExpanded('Queue & Inbox', v),
+                  children: [
+                    SwitchListTile(
+                      title: const Text('Strict queue'),
+                      subtitle: Text(
+                        _strictQueue
+                            ? 'The queue is only what you put in it. Playing '
+                                'something already queued leaves it in place.'
+                            : 'In-progress, downloaded and continue-listening items '
+                                'are pulled in automatically, and playing an item '
+                                'moves it to the top.',
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _strictQueue,
+                      onChanged: _loaded ? (v) async {
+                        setState(() => _strictQueue = v);
+                        await PlayerSettings.setStrictQueue(v);
+                        await lib.refreshQueueInboxSettings();
+                      } : null,
+                    ),
+                    if (_strictQueue) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Add to queue after playing for',
+                              style: tt.bodyMedium),
+                            Text('Anything you play that isn\'t queued gets put at '
+                                'the front once it has run this long.',
+                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            const SizedBox(height: 8),
+                            SizedBox(width: double.infinity, child: SegmentedButton<int>(
+                              showSelectedIcon: false,
+                              segments: const [
+                                ButtonSegment(value: 0, label: Text('Never')),
+                                ButtonSegment(value: 15, label: Text('15s')),
+                                ButtonSegment(value: 30, label: Text('30s')),
+                                ButtonSegment(value: 60, label: Text('60s')),
+                              ],
+                              selected: {_strictQueueAdoptSeconds},
+                              onSelectionChanged: _loaded ? (s) async {
+                                if (s.isEmpty) return;
+                                setState(() => _strictQueueAdoptSeconds = s.first);
+                                await PlayerSettings.setStrictQueueAdoptSeconds(s.first);
+                                await lib.refreshQueueInboxSettings();
+                              } : null,
+                              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                            )),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Inbox window', style: tt.bodyMedium),
+                          Text('The Inbox only shows episodes published inside this '
+                              'window. Dismissals older than the window are dropped, '
+                              'since they can no longer affect what you see.',
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          const SizedBox(height: 8),
+                          SizedBox(width: double.infinity, child: SegmentedButton<int>(
+                            showSelectedIcon: false,
+                            segments: const [
+                              ButtonSegment(value: 7, label: Text('7d')),
+                              ButtonSegment(value: 14, label: Text('14d')),
+                              ButtonSegment(value: 21, label: Text('21d')),
+                              ButtonSegment(value: 30, label: Text('30d')),
+                              ButtonSegment(value: 0, label: Text('All')),
+                            ],
+                            selected: {_inboxWindowDays},
+                            onSelectionChanged: _loaded ? (s) async {
+                              if (s.isEmpty) return;
+                              setState(() => _inboxWindowDays = s.first);
+                              await PlayerSettings.setInboxWindowDays(s.first);
+                              await lib.refreshQueueInboxSettings();
+                            } : null,
+                            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                          )),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Episode feed swipe actions', style: tt.bodyMedium),
+                          Text('Applies to the Episodes list in a podcast library.',
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(children: [
+                        _swipeActionTile('Swipe right', _feedSwipeRight, (v) async {
+                          await PlayerSettings.setFeedSwipeRight(v);
+                          if (mounted) setState(() => _feedSwipeRight = v);
+                        }),
+                        _swipeActionTile('Swipe left', _feedSwipeLeft, (v) async {
+                          await PlayerSettings.setFeedSwipeLeft(v);
+                          if (mounted) setState(() => _feedSwipeLeft = v);
+                        }),
+                      ]),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    ListTile(
+                      title: const Text('Clear dismissed episodes'),
+                      subtitle: Text(
+                        '${lib.dismissedEpisodeCount} dismissed. Clearing puts any '
+                        'still inside the window back in the Inbox.',
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      trailing: Icon(Icons.undo_rounded, color: cs.onSurfaceVariant),
+                      onTap: _loaded
+                          ? () async {
+                              await lib.clearDismissedEpisodes();
+                              if (mounted) setState(() {});
+                            }
+                          : null,
                     ),
                   ],
                 ),

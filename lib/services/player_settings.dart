@@ -531,6 +531,13 @@ class PlayerSettings {
   static Future<void> setStrictQueueAdoptSeconds(int value) =>
       _set('strictQueueAdoptSeconds', value, notify: true);
 
+  /// Days of history the Inbox filter covers. 0 means no limit.
+  /// Defaults to 21 to match a server that prunes episodes at three weeks:
+  /// past that the file is usually gone, so an Inbox row for it is a dead end.
+  static Future<int> getInboxWindowDays() => _get('inboxWindowDays', 21);
+  static Future<void> setInboxWindowDays(int value) =>
+      _set('inboxWindowDays', value, notify: true);
+
   // ── Episode feed swipe actions ──
   // Values: 'queue' (append), 'playnext' (after current), 'dismiss' (leave the
   // Inbox without touching server state), 'download', 'played', 'none'.

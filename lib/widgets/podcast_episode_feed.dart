@@ -26,11 +26,15 @@ bool podcastEpisodeMatchesFilter(
   required bool subscribed,
   bool queued = false,
   bool dismissed = false,
+  bool withinWindow = true,
 }) => switch (filter) {
-  // AntennaPod's Inbox: arrived, not triaged. Anything you've queued, started,
-  // finished or swiped away has had a decision made about it and drops out,
-  // so the list empties as you work it instead of growing forever.
-  'inbox' => !finished && progress <= 0 && !queued && !dismissed,
+  // AntennaPod's Inbox: arrived recently, not triaged. Anything you've queued,
+  // started, finished or swiped away has had a decision made about it and drops
+  // out, so the list empties as you work it instead of growing forever.
+  // The window keeps it honest on a server that prunes old files: an episode
+  // whose audio has already been deleted is not a decision you still have.
+  'inbox' =>
+    !finished && progress <= 0 && !queued && !dismissed && withinWindow,
   'downloaded' => downloaded,
   'subscribed' => subscribed,
   'notfinished' => !finished,
@@ -374,6 +378,15 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
         return;
       }
       final lib = context.read<LibraryProvider>();
+      // The Inbox is bounded by date, so once the oldest page we've pulled is
+      // already past the window there is nothing further back that can match -
+      // without this guard the filter pages through the entire feed history
+      // looking for 20 hits that don't exist.
+      if (_filter == 'inbox' &&
+          _episodes.isNotEmpty &&
+          !_withinInboxWindow(lib, _episodes.last)) {
+        return;
+      }
       final matchCount = _episodes.where((ep) => _matchesFilter(lib, ep)).length;
       if (matchCount < 20) _loadPage();
     });
@@ -489,7 +502,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
         await lib.addToAbsorbingQueue(key);
       }
       // Queueing is a decision, so it also clears the Inbox flag.
-      await lib.undismissEpisode(key);
+      lib.undismissEpisode(key);
       HapticFeedback.mediumImpact();
       if (!mounted) return;
       showOverlayToast(context, next ? 'Playing next' : 'Added to queue',
@@ -519,11 +532,11 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
               ? Icons.unarchive_rounded
               : Icons.archive_outlined,
           color: cs.onSurfaceVariant,
-          onTrigger: () async {
+          onTrigger: () {
             if (dismissed) {
-              await lib.undismissEpisode(key);
+              lib.undismissEpisode(key);
             } else {
-              await lib.dismissEpisode(key);
+              lib.dismissEpisode(key);
             }
             HapticFeedback.mediumImpact();
             if (!mounted) return;
@@ -557,6 +570,22 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     }
   }
 
+  /// True when the episode is new enough for the Inbox window. Falls back to
+  /// `addedAt` when the feed carries no publish date, and to "include it" when
+  /// there's no date at all - better a stale row than silently hiding
+  /// something whose metadata is just thin.
+  bool _withinInboxWindow(LibraryProvider lib, Map<String, dynamic> ep) {
+    final days = lib.inboxWindowDays;
+    if (days <= 0) return true;
+    final at = (ep['publishedAt'] as num?)?.toInt() ??
+        (ep['addedAt'] as num?)?.toInt();
+    if (at == null || at <= 0) return true;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: days))
+        .millisecondsSinceEpoch;
+    return at >= cutoff;
+  }
+
   bool _matchesFilter(LibraryProvider lib, Map<String, dynamic> ep) {
     final showId = _showIdOf(ep);
     final epId = ep['id'] as String? ?? '';
@@ -571,6 +600,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       subscribed: lib.isPodcastSubscribed(showId),
       queued: lib.isOnAbsorbingList('$showId-$epId'),
       dismissed: lib.isEpisodeDismissed('$showId-$epId'),
+      withinWindow: _withinInboxWindow(lib, ep),
     );
   }
 

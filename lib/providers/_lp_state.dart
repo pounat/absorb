@@ -123,12 +123,12 @@ mixin _StateMixin on ChangeNotifier {
   // _updateAbsorbingCache(), and explicitly by the settings screen on toggle.
   bool _strictQueue = true;
   int _strictQueueAdoptSeconds = 30;
-  /// Episodes the user swiped away in the feed. Purely local: nothing is
-  /// marked played on the server, nothing is deleted. This is the only piece
-  /// of AntennaPod's Inbox that the existing filters can't already express -
-  /// "I've seen this and I don't want it" is otherwise indistinguishable from
-  /// "I haven't got to this yet".
-  Set<String> _dismissedEpisodeKeys = {};
+  /// Episodes the user swiped away in the feed, mapped to when they were
+  /// swiped. Purely local: nothing is marked played on the server, nothing is
+  /// deleted. Timestamped rather than a bare set so the map stays bounded -
+  /// see _pruneDismissed.
+  Map<String, int> _dismissedEpisodeKeys = {};
+  int _inboxWindowDays = 21;
   /// The key the adoption timer is currently counting for, so a rapid
   /// play A -> play B never adopts A off a stale delayed callback.
   String? _adoptCandidateKey;
@@ -165,8 +165,11 @@ mixin _StateMixin on ChangeNotifier {
   String? get freshQueuedFrontKey => _freshQueuedFrontKey;
   bool get strictQueue => _strictQueue;
   int get strictQueueAdoptSeconds => _strictQueueAdoptSeconds;
-  Set<String> get dismissedEpisodeKeys => _dismissedEpisodeKeys;
-  bool isEpisodeDismissed(String key) => _dismissedEpisodeKeys.contains(key);
+  Set<String> get dismissedEpisodeKeys => _dismissedEpisodeKeys.keys.toSet();
+  int get dismissedEpisodeCount => _dismissedEpisodeKeys.length;
+  int get inboxWindowDays => _inboxWindowDays;
+  bool isEpisodeDismissed(String key) =>
+      _dismissedEpisodeKeys.containsKey(key);
 
   Map<String, dynamic>? get selectedLibrary {
     if (_selectedLibraryId == null) return null;
