@@ -25,14 +25,16 @@ class EqualizerService extends ChangeNotifier {
   double _loudnessGain = 0.0; // 0.0–1.0
   bool _mono = false;
   bool _skipSilence = false;
+  int _skipSilencePadding = 20; // 0–200 ms (default 20 ms)
+  int _skipSilenceThreshold = -30; // -50 to -20 dB (default -30 dB)
   bool _perItem = false;
   String? _currentItemId;
 
   /// Applied to the just_audio AudioPlayer whenever skipSilence changes
-  /// (toggle, per-book switch, account reload). Registered by
+  /// (toggle, padding, threshold, per-book switch, account reload). Registered by
   /// AudioPlayerService.init so the EQ service stays decoupled from
   /// just_audio.
-  void Function(bool enabled)? _skipSilenceApplier;
+  void Function(bool enabled, int paddingMs, int thresholdDb)? _skipSilenceApplier;
 
   /// Invoked when [anyProcessingActive] may have changed so the iOS engine can
   /// attach/detach its processing tap. Registered by AudioPlayerService.
@@ -63,6 +65,8 @@ class EqualizerService extends ChangeNotifier {
   double get loudnessGain => _loudnessGain;
   bool get mono => _mono;
   bool get skipSilence => _skipSilence;
+  int get skipSilencePadding => _skipSilencePadding;
+  int get skipSilenceThreshold => _skipSilenceThreshold;
   bool get perItem => _perItem;
   String? get currentItemId => _currentItemId;
 
@@ -104,7 +108,7 @@ class EqualizerService extends ChangeNotifier {
       debugPrint('[EQ] Unexpected error: $e — using software presets');
       _setupSoftwareFallback();
     }
-    _skipSilenceApplier?.call(_skipSilence);
+    _applySkipSilence();
     _tapApplier?.call(anyProcessingActive);
     notifyListeners();
   }
@@ -200,17 +204,44 @@ class EqualizerService extends ChangeNotifier {
   /// the applier no-ops on iOS.
   Future<void> setSkipSilence(bool value) async {
     _skipSilence = value;
-    _skipSilenceApplier?.call(_skipSilence);
+    _applySkipSilence();
     await _saveSettings();
     notifyListeners();
+  }
+
+  /// Set skip-silence padding in milliseconds (0–200 ms).
+  Future<void> setSkipSilencePadding(int value) async {
+    _skipSilencePadding = value.clamp(0, 200);
+    _applySkipSilence();
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  /// Set skip-silence threshold in dB (-50 to -20 dB).
+  Future<void> setSkipSilenceThreshold(int value) async {
+    _skipSilenceThreshold = value.clamp(-50, -20);
+    _applySkipSilence();
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  void _applySkipSilence() {
+    _skipSilenceApplier?.call(_skipSilence, _skipSilencePadding, _skipSilenceThreshold);
+    try {
+      _channel.invokeMethod('setSkipSilence', {
+        'enabled': _skipSilence,
+        'paddingMs': _skipSilencePadding,
+        'thresholdDb': _skipSilenceThreshold,
+      });
+    } catch (_) {}
   }
 
   /// Register a callback that the service invokes whenever skipSilence
   /// changes. Called once immediately with the current value so the player
   /// picks up persisted state on app start.
-  void setSkipSilenceApplier(void Function(bool enabled) fn) {
+  void setSkipSilenceApplier(void Function(bool enabled, int paddingMs, int thresholdDb) fn) {
     _skipSilenceApplier = fn;
-    fn(_skipSilence);
+    fn(_skipSilence, _skipSilencePadding, _skipSilenceThreshold);
   }
 
   /// Register the iOS processing-tap applier. Called once immediately so the
@@ -240,7 +271,9 @@ class EqualizerService extends ChangeNotifier {
     _loudnessGain = 0.0;
     _mono = false;
     _skipSilence = false;
-    _skipSilenceApplier?.call(_skipSilence);
+    _skipSilencePadding = 20;
+    _skipSilenceThreshold = -30;
+    _applySkipSilence();
     if (_enabled) {
       _applyCurrentSettings();
     } else {
@@ -327,7 +360,7 @@ class EqualizerService extends ChangeNotifier {
     }
     _currentItemId = itemId;
     await _loadItemSettings(itemId);
-    _skipSilenceApplier?.call(_skipSilence);
+    _applySkipSilence();
     if (_enabled) {
       _applyCurrentSettings();
     } else {
@@ -355,6 +388,8 @@ class EqualizerService extends ChangeNotifier {
         'loudnessGain': 0.0,
         'mono': false,
         'skipSilence': false,
+        'skipSilencePadding': 20,
+        'skipSilenceThreshold': -30,
         'bands': List<double>.filled(bandCount, 0.0),
       };
     }
@@ -370,6 +405,8 @@ class EqualizerService extends ChangeNotifier {
       'loudnessGain': await ScopedPrefs.getDouble(_itemKey('loudnessGain', itemId)) ?? 0.0,
       'mono': await ScopedPrefs.getBool(_itemKey('mono', itemId)) ?? false,
       'skipSilence': await ScopedPrefs.getBool(_itemKey('skipSilence', itemId)) ?? false,
+      'skipSilencePadding': await ScopedPrefs.getInt(_itemKey('skipSilencePadding', itemId)) ?? 20,
+      'skipSilenceThreshold': await ScopedPrefs.getInt(_itemKey('skipSilenceThreshold', itemId)) ?? -30,
       'bands': bands,
     };
   }
@@ -383,6 +420,8 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble(_itemKey('loudnessGain', itemId), s['loudnessGain'] as double);
     await ScopedPrefs.setBool(_itemKey('mono', itemId), s['mono'] as bool);
     await ScopedPrefs.setBool(_itemKey('skipSilence', itemId), s['skipSilence'] as bool? ?? false);
+    await ScopedPrefs.setInt(_itemKey('skipSilencePadding', itemId), s['skipSilencePadding'] as int? ?? 20);
+    await ScopedPrefs.setInt(_itemKey('skipSilenceThreshold', itemId), s['skipSilenceThreshold'] as int? ?? -30);
     final bands = (s['bands'] as List).cast<double>();
     await ScopedPrefs.setString(_itemKey('bands', itemId), bands.map((l) => l.toStringAsFixed(1)).join(','));
   }
@@ -397,6 +436,8 @@ class EqualizerService extends ChangeNotifier {
       _loudnessGain = 0.0;
       _mono = false;
       _skipSilence = false;
+      _skipSilencePadding = 20;
+      _skipSilenceThreshold = -30;
       _bandLevels = List.filled(_bandLevels.length, 0.0);
       return;
     }
@@ -407,6 +448,8 @@ class EqualizerService extends ChangeNotifier {
     _loudnessGain = await ScopedPrefs.getDouble(_itemKey('loudnessGain', itemId)) ?? 0.0;
     _mono = await ScopedPrefs.getBool(_itemKey('mono', itemId)) ?? false;
     _skipSilence = await ScopedPrefs.getBool(_itemKey('skipSilence', itemId)) ?? false;
+    _skipSilencePadding = await ScopedPrefs.getInt(_itemKey('skipSilencePadding', itemId)) ?? 20;
+    _skipSilenceThreshold = await ScopedPrefs.getInt(_itemKey('skipSilenceThreshold', itemId)) ?? -30;
     final bandStr = await ScopedPrefs.getString(_itemKey('bands', itemId));
     if (bandStr != null) {
       _bandLevels = bandStr.split(',').map((s) => double.tryParse(s) ?? 0.0).toList();
@@ -423,6 +466,8 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble(_itemKey('loudnessGain', itemId), _loudnessGain);
     await ScopedPrefs.setBool(_itemKey('mono', itemId), _mono);
     await ScopedPrefs.setBool(_itemKey('skipSilence', itemId), _skipSilence);
+    await ScopedPrefs.setInt(_itemKey('skipSilencePadding', itemId), _skipSilencePadding);
+    await ScopedPrefs.setInt(_itemKey('skipSilenceThreshold', itemId), _skipSilenceThreshold);
     await ScopedPrefs.setString(_itemKey('bands', itemId), _bandLevels.map((l) => l.toStringAsFixed(1)).join(','));
   }
 
@@ -435,6 +480,8 @@ class EqualizerService extends ChangeNotifier {
     _loudnessGain = await ScopedPrefs.getDouble('eq_loudnessGain') ?? 0.0;
     _mono = await ScopedPrefs.getBool('eq_mono') ?? false;
     _skipSilence = await ScopedPrefs.getBool('eq_skipSilence') ?? false;
+    _skipSilencePadding = await ScopedPrefs.getInt('eq_skipSilencePadding') ?? 20;
+    _skipSilenceThreshold = await ScopedPrefs.getInt('eq_skipSilenceThreshold') ?? -30;
 
     final bandStr = await ScopedPrefs.getString('eq_bands');
     if (bandStr != null) {
@@ -452,7 +499,7 @@ class EqualizerService extends ChangeNotifier {
   Future<void> reloadForActiveAccount() async {
     await _loadSettings();
     _currentItemId = null;
-    _skipSilenceApplier?.call(_skipSilence);
+    _applySkipSilence();
     if (_enabled) {
       await _applyCurrentSettings();
     } else {
@@ -470,6 +517,8 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble('eq_loudnessGain', _loudnessGain);
     await ScopedPrefs.setBool('eq_mono', _mono);
     await ScopedPrefs.setBool('eq_skipSilence', _skipSilence);
+    await ScopedPrefs.setInt('eq_skipSilencePadding', _skipSilencePadding);
+    await ScopedPrefs.setInt('eq_skipSilenceThreshold', _skipSilenceThreshold);
     await ScopedPrefs.setString('eq_bands', _bandLevels.map((l) => l.toStringAsFixed(1)).join(','));
     if (_perItem && _currentItemId != null) {
       await _saveItemSettings(_currentItemId!);

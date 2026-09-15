@@ -166,6 +166,8 @@ class BackupService {
       'bands': await ScopedPrefs.getString('eq_bands'),
       'mono': await ScopedPrefs.getBool('eq_mono') ?? false,
       'skipSilence': await ScopedPrefs.getBool('eq_skipSilence') ?? false,
+      'skipSilencePadding': await ScopedPrefs.getInt('eq_skipSilencePadding') ?? 20,
+      'skipSilenceThreshold': await ScopedPrefs.getInt('eq_skipSilenceThreshold') ?? -30,
       'perItem': await ScopedPrefs.getBool('eq_perItem') ?? false,
     };
 
@@ -706,6 +708,8 @@ class BackupService {
       }
       if (eq['mono'] != null) await ScopedPrefs.setBool('eq_mono', eq['mono'] as bool);
       if (eq['skipSilence'] != null) await ScopedPrefs.setBool('eq_skipSilence', eq['skipSilence'] as bool);
+      if (eq['skipSilencePadding'] != null) await ScopedPrefs.setInt('eq_skipSilencePadding', (eq['skipSilencePadding'] as num).toInt());
+      if (eq['skipSilenceThreshold'] != null) await ScopedPrefs.setInt('eq_skipSilenceThreshold', (eq['skipSilenceThreshold'] as num).toInt());
       if (eq['perItem'] != null) await ScopedPrefs.setBool('eq_perItem', eq['perItem'] as bool);
     }
 
