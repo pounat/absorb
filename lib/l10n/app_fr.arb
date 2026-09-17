@@ -2900,8 +2900,6 @@
   "chapterRemoveAll": "Tout supprimer",
   "chapterShowSeconds": "Afficher les secondes",
   "chapterShiftBySeconds": "Décaler de (secondes)",
-  "chapterBack1Second": "Retour de 1 seconde",
-  "chapterForward1Second": "Avancer de 1 seconde",
   "chapterTitleHint": "Titre du chapitre",
   "chapterStopPreview": "Arrêt de l'aperçu",
   "chapterStartAt": "Commencer à {time}",
@@ -2912,7 +2910,6 @@
       }
     }
   },
-  "chapterMore": "Plus",
   "chapterUnlock": "Déverrouiller",
   "chapterLock": "Verrouiller",
   "chapterInsertBelow": "Insérer en dessous",
