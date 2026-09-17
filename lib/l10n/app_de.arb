@@ -4103,12 +4103,9 @@
   "chapterShowSeconds": "Sekunden anzeigen",
   "chapterShiftBySeconds": "Verschieben um (Sekunden)",
   "chapterShiftHint": "Verschiebt jedes entsperrte Kapitel. Verwende einen negativen Wert, um sie früher zu verschieben.",
-  "chapterBack1Second": "1 Sekunde zurück",
-  "chapterForward1Second": "1 Sekunde vorwärts",
   "chapterTitleHint": "Kapitelname",
   "chapterStopPreview": "Vorschau stoppen",
   "chapterPreviewFromHere": "Vorschau ab hier",
-  "chapterScrubHint": "Spule an die exakte Stelle, lege dann fest",
   "chapterStartAt": "Beginne bei {time}",
   "@chapterStartAt": {
     "placeholders": {
@@ -4117,8 +4114,6 @@
       }
     }
   },
-  "chapterSetStartHere": "Beginn auf hier festlegen",
-  "chapterMore": "Mehr",
   "chapterUnlock": "Entsperren",
   "chapterLock": "Sperren",
   "chapterInsertBelow": "Unten einfügen",
