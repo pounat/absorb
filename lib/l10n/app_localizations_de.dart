@@ -3553,6 +3553,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get loudness => 'Lautheit';
 
   @override
+  String get deEsser => 'De-esser';
+
+  @override
   String get monoAudio => 'Mono-Audio';
 
   @override
