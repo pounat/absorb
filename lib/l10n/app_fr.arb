@@ -1712,6 +1712,8 @@
   "downloadRemoved": "Téléchargement supprimé",
   "finished": "Terminé",
   "saved": "Téléchargé",
+  "selectLibrary": "Sélectionner la bibliothèque",
+  "switchLibraryTooltip": "Changer de bibliothèque",
   "refreshTooltip": "Rafraîchir",
   "userFallback": "Utilisateur",
   "rootAdmin": "Administrateur Root",
@@ -1870,6 +1872,7 @@
   "updateKindPreRelease": "pré-release",
   "updateKindVersion": "version",
   "downloadButton": "Télécharger",
+  "updateDownloading": "Téléchargement de la mise-à-jour...",
   "updateInstallPermissionDenied": "Autorisation d'installation refusée. Activez \"Installer des applications inconnues\" pour Absorb dans les paramètres du système.",
   "sendToEreader": "Envoyer vers l'E-Reader",
   "sendingToEreader": "Envoi à {device}...",
@@ -2011,8 +2014,25 @@
   "adminLibrarySize": "taille",
   "adminLibraryDuration": "durée",
   "adminLibraryReview": "Vérification",
+  "adminMissingBadge": "Manquant",
   "adminInvalidBadge": "Invalide",
   "adminMissingDeleteTitle": "Supprimer l'élément",
+  "adminMissingDeleteOneContent": "Supprimer \"{title}\" d'Audiobookshelf ?",
+  "@adminMissingDeleteOneContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingDeleteManyContent": "Supprimer {count} éléments d'Audiobookshelf ?",
+  "@adminMissingDeleteManyContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminMissingRemovedOne": "{title} supprimé",
   "@adminMissingRemovedOne": {
     "placeholders": {
@@ -2144,6 +2164,7 @@
   "adminPodcastsGenreMusic": "Musique",
   "adminPodcastsGenreNews": "Actualités",
   "adminPodcastsGenreReligion": "Religion",
+  "adminPodcastsGenreScience": "Science",
   "adminPodcastsGenreSports": "Sports",
   "adminPodcastsGenreTechnology": "Technologie",
   "adminPodcastsGenreFiction": "Fiction",
@@ -2488,6 +2509,7 @@
   "statsScreenDevice": "Appareil",
   "statsScreenOs": "OS",
   "statsScreenLoading": "Chargement...",
+  "statsScreenPlayMethodDirect": "Lecture directe",
   "statsScreenPlayMethodDirectStream": "Flux direct",
   "statsScreenPlayMethodTranscode": "Transcodage",
   "statsScreenPlayMethodLocal": "Local",
@@ -2585,6 +2607,7 @@
     }
   },
   "audibleSeriesUpcomingBadge": "À VENIR",
+  "audibleSeriesRegionTitle": "Région Audible",
   "audibleSeriesOpenOnAudible": "Ouvrir sur Audible",
   "audibleSeriesAddToCalendar": "Ajouter au calendrier",
   "authorBooksGroupBySeries": "Regrouper par série",
@@ -2661,6 +2684,14 @@
       }
     }
   },
+  "sleepTimerSheetChaptersValue": "{count, plural, =1{1 chapitre} other{{count} chapitres}}",
+  "@sleepTimerSheetChaptersValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sleepTimerSheetChaptersChip": "{count} ch",
   "@sleepTimerSheetChaptersChip": {
     "placeholders": {
@@ -2669,8 +2700,26 @@
       }
     }
   },
+  "sleepTimerSheetStartChapterSleep": "{count, plural, =1{Veille après 1 chapitre} other{Veille après {count} chapitres}}",
+  "@sleepTimerSheetStartChapterSleep": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sleepTimerSheetRewindOnSleep": "Retour après endormissement",
   "sleepTimerSheetShake": "Secouer",
+  "sleepTimerSheetAddsMinutes": "Ajoute {minutes} min",
+  "@sleepTimerSheetAddsMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTimerSheetAddsOneChapter": "Ajoute 1 chapitre",
+  "sleepTimerSheetResetsToFull": "Réinitialise à la durée totale",
   "sleepTimerSheetTabSpecificChapter": "Chapitre",
   "sleepTimerSheetSpecificChapterFallback": "Chapitre {number}",
   "@sleepTimerSheetSpecificChapterFallback": {
