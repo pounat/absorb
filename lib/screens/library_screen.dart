@@ -15,13 +15,16 @@ import '../services/socket_service.dart';
 import '../services/download_service.dart';
 import '../services/audio_player_service.dart';
 import '../widgets/absorb_page_header.dart';
-import '../widgets/adaptive_modal.dart';
 import '../widgets/library_picker_sheet.dart';
 import '../widgets/library_search_results.dart';
 import '../widgets/podcast_episode_feed.dart';
 import '../main.dart' show flatNotifier, gradientIntensityNotifier;
 import '../widgets/library_sort_filter_sheet.dart';
+import '../widgets/desktop_batch_actions.dart';
+import '../widgets/desktop_cover_size_control.dart';
+import '../widgets/overlay_toast.dart';
 import '../widgets/library_books_tab.dart';
+import '../utils/desktop_workspace.dart';
 import '../widgets/library_series_tab.dart';
 import '../widgets/library_authors_tab.dart';
 import '../widgets/library_narrators_tab.dart';
@@ -32,10 +35,8 @@ import 'admin_podcasts_screen.dart';
 import 'app_shell.dart';
 import 'upcoming_releases_screen.dart';
 import '../widgets/audible_series_sheet.dart' show showAudibleRegionPicker;
+import '../widgets/books_sheet_shared.dart' show coverGridCount;
 import '../widgets/offline_status_icon.dart';
-import '../widgets/overlay_toast.dart';
-import '../widgets/desktop_batch_actions.dart';
-import '../widgets/desktop_cover_size_control.dart';
 import '../widgets/rmab_config_sheet.dart'
     show kRmabBaseUrlKey, kRmabApiTokenKey;
 import '../widgets/rmab_search_results_sheet.dart';
@@ -43,80 +44,48 @@ import '../widgets/scroll_reveal.dart';
 import '../services/scoped_prefs.dart';
 import '../services/user_account_service.dart';
 import '../l10n/app_localizations.dart';
-import '../utils/app_platform.dart';
-import '../utils/desktop_workspace.dart';
+
+/// Responsive grid column count based on available width and the cover size
+/// setting; scales up on tablets/iPads.
+int responsiveGridCount(BuildContext context) => coverGridCount(context);
+
+/// Bottom padding for the library tab grids/lists so the last row clears the
+/// floating tab bar (`Library/Series/Authors/Narrators`) plus the AppShell
+/// `NavigationBar` once both reappear at the end of a scroll. When the bars
+/// hide-on-scroll then snap back, the viewport shrinks but the scroll offset
+/// stays put, so the bottom items end up closer to the pill than steady-state
+/// math would suggest. This value keeps a comfortable gap even in that case.
+/// Room under the grid for the playing pill and the nav bar, which the
+/// desktop workspace does not have.
+double libraryGridBottomPadding(BuildContext context) =>
+    isDesktopWorkspace(context) ? 80 : 180;
 
 const double kDesktopLibraryTileMaxExtent = 220;
 
-LinearGradient _libraryBackgroundGradient(
-  ColorScheme colorScheme,
-  Color scaffoldBackground,
-) {
-  final lowerFade =
-      Color.lerp(colorScheme.surface, scaffoldBackground, 0.55) ??
-      scaffoldBackground;
-  return LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    stops: const [0.0, 0.22, 0.72, 1.0],
-    colors: [
-      colorScheme.primary.withValues(alpha: gradientIntensityNotifier.value),
-      colorScheme.surface,
-      lowerFade,
-      scaffoldBackground,
-    ],
-  );
-}
-
-class _LibraryHeaderGradientPainter extends CustomPainter {
-  const _LibraryHeaderGradientPainter({
-    required this.backgroundColor,
-    required this.gradient,
-    required this.topInset,
-    required this.screenHeight,
-  });
-
-  final Color backgroundColor;
-  final LinearGradient gradient;
-  final double topInset;
-  final double screenHeight;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paintBounds = Offset.zero & size;
-    canvas.drawRect(paintBounds, Paint()..color = backgroundColor);
-    final shaderBounds = Rect.fromLTWH(0, -topInset, size.width, screenHeight);
-    canvas.drawRect(
-      paintBounds,
-      Paint()..shader = gradient.createShader(shaderBounds),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_LibraryHeaderGradientPainter oldDelegate) =>
-      backgroundColor != oldDelegate.backgroundColor ||
-      gradient != oldDelegate.gradient ||
-      topInset != oldDelegate.topInset ||
-      screenHeight != oldDelegate.screenHeight;
-}
-
+/// [crossAxisCount] is the phone column count from the cover size setting;
+/// without it the count falls back to the width. [mainAxisExtent] sizes the
+/// cell outright (subtitled tiles), on every layout.
 SliverGridDelegate libraryGridDelegateForWidth(
   double width, {
   required bool desktopWorkspace,
   required double childAspectRatio,
   double desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
+  int? crossAxisCount,
+  double? mainAxisExtent,
 }) {
   if (desktopWorkspace) {
     return SliverGridDelegateWithMaxCrossAxisExtent(
       maxCrossAxisExtent: desktopMaxCrossAxisExtent,
       childAspectRatio: childAspectRatio,
+      mainAxisExtent: mainAxisExtent,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
     );
   }
   return SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: (width / 130).floor().clamp(3, 10),
+    crossAxisCount: crossAxisCount ?? (width / 130).floor().clamp(3, 10),
     childAspectRatio: childAspectRatio,
+    mainAxisExtent: mainAxisExtent,
     crossAxisSpacing: 10,
     mainAxisSpacing: 10,
   );
@@ -126,23 +95,18 @@ SliverGridDelegate libraryGridDelegate(
   BuildContext context, {
   required double childAspectRatio,
   double desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
+  int? crossAxisCount,
+  double? mainAxisExtent,
 }) {
   return libraryGridDelegateForWidth(
     MediaQuery.sizeOf(context).width,
     desktopWorkspace: isDesktopWorkspace(context),
     childAspectRatio: childAspectRatio,
     desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
+    crossAxisCount: crossAxisCount,
+    mainAxisExtent: mainAxisExtent,
   );
 }
-
-/// Bottom padding for the library tab grids/lists so the last row clears the
-/// floating tab bar (`Library/Series/Authors/Narrators`) plus the AppShell
-/// `NavigationBar` once both reappear at the end of a scroll. When the bars
-/// hide-on-scroll then snap back, the viewport shrinks but the scroll offset
-/// stays put, so the bottom items end up closer to the pill than steady-state
-/// math would suggest. The desktop workspace has neither bar.
-double libraryGridBottomPadding(BuildContext context) =>
-    isDesktopWorkspace(context) ? 80 : 180;
 
 // ─── Sort modes ──────────────────────────────────────────────
 enum LibrarySort {
@@ -280,34 +244,20 @@ String? buildLibraryFilterQuery(
   return switch (filter) {
     LibraryFilter.hasEbook => _encodedLibraryFilter('ebooks', 'ebook'),
     LibraryFilter.noEbook => _encodedLibraryFilter('ebooks', 'no-ebook'),
-    LibraryFilter.hasSupplementaryEbook => _encodedLibraryFilter(
-      'ebooks',
-      'supplementary',
-    ),
-    LibraryFilter.noSupplementaryEbook => _encodedLibraryFilter(
-      'ebooks',
-      'no-supplementary',
-    ),
-    LibraryFilter.series when filterValue != null => _encodedLibraryFilter(
-      'series',
-      filterValue,
-    ),
-    LibraryFilter.author when filterValue != null => _encodedLibraryFilter(
-      'authors',
-      filterValue,
-    ),
-    LibraryFilter.narrator when filterValue != null => _encodedLibraryFilter(
-      'narrators',
-      filterValue,
-    ),
-    LibraryFilter.language when filterValue != null => _encodedLibraryFilter(
-      'languages',
-      filterValue,
-    ),
-    LibraryFilter.publisher when filterValue != null => _encodedLibraryFilter(
-      'publishers',
-      filterValue,
-    ),
+    LibraryFilter.hasSupplementaryEbook =>
+      _encodedLibraryFilter('ebooks', 'supplementary'),
+    LibraryFilter.noSupplementaryEbook =>
+      _encodedLibraryFilter('ebooks', 'no-supplementary'),
+    LibraryFilter.series when filterValue != null =>
+      _encodedLibraryFilter('series', filterValue),
+    LibraryFilter.author when filterValue != null =>
+      _encodedLibraryFilter('authors', filterValue),
+    LibraryFilter.narrator when filterValue != null =>
+      _encodedLibraryFilter('narrators', filterValue),
+    LibraryFilter.language when filterValue != null =>
+      _encodedLibraryFilter('languages', filterValue),
+    LibraryFilter.publisher when filterValue != null =>
+      _encodedLibraryFilter('publishers', filterValue),
     LibraryFilter.publishedDecade when filterValue != null =>
       _encodedLibraryFilter('publishedDecades', filterValue),
     LibraryFilter.noTracks => _encodedLibraryFilter('tracks', 'none'),
@@ -317,10 +267,8 @@ String? buildLibraryFilterQuery(
     LibraryFilter.issues => 'issues',
     LibraryFilter.feedOpen => 'feed-open',
     LibraryFilter.explicit => 'explicit',
-    LibraryFilter.genre when genre != null => _encodedLibraryFilter(
-      'genres',
-      genre,
-    ),
+    LibraryFilter.genre when genre != null =>
+      _encodedLibraryFilter('genres', genre),
     LibraryFilter.tag when tag != null => _encodedLibraryFilter('tags', tag),
     LibraryFilter.missingMetadata when missingMetadata != null =>
       _encodedLibraryFilter('missing', missingMetadata.filterValue),
@@ -436,7 +384,23 @@ class LibraryScreenState extends State<LibraryScreen>
   String? _allNarratorsCacheLibraryId;
   bool _isSearching = false;
   bool _hasSearched = false;
+  // One server search in flight at a time; the newest query typed meanwhile
+  // waits in _pendingSearch. _searchGen drops responses that a newer query
+  // (or clearing the search) has made stale.
+  int _searchGen = 0;
+  bool _searchInFlight = false;
+  String? _pendingSearch;
   bool get _isInSearchMode => _searchController.text.trim().isNotEmpty;
+
+  // ── Batch selection (books tab and authors tab) ──
+  bool _selectionMode = false;
+  bool _batchActionBusy = false;
+  bool _matchingAuthors = false;
+  String? _matchingAuthorId;
+  int _authorMatchPosition = 0;
+  int _authorMatchTotal = 0;
+  final Set<String> _selectedItemIds = {};
+  int? _lastSelectedVisibleIndex;
 
   // ── Tab state ──
   TabController? _tabController;
@@ -488,18 +452,17 @@ class LibraryScreenState extends State<LibraryScreen>
   LibrarySort _listsSort = LibrarySort.alphabetical;
   bool _listsSortAsc = true;
   final _listsScrollController = ScrollController();
-  // Remembered per library (persisted): once a library is known to have lists,
-  // keep the Lists pill shown immediately on later opens and don't let it blink
-  // out while the lists reload. Cleared only when a load confirms zero lists.
-  bool _cachedHasLists = false;
-  bool get _showLists =>
-      _tabController != null &&
-      (_collections.isNotEmpty || _playlists.isNotEmpty || _cachedHasLists);
-
-  String _listsPresentKey(String libId) => 'lists_present_$libId';
+  // The Lists tab is always offered. It used to appear only once lists were
+  // known to exist, which made "the request failed", "the server returned
+  // none" and "you have none" all look identical - an absent tab, with nowhere
+  // to say which it was (#362).
+  bool _listsFailed = false;
 
   bool _isLoadingPage = false;
   bool _hasMore = true;
+  // The last page request timed out or errored: the grid shows a retry in the
+  // loader slot and stops auto-fetching until the user asks.
+  bool _loadFailed = false;
   // Tracks the offline state so the grid reloads when it flips (offline shows
   // only downloads; back online shows the full library again).
   bool _wasOffline = false;
@@ -507,7 +470,14 @@ class LibraryScreenState extends State<LibraryScreen>
   int _totalItems = 0;
   int? _randomSeed;
   int _loadGeneration = 0; // prevents stale async loads from corrupting state
-  static const _pageSize = 20;
+  // Largest grid page. The first request asks for 20 so something paints
+  // fast, then sizes double (20, 40, 80) and stay at 80: on a slow server a
+  // page costs roughly per item, and 80 at a time means a screenful or more
+  // between waits instead of one.
+  static const _pageSize = 80;
+  // Raw items received for the current view; page*limit offsets are computed
+  // from it so the growing page sizes stay aligned.
+  int _loadedCount = 0;
 
   final _scrollController = ScrollController();
 
@@ -530,12 +500,22 @@ class LibraryScreenState extends State<LibraryScreen>
   List<Map<String, dynamic>> _authors = [];
   bool _isLoadingAuthors = false;
   bool _authorsLoaded = false;
+  // Authors come in pages of 100, sorted server-side, so a library with tens
+  // of thousands of authors never needs one response holding all of them.
+  int _authorsPage = 0;
+  bool _hasMoreAuthors = true;
+  int _totalAuthors = 0;
+  int _authorsGen = 0;
+  static const _authorsPageSize = 100;
   LibrarySort _authorSort = LibrarySort.alphabetical;
   bool _authorSortAsc = true;
   final _authorsScrollController = ScrollController();
 
   // ── Narrators tab state ──
   List<String> _narrators = [];
+  // Book count per narrator, from the narrators endpoint; empty until it
+  // answers. Drives the "number of books" sort and the count on each row.
+  Map<String, int> _narratorCounts = {};
   bool _isLoadingNarrators = false;
   bool _narratorsLoaded = false;
   LibrarySort _narratorSort = LibrarySort.alphabetical;
@@ -544,106 +524,12 @@ class LibraryScreenState extends State<LibraryScreen>
 
   // ── Cover aspect ratio ──
   bool _rectangleCovers = false;
+  bool _showSubtitles = false;
+  // Desktop grid tile size, stepped by the control at the bottom right. Phone
+  // grids take their size from the cover size setting instead.
   int _bookshelfCoverSize = 120;
-  double get _coverAspectRatio => _rectangleCovers ? 2 / 3 : 1.0;
   double get _desktopTileMaxExtent =>
       kDesktopLibraryTileMaxExtent * (_bookshelfCoverSize / 120);
-
-  bool _selectionMode = false;
-  bool _batchActionBusy = false;
-  bool _matchingAuthors = false;
-  String? _matchingAuthorId;
-  int _authorMatchPosition = 0;
-  int _authorMatchTotal = 0;
-  final Set<String> _selectedItemIds = {};
-  int? _lastSelectedVisibleIndex;
-
-  void _resetSelectionState() {
-    _selectionMode = false;
-    _batchActionBusy = false;
-    _selectedItemIds.clear();
-    _lastSelectedVisibleIndex = null;
-  }
-
-  void _clearSelection() {
-    if (!_selectionMode && _selectedItemIds.isEmpty) return;
-    setState(_resetSelectionState);
-  }
-
-  List<Map<String, dynamic>> _selectableVisibleItems() {
-    if (_tabController != null && _currentTab == 2) {
-      return _authors
-          .where((author) => author['id'] is String)
-          .toList(growable: false);
-    }
-    final lib = context.read<LibraryProvider>();
-    return _visibleLibraryItems(lib)
-        .where(
-          (item) =>
-              !item.containsKey('collapsedSeries') && item['id'] is String,
-        )
-        .toList();
-  }
-
-  void _toggleSelection(Map<String, dynamic> item, int visibleIndex) {
-    final itemId = item['id'] as String?;
-    if (itemId == null) return;
-    final shiftPressed = HardwareKeyboard.instance.isShiftPressed;
-    setState(() {
-      _selectionMode = true;
-      if (shiftPressed && _lastSelectedVisibleIndex != null) {
-        final items = _selectableVisibleItems();
-        final start = min(_lastSelectedVisibleIndex!, visibleIndex);
-        final end = max(_lastSelectedVisibleIndex!, visibleIndex);
-        for (var index = start; index <= end && index < items.length; index++) {
-          final rangeItem = items[index];
-          if (rangeItem.containsKey('collapsedSeries')) continue;
-          final rangeId = rangeItem['id'] as String?;
-          if (rangeId != null) _selectedItemIds.add(rangeId);
-        }
-      } else if (!_selectedItemIds.add(itemId)) {
-        _selectedItemIds.remove(itemId);
-      }
-      _lastSelectedVisibleIndex = visibleIndex;
-    });
-  }
-
-  void _toggleSelectAll() {
-    final ids = _selectableVisibleItems()
-        .map((item) => item['id'] as String)
-        .toSet();
-    setState(() {
-      _selectionMode = true;
-      if (ids.isNotEmpty && _selectedItemIds.containsAll(ids)) {
-        _selectedItemIds.removeAll(ids);
-      } else {
-        _selectedItemIds.addAll(ids);
-      }
-      _lastSelectedVisibleIndex = null;
-    });
-  }
-
-  Future<void> _runBatchAction(Future<bool?> Function() action) async {
-    if (_batchActionBusy) return;
-    final visibleIds = _selectableVisibleItems()
-        .map((item) => item['id'] as String)
-        .toSet();
-    setState(() {
-      _selectedItemIds.retainAll(visibleIds);
-      if (_selectedItemIds.isEmpty) {
-        _resetSelectionState();
-      } else {
-        _batchActionBusy = true;
-      }
-    });
-    if (_selectedItemIds.isEmpty) return;
-    final success = await action();
-    if (!mounted) return;
-    setState(() {
-      _batchActionBusy = false;
-      if (success == true) _resetSelectionState();
-    });
-  }
 
   void _changeBookshelfCoverSize(int direction) {
     final sizes = PlayerSettings.bookshelfCoverSizes;
@@ -654,6 +540,7 @@ class LibraryScreenState extends State<LibraryScreen>
     setState(() => _bookshelfCoverSize = next);
     PlayerSettings.setBookshelfCoverSize(next);
   }
+  double get _coverAspectRatio => _rectangleCovers ? 2 / 3 : 1.0;
 
   // ── Scroll-to-hide bars ──
   /// Continuous 0..1 reveal: 1 = header + nav fully visible, 0 = both hidden.
@@ -703,11 +590,28 @@ class LibraryScreenState extends State<LibraryScreen>
       final lib = context.read<LibraryProvider>();
       final api = context.read<AuthProvider>().apiService;
       if (api == null || lib.selectedLibraryId == null || lib.isOffline) return;
-      final authors = await api.getLibraryAuthors(lib.selectedLibraryId!);
-      if (!mounted) return;
+      // Re-fetch the pages already on screen and swap them in.
+      final libId = lib.selectedLibraryId!;
+      final pages = _authorsPage;
+      final gen = _authorsGen;
+      final fresh = <Map<String, dynamic>>[];
+      int? total;
+      for (var p = 0; p < pages; p++) {
+        final result = await api.getLibraryAuthorsPage(
+          libId,
+          page: p,
+          limit: _authorsPageSize,
+          sort: _authorServerSort,
+          desc: _authorSortAsc ? 0 : 1,
+        );
+        if (!mounted || gen != _authorsGen || result == null) return;
+        fresh.addAll(_authorPageResults(result));
+        total = (result['total'] as num?)?.toInt() ?? total;
+      }
       setState(() {
-        _authors = authors;
+        _authors = fresh;
         _sortAuthors();
+        if (total != null) _totalAuthors = total;
       });
     });
   }
@@ -738,10 +642,7 @@ class LibraryScreenState extends State<LibraryScreen>
     if (_tabController == null || _tabController!.indexIsChanging) return;
     final newTab = _tabController!.index;
     if (newTab == _currentTab) return;
-    setState(() {
-      _currentTab = newTab;
-      _resetSelectionState();
-    });
+    setState(() => _currentTab = newTab);
     // Reset reveal so the SliverAppBar is fully visible after a tab switch.
     _revealDriver.resetToShown();
     PlayerSettings.setLibraryTab(newTab);
@@ -768,10 +669,16 @@ class LibraryScreenState extends State<LibraryScreen>
         lib.selectedLibraryId != null) {
       _lastLibraryId = lib.selectedLibraryId;
       _loadGeneration++;
-      // Cover shape can differ per library.
+      // Cover shape and subtitles can differ per library.
+      PlayerSettings.getBookshelfCoverSize().then((v) {
+        if (mounted && v != _bookshelfCoverSize) setState(() => _bookshelfCoverSize = v);
+      });
       PlayerSettings.getRectangleCoversFor(lib.selectedLibraryId).then((v) {
         if (mounted && v != _rectangleCovers)
           setState(() => _rectangleCovers = v);
+      });
+      PlayerSettings.getShowSubtitlesFor(lib.selectedLibraryId).then((v) {
+        if (mounted && v != _showSubtitles) setState(() => _showSubtitles = v);
       });
 
       // Rebuild tab controller if library type changed
@@ -790,7 +697,6 @@ class LibraryScreenState extends State<LibraryScreen>
       }
 
       setState(() {
-        _resetSelectionState();
         _podcastView = 0;
         _items.clear();
         _page = 0;
@@ -813,12 +719,15 @@ class LibraryScreenState extends State<LibraryScreen>
         _authors.clear();
         _authorsLoaded = false;
         _isLoadingAuthors = false;
+        _authorsPage = 0;
+        _hasMoreAuthors = true;
+        _totalAuthors = 0;
+        _authorsGen++;
         _narrators.clear();
+        _narratorCounts = {};
         _narratorsLoaded = false;
         _isLoadingNarrators = false;
-        // Different library: drop the old Lists state; _fetchLists re-seeds the
-        // pill from the new library's remembered flag.
-        _cachedHasLists = false;
+        _listsFailed = false;
         _allNarratorsCache = null;
         _allNarratorsCacheLibraryId = null;
         _searchNarratorResults = [];
@@ -847,8 +756,8 @@ class LibraryScreenState extends State<LibraryScreen>
     PlayerSettings.getRectangleCoversFor(lib.selectedLibraryId).then((v) {
       if (mounted) setState(() => _rectangleCovers = v);
     });
-    PlayerSettings.getBookshelfCoverSize().then((value) {
-      if (mounted) setState(() => _bookshelfCoverSize = value);
+    PlayerSettings.getShowSubtitlesFor(lib.selectedLibraryId).then((v) {
+      if (mounted) setState(() => _showSubtitles = v);
     });
     _restoreSortFilter().then((_) {
       if (!mounted) return;
@@ -922,12 +831,6 @@ class LibraryScreenState extends State<LibraryScreen>
     final podcastFilterValueLabel = results[24] as String;
     final lib = context.read<LibraryProvider>();
     final isPodcast = lib.isPodcastLibrary;
-    // Read the remembered "has lists" flag so the Lists tab (and its pill) can
-    // be restored immediately on cold start, before the lists finish loading.
-    final libId = lib.selectedLibraryId;
-    final hasListsRemembered = libId != null
-        ? (await ScopedPrefs.getBool(_listsPresentKey(libId)) ?? false)
-        : false;
     if (!mounted) return;
     setState(() {
       // Book library sort/filter
@@ -947,7 +850,10 @@ class LibraryScreenState extends State<LibraryScreen>
           (f) => f.name == restoredFilterName,
           orElse: () => LibraryFilter.none,
         );
-        if (!libraryFilterSupportsMediaType(_filter, isPodcast: isPodcast)) {
+        if (!libraryFilterSupportsMediaType(
+          _filter,
+          isPodcast: isPodcast,
+        )) {
           _filter = LibraryFilter.none;
         }
         final restoredGenre = isPodcast ? podcastGenreFilter : genreFilter;
@@ -958,15 +864,14 @@ class LibraryScreenState extends State<LibraryScreen>
         final restoredValueLabel = isPodcast
             ? podcastFilterValueLabel
             : libraryFilterValueLabel;
-        _genreFilter =
-            _filter == LibraryFilter.genre && restoredGenre.isNotEmpty
+        _genreFilter = _filter == LibraryFilter.genre && restoredGenre.isNotEmpty
             ? restoredGenre
             : null;
         _tagFilter = _filter == LibraryFilter.tag && restoredTag.isNotEmpty
             ? restoredTag
             : null;
-        _filterValue =
-            libraryFilterRequiresValue(_filter) && restoredValue.isNotEmpty
+        _filterValue = libraryFilterRequiresValue(_filter) &&
+                restoredValue.isNotEmpty
             ? restoredValue
             : null;
         _filterValueLabel = _filterValue == null
@@ -1030,12 +935,8 @@ class LibraryScreenState extends State<LibraryScreen>
         _sort = _podcastSort;
         _sortAsc = _podcastSortAsc;
       }
-      // Seed the Lists pill from the remembered flag so it (and the restored
-      // Lists tab) show right away, before the lists load.
-      if (hasListsRemembered) _cachedHasLists = true;
-      // Restore last active tab (only for book libraries with tabs). The Lists
-      // tab (4) is only restorable if the library is known to have lists.
-      final maxRestorableTab = hasListsRemembered ? 4 : 3;
+      // Restore last active tab (only for book libraries with tabs).
+      const maxRestorableTab = 4;
       if (!isPodcast && savedTab > 0 && savedTab <= maxRestorableTab) {
         _currentTab = savedTab;
         _tabController?.animateTo(savedTab);
@@ -1072,20 +973,21 @@ class LibraryScreenState extends State<LibraryScreen>
       PlayerSettings.getRectangleCoversFor(
         context.read<LibraryProvider>().selectedLibraryId,
       ),
-      PlayerSettings.getBookshelfCoverSize(),
+      PlayerSettings.getShowSubtitlesFor(
+        context.read<LibraryProvider>().selectedLibraryId,
+      ),
     ]).then((values) {
-      final newHideEbook = values[0] as bool;
-      final newCollapse = values[1] as bool;
-      final newRectCovers = values[2] as bool;
-      final newCoverSize = values[3] as int;
+      final newHideEbook = values[0];
+      final newCollapse = values[1];
+      final newRectCovers = values[2];
+      final newShowSubtitles = values[3];
       if (!mounted) return;
       final coversChanged = newRectCovers != _rectangleCovers;
-      final coverSizeChanged = newCoverSize != _bookshelfCoverSize;
-      if (coversChanged || coverSizeChanged) {
-        setState(() {
-          _rectangleCovers = newRectCovers;
-          _bookshelfCoverSize = newCoverSize;
-        });
+      if (coversChanged) {
+        setState(() => _rectangleCovers = newRectCovers);
+      }
+      if (newShowSubtitles != _showSubtitles) {
+        setState(() => _showSubtitles = newShowSubtitles);
       }
       if (newHideEbook != _hideEbookOnly || newCollapse != _collapseSeries) {
         _loadGeneration++;
@@ -1137,59 +1039,62 @@ class LibraryScreenState extends State<LibraryScreen>
               ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         _availableTags = tags.map(unwrap).where((t) => t.isNotEmpty).toList()
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _availableSeriesFilters =
-            series
-                .whereType<Map>()
-                .map(
-                  (value) => {
-                    'id': value['id']?.toString() ?? '',
-                    'name': value['name']?.toString() ?? '',
-                  },
-                )
-                .where(
-                  (value) =>
-                      value['id']!.isNotEmpty && value['name']!.isNotEmpty,
-                )
-                .toList()
-              ..sort(
-                (a, b) => a['name']!.toLowerCase().compareTo(
-                  b['name']!.toLowerCase(),
-                ),
-              );
-        _availableAuthorFilters =
-            authors
-                .whereType<Map>()
-                .map(
-                  (value) => {
-                    'id': value['id']?.toString() ?? '',
-                    'name': value['name']?.toString() ?? '',
-                  },
-                )
-                .where(
-                  (value) =>
-                      value['id']!.isNotEmpty && value['name']!.isNotEmpty,
-                )
-                .toList()
-              ..sort(
-                (a, b) => a['name']!.toLowerCase().compareTo(
-                  b['name']!.toLowerCase(),
-                ),
-              );
-        _availableNarrators =
-            narrators.map(unwrap).where((value) => value.isNotEmpty).toList()
-              ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _availableLanguages =
-            languages.map(unwrap).where((value) => value.isNotEmpty).toList()
-              ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _availablePublishers =
-            publishers.map(unwrap).where((value) => value.isNotEmpty).toList()
-              ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _availablePublishedDecades =
-            publishedDecades
-                .map(unwrap)
-                .where((value) => value.isNotEmpty)
-                .toList()
-              ..sort();
+        _availableSeriesFilters = series
+            .whereType<Map>()
+            .map(
+              (value) => {
+                'id': value['id']?.toString() ?? '',
+                'name': value['name']?.toString() ?? '',
+              },
+            )
+            .where(
+              (value) =>
+                  value['id']!.isNotEmpty && value['name']!.isNotEmpty,
+            )
+            .toList()
+          ..sort(
+            (a, b) => a['name']!.toLowerCase().compareTo(
+              b['name']!.toLowerCase(),
+            ),
+          );
+        _availableAuthorFilters = authors
+            .whereType<Map>()
+            .map(
+              (value) => {
+                'id': value['id']?.toString() ?? '',
+                'name': value['name']?.toString() ?? '',
+              },
+            )
+            .where(
+              (value) =>
+                  value['id']!.isNotEmpty && value['name']!.isNotEmpty,
+            )
+            .toList()
+          ..sort(
+            (a, b) => a['name']!.toLowerCase().compareTo(
+              b['name']!.toLowerCase(),
+            ),
+          );
+        _availableNarrators = narrators
+            .map(unwrap)
+            .where((value) => value.isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availableLanguages = languages
+            .map(unwrap)
+            .where((value) => value.isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availablePublishers = publishers
+            .map(unwrap)
+            .where((value) => value.isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        _availablePublishedDecades = publishedDecades
+            .map(unwrap)
+            .where((value) => value.isNotEmpty)
+            .toList()
+          ..sort();
       });
     }
   }
@@ -1227,7 +1132,10 @@ class LibraryScreenState extends State<LibraryScreen>
   // ══════════════════════════════════════════════════════════════
   Future<void> _loadPage() async {
     if (_isLoadingPage || !_hasMore) return;
-    setState(() => _isLoadingPage = true);
+    setState(() {
+      _isLoadingPage = true;
+      _loadFailed = false;
+    });
     final gen = ++_loadGeneration;
 
     final auth = context.read<AuthProvider>();
@@ -1346,6 +1254,10 @@ class LibraryScreenState extends State<LibraryScreen>
           collapseSeries:
               _collapseSeries && !useClientFilter && !lib.isPodcastLibrary,
         );
+        if (result == null) {
+          debugPrint('[LibPage] fetch-all page=$fetchPage failed, showing '
+              'what loaded so far');
+        }
         if (result == null || !mounted || gen != _loadGeneration) break;
         final results = (result['results'] as List<dynamic>?) ?? [];
         total = (result['total'] as int?) ?? 0;
@@ -1383,10 +1295,18 @@ class LibraryScreenState extends State<LibraryScreen>
         });
       }
     } else {
+      if (_page == 0) _loadedCount = 0;
+      // Each size divides the count loaded so far (20, 40, 80, 160, ...),
+      // which is what a page*limit offset needs.
+      final limit =
+          _loadedCount < 40 ? 20 : (_loadedCount < 80 ? 40 : _pageSize);
+      final pageIndex = _loadedCount ~/ limit;
+      debugPrint('[LibPage] request page=$pageIndex limit=$limit loaded=$_loadedCount');
+      final sw = Stopwatch()..start();
       final result = await api.getLibraryItems(
         lib.selectedLibraryId!,
-        page: _page,
-        limit: _pageSize,
+        page: pageIndex,
+        limit: limit,
         sort: sort,
         desc: desc,
         filter: filter,
@@ -1417,11 +1337,12 @@ class LibraryScreenState extends State<LibraryScreen>
               _items.add(r);
             }
           }
+          _loadedCount += results.length;
           _page++;
           // Compare raw server results to page size, not filtered _items to total.
           // Client-side filters (e.g. hide-ebook-only) reduce _items below total,
           // which would leave _hasMore permanently true and the loader spinning.
-          _hasMore = results.length >= _pageSize;
+          _hasMore = results.length >= limit;
           // Alpha: memory next to the page count, for the dense-grid OOM
           // kills (no [CRASH] line, log just stops). rss is the whole
           // process; imgCache is Flutter's decoded-cover cache (count/MB, and
@@ -1429,13 +1350,21 @@ class LibraryScreenState extends State<LibraryScreen>
           final imgCache = PaintingBinding.instance.imageCache;
           final rssMb = kIsWeb ? -1 : ProcessInfo.currentRss ~/ 1048576;
           debugPrint(
-            '[LibPage] page=${_page - 1} results=${results.length} pageSize=$_pageSize filtered=${_items.length} total=$total hideEbook=$_hideEbookOnly hasMore=$_hasMore '
-            'rss=${rssMb}MB imgCache=${imgCache.currentSize}/${imgCache.currentSizeBytes ~/ 1048576}MB live=${imgCache.liveImageCount}',
+            '[LibPage] page=$pageIndex ms=${sw.elapsedMilliseconds} results=${results.length} pageSize=$limit loaded=$_loadedCount filtered=${_items.length} total=$total hideEbook=$_hideEbookOnly hasMore=$_hasMore '
+            'rss=${rssMb}MB imgCache=${imgCache.currentSize}/${imgCache.currentSizeBytes ~/ 1048576}MB live=${imgCache.liveImageCount} cols=${responsiveGridCount(context)}',
           );
           _isLoadingPage = false;
         });
       } else if (mounted && gen == _loadGeneration) {
-        setState(() => _isLoadingPage = false);
+        // Timed out or errored. Show a retry in the loader slot instead of a
+        // spinner, and stop the fill loop refetching on every rebuild - on a
+        // struggling server that was one more request every 15s, forever.
+        debugPrint('[LibPage] page=$pageIndex limit=$limit failed after '
+            '${sw.elapsedMilliseconds}ms, waiting for retry');
+        setState(() {
+          _isLoadingPage = false;
+          _loadFailed = true;
+        });
       }
     }
   }
@@ -1506,14 +1435,23 @@ class LibraryScreenState extends State<LibraryScreen>
   ) {
     if (filter == SeriesFilter.none) return true;
     final books = series['books'] as List<dynamic>? ?? const [];
-    if (books.isEmpty) return false;
+    // Servers that send only libraryItemIds (no books) still give us enough
+    // for a progress filter.
+    final ids = books.isNotEmpty
+        ? books
+            .whereType<Map<String, dynamic>>()
+            .map((b) => b['id'] as String? ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList()
+        : ((series['libraryItemIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const <String>[]);
+    if (ids.isEmpty) return false;
 
     var finishedCount = 0;
     var startedCount = 0;
-    for (final b in books) {
-      if (b is! Map<String, dynamic>) continue;
-      final id = b['id'] as String?;
-      if (id == null || id.isEmpty) continue;
+    for (final id in ids) {
       final pd = lib.getProgressData(id);
       final isFinished = pd?['isFinished'] == true;
       final progress = lib.getProgress(id);
@@ -1527,7 +1465,7 @@ class LibraryScreenState extends State<LibraryScreen>
 
     return seriesProgressMatchesFilter(
       filter,
-      bookCount: books.length,
+      bookCount: ids.length,
       startedCount: startedCount,
       finishedCount: finishedCount,
     );
@@ -1633,6 +1571,7 @@ class LibraryScreenState extends State<LibraryScreen>
       }
     }
 
+    final sw = Stopwatch()..start();
     final result = await api.getLibrarySeries(
       lib.selectedLibraryId!,
       page: _seriesPage,
@@ -1644,6 +1583,12 @@ class LibraryScreenState extends State<LibraryScreen>
     if (result != null && mounted) {
       final results = (result['results'] as List<dynamic>?) ?? [];
       final total = (result['total'] as int?) ?? 0;
+      final first =
+          results.isNotEmpty ? results.first as Map<String, dynamic>? : null;
+      debugPrint('[SeriesPage] page=$_seriesPage ms=${sw.elapsedMilliseconds} '
+          'results=${results.length} total=$total '
+          'firstBooks=${(first?['books'] as List?)?.length} '
+          'firstKeys=${first?.keys.join(',')}');
       setState(() {
         _totalSeries = total;
         for (final r in results) {
@@ -1664,6 +1609,8 @@ class LibraryScreenState extends State<LibraryScreen>
         );
       }
     } else if (mounted) {
+      debugPrint('[SeriesPage] page=$_seriesPage failed after '
+          '${sw.elapsedMilliseconds}ms');
       setState(() => _isLoadingSeriesPage = false);
     }
   }
@@ -1677,7 +1624,11 @@ class LibraryScreenState extends State<LibraryScreen>
     final allItems = <Map<String, dynamic>>[];
     int page = 0;
     int total = 0;
-    while (true) {
+    // Only refresh libraries of up to 5000 series (100 pages). A 244k-book
+    // library has far more, and walking them all was thousands of heavy
+    // requests every time the tab opened, queued ahead of whatever the user
+    // tapped next; there the on-demand paging is all we do.
+    while (page < 100) {
       final result = await api.getLibrarySeries(
         lib.selectedLibraryId!,
         page: page,
@@ -1688,6 +1639,10 @@ class LibraryScreenState extends State<LibraryScreen>
       if (result == null) break;
       final results = (result['results'] as List<dynamic>?) ?? [];
       total = (result['total'] as int?) ?? 0;
+      if (total > 5000) {
+        debugPrint('[SeriesPage] background refresh skipped: $total series');
+        return;
+      }
       for (final r in results) {
         if (r is Map<String, dynamic>) allItems.add(r);
       }
@@ -1709,8 +1664,31 @@ class LibraryScreenState extends State<LibraryScreen>
   // ══════════════════════════════════════════════════════════════
   // AUTHORS TAB - Load all authors
   // ══════════════════════════════════════════════════════════════
+  String get _authorServerSort => switch (_authorSort) {
+        LibrarySort.totalDuration => 'numBooks',
+        LibrarySort.recentlyAdded => 'addedAt',
+        _ => 'name',
+      };
+
+  List<Map<String, dynamic>> _authorPageResults(Map<String, dynamic>? result) =>
+      ((result?['results'] ?? result?['authors']) as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+  void _resetAuthors() {
+    _authorsGen++;
+    setState(() {
+      _authors.clear();
+      _authorsLoaded = false;
+      _isLoadingAuthors = false;
+      _authorsPage = 0;
+      _hasMoreAuthors = true;
+      _totalAuthors = 0;
+    });
+  }
+
   Future<void> _loadAuthors() async {
-    if (_isLoadingAuthors) return;
+    if (_isLoadingAuthors || (_authorsLoaded && !_hasMoreAuthors)) return;
     setState(() => _isLoadingAuthors = true);
 
     final auth = context.read<AuthProvider>();
@@ -1720,19 +1698,38 @@ class LibraryScreenState extends State<LibraryScreen>
       setState(() {
         _isLoadingAuthors = false;
         _authorsLoaded = true;
+        _hasMoreAuthors = false;
       });
       return;
     }
 
-    final authors = await api.getLibraryAuthors(lib.selectedLibraryId!);
-    if (mounted) {
-      setState(() {
-        _authors = authors;
-        _sortAuthors();
-        _isLoadingAuthors = false;
-        _authorsLoaded = true;
-      });
-    }
+    final gen = _authorsGen;
+    final result = await api.getLibraryAuthorsPage(
+      lib.selectedLibraryId!,
+      page: _authorsPage,
+      limit: _authorsPageSize,
+      sort: _authorServerSort,
+      desc: _authorSortAsc ? 0 : 1,
+    );
+    if (!mounted || gen != _authorsGen) return;
+    final results = _authorPageResults(result);
+    final total = (result?['total'] as num?)?.toInt();
+    setState(() {
+      final seen = _authors.map((a) => a['id']).toSet();
+      final fresh = results.where((a) => !seen.contains(a['id'])).toList();
+      _authors.addAll(fresh);
+      _sortAuthors();
+      _authorsPage++;
+      _totalAuthors = total ?? _authors.length;
+      // A server that ignores paging answers with everything at once, which
+      // shows as a page of the wrong size or nothing new.
+      _hasMoreAuthors = result != null &&
+          fresh.isNotEmpty &&
+          results.length == _authorsPageSize &&
+          (total == null || _authors.length < total);
+      _isLoadingAuthors = false;
+      _authorsLoaded = true;
+    });
   }
 
   void _sortAuthors() {
@@ -1744,129 +1741,17 @@ class LibraryScreenState extends State<LibraryScreen>
             ? aCount.compareTo(bCount)
             : bCount.compareTo(aCount);
       }
+      if (_authorSort == LibrarySort.recentlyAdded) {
+        final aAdded = (a['addedAt'] as num?)?.toInt() ?? 0;
+        final bAdded = (b['addedAt'] as num?)?.toInt() ?? 0;
+        return _authorSortAsc
+            ? aAdded.compareTo(bAdded)
+            : bAdded.compareTo(aAdded);
+      }
       final aName = (a['name'] as String? ?? '').toLowerCase();
       final bName = (b['name'] as String? ?? '').toLowerCase();
       return _authorSortAsc ? aName.compareTo(bName) : bName.compareTo(aName);
     });
-  }
-
-  String _authorQuickMatchRegion(LibraryProvider lib) {
-    final provider =
-        lib.selectedLibrary?['provider']?.toString().toLowerCase() ?? '';
-    if (!provider.startsWith('audible.')) return 'us';
-    final region = provider.split('.').last.trim();
-    return region.isEmpty ? 'us' : region;
-  }
-
-  List<Map<String, dynamic>> _selectedAuthors() {
-    return _authors
-        .where((author) => _selectedItemIds.contains(author['id']))
-        .toList(growable: false);
-  }
-
-  Future<bool> _quickMatchAuthors(
-    List<Map<String, dynamic>> authors, {
-    bool allAuthors = false,
-  }) async {
-    if (authors.isEmpty) return false;
-    final auth = context.read<AuthProvider>();
-    final lib = context.read<LibraryProvider>();
-    final api = auth.apiService;
-    final libraryId = lib.selectedLibraryId;
-    if (api == null || libraryId == null || !auth.canUpdateMetadata) {
-      return false;
-    }
-
-    final l = AppLocalizations.of(context)!;
-    setState(() {
-      _authorMatchPosition = 0;
-      _authorMatchTotal = authors.length;
-      _matchingAuthorId = null;
-    });
-    showOverlayToast(
-      context,
-      l.adminMatchingStarted(
-        allAuthors
-            ? l.libraryAuthorsCount(authors.length)
-            : l.selectedCount(authors.length),
-      ),
-      icon: Icons.auto_fix_high_rounded,
-    );
-
-    final region = _authorQuickMatchRegion(lib);
-    var found = 0;
-    var updated = 0;
-    var notFound = 0;
-    var failed = 0;
-    for (var index = 0; index < authors.length; index++) {
-      final author = authors[index];
-      final id = author['id']?.toString() ?? '';
-      final name = author['name']?.toString().trim() ?? '';
-      final asin = author['asin']?.toString().trim() ?? '';
-      if (mounted) {
-        setState(() {
-          _matchingAuthorId = id.isEmpty ? null : id;
-          _authorMatchPosition = index + 1;
-        });
-      }
-      if (id.isEmpty || (asin.isEmpty && name.isEmpty)) {
-        failed++;
-        continue;
-      }
-      final result = await api.quickMatchAuthor(
-        id,
-        asin: asin.isEmpty ? null : asin,
-        q: asin.isEmpty ? name : null,
-        region: region,
-      );
-      if (result.found) {
-        found++;
-        if (result.updated) updated++;
-      } else if (result.statusCode == 404) {
-        notFound++;
-      } else {
-        failed++;
-      }
-    }
-
-    if (!mounted) return failed < authors.length;
-    setState(() => _matchingAuthorId = null);
-    if (context.read<LibraryProvider>().selectedLibraryId == libraryId) {
-      await _refreshAuthors();
-    }
-    if (!mounted) return failed < authors.length;
-
-    final unchanged = found - updated;
-    final summary = <String>[
-      if (updated > 0) '${l.metadataUpdated} ($updated)',
-      if (unchanged > 0) '${l.quickMatchNoUpdates} ($unchanged)',
-      if (notFound > 0) '${l.authorNoMatchFound} ($notFound)',
-      if (failed > 0) '${l.failedToUpdateMetadata} ($failed)',
-    ];
-    showOverlayToast(
-      context,
-      summary.join(' • '),
-      icon: failed > 0
-          ? Icons.error_outline_rounded
-          : notFound > 0
-          ? Icons.search_off_rounded
-          : Icons.check_circle_outline_rounded,
-    );
-    return failed == 0 && notFound == 0;
-  }
-
-  Future<void> _quickMatchAllAuthors() async {
-    if (_matchingAuthors || _batchActionBusy || _authors.isEmpty) return;
-    final authors = List<Map<String, dynamic>>.from(_authors);
-    setState(() => _matchingAuthors = true);
-    await _quickMatchAuthors(authors, allAuthors: true);
-    if (mounted) {
-      setState(() {
-        _matchingAuthors = false;
-        _authorMatchPosition = 0;
-        _authorMatchTotal = 0;
-      });
-    }
   }
 
   Future<void> _loadNarrators() async {
@@ -1884,21 +1769,39 @@ class LibraryScreenState extends State<LibraryScreen>
       return;
     }
 
-    final narrators = await api.getLibraryNarrators(lib.selectedLibraryId!);
-    if (mounted) {
-      setState(() {
-        _narrators = narrators;
-        _sortNarrators();
-        _isLoadingNarrators = false;
-        _narratorsLoaded = true;
-      });
-    }
+    final libId = lib.selectedLibraryId!;
+    final narrators = await api.getLibraryNarrators(libId);
+    if (!mounted) return;
+    setState(() {
+      _narrators = narrators;
+      _sortNarrators();
+      _isLoadingNarrators = false;
+      _narratorsLoaded = true;
+    });
+    // Book counts come from a separate endpoint that walks every book with a
+    // narrator, so they land after the names and re-sort the list then.
+    final counts = await api.getLibraryNarratorCounts(libId);
+    if (!mounted || counts.isEmpty || lib.selectedLibraryId != libId) return;
+    setState(() {
+      _narratorCounts = counts;
+      _sortNarrators();
+    });
   }
 
   void _sortNarrators() {
     _narrators.sort((a, b) {
       final aLower = a.toLowerCase();
       final bLower = b.toLowerCase();
+      if (_narratorSort == LibrarySort.totalDuration) {
+        final aCount = _narratorCounts[a] ?? 0;
+        final bCount = _narratorCounts[b] ?? 0;
+        if (aCount != bCount) {
+          return _narratorSortAsc
+              ? aCount.compareTo(bCount)
+              : bCount.compareTo(aCount);
+        }
+        return aLower.compareTo(bLower);
+      }
       return _narratorSortAsc
           ? aLower.compareTo(bLower)
           : bLower.compareTo(aLower);
@@ -1929,7 +1832,6 @@ class LibraryScreenState extends State<LibraryScreen>
       // Tapping the same sort toggles direction (except Random)
       if (newSort == LibrarySort.random) return;
       setState(() {
-        _resetSelectionState();
         _sortAsc = !_sortAsc;
         _items.clear();
         _page = 0;
@@ -1947,7 +1849,6 @@ class LibraryScreenState extends State<LibraryScreen>
       return;
     }
     setState(() {
-      _resetSelectionState();
       _sort = newSort;
       // Smart defaults: A-Z and Length start ascending, others start descending
       _sortAsc =
@@ -2013,7 +1914,14 @@ class LibraryScreenState extends State<LibraryScreen>
     }
     PlayerSettings.setAuthorSort(_authorSort.name);
     PlayerSettings.setAuthorSortAsc(_authorSortAsc);
-    setState(() => _sortAuthors());
+    if (_hasMoreAuthors) {
+      // Only part of the list is here, so the new order has to come from the
+      // server.
+      _resetAuthors();
+      _loadAuthors();
+    } else {
+      setState(() => _sortAuthors());
+    }
     if (_authorsScrollController.hasClients) _authorsScrollController.jumpTo(0);
   }
 
@@ -2025,7 +1933,7 @@ class LibraryScreenState extends State<LibraryScreen>
     } else {
       setState(() {
         _narratorSort = newSort;
-        _narratorSortAsc = true;
+        _narratorSortAsc = newSort == LibrarySort.alphabetical;
       });
     }
     PlayerSettings.setNarratorSort(_narratorSort.name);
@@ -2148,11 +2056,12 @@ class LibraryScreenState extends State<LibraryScreen>
             filterValue != 'no-series');
     _loadGeneration++;
     setState(() {
-      _resetSelectionState();
       _filter = effective;
       _genreFilter = effective == LibraryFilter.genre ? genre : null;
       _tagFilter = effective == LibraryFilter.tag ? tag : null;
-      _filterValue = libraryFilterRequiresValue(effective) ? filterValue : null;
+      _filterValue = libraryFilterRequiresValue(effective)
+          ? filterValue
+          : null;
       _filterValueLabel = _filterValue == null
           ? null
           : (filterValueLabel ?? filterValue);
@@ -2226,17 +2135,13 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   Future<void> _fetchLists(String key, ApiService api, String libId) async {
-    // Seed the Lists pill from the remembered flag so it shows right away (and
-    // doesn't blink out while reloading) before the network confirms.
-    final remembered =
-        await ScopedPrefs.getBool(_listsPresentKey(libId)) ?? false;
     if (!mounted || _listsLoadingKey != key) return;
     // New key (library/account changed) or first load: drop the previous lists
     // before fetching the new ones.
     setState(() {
       _collections = [];
       _playlists = [];
-      _cachedHasLists = remembered;
+      _listsFailed = false;
     });
     try {
       final results = await Future.wait([
@@ -2244,23 +2149,21 @@ class LibraryScreenState extends State<LibraryScreen>
         api.getLibraryPlaylists(libId),
       ]);
       if (!mounted || _listsLoadingKey != key) return;
-      final cols = results[0].whereType<Map<String, dynamic>>().toList();
-      final pls = results[1].whereType<Map<String, dynamic>>().toList();
-      final hasLists = cols.isNotEmpty || pls.isNotEmpty;
+      // Either call returning null means the server never answered. Saying
+      // "no collections or playlists" to that is how #362 went unexplained for
+      // a user who had plenty of both.
+      final failed = results[0] == null && results[1] == null;
+      final cols =
+          (results[0] ?? const []).whereType<Map<String, dynamic>>().toList();
+      final pls =
+          (results[1] ?? const []).whereType<Map<String, dynamic>>().toList();
       setState(() {
         _collections = cols;
         _playlists = pls;
-        _listsLoadedKey = key;
-        _cachedHasLists = hasLists;
-        // Fall back to Library if the Lists tab is open but has nothing.
-        if (_currentTab == 4 && !_showLists) {
-          _currentTab = 0;
-          _tabController?.animateTo(0);
-        }
+        _listsFailed = failed;
+        // A failed load is not a loaded one - let the next visit retry.
+        if (!failed) _listsLoadedKey = key;
       });
-      // Remember for next time so the pill is instant, and forget once a load
-      // confirms the library genuinely has none.
-      await ScopedPrefs.setBool(_listsPresentKey(libId), hasLists);
     } finally {
       if (_listsLoadingKey == key) _listsLoadFuture = null;
     }
@@ -2306,10 +2209,11 @@ class LibraryScreenState extends State<LibraryScreen>
 
   void _onSearchChanged(String query) {
     _debounce?.cancel();
-    if (_selectionMode) _clearSelection();
     // Always show bars when entering/exiting search
     _revealDriver.resetToShown();
     if (query.trim().isEmpty) {
+      _searchGen++;
+      _pendingSearch = null;
       setState(() {
         _searchBookResults = [];
         _searchSeriesResults = [];
@@ -2329,21 +2233,45 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   Future<void> _performSearch(String query) async {
+    // On a huge library every server search is several full-table scans, so
+    // stacking one per keystroke left the server unable to answer anything
+    // else, and a slow early response could land after a later one and
+    // overwrite it. Serialize: one in flight, the newest query waits its turn.
+    if (_searchInFlight) {
+      _pendingSearch = query;
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final lib = context.read<LibraryProvider>();
     final api = auth.apiService;
     if (api == null || lib.selectedLibraryId == null) return;
 
     setState(() => _isSearching = true);
-
+    final gen = ++_searchGen;
     final isPodcast = lib.isPodcastLibrary;
-    final result = await api.searchLibrary(lib.selectedLibraryId!, query);
-    if (result != null && mounted) {
+    final libId = lib.selectedLibraryId!;
+    Map<String, dynamic>? result;
+    _searchInFlight = true;
+    try {
+      result = await api.searchLibrary(libId, query);
+    } finally {
+      _searchInFlight = false;
+      final pending = _pendingSearch;
+      _pendingSearch = null;
+      if (pending != null && pending != query && mounted) {
+        unawaited(_performSearch(pending));
+      }
+    }
+    // A newer query took over while this one was out, or the search was
+    // cleared: leave whatever is showing alone.
+    if (!mounted || gen != _searchGen) return;
+    final data = result;
+    if (data != null) {
       setState(() {
         if (isPodcast) {
-          _searchBookResults = (result['podcast'] as List<dynamic>?) ?? [];
+          _searchBookResults = (data['podcast'] as List<dynamic>?) ?? [];
         } else {
-          _searchBookResults = (result['book'] as List<dynamic>?) ?? [];
+          _searchBookResults = (data['book'] as List<dynamic>?) ?? [];
           if (_hideEbookOnly) {
             _searchBookResults = _searchBookResults.where((r) {
               final item =
@@ -2353,8 +2281,8 @@ class LibraryScreenState extends State<LibraryScreen>
             }).toList();
           }
         }
-        _searchSeriesResults = (result['series'] as List<dynamic>?) ?? [];
-        _searchAuthorResults = (result['authors'] as List<dynamic>?) ?? [];
+        _searchSeriesResults = (data['series'] as List<dynamic>?) ?? [];
+        _searchAuthorResults = (data['authors'] as List<dynamic>?) ?? [];
         if (!isPodcast) {
           final q = query.toLowerCase();
           _searchTagResults = _availableTags
@@ -2393,9 +2321,9 @@ class LibraryScreenState extends State<LibraryScreen>
     // Only override when the index actually built, so a failed fetch keeps the
     // server results instead of blanking them.
     if (!isPodcast) {
-      final libId = lib.selectedLibraryId!;
       await BookSearchIndex().ensureIndex(api, libId);
       if (mounted &&
+          gen == _searchGen &&
           BookSearchIndex().isReady(libId) &&
           _searchController.text.trim() == query) {
         var books = BookSearchIndex()
@@ -2415,6 +2343,21 @@ class LibraryScreenState extends State<LibraryScreen>
                 ),
               )
               .toList();
+        }
+        // A truncated index (item cap) can't see the newest books in a huge
+        // library, but the server's SQL search can - keep any server hit the
+        // index missed instead of letting the override erase it (GH #349).
+        if (BookSearchIndex().isTruncated(libId)) {
+          final seen = books
+              .map((b) => (b['libraryItem'] as Map<String, dynamic>)['id'])
+              .toSet();
+          for (final r in (result?['book'] as List<dynamic>? ?? const [])) {
+            final m = r as Map<String, dynamic>;
+            final item = (m['libraryItem'] as Map<String, dynamic>?) ?? m;
+            if (seen.contains(item['id'])) continue;
+            if (_hideEbookOnly && PlayerSettings.isEbookOnly(item)) continue;
+            books.add({'libraryItem': item, '_titleMatch': true});
+          }
         }
         setState(() => _searchBookResults = books);
       }
@@ -2516,7 +2459,8 @@ class LibraryScreenState extends State<LibraryScreen>
     LibraryFilter.narrator => _filterValueLabel ?? l.libraryTabNarrators,
     LibraryFilter.language => _filterValueLabel ?? l.languageLabel,
     LibraryFilter.publisher => _filterValueLabel ?? l.publisherLabel,
-    LibraryFilter.publishedDecade => _filterValueLabel ?? l.publishedDecade,
+    LibraryFilter.publishedDecade =>
+      _filterValueLabel ?? l.publishedDecade,
     LibraryFilter.noTracks => l.noTracks,
     LibraryFilter.singleTrack => l.singleTrack,
     LibraryFilter.multipleTracks => l.multipleTracks,
@@ -2524,10 +2468,9 @@ class LibraryScreenState extends State<LibraryScreen>
     LibraryFilter.issues => l.issues,
     LibraryFilter.feedOpen => l.rssFeedOpen,
     LibraryFilter.explicit => l.explicitContent,
-    LibraryFilter.missingMetadata =>
-      _missingMetadataFilter == null
-          ? l.missingMetadata
-          : missingMetadataFieldLabel(l, _missingMetadataFilter!),
+    LibraryFilter.missingMetadata => _missingMetadataFilter == null
+        ? l.missingMetadata
+        : missingMetadataFieldLabel(l, _missingMetadataFilter!),
     LibraryFilter.genre => _genreFilter ?? l.genre,
     LibraryFilter.tag => _tagFilter ?? l.tag,
     LibraryFilter.none => '',
@@ -2569,13 +2512,11 @@ class LibraryScreenState extends State<LibraryScreen>
         currentSortAsc = _sortAsc;
         break;
     }
-    showAdaptiveActionMenu(
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      desktopWidth: 480,
-      desktopScrollWrap: false,
       builder: (ctx) => SortFilterSheet(
         currentSort: currentSort,
         sortAsc: currentSortAsc,
@@ -2596,6 +2537,18 @@ class LibraryScreenState extends State<LibraryScreen>
         cs: cs,
         tt: tt,
         libraryTab: tab,
+        onMatchAllAuthors:
+            _currentTab == 2 &&
+                !_selectionMode &&
+                _authors.isNotEmpty &&
+                !_matchingAuthors &&
+                context.read<AuthProvider>().canUpdateMetadata &&
+                !context.read<LibraryProvider>().isOffline
+            ? () {
+                Navigator.pop(ctx);
+                _quickMatchAllAuthors();
+              }
+            : null,
         onSortChanged: (sort) {
           Navigator.pop(ctx);
           _changeSort(sort);
@@ -2636,7 +2589,6 @@ class LibraryScreenState extends State<LibraryScreen>
               _listsScrollController.jumpTo(0);
           } else {
             setState(() {
-              _resetSelectionState();
               _sortAsc = !_sortAsc;
               _items.clear();
               _page = 0;
@@ -2655,25 +2607,24 @@ class LibraryScreenState extends State<LibraryScreen>
           }
           Navigator.pop(ctx);
         },
-        onFilterChanged:
-            (
-              filter, {
-              String? genre,
-              String? tag,
-              String? filterValue,
-              String? filterValueLabel,
-              MissingMetadataField? missingMetadata,
-            }) {
-              Navigator.pop(ctx);
-              _changeFilter(
-                filter,
-                genre: genre,
-                tag: tag,
-                filterValue: filterValue,
-                filterValueLabel: filterValueLabel,
-                missingMetadata: missingMetadata,
-              );
-            },
+        onFilterChanged: (
+          filter, {
+          String? genre,
+          String? tag,
+          String? filterValue,
+          String? filterValueLabel,
+          MissingMetadataField? missingMetadata,
+        }) {
+          Navigator.pop(ctx);
+          _changeFilter(
+            filter,
+            genre: genre,
+            tag: tag,
+            filterValue: filterValue,
+            filterValueLabel: filterValueLabel,
+            missingMetadata: missingMetadata,
+          );
+        },
         onClearFilter: () {
           Navigator.pop(ctx);
           _changeFilter(LibraryFilter.none);
@@ -2682,7 +2633,6 @@ class LibraryScreenState extends State<LibraryScreen>
         onCollapseSeriesChanged: (value) {
           _loadGeneration++;
           setState(() {
-            _resetSelectionState();
             _collapseSeries = value;
             _items.clear();
             _page = 0;
@@ -2694,12 +2644,11 @@ class LibraryScreenState extends State<LibraryScreen>
           _loadPage();
         },
         isPodcastLibrary: context.read<LibraryProvider>().isPodcastLibrary,
-        canAccessExplicitContent: context
-            .read<AuthProvider>()
-            .canAccessExplicitContent,
+        canAccessExplicitContent:
+            context.read<AuthProvider>().canAccessExplicitContent,
         // Browsers block Audible's catalog API (no CORS), so the series scan
         // can't work on web - hide the entry there
-        onUpcomingReleases: tab == LibraryTab.series && !AppPlatform.isWeb
+        onUpcomingReleases: tab == LibraryTab.series && !kIsWeb
             ? () {
                 Navigator.pop(ctx);
                 _openUpcomingReleases();
@@ -2722,13 +2671,15 @@ class LibraryScreenState extends State<LibraryScreen>
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final desktopWorkspace = isDesktopWorkspace(context);
+    // The bars the reveal driver hides are the phone's; the desktop
+    // workspace pins its header and has no floating pill.
     _revealDriver.setEnabled(!desktopWorkspace);
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+    final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     // Watch LibraryProvider so this screen rebuilds when the active library
     // or its data changes; the actual lib object is consumed inside
     // _buildHeaderSliver via context.watch.
     final libWatch = context.watch<LibraryProvider>();
-    final auth = context.watch<AuthProvider>();
     // Reload the grid when the offline state flips so it swaps between the full
     // library and the downloads-only offline view.
     if (libWatch.isOffline != _wasOffline) {
@@ -2746,6 +2697,7 @@ class LibraryScreenState extends State<LibraryScreen>
       });
     }
     final hasTabs = _tabController != null && !_isInSearchMode;
+    final auth = context.watch<AuthProvider>();
     final selectingAuthors = hasTabs && _currentTab == 2;
     final authorSelectionAvailable =
         selectingAuthors &&
@@ -2753,7 +2705,6 @@ class LibraryScreenState extends State<LibraryScreen>
         auth.canUpdateMetadata &&
         !_matchingAuthors;
     final bookSelectionAvailable =
-        desktopWorkspace &&
         !libWatch.isOffline &&
         !_isInSearchMode &&
         (hasTabs ? _currentTab == 0 : _podcastView == 0);
@@ -2764,9 +2715,11 @@ class LibraryScreenState extends State<LibraryScreen>
         desktopWorkspace &&
         !_isInSearchMode &&
         (hasTabs ? _currentTab != 3 : _podcastView == 0);
-    final selectableItems = selectionAvailable
+    final selectableItems = selectionAvailable && _selectionMode
         ? _selectableVisibleItems()
         : const <Map<String, dynamic>>[];
+    // Drop ids that scrolled out of the current filter so the count and the
+    // select-all state always describe what is on screen.
     if (_selectionMode) {
       _selectedItemIds.retainAll(
         selectableItems.map((item) => item['id'] as String).toSet(),
@@ -2776,14 +2729,96 @@ class LibraryScreenState extends State<LibraryScreen>
 
     return Scaffold(
       backgroundColor: scaffoldBg,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: !_selectionMode
+          ? (showCoverControl
+                ? DesktopCoverSizeControl(
+                    value: _bookshelfCoverSize,
+                    onDecrease: () => _changeBookshelfCoverSize(-1),
+                    onIncrease: () => _changeBookshelfCoverSize(1),
+                  )
+                : null)
+          : authorSelectionAvailable
+          ? DesktopBatchActionBar(
+              selectedCount: _selectedItemIds.length,
+              selectableCount: selectableCount,
+              busy: _batchActionBusy,
+              busyLabel: _authorMatchTotal > 0
+                  ? '$_authorMatchPosition/$_authorMatchTotal'
+                  : null,
+              canQuickMatch: true,
+              canMarkProgress: false,
+              canDelete: false,
+              onSelectAll: _toggleSelectAll,
+              onClear: _clearSelection,
+              onQuickMatch: () =>
+                  _runBatchAction(() => _quickMatchAuthors(_selectedAuthors())),
+              onMarkFinished: () {},
+              onMarkUnfinished: () {},
+              onDelete: () {},
+            )
+          : bookSelectionAvailable
+          ? DesktopBatchActionBar(
+              selectedCount: _selectedItemIds.length,
+              selectableCount: selectableCount,
+              busy: _batchActionBusy,
+              canQuickMatch: auth.isAdmin && !libWatch.isPodcastLibrary,
+              canMarkProgress: !libWatch.isPodcastLibrary,
+              canDelete: auth.canDelete,
+              onSelectAll: _toggleSelectAll,
+              onClear: _clearSelection,
+              onQuickMatch: () => _runBatchAction(
+                () => DesktopBatchActions.quickMatch(
+                  context,
+                  _selectedItemIds.toList(),
+                ),
+              ),
+              onMarkFinished: () => _runBatchAction(
+                () => DesktopBatchActions.setFinished(
+                  context,
+                  _selectedItemIds.toList(),
+                  isFinished: true,
+                ),
+              ),
+              onMarkUnfinished: () => _runBatchAction(
+                () => DesktopBatchActions.setFinished(
+                  context,
+                  _selectedItemIds.toList(),
+                  isFinished: false,
+                ),
+              ),
+              onDelete: () => _runBatchAction(
+                () => DesktopBatchActions.delete(
+                  context,
+                  _selectedItemIds.toList(),
+                ),
+              ),
+            )
+          : null,
       body: Stack(
         children: [
           if (!flatNotifier.value)
-            Positioned.fill(
-              child: RepaintBoundary(
+            OverflowBox(
+              maxHeight: MediaQuery.of(context).size.height,
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height,
+                width: double.infinity,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: _libraryBackgroundGradient(cs, scaffoldBg),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.0, 0.22, 0.72, 1.0],
+                      colors: [
+                        cs.primary.withValues(
+                          alpha: gradientIntensityNotifier.value,
+                        ),
+                        cs.surface,
+                        lowerFade,
+                        scaffoldBg,
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -2836,10 +2871,7 @@ class LibraryScreenState extends State<LibraryScreen>
                     },
                   ),
                 ),
-                if (hasTabs &&
-                    !_isInSearchMode &&
-                    !desktopWorkspace &&
-                    !_selectionMode)
+                if (hasTabs && !_isInSearchMode && !desktopWorkspace)
                   Positioned(
                     left: 0,
                     right: 0,
@@ -2900,75 +2932,6 @@ class LibraryScreenState extends State<LibraryScreen>
           ),
         ],
       ),
-      floatingActionButton: _selectionMode && authorSelectionAvailable
-          ? DesktopBatchActionBar(
-              selectedCount: _selectedItemIds.length,
-              selectableCount: selectableCount,
-              busy: _batchActionBusy,
-              busyLabel: _authorMatchTotal > 0
-                  ? '$_authorMatchPosition/$_authorMatchTotal'
-                  : null,
-              canQuickMatch: true,
-              canMarkProgress: false,
-              canDelete: false,
-              onSelectAll: _toggleSelectAll,
-              onClear: _clearSelection,
-              onQuickMatch: () =>
-                  _runBatchAction(() => _quickMatchAuthors(_selectedAuthors())),
-              onMarkFinished: () {},
-              onMarkUnfinished: () {},
-              onDelete: () {},
-            )
-          : !desktopWorkspace
-          ? null
-          : _selectionMode && bookSelectionAvailable
-          ? DesktopBatchActionBar(
-              selectedCount: _selectedItemIds.length,
-              selectableCount: selectableCount,
-              busy: _batchActionBusy,
-              canQuickMatch: auth.isAdmin && !libWatch.isPodcastLibrary,
-              canMarkProgress: !libWatch.isPodcastLibrary,
-              canDelete: auth.canDelete,
-              onSelectAll: _toggleSelectAll,
-              onClear: _clearSelection,
-              onQuickMatch: () => _runBatchAction(
-                () => DesktopBatchActions.quickMatch(
-                  context,
-                  _selectedItemIds.toList(),
-                ),
-              ),
-              onMarkFinished: () => _runBatchAction(
-                () => DesktopBatchActions.setFinished(
-                  context,
-                  _selectedItemIds.toList(),
-                  isFinished: true,
-                ),
-              ),
-              onMarkUnfinished: () => _runBatchAction(
-                () => DesktopBatchActions.setFinished(
-                  context,
-                  _selectedItemIds.toList(),
-                  isFinished: false,
-                ),
-              ),
-              onDelete: () => _runBatchAction(
-                () => DesktopBatchActions.delete(
-                  context,
-                  _selectedItemIds.toList(),
-                ),
-              ),
-            )
-          : showCoverControl
-          ? DesktopCoverSizeControl(
-              value: _bookshelfCoverSize,
-              onDecrease: () => _changeBookshelfCoverSize(-1),
-              onIncrease: () => _changeBookshelfCoverSize(1),
-            )
-          : null,
-      floatingActionButtonLocation:
-          authorSelectionAvailable && !desktopWorkspace
-          ? FloatingActionButtonLocation.centerFloat
-          : FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -2987,24 +2950,14 @@ class LibraryScreenState extends State<LibraryScreen>
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+    final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     final lib = context.watch<LibraryProvider>();
     final allLibraries = lib.libraries;
     final hasMultipleLibraries = allLibraries.length > 1;
-    final libraryName =
-        lib.selectedLibrary?['name'] as String? ?? l.libraryFallback;
-    final topInset = MediaQuery.of(context).padding.top;
-    final screenH = MediaQuery.of(context).size.height;
-    final headerBackground = flatNotifier.value
-        ? ColoredBox(color: scaffoldBg)
-        : CustomPaint(
-            painter: _LibraryHeaderGradientPainter(
-              backgroundColor: scaffoldBg,
-              gradient: _libraryBackgroundGradient(cs, scaffoldBg),
-              topInset: topInset,
-              screenHeight: screenH,
-            ),
-          );
-    final desktop = isDesktopWorkspace(context);
+    // Batch selection is offered on the books grid and on the authors tab.
+    // Authors need metadata permission (quick match writes to the server);
+    // books only need to be online and out of search, where the visible list
+    // is stable enough for select-all to mean something.
     final canSelectAuthors =
         _tabController != null &&
         _currentTab == 2 &&
@@ -3014,10 +2967,46 @@ class LibraryScreenState extends State<LibraryScreen>
         !lib.isOffline &&
         !_isInSearchMode &&
         (canSelectAuthors ||
-            (desktop &&
-                (_tabController == null
-                    ? _podcastView == 0
-                    : _currentTab == 0)));
+            (_tabController == null ? _podcastView == 0 : _currentTab == 0));
+    final libraryName =
+        lib.selectedLibrary?['name'] as String? ?? l.libraryFallback;
+    final topInset = MediaQuery.of(context).padding.top;
+    final screenH = MediaQuery.of(context).size.height;
+    final headerBackground = flatNotifier.value
+        ? ColoredBox(color: scaffoldBg)
+        : ClipRect(
+            child: OverflowBox(
+              maxHeight: screenH,
+              minHeight: 0,
+              alignment: Alignment.topCenter,
+              child: Transform.translate(
+                offset: Offset(0, -topInset),
+                child: SizedBox(
+                  height: screenH,
+                  width: double.infinity,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: scaffoldBg,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: const [0.0, 0.22, 0.72, 1.0],
+                        colors: [
+                          cs.primary.withValues(
+                            alpha: gradientIntensityNotifier.value,
+                          ),
+                          cs.surface,
+                          lowerFade,
+                          scaffoldBg,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+    final desktop = isDesktopWorkspace(context);
     return SliverAppBar(
       floating: !desktop,
       snap: !desktop,
@@ -3031,9 +3020,9 @@ class LibraryScreenState extends State<LibraryScreen>
           ? 156
           : ((_filter != LibraryFilter.none ||
                     _seriesFilter != SeriesFilter.none)
-                ? 196
-                : 184),
-      backgroundColor: Colors.transparent,
+                ? 204
+                : 192),
+      backgroundColor: scaffoldBg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -3047,7 +3036,7 @@ class LibraryScreenState extends State<LibraryScreen>
               children: [
                 AbsorbPageHeader(
                   title: l.libraryTitle,
-                  showBranding: !isDesktopWorkspace(context),
+                  showBranding: !desktop,
                   trailing: OfflineStatusIcon(
                     onTapWhenOnline: () {
                       lib.setManualOffline(true);
@@ -3064,79 +3053,79 @@ class LibraryScreenState extends State<LibraryScreen>
                     },
                   ),
                   actions: [
-                    if (hasMultipleLibraries)
-                      GestureDetector(
-                        onTap: () => showLibraryPickerSheet(context, lib),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cs.onSurface.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: cs.onSurface.withValues(alpha: 0.08),
-                            ),
-                          ),
-                          child: SizedBox(
-                            height: 20,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  lib.isPodcastLibrary
-                                      ? Icons.podcasts_rounded
-                                      : Icons.auto_stories_rounded,
-                                  size: 18,
-                                  color: cs.onSurfaceVariant,
+                        if (hasMultipleLibraries)
+                          GestureDetector(
+                            onTap: () => showLibraryPickerSheet(context, lib),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cs.onSurface.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: cs.onSurface.withValues(alpha: 0.08),
                                 ),
-                                const SizedBox(width: 6),
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 140,
-                                  ),
-                                  child: Text(
-                                    libraryName,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
+                              ),
+                              child: SizedBox(
+                                height: 20,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      lib.isPodcastLibrary
+                                          ? Icons.podcasts_rounded
+                                          : Icons.auto_stories_rounded,
+                                      size: 18,
                                       color: cs.onSurfaceVariant,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
+                                    const SizedBox(width: 6),
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 140,
+                                      ),
+                                      child: Text(
+                                        libraryName,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: cs.onSurfaceVariant,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.unfold_more_rounded,
+                                      size: 18,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.unfold_more_rounded,
-                                  size: 18,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    if (canSelectItems)
-                      Tooltip(
-                        message: _selectionMode
-                            ? l.downloadsCancelSelection
-                            : l.downloadsSelect,
-                        child: IconButton(
-                          onPressed: _batchActionBusy
-                              ? null
-                              : _selectionMode
-                              ? _clearSelection
-                              : () => setState(() => _selectionMode = true),
-                          icon: Icon(
-                            _selectionMode
-                                ? Icons.close_rounded
-                                : Icons.library_add_check_rounded,
+                        if (canSelectItems)
+                          Tooltip(
+                            message: _selectionMode
+                                ? l.downloadsCancelSelection
+                                : l.downloadsSelect,
+                            child: IconButton(
+                              onPressed: _batchActionBusy
+                                  ? null
+                                  : _selectionMode
+                                  ? _clearSelection
+                                  : () => setState(() => _selectionMode = true),
+                              icon: Icon(
+                                _selectionMode
+                                    ? Icons.close_rounded
+                                    : Icons.library_add_check_rounded,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                  ],
+                      ],
                 ),
                 Builder(
                   builder: (context) {
@@ -3187,6 +3176,8 @@ class LibraryScreenState extends State<LibraryScreen>
                         child: searchBar,
                       );
                     }
+                    // Desktop: the tab pill sits next to the search box, and a
+                    // refresh chip stands in for pull to refresh.
                     final hasBookTabs =
                         _tabController != null && !_isInSearchMode;
                     final showsPodcastPill =
@@ -3247,82 +3238,96 @@ class LibraryScreenState extends State<LibraryScreen>
   Widget _buildPodcastViewPill(ColorScheme cs, {bool floating = true}) {
     final l = AppLocalizations.of(context)!;
     final labels = [l.appShellShowsTab, l.libraryTabEpisodes];
-    final pill = Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: floating
-            ? cs.surface.withValues(alpha: 0.6)
-            : cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: floating
-              ? cs.primary.withValues(alpha: 0.25)
-              : cs.outlineVariant.withValues(alpha: 0.45),
+    // Inline in the desktop header the pill is opaque: nothing scrolls under
+    // it, so the blur would only cost a saveLayer.
+    if (!floating) {
+      return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(labels.length, (i) {
-          final active = _podcastView == i;
-          return GestureDetector(
-            onTap: () {
-              if (!active) {
-                setState(() {
-                  _podcastView = i;
-                  _resetSelectionState();
-                });
-                PlayerSettings.setPodcastView(i);
-              } else if (i == 0) {
-                // Re-tap on the active Shows pill opens the sort sheet,
-                // same as the book libraries' pills.
-                _showSortFilterSheet(context, cs, Theme.of(context).textTheme);
-              }
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              padding: EdgeInsets.symmetric(
-                horizontal: active ? 14 : 12,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: active
-                    ? cs.primary.withValues(alpha: 0.15)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    labels[i],
-                    maxLines: 1,
-                    softWrap: false,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                      color: active ? cs.primary : cs.onSurfaceVariant,
-                    ),
-                  ),
-                  if (active && i == 0) ...[
-                    const SizedBox(width: 4),
-                    Icon(Icons.sort_rounded, size: 14, color: cs.primary),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-    if (!floating) return pill;
+        child: _podcastViewPillRow(cs, labels),
+      );
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: pill,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: cs.surface.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+          ),
+          child: _podcastViewPillRow(cs, labels),
+        ),
       ),
     );
+  }
+
+  Widget _podcastViewPillRow(ColorScheme cs, List<String> labels) {
+    return Builder(builder: (context) {
+      return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(labels.length, (i) {
+              final active = _podcastView == i;
+              return GestureDetector(
+                onTap: () {
+                  if (!active) {
+                    setState(() => _podcastView = i);
+                    PlayerSettings.setPodcastView(i);
+                  } else if (i == 0) {
+                    // Re-tap on the active Shows pill opens the sort sheet,
+                    // same as the book libraries' pills.
+                    _showSortFilterSheet(
+                      context,
+                      cs,
+                      Theme.of(context).textTheme,
+                    );
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: active ? 14 : 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? cs.primary.withValues(alpha: 0.15)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        labels[i],
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: active
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: active ? cs.primary : cs.onSurfaceVariant,
+                        ),
+                      ),
+                      if (active && i == 0) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.sort_rounded, size: 14, color: cs.primary),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }),
+          );
+    });
   }
 
   Widget _buildFloatingTabBar(ColorScheme cs, {bool floating = true}) {
@@ -3332,78 +3337,19 @@ class LibraryScreenState extends State<LibraryScreen>
       l.libraryTabSeries,
       l.libraryTabAuthors,
       l.libraryTabNarrators,
-      if (_showLists) 'Lists',
+      'Lists',
     ];
-    final pill = Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: floating
-            ? cs.surface.withValues(alpha: 0.6)
-            : cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: floating
-              ? cs.primary.withValues(alpha: 0.25)
-              : cs.outlineVariant.withValues(alpha: 0.45),
+    if (!floating) {
+      return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
         ),
-      ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(labels.length, (i) {
-            final active = _currentTab == i;
-            return GestureDetector(
-              onTap: () {
-                if (active) {
-                  _showSortFilterSheet(
-                    context,
-                    cs,
-                    Theme.of(context).textTheme,
-                  );
-                } else {
-                  _tabController?.animateTo(i);
-                }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                padding: EdgeInsets.symmetric(
-                  horizontal: active ? 14 : 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: active
-                      ? cs.primary.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      labels[i],
-                      maxLines: 1,
-                      softWrap: false,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                        color: active ? cs.primary : cs.onSurfaceVariant,
-                      ),
-                    ),
-                    if (active) ...[
-                      const SizedBox(width: 4),
-                      Icon(Icons.sort_rounded, size: 14, color: cs.primary),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
-    );
-    if (!floating) return pill;
+        child: _tabPillRow(cs, labels),
+      );
+    }
     return Center(
       child: Padding(
         // Inset from the screen edges; the FittedBox below scales the whole
@@ -3414,10 +3360,84 @@ class LibraryScreenState extends State<LibraryScreen>
           borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
             filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: pill,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: cs.surface.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+              ),
+              child: _tabPillRow(cs, labels),
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _tabPillRow(ColorScheme cs, List<String> labels) {
+    return FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(labels.length, (i) {
+                    final active = _currentTab == i;
+                    return GestureDetector(
+                      onTap: () {
+                        if (active) {
+                          _showSortFilterSheet(
+                            context,
+                            cs,
+                            Theme.of(context).textTheme,
+                          );
+                        } else {
+                          _tabController?.animateTo(i);
+                        }
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: active ? 14 : 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? cs.primary.withValues(alpha: 0.15)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              labels[i],
+                              maxLines: 1,
+                              softWrap: false,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: active
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: active
+                                    ? cs.primary
+                                    : cs.onSurfaceVariant,
+                              ),
+                            ),
+                            if (active) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.sort_rounded,
+                                size: 14,
+                                color: cs.primary,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
     );
   }
 
@@ -3474,7 +3494,7 @@ class LibraryScreenState extends State<LibraryScreen>
         countText = l.librarySeriesCount(_totalSeries);
         break;
       case 2:
-        countText = l.libraryAuthorsCount(_authors.length);
+        countText = l.libraryAuthorsCount(max(_totalAuthors, _authors.length));
         break;
       case 3:
         countText = l.libraryNarratorsCount(_narrators.length);
@@ -3575,28 +3595,13 @@ class LibraryScreenState extends State<LibraryScreen>
               ),
             ),
           ],
-          if (_currentTab == 2 &&
-              !_selectionMode &&
-              _authors.isNotEmpty &&
-              context.read<AuthProvider>().canUpdateMetadata &&
-              !context.read<LibraryProvider>().isOffline)
-            TextButton.icon(
-              onPressed: _matchingAuthors ? null : _quickMatchAllAuthors,
-              icon: _matchingAuthors
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_fix_high_rounded, size: 18),
-              label: Text(
-                _matchingAuthors && _authorMatchTotal > 0
-                    ? '${l.adminMatching} '
-                          '$_authorMatchPosition/$_authorMatchTotal'
-                    : _matchingAuthors
-                    ? l.adminMatching
-                    : l.adminMatchAll,
-              ),
+          if (_currentTab == 2 && _matchingAuthors)
+            Text(
+              _authorMatchTotal > 0
+                  ? '${l.adminMatching} '
+                        '$_authorMatchPosition/$_authorMatchTotal'
+                  : l.adminMatching,
+              style: tt.labelSmall?.copyWith(color: cs.primary),
             ),
           const Spacer(),
           Text(
@@ -3617,8 +3622,7 @@ class LibraryScreenState extends State<LibraryScreen>
     // the SearchBar inside binds to the screen-level _focusNode. Inactive
     // tabs' SearchBars use their own internal focus, avoiding the multi-bind
     // bug that left the search bar unresponsive on first tap.
-    // If we're somehow on the Lists tab without any lists, fall back to Library.
-    final effectiveTab = (_currentTab == 4 && !_showLists) ? 0 : _currentTab;
+    final effectiveTab = _currentTab;
     Widget headerFor(int i) =>
         _buildHeaderSliver(context, useSharedFocus: i == effectiveTab);
     return IndexedStack(
@@ -3635,13 +3639,14 @@ class LibraryScreenState extends State<LibraryScreen>
 
   Widget _buildListsGrid(Widget headerSliver) {
     final entries = _sortedLists();
+    final loading = _listsLoadFuture != null;
     return LibraryListsTab(
       entries: entries,
-      // We expect lists (the remembered flag is set) but haven't loaded them
-      // yet - show a spinner instead of flashing the empty state.
-      isLoading: entries.isEmpty && _cachedHasLists,
+      // Only claim the library has none once a load has actually said so.
+      isLoading: entries.isEmpty && loading && !_listsFailed,
+      hasError: _listsFailed,
+      onRetry: _refreshLists,
       coverAspectRatio: _coverAspectRatio,
-      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
       onOpenCollection: (c) {
         final id = c['id'] as String?;
         if (id != null && id.isNotEmpty)
@@ -3678,7 +3683,6 @@ class LibraryScreenState extends State<LibraryScreen>
     final lib = context.read<LibraryProvider>();
     await lib.refresh();
     setState(() {
-      _resetSelectionState();
       _items.clear();
       _page = 0;
       _hasMore = true;
@@ -3700,11 +3704,7 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   Future<void> _refreshAuthors() async {
-    setState(() {
-      _authors.clear();
-      _authorsLoaded = false;
-      _isLoadingAuthors = false;
-    });
+    _resetAuthors();
     await _loadAuthors();
   }
 
@@ -3713,27 +3713,243 @@ class LibraryScreenState extends State<LibraryScreen>
   // ═══════════════════════════════════════════════════════════════
   Widget _buildGrid(Widget headerSliver) {
     final lib = context.watch<LibraryProvider>();
-    final selectionAvailable = isDesktopWorkspace(context) && !lib.isOffline;
     return LibraryBooksTab(
+      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
       items: _visibleLibraryItems(lib),
       isLoadingPage: _isLoadingPage,
       hasMore: _hasMore,
+      loadFailed: _loadFailed,
       filter: _filter,
       genreFilter: _genreFilter,
       tagFilter: _tagFilter,
       isPodcastLibrary: context.read<LibraryProvider>().isPodcastLibrary,
       rectangleCovers: _rectangleCovers,
+      showSubtitles: _showSubtitles,
       coverAspectRatio: _coverAspectRatio,
-      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
-      selectionMode: selectionAvailable && _selectionMode,
-      selectedItemIds: _selectedItemIds,
-      onSelectionToggle: selectionAvailable ? _toggleSelection : null,
       onRefresh: _refreshAll,
       onClearFilter: () => _changeFilter(LibraryFilter.none),
       headerSliver: headerSliver,
       scrollController: _scrollController,
       onLoadMore: _loadPage,
+      selectionMode: _selectionMode && (_tabController == null || _currentTab == 0),
+      selectedItemIds: _selectedItemIds,
+      onSelectionToggle: _toggleSelection,
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BATCH SELECTION
+  // ═══════════════════════════════════════════════════════════════
+  void _resetSelectionState() {
+    _selectionMode = false;
+    _batchActionBusy = false;
+    _selectedItemIds.clear();
+    _lastSelectedVisibleIndex = null;
+  }
+
+  void _clearSelection() {
+    if (!_selectionMode && _selectedItemIds.isEmpty) return;
+    setState(_resetSelectionState);
+  }
+
+  List<Map<String, dynamic>> _selectableVisibleItems() {
+    if (_tabController != null && _currentTab == 2) {
+      return _authors
+          .where((author) => author['id'] is String)
+          .toList(growable: false);
+    }
+    final lib = context.read<LibraryProvider>();
+    return _visibleLibraryItems(lib)
+        .where(
+          (item) =>
+              !item.containsKey('collapsedSeries') && item['id'] is String,
+        )
+        .toList();
+  }
+
+  void _toggleSelection(Map<String, dynamic> item, int visibleIndex) {
+    final itemId = item['id'] as String?;
+    if (itemId == null) return;
+    // Shift-click extends the run on a hardware keyboard; plain taps toggle.
+    final shiftPressed = HardwareKeyboard.instance.isShiftPressed;
+    setState(() {
+      _selectionMode = true;
+      if (shiftPressed && _lastSelectedVisibleIndex != null) {
+        final items = _selectableVisibleItems();
+        final start = min(_lastSelectedVisibleIndex!, visibleIndex);
+        final end = max(_lastSelectedVisibleIndex!, visibleIndex);
+        for (var index = start; index <= end && index < items.length; index++) {
+          final rangeItem = items[index];
+          if (rangeItem.containsKey('collapsedSeries')) continue;
+          final rangeId = rangeItem['id'] as String?;
+          if (rangeId != null) _selectedItemIds.add(rangeId);
+        }
+      } else if (!_selectedItemIds.add(itemId)) {
+        _selectedItemIds.remove(itemId);
+      }
+      _lastSelectedVisibleIndex = visibleIndex;
+    });
+  }
+
+  void _toggleSelectAll() {
+    final ids = _selectableVisibleItems()
+        .map((item) => item['id'] as String)
+        .toSet();
+    setState(() {
+      _selectionMode = true;
+      if (ids.isNotEmpty && _selectedItemIds.containsAll(ids)) {
+        _selectedItemIds.removeAll(ids);
+      } else {
+        _selectedItemIds.addAll(ids);
+      }
+      _lastSelectedVisibleIndex = null;
+    });
+  }
+
+  Future<void> _runBatchAction(Future<bool?> Function() action) async {
+    if (_batchActionBusy) return;
+    // Anything that scrolled out of the filter since it was ticked is dropped,
+    // so an action can never touch an item the user can no longer see.
+    final visibleIds = _selectableVisibleItems()
+        .map((item) => item['id'] as String)
+        .toSet();
+    setState(() {
+      _selectedItemIds.retainAll(visibleIds);
+      if (_selectedItemIds.isEmpty) {
+        _resetSelectionState();
+      } else {
+        _batchActionBusy = true;
+      }
+    });
+    if (_selectedItemIds.isEmpty) return;
+    final success = await action();
+    if (!mounted) return;
+    setState(() {
+      _batchActionBusy = false;
+      if (success == true) _resetSelectionState();
+    });
+  }
+
+  List<Map<String, dynamic>> _selectedAuthors() {
+    return _authors
+        .where((author) => _selectedItemIds.contains(author['id']))
+        .toList(growable: false);
+  }
+
+  String _authorQuickMatchRegion(LibraryProvider lib) {
+    final provider =
+        lib.selectedLibrary?['provider']?.toString().toLowerCase() ?? '';
+    if (!provider.startsWith('audible.')) return 'us';
+    final region = provider.split('.').last.trim();
+    return region.isEmpty ? 'us' : region;
+  }
+
+  /// Quick-match authors one at a time. There is no batch author endpoint, so
+  /// this walks the list and reports a tally at the end; the tile shows a
+  /// spinner on whichever author is in flight.
+  Future<bool> _quickMatchAuthors(
+    List<Map<String, dynamic>> authors, {
+    bool allAuthors = false,
+  }) async {
+    if (authors.isEmpty) return false;
+    final auth = context.read<AuthProvider>();
+    final lib = context.read<LibraryProvider>();
+    final api = auth.apiService;
+    final libraryId = lib.selectedLibraryId;
+    if (api == null || libraryId == null || !auth.canUpdateMetadata) {
+      return false;
+    }
+
+    final l = AppLocalizations.of(context)!;
+    setState(() {
+      _authorMatchPosition = 0;
+      _authorMatchTotal = authors.length;
+      _matchingAuthorId = null;
+    });
+    showOverlayToast(
+      context,
+      l.adminMatchingStarted(
+        allAuthors
+            ? l.libraryAuthorsCount(authors.length)
+            : l.selectedCount(authors.length),
+      ),
+      icon: Icons.auto_fix_high_rounded,
+    );
+
+    final region = _authorQuickMatchRegion(lib);
+    var found = 0;
+    var updated = 0;
+    var notFound = 0;
+    var failed = 0;
+    for (var index = 0; index < authors.length; index++) {
+      final author = authors[index];
+      final id = author['id']?.toString() ?? '';
+      final name = author['name']?.toString().trim() ?? '';
+      final asin = author['asin']?.toString().trim() ?? '';
+      if (mounted) {
+        setState(() {
+          _matchingAuthorId = id.isEmpty ? null : id;
+          _authorMatchPosition = index + 1;
+        });
+      }
+      if (id.isEmpty || (asin.isEmpty && name.isEmpty)) {
+        failed++;
+        continue;
+      }
+      final result = await api.quickMatchAuthor(
+        id,
+        asin: asin.isEmpty ? null : asin,
+        q: asin.isEmpty ? name : null,
+        region: region,
+      );
+      if (result.found) {
+        found++;
+        if (result.updated) updated++;
+      } else if (result.statusCode == 404) {
+        notFound++;
+      } else {
+        failed++;
+      }
+    }
+
+    if (!mounted) return failed < authors.length;
+    setState(() => _matchingAuthorId = null);
+    if (context.read<LibraryProvider>().selectedLibraryId == libraryId) {
+      await _refreshAuthors();
+    }
+    if (!mounted) return failed < authors.length;
+
+    final unchanged = found - updated;
+    final summary = <String>[
+      if (updated > 0) '${l.metadataUpdated} ($updated)',
+      if (unchanged > 0) '${l.quickMatchNoUpdates} ($unchanged)',
+      if (notFound > 0) '${l.authorNoMatchFound} ($notFound)',
+      if (failed > 0) '${l.failedToUpdateMetadata} ($failed)',
+    ];
+    showOverlayToast(
+      context,
+      summary.join(' - '),
+      icon: failed > 0
+          ? Icons.error_outline_rounded
+          : notFound > 0
+          ? Icons.search_off_rounded
+          : Icons.check_circle_outline_rounded,
+    );
+    return failed == 0 && notFound == 0;
+  }
+
+  Future<void> _quickMatchAllAuthors() async {
+    if (_matchingAuthors || _batchActionBusy || _authors.isEmpty) return;
+    final authors = List<Map<String, dynamic>>.from(_authors);
+    setState(() => _matchingAuthors = true);
+    await _quickMatchAuthors(authors, allAuthors: true);
+    if (mounted) {
+      setState(() {
+        _matchingAuthors = false;
+        _authorMatchPosition = 0;
+        _authorMatchTotal = 0;
+      });
+    }
   }
 
   List<Map<String, dynamic>> _visibleLibraryItems(LibraryProvider lib) {
@@ -3754,7 +3970,6 @@ class LibraryScreenState extends State<LibraryScreen>
       hasMoreSeries: _hasMoreSeries,
       rectangleCovers: _rectangleCovers,
       coverAspectRatio: _coverAspectRatio,
-      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
       onRefresh: _refreshSeries,
       headerSliver: headerSliver,
       scrollController: _seriesScrollController,
@@ -3767,23 +3982,19 @@ class LibraryScreenState extends State<LibraryScreen>
   // ═══════════════════════════════════════════════════════════════
   Widget _buildAuthorsGrid(Widget headerSliver) {
     return LibraryAuthorsTab(
+      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
       authors: _authors,
       isLoadingAuthors: _isLoadingAuthors,
       authorsLoaded: _authorsLoaded,
-      desktopMaxCrossAxisExtent: _desktopTileMaxExtent,
+      hasMore: _hasMoreAuthors,
+      onLoadMore: _loadAuthors,
       onRefresh: _refreshAuthors,
       headerSliver: headerSliver,
       scrollController: _authorsScrollController,
-      selectionMode: _selectionMode,
+      selectionMode: _selectionMode && _currentTab == 2,
       selectedAuthorIds: _selectedItemIds,
       matchingAuthorId: _matchingAuthorId,
-      onSelectionToggle:
-          context.read<AuthProvider>().canUpdateMetadata &&
-              !context.read<LibraryProvider>().isOffline &&
-              !_matchingAuthors &&
-              !_batchActionBusy
-          ? _toggleSelection
-          : null,
+      onSelectionToggle: _toggleSelection,
     );
   }
 
@@ -3793,6 +4004,7 @@ class LibraryScreenState extends State<LibraryScreen>
   Future<void> _refreshNarrators() async {
     setState(() {
       _narrators.clear();
+      _narratorCounts = {};
       _narratorsLoaded = false;
       _isLoadingNarrators = false;
     });
@@ -3802,6 +4014,7 @@ class LibraryScreenState extends State<LibraryScreen>
   Widget _buildNarratorsGrid(Widget headerSliver) {
     return LibraryNarratorsTab(
       narrators: _narrators,
+      narratorCounts: _narratorCounts,
       isLoading: _isLoadingNarrators,
       loaded: _narratorsLoaded,
       onRefresh: _refreshNarrators,

@@ -28,6 +28,37 @@ class EpisodeNotificationService {
   static const _uniqueName = 'com.barnabas.absorb.episodeNotifCheck';
   static const channelId = 'new_episodes';
 
+  static String notifiedKey(String showId) => 'notified_episodes_$showId';
+
+  /// Record episodes as already announced without sending anything.
+  ///
+  /// The in-app check runs whenever the app opens, so a user who opens Absorb
+  /// inside the polling window sees and downloads the new episodes there. The
+  /// job would then still notify hours later, because its ledger is separate.
+  /// Once the app has shown them, they are not news any more.
+  ///
+  /// Only ever adds. A show whose ledger is empty is one the job has never
+  /// seeded, and seeding it here would be wrong - the job seeds silently on
+  /// first sight, and writing the ids now would make that silent seed a no-op
+  /// rather than a deliberate one.
+  static Future<void> markAlreadySurfaced(
+    String showId,
+    Iterable<String> episodeIds,
+  ) async {
+    if (episodeIds.isEmpty) return;
+    final key = notifiedKey(showId);
+    final seen = (await ScopedPrefs.getStringList(key)).toSet();
+    if (seen.isEmpty) return;
+    final before = seen.length;
+    seen.addAll(episodeIds);
+    if (seen.length == before) return;
+    await ScopedPrefs.setStringList(key, seen.toList());
+    debugPrint(
+      '[EpisodeNotif] ${seen.length - before} episode(s) for $showId already '
+      'surfaced in-app - will not be notified',
+    );
+  }
+
   @visibleForTesting
   static Future<void> prepareBackgroundPreferences({
     Future<void> Function()? reloadPreferences,

@@ -1,7 +1,7 @@
 name: absorb
 description: An Audiobookshelf Client
 publish_to: 'none'
-version: 1.9.3+236
+version: 1.11.1+285
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -32,6 +32,17 @@ dependencies:
     
   audio_service:
     path: packages/audio_service
+
+  # On-device bookmark transcription (Whisper, opt-in). No ffmpeg companion:
+  # we feed it 16kHz mono WAV produced by native decoders (MediaCodec / AVAssetReader).
+  # Vendored from 1.5.2: the arm64 build was plain armv8-a with no dotprod/fp16
+  # kernels, no_fallback was never read out of the request, and there was no way
+  # to see where inference time went. See packages/whisper_ggml_plus.
+  whisper_ggml_plus:
+    path: packages/whisper_ggml_plus
+
+  # Reading EPUB text without a WebView (transcript ebook cross-reference).
+  archive: ^4.0.9
 
   # CarPlay - vendored copy of 1.2.11 with a patched image loader (downsampled +
   # cached list thumbnails) so large browse lists don't run CarPlay out of memory.
@@ -74,8 +85,11 @@ dependencies:
   # Pausing for interruptions
   audio_session: ^0.1.21
 
-  # chromecast
-  flutter_chrome_cast: ^1.2.6
+  # chromecast. Vendored without its iOS side: Absorb only casts from
+  # Android, and the plugin's Swift package pulls a Cast SDK that now wants
+  # iOS 16, which broke the iOS build for nothing.
+  flutter_chrome_cast:
+    path: packages/flutter_chrome_cast
 
   # Log sharing
   share_plus: ^10.0.0
@@ -99,8 +113,11 @@ dependencies:
   flutter_markdown_plus: ^1.0.7
   palette_generator: ^0.3.3+7
 
-  # eBook reader
-  flutter_epub_viewer: ^1.2.6
+  # eBook reader - vendored to stream book bytes into the WebView in chunks;
+  # upstream serializes the whole file into one script string, which crashed
+  # the app with OOM on a 322MB illustrated epub
+  flutter_epub_viewer:
+    path: packages/flutter_epub_viewer
 
   # PDF reader (non-EPUB ebooks route here)
   pdfrx: ^2.4.7

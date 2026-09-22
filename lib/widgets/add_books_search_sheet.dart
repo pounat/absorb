@@ -122,6 +122,18 @@ class _AddBooksSearchSheetState extends State<AddBooksSearchSheet> {
           .search(widget.libraryId, query)
           .map((h) => h.item)
           .toList();
+      // A truncated index misses the newest items in a huge library - merge
+      // in server hits the index doesn't know about (GH #349).
+      if (BookSearchIndex().isTruncated(widget.libraryId)) {
+        final server = await api.searchLibrary(widget.libraryId, query);
+        if (!mounted || _controller.text.trim() != query) return;
+        final seen = results.map((i) => i['id']).toSet();
+        for (final r in (server?['book'] as List<dynamic>? ?? const [])) {
+          final m = r as Map<String, dynamic>;
+          final item = (m['libraryItem'] as Map<String, dynamic>?) ?? m;
+          if (!seen.contains(item['id'])) results.add(item);
+        }
+      }
     } else {
       // Index didn't build (e.g. offline) - fall back to the server search.
       final result = await api.searchLibrary(widget.libraryId, query);

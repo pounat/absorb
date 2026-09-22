@@ -15,6 +15,9 @@ import 'absorbing_shared.dart';
 import 'ebook_router.dart';
 import 'overlay_toast.dart';
 import '../services/ebook_cache.dart';
+import '../services/find_in_ebook.dart';
+import '../services/lyrics_service.dart';
+import 'lyrics_overlay.dart';
 import 'card_edge_progress_bar.dart';
 import 'card_progress_bar.dart';
 import 'card_playback_controls.dart';
@@ -257,7 +260,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
   String? get _coverUrl {
     final lib = context.read<LibraryProvider>();
-    return lib.getCoverUrl(_itemId, width: 800);
+    return lib.getCoverUrl(_itemId, width: 1200);
   }
 
   int? _coverUpdatedAt(LibraryProvider lib) {
@@ -294,7 +297,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
   String? _currentCoverIdentity() {
     final lib = context.read<LibraryProvider>();
-    return _coverIdentity(lib.getCoverUrl(_itemId, width: 800), lib);
+    return _coverIdentity(lib.getCoverUrl(_itemId, width: 1200), lib);
   }
 
   @override
@@ -700,16 +703,23 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   }
 
 
+  /// The store key the live transcript runs under for this card.
+  String get _lyricsKey =>
+      _episodeId != null ? '$_itemId-$_episodeId' : _itemId;
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // required for AutomaticKeepAliveClientMixin
-    final cs = _coverScheme ?? Theme.of(context).colorScheme;
+    // E-ink mode: the cover-derived palette renders as washed-out grey, so
+    // the card sticks to the monochrome app theme.
+    final cs = (PlayerSettings.einkMode ? null : _coverScheme) ??
+        Theme.of(context).colorScheme;
     final accent = cs.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l = AppLocalizations.of(context)!;
 
     final lib = context.watch<LibraryProvider>();
-    final coverUrl = lib.getCoverUrl(_itemId, width: 800);
+    final coverUrl = lib.getCoverUrl(_itemId, width: 1200);
     final coverIdentity = _coverIdentity(coverUrl, lib);
     final isLocalCover = coverUrl?.startsWith('/') ?? false;
     _maybeRefetchOnServerChange(lib);
@@ -967,7 +977,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                     builder: (context, constraints) {
                       final maxW = spaciousDesktop
                           ? (constraints.maxWidth * 0.9).clamp(0.0, 780.0).toDouble()
-                          : constraints.maxWidth * 0.75;
+                          : constraints.maxWidth * 0.85;
                       final rawH = constraints.maxHeight.isFinite ? constraints.maxHeight : maxW;
                       final maxH = rawH - 24;
                       double coverW, coverH;
@@ -1042,8 +1052,16 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                // Cover image
-                                coverUrl != null && coverIdentity != null
+                                // Cover image - hidden while the transcript
+                                // has the cover.
+                                AnimatedBuilder(
+                                  animation: LyricsService.instance,
+                                  builder: (context, child) =>
+                                      LyricsService.instance
+                                              .coversArtFor(_lyricsKey)
+                                          ? Offstage(child: child)
+                                          : child!,
+                                  child: EinkCoverTone(child: coverUrl != null && coverIdentity != null
                                     ? isLocalCover
                                         ? BlurPaddedCover(blurChild: Image.file(File(coverUrl), fit: BoxFit.cover,
                                             gaplessPlayback: true,
@@ -1063,7 +1081,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                                               },
                                               placeholder: (_, __) => CoverPlaceholder(title: _title, author: _author),
                                               errorWidget: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
-                                    : CoverPlaceholder(title: _title, author: _author),
+                                    : CoverPlaceholder(title: _title, author: _author))),
                                                 // Casting overlay
                                 if (isCastingThis) ...[
                                   Positioned.fill(
@@ -1096,9 +1114,18 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                                     ),
                                   ),
                                 ],
-                                // Play/pause overlay
+                                // Play/pause overlay - the tap still works
+                                // with the transcript up, but the button would
+                                // sit on the words.
                                 if (_coverPlayButton) Positioned.fill(
-                                  child: AnimatedContainer(
+                                  child: AnimatedBuilder(
+                                    animation: LyricsService.instance,
+                                    builder: (context, child) =>
+                                        LyricsService.instance
+                                                .coversArtFor(_lyricsKey)
+                                            ? Offstage(child: child)
+                                            : child!,
+                                    child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 200),
                                     decoration: BoxDecoration(
                                       color: coverPlaying ? Colors.transparent : Colors.black.withValues(alpha: 0.25),
@@ -1133,7 +1160,13 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                                             ),
                                     ),
                                   ),
-                                ),
+                                )),
+                                // Live transcript (lyrics mode)
+                                LyricsOverlay(
+                                    compact: true,
+                                    forKey: _lyricsKey,
+                                    surface: cs.surface,
+                                    onSurface: cs.onSurface),
                               ],
                             ),
                           ),
@@ -1426,6 +1459,33 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     openEbookReader(context, itemId: _itemId, title: _title, ebookFile: ebookFile);
   }
 
+  void _openReadAlong() async {
+    var ebookFile = _ebookFile;
+    ebookFile ??= await cachedEbookFileFor(_itemId);
+    if (ebookFile == null) {
+      await _fetchChaptersIfNeeded();
+      ebookFile = _ebookFile;
+    }
+    if (!mounted) return;
+    if (ebookFile == null) {
+      showOverlayToast(context, AppLocalizations.of(context)!.noEbookFileFound, icon: Icons.menu_book_outlined);
+      return;
+    }
+    openEbookReader(context, itemId: _itemId, title: _title, ebookFile: ebookFile,
+        startReadAlong: true);
+  }
+
+  void _findInEbook() async {
+    var ebookFile = _ebookFile;
+    ebookFile ??= await cachedEbookFileFor(_itemId);
+    if (ebookFile == null) {
+      await _fetchChaptersIfNeeded();
+      ebookFile = _ebookFile;
+    }
+    if (!mounted) return;
+    launchFindInEbook(context, itemId: _itemId, title: _title, ebookFile: ebookFile);
+  }
+
   int _currentChapterIndex() {
     final cast = ChromecastService();
     final chapters = _isCastingThis ? cast.castingChapters : (_isActive ? widget.player.chapters : _chapters);
@@ -1563,7 +1623,10 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       PlayerSettings.setCardButtonVisibleCount(newCount);
     },
     isEbookPdf: _ebookExt == 'pdf',
+    isEbookEpub: _ebookExt == 'epub',
     onEbookTap: _openEbookReader,
+    onFindInEbookTap: _findInEbook,
+    onReadAlongTap: _openReadAlong,
   );
 
   int get _visibleButtonCount => _buttonVisibleCount;

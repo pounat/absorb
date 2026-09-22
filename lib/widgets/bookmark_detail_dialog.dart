@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,11 +11,18 @@ import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/bookmark_preview_player.dart';
+import '../services/chapter_lookup.dart';
 import '../services/download_service.dart';
 import '../utils/app_platform.dart';
 import 'adaptive_modal.dart';
+import '../services/ebook_cache.dart';
+import '../services/transcription_service.dart';
+import '../utils/episode_key.dart';
+import '../utils/passage_match.dart';
 import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
+import 'progress_dialog.dart';
+import 'quote_share_sheet.dart';
 
 /// Result of [BookmarkDetailSheet]. [action] is 'jump' (caller should seek
 /// there) or 'saved' (stay put, refresh). [position] is the possibly-nudged
@@ -25,14 +36,22 @@ typedef BookmarkDetailResult = ({String action, double position});
 /// the [ClipEditorSheet]. Persists on Save/Jump, then pops a [BookmarkDetailResult].
 class BookmarkDetailSheet extends StatefulWidget {
   final String itemId;
+
+  /// Set when the bookmark belongs to a podcast episode: storage, audio and
+  /// downloads are keyed 'itemId-episodeId', while anything the server answers
+  /// still goes by [itemId].
+  final String? episodeId;
   final Bookmark bookmark;
   final ApiService? api;
   const BookmarkDetailSheet({
     super.key,
     required this.itemId,
+    this.episodeId,
     required this.bookmark,
     this.api,
   });
+
+  String get _key => episodeKeyFor(itemId, episodeId);
 
   @override
   State<BookmarkDetailSheet> createState() => _BookmarkDetailSheetState();
@@ -44,6 +63,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
   late double _seconds;
   late final BookmarkPreviewPlayer _preview;
   bool _saving = false;
+  bool _transcriptionOn = false;
+  // Non-null when the book has an EPUB to cross-reference transcripts against.
+  Map<String, dynamic>? _epubForCrossRef;
   // Display-only speed division (speed-adjusted-time setting). _seconds stays
   // raw book time throughout - preview, clip export, jump and save all use it.
   double _displaySpeed = 1.0;
@@ -53,20 +75,46 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     super.initState();
     _titleC = TextEditingController(text: widget.bookmark.title);
     _noteC = TextEditingController(text: widget.bookmark.note ?? '');
+    // The Share quote button enables/disables with the note's content.
+    _noteC.addListener(() {
+      if (mounted) setState(() {});
+    });
     // Clamp a stray negative position to 0 so it shows 0:00 (not "59:59") and
     // self-heals to 0 if the user saves.
     _seconds = widget.bookmark.positionSeconds < 0 ? 0.0 : widget.bookmark.positionSeconds;
     _preview = BookmarkPreviewPlayer(
-        itemId: widget.itemId, api: widget.api, label: 'bookmark')
+        itemId: widget._key, api: widget.api, label: 'bookmark')
       ..clipLength = const Duration(seconds: 60)
       ..addListener(_onPreview);
     _loadDisplaySpeed();
+    PlayerSettings.getTranscriptionEnabled().then((on) {
+      if (mounted && on) setState(() => _transcriptionOn = true);
+    });
+    _resolveEpubForCrossRef();
+  }
+
+  /// Whether this book has an EPUB the transcript can be corrected against -
+  /// the cached copy first, then the item's metadata (fetched lazily at
+  /// transcribe time when it isn't cached yet).
+  Future<void> _resolveEpubForCrossRef() async {
+    if (widget.episodeId != null) return; // podcasts have no ebook to match
+    var ef = await cachedEbookFileFor(widget.itemId);
+    if (ef == null && widget.api != null) {
+      try {
+        final item = await widget.api!.getLibraryItem(widget.itemId);
+        ef = resolveEbookFile(item);
+      } catch (_) {}
+    }
+    if (ef == null || ebookExtFromFile(ef) != '.epub') return;
+    if (mounted) setState(() => _epubForCrossRef = ef);
   }
 
   Future<void> _loadDisplaySpeed() async {
     if (!await PlayerSettings.getSpeedAdjustedTime()) return;
     final player = AudioPlayerService();
-    final speed = player.currentItemId == widget.itemId
+    final speed = player.currentItemId == widget.itemId &&
+            (widget.episodeId == null ||
+                player.currentEpisodeId == widget.episodeId)
         ? player.speed
         : (await PlayerSettings.getBookSpeed(widget.itemId) ??
             await PlayerSettings.getDefaultSpeed());
@@ -123,7 +171,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     // iOS can't export from a streaming book, so prompt to download up front
     // rather than letting the user trim a clip and only fail at Save. Android
     // exports streamed clips fine, so it always opens the editor.
-    if (AppPlatform.isIOS && !DownloadService().isDownloaded(widget.itemId)) {
+    if (AppPlatform.isIOS && !DownloadService().isDownloaded(widget._key)) {
       await _promptDownload();
       return;
     }
@@ -137,7 +185,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => ClipEditorSheet(
-        itemId: widget.itemId,
+        itemId: widget._key,
         bookmarkSeconds: _seconds,
         bookmarkTitle:
             _titleC.text.trim().isEmpty ? widget.bookmark.title : _titleC.text.trim(),
@@ -176,19 +224,289 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     var author = '';
     try {
       final item = await api.getLibraryItem(widget.itemId);
-      final meta = (item?['media'] as Map<String, dynamic>?)?['metadata']
-          as Map<String, dynamic>?;
+      final media = item?['media'] as Map<String, dynamic>? ?? const {};
+      final meta = media['metadata'] as Map<String, dynamic>?;
       title = meta?['title'] as String? ?? title;
       author = meta?['authorName'] as String? ?? '';
+      // A podcast bookmark downloads its own episode, under the episode's name.
+      if (widget.episodeId != null) {
+        final ep = ((media['episodes'] as List<dynamic>?) ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .where((e) => e['id'] == widget.episodeId)
+            .firstOrNull;
+        final epTitle = ep?['title'] as String?;
+        if (author.isEmpty) author = title;
+        if (epTitle != null && epTitle.isNotEmpty) title = epTitle;
+      }
     } catch (_) {}
     await DownloadService().downloadItem(
       api: api,
-      itemId: widget.itemId,
+      itemId: widget._key,
+      episodeId: widget.episodeId,
       title: title,
       author: author,
       coverUrl: api.getCoverUrl(widget.itemId, width: 400),
       libraryId: libraryId,
     );
+  }
+
+  /// The book's own words for [transcript], when the EPUB can be fetched and
+  /// the passage confidently matched. Null keeps the raw transcript - a
+  /// failed fetch or an unconfident match must never block the transcription.
+  Future<String?> _ebookExactText(String transcript) async {
+    final ebookFile = _epubForCrossRef;
+    if (ebookFile == null) return null;
+    try {
+      var f = await ebookCacheFileFor(widget.itemId, ebookFile);
+      if (!f.existsSync() || await f.length() <= 0) {
+        final api = widget.api;
+        if (api == null) return null;
+        f = await fetchEbookToCache(api, widget.itemId, ebookFile, '');
+      }
+      return await compute(correctFromEpub, (epubPath: f.path, transcript: transcript));
+    } catch (e) {
+      debugPrint('[Transcribe] ebook cross-reference failed: $e');
+      return null;
+    }
+  }
+
+  String _mapTranscriptionError(AppLocalizations l, TranscriptionError kind) {
+    switch (kind) {
+      case TranscriptionError.disabled:
+        return l.transcriptionDisabledHint;
+      case TranscriptionError.modelMissing:
+        return l.transcriptionNoModelDownloaded;
+      case TranscriptionError.notDownloaded:
+        return l.transcriptionNotDownloadedBook;
+      case TranscriptionError.noMetadata:
+        return l.transcriptionNoMetadataMsg;
+      case TranscriptionError.busy:
+        return l.transcriptionBusyMsg;
+      case TranscriptionError.empty:
+        return l.transcriptionEmptyMsg;
+      case TranscriptionError.extractFailed:
+      case TranscriptionError.transcribeFailed:
+        return l.transcriptionFailedMsg;
+    }
+  }
+
+  /// Transcribe the audio around the (possibly nudged) bookmark time, let the
+  /// user review the text alongside the clip, then append it to the note and
+  /// persist. Downloaded books only - the service guards enforce the rest.
+  Future<void> _transcribe() async {
+    final l = AppLocalizations.of(context)!;
+    await _preview.stop();
+    if (!mounted) return;
+    if (!TranscriptionService.instance.canTranscribeBook(widget._key)) {
+      showOverlayToast(context, l.transcriptionNotDownloadedBook,
+          icon: Icons.download_rounded);
+      return;
+    }
+
+    // Set expectations before burning CPU (it takes a while, the text needs a
+    // once-over, the result lands in the note) and let the user pick how much
+    // audio to transcribe. The choices are remembered for next time.
+    var window = await PlayerSettings.getTranscriptionWindowSeconds();
+    var useEbookText = await PlayerSettings.getTranscriptionUseEbookText();
+    if (!mounted) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          icon: const Icon(Icons.record_voice_over_rounded),
+          title: Text(l.transcribe),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.transcriptionIntroBody),
+              const SizedBox(height: 16),
+              SegmentedButton<int>(
+                segments: [
+                  for (final s in const [15, 30, 60, 120])
+                    ButtonSegment(
+                        value: s,
+                        label: Text(s < 60 ? '${s}s' : '${s ~/ 60} min')),
+                ],
+                selected: {window},
+                showSelectedIcon: false,
+                onSelectionChanged: (sel) =>
+                    setDialogState(() => window = sel.first),
+              ),
+              if (_epubForCrossRef != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(children: [
+                    Expanded(
+                      child: Text(l.transcriptionUseEbookText,
+                          style: Theme.of(ctx).textTheme.bodySmall),
+                    ),
+                    Switch(
+                      value: useEbookText,
+                      onChanged: (v) =>
+                          setDialogState(() => useEbookText = v),
+                    ),
+                  ]),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.transcribe),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (go != true || !mounted) return;
+    await PlayerSettings.setTranscriptionWindowSeconds(window);
+    await PlayerSettings.setTranscriptionUseEbookText(useEbookText);
+    if (!mounted) return;
+
+    showProgressDialog(context, l.transcribing);
+
+    String? text;
+    String? error;
+    try {
+      final result = await TranscriptionService.instance.transcribeAt(
+        itemId: widget._key,
+        positionSeconds: _seconds,
+        windowSeconds: window.toDouble(),
+        preferAccuracy: _epubForCrossRef == null,
+      );
+      // No review playback anymore, so the extracted clip is done with.
+      try {
+        final f = File(result.audioPath);
+        if (f.existsSync()) await f.delete();
+      } catch (_) {}
+      text = result.text.trim();
+      // Cross-reference the ebook: a confident match swaps Whisper's
+      // approximation for the book's actual words. Still under the progress
+      // dialog - fetching an uncached epub plus matching can take a moment.
+      if (useEbookText && text.isNotEmpty) {
+        final exact = await _ebookExactText(text);
+        if (exact != null && exact.isNotEmpty) text = exact;
+      }
+    } on TranscriptionException catch (e) {
+      error = _mapTranscriptionError(l, e.kind);
+    } catch (_) {
+      error = l.transcriptionFailedMsg;
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss the progress dialog
+
+    if (error != null) {
+      showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+      return;
+    }
+
+    // Save straight into the note - a Share-then-back must never lose the
+    // text. Fixing mistakes and sharing both happen right here in the sheet.
+    final trimmed = (text ?? '').trim();
+    if (trimmed.isEmpty) return;
+    setState(() {
+      _noteC.text =
+          _noteC.text.trim().isEmpty ? trimmed : '${_noteC.text.trim()}\n\n$trimmed';
+    });
+    await _persist();
+    if (mounted) {
+      setState(() => _saving = false);
+      showOverlayToast(context, l.transcriptionSavedToNote,
+          icon: Icons.note_add_rounded);
+    }
+  }
+
+  /// Share whatever is in the note field as a quote card - a saved transcript
+  /// or a hand-written note, it makes no difference.
+  Future<void> _shareNote() async {
+    await _preview.stop();
+    final quote = _noteC.text.trim();
+    if (quote.isEmpty) return;
+    final meta = await _quoteMetadata();
+    if (!mounted) return;
+    await showQuoteShareSheet(
+      context,
+      itemId: widget._key,
+      quote: quote,
+      bookTitle: meta.title,
+      author: meta.author,
+      chapter: meta.chapter,
+    );
+  }
+
+  /// Title, author and audio-chapter name for the quote card, from whatever
+  /// already knows this book - the live player, the download entry, the cached
+  /// offline session - with one server fetch as the last resort. Anything that
+  /// stays null just drops off the card.
+  Future<({String? title, String? author, String? chapter})> _quoteMetadata() async {
+    final player = AudioPlayerService();
+    List<dynamic> chapters = const [];
+    double duration = 0;
+    if (player.currentItemId == widget.itemId &&
+        (widget.episodeId == null ||
+            player.currentEpisodeId == widget.episodeId)) {
+      chapters = player.chapters;
+      duration = player.totalDuration;
+    }
+
+    final info = DownloadService().getInfo(widget._key);
+    String? title = info.title;
+    String? author = info.author;
+
+    if (chapters.isEmpty) {
+      final raw = DownloadService().getCachedSessionData(widget._key);
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final session = jsonDecode(raw) as Map<String, dynamic>;
+          chapters = session['chapters'] as List<dynamic>? ?? const [];
+          if (duration <= 0) {
+            duration = (session['duration'] as num?)?.toDouble() ?? 0;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (((title ?? '').isEmpty || chapters.isEmpty) && widget.api != null) {
+      try {
+        final item = await widget.api!.getLibraryItem(widget.itemId);
+        final media = item?['media'] as Map<String, dynamic>? ?? {};
+        final meta = media['metadata'] as Map<String, dynamic>? ?? {};
+        final ep = widget.episodeId == null
+            ? null
+            : ((media['episodes'] as List<dynamic>?) ?? const [])
+                .whereType<Map<String, dynamic>>()
+                .where((e) => e['id'] == widget.episodeId)
+                .firstOrNull;
+        if ((title ?? '').isEmpty) {
+          title = (ep?['title'] as String?) ?? meta['title'] as String?;
+        }
+        if ((author ?? '').isEmpty) {
+          author = (meta['authorName'] as String?) ??
+              (ep != null ? meta['title'] as String? : null);
+        }
+        if (chapters.isEmpty) {
+          chapters = (ep?['chapters'] ?? media['chapters']) as List<dynamic>? ??
+              const [];
+        }
+        if (duration <= 0) {
+          duration = ((ep?['duration'] ?? media['duration']) as num?)?.toDouble() ?? 0;
+        }
+      } catch (_) {}
+    }
+
+    String? chapterTitle;
+    final idx = ChapterLookup.indexAtWithGrace(chapters, _seconds, duration);
+    if (idx != null) {
+      final t = ((chapters[idx] as Map<String, dynamic>)['title'] as String?)?.trim();
+      if (t != null && t.isNotEmpty) chapterTitle = t;
+    }
+    return (title: title, author: author, chapter: chapterTitle);
   }
 
   Future<void> _persist() async {
@@ -201,7 +519,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     final newNote = _noteC.text.trim();
     final svc = BookmarkService();
     await svc.updateBookmark(
-      itemId: widget.itemId,
+      itemId: widget._key,
       bookmarkId: widget.bookmark.id,
       title: newTitle,
       note: newNote,
@@ -209,7 +527,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     );
     if ((_seconds - widget.bookmark.positionSeconds).abs() >= 0.05) {
       await svc.moveBookmark(
-        itemId: widget.itemId,
+        itemId: widget._key,
         bookmarkId: widget.bookmark.id,
         newPositionSeconds: _seconds,
         api: widget.api,
@@ -317,8 +635,28 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                   onPressed: _saving ? null : _openClipEditor,
                 ),
               ),
-              const SizedBox(height: 16),
             ],
+            if (_transcriptionOn) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.record_voice_over_rounded, size: 18),
+                  label: Text(l.transcribe),
+                  onPressed: _saving ? null : _transcribe,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.ios_share_rounded, size: 18),
+                label: Text(l.quoteShareTitle),
+                onPressed: _saving || _noteC.text.trim().isEmpty ? null : _shareNote,
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

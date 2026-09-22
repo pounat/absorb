@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../utils/episode_key.dart';
 import 'api_service.dart';
 import 'download_service.dart';
 
@@ -15,6 +16,10 @@ typedef TrackHit = ({int index, double localOffset, BookTrack track});
 /// use the local files + cached track durations; streamed books build per-file
 /// URLs from the library item. Kept in one place so the preview player and the
 /// exporter can't drift apart on multi-file mapping.
+///
+/// [itemId] may be a podcast's compound "showId-episodeId" key. Downloads and
+/// cached sessions are stored under the whole key; the API needs the show id
+/// and the episode's own audio file.
 class BookTrackResolver {
   static Future<List<BookTrack>?> resolve(String itemId, ApiService? api) async {
     // Downloaded book: local files + cached track durations.
@@ -42,9 +47,34 @@ class BookTrackResolver {
 
     // Streamed book: build per-file URLs from the library item.
     if (api == null) return null;
-    final item = await api.getLibraryItem(itemId);
+    final ids = splitEpisodeKey(itemId);
+    final item = await api.getLibraryItem(ids.itemId);
     if (item == null) return null;
     final media = item['media'] as Map<String, dynamic>? ?? {};
+
+    // A podcast item has no audioFiles - each episode carries its own single
+    // file, and its bookmark times are relative to that file.
+    final episodeId = ids.episodeId;
+    if (episodeId != null) {
+      for (final ep in ((media['episodes'] as List<dynamic>?) ?? const [])
+          .whereType<Map<String, dynamic>>()) {
+        if (ep['id'] != episodeId) continue;
+        final af = ep['audioFile'] as Map<String, dynamic>?;
+        final ino = af?['ino']?.toString();
+        if (ino == null || ino.isEmpty) return null;
+        return [
+          (
+            source: api.buildFileUrl(ids.itemId, ino),
+            duration: (af?['duration'] as num?)?.toDouble() ??
+                (ep['duration'] as num?)?.toDouble() ??
+                0,
+            local: false,
+          ),
+        ];
+      }
+      return null;
+    }
+
     final audioFiles = ((media['audioFiles'] as List<dynamic>?) ?? const [])
         .whereType<Map<String, dynamic>>()
         .toList()
@@ -54,7 +84,7 @@ class BookTrackResolver {
     return [
       for (final af in audioFiles)
         (
-          source: api.buildFileUrl(itemId, af['ino']?.toString() ?? ''),
+          source: api.buildFileUrl(ids.itemId, af['ino']?.toString() ?? ''),
           duration: (af['duration'] as num?)?.toDouble() ?? 0,
           local: false,
         ),

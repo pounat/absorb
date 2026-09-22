@@ -67,6 +67,18 @@ extension CardScrubberModeBehavior on CardScrubberMode {
 }
 
 class PlayerSettings {
+  /// Swatches offered for the read along and live transcript color.
+  static const List<int> readAlongPalette = [
+  0xFFFFC400,
+  0xFFFF6D00,
+  0xFFFF1744,
+  0xFFFF4081,
+  0xFFD500F9,
+  0xFF2979FF,
+  0xFF00B8D4,
+  0xFF00C853,
+];
+
   /// Notifier that fires when any player setting changes.
   /// Widgets can listen to this instead of polling SharedPreferences.
   static final ChangeNotifier settingsChanged = ChangeNotifier();
@@ -237,6 +249,136 @@ class PlayerSettings {
   static Future<String> getBookmarkSort() => _get('bookmarkSort', 'newest');
   static Future<void> setBookmarkSort(String value) =>
       _set('bookmarkSort', value);
+
+  // On-device bookmark transcription (Whisper, opt-in). Stored globally
+  // (raw SharedPreferences, not per-account) because the downloaded Whisper
+  // model is shared across every profile on the device.
+
+  static Future<bool> getTranscriptionEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('transcriptionEnabled') ?? false;
+  }
+  static Future<void> setTranscriptionEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('transcriptionEnabled', value);
+    _notify();
+  }
+
+  /// How much audio a bookmark transcription covers, in seconds.
+  static Future<int> getTranscriptionWindowSeconds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('transcriptionWindowSeconds') ?? 30;
+  }
+  static Future<void> setTranscriptionWindowSeconds(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('transcriptionWindowSeconds', value);
+  }
+
+  /// Replace a bookmark transcript with the ebook's exact text when a
+  /// confident match is found (only offered when the book has an EPUB).
+  static Future<bool> getTranscriptionUseEbookText() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('transcriptionUseEbookText') ?? true;
+  }
+  static Future<void> setTranscriptionUseEbookText(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('transcriptionUseEbookText', value);
+  }
+
+  /// Live transcript overlay: line font size and how many lines may wrap.
+  static Future<double> getLyricsFontSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('lyricsFontSize') ?? 16;
+  }
+  static Future<void> setLyricsFontSize(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('lyricsFontSize', value);
+  }
+  static Future<bool> getLyricsIntroShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('lyricsIntroShown') ?? false;
+  }
+  static Future<void> setLyricsIntroShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('lyricsIntroShown', true);
+  }
+
+  /// Color the spoken words are painted in for read along and the live
+  /// transcript overlay, as an ARGB value. Amber by default: it stays legible
+  /// on the light, sepia and dark reader themes alike.
+  static const int defaultReadAlongColor = 0xFFFFC400;
+  static Future<int> getReadAlongColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('readAlongColor') ?? defaultReadAlongColor;
+  }
+  static Future<void> setReadAlongColor(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('readAlongColor', value);
+  }
+
+  /// How closely read along follows the narration: 'word' colors one word at
+  /// a time with the rest of the sentence dimmed, 'sentence' colors the whole
+  /// sentence at once.
+  static Future<String> getReadAlongMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('readAlongMode') ?? 'word';
+  }
+  static Future<void> setReadAlongMode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('readAlongMode', value);
+  }
+
+  /// How far ahead of your ears the playhead runs, in milliseconds, so the
+  /// transcript can be held back to match. Bluetooth adds a couple of hundred
+  /// milliseconds that the phone's own speaker doesn't, so the two are
+  /// remembered separately and picked by whatever you are listening on.
+  static Future<int> getTranscriptOffsetMs({required bool bluetooth}) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(bluetooth ? 'transcriptOffsetBt' : 'transcriptOffset') ?? 0;
+  }
+  static Future<void> setTranscriptOffsetMs(int value,
+      {required bool bluetooth}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+        bluetooth ? 'transcriptOffsetBt' : 'transcriptOffset', value);
+  }
+
+  /// Whether the live transcript takes over the whole cover instead of
+  /// sitting in a strip across the bottom of it.
+  static Future<bool> getLyricsFullCover() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('lyricsFullCover') ?? true;
+  }
+  static Future<void> setLyricsFullCover(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('lyricsFullCover', value);
+  }
+
+  static Future<int> getLyricsMaxLines() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('lyricsMaxLines') ?? 3;
+  }
+  static Future<void> setLyricsMaxLines(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lyricsMaxLines', value);
+  }
+
+  /// Where Find in audiobook lands on success: true = switch to the player,
+  /// false = stay in the reader while the audio plays.
+  /// Where a successful Find in audiobook lands: 'stay' in the reader,
+  /// 'player', or 'readalong' - stay and switch read along on from there.
+  static Future<String> getFindInAudiobookAfter() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getString('findInAudiobookAfter');
+    if (v != null) return v;
+    // The setting used to be a two-way switch.
+    final old = prefs.getBool('findInAudiobookGoToPlayer');
+    return old == false ? 'stay' : 'player';
+  }
+  static Future<void> setFindInAudiobookAfter(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('findInAudiobookAfter', value);
+  }
 
   // The dedicated Podcasts tab implies merged behavior: playback must survive
   // the tab-driven library flips and the Absorbing tab must keep showing the
@@ -870,6 +1012,14 @@ class PlayerSettings {
   static Future<void> setDuckBriefInterruptions(bool value) =>
       _set('duckBriefInterruptions', value, notify: true);
 
+  // GH #371: start the last played book when the car (Android Auto or
+  // CarPlay) connects and nothing is loaded yet. The warm case (session
+  // alive but paused) belongs to the car system's own resume behavior; this
+  // covers the cold start where no session exists for it to resume.
+  static Future<bool> getAutoplayOnCarConnect() => _get('autoplayOnCarConnect', false);
+  static Future<void> setAutoplayOnCarConnect(bool value) =>
+      _set('autoplayOnCarConnect', value);
+
   // When true, the system media scrubber still shows progress but can't be
   // dragged to seek - stops accidental position jumps from the notification,
   // lockscreen, Android Auto and CarPlay. Implemented by dropping the seek
@@ -925,13 +1075,10 @@ class PlayerSettings {
   /// 'off' | 'addTime' | 'resetTimer'. A press inside the wind-down window
   /// resets or extends the timer instead of pausing.
   static Future<String> getSleepButtonMode() => _get('sleepButtonMode', 'off');
-  static Future<void> setSleepButtonMode(String v) =>
-      _set('sleepButtonMode', v);
+  static Future<void> setSleepButtonMode(String v) => _set('sleepButtonMode', v);
 
-  static Future<bool> getResetSleepOnPause() =>
-      _get('resetSleepOnPause', false);
-  static Future<void> setResetSleepOnPause(bool value) =>
-      _set('resetSleepOnPause', value);
+  static Future<bool> getResetSleepOnPause() => _get('resetSleepOnPause', false);
+  static Future<void> setResetSleepOnPause(bool value) => _set('resetSleepOnPause', value);
 
   static Future<bool> getSleepFadeOut() => _get('sleepFadeOut', true);
   static Future<void> setSleepFadeOut(bool value) =>
@@ -1160,6 +1307,11 @@ class PlayerSettings {
   static Future<void> setEreaderVolumeNavWhilePlaying(bool value) =>
       _set('ereaderVolumeNavWhilePlaying', value, notify: true);
 
+  static Future<double> getEreaderAutoScrollSpeed() => _get('ereaderAutoScrollSpeed', 40.0);
+  static Future<void> setEreaderAutoScrollSpeed(double value) => _set('ereaderAutoScrollSpeed', value);
+  static Future<int> getEreaderAutoScrollSleepMinutes() => _get('ereaderAutoScrollSleepMinutes', 30);
+  static Future<void> setEreaderAutoScrollSleepMinutes(int value) => _set('ereaderAutoScrollSleepMinutes', value);
+
   /// When on, the screen is locked to portrait (rotation disabled). Default off
   /// keeps the current behaviour where all orientations are allowed.
   static Future<bool> getLockPortrait() => _get('lockPortrait', false);
@@ -1178,6 +1330,15 @@ class PlayerSettings {
   static Future<bool> getRectangleCovers() => _get('rectangleCovers', false);
   static Future<void> setRectangleCovers(bool value) =>
       _set('rectangleCovers', value, notify: true);
+
+  /// Cached value for synchronous access in grid builders.
+  /// 'small' | 'medium' | 'large'; medium keeps the long-standing layout.
+  static String coverSize = 'medium';
+  static Future<String> getCoverSize() => _get('coverSize', 'medium');
+  static Future<void> setCoverSize(String value) async {
+    coverSize = value;
+    await _set('coverSize', value, notify: true);
+  }
 
   /// Per-library cover-shape override: 'rect', 'square', or null (= follow
   /// the global toggle). Lets an ebook library run tall covers while the
@@ -1208,6 +1369,36 @@ class PlayerSettings {
     return getRectangleCovers();
   }
 
+  static Future<bool> getShowSubtitles() => _get('showSubtitles', false);
+  static Future<void> setShowSubtitles(bool value) => _set('showSubtitles', value, notify: true);
+
+  /// Per-library subtitle override: 'show', 'hide', or null (= follow the
+  /// global toggle). Most libraries leave the field empty, so a library that
+  /// does fill it in can show subtitles without the rest going taller.
+  static Future<String?> getShowSubtitlesOverride(String libraryId) async {
+    final v = await ScopedPrefs.getString('showSubtitles_$libraryId');
+    return (v == 'show' || v == 'hide') ? v : null;
+  }
+
+  static Future<void> setShowSubtitlesOverride(String libraryId, String? value) async {
+    if (value == null) {
+      await ScopedPrefs.remove('showSubtitles_$libraryId');
+    } else {
+      await ScopedPrefs.setString('showSubtitles_$libraryId', value);
+    }
+    _notify();
+  }
+
+  /// Subtitle visibility for a library: its override if set, else the global
+  /// toggle.
+  static Future<bool> getShowSubtitlesFor(String? libraryId) async {
+    if (libraryId != null) {
+      final v = await getShowSubtitlesOverride(libraryId);
+      if (v != null) return v == 'show';
+    }
+    return getShowSubtitles();
+  }
+
   static Future<bool> getSectionGridView() => _get('sectionGridView', false);
   static Future<void> setSectionGridView(bool value) =>
       _set('sectionGridView', value);
@@ -1218,10 +1409,14 @@ class PlayerSettings {
 
   /// Absorbing-card background style: 'blurred' (cover blur, default), 'gradient'
   /// (gradient from the extracted cover colors), or 'off' (plain theme surface).
-  static Future<String> getCardBackground() =>
+  static Future<String> getCardBackground() async =>
+      einkMode ? 'off' : await getCardBackgroundRaw();
+
+  /// The stored value, for backup/sync export - the plain getter reports
+  /// 'off' while e-ink mode is on, which must not leak into synced settings.
+  static Future<String> getCardBackgroundRaw() =>
       _get('cardBackground', 'blurred');
-  static Future<void> setCardBackground(String value) =>
-      _set('cardBackground', value, notify: true);
+  static Future<void> setCardBackground(String value) => _set('cardBackground', value, notify: true);
 
   // ── Self-signed certificates (global, not per-user) ──
 
@@ -1260,22 +1455,7 @@ class PlayerSettings {
 
   // ── Card button order ──
 
-  static const defaultButtonOrder = [
-    'chapters',
-    'speed',
-    'sleep',
-    'bookmarks',
-    'details',
-    'ebook',
-    'equalizer',
-    'cast',
-    'airplay',
-    'history',
-    'remove',
-    'car',
-    'notes',
-    'download',
-  ];
+  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'lyrics', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'download'];
 
   static Future<List<String>> getCardButtonOrder() async {
     final stored = await ScopedPrefs.getStringList('card_button_order');
@@ -1387,6 +1567,16 @@ class PlayerSettings {
   /// switches surfaces to pure black (OLED); in light mode to flat white.
   static Future<bool> getFlatBackground() => _get('flatBackground', false);
   static Future<void> setFlatBackground(bool v) => _set('flatBackground', v);
+
+  /// E-ink mode: an override layer for e-ink screens - light flat monochrome
+  /// theme, no animations, plain cards, and the live socket stays down for
+  /// battery. The user's individual appearance settings are left untouched so
+  /// turning it off restores everything. Device-specific by nature, so it is
+  /// deliberately absent from settings sync and backups. The static mirrors
+  /// the stored value for cheap checks from non-async code.
+  static bool einkMode = false;
+  static Future<bool> getEinkMode() => _get('einkMode', false);
+  static Future<void> setEinkMode(bool v) => _set('einkMode', v);
 
   /// Seed color (ARGB int) used when [getColorSource] is 'manual'.
   static Future<int> getManualSeedColor() =>

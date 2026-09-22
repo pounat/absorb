@@ -10,6 +10,7 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
 import 'book_detail_sheet.dart';
+import 'books_sheet_shared.dart' show coverGridCount;
 import 'episode_detail_sheet.dart';
 import 'overlay_toast.dart';
 import 'swipe_action.dart';
@@ -252,7 +253,7 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4)
           .copyWith(bottom: 40),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+        crossAxisCount: coverGridCount(context),
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childAspectRatio: childAspectRatio,

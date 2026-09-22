@@ -34,23 +34,31 @@ class QuickActionsService {
     if (_initialised) return;
     _initialised = true;
 
-    _quickActions.initialize((type) {
-      debugPrint('[QuickActions] triggered: $type');
-      switch (type) {
-        case _typeContinue:
-          _handleContinue();
-          break;
-        case _typeDownloads:
-          _handleDownloads();
-          break;
-        case _typeSearch:
-          _handleSearch();
-          break;
-        case _typeBookmarks:
-          _handleBookmarks();
-          break;
-      }
-    });
+    // Await inside try/catch: on a headless relaunch (Android restoring the
+    // media session after a swipe-away) there is no Activity, so the plugin's
+    // getLaunchAction throws - and as an unhandled async error it restarted
+    // the whole engine, splitting listening into duplicate sessions (GH #352).
+    try {
+      await _quickActions.initialize((type) {
+        debugPrint('[QuickActions] triggered: $type');
+        switch (type) {
+          case _typeContinue:
+            _handleContinue();
+            break;
+          case _typeDownloads:
+            _handleDownloads();
+            break;
+          case _typeSearch:
+            _handleSearch();
+            break;
+          case _typeBookmarks:
+            _handleBookmarks();
+            break;
+        }
+      });
+    } catch (e) {
+      debugPrint('[QuickActions] initialize failed (headless launch?): $e');
+    }
 
     // iOS relies on static UIApplicationShortcutItems entries in Info.plist
     // so it can use UIKit system icon types (.play, .search, .cloud, .bookmark)

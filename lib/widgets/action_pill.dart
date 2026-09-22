@@ -7,12 +7,16 @@ class ActionPillData {
   final VoidCallback onTap;
   final bool enabled;
   final Color? tint;
+
+  /// Optional hold action, for grids the user can rearrange.
+  final VoidCallback? onLongPress;
   const ActionPillData({
     required this.icon,
     required this.label,
     required this.onTap,
     this.enabled = true,
     this.tint,
+    this.onLongPress,
   });
 }
 
@@ -54,6 +58,7 @@ class _ActionPill extends StatelessWidget {
     final textColor = data.enabled ? cs.onSurface : cs.onSurface.withValues(alpha: 0.24);
     return GestureDetector(
       onTap: data.onTap,
+      onLongPress: data.onLongPress,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
         decoration: BoxDecoration(

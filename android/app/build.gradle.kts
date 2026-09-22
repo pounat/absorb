@@ -47,6 +47,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        resValue("string", "app_name", "Absorb")
         buildConfigField(
             "int",
             "ABSORB_BASE_VERSION_CODE",
@@ -68,6 +69,14 @@ android {
             dimension = "distribution"
             proguardFiles("proguard-flutter-keep.pro")
         }
+        // Local testing build that installs beside the stable app: its own
+        // application id, name and icon tint, otherwise the github build.
+        create("dev") {
+            dimension = "distribution"
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "Absorb Dev")
+            proguardFiles("proguard-flutter-keep.pro")
+        }
         // GMS-free build for F-Droid: no Chromecast, Wear bridge, or in-app updater.
         create("fdroid") {
             dimension = "distribution"
@@ -81,6 +90,7 @@ android {
     sourceSets {
         getByName("github").java.srcDir("src/gms/kotlin")
         getByName("playstore").java.srcDir("src/gms/kotlin")
+        getByName("dev").java.srcDir("src/gms/kotlin")
     }
 
     buildTypes {
@@ -130,8 +140,9 @@ android {
             // word "universal" stays in the name because newer updaters match it
             // as a token when no per-ABI build fits.
             val packageKind = abi ?: "all-universal"
+            val flavorTag = if (variant.flavorName == "dev") "-dev" else ""
             output.outputFileName =
-                "absorb-${variant.versionName}-${variant.versionCode}-$packageKind.apk"
+                "absorb-${variant.versionName}-${variant.versionCode}$flavorTag-$packageKind.apk"
         }
     }
 }
@@ -147,6 +158,11 @@ dependencies {
     // SAF document moves for custom download folders (MainActivity.moveBookToSaf).
     implementation("androidx.documentfile:documentfile:1.0.1")
 
+    // Baseline armv8-a whisper engine for CPUs without dotprod/fp16 (Boox
+    // Palma and friends); the plugin's Dart side picks it over the fast lib
+    // at runtime.
+    implementation(project(":whisper_ggml_plus_compat"))
+
     // Google Play Services — Chromecast + Wearable Data Layer (pushes ABS
     // session credentials to the paired Wear OS app so the watch can sign in
     // without typing on the watch keyboard). Scoped to github + playstore so
@@ -159,6 +175,7 @@ dependencies {
     gmsImpl.forEach {
         add("githubImplementation", it)
         add("playstoreImplementation", it)
+        add("devImplementation", it)
     }
 }
 

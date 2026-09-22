@@ -13,10 +13,13 @@ import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
+import '../services/lyrics_service.dart';
+import '../services/transcription_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/playback_history_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/sleep_timer_service.dart';
+import '../utils/episode_key.dart';
 import 'absorb_slider.dart';
 import 'absorbing_shared.dart';
 import 'adaptive_modal.dart';
@@ -33,6 +36,15 @@ import 'listening_session_card.dart';
 import 'notes_sheet.dart';
 import 'overlay_toast.dart';
 import 'sleep_timer_sheet.dart';
+import 'transcription_download_prompt.dart';
+
+/// E-ink screens dither faint greys and cover-colored accents into noise, so
+/// the card controls bump to near-black when e-ink mode is on. Disabled stays
+/// visibly lighter than enabled, just dark enough to survive the panel.
+Color _inkAccent(Color accent) =>
+    PlayerSettings.einkMode ? Colors.black : accent;
+double _inkAlpha(double normal, double eink) =>
+    PlayerSettings.einkMode ? eink : normal;
 
 /// Wrapper that gives any child a press-down opacity+scale effect.
 class Pressable extends StatefulWidget {
@@ -114,16 +126,23 @@ class CardWideButton extends StatelessWidget {
     final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
     final showIconOnly = compact || iconsOnly;
     final fgColor = highlighted
-        ? accent
-        : (enabled ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24));
+        ? _inkAccent(accent)
+        : (enabled
+            ? cs.onSurfaceVariant
+            : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)));
     return Pressable(
       onTap: enabled ? onTap : () => showInactiveToast(context),
       child: Container(
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
-          color: highlighted ? accent.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.06),
+          color: highlighted
+              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
+              : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: highlighted ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
+          border: Border.all(
+              color: highlighted
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
         ),
         child: showIconOnly
           ? Center(child: Icon(icon, size: iconSize, color: fgColor))
@@ -132,7 +151,7 @@ class CardWideButton extends StatelessWidget {
               children: [
                 Icon(icon, size: iconSize, color: fgColor),
                 const SizedBox(width: 6),
-                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
+                Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
                   color: fgColor,
                   fontSize: fontSize, fontWeight: FontWeight.w500))),
               ],
@@ -169,14 +188,18 @@ class MoreMenuItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
         ),
         child: Column(mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 22, color: enabled ? accent.withValues(alpha: 0.85) : cs.onSurface.withValues(alpha: 0.24)),
+          Icon(icon, size: 22, color: enabled
+              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.85, 1.0))
+              : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))),
           const SizedBox(height: 7),
           Flexible(child: Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: enabled ? cs.onSurface.withValues(alpha: 0.85) : cs.onSurface.withValues(alpha: 0.24),
+              color: enabled
+                  ? cs.onSurface.withValues(alpha: _inkAlpha(0.85, 1.0))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)),
               fontSize: 11, fontWeight: FontWeight.w500, height: 1.15))),
         ]),
       ),
@@ -229,9 +252,13 @@ class CardSleepButtonInline extends StatelessWidget {
             height: h,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: active ? accent.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.06),
+              color: active
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: active ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
+              border: Border.all(color: active
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
             ),
             child: Stack(children: [
               if (active && isTime)
@@ -239,17 +266,17 @@ class CardSleepButtonInline extends StatelessWidget {
                   widthFactor: sleep.timeProgress.clamp(0.0, 1.0),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
+                      color: _inkAccent(accent).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(radius - 1),
                     ),
                   ),
                 ),
               Center(child: (compact || iconsOnly) && !active
                 ? Icon(Icons.nightlight_round_outlined, size: iconSz,
-                    color: isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))
+                    color: isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)))
                 : iconsOnly && active
-                  ? Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
-                      color: accent,
+                  ? Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
+                      color: _inkAccent(accent),
                       fontSize: fontSize,
                       fontWeight: FontWeight.w700,
                       fontFeatures: isTime ? const [FontFeature.tabularFigures()] : null,
@@ -258,10 +285,10 @@ class CardSleepButtonInline extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.nightlight_round_outlined, size: iconSz,
-                        color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24))),
+                        color: active ? _inkAccent(accent) : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)))),
                       SizedBox(width: compact ? 4 : 8),
-                      Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
-                        color: active ? accent : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.24)),
+                      Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
+                        color: active ? _inkAccent(accent) : (isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))),
                         fontSize: fontSize,
                         fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                         fontFeatures: active && isTime ? const [FontFeature.tabularFigures()] : null,
@@ -334,9 +361,13 @@ class CardDownloadButtonInline extends StatelessWidget {
             height: h,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: downloaded ? dlGreen.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.06),
+              color: downloaded
+                  ? dlGreen.withValues(alpha: _inkAlpha(0.1, 0.12))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: downloaded ? dlGreen.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
+              border: Border.all(color: downloaded
+                  ? dlGreen.withValues(alpha: _inkAlpha(0.3, 0.9))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
             ),
             child: Stack(children: [
               if (downloading)
@@ -356,7 +387,7 @@ class CardDownloadButtonInline extends StatelessWidget {
                     children: [
                       Icon(icon, size: iconSz, color: color),
                       SizedBox(width: compact ? 4 : 8),
-                      Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
+                      Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
                         color: color, fontSize: fontSize,
                         fontWeight: downloaded || downloading ? FontWeight.w700 : FontWeight.w500,
                       ))),
@@ -378,7 +409,7 @@ class CardDownloadButtonInline extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
           TextButton(onPressed: () {
-            dl.deleteDownload(_key);
+            dl.deleteDownload(_key, byUser: true);
             Navigator.pop(ctx);
             showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
           }, child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
@@ -404,11 +435,17 @@ class CardBookmarkButtonInline extends StatefulWidget {
   final Color accent;
   final bool isActive;
   final String itemId;
+  final String? episodeId;
   final bool large;
   final bool compact;
   final bool short;
   final bool iconsOnly;
-  const CardBookmarkButtonInline({super.key, required this.player, required this.accent, required this.isActive, required this.itemId, this.large = false, this.compact = false, this.short = false, this.iconsOnly = false});
+  const CardBookmarkButtonInline({super.key, required this.player, required this.accent, required this.isActive, required this.itemId, this.episodeId, this.large = false, this.compact = false, this.short = false, this.iconsOnly = false});
+
+  // Podcast bookmarks are keyed 'showId-episodeId' so each episode keeps its
+  // own; books use the plain itemId.
+  String get _key => episodeKeyFor(itemId, episodeId);
+
   @override State<CardBookmarkButtonInline> createState() => _CardBookmarkButtonInlineState();
 }
 
@@ -419,16 +456,21 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
   Future<void> _syncThenLoadCount() async {
     // Show local count immediately
     _loadCount();
-    // Then sync with server and update
-    final api = AudioPlayerService().currentApi;
+    // Then sync with server and update. The player's api is null when no book
+    // is loaded (browsing a not-playing book), so fall back to the signed-in
+    // one - server bookmarks should appear either way. Episode bookmarks never
+    // go to the server, so there is nothing to wait for.
+    if (widget.episodeId != null) return;
+    final api = AudioPlayerService().currentApi ??
+        (mounted ? context.read<AuthProvider>().apiService : null);
     if (api != null) {
-      await BookmarkService().syncBookmarks(widget.itemId, api);
+      await BookmarkService().syncBookmarks(widget._key, api);
       _loadCount();
     }
   }
 
   Future<void> _loadCount() async {
-    final c = await BookmarkService().getCount(widget.itemId);
+    final c = await BookmarkService().getCount(widget._key);
     if (mounted) setState(() => _count = c);
   }
 
@@ -450,9 +492,9 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: 0.06),
+          color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
         ),
         child: cp || widget.iconsOnly
           ? Center(child: Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant))
@@ -461,7 +503,7 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
               children: [
                 Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant),
                 const SizedBox(width: 8),
-                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
+                Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
                   color: cs.onSurfaceVariant, fontSize: fontSize, fontWeight: FontWeight.w500))),
               ],
             ),
@@ -488,7 +530,7 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       final e = (m['end'] as num?)?.toDouble() ?? 0;
       if (pos >= s && pos < e) { chTitle = m['title'] as String?; break; }
     }
-    await BookmarkService().addBookmark(itemId: widget.itemId, positionSeconds: pos, title: chTitle ?? l.bookmark, api: AudioPlayerService().currentApi);
+    await BookmarkService().addBookmark(itemId: widget._key, positionSeconds: pos, title: chTitle ?? l.bookmark, api: AudioPlayerService().currentApi);
     _loadCount();
     if (ctx.mounted) {
       showOverlayToast(ctx, l.bookmarkAdded,
@@ -500,7 +542,7 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
     showAdaptiveSheetDialog(
       context: context, widthClass: DialogWidthClass.action, backgroundColor: Colors.transparent, useSafeArea: true,
       initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
-      builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
+      builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, episodeId: widget.episodeId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
     );
   }
 }
@@ -584,9 +626,9 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
           child: Container(
             height: h,
             decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.06),
+              color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+              border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
             ),
             child: content,
           ),
@@ -652,7 +694,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
   }
   void _setSpeed(double v) {
     final s = (v * 20).round() / 20.0;
-    setState(() => _speed = s.clamp(0.5, 3.0));
+    setState(() => _speed = s.clamp(0.5, 5.0));
     if (_isCasting) {
       ChromecastService().setSpeed(_speed);
     } else if (widget.player.hasBook) {
@@ -724,7 +766,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
               child: Icon(Icons.remove_rounded, size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
             ),
           ),
-          Expanded(child: AbsorbSlider(value: _speed, min: 0.5, max: 3.0, divisions: 50, activeColor: widget.accent, onChanged: _setSpeed)),
+          Expanded(child: AbsorbSlider(value: _speed, min: 0.5, max: 5.0, divisions: 90, activeColor: widget.accent, onChanged: _setSpeed)),
           GestureDetector(
             onTap: () => _setSpeed(_speed + 0.05),
             child: Container(
@@ -738,7 +780,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('0.5x', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 11)),
-            Text('3.0x', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 11)),
+            Text('5.0x', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 11)),
           ],
         )),
       ]),
@@ -749,8 +791,12 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
 // ─── BOOKMARK SHEET ──────────────────────────────────────────
 
 class SimpleBookmarkSheet extends StatefulWidget {
-  final String itemId; final AudioPlayerService player; final Color accent; final ScrollController scrollController; final VoidCallback onChanged;
-  const SimpleBookmarkSheet({super.key, required this.itemId, required this.player, required this.accent, required this.scrollController, required this.onChanged});
+  final String itemId; final String? episodeId; final AudioPlayerService player; final Color accent; final ScrollController scrollController; final VoidCallback onChanged;
+  const SimpleBookmarkSheet({super.key, required this.itemId, this.episodeId, required this.player, required this.accent, required this.scrollController, required this.onChanged});
+
+  /// Storage key: 'showId-episodeId' for a podcast episode, the item id for a
+  /// book. [itemId] stays the library item for anything the server answers.
+  String get _key => episodeKeyFor(itemId, episodeId);
   @override State<SimpleBookmarkSheet> createState() => _SimpleBookmarkSheetState();
 }
 
@@ -783,20 +829,23 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     // Show the local bookmarks first so the sheet never hangs on a slow or
     // unreachable server (it used to await the sync before loading anything,
     // which spun forever if the server didn't respond). Then sync in the
-    // background and refresh with whatever it pulled in.
+    // background and refresh with whatever it pulled in. The player's api is
+    // null when this book isn't loaded - fall back to the signed-in one.
     await _load();
-    final api = AudioPlayerService().currentApi;
+    if (widget.episodeId != null) return; // episode bookmarks stay local
+    final api = AudioPlayerService().currentApi ??
+        (mounted ? context.read<AuthProvider>().apiService : null);
     if (api != null) {
       try {
         await BookmarkService()
-            .syncBookmarks(widget.itemId, api)
+            .syncBookmarks(widget._key, api)
             .timeout(const Duration(seconds: 12));
       } catch (_) {}
       await _load();
     }
   }
   Future<void> _load() async {
-    final bm = await BookmarkService().getBookmarks(widget.itemId, sort: _sort);
+    final bm = await BookmarkService().getBookmarks(widget._key, sort: _sort);
     if (mounted) setState(() => _bookmarks = bm);
     widget.onChanged();
   }
@@ -879,6 +928,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                             ),
                             builder: (_) => BookmarkDetailSheet(
                               itemId: widget.itemId,
+                              episodeId: widget.episodeId,
                               bookmark: bm,
                               api: context.read<AuthProvider>().apiService,
                             ),
@@ -889,7 +939,9 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                             return;
                           }
                           final position = result.position;
-                          final isActive = widget.player.currentItemId == widget.itemId;
+                          final isActive = widget.player.currentItemId == widget.itemId &&
+                              (widget.episodeId == null ||
+                                  widget.player.currentEpisodeId == widget.episodeId);
                           Navigator.pop(ctx); // Close bookmark sheet first
                           if (isActive || _isCasting) {
                             final seekDur = Duration(seconds: position.round());
@@ -979,7 +1031,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     );
     if (!mounted || confirmed != true) return;
     await BookmarkService().deleteBookmark(
-      itemId: widget.itemId,
+      itemId: widget._key,
       bookmarkId: bookmark.id,
       api: AudioPlayerService().currentApi,
     );
@@ -1001,14 +1053,32 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final media = fullItem['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final title = metadata['title'] as String? ?? '';
-    final author = metadata['authorName'] as String? ?? '';
-    final coverUrl = lib.getCoverUrl(widget.itemId);
-    final duration = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
-    final chapters = (media['chapters'] as List<dynamic>?) ?? [];
+    var author = metadata['authorName'] as String? ?? '';
+    final coverUrl = lib.getCoverUrl(widget._key);
+    var duration = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
+    var chapters = (media['chapters'] as List<dynamic>?) ?? [];
+    // A podcast bookmark belongs to one episode, so play that episode - its
+    // own duration and chapters, not the show's.
+    String? episodeTitle;
+    final epId = widget.episodeId;
+    if (epId != null) {
+      final ep = ((media['episodes'] as List<dynamic>?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .where((e) => e['id'] == epId)
+          .firstOrNull;
+      if (ep == null) return;
+      episodeTitle = ep['title'] as String?;
+      if (author.isEmpty) author = title; // the show stands in for the author
+      duration = (ep['duration'] as num?)?.toDouble() ??
+          ((ep['audioFile'] as Map<String, dynamic>?)?['duration'] as num?)?.toDouble() ??
+          0.0;
+      chapters = (ep['chapters'] as List<dynamic>?) ?? const [];
+    }
     await player.playItem(
       api: api, itemId: widget.itemId,
-      title: title, author: author, coverUrl: coverUrl,
+      title: episodeTitle ?? title, author: author, coverUrl: coverUrl,
       totalDuration: duration, chapters: chapters,
+      episodeId: epId, episodeTitle: episodeTitle,
       startTime: positionSeconds, forceStartTime: true,
       libraryId: fullItem['libraryId'] as String?,
     );
@@ -1038,12 +1108,23 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final titleC = TextEditingController(text: defaultTitle);
     final noteC = TextEditingController();
     final result = await showDialog<Map<String, String>>(context: context, builder: (ctx) => AlertDialog(
+      scrollable: true,
       title: Text(l.addBookmark),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: noteC, maxLines: 3, decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true)),
-      ]),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(
+            controller: noteC,
+            minLines: 3,
+            maxLines: 8,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true),
+          ),
+        ]),
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
         FilledButton(onPressed: () => Navigator.pop(ctx, {'title': titleC.text, 'note': noteC.text}), child: Text(l.save)),
@@ -1051,7 +1132,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     ));
     if (result != null && result['title']!.isNotEmpty) {
       final note = result['note']?.isNotEmpty == true ? result['note'] : null;
-      await BookmarkService().addBookmark(itemId: widget.itemId, positionSeconds: pos, title: result['title']!, note: note, api: AudioPlayerService().currentApi);
+      await BookmarkService().addBookmark(itemId: widget._key, positionSeconds: pos, title: result['title']!, note: note, api: AudioPlayerService().currentApi);
       _load();
     }
   }
@@ -1061,12 +1142,23 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     final titleC = TextEditingController(text: bm.title);
     final noteC = TextEditingController(text: bm.note ?? '');
     final result = await showDialog<Map<String, String>>(context: context, builder: (ctx) => AlertDialog(
+      scrollable: true,
       title: Text(l.editBookmark),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: titleC, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: noteC, maxLines: 3, decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true)),
-      ]),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: titleC, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(
+            controller: noteC,
+            minLines: 4,
+            maxLines: 10,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(labelText: l.noteOptionalLabel, border: const OutlineInputBorder(), alignLabelWithHint: true),
+          ),
+        ]),
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
         FilledButton(onPressed: () => Navigator.pop(ctx, {'title': titleC.text, 'note': noteC.text}), child: Text(l.save)),
@@ -1074,7 +1166,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     ));
     if (result != null && result['title']!.isNotEmpty) {
       await BookmarkService().updateBookmark(
-        itemId: widget.itemId, bookmarkId: bm.id,
+        itemId: widget._key, bookmarkId: bm.id,
         title: result['title']!, note: result['note']?.isNotEmpty == true ? result['note'] : null,
         api: AudioPlayerService().currentApi,
       );
@@ -1092,7 +1184,9 @@ class MoreMenuSheet extends StatefulWidget {
   final Color accent;
   final Widget Function(String id) buildItem;
   final void Function(List<String>, int) onReorder;
-  const MoreMenuSheet({super.key, required this.overflowIds, required this.allIds, this.visibleCount = 4, required this.accent, required this.buildItem, required this.onReorder});
+  // The transcript slot reads Read along on a card whose book has an epub.
+  final bool readAlongLabel;
+  const MoreMenuSheet({super.key, required this.overflowIds, required this.allIds, this.visibleCount = 4, required this.accent, required this.buildItem, required this.onReorder, this.readAlongLabel = false});
   @override State<MoreMenuSheet> createState() => _MoreMenuSheetState();
 }
 
@@ -1351,10 +1445,18 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(children: [
-                        Icon(isMore ? Icons.more_horiz_rounded : def!.icon, size: 20,
+                        Icon(
+                          isMore
+                              ? Icons.more_horiz_rounded
+                              : (id == 'lyrics' && widget.readAlongLabel ? Icons.auto_stories_rounded : def!.icon),
+                          size: 20,
                           color: id == 'remove' ? Colors.red.shade300 : cs.onSurface.withValues(alpha: 0.7)),
                         const SizedBox(width: 12),
-                        Expanded(child: Text(isMore ? l.more : localizedCardButtonLabel(l, def!), style: tt.bodyMedium)),
+                        Expanded(child: Text(
+                          isMore
+                              ? l.more
+                              : (id == 'lyrics' && widget.readAlongLabel ? l.readAlong : localizedCardButtonLabel(l, def!)),
+                          style: tt.bodyMedium)),
                         if (isOnCard)
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
@@ -1410,7 +1512,12 @@ class CardActionDelegate {
   final VoidCallback? onRemoveExtra;
   final void Function(List<String>, int) onReorder;
   final bool isEbookPdf;
+  // An epub beside the audio turns the live transcript button into Read
+  // along: the reader lights the book's own words instead of a card overlay.
+  final bool isEbookEpub;
   final VoidCallback? onEbookTap;
+  final VoidCallback? onFindInEbookTap;
+  final VoidCallback? onReadAlongTap;
 
   CardActionDelegate({
     required this.context,
@@ -1440,12 +1547,104 @@ class CardActionDelegate {
     this.onRemoveExtra,
     required this.onReorder,
     this.isEbookPdf = false,
+    this.isEbookEpub = false,
     this.onEbookTap,
+    this.onFindInEbookTap,
+    this.onReadAlongTap,
   });
+
+  bool get _readAlongInstead =>
+      isEbookEpub && episodeId == null && onReadAlongTap != null;
 
   Map<String, dynamic> get _media => item['media'] as Map<String, dynamic>? ?? {};
 
+  /// Which episode the bookmark surfaces belong to. A card that knows its own
+  /// episode wins; an active podcast card falls back to what is playing.
+  String? get _bookmarkEpisodeId =>
+      episodeId ?? (isPodcastEpisode ? player.currentEpisodeId : null);
+
   int get visibleButtonCount => visibleCount;
+
+  /// Toggle the live transcript (lyrics) overlay for whatever is loaded in
+  /// the player. Guards mirror the other transcription entry points.
+  Future<void> _toggleLyrics() async {
+    final l = AppLocalizations.of(context)!;
+    if (LyricsService.instance.isOn) {
+      LyricsService.instance.disable();
+      return;
+    }
+    if (!await PlayerSettings.getTranscriptionEnabled()) {
+      if (context.mounted) {
+        showOverlayToast(context, l.transcriptionDisabledHint,
+            icon: Icons.record_voice_over_rounded);
+      }
+      return;
+    }
+    final cardKey = episodeId != null ? '$itemId-$episodeId' : itemId;
+    if (!TranscriptionService.instance.canTranscribeBook(cardKey)) {
+      if (context.mounted) {
+        await promptDownloadForTranscription(context,
+            itemId: itemId,
+            episodeId: episodeId,
+            title: title,
+            author: author,
+            coverUrl: coverUrl);
+      }
+      return;
+    }
+    // One-time expectation setting: what this does, why to let the head
+    // start build before pressing play, and the battery cost.
+    if (!await PlayerSettings.getLyricsIntroShown()) {
+      if (!context.mounted) return;
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.subtitles_rounded),
+          title: Text(l.lyricsMode),
+          content: Text(l.lyricsIntroBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.lyricsTurnOn),
+            ),
+          ],
+        ),
+      );
+      if (go != true) return;
+      await PlayerSettings.setLyricsIntroShown();
+    }
+    // The transcript is for THIS card's book. When something else (or
+    // nothing) is loaded, load it paused with no session - the runway builds
+    // while it sits ready, and pressing play is still the user's move.
+    if (LyricsService.playerKey() != cardKey) {
+      if (!context.mounted) return;
+      final api = context.read<AuthProvider>().apiService;
+      if (api == null) return;
+      final error = await player.playItem(
+        api: api,
+        itemId: itemId,
+        episodeId: episodeId,
+        title: title,
+        author: author ?? '',
+        coverUrl: coverUrl,
+        totalDuration: duration,
+        chapters: chapters,
+        libraryId: item['libraryId'] as String?,
+        loadOnly: true,
+      );
+      if (error != null) {
+        if (context.mounted) {
+          showOverlayToast(context, error, icon: Icons.error_outline_rounded);
+        }
+        return;
+      }
+    }
+    await LyricsService.instance.enableForCurrent();
+  }
 
   // Predefined row groupings per button count.
   // Labels: max 3 per row. Icons: max 4 per row (5 allowed at count=5).
@@ -1556,9 +1755,13 @@ class CardActionDelegate {
             height: h,
             padding: EdgeInsets.symmetric(vertical: vPad),
             decoration: BoxDecoration(
-              color: castActive ? accent.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.06),
+              color: castActive
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: castActive ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
+              border: Border.all(color: castActive
+                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
+                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
             ),
             child: iconsOnly
               ? Center(child: Icon(moreIcon, size: iconSz, color: iconColor))
@@ -1567,7 +1770,7 @@ class CardActionDelegate {
                   children: [
                     Icon(moreIcon, size: iconSz, color: iconColor),
                     const SizedBox(width: 6),
-                    Flexible(child: Text(castActive ? l.casting : l.more, overflow: TextOverflow.ellipsis,
+                    Flexible(child: Text(castActive ? l.casting : l.more, maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: iconColor, fontSize: fontSize, fontWeight: FontWeight.w500))),
                   ],
                 ),
@@ -1615,7 +1818,8 @@ class CardActionDelegate {
           accent: accent, isActive: isPlaybackActive, large: large, compact: compact, iconsOnly: iconsOnly,
           child: CardBookmarkButtonInline(
             player: player, accent: accent,
-            isActive: isActive, itemId: itemId, large: large, compact: compact, short: short, iconsOnly: iconsOnly,
+            isActive: isActive, itemId: itemId, episodeId: _bookmarkEpisodeId,
+            large: large, compact: compact, short: short, iconsOnly: iconsOnly,
           ),
         );
       case 'details':
@@ -1716,6 +1920,31 @@ class CardActionDelegate {
           // fetch before toasting).
           onTap: () => onEbookTap?.call(),
         );
+      case 'findinebook':
+        return CardWideButton(
+          icon: Icons.manage_search_rounded,
+          label: l.findInEbook,
+          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          onTap: () => onFindInEbookTap?.call(),
+        );
+      case 'lyrics':
+        if (_readAlongInstead) {
+          return CardWideButton(
+            icon: Icons.auto_stories_rounded,
+            label: l.readAlong,
+            accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+            onTap: () => onReadAlongTap?.call(),
+          );
+        }
+        // Usable with nothing playing: the handler hot-loads this card's
+        // book paused so the runway can build before the user presses play.
+        return CardWideButton(
+          icon: Icons.subtitles_rounded,
+          label: l.lyricsMode,
+          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          highlighted: LyricsService.instance.isOn,
+          onTap: _toggleLyrics,
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -1761,7 +1990,7 @@ class CardActionDelegate {
             Navigator.pop(ctx);
             showAdaptiveSheetDialog(context: context, widthClass: DialogWidthClass.action, backgroundColor: Colors.transparent, useSafeArea: true,
               initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
-              builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
+              builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, episodeId: _bookmarkEpisodeId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
             );
           },
         );
@@ -1857,7 +2086,7 @@ class CardActionDelegate {
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(l.cancel)),
                       TextButton(onPressed: () {
-                        dl.deleteDownload(dlKey);
+                        dl.deleteDownload(dlKey, byUser: true);
                         Navigator.pop(dCtx);
                         showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
                       }, child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
@@ -1888,6 +2117,34 @@ class CardActionDelegate {
             onEbookTap?.call();
           },
         );
+      case 'findinebook':
+        return MoreMenuItem(
+          icon: Icons.manage_search_rounded,
+          label: l.findInEbook, accent: accent,
+          onTap: () {
+            Navigator.pop(ctx);
+            onFindInEbookTap?.call();
+          },
+        );
+      case 'lyrics':
+        if (_readAlongInstead) {
+          return MoreMenuItem(
+            icon: Icons.auto_stories_rounded,
+            label: l.readAlong, accent: accent,
+            onTap: () {
+              Navigator.pop(ctx);
+              onReadAlongTap?.call();
+            },
+          );
+        }
+        return MoreMenuItem(
+          icon: Icons.subtitles_rounded,
+          label: l.lyricsMode, accent: accent,
+          onTap: () {
+            Navigator.pop(ctx);
+            _toggleLyrics();
+          },
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -1912,6 +2169,7 @@ class CardActionDelegate {
         accent: accent,
         buildItem: (id) => buildMoreMenuItem(id, accent, tt, ctx),
         onReorder: (order, newCount) => onReorder(order, newCount),
+        readAlongLabel: _readAlongInstead,
       ),
     );
   }

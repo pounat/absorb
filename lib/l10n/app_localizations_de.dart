@@ -25,6 +25,20 @@ class AppLocalizationsDe extends AppLocalizations {
   String get retry => 'Erneut versuchen';
 
   @override
+  String get listsNone => 'No collections or playlists';
+
+  @override
+  String get listsNoneHint =>
+      'Collections and playlists are made on your Audiobookshelf server, and show up here.';
+
+  @override
+  String get listsLoadFailed => 'Couldn\'t load your lists';
+
+  @override
+  String get listsLoadFailedHint =>
+      'Absorb couldn\'t reach your server for collections and playlists.';
+
+  @override
   String get cancel => 'Abbrechen';
 
   @override
@@ -760,6 +774,78 @@ class AppLocalizationsDe extends AppLocalizations {
   String get bookmarksTitle => 'Alle Lesezeichen';
 
   @override
+  String get bookmarksTabBookmarks => 'Lesezeichen';
+
+  @override
+  String get bookmarksTabHighlights => 'Highlights';
+
+  @override
+  String get highlightOpenInBook => 'In Buch öffnen';
+
+  @override
+  String get highlightDeleteAction => 'Delete highlight';
+
+  @override
+  String get highlightDeleted => 'Highlight deleted';
+
+  @override
+  String highlightsDeleteCount(int count) {
+    return 'Delete $count highlight(s)?';
+  }
+
+  @override
+  String highlightsDeletedCount(int count) {
+    return 'Deleted $count highlight(s)';
+  }
+
+  @override
+  String get quoteShareTitle => 'Share quote';
+
+  @override
+  String get quoteShareAction => 'Teilen';
+
+  @override
+  String get quoteShareFailed => 'Couldn\'t make the quote image';
+
+  @override
+  String get quoteShapePortrait => 'Portrait';
+
+  @override
+  String get quoteShapeSquare => 'Quadrat';
+
+  @override
+  String get quoteShapeStory => 'Geschichte';
+
+  @override
+  String get quoteStyleBlur => 'Blurred';
+
+  @override
+  String get quoteStyleDim => 'Dimmed';
+
+  @override
+  String get quoteStyleNone => 'Plain cover';
+
+  @override
+  String get quoteTextLight => 'Light text';
+
+  @override
+  String get quoteTextDark => 'Dark text';
+
+  @override
+  String get quoteFieldTitle => 'Titel';
+
+  @override
+  String get quoteFieldDetail => 'Details';
+
+  @override
+  String get quoteFieldDetailHint => 'Author, chapter, page, who said it';
+
+  @override
+  String highlightsMeta(String chapter, String date) {
+    return '$chapter · $date';
+  }
+
+  @override
   String get bookmarksCancelSelection => 'Auswahl aufheben';
 
   @override
@@ -1101,7 +1187,7 @@ class AppLocalizationsDe extends AppLocalizations {
       'Immer eingeschaltet, während der Podcasts-Tab aktiviert ist';
 
   @override
-  String get settingsEpisodeNotifs => 'Benachrichtigung für neue Folgen';
+  String get settingsEpisodeNotifs => 'Benachrichtigungseinstellungen';
 
   @override
   String get settingsEpisodeNotifsDesc =>
@@ -1209,6 +1295,20 @@ class AppLocalizationsDe extends AppLocalizations {
       'Hintergrundverlauf entfernen. Schwarz im Dunkelmodus für OLED-Bildschirme.';
 
   @override
+  String get einkModeLabel => 'E-Ink Modus';
+
+  @override
+  String get einkModeSubtitle =>
+      'High-contrast black and white with no animations, made for e-ink screens';
+
+  @override
+  String get einkModeIntroBody =>
+      'Made for e-ink screens. The app switches to a flat black-and-white look with high contrast, animations are turned off, the playing card loses its background, and the live server connection stays off to save battery. Playback and progress still sync normally. Your appearance settings are kept and come back when you turn this off.';
+
+  @override
+  String get einkModeIntroConfirm => 'Einschalten';
+
+  @override
   String get backgroundIntensityLabel => 'Hintergrundintensität';
 
   @override
@@ -1252,6 +1352,21 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get rectangleBookCoversOffSubtitle => 'Cover sind quadratisch';
+
+  @override
+  String get coverSize => 'Cover Größe';
+
+  @override
+  String get coverSizeSubtitle => 'How many covers fit across the library grid';
+
+  @override
+  String get coverSizeSmall => 'Klein';
+
+  @override
+  String get coverSizeMedium => 'Mittel';
+
+  @override
+  String get coverSizeLarge => 'Groß';
 
   @override
   String get sectionAbsorbingCards => 'Absorbing-Karten';
@@ -1453,16 +1568,20 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autoDownloadQueue => 'Auto-Download-Warteschlange';
 
   @override
-  String get autoDownloadThisSeriesLabel => 'Auto-download this series';
+  String get autoDownloadThisSeriesLabel =>
+      'Diese Serie automatisch herunterladen';
 
   @override
-  String get autoDownloadThisShowLabel => 'Auto-download this podcast';
+  String get autoDownloadThisShowLabel =>
+      'Diesen Podcast automatisch herunterladen';
 
   @override
-  String get autoDownloadThisPlaylistLabel => 'Auto-download this playlist';
+  String get autoDownloadThisPlaylistLabel =>
+      'Wiedergabeliste automatisch herunterladen';
 
   @override
-  String get autoDownloadThisCollectionLabel => 'Auto-download this collection';
+  String get autoDownloadThisCollectionLabel =>
+      'Diese Sammlung automatisch herunterladen';
 
   @override
   String autoDownloadQueueOnSubtitle(int count) {
@@ -1492,6 +1611,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get skipForward => 'Vorspulen';
 
   @override
+  String get iosLockScreenSkipHint =>
+      'The lock screen only draws the numbers iOS has icons for (5, 10, 15, 30, 45, 60, 75, 90). Other amounts show + on the button but still skip by your setting.';
+
+  @override
   String get longSkipButtons => 'Lange Überspringen Tasten';
 
   @override
@@ -1519,6 +1642,29 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get coverShapeLabel => 'Cover Format';
+
+  @override
+  String get showSubtitles => 'Show subtitles';
+
+  @override
+  String get showSubtitlesOnSubtitle =>
+      'Subtitles show under book titles in the library and on home';
+
+  @override
+  String get showSubtitlesOffSubtitle =>
+      'Off - subtitles only on the book details sheet';
+
+  @override
+  String get subtitleVisibilityLabel => 'Subtitles';
+
+  @override
+  String get subtitleVisibilityDefault => 'Default';
+
+  @override
+  String get subtitleVisibilityShow => 'Show';
+
+  @override
+  String get subtitleVisibilityHide => 'Hide';
 
   @override
   String currentLibrarySettingsTitle(String name) {
@@ -1677,7 +1823,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get shakeAdds => 'Schütteln fügt hinzu';
 
   @override
-  String get sleepAddAmount => 'Add time amount';
+  String get sleepAddAmount => 'Zeit hinzufügen';
 
   @override
   String shakeAddsValue(int minutes) {
@@ -1818,16 +1964,16 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get autoDownloadSubtitle =>
-      'Pro Serie oder Podcast über deren Detailseiten aktivieren';
+      'Aktiviere pro Serie, Podcast, Wiedergabeliste oder Sammlung über deren Detailseiten';
 
   @override
-  String get autoDownloadEnabledFor => 'Turned on for';
+  String get autoDownloadEnabledFor => 'Eingeschaltet für';
 
   @override
-  String get autoDownloadEnabledForNone => 'Nothing yet';
+  String get autoDownloadEnabledForNone => 'Noch nichts';
 
   @override
-  String get autoDownloadSourceUnnamed => 'Not loaded yet';
+  String get autoDownloadSourceUnnamed => 'Noch nicht geladen';
 
   @override
   String get keepNext => 'Nächste behalten';
@@ -2010,6 +2156,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get logsCleared => 'Logs gelöscht';
 
   @override
+  String get clearLogsQuestion => 'Clear logs?';
+
+  @override
+  String get clearLogsContent =>
+      'This can\'t be undone. Send them first if you might want them.';
+
+  @override
   String get sectionAdvanced => 'Erweitert';
 
   @override
@@ -2115,6 +2268,11 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String appVersionFormat(String version) {
     return 'Absorb v$version';
+  }
+
+  @override
+  String betaLabel(int number) {
+    return 'Beta $number';
   }
 
   @override
@@ -3323,17 +3481,17 @@ class AppLocalizationsDe extends AppLocalizations {
   String get coverImage => 'Coverbild';
 
   @override
-  String get coverRemove => 'Remove cover';
+  String get coverRemove => 'Cover entfernen';
 
   @override
   String get coverRemoveConfirm =>
       'Remove this book\'s cover? It will show the generated title card instead.';
 
   @override
-  String get coverRemoved => 'Cover removed';
+  String get coverRemoved => 'Cover entfernt';
 
   @override
-  String get coverRemoveFailed => 'Could not remove the cover';
+  String get coverRemoveFailed => 'Konnte Cover nicht entfernen';
 
   @override
   String get coverUrlLabel => 'Cover-URL';
@@ -3437,35 +3595,35 @@ class AppLocalizationsDe extends AppLocalizations {
       'Löschberechtigung erforderlich. Bitte wende dich hierzu an den Administrator.';
 
   @override
-  String get deleteFilesCheckbox => 'Also delete the files on the server';
+  String get deleteFilesCheckbox => 'Dateien auf dem Server ebenfalls löschen';
 
   @override
   String get deleteFilesCheckedHint =>
-      'The files are deleted from the server for good.';
+      'Die Dateien werden auf dem Server endgültig gelöscht.';
 
   @override
   String get deleteFilesUncheckedHint =>
-      'The files stay on the server, so the next library scan can add this back.';
+      'Die Dateien bleiben auf dem Server. Ein erneuter Scan kann sie wieder hinzufügen.';
 
   @override
-  String get deleteFromServerAction => 'Delete from Server';
+  String get deleteFromServerAction => 'Vom Server löschen';
 
   @override
-  String get deleteFromServerTitle => 'Delete from server';
+  String get deleteFromServerTitle => 'Vom Server löschen';
 
   @override
   String deleteFromServerContent(String title) {
-    return 'Delete \"$title\" from Audiobookshelf?';
+    return '\"$title\" aus Audiobookshelf entfernen?';
   }
 
   @override
   String deletedFromServer(String title) {
-    return 'Deleted \"$title\"';
+    return '\"$title\" gelöscht';
   }
 
   @override
   String get deleteFromServerFailed =>
-      'Couldn\'t delete that. Check the server logs.';
+      'Konnte dies nicht löschen. Überprüfe die Server-Protokolle.';
 
   @override
   String get playlistNotFound => 'Playlist nicht gefunden';
@@ -3588,7 +3746,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get switchLibraryTooltip => 'Bibliothek wechseln';
 
   @override
-  String get refreshTooltip => 'Refresh';
+  String get refreshTooltip => 'Aktualisieren';
 
   @override
   String get openNowPlayingTooltip => 'Open Now Playing';
@@ -4213,12 +4371,12 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String adminMissingDeleteOneContent(String title) {
-    return '\"$title\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.';
+    return '\"$title\" aus Audiobookshelf entfernen?';
   }
 
   @override
   String adminMissingDeleteManyContent(int count) {
-    return '\"$count\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.';
+    return '$count Einträge aus Audiobookshelf entfernen?';
   }
 
   @override
@@ -4822,17 +4980,18 @@ class AppLocalizationsDe extends AppLocalizations {
       'Auto-Download-Einstellung konnte nicht aktualisiert werden';
 
   @override
-  String get adminPodcastsMaxEpisodesToKeep => 'Max episodes to keep';
+  String get adminPodcastsMaxEpisodesToKeep => 'Anzahl zu behaltender Episoden';
 
   @override
   String get adminPodcastsMaxEpisodesToKeepHelp =>
-      '0 keeps every episode. After a new episode is auto-downloaded, Audiobookshelf removes the oldest episode when the show is over this limit.';
+      '0 behält alle Episoden. Nachdem eine neue Episode heruntergeladen wurde, wird die älteste Episode entfernt so fern das Limit erreicht wurde.';
 
   @override
-  String get adminPodcastsNoEpisodeLimit => 'No limit';
+  String get adminPodcastsNoEpisodeLimit => 'Kein Limit';
 
   @override
-  String get adminPodcastsEpisodeLimitInvalid => 'Enter 0 or a whole number';
+  String get adminPodcastsEpisodeLimitInvalid =>
+      '0 oder eine ganze Zahl eingeben';
 
   @override
   String get adminPodcastsCheckSchedule => 'Prüfplan';
@@ -5047,25 +5206,26 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episodeListSortOldest => 'Älteste';
 
   @override
-  String get episodeListSortBy => 'Sort episodes';
+  String get episodeListSortBy => 'Episoden sortieren';
 
   @override
-  String get episodeListSortPubDate => 'Publish date';
+  String get episodeListSortPubDate => 'Veröffentlichungsdatum';
 
   @override
-  String get episodeListSortTitle => 'Title';
+  String get episodeListSortTitle => 'Titel';
 
   @override
-  String get episodeListSortSeason => 'Season';
+  String get episodeListSortSeason => 'Staffel';
 
   @override
-  String get episodeListSortEpisode => 'Episode number';
+  String get episodeListSortEpisode => 'Episoden Nummer';
 
   @override
-  String get episodeListSortFileName => 'File name';
+  String get episodeListSortFileName => 'Dateiname';
 
   @override
-  String get episodeListSortReverseHint => 'Tap again to reverse the order';
+  String get episodeListSortReverseHint =>
+      'Erneut tippen, um Reihenfolge umzukehren';
 
   @override
   String episodeListAddedToAbsorbing(String title) {
@@ -5394,9 +5554,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get statsScreenLoading => 'Lädt...';
 
   @override
-  String statsScreenJumpToSessionStart(String position) {
-    return 'Zum Sitzungsstart springen ($position)';
-  }
+  String get statsScreenJumpToStart => 'Jump to start';
+
+  @override
+  String get statsScreenJumpToEnd => 'Jump to end';
 
   @override
   String get statsScreenPlayMethodDirect => 'Direktwiedergabe';
@@ -5572,7 +5733,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get upcomingReleasesBadgeMissing => 'FEHLT';
 
   @override
-  String get upcomingReleasesScanSettingsTitle => 'Scan settings';
+  String get upcomingReleasesScanSettingsTitle => 'Scan Einstellungen';
 
   @override
   String get upcomingReleasesFinishedAfterTitle =>
@@ -5594,13 +5755,13 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get upcomingReleasesFinishedAfterNever => 'Never';
+  String get upcomingReleasesFinishedAfterNever => 'Niemals';
 
   @override
-  String get upcomingReleasesSkippedTitle => 'Skipped series';
+  String get upcomingReleasesSkippedTitle => 'Übersprungene Serien';
 
   @override
-  String get upcomingReleasesSkippedNone => 'Nothing skipped yet';
+  String get upcomingReleasesSkippedNone => 'Noch nichts übersprungen';
 
   @override
   String upcomingReleasesSkippedCount(int count) {
@@ -5630,58 +5791,59 @@ class AppLocalizationsDe extends AppLocalizations {
       'Couldn\'t match this series on Audible';
 
   @override
-  String get upcomingReleasesSkippedScanNow => 'Scan now';
+  String get upcomingReleasesSkippedScanNow => 'Jetzt scannen';
 
   @override
-  String get upcomingReleasesSkippedAlwaysScan => 'Always scan';
+  String get upcomingReleasesSkippedAlwaysScan => 'Immer scannen';
 
   @override
-  String get upcomingReleasesSkippedNeverScan => 'Never scan';
+  String get upcomingReleasesSkippedNeverScan => 'Niemals scannen';
 
   @override
   String upcomingReleasesSkippedScanFound(String name) {
-    return 'Found new releases in $name';
+    return 'Neue Veröffentlichungen in $name gefunden';
   }
 
   @override
   String upcomingReleasesSkippedScanNone(String name) {
-    return 'Nothing new in $name';
+    return 'Nichts Neues in $name';
   }
 
   @override
   String get upcomingReleasesSkippedOtherLibrary =>
-      'This list came from a different library. Run a rescan to refresh it.';
+      'Diese Liste kam aus einer anderen Bibliothek. Neu scannen zum Aktualisieren.';
 
   @override
-  String get upcomingReleasesChipUpcoming => 'Upcoming';
+  String get upcomingReleasesChipUpcoming => 'Bevorstehend';
 
   @override
   String upcomingReleasesChipMissing(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count missing',
-      one: '1 missing',
-      zero: 'Missing',
+      other: '$count fehlen',
+      one: '1 fehlt',
+      zero: 'fehlt',
     );
     return '$_temp0';
   }
 
   @override
-  String get upcomingReleasesNoMissing => 'No missing books found';
+  String get upcomingReleasesNoMissing => 'Keine fehlenden Bücher gefunden';
 
   @override
-  String get upcomingReleasesScanSeries => 'Scan series';
+  String get upcomingReleasesScanSeries => 'Serie scannen';
 
   @override
-  String get upcomingReleasesScanUpcomingOption => 'Upcoming releases';
+  String get upcomingReleasesScanUpcomingOption =>
+      'Bevorstehende Veröffentlichungen';
 
   @override
   String get upcomingReleasesScanUpcomingOptionDesc =>
-      'Quick scan for new and upcoming books';
+      'Schneller Scan nach neuen und bevorstehenden Büchern';
 
   @override
-  String get upcomingReleasesScanDeepOption => 'Deep scan';
+  String get upcomingReleasesScanDeepOption => 'Tiefer Scan';
 
   @override
   String get upcomingReleasesScanDeepOptionDesc =>
@@ -5692,21 +5854,21 @@ class AppLocalizationsDe extends AppLocalizations {
       'The first scan checks every series on Audible and can take a few minutes. Later scans get much quicker once your series are sorted.';
 
   @override
-  String get upcomingReleasesLastScanReport => 'Last scan report';
+  String get upcomingReleasesLastScanReport => 'Letzter Scan-Report';
 
   @override
   String upcomingReleasesReportChecked(int count) {
-    return 'Checked on Audible: $count';
+    return 'Auf Audible überprüft: $count';
   }
 
   @override
   String upcomingReleasesReportSkipped(int count) {
-    return 'Skipped: $count';
+    return 'Übersprungen: $count';
   }
 
   @override
   String upcomingReleasesReportUnmatched(int count) {
-    return 'Couldn\'t match on Audible: $count';
+    return 'Nicht auf Audible gefunden: $count';
   }
 
   @override
@@ -5734,19 +5896,19 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get upcomingReleasesBadgeNew => 'NEW';
+  String get upcomingReleasesBadgeNew => 'NEU';
 
   @override
   String get upcomingReleasesOpenSeries => 'Open series on Audible';
 
   @override
-  String get upcomingReleasesOpenLibrarySeries => 'Open series in library';
+  String get upcomingReleasesOpenLibrarySeries => 'Serie in Bibliothek öffnen';
 
   @override
-  String get upcomingReleasesAsinCopied => 'Series ASIN copied';
+  String get upcomingReleasesAsinCopied => 'Serien ASIN kopiert';
 
   @override
-  String get upcomingReleasesSetSeriesAsin => 'Set series ASIN';
+  String get upcomingReleasesSetSeriesAsin => 'Serien ASIN setzen';
 
   @override
   String get upcomingReleasesSetAsinInstructions =>
@@ -5756,7 +5918,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get upcomingReleasesSetAsinHint => 'B0… or audible.com link';
 
   @override
-  String get upcomingReleasesSetAsinSave => 'Save';
+  String get upcomingReleasesSetAsinSave => 'Speichern';
 
   @override
   String get upcomingReleasesSetAsinInvalid => 'No ASIN found in that text';
@@ -5812,14 +5974,14 @@ class AppLocalizationsDe extends AppLocalizations {
   String get upcomingReleasesRemovedNone => 'No removed books';
 
   @override
-  String get upcomingReleasesRestore => 'Restore';
+  String get upcomingReleasesRestore => 'Wiederherstellen';
 
   @override
-  String get upcomingReleasesRestoredToast => 'Restored';
+  String get upcomingReleasesRestoredToast => 'Wiederhergestellt';
 
   @override
   String get upcomingReleasesRestoredNextScan =>
-      'Restored - it will show after the next scan';
+      'Wiederhergestellt - wird nach dem nächsten Scan angezeigt';
 
   @override
   String upcomingReleasesSelectedCount(int count) {
@@ -5836,7 +5998,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get upcomingReleasesBulkRequest => 'Request';
 
   @override
-  String get upcomingReleasesBulkRemove => 'Remove';
+  String get upcomingReleasesBulkRemove => 'Entfernen';
 
   @override
   String upcomingReleasesBulkRemoved(int count) {
@@ -5862,8 +6024,30 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String upcomingReleasesBulkRequestSkipped(int count) {
-    return '$count skipped';
+    return '$count Übersprungen';
   }
+
+  @override
+  String upcomingReleasesBulkScanned(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count series rescanned',
+      one: '1 series rescanned',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String upcomingReleasesBulkScanFound(int count) {
+    return '$count with new books';
+  }
+
+  @override
+  String get seriesExcludeFromScan => 'Exclude from series scan';
+
+  @override
+  String get seriesIncludeInScan => 'Include in series scan';
 
   @override
   String get homeScreenEpisodeFallback => 'Episode';
@@ -6094,7 +6278,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get notesNewNote => 'Neue Notiz';
 
   @override
-  String get librarySortFilterUpcomingReleases => 'Kommende Veröffentlichungen';
+  String get librarySortFilterUpcomingReleases => 'Serien Scan';
+
+  @override
+  String get librarySortFilterMatchAllAuthorsSubtitle =>
+      'Fetch a photo and bio for every author from the metadata provider';
 
   @override
   String get librarySortFilterUpcomingReleasesSubtitle =>
@@ -6445,6 +6633,63 @@ class AppLocalizationsDe extends AppLocalizations {
       'Öffne eine Serie und tippe auf das Drei-Punkte-Symbol, um die komplette Serienliste von Audible zu laden, inklusive fehlender Einträge und noch nicht gestarteter Bücher.';
 
   @override
+  String get tipsSheetTranscribeBookmarkTitle => 'Lesezeichen transkribieren';
+
+  @override
+  String get tipsSheetTranscribeBookmarkDesc =>
+      'Turn the audio at any bookmark into text, fully on your device. Enable it in Settings under Advanced > Transcription and download a model, then tap Transcribe on a bookmark - the text lands in its note, ready to fix up or share.';
+
+  @override
+  String get tipsSheetFindBetweenFormatsTitle =>
+      'Wechsel zwischen Hörbuch und eBook';
+
+  @override
+  String get tipsSheetFindBetweenFormatsDesc =>
+      'With transcription on and the book downloaded, pause and tap Find position in ebook on the player to open the ebook at the passage you just heard. In the reader, select some text and tap the headphones to start the audiobook right there.';
+
+  @override
+  String get tipsSheetShareQuoteTitle => 'Share Quotes';
+
+  @override
+  String get tipsSheetShareQuoteDesc =>
+      'Share an ebook highlight or a bookmark note as an image with the quote over the book cover. Look for the share option on highlights and in the bookmark sheet.';
+
+  @override
+  String get tipsSheetClipExportTitle => 'Audio-Clips exportieren';
+
+  @override
+  String get tipsSheetClipExportDesc =>
+      'Öffne ein Lesezeichen und tippe Clip exportieren um einen kurzen Audioschnipsel des Buches, inklusive Coverart zu erstellen - Super um deine Lieblings Szenen zu teilen.';
+
+  @override
+  String get tipsSheetAllHighlightsTitle => 'All Highlights in One Place';
+
+  @override
+  String get tipsSheetAllHighlightsDesc =>
+      'The All Bookmarks page has a Highlights tab collecting every ebook highlight from every book. Tap one to share it or jump back into the book.';
+
+  @override
+  String get tipsSheetVolumeKeyPagesTitle => 'Volume-Key Page Turns';
+
+  @override
+  String get tipsSheetVolumeKeyPagesDesc =>
+      'Turn ebook pages with the volume keys. Enable it in the reader\'s settings - normal or mirrored direction, and it can stay on even while audio is playing.';
+
+  @override
+  String get tipsSheetSettingsSyncTitle => 'Settings Sync';
+
+  @override
+  String get tipsSheetSettingsSyncDesc =>
+      'Keep your settings, per-book speeds and Absorbing order in step across devices through your own WebDAV server. Set it up in Settings under Backup and sync.';
+
+  @override
+  String get tipsSheetNavLongPressTitle => 'Long-Press the Bottom Tabs';
+
+  @override
+  String get tipsSheetNavLongPressDesc =>
+      'Hold the Home tab to switch libraries from any page. Hold the Library tab to jump straight into search.';
+
+  @override
   String get bookCardUnknownTitle => 'Unbekannter Titel';
 
   @override
@@ -6648,7 +6893,7 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get statsWeekStartsOn => 'Week starts on';
+  String get statsWeekStartsOn => 'Wochenbeginn';
 
   @override
   String get episodeListNewEpisodePosition => 'Position neuer Folgen';
@@ -6663,7 +6908,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episodeListPositionEnd => 'Ende der Warteschlange';
 
   @override
-  String get episodeListPositionNone => 'Don\'t add to queue';
+  String get episodeListPositionNone => 'Nicht zur Warteschlange hinzufügen';
 
   @override
   String get episodeListPositionNoneDesc => 'Still notified and downloaded';
@@ -6799,6 +7044,26 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get androidAutoTabDownloads => 'Downloads';
+
+  @override
+  String get settingsSearchHint => 'Search settings...';
+
+  @override
+  String get settingsSearchNoResults => 'No matching settings';
+
+  @override
+  String get carConnectAutoplay => 'Start playback when Android Auto connects';
+
+  @override
+  String get carConnectAutoplayIos => 'Start playback when CarPlay connects';
+
+  @override
+  String get carConnectAutoplayOnSubtitle =>
+      'The last book you were listening to starts by itself when the car connects';
+
+  @override
+  String get carConnectAutoplayOffSubtitle =>
+      'Playback waits for you to press play';
 
   @override
   String get androidAutoCatBooks => 'Bücher';
@@ -7024,17 +7289,63 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chapterShowSeconds => 'Sekunden anzeigen';
 
   @override
+  String chapterWindowMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get chapterLoopCut => 'Loop the cut';
+
+  @override
+  String get chapterFindStart => 'Find the start';
+
+  @override
+  String get chapterFindStartListening => 'Listening around the marker';
+
+  @override
+  String get chapterFindStartNone => 'Nothing here sounds like a chapter start';
+
+  @override
+  String get chapterFindStartWider => 'Search wider';
+
+  @override
+  String get chapterFindStartCeiling =>
+      'Searched half an hour around the marker. The start is further off than that, or there\'s no chapter announcement to hear.';
+
+  @override
+  String get chapterFindStartStrong => 'Sounds like this chapter';
+
+  @override
+  String get chapterFindStartMaybe => 'Chapter-like words';
+
+  @override
+  String chapterFindStartGap(String seconds) {
+    return '${seconds}s gap';
+  }
+
+  @override
+  String chapterFindStartRange(String from, String to) {
+    return 'Searched $from to $to';
+  }
+
+  @override
+  String get chapterFindStartNeedsModel =>
+      'Turn on transcription in Settings and download a model first';
+
+  @override
+  String get chapterFindStartUseThis => 'Use this';
+
+  @override
+  String chapterFindStartTitle(String title) {
+    return 'Title: $title';
+  }
+
+  @override
   String get chapterShiftBySeconds => 'Verschieben um (Sekunden)';
 
   @override
   String get chapterShiftHint =>
       'Verschiebt jedes entsperrte Kapitel. Verwende einen negativen Wert, um sie früher zu verschieben.';
-
-  @override
-  String get chapterBack1Second => '1 Sekunde zurück';
-
-  @override
-  String get chapterForward1Second => '1 Sekunde vorwärts';
 
   @override
   String get chapterTitleHint => 'Kapitelname';
@@ -7052,12 +7363,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String chapterStartAt(String time) {
     return 'Beginne bei $time';
   }
-
-  @override
-  String get chapterSetStartHere => 'Beginn auf hier festlegen';
-
-  @override
-  String get chapterMore => 'Mehr';
 
   @override
   String get chapterUnlock => 'Entsperren';
@@ -7928,6 +8233,20 @@ class AppLocalizationsDe extends AppLocalizations {
   String get readerPageLayout => 'Seitenlayout';
 
   @override
+  String get readerPinTopBar => 'Keep the title and progress bar on screen';
+
+  @override
+  String get readerPinTopBarHint =>
+      'Pins them above the page instead of showing them on tap. The page gets a little shorter so no text is covered.';
+
+  @override
+  String get readerKeepAwake => 'Keep the screen on';
+
+  @override
+  String get readerKeepAwakeHint =>
+      'Stops the screen timing out while you read at your own pace. Auto scroll and read along always keep it on.';
+
+  @override
   String get readerLayoutAuto => 'Automatisch';
 
   @override
@@ -7953,6 +8272,129 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get readerVolumeNavMirrored => 'Gespiegelt';
+
+  @override
+  String get readerAutoScroll => 'Auto scroll';
+
+  @override
+  String get readerAutoScrollSubtitle =>
+      'The next page paints over this one from the top down - drag the middle of the screen to change speed, tap to stop';
+
+  @override
+  String get readerAutoScrollStarted => 'Auto scroll started';
+
+  @override
+  String get readerAutoScrollPaused => 'Paused - press and hold to stop';
+
+  @override
+  String get readerAutoScrollResumed => 'Auto scroll resumed';
+
+  @override
+  String get readerAutoScrollStopped => 'Auto scroll off';
+
+  @override
+  String get readerAutoScrollEndOfBook => 'End of book - auto scroll off';
+
+  @override
+  String readerAutoScrollSpeed(int percent) {
+    return 'Speed $percent%';
+  }
+
+  @override
+  String get readerMoreControls => 'More controls';
+
+  @override
+  String get readerAutoScrollSleep => 'Auto scroll sleep timer';
+
+  @override
+  String get readerAutoScrollSleepHint =>
+      'Stops the scrolling after a while and lets the screen go dark.';
+
+  @override
+  String readerAutoScrollSleepMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String readerAutoScrollSleepLeft(int minutes) {
+    return '$minutes min left';
+  }
+
+  @override
+  String readerAutoScrollSleepIn(int minutes) {
+    return 'Auto scroll stops in $minutes min';
+  }
+
+  @override
+  String get readerAutoScrollSleepOff => 'Auto scroll sleep timer off';
+
+  @override
+  String get readerAutoScrollSleepEnded => 'Sleep timer - auto scroll off';
+
+  @override
+  String get readerDownloadStarted => 'Download started';
+
+  @override
+  String get detailChaptersJumpTitle => 'Jump to this chapter?';
+
+  @override
+  String detailChaptersJumpContent(String title) {
+    return 'Playback moves to \"$title\".';
+  }
+
+  @override
+  String get detailChaptersJump => 'Jump';
+
+  @override
+  String detailChaptersFinished(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chapters finished',
+      one: '1 chapter finished',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String detailOtherListeners(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count other listeners',
+      one: '1 other listener',
+      zero: 'No other listeners',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get seriesUpNext => 'Up next';
+
+  @override
+  String get seriesJumpToUpNext => 'Jump to up next';
+
+  @override
+  String get seriesStatsFinished => 'Finished';
+
+  @override
+  String get seriesStatsListened => 'Listened';
+
+  @override
+  String get seriesStatsLeft => 'Left';
+
+  @override
+  String seriesFinishedOf(int done, int total) {
+    return '$done of $total';
+  }
+
+  @override
+  String get detailSessionsNone => 'No listening sessions yet';
+
+  @override
+  String detailSessionsAll(int count) {
+    return 'All $count sessions';
+  }
 
   @override
   String get readerVolumeNavWhilePlaying =>
@@ -7998,7 +8440,343 @@ class AppLocalizationsDe extends AppLocalizations {
   String get readerNoteHint => 'Notiz hinzufügen...';
 
   @override
+  String get backupAndSync => 'Backup and sync';
+
+  @override
+  String get backupAndSyncSubtitle =>
+      'Save a backup file, or keep settings in step across devices';
+
+  @override
+  String get syncSettingsExperimental => 'Experimentell';
+
+  @override
+  String get syncSettingsExperimentalBody =>
+      'Sync is new and still being worked on. If two devices change things while they are apart, one side can lose its changes. Keep a backup file as your safe copy.';
+
+  @override
+  String get syncSettingsNeedServer => 'Need a server?';
+
+  @override
+  String get syncSettingsNeedServerSub =>
+      'Any WebDAV server works. Nextcloud is a free self-hosted one.';
+
+  @override
+  String get syncSettingsConnection => 'Verbindung';
+
+  @override
+  String get syncSettingsConnectionNotSet => 'Nicht eingerichtet';
+
+  @override
+  String get syncSettingsBackupFile => 'Backup file';
+
+  @override
+  String get syncSettingsBackupFilePlain =>
+      'Save everything to a file you keep.';
+
+  @override
+  String get syncSettingsBackupFileWithSync =>
+      'Save everything to a file you keep. Include login info and restoring it on another phone turns sync on there too.';
+
+  @override
+  String get syncSettingsStatusOff => 'Not syncing';
+
+  @override
+  String get syncSettingsStatusProblem => 'Could not reach your server';
+
+  @override
+  String get syncSettings => 'Sync settings between devices';
+
+  @override
+  String get syncSettingsExtras => 'Also sync';
+
+  @override
+  String get syncSettingsIncludeRmab => 'ReadMeABook Einstellungen';
+
+  @override
+  String get syncSettingsIncludeRmabSub =>
+      'Puts your ReadMeABook API token in the synced file';
+
+  @override
+  String get syncSettingsSubtitle =>
+      'Keep your settings in step through your own WebDAV server';
+
+  @override
+  String get syncSettingsEnable => 'Sync settings';
+
+  @override
+  String get syncSettingsServerUrl => 'WebDAV folder URL';
+
+  @override
+  String get syncSettingsServerUrlHint =>
+      'https://cloud.example.com/remote.php/dav/files/you/Absorb';
+
+  @override
+  String get syncSettingsUsername => 'Username';
+
+  @override
+  String get syncSettingsPassword => 'Password';
+
+  @override
+  String get syncSettingsHeaders => 'Custom headers (optional)';
+
+  @override
+  String get syncSettingsHeadersHint =>
+      'One per line, like CF-Access-Client-Id: abc123';
+
+  @override
+  String get syncSettingsTest => 'Test connection';
+
+  @override
+  String get syncSettingsHoldToUpload => 'Hold to upload now';
+
+  @override
+  String get syncSettingsUploadNow => 'Upload now';
+
+  @override
+  String get syncSettingsDownloadNow => 'Download now';
+
+  @override
+  String get syncSettingsOk => 'Verbunden';
+
+  @override
+  String get syncSettingsNoRemote => 'Verbunden - noch nichts Synchronisiert';
+
+  @override
+  String get syncSettingsAuthFailed => 'Falscher Benutzername oder Passwort';
+
+  @override
+  String get syncSettingsNetworkError => 'Adresse konnte nicht erreicht werden';
+
+  @override
+  String get syncSettingsNotConfigured =>
+      'Zuerst Adresse, Benutzername und Passwort ausfüllen';
+
+  @override
+  String get syncSettingsTooLarge =>
+      'Einstellungen zu groß zum synchronisieren';
+
+  @override
+  String get syncSettingsUploaded => 'Einstellungen hochgeladen';
+
+  @override
+  String get syncSettingsApplied =>
+      'Einstellungen von anderem Gerät aktualisiert';
+
+  @override
+  String syncSettingsAppliedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count settings updated from your other device',
+      one: '1 setting updated from your other device',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncSettingsUpToDate => 'Bereits auf dem neusten Stand';
+
+  @override
+  String syncSettingsLastSynced(String when) {
+    return 'Zuletzt synchronisiert $when';
+  }
+
+  @override
+  String get syncSettingsNever => 'Noch nicht synchronisiert';
+
+  @override
+  String navHoldPickTitle(String tab) {
+    return 'Holding $tab will...';
+  }
+
+  @override
+  String get navHoldPickBody =>
+      'Choose what a long press on this tab does. You can change it later in Settings.';
+
+  @override
+  String get navHoldSettingTitle => 'Tab hold shortcuts';
+
+  @override
+  String get navHoldSettingSubtitle => 'What holding each tab does';
+
+  @override
+  String get navHoldAskNextTime => 'Erneut fragen';
+
+  @override
+  String get navHoldNothing => 'Nichts';
+
+  @override
+  String get navHoldPlayPause => 'Play / Pause';
+
+  @override
+  String get navHoldOfflineMode => 'Offline Modus';
+
+  @override
+  String get navHoldOfflineOn => 'Offline Modus an';
+
+  @override
+  String get navHoldOfflineOff => 'Offline Modus aus';
+
+  @override
+  String get navHoldMenu => 'Menü immer anzeigen';
+
+  @override
+  String get navHoldStop => 'Wiedergabe stoppen';
+
+  @override
+  String get navHoldRmabSearch => 'ReadMeABook search';
+
+  @override
+  String get navHoldRmabRequests => 'My book requests';
+
+  @override
+  String get navHoldRmabWeb => 'ReadMeABook site';
+
+  @override
+  String get navHoldAdd => 'Add';
+
+  @override
+  String get navHoldMoveLeft => 'Move left';
+
+  @override
+  String get navHoldMoveRight => 'Move right';
+
+  @override
+  String get navHoldRemoveFromMenu => 'Remove from menu';
+
+  @override
+  String get navHoldEditHint => 'Hold an item to move or remove it';
+
+  @override
+  String get navHoldResetMenu => 'Reset the hold menu items';
+
+  @override
+  String get navHoldMenuReset => 'Menu items reset';
+
+  @override
+  String get bookStatsAction => 'Hörstatistik';
+
+  @override
+  String get bookStatsYou => 'Du';
+
+  @override
+  String get bookStatsEveryone => 'Jeder';
+
+  @override
+  String get bookStatsListened => 'Gehörte Zeit';
+
+  @override
+  String get bookStatsSessions => 'Sitzungen';
+
+  @override
+  String get bookStatsFirst => 'Zuerst gehört';
+
+  @override
+  String get bookStatsLast => 'Zuletzt gehört';
+
+  @override
+  String get bookStatsListeners => 'Nutzer die es angefangen haben';
+
+  @override
+  String get bookStatsFinishedCount => 'Nutzer die es beendet haben';
+
+  @override
+  String get bookStatsTotalTime => 'Gehörte Zeit aller Nutzer';
+
+  @override
+  String get bookStatsNobody => 'Noch niemand hat es gehört';
+
+  @override
+  String get bookStatsScanning =>
+      'Scanning through sessions, this could take a while...';
+
+  @override
+  String bookStatsScanningCount(int done, int total) {
+    return 'Scanning through sessions, $done of $total people...';
+  }
+
+  @override
+  String bookStatsLastChecked(String when) {
+    return 'Checked $when';
+  }
+
+  @override
+  String get navHoldServerScan => 'Server scan';
+
+  @override
+  String get navHoldScanAll => 'Alle Bibliotheken scannen';
+
+  @override
+  String navHoldScanLibrary(String name) {
+    return 'Scanne $name';
+  }
+
+  @override
+  String get navHoldScanStarted => 'Scan gestartet';
+
+  @override
+  String get navHoldScanFailed => 'Kann Scan nicht starten';
+
+  @override
+  String get navHoldAdminLogs => 'Server Logs';
+
+  @override
+  String navHoldAdminPage(String page) {
+    return 'Admin: $page';
+  }
+
+  @override
+  String get navHoldNothingPlaying => 'Nothing to play yet';
+
+  @override
+  String get navHoldReadBook => 'Aktuelles Buch lesen';
+
+  @override
+  String get navHoldBookDetails => 'Current book details';
+
+  @override
+  String get syncSourceTitle => 'Which copy should sync keep?';
+
+  @override
+  String get syncSourceBody =>
+      'This backup turned settings sync on. Use the server\'s last sync, or make this backup the source of truth? Choosing the backup replaces the copy on the server for all your synced devices.';
+
+  @override
+  String get syncSourceUseServer => 'Server\'s last sync';
+
+  @override
+  String get syncSourceUseBackup => 'This backup';
+
+  @override
+  String get syncSettingsWhatTravels =>
+      'Your preferences, per-book speeds, home layout, Absorbing order, notes and ebook highlights travel. Logins, download folders, auto-download switches, reader looks and anything not yet sent to your server stay on this device.';
+
+  @override
+  String get syncSettingsDownloadWarnTitle =>
+      'Replace this device\'s settings?';
+
+  @override
+  String get syncSettingsDownloadWarnBody =>
+      'The synced copy will overwrite the settings on this device.';
+
+  @override
+  String get syncSettingsDownloadWarnConfirm => 'Replace';
+
+  @override
   String get readerCopied => 'In Zwischenablage kopiert';
+
+  @override
+  String get dictionaryNotFound => 'No definition found for this word.';
+
+  @override
+  String get dictionaryError =>
+      'Couldn\'t reach the dictionary. Check your connection.';
+
+  @override
+  String get dictionaryRetry => 'Retry';
+
+  @override
+  String get dictionarySearchWeb => 'Search the web';
 
   @override
   String get readerTooltipCopy => 'Kopieren';
@@ -8031,4 +8809,264 @@ class AppLocalizationsDe extends AppLocalizations {
   String readerSearchNoResults(String query) {
     return 'Keine Treffer für \"$query\".';
   }
+
+  @override
+  String get transcriptionTitle => 'Transcription';
+
+  @override
+  String get transcriptionAdvancedSubtitle =>
+      'For transcribing bookmarks and finding your spot between audiobook and ebook';
+
+  @override
+  String get transcriptionEnable => 'Enable transcription';
+
+  @override
+  String get transcriptionEnableSubtitle =>
+      'Adds Transcribe to bookmarks, Find position in ebook to the player, and Find in audiobook to the reader';
+
+  @override
+  String get transcriptionDisclaimer =>
+      'Runs entirely on your device, nothing is sent anywhere. It uses extra battery and processing while it works, and only downloaded books can be transcribed.';
+
+  @override
+  String get transcriptionNeedModelHint =>
+      'Download a model below to start transcribing.';
+
+  @override
+  String get transcriptionModelSection => 'Models';
+
+  @override
+  String get transcriptionModelTiny => 'Tiny';
+
+  @override
+  String get transcriptionModelTinyDesc =>
+      'Quickest, less accurate. About 31 MB.';
+
+  @override
+  String get transcriptionModelBase => 'Base';
+
+  @override
+  String get transcriptionModelBaseDesc => 'A good middle ground. About 57 MB.';
+
+  @override
+  String get transcriptionModelSmall => 'Small';
+
+  @override
+  String get transcriptionModelSmallDesc =>
+      'Slower but most accurate - best on a high-end phone. About 182 MB.';
+
+  @override
+  String get transcriptionAutoHint =>
+      'With more than one downloaded, each job picks between them. Books with an ebook get the quickest one, since the exact words come from the ebook anyway. Books without one get the most accurate - except read along, which stays below Small so it can keep up with the narration.';
+
+  @override
+  String get transcriptionDownload => 'Download';
+
+  @override
+  String get transcriptionDownloadFailed =>
+      'Download failed. Check your connection and try again.';
+
+  @override
+  String get transcribe => 'Transcribe';
+
+  @override
+  String get transcribing => 'Transcribing...';
+
+  @override
+  String get transcriptionResultTitle => 'Transcript';
+
+  @override
+  String get transcriptionSaveToNote => 'Save to note';
+
+  @override
+  String get transcriptionSavedToNote => 'Saved to bookmark note';
+
+  @override
+  String get transcriptionDisabledHint =>
+      'Turn on bookmark transcription in Settings, under Advanced.';
+
+  @override
+  String get transcriptionNoModelDownloaded =>
+      'Download a transcription model in Settings first.';
+
+  @override
+  String get transcriptionNotDownloadedBook =>
+      'Download this book first to transcribe its bookmarks.';
+
+  @override
+  String get transcriptionNoMetadataMsg =>
+      'Can\'t locate this spot in the download. Try re-downloading the book.';
+
+  @override
+  String get transcriptionBusyMsg =>
+      'Already transcribing something. Give it a moment.';
+
+  @override
+  String get transcriptionEmptyMsg => 'No speech was found at this spot.';
+
+  @override
+  String get transcriptionFailedMsg =>
+      'Couldn\'t transcribe this spot. Please try again.';
+
+  @override
+  String get transcriptionPlaySnippet => 'Listen';
+
+  @override
+  String get transcriptionPauseSnippet => 'Pause';
+
+  @override
+  String get transcriptionIntroBody =>
+      'This listens to the chosen amount of audio, starting just before the bookmark, and turns it into text on your device. Longer clips take longer, and transcription isn\'t 100% accurate. The text is saved into the bookmark\'s note when it\'s done, ready to fix up or share.';
+
+  @override
+  String get transcriptionUseEbookText =>
+      'Use the ebook\'s exact text when it can be matched';
+
+  @override
+  String get lyricsMode => 'Live transcript';
+
+  @override
+  String get lyricsListeningAhead => 'Listening ahead...';
+
+  @override
+  String get lyricsDisplaySection => 'Live transcript';
+
+  @override
+  String get lyricsFontSize => 'Line size';
+
+  @override
+  String get lyricsMaxLines => 'Lines shown';
+
+  @override
+  String get lyricsFullCover => 'Use the whole cover';
+
+  @override
+  String get lyricsFullCoverHint =>
+      'Shows the transcript in place of the artwork while it runs, fitting as many lines as there is room for.';
+
+  @override
+  String get lyricsBatteryInfo =>
+      'Live transcript and read along use extra battery and processing while they run. On phones with slower processors, lines can take longer to appear.';
+
+  @override
+  String get lyricsClearCache => 'Clear transcript cache';
+
+  @override
+  String lyricsClearCacheHint(String size) {
+    return '$size of saved transcript lines. Cleared books and episodes are transcribed again as you listen.';
+  }
+
+  @override
+  String get lyricsClearCacheConfirm =>
+      'Delete the saved transcripts for every book and episode? They rebuild automatically as you listen.';
+
+  @override
+  String get lyricsCacheCleared => 'Transcript cache cleared';
+
+  @override
+  String get lyricsIntroBody =>
+      'This listens a little ahead of the narration and shows each line as it is spoken, transcribed on your phone - nothing leaves the device. After turning it on, hold off on pressing play for a few seconds while it gets ahead. The transcript appears once its head start is ready, and starting paused gives it the smoothest run. It uses extra battery and processing while it runs.';
+
+  @override
+  String lyricsBuildingLead(String percent) {
+    return 'Getting ahead of the narration... $percent';
+  }
+
+  @override
+  String lyricsCantKeepUp(String speed) {
+    return 'Can\'t transcribe as fast as you\'re listening at $speed';
+  }
+
+  @override
+  String get lyricsTurnOn => 'Turn on';
+
+  @override
+  String get readAlong => 'Read along';
+
+  @override
+  String get readAlongNeedsPlaying => 'Play this book\'s audiobook first';
+
+  @override
+  String get transcriptionNeedsDownload =>
+      'This needs the audio on your phone. Download it now?';
+
+  @override
+  String get transcriptionDownloadStarted =>
+      'Downloading. Turn this on again when it finishes';
+
+  @override
+  String get readAlongFollow => 'Read along follows';
+
+  @override
+  String get readAlongFollowHint =>
+      'Word timing is worked out between the transcript\'s timestamps, so it can drift slightly inside a sentence.';
+
+  @override
+  String get readAlongFollowWord => 'Word';
+
+  @override
+  String get readAlongFollowSentence => 'Sentence';
+
+  @override
+  String get readAlongColor => 'Read along color';
+
+  @override
+  String get readAlongLost => 'Can\'t find the narration on the page';
+
+  @override
+  String get findInEbook => 'Find in ebook';
+
+  @override
+  String get findInEbookSearching => 'Finding this spot in the ebook...';
+
+  @override
+  String get findInEbookNotFound => 'Couldn\'t find this spot in the ebook.';
+
+  @override
+  String get findInEbookNeedsEpub => 'Find in ebook needs an EPUB ebook.';
+
+  @override
+  String get findInEbookNoEbook => 'Dieses Buch hat kein eBook.';
+
+  @override
+  String get findInAudiobook => 'Im Hörbuch finden';
+
+  @override
+  String get findInAudiobookSearching =>
+      'Suche nach dieser Stelle im Hörbuch...';
+
+  @override
+  String get findInAudiobookStillSearching =>
+      'Still searching the audio for this spot...';
+
+  @override
+  String get findInAudiobookSearchingLong =>
+      'Long chapter, still searching. This can take a minute or two...';
+
+  @override
+  String get findInAudiobookNotFound =>
+      'Konnte diese Stelle nicht im Hörbuch finden.';
+
+  @override
+  String get transcriptionWhisperInfo =>
+      'Transkriptionen werden von Whisper erstellt. Einer Open-Source Spracherkennung. Alles lokal auf diesem Gerät.';
+
+  @override
+  String get transcriptionWhisperLearnMore => 'Mehr über Whisper erfahren';
+
+  @override
+  String get findInAudiobookIntroBody =>
+      'This listens to the audiobook near where you\'re reading and matches it to this passage, all on your device. It can take up to a minute. If the spot can\'t be matched confidently, nothing moves.';
+
+  @override
+  String get findInAudiobookAfterLabel => 'When the spot is found';
+
+  @override
+  String get findInAudiobookStay => 'Weiterlesen';
+
+  @override
+  String get findInAudiobookGoPlayer => 'Im Player öffnen';
+
+  @override
+  String get findInAudiobookPlaying => 'Playing this passage in the audiobook';
 }

@@ -98,7 +98,33 @@ class CarPlayService {
     if (status != ConnectionStatusTypes.connected) return;
     if (_connected) return;
     _connected = true;
+    unawaited(_maybeAutoplayOnConnect());
     _connectAndRender();
+  }
+
+  /// GH #371 (CarPlay side): opt-in autoplay when the car connects with
+  /// nothing loaded. Unlike Android Auto there's an explicit connection
+  /// event, so no browse-stamp heuristics - the _connected edge above is the
+  /// once-per-connection gate. A loaded book means the session is alive and
+  /// a resume belongs to the user (or the head unit's own play command), and
+  /// it keeps a deliberate pause from being undone by a reconnect.
+  Future<void> _maybeAutoplayOnConnect() async {
+    try {
+      final player = AudioPlayerService();
+      if (player.hasBook) return;
+      if (!await PlayerSettings.getAutoplayOnCarConnect()) return;
+      // The connect event can arrive during a cold launch in the car - let
+      // init settle before starting audio.
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!_connected) return;
+      if (player.hasBook || player.isPlaying) return;
+      final restore = AudioPlayerService.onColdStartPlayRequested;
+      if (restore == null) return;
+      debugPrint('[AutoPlay] CarPlay connected - resuming last played');
+      await restore();
+    } catch (e) {
+      debugPrint('[AutoPlay] CarPlay autoplay failed: $e');
+    }
   }
 
   Future<void> _connectAndRender() async {

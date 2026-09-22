@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
@@ -9,6 +10,10 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
 import '../widgets/adaptive_modal.dart';
+import '../services/chapter_start_finder.dart';
+import '../services/download_service.dart';
+import '../services/remote_audio_slice.dart';
+import '../services/transcription_service.dart';
 import '../widgets/overlay_toast.dart';
 
 /// Mutable working copy of one chapter. [uid] is a stable identity that
@@ -112,6 +117,42 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
   double _previewPosSec = 0;
   bool _scrubbing = false;
   bool? _mainWasPlaying;
+
+  // The scrubber shows a window of the track, not the whole file: on a long
+  // book a whole-file slider moves minutes per pixel. Track-local seconds.
+  static const List<int> _windowChoices = [2, 5, 10];
+  int _windowMinutes = 5;
+  double _windowStart = 0;
+  // The spot being cut. Loop the cut plays a second before it to two after
+  // it on repeat, so a nudge is heard straight away.
+  double _cutPos = 0;
+  bool _loopCut = false;
+  static const double _loopBefore = 1.0;
+  static const double _loopAfter = 2.0;
+  // Find the start only shows when transcription can actually run here.
+  bool _canFind = false;
+
+  Future<void> _checkFindAvailable() async {
+    final ok = await TranscriptionService.instance.canTranscribeNow();
+    if (mounted && ok != _canFind) setState(() => _canFind = ok);
+  }
+
+  double get _windowSeconds => _windowMinutes * 60.0;
+  double get _windowEnd => _windowStart + _windowSeconds;
+
+  /// Put the window around [center], keeping it inside the track.
+  void _centerWindow(double center) {
+    final maxStart = _previewTrackDur > _windowSeconds ? _previewTrackDur - _windowSeconds : 0.0;
+    _windowStart = (center - _windowSeconds / 2).clamp(0.0, maxStart);
+  }
+
+  void _cycleWindow() {
+    final i = _windowChoices.indexOf(_windowMinutes);
+    setState(() {
+      _windowMinutes = _windowChoices[(i + 1) % _windowChoices.length];
+      _centerWindow(_cutPos);
+    });
+  }
 
   @override
   void initState() {
@@ -319,60 +360,37 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
 
   // ─── Edits ──────────────────────────────────────────────────
 
+  /// Hours, minutes and seconds drums instead of typing: no keyboard, and no
+  /// way to enter a time the book doesn't have.
   Future<void> _editStart(_Ch c) async {
     final l = AppLocalizations.of(context)!;
-    final ctl = TextEditingController(text: _fmtStart(c.start));
+    var picked = c.start;
+    final maxHours = _duration > 0 ? (_duration / 3600).floor() : 99;
     final result = await showDialog<double>(
       context: context,
-      builder: (dctx) {
-        String? err;
-        return StatefulBuilder(builder: (dctx, setLocal) {
-          return AlertDialog(
-            title: Text(l.chapterEditStartTitle),
-            content: TextField(
-              controller: ctl,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                hintText: _showSeconds ? l.chapterTimeHintSeconds : l.chapterTimeHintFull,
-                errorText: err,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dctx),
-                child: Text(l.cancel),
-              ),
-              TextButton(
-                onPressed: () {
-                  final v = _parseTime(ctl.text);
-                  if (v == null) {
-                    setLocal(() => err = l.chapterInvalidTime);
-                    return;
-                  }
-                  Navigator.pop(dctx, _clampStart(v));
-                },
-                child: Text(l.done),
-              ),
-            ],
-          );
-        });
-      },
+      builder: (dctx) => AlertDialog(
+        title: Text(l.chapterEditStartTitle),
+        contentPadding: const EdgeInsets.fromLTRB(8, 20, 8, 0),
+        content: _TimeDrums(
+          seconds: c.start,
+          maxHours: maxHours,
+          onChanged: (v) => picked = v,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx),
+            child: Text(l.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, _clampStart(picked)),
+            child: Text(l.done),
+          ),
+        ],
+      ),
     );
-    ctl.dispose();
     if (result == null) return;
     setState(() {
       c.start = result;
-      _check();
-    });
-  }
-
-  void _nudge(_Ch c, double delta) {
-    final next = c.start + delta;
-    if (next < 0) return;
-    if (_duration > 0 && next >= _duration) return;
-    setState(() {
-      c.start = _clampStart(next);
       _check();
     });
   }
@@ -472,7 +490,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     if (main.isPlaying) main.pause();
   }
 
-  Future<void> _playChapter(_Ch c) async {
+  Future<void> _playChapter(_Ch c, {bool autoplay = true}) async {
     final l = AppLocalizations.of(context)!;
     await _stopPreview();
 
@@ -496,13 +514,24 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
       _previewTrackOffset = startOffset;
       _previewTrackDur = (track['duration'] as num?)?.toDouble() ?? 0;
       _previewPosSec = seekSec;
+      _cutPos = seekSec;
+      _centerWindow(seekSec);
     });
+    unawaited(_checkFindAvailable());
 
     try {
       final player = AudioPlayer();
       _preview = player;
       _previewPosSub = player.positionStream.listen((pos) {
-        if (mounted && !_scrubbing) setState(() => _previewPosSec = pos.inMilliseconds / 1000.0);
+        if (!mounted || _scrubbing) return;
+        final sec = pos.inMilliseconds / 1000.0;
+        if (_loopCut && sec > _cutPos + _loopAfter) {
+          _preview?.seek(Duration(milliseconds: ((_cutPos - _loopBefore).clamp(0.0, sec) * 1000).round()));
+          return;
+        }
+        // The window stays on the start; playback running past it just
+        // fills the track to the edge.
+        setState(() => _previewPosSec = sec);
       });
       _previewStateSub = player.playerStateStream.listen((st) {
         if (!mounted) return;
@@ -519,7 +548,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
           Uri.parse(api.buildTrackUrl(contentUrl)),
           options: mp3ExtractorOptions()));
       await player.seek(Duration(milliseconds: (seekSec * 1000).round()));
-      await player.play();
+      if (autoplay) await player.play();
     } catch (e) {
       debugPrint('[ChapterEditor] preview error: $e');
       await _stopPreview();
@@ -555,33 +584,58 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     if (_previewPlaying) {
       await p.pause();
     } else {
-      await p.play();
+      // Play always starts from the chapter start, not wherever the pause
+      // left the audio: the point of listening is to check the cut.
+      _seekPreviewTo(_cutPos);
     }
   }
 
-  void _seekPreviewBy(double deltaSec) => _seekPreviewTo(_previewPosSec + deltaSec);
+  /// Nudges move the cut, not the playhead: with the loop on the base is the
+  /// cut itself, otherwise wherever the audio is.
+  void _seekPreviewBy(double deltaSec, {bool play = true}) =>
+      _seekPreviewTo(_cutPos + deltaSec, play: play);
 
-  void _seekPreviewTo(double posSec) {
+  /// Move the chapter's start to [posSec] (seconds into the track) and play
+  /// from there, so every nudge and every slider release is heard from the
+  /// new start. With the loop on, playback opens a second early and keeps
+  /// coming back around it. The panel edits the start itself: there is no
+  /// separate "set start" step.
+  void _seekPreviewTo(double posSec, {bool play = true}) {
     final p = _preview;
     if (p == null) return;
     var target = posSec;
     if (target < 0) target = 0;
     if (_previewTrackDur > 0 && target > _previewTrackDur) target = _previewTrackDur;
-    p.seek(Duration(milliseconds: (target * 1000).round()));
-    if (mounted) setState(() => _previewPosSec = target);
+    _cutPos = target;
+    _Ch? active;
+    for (final ch in _chapters) {
+      if (ch.uid == _previewUid) {
+        active = ch;
+        break;
+      }
+    }
+    // A held nudge only moves the start; the audio follows when the finger
+    // lifts, so the sound doesn't stutter five times a second.
+    if (play) {
+      final playFrom = _loopCut ? (target - _loopBefore).clamp(0.0, target) : target;
+      p.seek(Duration(milliseconds: (playFrom * 1000).round()));
+      if (!_previewPlaying && !_previewLoading) p.play();
+      _previewPosSec = playFrom;
+    }
+    if (mounted) {
+      setState(() {
+        if (target < _windowStart || target > _windowEnd) _centerWindow(target);
+        if (active != null) {
+          active.start = _clampStart(_previewTrackOffset + target);
+          _check();
+        }
+      });
+    }
   }
 
-  /// Snap the chapter start to the current preview position (the global time
-  /// the scrubber is sitting on). Works in either direction; keeps previewing
-  /// so the start can be fine-tuned further.
-  void _adjustStart(_Ch c) {
-    final newStart = _clampStart(_previewTrackOffset + _previewPosSec);
-    setState(() {
-      c.start = newStart;
-      _check();
-    });
-    HapticFeedback.mediumImpact();
-    showOverlayToast(context, AppLocalizations.of(context)!.chapterStartSetTo(_clock(newStart)), icon: Icons.check_rounded);
+  void _toggleLoopCut() {
+    setState(() => _loopCut = !_loopCut);
+    if (_loopCut) _seekPreviewTo(_cutPos);
   }
 
   // ─── Bulk add ───────────────────────────────────────────────
@@ -900,18 +954,27 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
   }
 
   Widget _buildBody(ColorScheme cs) {
+    // Only the save bar and the add field stay put. The toolbar scrolls away
+    // with the list, so a small or zoomed screen with the keyboard up still
+    // has room to see and reach the chapters instead of a two-row slit.
     return Column(
       children: [
         _saveBar(cs),
-        _toolbar(cs),
-        if (_showShift) _shiftPanel(cs),
-        const Divider(height: 1),
         Expanded(
-          child: ListView.builder(
+          child: CustomScrollView(
             controller: _listScroll,
-            padding: const EdgeInsets.only(bottom: 16),
-            itemCount: _chapters.length,
-            itemBuilder: (_, i) => _row(cs, _chapters[i], i),
+            slivers: [
+              SliverToBoxAdapter(child: _toolbar(cs)),
+              // Shifting is lock a few, shift the rest, repeat, so the shift
+              // row stays put while the list scrolls under it.
+              if (_showShift) PinnedHeaderSliver(child: _shiftPanel(cs)),
+              const SliverToBoxAdapter(child: Divider(height: 1)),
+              SliverList.builder(
+                itemCount: _chapters.length,
+                itemBuilder: (_, i) => _row(cs, _chapters[i], i),
+              ),
+              const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
+            ],
           ),
         ),
         _bulkBar(cs),
@@ -1006,7 +1069,8 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
   Widget _shiftPanel(ColorScheme cs) {
     final l = AppLocalizations.of(context)!;
     return Container(
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+      color: Color.alphaBlend(
+          cs.surfaceContainerHighest.withValues(alpha: 0.4), cs.surface),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1041,7 +1105,6 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
 
   Widget _row(ColorScheme cs, _Ch c, int index) {
     final l = AppLocalizations.of(context)!;
-    final locked = _locked.contains(c.uid);
     final hasError = c.error != null;
     final active = _previewUid == c.uid;
     return Container(
@@ -1070,13 +1133,6 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: cs.onSurfaceVariant)),
               ),
-              IconButton(
-                onPressed: () => _nudge(c, -1),
-                icon: const Icon(Icons.remove_circle_outline_rounded),
-                iconSize: 24,
-                color: cs.onSurfaceVariant,
-                tooltip: l.chapterBack1Second,
-              ),
               Expanded(
                 child: InkWell(
                   onTap: () => _editStart(c),
@@ -1100,15 +1156,9 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: () => _nudge(c, 1),
-                icon: const Icon(Icons.add_circle_outline_rounded),
-                iconSize: 24,
-                color: cs.onSurfaceVariant,
-                tooltip: l.chapterForward1Second,
-              ),
-              _previewButton(cs, c),
-              _rowMenu(cs, c, locked),
+              const SizedBox(width: 2),
+              ..._rowActions(cs, c),
+              _expandButton(cs, c),
             ],
           ),
           Padding(
@@ -1138,20 +1188,15 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     );
   }
 
-  Widget _previewButton(ColorScheme cs, _Ch c) {
+  /// Opens the row into its preview panel, where the play button and the
+  /// chapter's menu live; opening loads the audio paused.
+  Widget _expandButton(ColorScheme cs, _Ch c) {
     final active = _previewUid == c.uid;
-    if (active && _previewLoading) {
-      return const SizedBox(
-        width: 48,
-        height: 48,
-        child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
-      );
-    }
     final l = AppLocalizations.of(context)!;
     return IconButton(
-      onPressed: () => active ? _stopPreview() : _playChapter(c),
-      icon: Icon(active ? Icons.stop_circle_rounded : Icons.play_circle_rounded),
-      iconSize: 32,
+      onPressed: () => active ? _stopPreview() : _playChapter(c, autoplay: false),
+      icon: Icon(active ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+      iconSize: 28,
       color: active ? cs.primary : cs.onSurfaceVariant,
       tooltip: active ? l.chapterStopPreview : l.chapterPreviewFromHere,
     );
@@ -1159,9 +1204,14 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
 
   Widget _previewPanel(ColorScheme cs, _Ch c) {
     final l = AppLocalizations.of(context)!;
-    final global = _previewTrackOffset + _previewPosSec;
-    final dur = _previewTrackDur > 0 ? _previewTrackDur : (_previewPosSec > 1 ? _previewPosSec : 1.0);
-    final val = _previewPosSec.clamp(0.0, dur);
+    final global = c.start;
+    final trackEnd = _previewTrackDur > 0 ? _previewTrackDur : (_cutPos > 1 ? _cutPos : 1.0);
+    final winEnd = _windowEnd < trackEnd ? _windowEnd : trackEnd;
+    final winStart = _windowStart < winEnd ? _windowStart : (winEnd - 1).clamp(0.0, winEnd);
+    // The thumb is the chapter start. Playback shows as the lighter fill
+    // running ahead of it, so the start never drifts off under the audio.
+    final val = _cutPos.clamp(winStart, winEnd);
+    final playhead = _previewPosSec.clamp(winStart, winEnd);
     return Container(
       margin: const EdgeInsets.only(left: 4, right: 4, top: 10),
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 12),
@@ -1191,98 +1241,223 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
                       fontFeatures: const [FontFeature.tabularFigures()])),
             ]),
           ),
-        ]),
-        Slider(
-          value: val,
-          max: dur,
-          onChangeStart: (_) => _scrubbing = true,
-          onChanged: (v) => setState(() => _previewPosSec = v),
-          onChangeEnd: (v) {
-            _scrubbing = false;
-            _seekPreviewTo(v);
-          },
-        ),
-        Row(children: [
-          _skipBtn('-5s', () => _seekPreviewBy(-5)),
-          const SizedBox(width: 8),
-          _skipBtn('-1s', () => _seekPreviewBy(-1)),
-          const Spacer(),
-          _skipBtn('+1s', () => _seekPreviewBy(1)),
-          const SizedBox(width: 8),
-          _skipBtn('+5s', () => _seekPreviewBy(5)),
-        ]),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: () => _adjustStart(c),
-            icon: const Icon(Icons.my_location_rounded, size: 18),
-            label: Text(l.chapterSetStartHere),
+          IconButton(
+            onPressed: _toggleLoopCut,
+            tooltip: l.chapterLoopCut,
+            isSelected: _loopCut,
+            icon: const Icon(Icons.repeat_rounded),
+            selectedIcon: Icon(Icons.repeat_on_rounded, color: cs.primary),
           ),
+          if (_canFind)
+            IconButton(
+              onPressed: () => _showFindStart(c),
+              tooltip: l.chapterFindStart,
+              icon: const Icon(Icons.hearing_rounded),
+              color: cs.primary,
+            ),
+        ]),
+        Row(children: [
+          Expanded(
+            child: Slider(
+              value: val,
+              secondaryTrackValue: playhead > val ? playhead : null,
+              min: winStart,
+              max: winEnd,
+              onChangeStart: (_) => _scrubbing = true,
+              onChanged: (v) => _seekPreviewTo(v, play: false),
+              onChangeEnd: (v) {
+                _scrubbing = false;
+                // Let go at an edge and the window slides on by half.
+                final edge = _windowSeconds * 0.02;
+                if (v <= winStart + edge && winStart > 0) {
+                  _centerWindow(winStart);
+                } else if (v >= winEnd - edge && winEnd < trackEnd) {
+                  _centerWindow(winEnd);
+                }
+                _seekPreviewTo(v);
+              },
+            ),
+          ),
+          // Tap to cycle the window width: two, five or ten minutes.
+          ActionChip(
+            visualDensity: VisualDensity.compact,
+            label: Text(l.chapterWindowMinutes(_windowMinutes)),
+            onPressed: _cycleWindow,
+          ),
+          const SizedBox(width: 4),
+        ]),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(children: [
+            Text(_clock(_previewTrackOffset + winStart),
+                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+            const Spacer(),
+            Text(_clock(_previewTrackOffset + winEnd),
+                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+          ]),
         ),
+        const SizedBox(height: 6),
+        Row(children: [
+          _skipBtn('-5s', -5),
+          const SizedBox(width: 8),
+          _skipBtn('-1s', -1),
+          const Spacer(),
+          _skipBtn('+1s', 1),
+          const SizedBox(width: 8),
+          _skipBtn('+5s', 5),
+        ]),
       ]),
     );
   }
 
-  Widget _skipBtn(String label, VoidCallback onTap) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(58, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+  /// A nudge button that keeps nudging while held: the start moves with
+  /// each tick, the audio catches up once on release.
+  Widget _skipBtn(String label, double delta) {
+    Timer? repeat;
+    void onTap() => _seekPreviewBy(delta);
+    return GestureDetector(
+      onLongPressStart: (_) {
+        _seekPreviewBy(delta, play: false);
+        repeat = Timer.periodic(
+            const Duration(milliseconds: 180), (_) => _seekPreviewBy(delta, play: false));
+      },
+      onLongPressEnd: (_) {
+        repeat?.cancel();
+        _seekPreviewTo(_cutPos);
+      },
+      onLongPressCancel: () => repeat?.cancel(),
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(58, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
+        child: Text(label),
       ),
-      child: Text(label),
     );
   }
 
-  Widget _rowMenu(ColorScheme cs, _Ch c, bool locked) {
+  /// Listen around the marker for where this chapter really starts and let
+  /// the user pick from what was heard.
+  Future<void> _showFindStart(_Ch c) async {
     final l = AppLocalizations.of(context)!;
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert_rounded),
-      iconSize: 24,
-      tooltip: l.chapterMore,
-      onSelected: (v) {
-        switch (v) {
-          case 'lock':
-            _toggleLock(c);
-            break;
-          case 'insert':
-            _insertBelow(c);
-            break;
-          case 'delete':
-            _remove(c);
-            break;
-        }
-      },
-      itemBuilder: (_) => [
-        PopupMenuItem(
-          value: 'lock',
-          child: Row(children: [
-            Icon(locked ? Icons.lock_open_rounded : Icons.lock_rounded,
-                color: locked ? Colors.orange : cs.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Text(locked ? l.chapterUnlock : l.chapterLock),
-          ]),
-        ),
-        PopupMenuItem(
-          value: 'insert',
-          child: Row(children: [
-            Icon(Icons.add_box_outlined, color: cs.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Text(l.chapterInsertBelow),
-          ]),
-        ),
-        if (_chapters.length > 1)
-          PopupMenuItem(
-            value: 'delete',
-            child: Row(children: [
-              Icon(Icons.delete_outline_rounded, color: cs.error),
-              const SizedBox(width: 12),
-              Text(l.delete, style: TextStyle(color: cs.error)),
-            ]),
-          ),
-      ],
+    if (!await TranscriptionService.instance.canTranscribeNow()) {
+      if (mounted) {
+        showOverlayToast(context, l.chapterFindStartNeedsModel,
+            icon: Icons.record_voice_over_rounded);
+      }
+      return;
+    }
+    final localPaths = DownloadService().getLocalPaths(widget.itemId);
+    final downloaded = localPaths != null && localPaths.isNotEmpty;
+    if (!mounted) return;
+    final marker = c.start;
+    final track = _trackForTime(marker);
+    final api = context.read<AuthProvider>().apiService;
+    if (track == null || api == null) return;
+    final trackIndex = _tracks.indexOf(track);
+    final offset = (track['startOffset'] as num?)?.toDouble() ?? 0;
+    final trackDur = (track['duration'] as num?)?.toDouble() ?? 0;
+    // Android's decoder opens a stream URL itself. Apple's only reads local
+    // files, so on iOS a streamed book gets the window's bytes pulled down
+    // and rewrapped first.
+    final String source;
+    RemoteTrack? remote;
+    if (downloaded && trackIndex >= 0 && trackIndex < localPaths.length) {
+      source = localPaths[trackIndex];
+    } else {
+      final contentUrl = track['contentUrl'] as String?;
+      if (contentUrl == null) return;
+      source = api.buildTrackUrl(contentUrl);
+      if (Platform.isIOS) {
+        remote = RemoteTrack(
+          url: source,
+          headers: api.mediaHeaders,
+          durationSeconds: trackDur,
+          mimeType: track['mimeType'] as String?,
+        );
+      }
+    }
+    final index = _chapters.indexOf(c);
+    final title = _titleCtl[c.uid]?.text ?? c.title;
+    // First pass is the scrubber's own window around the marker.
+    final half = _windowSeconds / 2;
+    final local = marker - offset;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _FindStartSheet(
+        source: source,
+        remote: remote,
+        sourceOffset: offset,
+        trackDuration: trackDur,
+        centerLocal: local,
+        firstHalfWidth: half,
+        chapterNumber: index + 1,
+        title: title,
+        clock: _clock,
+        onPlay: (t) {
+          if (_previewUid != c.uid) return;
+          _seekPreviewTo(t - _previewTrackOffset);
+        },
+        onPick: (t, suggested) {
+          // A heard title replaces an empty or number-only one; a heard
+          // name ("Chapter 2: The Storm") is worth taking over anything.
+          final current = (_titleCtl[c.uid]?.text ?? c.title).trim();
+          final generic = current.isEmpty ||
+              RegExp(r'^(chapter|part)?\s*\d+\.?$', caseSensitive: false).hasMatch(current);
+          final takeTitle = suggested != null && (suggested.contains(':') || generic);
+          setState(() {
+            c.start = _clampStart(t);
+            if (takeTitle) {
+              c.title = suggested;
+              _titleCtl[c.uid]?.text = suggested;
+            }
+            _check();
+          });
+          if (_previewUid == c.uid) _seekPreviewTo(t - _previewTrackOffset);
+        },
+      ),
     );
+  }
+
+  /// Lock, insert and delete sit beside the time now that the row has the
+  /// room, instead of behind a menu in the preview panel.
+  List<Widget> _rowActions(ColorScheme cs, _Ch c) {
+    final l = AppLocalizations.of(context)!;
+    final locked = _locked.contains(c.uid);
+    return [
+      IconButton(
+        onPressed: () => _toggleLock(c),
+        icon: Icon(locked ? Icons.lock_rounded : Icons.lock_open_rounded),
+        iconSize: 22,
+        visualDensity: VisualDensity.compact,
+        color: locked ? Colors.orange : cs.onSurfaceVariant,
+        tooltip: locked ? l.chapterUnlock : l.chapterLock,
+      ),
+      IconButton(
+        onPressed: () => _insertBelow(c),
+        icon: const Icon(Icons.add_box_outlined),
+        iconSize: 22,
+        visualDensity: VisualDensity.compact,
+        color: cs.onSurfaceVariant,
+        tooltip: l.chapterInsertBelow,
+      ),
+      if (_chapters.length > 1)
+        IconButton(
+          onPressed: () => _remove(c),
+          icon: const Icon(Icons.delete_outline_rounded),
+          iconSize: 22,
+          visualDensity: VisualDensity.compact,
+          color: cs.error.withValues(alpha: 0.8),
+          tooltip: l.delete,
+        ),
+    ];
   }
 }
 
@@ -1517,5 +1692,353 @@ class _ChapterLookupSheetState extends State<_ChapterLookupSheet> {
         ),
       ),
     ]);
+  }
+}
+
+/// Hours, minutes and seconds drums for a chapter start.
+class _TimeDrums extends StatefulWidget {
+  final double seconds;
+  final int maxHours;
+  final ValueChanged<double> onChanged;
+  const _TimeDrums({required this.seconds, required this.maxHours, required this.onChanged});
+
+  @override
+  State<_TimeDrums> createState() => _TimeDrumsState();
+}
+
+class _TimeDrumsState extends State<_TimeDrums> {
+  late final FixedExtentScrollController _h;
+  late final FixedExtentScrollController _m;
+  late final FixedExtentScrollController _s;
+
+  @override
+  void initState() {
+    super.initState();
+    final total = widget.seconds.round().clamp(0, 1 << 31);
+    _h = FixedExtentScrollController(initialItem: (total ~/ 3600).clamp(0, widget.maxHours));
+    _m = FixedExtentScrollController(initialItem: (total % 3600) ~/ 60);
+    _s = FixedExtentScrollController(initialItem: total % 60);
+  }
+
+  @override
+  void dispose() {
+    _h.dispose();
+    _m.dispose();
+    _s.dispose();
+    super.dispose();
+  }
+
+  void _emit() {
+    widget.onChanged(_h.selectedItem * 3600.0 + _m.selectedItem * 60.0 + _s.selectedItem);
+  }
+
+  Widget _drum(FixedExtentScrollController c, int count, String unit, ColorScheme cs) {
+    return Expanded(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        SizedBox(
+          height: 150,
+          child: ListWheelScrollView.useDelegate(
+            controller: c,
+            itemExtent: 38,
+            physics: const FixedExtentScrollPhysics(),
+            diameterRatio: 1.6,
+            onSelectedItemChanged: (_) => _emit(),
+            childDelegate: ListWheelChildBuilderDelegate(
+              childCount: count,
+              builder: (_, i) => Center(
+                child: Text(
+                  i.toString().padLeft(2, '0'),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: cs.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Text(unit, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(children: [
+      _drum(_h, widget.maxHours + 1, 'h', cs),
+      _drum(_m, 60, 'm', cs),
+      _drum(_s, 60, 's', cs),
+    ]);
+  }
+}
+
+/// Where a chapter could start, heard from the audio around the marker.
+/// Starts on the scrubber's window and can search wider twice, to about
+/// half an hour in all, before giving up.
+class _FindStartSheet extends StatefulWidget {
+  final String source;
+  final RemoteTrack? remote;
+  final double sourceOffset;
+  final double trackDuration;
+  final double centerLocal;
+  final double firstHalfWidth;
+  final int chapterNumber;
+  final String title;
+  final String Function(double) clock;
+  final ValueChanged<double> onPlay;
+  final void Function(double time, String? suggestedTitle) onPick;
+  const _FindStartSheet({
+    required this.source,
+    this.remote,
+    required this.sourceOffset,
+    required this.trackDuration,
+    required this.centerLocal,
+    required this.firstHalfWidth,
+    required this.chapterNumber,
+    required this.title,
+    required this.clock,
+    required this.onPlay,
+    required this.onPick,
+  });
+
+  @override
+  State<_FindStartSheet> createState() => _FindStartSheetState();
+}
+
+class _FindStartSheetState extends State<_FindStartSheet> {
+  // Each level adds this much on both sides: 5 min, then 15, then 30 in all.
+  static const List<double> _growBy = [300, 450];
+
+  final List<ChapterCandidate> _found = [];
+  bool _running = true;
+  bool _cancelled = false;
+  int _level = 0;
+  String? _error;
+  late double _from = (widget.centerLocal - widget.firstHalfWidth).clamp(0.0, _trackEnd);
+  late double _to = (widget.centerLocal + widget.firstHalfWidth).clamp(0.0, _trackEnd);
+
+  double get _trackEnd => widget.trackDuration > 0 ? widget.trackDuration : double.infinity;
+  bool get _atCeiling => _level >= _growBy.length;
+
+  @override
+  void initState() {
+    super.initState();
+    _run([(from: _from, to: _to)]);
+  }
+
+  @override
+  void dispose() {
+    _cancelled = true;
+    super.dispose();
+  }
+
+  Future<void> _run(List<({double from, double to})> ranges) async {
+    setState(() {
+      _running = true;
+      _error = null;
+    });
+    for (final r in ranges) {
+      if (_cancelled) return;
+      if (r.to - r.from < 2) continue;
+      try {
+        await ChapterStartFinder.run(
+          source: widget.source,
+          remote: widget.remote,
+          sourceOffset: widget.sourceOffset,
+          startLocal: r.from,
+          windowSeconds: r.to - r.from,
+          chapterNumber: widget.chapterNumber,
+          title: widget.title,
+          cancelled: () => _cancelled,
+          onCandidate: (c) {
+            if (!mounted || _cancelled) return;
+            setState(() {
+              _found.add(c);
+              _found.sort((a, b) => a.time.compareTo(b.time));
+            });
+          },
+        );
+      } on TranscriptionException catch (e) {
+        if (!mounted) return;
+        final l = AppLocalizations.of(context)!;
+        setState(() {
+          _error = switch (e.kind) {
+            TranscriptionError.disabled => l.transcriptionDisabledHint,
+            TranscriptionError.modelMissing => l.transcriptionNoModelDownloaded,
+            TranscriptionError.busy => l.transcriptionBusyMsg,
+            _ => l.transcriptionFailedMsg,
+          };
+        });
+        break;
+      } catch (e) {
+        debugPrint('[ChapterFind] failed: $e');
+        if (!mounted) return;
+        setState(() => _error = AppLocalizations.of(context)!.transcriptionFailedMsg);
+        break;
+      }
+    }
+    if (mounted) setState(() => _running = false);
+  }
+
+  void _wider() {
+    if (_running || _atCeiling) return;
+    final grow = _growBy[_level];
+    final left = (from: (_from - grow).clamp(0.0, _from), to: _from);
+    final right = (from: _to, to: (_to + grow).clamp(_to, _trackEnd));
+    setState(() {
+      _level++;
+      _from = left.from;
+      _to = right.to;
+    });
+    _run([left, right]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final maxH = MediaQuery.of(context).size.height * 0.75;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(l.chapterFindStart, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(
+                  _running
+                      ? l.chapterFindStartListening
+                      : l.chapterFindStartRange(
+                          widget.clock(widget.sourceOffset + _from),
+                          widget.clock(widget.sourceOffset + (_to.isFinite ? _to : 0))),
+                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ]),
+            ),
+            if (_running)
+              const Padding(
+                padding: EdgeInsets.all(8),
+                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+          ]),
+        ),
+        Flexible(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            children: [
+              for (final c in _found) _candidate(c, l, cs, tt, _isBest(c)),
+              if (!_running && _found.isEmpty && _error == null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                  child: Text(l.chapterFindStartNone, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                  child: Text(_error!, style: tt.bodyMedium?.copyWith(color: cs.error)),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: _atCeiling && !_running
+              ? Text(l.chapterFindStartCeiling,
+                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))
+              : SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _running || _error != null ? null : _wider,
+                    icon: const Icon(Icons.unfold_more_rounded, size: 18),
+                    label: Text(l.chapterFindStartWider),
+                  ),
+                ),
+        ),
+      ]),
+    );
+  }
+
+  /// The candidate the finder would pick: the top score, once something was
+  /// actually heard that sounds like a chapter.
+  bool _isBest(ChapterCandidate c) {
+    if (c.score < 2) return false;
+    return !_found.any((o) => o.score > c.score);
+  }
+
+  Widget _candidate(ChapterCandidate c, AppLocalizations l, ColorScheme cs, TextTheme tt, bool best) {
+    final strong = c.score >= 2;
+    final maybe = c.score == 1;
+    final heard = c.heard.trim();
+    final shortHeard = heard.length > 90 ? '${heard.substring(0, 90)}...' : heard;
+    final gap = l.chapterFindStartGap(c.silenceSeconds.toStringAsFixed(1));
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: ListTile(
+      shape: best
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: cs.primary, width: 1.5))
+          : null,
+      tileColor: best ? cs.primary.withValues(alpha: 0.06) : null,
+      leading: IconButton(
+        icon: Icon(Icons.play_circle_outline_rounded, color: cs.primary),
+        tooltip: l.preview,
+        onPressed: () => widget.onPlay(c.time),
+      ),
+      title: Row(children: [
+        Text(widget.clock(c.time),
+            style: tt.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()])),
+        const SizedBox(width: 8),
+        if (strong || maybe)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: (strong ? cs.primary : cs.onSurface).withValues(alpha: strong ? 0.15 : 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(strong ? l.chapterFindStartStrong : l.chapterFindStartMaybe,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                    color: strong ? cs.primary : cs.onSurfaceVariant)),
+          ),
+      ]),
+      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(
+          heard.isEmpty ? gap : '$gap  -  $shortHeard',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+        ),
+        if (c.suggestedTitle != null)
+          Text(
+            l.chapterFindStartTitle(c.suggestedTitle!),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: tt.bodySmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w600),
+          ),
+      ]),
+      isThreeLine: c.suggestedTitle != null,
+      trailing: TextButton(
+        onPressed: () {
+          widget.onPick(c.time, c.suggestedTitle);
+          Navigator.pop(context);
+        },
+        child: Text(l.chapterFindStartUseThis),
+      ),
+      onTap: () {
+        widget.onPick(c.time, c.suggestedTitle);
+        Navigator.pop(context);
+      },
+      ),
+    );
   }
 }

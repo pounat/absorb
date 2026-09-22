@@ -1,0 +1,51 @@
+group 'com.devac.whisper_flutter'
+version '1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.4.2'
+    }
+}
+
+apply plugin: 'com.android.library'
+
+// Second build of ../android/src/whisper with WHISPER_COMPAT on: a plain
+// armv8-a libwhisper_compat.so for CPUs without dotprod/fp16 (Boox Palma and
+// other pre-2018 cores), which SIGILL on the fast lib. arm64 only - every
+// other ABI's libwhisper.so is already a baseline build.
+android {
+    namespace "com.devac.whisper_ggml_plus.compat"
+
+    compileSdk 34
+
+    externalNativeBuild {
+        cmake {
+            path "../android/src/whisper/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    defaultConfig {
+        minSdkVersion 21
+        ndk {
+            abiFilters("arm64-v8a")
+        }
+        externalNativeBuild {
+            cmake {
+                cFlags "-O3 -s -flto=thin -ffunction-sections -fdata-sections -fvisibility=hidden -fvisibility-inlines-hidden"
+                cppFlags "-O3 -s -flto=thin -ffunction-sections -fdata-sections -fvisibility=hidden -fvisibility-inlines-hidden"
+                arguments "-Wl,--gc-sections,--exclude-libs,ALL", "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Release", "-DWHISPER_COMPAT=ON"
+            }
+        }
+    }
+}

@@ -287,8 +287,18 @@ class LocalSessionService {
       await _legacyFlush(api, _active!);
       return true;
     }
+    final ct = (_active!['currentTime'] as num?)?.toDouble() ?? 0;
+    if (!result.ok) {
+      debugPrint('[LocalSession] Push failed for ${_active!['id']} at ${ct.toStringAsFixed(0)}s');
+    } else if (_lastPushLogAt == null ||
+        clock().difference(_lastPushLogAt!) >= const Duration(minutes: 5)) {
+      _lastPushLogAt = clock();
+      debugPrint('[LocalSession] Pushed ${_active!['id']} at ${ct.toStringAsFixed(0)}s');
+    }
     return result.ok;
   }
+
+  DateTime? _lastPushLogAt;
 
   /// Clear the active session (stop / finish / item change). When [pushed] is
   /// false (offline, or the push failed) it's queued for replay; when true it's

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -311,6 +312,10 @@ class DownloadService extends ChangeNotifier {
   static bool backgroundIsolateMode = false;
 
   final Map<String, DownloadInfo> _downloads = {};
+
+  // Items whose stored cover was already checked (and upgraded if it was an
+  // old 400px thumbnail) this session - see enrichMetadata.
+  final Set<String> _coverUpgradeChecked = {};
   final Set<String> _activeDownloadIds = {};
   final Set<String> _cancelledIds = {};
   /// SAF tree URI (content://) for the Android custom download folder, or null
@@ -340,6 +345,20 @@ class DownloadService extends ChangeNotifier {
 
   /// Queue of pending download requests.
   final List<_QueuedDownload> _queue = [];
+
+  // Items the user deleted by hand. Every auto-download planner (rolling
+  // series and show, queue window, playlist and collection, new subscribed
+  // episodes) funnels through [downloadItem] with automatic: true and skips
+  // these, so a half-finished book that was deleted stops coming back on the
+  // next launch. Global like the downloads themselves, not per account.
+  final Set<String> _autoDownloadBlocked = {};
+
+  /// True when the user deleted this download, so an automatic download of it
+  /// would be skipped. Callers that count or announce downloads need to know
+  /// before they call, or they announce work that never happens.
+  bool isAutoDownloadBlocked(String itemId) =>
+      _autoDownloadBlocked.contains(itemId);
+  static const _autoDownloadBlockedKey = 'auto_download_blocked';
 
   /// The current Android SAF folder URI (content://), or null if using default.
   String? get customDownloadUri => _customDownloadUri;
@@ -527,11 +546,15 @@ class DownloadService extends ChangeNotifier {
   /// ebook bytes live in the reader's persistent cache (fetchEbookToCache).
   /// Fetches a full copy of the item so the offline sheet has the cover,
   /// description, and ebookFile - not just the title.
-  Future<void> registerEbookDownload({
+  /// With [onlyIfNoAudio], a book that has audio is left alone: opening the
+  /// companion ebook of an audiobook must not mark the audiobook downloaded.
+  /// Returns whether a record was written.
+  Future<bool> registerEbookDownload({
     required ApiService api,
     required String itemId,
     Map<String, dynamic>? item,
     String? libraryId,
+    bool onlyIfNoAudio = false,
   }) async {
     Map<String, dynamic>? fullItem;
     try {
@@ -539,6 +562,15 @@ class DownloadService extends ChangeNotifier {
     } catch (_) {}
     final stored = fullItem ?? item ?? {'id': itemId};
     final media = stored['media'] as Map<String, dynamic>?;
+    if (onlyIfNoAudio) {
+      final tracks = media?['numTracks'];
+      final audioFiles = media?['audioFiles'];
+      final duration = media?['duration'];
+      final hasAudio = (tracks is num && tracks > 0) ||
+          (audioFiles is List && audioFiles.isNotEmpty) ||
+          (duration is num && duration > 0);
+      if (fullItem == null || hasAudio) return false;
+    }
     final metadata = media?['metadata'] as Map<String, dynamic>?;
     final title = metadata?['title'] as String?;
     final author = metadata?['authorName'] as String?;
@@ -562,6 +594,8 @@ class DownloadService extends ChangeNotifier {
     );
     await _save();
     notifyListeners();
+    debugPrint('[Download] ebook-only book kept for offline: $itemId');
+    return true;
   }
 
   bool isDownloading(String itemId) =>
@@ -668,6 +702,7 @@ class DownloadService extends ChangeNotifier {
     _updatesSub ??= FileDownloader().updates.listen(_onTaskUpdate);
     await FileDownloader().trackTasks();
     await _loadPending();
+    await _loadAutoDownloadBlocks();
     await _rehydratePending();
     await FileDownloader().resumeFromBackground();
     _startReconciler();
@@ -1143,7 +1178,7 @@ class DownloadService extends ChangeNotifier {
             final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
             title = metadata['title'] as String? ?? title;
             author = metadata['authorName'] as String? ?? author;
-            coverUrl = api.getCoverUrl(apiItemId);
+            coverUrl = api.getCoverUrl(apiItemId, width: 1200);
             needsUpdate = true;
             debugPrint('[Download] Enriched metadata for ${info.itemId}: $title');
           }
@@ -1169,7 +1204,7 @@ class DownloadService extends ChangeNotifier {
             needsUpdate = true;
           } else {
             // Download from server into internal storage
-            final url = coverUrl ?? api.getCoverUrl(apiItemId);
+            final url = _hiResCoverUrl(coverUrl ?? api.getCoverUrl(apiItemId, width: 1200));
             try {
               final resp = await http.get(Uri.parse(url), headers: api.mediaHeaders)
                   .timeout(const Duration(seconds: 10));
@@ -1188,6 +1223,29 @@ class DownloadService extends ChangeNotifier {
             } catch (e) {
               debugPrint('[Download] Cover cache failed for ${info.itemId}: $e');
             }
+          }
+        }
+      } else if (_coverUpgradeChecked.add(info.itemId)) {
+        // Covers saved before the 1200px fetch were 400px thumbnails, which
+        // look blurry now that the card and full screen player render them at
+        // near screen width. Replace them in place, once per item per
+        // session (a book whose original cover really is small would
+        // otherwise refetch forever).
+        final width = await _imageFileWidth(localCoverPath);
+        if (width != null && width < 800) {
+          final url = _hiResCoverUrl(coverUrl ?? api.getCoverUrl(apiItemId, width: 1200));
+          try {
+            final resp = await http.get(Uri.parse(url), headers: api.mediaHeaders)
+                .timeout(const Duration(seconds: 10));
+            if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+              final coverFile = File(localCoverPath);
+              await coverFile.writeAsBytes(resp.bodyBytes);
+              PaintingBinding.instance.imageCache.evict(FileImage(coverFile));
+              debugPrint('[Download] Upgraded ${width}px cover for ${info.itemId} '
+                  '(${resp.bodyBytes.length} bytes)');
+            }
+          } catch (e) {
+            debugPrint('[Download] Cover upgrade failed for ${info.itemId}: $e');
           }
         }
       }
@@ -1272,11 +1330,23 @@ class DownloadService extends ChangeNotifier {
     String? episodeId,
     String? libraryId,
     bool Function()? shouldStart,
+    // Set by the auto-download planners. An item the user deleted by hand is
+    // skipped when automatic; a manual (or download-on-stream) call clears
+    // that block, since the user asked for it back.
+    bool automatic = false,
   }) async {
     if (AppPlatform.isWeb) {
       return 'Downloads are not available in the browser.';
     }
     if (shouldStart?.call() == false) return null;
+    // Episodes are keyed "podcastId-episodeId" everywhere below. A caller
+    // holding the bare podcast id (the transcription download prompt did)
+    // used to fail in the key math before a single request went out.
+    if (episodeId != null && !itemId.endsWith('-$episodeId')) {
+      debugPrint('[Download] "$title": composing the episode key from '
+          'podcast $itemId + episode $episodeId');
+      itemId = '$itemId-$episodeId';
+    }
     try {
       await init().timeout(const Duration(seconds: 8));
     } on TimeoutException catch (e) {
@@ -1287,6 +1357,15 @@ class DownloadService extends ChangeNotifier {
       return 'Downloads could not start. Please try again.';
     }
     if (shouldStart?.call() == false) return null;
+
+    if (automatic && _autoDownloadBlocked.contains(itemId)) {
+      debugPrint(
+          '[Download] skipped auto-download of "$title" ($itemId): the user deleted it. A manual download, or playing it with download-on-stream on, brings it back');
+      return null;
+    }
+    if (!automatic && _autoDownloadBlocked.remove(itemId)) {
+      await _saveAutoDownloadBlocks();
+    }
 
     if (_activeDownloadIds.contains(itemId)) return null;
     if (isDownloaded(itemId)) return null;
@@ -1436,21 +1515,67 @@ class DownloadService extends ChangeNotifier {
   /// (killed mid-transfer, offline at the time). Called when the app comes up
   /// with a working connection; cheap when everything is already cached.
   Future<void> catchUpEbookCaches(ApiService api) async {
-    for (final info in _downloads.values.toList()) {
+    var changed = false;
+    for (final entry in _downloads.entries.toList()) {
+      final info = entry.value;
       if (info.status != DownloadStatus.downloaded) continue;
       if (info.sessionData == null) continue;
       try {
         final session = jsonDecode(info.sessionData!) as Map<String, dynamic>;
-        final ebookFile =
-            resolveEbookFile(session['libraryItem'] as Map<String, dynamic>?);
-        if (ebookFile == null) continue;
+        var item = session['libraryItem'] as Map<String, dynamic>?;
+        var ebookFile = resolveEbookFile(item);
         final apiItemId = session['libraryItemId'] as String? ?? info.itemId;
+        if (ebookFile == null) {
+          // The record was written when the book was downloaded. An epub
+          // dropped into the folder later never reaches it, so offline Read
+          // says there is no ebook while the web app shows one. Ask the
+          // server once per run for books whose record has none.
+          if (session['episodeId'] != null || item == null) continue;
+          if (!_ebookRecheckDone.add(apiItemId)) continue;
+          final fresh = await api.getLibraryItem(apiItemId);
+          ebookFile = resolveEbookFile(fresh);
+          if (fresh == null || ebookFile == null) continue;
+          final freshMedia = fresh['media'] as Map<String, dynamic>? ?? {};
+          final media =
+              Map<String, dynamic>.from(item['media'] as Map<String, dynamic>? ?? {});
+          media['ebookFile'] = freshMedia['ebookFile'];
+          item = Map<String, dynamic>.from(item)
+            ..['media'] = media
+            ..['libraryFiles'] = [ebookFile];
+          session['libraryItem'] = item;
+          _downloads[entry.key] = DownloadInfo(
+            itemId: info.itemId,
+            status: info.status,
+            progress: info.progress,
+            localPaths: info.localPaths,
+            sessionData: jsonEncode(session),
+            title: info.title,
+            author: info.author,
+            coverUrl: info.coverUrl,
+            localCoverPath: info.localCoverPath,
+            localDirPath: info.localDirPath,
+            libraryId: info.libraryId,
+          );
+          changed = true;
+          debugPrint('[Download] ebook appeared on the server after the '
+              'download: $apiItemId (${ebookFile['ebookFormat'] ?? ebookFile['metadata']?['ext']})');
+        }
         if (await isEbookCached(apiItemId, ebookFile)) continue;
         await _cacheEbookForOffline(
             api, apiItemId, ebookFile, info.title ?? apiItemId);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[Download] ebook catch-up failed for ${info.itemId}: $e');
+      }
+    }
+    if (changed) {
+      await _save();
+      notifyListeners();
     }
   }
+
+  // Books already asked about this run, so a library of downloads costs one
+  // item fetch each per launch, not one per reconnect.
+  final Set<String> _ebookRecheckDone = {};
 
   /// Resolve a book/episode to durable per-file download tasks and enqueue them.
   /// Returns once the tasks are handed to `background_downloader`; progress and
@@ -1494,16 +1619,57 @@ class DownloadService extends ChangeNotifier {
           ? itemId.substring(0, itemId.length - episodeId.length - 1)
           : itemId;
 
-      // The forced direct-play session provides both offline metadata and the
-      // authoritative /file/:ino path for every included track.
-      final sessionData = episodeId != null
-          ? await api.startEpisodePlaybackSession(apiItemId, episodeId)
-          : await api.startPlaybackSession(apiItemId);
+      // Offline metadata and the /file/:ino path of every track, read from the
+      // item itself. A play session carries the same data, but opening one
+      // makes the server close whatever session this phone is streaming on:
+      // the stream then died about 20 seconds into every download and had to
+      // reload, heard as a blip. The session stays as the fallback for a
+      // server whose item has no track list.
+      final sessionData =
+          await _sessionShapedItem(api, apiItemId, episodeId) ??
+              (episodeId != null
+                  ? await api.startEpisodePlaybackSession(apiItemId, episodeId)
+                  : await api.startPlaybackSession(apiItemId));
       if (sessionData == null) throw Exception('Failed to start session');
 
       final audioTracks = sessionData['audioTracks'] as List<dynamic>?;
       if (audioTracks == null || audioTracks.isEmpty) {
         throw Exception('No audio tracks');
+      }
+
+      // The caller's names come from whatever list started the download, and
+      // a queue entry has been seen carrying another episode's title and an
+      // episode title as the show. The server's answer is for exactly this
+      // item, so it names the record and the folder. An episode's "author"
+      // is its show, which is how downloads are grouped.
+      final serverMeta = sessionData['mediaMetadata'] as Map<String, dynamic>?;
+      final serverTitle = (sessionData['displayTitle'] as String?)?.trim() ?? '';
+      final authorField = episodeId != null ? 'title' : 'authorName';
+      final serverAuthor = (serverMeta?[authorField] as String?)?.trim() ?? '';
+      if (serverTitle.isNotEmpty && serverTitle != title) {
+        debugPrint('[Download] Title from the server: "$serverTitle" (was "$title")');
+        title = serverTitle;
+      }
+      var renamed = false;
+      if (serverAuthor.isNotEmpty && serverAuthor != author) {
+        debugPrint('[Download] Author from the server: "$serverAuthor" (was "$author")');
+        author = serverAuthor;
+        renamed = true;
+      }
+      if (renamed || _downloads[itemId]?.title != title) {
+        final running = _downloads[itemId];
+        if (running != null && running.status == DownloadStatus.downloading) {
+          _downloads[itemId] = DownloadInfo(
+            itemId: itemId,
+            status: DownloadStatus.downloading,
+            progress: running.progress,
+            title: title,
+            author: author,
+            coverUrl: coverUrl,
+            libraryId: libraryId,
+          );
+          notifyListeners();
+        }
       }
 
       final files = _resolveDurableFiles(api, apiItemId, audioTracks);
@@ -1675,6 +1841,68 @@ class DownloadService extends ChangeNotifier {
 
   /// Rebuild forced-direct-play track URLs against the current server/token so
   /// native tasks can outlive the playback session that supplied the metadata.
+  /// What a download needs from a play session - tracks, chapters, duration
+  /// and the item for offline metadata - built from the item instead, in the
+  /// session's shape so everything that reads a stored download is unchanged.
+  /// Null when the item does not give a usable track list; the caller then
+  /// falls back to a real session.
+  Future<Map<String, dynamic>?> _sessionShapedItem(
+      ApiService api, String apiItemId, String? episodeId) async {
+    try {
+      final fetched = await api.getLibraryItem(apiItemId);
+      if (fetched == null) return null;
+      final item = Map<String, dynamic>.from(fetched)..remove('userMediaProgress');
+      final media = item['media'] as Map<String, dynamic>? ?? const {};
+      final metadata = media['metadata'] as Map<String, dynamic>? ?? const {};
+
+      List<dynamic> tracks;
+      List<dynamic> chapters;
+      num? duration;
+      String? title;
+      String? author;
+      if (episodeId != null) {
+        final episode = (media['episodes'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .where((e) => e['id'] == episodeId)
+            .firstOrNull;
+        final track = episode?['audioTrack'];
+        if (episode == null || track is! Map<String, dynamic>) return null;
+        tracks = [track];
+        chapters = episode['chapters'] as List<dynamic>? ?? const [];
+        duration = episode['duration'] as num? ?? track['duration'] as num?;
+        title = episode['title'] as String?;
+        author = metadata['author'] as String?;
+      } else {
+        tracks = media['tracks'] as List<dynamic>? ?? const [];
+        chapters = media['chapters'] as List<dynamic>? ?? const [];
+        duration = media['duration'] as num?;
+        title = metadata['title'] as String?;
+        author = metadata['authorName'] as String?;
+      }
+      if (tracks.isEmpty || duration == null || duration <= 0) return null;
+      // Throws on a track without a /file/:ino path.
+      _resolveDurableFiles(api, apiItemId, tracks);
+
+      debugPrint('[Download] Track list read from the item, no play session opened '
+          '(${tracks.length} tracks)');
+      return {
+        'libraryItemId': apiItemId,
+        'episodeId': episodeId,
+        'mediaType': item['mediaType'],
+        'mediaMetadata': metadata,
+        'displayTitle': title,
+        'displayAuthor': author,
+        'duration': duration,
+        'chapters': chapters,
+        'audioTracks': tracks,
+        'libraryItem': item,
+      };
+    } catch (e) {
+      debugPrint('[Download] Item has no usable track list ($e) - using a play session');
+      return null;
+    }
+  }
+
   List<({String url, String filename})> _resolveDurableFiles(
       ApiService api, String apiItemId, List<dynamic> audioTracks) {
     final out = <({String url, String filename})>[];
@@ -1747,12 +1975,34 @@ class DownloadService extends ChangeNotifier {
     return 'track_${i.toString().padLeft(3, '0')}.$ext';
   }
 
+  /// The player card and full screen player render the downloaded cover at
+  /// near screen width, so the stored copy has to be sharper than the 400px
+  /// thumbnail URL most callers hold. Leaves local paths and widthless URLs
+  /// alone.
+  static String _hiResCoverUrl(String url) =>
+      url.replaceAllMapped(RegExp(r'width=\d+'), (_) => 'width=1200');
+
+  /// Pixel width of an image file without fully decoding it. Returns null
+  /// when the file can't be read as an image.
+  static Future<int?> _imageFileWidth(String path) async {
+    try {
+      final buffer = await ui.ImmutableBuffer.fromFilePath(path);
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final w = descriptor.width;
+      descriptor.dispose();
+      buffer.dispose();
+      return w;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Cache the cover into INTERNAL storage (lockscreen / Android Auto / offline).
   /// Always internal, since a custom external audio path may lack write access.
   Future<String?> _cacheCover(ApiService api, String itemId, String? coverUrl) async {
     if (coverUrl == null || coverUrl.isEmpty) return null;
     try {
-      final coverResp = await http.get(Uri.parse(coverUrl), headers: api.mediaHeaders)
+      final coverResp = await http.get(Uri.parse(_hiResCoverUrl(coverUrl)), headers: api.mediaHeaders)
           .timeout(const Duration(seconds: 10));
       if (coverResp.statusCode == 200 && coverResp.bodyBytes.isNotEmpty) {
         final internalBase = await _internalBasePath;
@@ -2285,6 +2535,23 @@ class DownloadService extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadAutoDownloadBlocks() async {
+    final prefs = await SharedPreferences.getInstance();
+    _autoDownloadBlocked
+      ..clear()
+      ..addAll(prefs.getStringList(_autoDownloadBlockedKey) ?? const []);
+  }
+
+  Future<void> _saveAutoDownloadBlocks() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_autoDownloadBlocked.isEmpty) {
+      await prefs.remove(_autoDownloadBlockedKey);
+    } else {
+      await prefs.setStringList(
+          _autoDownloadBlockedKey, _autoDownloadBlocked.toList());
+    }
+  }
+
   /// Rebuild in-flight progress from the package task DB after a relaunch, then
   /// finalize books that finished while we were dead and drop ones whose tasks
   /// are gone. Tasks still in flight keep running; their updates (plus
@@ -2340,10 +2607,22 @@ class DownloadService extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteDownload(String itemId, {bool skipStopCheck = false}) async {
-    // If this is still downloading, cancel the in-flight transfer (which cleans
-    // up partial files and the background tasks) rather than deleting.
-    if (_pending.containsKey(itemId)) {
+  /// [byUser] marks a deliberate removal: the auto-download planners then
+  /// leave this item alone until a manual download, or a play with
+  /// download-on-stream on, brings it back - see [downloadItem].
+  Future<void> deleteDownload(
+    String itemId, {
+    bool skipStopCheck = false,
+    bool byUser = false,
+  }) async {
+    if (byUser && _autoDownloadBlocked.add(itemId)) {
+      debugPrint(
+          '[Download] $itemId removed by the user - auto-download leaves it alone from now on');
+      await _saveAutoDownloadBlocks();
+    }
+    // If this is still downloading or waiting for a slot, cancel it (which
+    // cleans up partial files and the background tasks) rather than deleting.
+    if (_pending.containsKey(itemId) || _queue.any((q) => q.itemId == itemId)) {
       cancelDownload(itemId);
       return;
     }
@@ -2351,11 +2630,19 @@ class DownloadService extends ChangeNotifier {
     final info = _downloads[itemId];
     if (info == null) return;
 
-    // Stop playback if this item is currently playing to avoid crashes
+    // Stop playback if this item is currently playing to avoid crashes. An
+    // episode key has to match the playing episode, not just its show:
+    // matching on the show alone stopped whatever was playing whenever
+    // another episode of the same podcast was deleted.
     if (!skipStopCheck) {
       final player = AudioPlayerService();
-      if (player.currentItemId == itemId ||
-          (itemId.length > 36 && player.currentItemId == itemId.substring(0, 36))) {
+      final playingId = player.currentItemId;
+      final playingKey = playingId == null
+          ? null
+          : player.currentEpisodeId == null
+              ? playingId
+              : '$playingId-${player.currentEpisodeId}';
+      if (playingKey == itemId) {
         await player.stop();
       }
     }

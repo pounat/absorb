@@ -89,6 +89,11 @@ mixin _StateMixin on ChangeNotifier {
   DateTime? _localLastReachableAt;
 
   bool _isBackgrounded = false;
+  // The ebook reader holds the app in the foreground for long stretches with
+  // nothing on screen that needs live data, so it asks for the same quiet the
+  // app keeps while backgrounded.
+  bool _readerQuiet = false;
+  DateTime? _readerQuietAt;
   bool _socketSoftDisconnected = false;
   DateTime? _backgroundedAt;
 
@@ -156,6 +161,23 @@ mixin _StateMixin on ChangeNotifier {
     final lib = selectedLibrary;
     if (lib == null) return false;
     return (lib['mediaType'] as String? ?? 'book') == 'podcast';
+  }
+
+  /// Whether one item is a podcast, from the item itself. The selected
+  /// library is the wrong thing to ask when a list mixes types or was
+  /// reached from elsewhere: with the unified library a podcast playing
+  /// made a series list open its books as podcasts.
+  bool isPodcastItem(Map<String, dynamic>? item) {
+    final t = item?['mediaType'] as String?;
+    if (t != null) return t == 'podcast';
+    final media = item?['media'] as Map<String, dynamic>?;
+    if (media != null) {
+      if (media['episodes'] != null) return true;
+      if (media['numTracks'] != null || media['audioFiles'] != null) {
+        return false;
+      }
+    }
+    return isPodcastLibrary;
   }
 
   String get selectedMediaType {

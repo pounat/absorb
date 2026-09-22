@@ -2,8 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:palette_generator/palette_generator.dart';
+import '../utils/cover_accent.dart';
 import 'overlay_toast.dart';
 import 'swipe_action.dart';
+import 'card_buttons.dart' show showErrorToast;
+import '../main.dart' show rootNavigatorKey;
+import '../screens/app_shell.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
@@ -16,6 +21,7 @@ import 'book_detail_sheet.dart';
 import 'library_grid_tiles.dart';
 import 'episode_list_sheet.dart';
 import 'stackable_sheet.dart';
+import '../services/upcoming_releases_service.dart';
 import 'audible_series_sheet.dart';
 import 'action_pill.dart';
 import 'adaptive_modal.dart';
@@ -30,6 +36,7 @@ void showSeriesBooksSheet(BuildContext context, {
   required String seriesName,
   String? seriesId,
   List<dynamic> books = const [],
+  List<String> itemIds = const [],
   String? serverUrl,
   String? token,
   String? libraryId,
@@ -37,11 +44,13 @@ void showSeriesBooksSheet(BuildContext context, {
 }) {
   showStackableSheet(
     context: context,
-    showHandle: true,
+    // The sheet draws its own handle inside the cover-tinted header.
+    showHandle: false,
     builder: (ctx, scrollController) => SeriesBooksSheet(
       seriesName: seriesName,
       seriesId: seriesId,
       books: books,
+      itemIds: itemIds,
       serverUrl: serverUrl,
       token: token,
       libraryId: libraryId,
@@ -54,6 +63,11 @@ void showSeriesBooksSheet(BuildContext context, {
 class SeriesBooksSheet extends StatefulWidget {
   final String seriesName;
   final String? seriesId;
+
+  /// Ids of the books in the series when the caller already has them (series
+  /// lists that carry libraryItemIds). Lets the sheet fetch them in one batch
+  /// instead of the filtered items query.
+  final List<String> itemIds;
   final List<dynamic> books;
   final String? serverUrl;
   final String? token;
@@ -66,6 +80,7 @@ class SeriesBooksSheet extends StatefulWidget {
     required this.seriesName,
     this.seriesId,
     required this.books,
+    this.itemIds = const [],
     required this.serverUrl,
     required this.token,
     this.libraryId,
@@ -80,9 +95,46 @@ class SeriesBooksSheet extends StatefulWidget {
 class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
   List<Map<String, dynamic>> _books = [];
   bool _isLoading = true;
+  // The server fetch failed and there is nothing to show; offer a retry
+  // instead of claiming the series has no books.
+  bool _loadFailed = false;
   bool _isDownloadingAll = false;
   bool _isMarkingAll = false;
   bool _autoDownloadEnabled = false;
+
+  // The sheet takes its accent from a cover, like the book sheet does, so
+  // it isn't a grey page with a name on it.
+  ColorScheme? _coverScheme;
+  String? _coverSchemeUrl;
+  // The library's cover shape setting: portrait tiles in the strip when on.
+  bool _rectCovers = false;
+  // The header and the view-mode bar scroll with the list, so the jump to
+  // the next book measures them instead of guessing.
+  final _headerKey = GlobalKey();
+  final _barKey = GlobalKey();
+  // Sits on whatever shows the up next book - its card, its tile, or in the
+  // grouped grid the tile of the sub-series holding it - so the jump can
+  // land exactly once that part of the list is built.
+  final _jumpTargetKey = GlobalKey();
+  String? _jumpTargetId;
+  int _jumpTargetIndex = -1;
+
+  void _maybeDeriveScheme(String url) {
+    if (url.isEmpty || _coverSchemeUrl == url || PlayerSettings.einkMode) return;
+    _coverSchemeUrl = url;
+    final brightness = Theme.of(context).brightness;
+    final ImageProvider provider = url.startsWith('/')
+        ? FileImage(File(url))
+        : CachedNetworkImageProvider(url, headers: context.read<LibraryProvider>().mediaHeaders);
+    PaletteGenerator.fromImageProvider(provider, maximumColorCount: 16).then((palette) {
+      final seed = accentFromCoverPalette(palette);
+      if (seed == null || !mounted) return;
+      setState(() => _coverScheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness));
+    }).catchError((e) {
+      debugPrint('[SeriesSheet] palette failed: $e');
+    });
+  }
+  bool _scanExcluded = false;
   bool _collapseSeries = false;
   final Set<String> _expandedSubSeries = {};
 
@@ -106,6 +158,12 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     // Fetch full data from API for proper sequence info
     _fetchFromApi();
     _loadAutoDownloadState();
+    final sid = widget.seriesId;
+    if (sid != null && sid.isNotEmpty) {
+      UpcomingReleasesService.isNeverScan(sid).then((v) {
+        if (mounted && v != _scanExcluded) setState(() => _scanExcluded = v);
+      });
+    }
     PlayerSettings.getSheetGridView().then((v) {
       if (mounted && v != _gridView) setState(() => _gridView = v);
     });
@@ -114,6 +172,9 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         setState(() => _collapseSeries = v);
         // Don't load sub-series yet - _books may be empty. It triggers after books load.
       }
+    });
+    PlayerSettings.getRectangleCoversFor(widget.libraryId).then((v) {
+      if (mounted && v != _rectCovers) setState(() => _rectCovers = v);
     });
     _lib = context.read<LibraryProvider>();
     _lib!.addListener(_onLibraryChanged);
@@ -149,8 +210,14 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     if (targetIndex <= 0) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !widget.scrollController.hasClients) return;
-      // Each book card is ~120px (112 height + 8 bottom padding)
-      final offset = (targetIndex * 120.0).clamp(
+      // Each book card is ~120px (112 height + 8 bottom padding), after the
+      // header that scrolls with the list.
+      double above = 0;
+      for (final key in [_headerKey, _barKey]) {
+        final box = key.currentContext?.findRenderObject();
+        if (box is RenderBox && box.hasSize) above += box.size.height;
+      }
+      final offset = (above + targetIndex * 120.0).clamp(
         0.0,
         widget.scrollController.position.maxScrollExtent,
       );
@@ -160,6 +227,113 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         curve: Curves.easeOutCubic,
       );
     });
+  }
+
+  bool _subSeriesHolds(Map<String, dynamic> series, String bookId) =>
+      (series['books'] as List<Map<String, dynamic>>).any((b) => b['id'] == bookId);
+
+  /// The first sub-series (in display order) holding the up next book.
+  Map<String, dynamic>? _jumpOwnerGroup(List<Map<String, dynamic>> subSeries) {
+    final id = _jumpTargetId;
+    if (id == null) return null;
+    for (final series in subSeries) {
+      if (_subSeriesHolds(series, id)) return series;
+    }
+    return null;
+  }
+
+  Widget _asJumpTarget(bool isTarget, Widget child) =>
+      isTarget ? KeyedSubtree(key: _jumpTargetKey, child: child) : child;
+
+  /// Roughly where [bookId] sits in the scroll view. The list and the grids
+  /// are exact; the grouped list guesses its header heights, which is close
+  /// enough to get the target built so the jump can finish on it.
+  double? _estimateOffsetFor(String bookId) {
+    double above = 0;
+    for (final key in [_headerKey, _barKey]) {
+      final box = key.currentContext?.findRenderObject();
+      if (box is RenderBox && box.hasSize) above += box.size.height;
+    }
+    const cardExtent = 120.0; // 112 card + 8 gap
+    const groupHeaderExtent = 68.0;
+    final columns = coverGridCount(context);
+    final width = context.size?.width ?? MediaQuery.sizeOf(context).width;
+    final gridRowExtent = ((width - 32 - 8 * (columns - 1)) / columns) / 0.65 + 8;
+
+    if (!_collapseSeries) {
+      final index = _books.indexWhere((b) => b['id'] == bookId);
+      if (index < 0) return null;
+      return _gridView
+          ? above + (index ~/ columns) * gridRowExtent
+          : above + index * cardExtent;
+    }
+    final groups = _buildSubSeriesGroups();
+    final standaloneAt = groups.standalone.indexWhere((b) => b['id'] == bookId);
+    if (_gridView) {
+      var index = groups.subSeries.indexWhere((s) => _subSeriesHolds(s, bookId));
+      if (index < 0) {
+        if (standaloneAt < 0) return null;
+        index = groups.subSeries.length + standaloneAt;
+      }
+      return above + (index ~/ columns) * gridRowExtent;
+    }
+    var offset = above;
+    for (final series in groups.subSeries) {
+      final books = series['books'] as List<Map<String, dynamic>>;
+      final at = books.indexWhere((b) => b['id'] == bookId);
+      if (at >= 0) return offset + groupHeaderExtent + at * cardExtent;
+      offset += groupHeaderExtent;
+      if (_expandedSubSeries.contains(series['id'] as String? ?? '')) {
+        offset += books.length * cardExtent;
+      }
+    }
+    return standaloneAt < 0 ? null : offset + standaloneAt * cardExtent;
+  }
+
+  /// Scrolls to the up next book. Far down a long series it is not built yet,
+  /// so this goes to the estimate first and then settles on the real thing.
+  Future<void> _jumpToUpNext() async {
+    final id = _jumpTargetId;
+    if (id == null) return;
+    HapticFeedback.selectionClick();
+    final instant = PlayerSettings.einkMode;
+
+    // Grouped list: the book is inside a folded sub-series until it is opened.
+    if (_collapseSeries && !_gridView) {
+      final owner = _jumpOwnerGroup(_buildSubSeriesGroups().subSeries);
+      final sid = owner?['id'] as String? ?? '';
+      if (owner != null && !_expandedSubSeries.contains(sid)) {
+        setState(() => _expandedSubSeries.add(sid));
+      }
+    }
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !widget.scrollController.hasClients) return;
+
+    if (_jumpTargetKey.currentContext == null) {
+      final estimate = _estimateOffsetFor(id);
+      if (estimate == null) return;
+      final position = widget.scrollController.position;
+      final to = estimate.clamp(0.0, position.maxScrollExtent).toDouble();
+      if (instant) {
+        widget.scrollController.jumpTo(to);
+      } else {
+        await widget.scrollController.animateTo(
+          to,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+        );
+      }
+      if (!mounted) return;
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    final target = _jumpTargetKey.currentContext;
+    if (target == null || !target.mounted) return;
+    await Scrollable.ensureVisible(
+      target,
+      alignment: 0.05,
+      duration: instant ? Duration.zero : const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _loadAutoDownloadState() {
@@ -212,10 +386,19 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     if (sub != null && sub.toString().trim().isNotEmpty) return sub.toString();
     final seq = book['sequence'];
     if (seq != null) return seq.toString();
+    // Full items list every series the book is in, so find this one. Taking
+    // the first gave a Cosmere book its Mistborn number (GH #397).
+    final own = _subSeqFor(book, widget.seriesId ?? '', widget.seriesName);
+    if (own != null) return own;
     final media = book['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final seriesRaw = metadata['series'];
     if (seriesRaw is List) {
+      // In this series with no number: show none, not another series' number.
+      final id = widget.seriesId ?? '';
+      if (id.isNotEmpty && seriesRaw.any((s) => s is Map<String, dynamic> && s['id'] == id)) {
+        return null;
+      }
       for (final s in seriesRaw) {
         if (s is Map<String, dynamic> && s['sequence'] != null) {
           return s['sequence'].toString();
@@ -289,10 +472,13 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final list = seriesRaw is List
         ? seriesRaw.whereType<Map<String, dynamic>>()
         : seriesRaw is Map<String, dynamic> ? [seriesRaw] : const <Map<String, dynamic>>[];
+    final wantedName = subName.trim().toLowerCase();
     for (final s in list) {
-      if ((s['id'] as String? ?? '') == subId && s['sequence'] != null) {
-        return s['sequence'].toString();
-      }
+      if (s['sequence'] == null) continue;
+      final byId = subId.isNotEmpty && (s['id'] as String? ?? '') == subId;
+      final byName = wantedName.isNotEmpty &&
+          (s['name'] as String? ?? '').trim().toLowerCase() == wantedName;
+      if (byId || byName) return s['sequence'].toString();
     }
     final joined = metadata['seriesName'] as String? ?? '';
     if (joined.isNotEmpty && subName.isNotEmpty) {
@@ -446,30 +632,39 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
 
   Widget _buildGroupedGrid(ColorScheme cs, TextTheme tt, LibraryProvider lib) {
     final parsed = _buildSubSeriesGroups();
+    final owner = _jumpOwnerGroup(parsed.subSeries);
 
-    return GridView.builder(
-      controller: widget.scrollController,
+    return SliverPadding(
       padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
-      gridDelegate: sheetBookGridDelegate(context, childAspectRatio: 0.65),
-      itemCount: parsed.subSeries.length + parsed.standalone.length,
-      itemBuilder: (context, index) {
-        if (index < parsed.subSeries.length) {
-          return GridSeriesTileDirect(series: parsed.subSeries[index], parentSeriesId: widget.seriesId);
-        }
-        final book = parsed.standalone[index - parsed.subSeries.length];
-        return GridBookTile(item: book, sequenceBadge: _getSequenceString(book));
-      },
+      sliver: SliverGrid.builder(
+        gridDelegate: sheetBookGridDelegate(context, childAspectRatio: 0.65),
+        itemCount: parsed.subSeries.length + parsed.standalone.length,
+        itemBuilder: (context, index) {
+          if (index < parsed.subSeries.length) {
+            final series = parsed.subSeries[index];
+            return _asJumpTarget(
+              identical(series, owner),
+              GridSeriesTileDirect(series: series, parentSeriesId: widget.seriesId),
+            );
+          }
+          final book = parsed.standalone[index - parsed.subSeries.length];
+          return _asJumpTarget(
+            book['id'] == _jumpTargetId,
+            GridBookTile(item: book, sequenceBadge: _getSequenceString(book)),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildGroupedList(ColorScheme cs, TextTheme tt, LibraryProvider lib) {
     final parsed = _buildSubSeriesGroups();
+    final owner = _jumpOwnerGroup(parsed.subSeries);
     final l = AppLocalizations.of(context)!;
 
-    return ListView(
-      controller: widget.scrollController,
+    return SliverPadding(
       padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
-      children: [
+      sliver: SliverList(delegate: SliverChildListDelegate([
         // Sub-series headers
         for (final series in parsed.subSeries) ...[
           () {
@@ -518,7 +713,8 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                     ),
                   ),
                   if (isExpanded)
-                    ...subBooks.map((book) => _buildBookCard(cs, tt, lib, book)),
+                    ...subBooks.map((book) => _buildBookCard(cs, tt, lib, book,
+                        jumpTarget: identical(series, owner))),
                 ],
               ),
             );
@@ -526,7 +722,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         ],
         // Standalone books
         ...parsed.standalone.map((book) => _buildBookCard(cs, tt, lib, book)),
-      ],
+      ])),
     );
   }
 
@@ -544,6 +740,30 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     }
     final lib = context.read<LibraryProvider>();
     final libraryId = widget.libraryId ?? lib.selectedLibraryId;
+
+    // Series lists that carry libraryItemIds: hydrate those in one batch
+    // request. That is one indexed query, where the filtered items listing
+    // below makes the server sort the whole library first - 30s and more on
+    // a 244k-book server.
+    if (_books.isEmpty && widget.itemIds.isNotEmpty) {
+      final items = await api.getLibraryItemsBatch(widget.itemIds);
+      if (!mounted) return;
+      if (items.isNotEmpty) {
+        final fetched = _unwrapBooks(items);
+        setState(() {
+          _books = fetched;
+          _sortBooks();
+          _isLoading = false;
+          _totalBooks = fetched.length;
+        });
+        if (!_didAutoScroll) _scrollToUpNext();
+        try {
+          lib.setSeriesBooksCache(seriesId, items, items.length);
+        } catch (_) {}
+        if (_collapseSeries && !_subSeriesLoaded) _loadSubSeriesData();
+        return;
+      }
+    }
 
     // For large series (100+ books), serve cached data instantly
     // then refresh in background. Small series always fetch fresh.
@@ -583,7 +803,12 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         }
       },
     );
-    if (data == null && mounted) setState(() => _isLoading = false);
+    if (data == null && mounted) {
+      setState(() {
+        _isLoading = false;
+        _loadFailed = _books.isEmpty;
+      });
+    }
     // If collapse is enabled and we now have books, load sub-series data
     if (_collapseSeries && _books.isNotEmpty && !_subSeriesLoaded) {
       _loadSubSeriesData();
@@ -645,7 +870,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
           ? (media['duration'] as num).toDouble()
           : 0.0;
       await api.markNotFinished(bookId, currentTime: 0, duration: duration);
-      lib.resetProgressFor(bookId);
+      await lib.markNotFinishedLocally(bookId);
       lib.clearAbsorbingBlock(bookId);
     }
 
@@ -749,61 +974,269 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     );
   }
 
-  Widget _buildOverflowMenu(ColorScheme cs) {
-    final allDone = _allFinished;
-    int downloaded = 0;
-    if (!AppPlatform.isWeb) {
-      final dl = DownloadService();
-      for (final book in _books) {
-        final bookId = book['id'] as String? ?? '';
-        if (dl.isDownloaded(bookId)) downloaded++;
-      }
+  /// The first few covers, overlapped, with the book to carry on with in
+  /// front.
+  Widget _coverStrip(LibraryProvider lib, Color accent, Map<String, dynamic>? nextUp) {
+    // Five covers around the book to carry on with, so book 7 of 12 shows
+    // its neighbours rather than the first five every time.
+    final n = _books.length;
+    final count = n < 5 ? n : 5;
+    final nextAt = nextUp == null ? 0 : _books.indexOf(nextUp);
+    final start = (nextAt - 2).clamp(0, n - count);
+    final covers = _books.sublist(start, start + count);
+    // Portrait tiles when the library shows rectangle covers.
+    final w = _rectCovers ? 58.0 : 76.0;
+    final h = _rectCovers ? 86.0 : 76.0;
+    final step = w * 0.68;
+    final width = w + step * (covers.length - 1);
+    final nextId = nextUp?['id'] as String?;
+    // Paint order is list order. The covers fan out from the next book:
+    // the ones to its left stack towards it, the ones to its right stack
+    // back towards it, and it goes last so it sits on top of both sides.
+    final nextIdx = covers.indexWhere((b) => b['id'] == nextId);
+    final order = <Map<String, dynamic>>[];
+    if (nextIdx < 0) {
+      order.addAll(covers);
+    } else {
+      order.addAll(covers.sublist(0, nextIdx));
+      order.addAll(covers.sublist(nextIdx + 1).reversed);
+      order.add(covers[nextIdx]);
     }
-    final allDownloaded = !AppPlatform.isWeb && downloaded == _books.length;
-    final hasSeriesId = widget.seriesId != null && widget.seriesId!.isNotEmpty;
-
-    if (_isMarkingAll || _isDownloadingAll) {
-      return Padding(
-        padding: const EdgeInsets.all(12),
+    return SizedBox(
+      height: h + 8,
+      child: Center(
         child: SizedBox(
-          width: 18, height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+          width: width,
+          child: Stack(children: [
+            for (final book in order)
+              Positioned(
+                left: covers.indexOf(book) * step,
+                top: book['id'] == nextId ? 0 : 6,
+                // The ring is the tile's own background showing around the
+                // clipped cover, so it stays clean at the corners.
+                child: Container(
+                  width: w,
+                  height: h,
+                  padding: EdgeInsets.all(book['id'] == nextId ? 2 : 1),
+                  decoration: BoxDecoration(
+                    color: book['id'] == nextId ? accent : Colors.black.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(book['id'] == nextId ? 8 : 9),
+                    child: _coverImage(lib, book['id'] as String? ?? ''),
+                  ),
+                ),
+              ),
+          ]),
         ),
-      );
-    }
-
-    return IconButton(
-      icon: Icon(Icons.more_vert_rounded, color: cs.onSurfaceVariant),
-      onPressed: () => _showSeriesMoreSheet(cs, allDownloaded, downloaded, allDone, hasSeriesId),
+      ),
     );
   }
 
-  void _showSeriesMoreSheet(ColorScheme cs, bool allDownloaded, int downloaded, bool allDone, bool hasSeriesId) {
+  Widget _coverImage(LibraryProvider lib, String bookId) {
+    final url = lib.getCoverUrl(bookId);
+    if (url == null || url.isEmpty) return const ColoredBox(color: Colors.black26);
+    if (url.startsWith('/')) return Image.file(File(url), fit: BoxFit.cover);
+    return CachedNetworkImage(
+      imageUrl: url,
+      httpHeaders: lib.mediaHeaders,
+      fit: BoxFit.cover,
+      errorWidget: (_, __, ___) => const ColoredBox(color: Colors.black26),
+    );
+  }
+
+  Widget _stat(String value, String label, ColorScheme cs, TextTheme tt) => Expanded(
+        child: Column(children: [
+          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
+          const SizedBox(height: 2),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+        ]),
+      );
+
+  /// The next unfinished book as a button filled with the series' progress,
+  /// the way the book sheet's Absorb button carries the book's.
+  Widget _upNextButton(Map<String, dynamic> book, double progress, int percent,
+      Color accent, Color onAccent, TextTheme tt) {
     final l = AppLocalizations.of(context)!;
-    showAdaptiveActionMenu(
-      context: context,
-      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    final media = book['media'] as Map<String, dynamic>? ?? {};
+    final meta = media['metadata'] as Map<String, dynamic>? ?? {};
+    final title = meta['title'] as String? ?? '';
+    final seq = _getSequenceString(book) ?? '';
+    return SizedBox(
+      height: 44,
+      width: double.infinity,
+      child: Material(
+        color: accent,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _playBook(book),
+          child: Stack(children: [
+            if (progress > 0)
+              Positioned.fill(
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: progress.clamp(0.0, 1.0),
+                  child: Container(color: onAccent.withValues(alpha: 0.22)),
+                ),
+              ),
+            Positioned.fill(
+              child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                Icon(Icons.play_arrow_rounded, size: 22, color: onAccent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${l.seriesUpNext}${seq.isNotEmpty ? '  #$seq' : ''}  ·  $title',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: tt.labelLarge?.copyWith(fontWeight: FontWeight.w600, color: onAccent),
+                  ),
+                ),
+                if (progress > 0) ...[
+                  const SizedBox(width: 8),
+                  Text('$percent%',
+                      style: tt.labelMedium?.copyWith(fontWeight: FontWeight.w700, color: onAccent.withValues(alpha: 0.85))),
+                ],
+              ]),
+              ),
+            ),
+          ]),
+        ),
       ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
-              ActionPillGrid(items: [
-                if (!AppPlatform.isWeb && !allDownloaded)
+    );
+  }
+
+  /// Starts [book] straight from the sheet, the way the book sheet's Absorb
+  /// button does: the sheet closes, the Absorbing tab comes up, and the
+  /// full item is fetched for its chapters before playback starts.
+  Future<void> _playBook(Map<String, dynamic> book) async {
+    final id = book['id'] as String? ?? '';
+    if (id.isEmpty) return;
+    HapticFeedback.selectionClick();
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    final lib = context.read<LibraryProvider>();
+    final player = AudioPlayerService();
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    rootNav.popUntil((route) => route.isFirst);
+    if (player.currentItemId == id) {
+      if (!player.isPlaying) await player.play(fromUi: true);
+      Future.delayed(const Duration(milliseconds: 100), AppShell.goToAbsorbingGlobal);
+      return;
+    }
+    AppShell.goToAbsorbingGlobal();
+    // The series listing is a lean item; the full one carries the chapters.
+    // Offline or on a failed fetch the lean one still starts the book.
+    final full = await api.getLibraryItem(id) ?? book;
+    final media = full['media'] as Map<String, dynamic>? ?? {};
+    final meta = media['metadata'] as Map<String, dynamic>? ?? {};
+    final error = await player.playItem(
+      api: api,
+      itemId: id,
+      title: meta['title'] as String? ?? '',
+      author: meta['authorName'] as String? ?? '',
+      coverUrl: lib.getCoverUrl(id),
+      totalDuration: (media['duration'] as num?)?.toDouble() ?? 0,
+      chapters: (media['chapters'] as List<dynamic>?) ?? const [],
+      libraryId: full['libraryId'] as String? ?? widget.libraryId,
+      fromUi: true,
+    );
+    if (error != null) {
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx != null) showErrorToast(ctx, error);
+    }
+    lib.refreshLocalProgress();
+  }
+
+  /// The series actions as a row of pills under the header, in place of
+  /// the old three-dot menu. Rolling download shows its state.
+  Widget _pillRow(ColorScheme cs, Color accent) {
+    if (_isMarkingAll || _isDownloadingAll) {
+      return SizedBox(
+        height: 34,
+        child: Center(child: SizedBox(width: 18, height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: accent))),
+      );
+    }
+    final items = _actionPills(context);
+    // Wrapped, not scrolled: every action stays in reach with nothing cut
+    // off at the edge.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final p in items)
+          () {
+            final active = p.tint != null;
+            final color = active ? accent : cs.onSurfaceVariant;
+            return Material(
+              color: active ? accent.withValues(alpha: 0.14) : cs.onSurface.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: p.enabled ? p.onTap : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(p.icon, size: 16, color: color),
+                    const SizedBox(width: 6),
+                    Text(p.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+                  ]),
+                ),
+              ),
+            );
+          }(),
+      ],
+    );
+  }
+
+  /// The series actions. [tint] set on a pill means it is switched on.
+  List<ActionPillData> _actionPills(BuildContext ctx) {
+    final l = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final allDone = _allFinished;
+    final dl = DownloadService();
+    var downloaded = 0;
+    for (final book in _books) {
+      if (dl.isDownloaded(book['id'] as String? ?? '')) downloaded++;
+    }
+    // Nothing downloads in a browser, so neither download pill shows there.
+    final allDownloaded = AppPlatform.isWeb || downloaded == _books.length;
+    final hasSeriesId = widget.seriesId != null && widget.seriesId!.isNotEmpty;
+    return [
+                // Only once the up next book is past the first few rows.
+                if (_jumpTargetIndex >= 3)
+                  ActionPillData(
+                    icon: Icons.keyboard_double_arrow_down_rounded,
+                    label: l.seriesJumpToUpNext,
+                    onTap: _jumpToUpNext),
+                if (!AppPlatform.isWeb && hasSeriesId)
+                  ActionPillData(
+                    icon: _autoDownloadEnabled ? Icons.downloading_rounded : Icons.download_outlined,
+                    label: _autoDownloadEnabled ? l.turnAutoDownloadOff : l.turnAutoDownloadOn,
+                    tint: _autoDownloadEnabled ? cs.primary : null,
+                    onTap: () async {
+                      final lib = context.read<LibraryProvider>();
+                      await lib.toggleRollingDownload(widget.seriesId!,
+                          name: widget.seriesName, kind: 'series');
+                      if (mounted) setState(() => _autoDownloadEnabled = lib.isRollingDownloadEnabled(widget.seriesId!));
+                    }),
+                if (!allDownloaded)
                   ActionPillData(
                     icon: Icons.download_rounded,
                     label: downloaded > 0 ? l.downloadRemainingCount((_totalBooks > 0 ? _totalBooks : _books.length) - downloaded) : l.downloadAll,
-                    onTap: () { Navigator.pop(ctx); _downloadAll(); }),
+                    onTap: _downloadAll),
                 ActionPillData(
                   icon: allDone ? Icons.remove_done_rounded : Icons.done_all_rounded,
                   label: allDone ? l.markAllNotFinished : l.markAllFinished,
                   onTap: () async {
-                    Navigator.pop(ctx);
                     if (allDone) {
                       final confirmed = await showDialog<bool>(
                         context: context,
@@ -834,23 +1267,16 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                   }),
                 if (!AppPlatform.isWeb && hasSeriesId)
                   ActionPillData(
-                    icon: _autoDownloadEnabled ? Icons.downloading_rounded : Icons.download_outlined,
-                    label: _autoDownloadEnabled ? l.turnAutoDownloadOff : l.turnAutoDownloadOn,
+                    icon: _scanExcluded ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                    label: _scanExcluded ? l.seriesIncludeInScan : l.seriesExcludeFromScan,
                     onTap: () async {
-                      Navigator.pop(ctx);
-                      final lib = context.read<LibraryProvider>();
-                      await lib.toggleRollingDownload(widget.seriesId!,
-                          name: widget.seriesName, kind: 'series');
-                      setState(() => _autoDownloadEnabled = lib.isRollingDownloadEnabled(widget.seriesId!));
+                      final next = !_scanExcluded;
+                      await UpcomingReleasesService.setNeverScan(widget.seriesId!, next);
+                      if (mounted) setState(() => _scanExcluded = next);
                     }),
                 ActionPillData(icon: Icons.search_rounded, label: l.seriesBooksFindMissingTitle,
-                  onTap: () { Navigator.pop(ctx); _findOnAudible(); }),
-              ]),
-            ]),
-          ),
-        );
-      },
-    );
+                  onTap: _findOnAudible),
+    ];
   }
 
   Future<void> _downloadAll() async {
@@ -930,171 +1356,196 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final seriesProgress = totalDuration > 0 ? (listenedDuration / totalDuration).clamp(0.0, 1.0) : 0.0;
     final seriesPercent = (seriesProgress * 100).round();
 
-    return ClipRect(child: Column(
-      children: [
-        // Header row: 3-dot menu pinned top-right
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(width: 48),
-            Expanded(
-              child: Column(
-                children: [
-                  Icon(Icons.auto_stories_rounded, size: 20, color: cs.primary),
-                  const SizedBox(height: 4),
-                  Text(widget.seriesName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: tt.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: 48,
-              child: _books.isNotEmpty ? _buildOverflowMenu(cs) : null,
-            ),
-          ],
+    // What to carry on with, and how far through the series that leaves you.
+    Map<String, dynamic>? nextUp;
+    var finishedCount = 0;
+    for (final book in _books) {
+      final bookId = book['id'] as String? ?? '';
+      final done = lib.getProgressData(bookId)?['isFinished'] == true || lib.getProgress(bookId) >= 1.0;
+      if (done) {
+        finishedCount++;
+      } else {
+        nextUp ??= book;
+      }
+    }
+    _jumpTargetId = nextUp?['id'] as String?;
+    _jumpTargetIndex = nextUp == null ? -1 : _books.indexOf(nextUp);
+    final schemeBook = nextUp ?? (_books.isNotEmpty ? _books.first : null);
+    if (schemeBook != null) _maybeDeriveScheme(lib.getCoverUrl(schemeBook['id'] as String? ?? '') ?? '');
+    final accent = PlayerSettings.einkMode ? cs.primary : (_coverScheme?.primary ?? cs.primary);
+    final onAccent = PlayerSettings.einkMode ? cs.onPrimary : (_coverScheme?.onPrimary ?? cs.onPrimary);
+    final tint = PlayerSettings.einkMode
+        ? Colors.transparent
+        : (_coverScheme?.primaryContainer ?? cs.primaryContainer).withValues(alpha: 0.35);
+
+    final bg = Theme.of(context).bottomSheetTheme.backgroundColor ?? cs.surface;
+    final listPad = EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom);
+    Widget fill(Widget child) =>
+        SliverFillRemaining(hasScrollBody: false, child: Center(child: child));
+
+    // The sheet paints its own handle so the tint reaches the very top;
+    // the whole header scrolls away with the list.
+    final header = Container(
+      key: _headerKey,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [tint, Colors.transparent],
         ),
-        const SizedBox(height: 4),
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: () {
-                  final displayDuration = _seriesDuration > totalDuration ? _seriesDuration : totalDuration;
-                  final bookCount = _totalBooks > 0 ? _totalBooks : _books.length;
-                  final base = l.booksInSeriesCount(bookCount);
-                  return displayDuration > 0
-                      ? '$base · ${formatHm(displayDuration)}'
-                      : base;
-                }(),
-              ),
-              if (!AppPlatform.isWeb && _autoDownloadEnabled) ...[
-                const TextSpan(text: ' · '),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: Icon(Icons.downloading_rounded, size: 14, color: cs.primary),
-                ),
-              ],
-            ],
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: Column(children: [
+        const SizedBox(height: 12),
+        Center(
+          child: Container(
+            width: 32,
+            height: 4,
+            decoration: BoxDecoration(
+              color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
+        ),
+        const SizedBox(height: 12),
+        if (_books.isNotEmpty) _coverStrip(lib, accent, nextUp),
+        const SizedBox(height: 10),
+        Text(widget.seriesName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 2),
+        Text(
+          () {
+            final displayDuration = _seriesDuration > totalDuration ? _seriesDuration : totalDuration;
+            final bookCount = _totalBooks > 0 ? _totalBooks : _books.length;
+            final base = l.booksInSeriesCount(bookCount);
+            return displayDuration > 0 ? '$base · ${formatHm(displayDuration)}' : base;
+          }(),
           style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
         ),
-        SizedBox(height: seriesProgress > 0 ? 4 : 12),
-        if (seriesProgress > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: seriesProgress,
-                      minHeight: 4,
-                      backgroundColor: cs.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation(cs.primary),
-                    ),
+        if (_books.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            _stat(l.seriesFinishedOf(finishedCount, _totalBooks > 0 ? _totalBooks : _books.length), l.seriesStatsFinished, cs, tt),
+            _stat(formatHm(listenedDuration), l.seriesStatsListened, cs, tt),
+            _stat(formatHm((totalDuration - listenedDuration).clamp(0.0, double.infinity)), l.seriesStatsLeft, cs, tt),
+          ]),
+          if (nextUp != null) ...[
+            const SizedBox(height: 10),
+            _upNextButton(nextUp, seriesProgress, seriesPercent, accent, onAccent, tt),
+          ],
+          const SizedBox(height: 10),
+          _pillRow(cs, accent),
+        ],
+      ]),
+    );
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: ListenableBuilder(
+        listenable: DownloadService(),
+        builder: (context, _) => CustomScrollView(
+          controller: widget.scrollController,
+          slivers: [
+            SliverToBoxAdapter(child: header),
+            if (_books.isNotEmpty)
+              SliverToBoxAdapter(
+                child: KeyedSubtree(
+                  key: _barKey,
+                  child: sheetViewModeBar(
+                  context,
+                  gridView: _gridView,
+                  onChanged: (grid) => setState(() => _gridView = grid),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  leading: IconButton(
+                    icon: Icon(Icons.collections_bookmark_rounded, size: 20,
+                      color: _collapseSeries ? cs.primary : cs.onSurfaceVariant),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: _collapseSeries ? l.seriesBooksShowAllBooks : l.seriesBooksGroupBySubSeries,
+                    onPressed: () {
+                      setState(() {
+                        _collapseSeries = !_collapseSeries;
+                        if (_collapseSeries) {
+                          _expandedSubSeries.clear();
+                          if (!_subSeriesLoaded) _loadSubSeriesData();
+                        }
+                      });
+                      PlayerSettings.setCollapseBookSeries(_collapseSeries);
+                    },
                   ),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  l.percentComplete(seriesPercent.toString()),
-                  style: tt.labelSmall?.copyWith(
-                    color: cs.primary,
-                    fontWeight: FontWeight.w600,
+                ),
+              ),
+            if (_isLoading && _books.isEmpty)
+              fill(const CircularProgressIndicator())
+            else if (_books.isEmpty && _loadFailed)
+              fill(Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(l.failedToLoad,
+                    style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isLoading = true;
+                      _loadFailed = false;
+                    });
+                    _fetchFromApi();
+                  },
+                  child: Text(l.retry),
+                ),
+              ]))
+            else if (_books.isEmpty)
+              fill(Text(l.noBooksFound,
+                  style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)))
+            else if (_collapseSeries && !_subSeriesLoaded)
+              fill(Column(mainAxisSize: MainAxisSize.min, children: [
+                const CircularProgressIndicator(strokeWidth: 2),
+                const SizedBox(height: 12),
+                Text(l.seriesBooksLoadingSubSeries, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4))),
+              ]))
+            else if (_collapseSeries && _gridView)
+              _buildGroupedGrid(cs, tt, lib)
+            else if (_collapseSeries)
+              _buildGroupedList(cs, tt, lib)
+            else if (_gridView)
+              SliverPadding(
+                padding: listPad,
+                sliver: SliverGrid.builder(
+                  gridDelegate: sheetBookGridDelegate(context, childAspectRatio: 0.65),
+                  itemCount: _books.length,
+                  itemBuilder: (context, index) => _asJumpTarget(
+                    _books[index]['id'] == _jumpTargetId,
+                    GridBookTile(item: _books[index], sequenceBadge: _getSequenceString(_books[index])),
                   ),
                 ),
-              ],
-            ),
-          ),
-        if (_books.isNotEmpty)
-          sheetViewModeBar(
-            context,
-            gridView: _gridView,
-            onChanged: (grid) => setState(() => _gridView = grid),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            leading: IconButton(
-              icon: Icon(Icons.collections_bookmark_rounded, size: 20,
-                color: _collapseSeries ? cs.primary : cs.onSurfaceVariant),
-              visualDensity: VisualDensity.compact,
-              tooltip: _collapseSeries ? l.seriesBooksShowAllBooks : l.seriesBooksGroupBySubSeries,
-              onPressed: () {
-                setState(() {
-                  _collapseSeries = !_collapseSeries;
-                  if (_collapseSeries) {
-                    _expandedSubSeries.clear();
-                    if (!_subSeriesLoaded) _loadSubSeriesData();
-                  }
-                });
-                PlayerSettings.setCollapseBookSeries(_collapseSeries);
-              },
-            ),
-          ),
-        if (_isLoading && _books.isEmpty)
-          const Expanded(
-              child: Center(child: CircularProgressIndicator()))
-        else if (_books.isEmpty)
-          Expanded(
-            child: Center(
-              child: Text(l.noBooksFound,
-                  style: tt.bodyLarge
-                      ?.copyWith(color: cs.onSurfaceVariant)),
-            ),
-          )
-        else if (_collapseSeries && !_subSeriesLoaded)
-          Expanded(
-            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const CircularProgressIndicator(strokeWidth: 2),
-              const SizedBox(height: 12),
-              Text(l.seriesBooksLoadingSubSeries, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4))),
-            ])),
-          )
-        else if (_collapseSeries && _gridView)
-          Expanded(
-            child: ListenableBuilder(
-              listenable: DownloadService(),
-              builder: (context, _) => _buildGroupedGrid(cs, tt, lib),
-            ),
-          )
-        else if (_collapseSeries)
-          Expanded(
-            child: ListenableBuilder(
-              listenable: DownloadService(),
-              builder: (context, _) => _buildGroupedList(cs, tt, lib),
-            ),
-          )
-        else if (_gridView)
-          Expanded(
-            child: ListenableBuilder(
-              listenable: DownloadService(),
-              builder: (context, _) => GridView.builder(
-              controller: widget.scrollController,
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
-              gridDelegate: sheetBookGridDelegate(context, childAspectRatio: 0.65),
-              itemCount: _books.length,
-              itemBuilder: (context, index) => GridBookTile(item: _books[index], sequenceBadge: _getSequenceString(_books[index])),
-            ),
-          ))
-        else
-          Expanded(
-            child: ListenableBuilder(
-              listenable: DownloadService(),
-              builder: (context, _) => ListView.builder(
-              controller: widget.scrollController,
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
-              itemCount: _books.length,
-              itemBuilder: (context, index) => _buildBookCard(cs, tt, lib, _books[index]),
-            ),
-          ),
-          ),
-      ],
-    ));
+              )
+            else
+              SliverPadding(
+                padding: listPad,
+                sliver: SliverList.builder(
+                  itemCount: _books.length,
+                  itemBuilder: (context, index) => _buildBookCard(cs, tt, lib, _books[index]),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Widget _buildBookCard(ColorScheme cs, TextTheme tt, LibraryProvider lib, Map<String, dynamic> book) {
+  // [jumpTarget] is false for every sub-series but the first one holding the
+  // up next book: a book can sit in two of them, and a key can only be used
+  // once.
+  Widget _buildBookCard(ColorScheme cs, TextTheme tt, LibraryProvider lib, Map<String, dynamic> book,
+          {bool jumpTarget = true}) =>
+      _asJumpTarget(jumpTarget && book['id'] == _jumpTargetId, _bookCard(cs, tt, lib, book));
+
+  Widget _bookCard(ColorScheme cs, TextTheme tt, LibraryProvider lib, Map<String, dynamic> book) {
     final l = AppLocalizations.of(context)!;
     final bookId = book['id'] as String? ?? '';
     final media = book['media'] as Map<String, dynamic>? ?? {};
@@ -1145,7 +1596,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
           child: InkWell(
             onTap: () {
               if (bookId.isNotEmpty) {
-                if (lib.isPodcastLibrary) {
+                if (lib.isPodcastItem(book)) {
                   EpisodeListSheet.show(context, book);
                 } else {
                   showBookDetailSheet(context, bookId);

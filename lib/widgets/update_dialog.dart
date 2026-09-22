@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../build_info.dart';
 import '../l10n/app_localizations.dart';
 import '../services/update_checker_service.dart';
 import 'overlay_toast.dart';
@@ -14,6 +15,13 @@ class UpdateDialog {
   /// On any failure, falls back to launching the URL in the browser.
   static Future<void> show(BuildContext context, UpdateInfo info) async {
     final l = AppLocalizations.of(context)!;
+    // "v1.9.3-240 (Beta 6)" / "1.9.3+237 (Beta 5)" during a beta cycle; the
+    // remote number comes from the release notes, ours from this build.
+    String withBeta(String version, int? beta) =>
+        beta == null ? version : '$version (${l.betaLabel(beta)})';
+    final latest = withBeta(info.latestVersion, info.latestBetaNumber);
+    final current =
+        withBeta(info.currentVersion, betaNumberFor(info.currentVersion));
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -24,8 +32,8 @@ class UpdateDialog {
           children: [
             Text(l.updateDialogContent(
               info.isPreRelease ? l.updateKindPreRelease : l.updateKindVersion,
-              info.latestVersion,
-              info.currentVersion,
+              latest,
+              current,
             )),
             if (info.packageLabel != null) ...[
               const SizedBox(height: 12),

@@ -9,14 +9,15 @@ import '../l10n/app_localizations.dart';
 /// - `<a href>` → tappable links
 /// - `<b>`, `<strong>` → bold
 /// - `<i>`, `<em>` → italic
-/// - `<br>`, `<p>` → newlines
+/// - `<br>` → line break, `<p>` → paragraph break (blank line between)
 /// - Bare URLs → tappable links
 /// - HTML entities → decoded
 ///
-/// Includes built-in "Show more / Show less" toggle.
+/// With [maxLines] set it truncates and offers a "Show more / Show less"
+/// toggle; null shows the whole thing with no toggle.
 class HtmlDescription extends StatefulWidget {
   final String html;
-  final int maxLines;
+  final int? maxLines;
   final TextStyle? style;
   final Color? linkColor;
 
@@ -45,12 +46,14 @@ class _HtmlDescriptionState extends State<HtmlDescription> {
 
     final spans = _parseHtml(widget.html, baseStyle ?? const TextStyle(), linkColor);
     final textSpan = TextSpan(children: spans);
+    final maxLines = widget.maxLines;
+    if (maxLines == null) return Text.rich(textSpan);
 
     return LayoutBuilder(builder: (context, constraints) {
       // Measure whether the text actually overflows at maxLines
       final tp = TextPainter(
         text: textSpan,
-        maxLines: widget.maxLines,
+        maxLines: maxLines,
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: constraints.maxWidth);
       final isTruncated = tp.didExceedMaxLines;
@@ -61,7 +64,7 @@ class _HtmlDescriptionState extends State<HtmlDescription> {
         children: [
           Text.rich(
             textSpan,
-            maxLines: _expanded ? null : widget.maxLines,
+            maxLines: _expanded ? null : maxLines,
             overflow: _expanded ? TextOverflow.clip : TextOverflow.ellipsis,
           ),
           if (isTruncated)
@@ -91,10 +94,15 @@ final _bareUrlRegex = RegExp(
 
 /// Parse HTML string into a list of styled TextSpans.
 List<InlineSpan> _parseHtml(String html, TextStyle baseStyle, Color linkColor) {
-  // Pre-process: convert block elements to newlines
+  // Pre-process: convert block elements to newlines. A closing paragraph
+  // becomes a blank line, the way a browser spaces <p> blocks - one newline
+  // ran every paragraph straight into the next. CR/LF from descriptions
+  // typed on Windows is normalised first so it counts as a plain newline.
   var text = html
+      .replaceAll('\r\n', '\n')
+      .replaceAll('\r', '\n')
       .replaceAll(RegExp(r'<br\s*/?>'), '\n')
-      .replaceAll(RegExp(r'</p>'), '\n')
+      .replaceAll(RegExp(r'</p>'), '\n\n')
       .replaceAll(RegExp(r'<p[^>]*>'), '')
       .replaceAll(RegExp(r'</div>'), '\n')
       .replaceAll(RegExp(r'<div[^>]*>'), '')
@@ -164,6 +172,27 @@ List<InlineSpan> _parseHtml(String html, TextStyle baseStyle, Color linkColor) {
       linkColor,
       linkUrl,
     ));
+  }
+
+  // Trim leading newlines (an empty opening paragraph would otherwise start
+  // the text with a blank line)
+  while (spans.isNotEmpty) {
+    final first = spans.first;
+    if (first is TextSpan && first.text != null) {
+      final trimmed = first.text!.replaceAll(RegExp(r'^\n+'), '');
+      if (trimmed.isEmpty) {
+        spans.removeAt(0);
+      } else {
+        spans[0] = TextSpan(
+          text: trimmed,
+          style: first.style,
+          recognizer: first.recognizer,
+        );
+        break;
+      }
+    } else {
+      break;
+    }
   }
 
   // Trim trailing newlines

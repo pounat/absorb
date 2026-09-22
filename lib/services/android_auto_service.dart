@@ -437,8 +437,9 @@ class AndroidAutoService {
   }
 
   /// Content provider authority for serving local cover images to Android Auto.
-  /// Must match the authority registered in AndroidManifest.xml.
-  static const _coverAuthority = 'com.barnabas.absorb.covers';
+  /// Follows the installed package, as the manifest's `${applicationId}.covers`
+  /// does, so the dev flavor reaches its own provider.
+  static String get _coverAuthority => '${ApiService.packageName}.covers';
 
   // Per-item updatedAt for cover ?ts= cache busting on AA/CarPlay.
   static final Map<String, int> _itemUpdatedAt = {};
@@ -488,6 +489,10 @@ class AndroidAutoService {
           chapters = session['chapters'] as List<dynamic>? ?? [];
         } catch (_) {}
       }
+
+      // GH #361: ebook-only books register as downloads with no audio files -
+      // nothing to play in the car, so keep them out of the Downloads tab.
+      if (dl.localPaths.isEmpty && duration <= 0) continue;
 
       final localPos = await ProgressSyncService().getSavedPosition(dl.itemId);
 
@@ -758,6 +763,9 @@ class AndroidAutoService {
   AutoBookEntry? _entityToEntry(Map<String, dynamic> entity, ApiService api) {
     final id = entity['id'] as String?;
     if (id == null) return null;
+    // GH #361: ebook-only items can't play in a car - keep them off the
+    // Continue and New shelves (CarPlay reuses these lists too).
+    if (PlayerSettings.isEbookOnly(entity)) return null;
 
     final media = entity['media'] as Map<String, dynamic>?;
     final metadata = media?['metadata'] as Map<String, dynamic>? ?? {};
@@ -858,6 +866,9 @@ class AndroidAutoService {
       Map<String, dynamic> item, ApiService api) {
     final id = item['id'] as String?;
     if (id == null) return null;
+    // GH #361: ebook-only items can't play in a car - hide them from the
+    // library drilldowns (CarPlay reuses these lists too).
+    if (PlayerSettings.isEbookOnly(item)) return null;
 
     final updatedAt = (item['updatedAt'] as num?)?.toInt();
     if (updatedAt != null) _itemUpdatedAt[id] = updatedAt;
@@ -1674,7 +1685,10 @@ class AndroidAutoService {
       if (library?.isPodcast != true) {
         final index = BookSearchIndex();
         await index.ensureIndex(api, libId);
-        if (index.isReady(libId)) {
+        // A truncated index misses the newest items in a huge library, so its
+        // hits alone aren't the full answer - fall through to the server
+        // search and merge instead of returning early (GH #349).
+        if (index.isReady(libId) && !index.isTruncated(libId)) {
           final hits = index
               .search(libId, trimmedQuery, limit: 20)
               .where((hit) => hit.item['mediaType'] != 'podcast')

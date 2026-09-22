@@ -5,6 +5,10 @@
   "offline": "Offline",
   "stillOffline": "Still offline. Tap to try again.",
   "retry": "Retry",
+  "listsNone": "No collections or playlists",
+  "listsNoneHint": "Collections and playlists are made on your Audiobookshelf server, and show up here.",
+  "listsLoadFailed": "Couldn't load your lists",
+  "listsLoadFailedHint": "Absorb couldn't reach your server for collections and playlists.",
   "cancel": "Cancel",
   "delete": "Delete",
   "remove": "Remove",
@@ -357,6 +361,52 @@
     }
   },
   "bookmarksTitle": "All Bookmarks",
+  "bookmarksTabBookmarks": "Bookmarks",
+  "bookmarksTabHighlights": "Highlights",
+  "highlightOpenInBook": "Open in book",
+  "highlightDeleteAction": "Delete highlight",
+  "highlightDeleted": "Highlight deleted",
+  "highlightsDeleteCount": "Delete {count} highlight(s)?",
+  "@highlightsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "highlightsDeletedCount": "Deleted {count} highlight(s)",
+  "@highlightsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "quoteShareTitle": "Share quote",
+  "quoteShareAction": "Share",
+  "quoteShareFailed": "Couldn't make the quote image",
+  "quoteShapePortrait": "Portrait",
+  "quoteShapeSquare": "Square",
+  "quoteShapeStory": "Story",
+  "quoteStyleBlur": "Blurred",
+  "quoteStyleDim": "Dimmed",
+  "quoteStyleNone": "Plain cover",
+  "quoteTextLight": "Light text",
+  "quoteTextDark": "Dark text",
+  "quoteFieldTitle": "Title",
+  "quoteFieldDetail": "Details",
+  "quoteFieldDetailHint": "Author, chapter, page, who said it",
+  "highlightsMeta": "{chapter} · {date}",
+  "@highlightsMeta": {
+    "placeholders": {
+      "chapter": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "bookmarksCancelSelection": "Cancel selection",
   "bookmarksSortedByNewest": "Sorted by newest",
   "bookmarksSortedByPosition": "Sorted by position",
@@ -585,6 +635,10 @@
   "useColorEverywhereSubtitle": "Also color book detail pages and the player card with your set color instead of each book's cover",
   "flatBackgroundLabel": "Flat background",
   "flatBackgroundSubtitle": "Remove the background gradient. Pure black in dark mode for OLED screens.",
+  "einkModeLabel": "E-ink mode",
+  "einkModeSubtitle": "High-contrast black and white with no animations, made for e-ink screens",
+  "einkModeIntroBody": "Made for e-ink screens. The app switches to a flat black-and-white look with high contrast, animations are turned off, the playing card loses its background, and the live server connection stays off to save battery. Playback and progress still sync normally. Your appearance settings are kept and come back when you turn this off.",
+  "einkModeIntroConfirm": "Turn on",
   "backgroundIntensityLabel": "Background intensity",
   "startScreenLabel": "Start screen",
   "startScreenSubtitle": "Which tab to open when the app launches",
@@ -599,6 +653,11 @@
   "progressTextSize": "Progress text size",
   "rectangleBookCoversOnSubtitle": "Covers display in 2:3 book proportion",
   "rectangleBookCoversOffSubtitle": "Covers are square",
+  "coverSize": "Cover size",
+  "coverSizeSubtitle": "How many covers fit across the library grid",
+  "coverSizeSmall": "Small",
+  "coverSizeMedium": "Medium",
+  "coverSizeLarge": "Large",
   "sectionAbsorbingCards": "Absorbing Cards",
   "fullScreenPlayer": "Full screen player",
   "fullScreenPlayerOnSubtitle": "On - books open in full screen when played",
@@ -691,6 +750,7 @@
   "defaultSpeedSubtitle": "New books start at this speed - each book remembers its own",
   "skipBack": "Skip back",
   "skipForward": "Skip forward",
+  "iosLockScreenSkipHint": "The lock screen only draws the numbers iOS has icons for (5, 10, 15, 30, 45, 60, 75, 90). Other amounts show + on the button but still skip by your setting.",
   "longSkipButtons": "Long skip buttons",
   "longSkipButtonsOnSubtitle": "On - the player shows a second, bigger skip pair",
   "longSkipButtonsOffSubtitle": "Off - just the regular skip buttons",
@@ -700,6 +760,13 @@
   "coverShapeSquare": "Square",
   "coverShapeRectangle": "Rectangle",
   "coverShapeLabel": "Cover shape",
+  "showSubtitles": "Show subtitles",
+  "showSubtitlesOnSubtitle": "Subtitles show under book titles in the library and on home",
+  "showSubtitlesOffSubtitle": "Off - subtitles only on the book details sheet",
+  "subtitleVisibilityLabel": "Subtitles",
+  "subtitleVisibilityDefault": "Default",
+  "subtitleVisibilityShow": "Show",
+  "subtitleVisibilityHide": "Hide",
   "currentLibrarySettingsTitle": "Current library: {name}",
   "@currentLibrarySettingsTitle": {
     "placeholders": { "name": { "type": "String" } }
@@ -948,6 +1015,8 @@
   },
   "clearLogs": "Clear logs",
   "logsCleared": "Logs cleared",
+  "clearLogsQuestion": "Clear logs?",
+  "clearLogsContent": "This can't be undone. Send them first if you might want them.",
   "sectionAdvanced": "Advanced",
   "localServer": "Local server",
   "localServerInfoTitle": "Local Server",
@@ -983,6 +1052,15 @@
     "placeholders": {
       "version": {
         "type": "String"
+      }
+    }
+  },
+  "betaLabel": "Beta {number}",
+  "@betaLabel": {
+    "description": "Shown after the version on beta builds, e.g. 1.9.3+240 (Beta 6)",
+    "placeholders": {
+      "number": {
+        "type": "int"
       }
     }
   },
@@ -1483,7 +1561,7 @@
   "markedAsFinishedNiceWork": "Marked as finished - nice work!",
   "failedToUpdateCheckConnection": "Failed to update - check your connection",
   "markAsNotFinishedQuestion": "Mark as Not Finished?",
-  "markAsNotFinishedContent": "This will clear the finished status but keep your current position.",
+  "markAsNotFinishedContent": "This will clear the finished status and put your position back at the start.",
   "unmark": "Unmark",
   "markedAsNotFinishedBackAtIt": "Marked as not finished - back at it!",
   "resetProgressQuestion": "Reset Progress?",
@@ -2968,14 +3046,8 @@
   "statsScreenOs": "OS",
   "statsScreenPlayMethod": "Play method",
   "statsScreenLoading": "Loading...",
-  "statsScreenJumpToSessionStart": "Jump to session start ({position})",
-  "@statsScreenJumpToSessionStart": {
-    "placeholders": {
-      "position": {
-        "type": "String"
-      }
-    }
-  },
+  "statsScreenJumpToStart": "Jump to start",
+  "statsScreenJumpToEnd": "Jump to end",
   "statsScreenPlayMethodDirect": "Direct play",
   "statsScreenPlayMethodDirectStream": "Direct stream",
   "statsScreenPlayMethodTranscode": "Transcode",
@@ -3333,6 +3405,24 @@
       }
     }
   },
+  "upcomingReleasesBulkScanned": "{count, plural, =1{1 series rescanned} other{{count} series rescanned}}",
+  "@upcomingReleasesBulkScanned": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkScanFound": "{count} with new books",
+  "@upcomingReleasesBulkScanFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesExcludeFromScan": "Exclude from series scan",
+  "seriesIncludeInScan": "Include in series scan",
   "homeScreenEpisodeFallback": "Episode",
   "libraryScreenUnknownTitle": "Unknown Title",
   "playlistDetailDefaultName": "Playlist",
@@ -3529,6 +3619,7 @@
   "notesExport": "Export",
   "notesNewNote": "New note",
   "librarySortFilterUpcomingReleases": "Scan Series",
+  "librarySortFilterMatchAllAuthorsSubtitle": "Fetch a photo and bio for every author from the metadata provider",
   "librarySortFilterUpcomingReleasesSubtitle": "Check Audible for upcoming and missing books in your series",
   "sleepTimerSheetChaptersLeft": "{count, plural, =1{1 chapter left} other{{count} chapters left}}",
   "@sleepTimerSheetChaptersLeft": {
@@ -3741,6 +3832,22 @@
   "tipsSheetCarModeDesc": "Tap the car icon to switch to giant-button mode designed for safer use while driving.",
   "tipsSheetAudibleSeriesTitle": "Audible Series Discovery",
   "tipsSheetAudibleSeriesDesc": "Open a series and use the overflow menu (the three dots) to pull the full series list from Audible, including missing entries and books you haven't started.",
+  "tipsSheetTranscribeBookmarkTitle": "Transcribe Bookmarks",
+  "tipsSheetTranscribeBookmarkDesc": "Turn the audio at any bookmark into text, fully on your device. Enable it in Settings under Advanced > Transcription and download a model, then tap Transcribe on a bookmark - the text lands in its note, ready to fix up or share.",
+  "tipsSheetFindBetweenFormatsTitle": "Jump Between Audiobook and Ebook",
+  "tipsSheetFindBetweenFormatsDesc": "With transcription on and the book downloaded, pause and tap Find position in ebook on the player to open the ebook at the passage you just heard. In the reader, select some text and tap the headphones to start the audiobook right there.",
+  "tipsSheetShareQuoteTitle": "Share Quotes",
+  "tipsSheetShareQuoteDesc": "Share an ebook highlight or a bookmark note as an image with the quote over the book cover. Look for the share option on highlights and in the bookmark sheet.",
+  "tipsSheetClipExportTitle": "Export Audio Clips",
+  "tipsSheetClipExportDesc": "Open a bookmark and tap Export clip to trim and save a short audio snippet of the book, cover art included - great for sharing a favorite scene.",
+  "tipsSheetAllHighlightsTitle": "All Highlights in One Place",
+  "tipsSheetAllHighlightsDesc": "The All Bookmarks page has a Highlights tab collecting every ebook highlight from every book. Tap one to share it or jump back into the book.",
+  "tipsSheetVolumeKeyPagesTitle": "Volume-Key Page Turns",
+  "tipsSheetVolumeKeyPagesDesc": "Turn ebook pages with the volume keys. Enable it in the reader's settings - normal or mirrored direction, and it can stay on even while audio is playing.",
+  "tipsSheetSettingsSyncTitle": "Settings Sync",
+  "tipsSheetSettingsSyncDesc": "Keep your settings, per-book speeds and Absorbing order in step across devices through your own WebDAV server. Set it up in Settings under Backup and sync.",
+  "tipsSheetNavLongPressTitle": "Long-Press the Bottom Tabs",
+  "tipsSheetNavLongPressDesc": "Hold the Home tab to switch libraries from any page. Hold the Library tab to jump straight into search.",
   "bookCardUnknownTitle": "Unknown Title",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Done",
@@ -4019,6 +4126,12 @@
   "androidAutoTabContinue": "Continue",
   "androidAutoTabLibrary": "Library",
   "androidAutoTabDownloads": "Downloads",
+  "settingsSearchHint": "Search settings...",
+  "settingsSearchNoResults": "No matching settings",
+  "carConnectAutoplay": "Start playback when Android Auto connects",
+  "carConnectAutoplayIos": "Start playback when CarPlay connects",
+  "carConnectAutoplayOnSubtitle": "The last book you were listening to starts by itself when the car connects",
+  "carConnectAutoplayOffSubtitle": "Playback waits for you to press play",
   "androidAutoCatBooks": "Books",
   "androidAutoCatSeries": "Series",
   "androidAutoCatAuthors": "Authors",
@@ -4119,14 +4232,38 @@
   "chapterFromTracks": "From Tracks",
   "chapterLookup": "Lookup",
   "chapterShowSeconds": "Show seconds",
+  "chapterWindowMinutes": "{minutes} min",
+  "@chapterWindowMinutes": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "chapterLoopCut": "Loop the cut",
+  "chapterFindStart": "Find the start",
+  "chapterFindStartListening": "Listening around the marker",
+  "chapterFindStartNone": "Nothing here sounds like a chapter start",
+  "chapterFindStartWider": "Search wider",
+  "chapterFindStartCeiling": "Searched half an hour around the marker. The start is further off than that, or there's no chapter announcement to hear.",
+  "chapterFindStartStrong": "Sounds like this chapter",
+  "chapterFindStartMaybe": "Chapter-like words",
+  "chapterFindStartGap": "{seconds}s gap",
+  "@chapterFindStartGap": {
+    "placeholders": { "seconds": { "type": "String" } }
+  },
+  "chapterFindStartRange": "Searched {from} to {to}",
+  "@chapterFindStartRange": {
+    "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } }
+  },
+  "chapterFindStartNeedsModel": "Turn on transcription in Settings and download a model first",
+  "chapterFindStartUseThis": "Use this",
+  "chapterFindStartTitle": "Title: {title}",
+  "@chapterFindStartTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
   "chapterShiftBySeconds": "Shift by (seconds)",
   "chapterShiftHint": "Shifts every unlocked chapter. Use a negative value to move them earlier.",
-  "chapterBack1Second": "Back 1 second",
-  "chapterForward1Second": "Forward 1 second",
   "chapterTitleHint": "Chapter title",
   "chapterStopPreview": "Stop preview",
   "chapterPreviewFromHere": "Preview from here",
-  "chapterScrubHint": "Scrub to the exact spot, then set",
+  "chapterScrubHint": "Drag or nudge to move the start",
   "chapterStartAt": "Start at {time}",
   "@chapterStartAt": {
     "placeholders": {
@@ -4135,8 +4272,6 @@
       }
     }
   },
-  "chapterSetStartHere": "Set start here",
-  "chapterMore": "More",
   "chapterUnlock": "Unlock",
   "chapterLock": "Lock",
   "chapterInsertBelow": "Insert below",
@@ -4530,6 +4665,10 @@
   "readerSideMargins": "Side margins",
   "readerTopBottom": "Top & bottom",
   "readerPageLayout": "Page layout",
+  "readerPinTopBar": "Keep the title and progress bar on screen",
+  "readerPinTopBarHint": "Pins them above the page instead of showing them on tap. The page gets a little shorter so no text is covered.",
+  "readerKeepAwake": "Keep the screen on",
+  "readerKeepAwakeHint": "Stops the screen timing out while you read at your own pace. Auto scroll and read along always keep it on.",
   "readerLayoutAuto": "Auto",
   "readerLayoutSingle": "Single",
   "readerLayoutTwoPage": "Two-page",
@@ -4539,6 +4678,63 @@
   "readerVolumeNavOff": "Off",
   "readerVolumeNavNormal": "Normal",
   "readerVolumeNavMirrored": "Mirrored",
+  "readerAutoScroll": "Auto scroll",
+  "readerAutoScrollSubtitle": "The next page paints over this one from the top down - drag the middle of the screen to change speed, tap to stop",
+  "readerAutoScrollStarted": "Auto scroll started",
+  "readerAutoScrollPaused": "Paused - press and hold to stop",
+  "readerAutoScrollResumed": "Auto scroll resumed",
+  "readerAutoScrollStopped": "Auto scroll off",
+  "readerAutoScrollEndOfBook": "End of book - auto scroll off",
+  "readerAutoScrollSpeed": "Speed {percent}%",
+  "@readerAutoScrollSpeed": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "readerMoreControls": "More controls",
+  "readerAutoScrollSleep": "Auto scroll sleep timer",
+  "readerAutoScrollSleepHint": "Stops the scrolling after a while and lets the screen go dark.",
+  "readerAutoScrollSleepMinutes": "{minutes} min",
+  "@readerAutoScrollSleepMinutes": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "readerAutoScrollSleepLeft": "{minutes} min left",
+  "@readerAutoScrollSleepLeft": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "readerAutoScrollSleepIn": "Auto scroll stops in {minutes} min",
+  "@readerAutoScrollSleepIn": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "readerAutoScrollSleepOff": "Auto scroll sleep timer off",
+  "readerAutoScrollSleepEnded": "Sleep timer - auto scroll off",
+  "readerDownloadStarted": "Download started",
+  "detailChaptersJumpTitle": "Jump to this chapter?",
+  "detailChaptersJumpContent": "Playback moves to \"{title}\".",
+  "@detailChaptersJumpContent": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "detailChaptersJump": "Jump",
+  "detailChaptersFinished": "{count, plural, =1{1 chapter finished} other{{count} chapters finished}}",
+  "@detailChaptersFinished": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "detailOtherListeners": "{count, plural, =0{No other listeners} =1{1 other listener} other{{count} other listeners}}",
+  "@detailOtherListeners": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "seriesUpNext": "Up next",
+  "seriesJumpToUpNext": "Jump to up next",
+  "seriesStatsFinished": "Finished",
+  "seriesStatsListened": "Listened",
+  "seriesStatsLeft": "Left",
+  "seriesFinishedOf": "{done} of {total}",
+  "@seriesFinishedOf": {
+    "placeholders": { "done": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "detailSessionsNone": "No listening sessions yet",
+  "detailSessionsAll": "All {count} sessions",
+  "@detailSessionsAll": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "readerVolumeNavWhilePlaying": "Even while audio is playing",
   "readerMoreFonts": "Download more fonts",
   "readerFontRemove": "Remove download",
@@ -4566,7 +4762,142 @@
   "readerBookmarkDefault": "Bookmark",
   "readerNoteTitle": "Note",
   "readerNoteHint": "Add a note...",
+  "backupAndSync": "Backup and sync",
+  "backupAndSyncSubtitle": "Save a backup file, or keep settings in step across devices",
+  "syncSettingsExperimental": "Experimental",
+  "syncSettingsExperimentalBody": "Sync is new and still being worked on. If two devices change things while they are apart, one side can lose its changes. Keep a backup file as your safe copy.",
+  "syncSettingsNeedServer": "Need a server?",
+  "syncSettingsNeedServerSub": "Any WebDAV server works. Nextcloud is a free self-hosted one.",
+  "syncSettingsConnection": "Connection",
+  "syncSettingsConnectionNotSet": "Not set up yet",
+  "syncSettingsBackupFile": "Backup file",
+  "syncSettingsBackupFilePlain": "Save everything to a file you keep.",
+  "syncSettingsBackupFileWithSync": "Save everything to a file you keep. Include login info and restoring it on another phone turns sync on there too.",
+  "syncSettingsStatusOff": "Not syncing",
+  "syncSettingsStatusProblem": "Could not reach your server",
+  "syncSettings": "Sync settings between devices",
+  "syncSettingsExtras": "Also sync",
+  "syncSettingsIncludeRmab": "ReadMeABook settings",
+  "syncSettingsIncludeRmabSub": "Puts your ReadMeABook API token in the synced file",
+  "syncSettingsSubtitle": "Keep your settings in step through your own WebDAV server",
+  "syncSettingsEnable": "Sync settings",
+  "syncSettingsServerUrl": "WebDAV folder URL",
+  "syncSettingsServerUrlHint": "https://cloud.example.com/remote.php/dav/files/you/Absorb",
+  "syncSettingsUsername": "Username",
+  "syncSettingsPassword": "Password",
+  "syncSettingsHeaders": "Custom headers (optional)",
+  "syncSettingsHeadersHint": "One per line, like CF-Access-Client-Id: abc123",
+  "syncSettingsTest": "Test connection",
+  "syncSettingsHoldToUpload": "Hold to upload now",
+  "syncSettingsUploadNow": "Upload now",
+  "syncSettingsDownloadNow": "Download now",
+  "syncSettingsOk": "Connected",
+  "syncSettingsNoRemote": "Connected - nothing synced yet",
+  "syncSettingsAuthFailed": "Wrong username or password",
+  "syncSettingsNetworkError": "Could not reach that address",
+  "syncSettingsNotConfigured": "Fill in the address, username and password first",
+  "syncSettingsTooLarge": "Your settings are too big to sync",
+  "syncSettingsUploaded": "Settings uploaded",
+  "syncSettingsApplied": "Settings updated from your other device",
+  "syncSettingsAppliedCount": "{count, plural, one{1 setting updated from your other device} other{{count} settings updated from your other device}}",
+  "@syncSettingsAppliedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "syncSettingsUpToDate": "Already up to date",
+  "syncSettingsLastSynced": "Last synced {when}",
+  "@syncSettingsLastSynced": {
+    "placeholders": {
+      "when": {"type": "String"}
+    }
+  },
+  "syncSettingsNever": "Not synced yet",
+  "navHoldPickTitle": "Holding {tab} will...",
+  "@navHoldPickTitle": {
+    "placeholders": {
+      "tab": {"type": "String"}
+    }
+  },
+  "navHoldPickBody": "Choose what a long press on this tab does. You can change it later in Settings.",
+  "navHoldSettingTitle": "Tab hold shortcuts",
+  "navHoldSettingSubtitle": "What holding each tab does",
+  "navHoldAskNextTime": "Ask next time",
+  "navHoldNothing": "Nothing",
+  "navHoldPlayPause": "Play / pause",
+  "navHoldOfflineMode": "Offline mode",
+  "navHoldOfflineOn": "Offline mode on",
+  "navHoldOfflineOff": "Offline mode off",
+  "navHoldMenu": "Always show menu",
+  "navHoldStop": "Stop playback",
+  "navHoldRmabSearch": "ReadMeABook search",
+  "navHoldRmabRequests": "My book requests",
+  "navHoldRmabWeb": "ReadMeABook site",
+  "navHoldAdd": "Add",
+  "navHoldMoveLeft": "Move left",
+  "navHoldMoveRight": "Move right",
+  "navHoldRemoveFromMenu": "Remove from menu",
+  "navHoldEditHint": "Hold an item to move or remove it",
+  "navHoldResetMenu": "Reset the hold menu items",
+  "navHoldMenuReset": "Menu items reset",
+  "bookStatsAction": "Listening stats",
+  "bookStatsYou": "You",
+  "bookStatsEveryone": "Everyone",
+  "bookStatsListened": "Time listened",
+  "bookStatsSessions": "Sessions",
+  "bookStatsFirst": "First listened",
+  "bookStatsLast": "Last listened",
+  "bookStatsListeners": "People who started it",
+  "bookStatsFinishedCount": "People who finished it",
+  "bookStatsTotalTime": "Time listened by everyone",
+  "bookStatsNobody": "Nobody has started this yet",
+  "bookStatsScanning": "Scanning through sessions, this could take a while...",
+  "bookStatsScanningCount": "Scanning through sessions, {done} of {total} people...",
+  "@bookStatsScanningCount": {
+    "placeholders": {
+      "done": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "bookStatsLastChecked": "Checked {when}",
+  "@bookStatsLastChecked": {
+    "placeholders": {
+      "when": {"type": "String"}
+    }
+  },
+  "navHoldServerScan": "Server scan",
+  "navHoldScanAll": "Scan all libraries",
+  "navHoldScanLibrary": "Scan {name}",
+  "@navHoldScanLibrary": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "navHoldScanStarted": "Scan started",
+  "navHoldScanFailed": "Could not start the scan",
+  "navHoldAdminLogs": "Server logs",
+  "navHoldAdminPage": "Admin: {page}",
+  "@navHoldAdminPage": {
+    "placeholders": {
+      "page": {"type": "String"}
+    }
+  },
+  "navHoldNothingPlaying": "Nothing to play yet",
+  "navHoldReadBook": "Read current book",
+  "navHoldBookDetails": "Current book details",
+  "syncSourceTitle": "Which copy should sync keep?",
+  "syncSourceBody": "This backup turned settings sync on. Use the server's last sync, or make this backup the source of truth? Choosing the backup replaces the copy on the server for all your synced devices.",
+  "syncSourceUseServer": "Server's last sync",
+  "syncSourceUseBackup": "This backup",
+  "syncSettingsWhatTravels": "Your preferences, per-book speeds, home layout, Absorbing order, notes and ebook highlights travel. Logins, download folders, auto-download switches, reader looks and anything not yet sent to your server stay on this device.",
+  "syncSettingsDownloadWarnTitle": "Replace this device's settings?",
+  "syncSettingsDownloadWarnBody": "The synced copy will overwrite the settings on this device.",
+  "syncSettingsDownloadWarnConfirm": "Replace",
   "readerCopied": "Copied to clipboard",
+  "dictionaryNotFound": "No definition found for this word.",
+  "dictionaryError": "Couldn't reach the dictionary. Check your connection.",
+  "dictionaryRetry": "Retry",
+  "dictionarySearchWeb": "Search the web",
   "readerTooltipCopy": "Copy",
   "readerTooltipSearch": "Search",
   "readerTooltipDefine": "Define",
@@ -4584,5 +4915,86 @@
     "placeholders": {
       "query": {"type": "String"}
     }
-  }
+  },
+  "transcriptionTitle": "Transcription",
+  "transcriptionAdvancedSubtitle": "For transcribing bookmarks and finding your spot between audiobook and ebook",
+  "transcriptionEnable": "Enable transcription",
+  "transcriptionEnableSubtitle": "Adds Transcribe to bookmarks, Find position in ebook to the player, and Find in audiobook to the reader",
+  "transcriptionDisclaimer": "Runs entirely on your device, nothing is sent anywhere. It uses extra battery and processing while it works, and only downloaded books can be transcribed.",
+  "transcriptionNeedModelHint": "Download a model below to start transcribing.",
+  "transcriptionModelSection": "Models",
+  "transcriptionModelTiny": "Tiny",
+  "transcriptionModelTinyDesc": "Quickest, less accurate. About 31 MB.",
+  "transcriptionModelBase": "Base",
+  "transcriptionModelBaseDesc": "A good middle ground. About 57 MB.",
+  "transcriptionModelSmall": "Small",
+  "transcriptionModelSmallDesc": "Slower but most accurate - best on a high-end phone. About 182 MB.",
+  "transcriptionAutoHint": "With more than one downloaded, each job picks between them. Books with an ebook get the quickest one, since the exact words come from the ebook anyway. Books without one get the most accurate - except read along, which stays below Small so it can keep up with the narration.",
+  "transcriptionDownload": "Download",
+  "transcriptionDownloadFailed": "Download failed. Check your connection and try again.",
+  "transcribe": "Transcribe",
+  "transcribing": "Transcribing...",
+  "transcriptionResultTitle": "Transcript",
+  "transcriptionSaveToNote": "Save to note",
+  "transcriptionSavedToNote": "Saved to bookmark note",
+  "transcriptionDisabledHint": "Turn on bookmark transcription in Settings, under Advanced.",
+  "transcriptionNoModelDownloaded": "Download a transcription model in Settings first.",
+  "transcriptionNotDownloadedBook": "Download this book first to transcribe its bookmarks.",
+  "transcriptionNoMetadataMsg": "Can't locate this spot in the download. Try re-downloading the book.",
+  "transcriptionBusyMsg": "Already transcribing something. Give it a moment.",
+  "transcriptionEmptyMsg": "No speech was found at this spot.",
+  "transcriptionFailedMsg": "Couldn't transcribe this spot. Please try again.",
+  "transcriptionPlaySnippet": "Listen",
+  "transcriptionPauseSnippet": "Pause",
+  "transcriptionIntroBody": "This listens to the chosen amount of audio, starting just before the bookmark, and turns it into text on your device. Longer clips take longer, and transcription isn't 100% accurate. The text is saved into the bookmark's note when it's done, ready to fix up or share.",
+  "transcriptionUseEbookText": "Use the ebook's exact text when it can be matched",
+  "lyricsMode": "Live transcript",
+  "lyricsListeningAhead": "Listening ahead...",
+  "lyricsDisplaySection": "Live transcript",
+  "lyricsFontSize": "Line size",
+  "lyricsMaxLines": "Lines shown",
+  "lyricsFullCover": "Use the whole cover",
+  "lyricsFullCoverHint": "Shows the transcript in place of the artwork while it runs, fitting as many lines as there is room for.",
+  "lyricsBatteryInfo": "Live transcript and read along use extra battery and processing while they run. On phones with slower processors, lines can take longer to appear.",
+  "lyricsClearCache": "Clear transcript cache",
+  "lyricsClearCacheHint": "{size} of saved transcript lines. Cleared books and episodes are transcribed again as you listen.",
+  "@lyricsClearCacheHint": { "placeholders": { "size": { "type": "String" } } },
+  "lyricsClearCacheConfirm": "Delete the saved transcripts for every book and episode? They rebuild automatically as you listen.",
+  "lyricsCacheCleared": "Transcript cache cleared",
+  "lyricsIntroBody": "This listens a little ahead of the narration and shows each line as it is spoken, transcribed on your phone - nothing leaves the device. After turning it on, hold off on pressing play for a few seconds while it gets ahead. The transcript appears once its head start is ready, and starting paused gives it the smoothest run. It uses extra battery and processing while it runs.",
+  "lyricsBuildingLead": "Getting ahead of the narration... {percent}",
+  "@lyricsBuildingLead": { "placeholders": { "percent": { "type": "String" } } },
+  "lyricsCantKeepUp": "Can't transcribe as fast as you're listening at {speed}",
+  "@lyricsCantKeepUp": { "placeholders": { "speed": { "type": "String" } } },
+  "lyricsTurnOn": "Turn on",
+  "readAlong": "Read along",
+  "readAlongNeedsPlaying": "Play this book's audiobook first",
+  "transcriptionNeedsDownload": "This needs the audio on your phone. Download it now?",
+  "transcriptionDownloadStarted": "Downloading. Turn this on again when it finishes",
+  "readAlongFollow": "Read along follows",
+  "readAlongFollowHint": "Word timing is worked out between the transcript's timestamps, so it can drift slightly inside a sentence.",
+  "readAlongFollowWord": "Word",
+  "readAlongFollowSentence": "Sentence",
+  "readAlongColor": "Read along color",
+  "readAlongLost": "Can't find the narration on the page",
+  "@readAlongLost": {
+    "description": "Read along pill after 45s of narration that matches nothing on the page"
+  },
+  "findInEbook": "Find in ebook",
+  "findInEbookSearching": "Finding this spot in the ebook...",
+  "findInEbookNotFound": "Couldn't find this spot in the ebook.",
+  "findInEbookNeedsEpub": "Find in ebook needs an EPUB ebook.",
+  "findInEbookNoEbook": "This book doesn't have an ebook.",
+  "findInAudiobook": "Find in audiobook",
+  "findInAudiobookSearching": "Finding this spot in the audiobook...",
+  "findInAudiobookStillSearching": "Still searching the audio for this spot...",
+  "findInAudiobookSearchingLong": "Long chapter, still searching. This can take a minute or two...",
+  "findInAudiobookNotFound": "Couldn't find this spot in the audiobook.",
+  "transcriptionWhisperInfo": "Transcription is powered by Whisper, an open speech recognition model that listens to the narration and writes out the words - all on this device.",
+  "transcriptionWhisperLearnMore": "Learn more about Whisper",
+  "findInAudiobookIntroBody": "This listens to the audiobook near where you're reading and matches it to this passage, all on your device. It can take up to a minute. If the spot can't be matched confidently, nothing moves.",
+  "findInAudiobookAfterLabel": "When the spot is found",
+  "findInAudiobookStay": "Keep reading",
+  "findInAudiobookGoPlayer": "Open the player",
+  "findInAudiobookPlaying": "Playing this passage in the audiobook"
 }

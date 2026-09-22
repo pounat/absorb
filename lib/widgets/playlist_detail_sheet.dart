@@ -15,6 +15,7 @@ import '../services/download_service.dart';
 import '../screens/app_shell.dart';
 import 'add_books_search_sheet.dart';
 import 'book_detail_sheet.dart';
+import 'books_sheet_shared.dart' show coverGridCount;
 import 'editable_sheet_item.dart';
 import 'episode_list_sheet.dart';
 import 'stackable_sheet.dart';
@@ -141,6 +142,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
           final ct = (pd?['currentTime'] as num?)?.toDouble() ?? 0;
           await api.updateEpisodeProgress(libraryItemId, episodeId,
             currentTime: ct, duration: duration, isFinished: false);
+          await lib.markNotFinishedLocally('$libraryItemId-$episodeId');
         }
       } else {
         if (finished) {
@@ -150,6 +152,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
           final pd = lib.getProgressData(libraryItemId);
           final ct = (pd?['currentTime'] as num?)?.toDouble() ?? 0;
           await api.markNotFinished(libraryItemId, currentTime: ct, duration: duration);
+          await lib.markNotFinishedLocally(libraryItemId);
         }
       }
     }
@@ -705,8 +708,8 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
       controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4)
           .copyWith(bottom: 40),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: coverGridCount(context),
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childAspectRatio: 0.62,

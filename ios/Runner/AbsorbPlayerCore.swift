@@ -35,6 +35,12 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
 
   private var _commandsConfigured = false
 
+  // Lock screen skip amounts, mirrored from Dart. They start on the same
+  // defaults as PlayerSettings so the buttons are right before Dart pushes
+  // anything, then follow the user's setting (and per-library override).
+  private var _skipForwardSec = 30
+  private var _skipBackwardSec = 10
+
   // Server sync timer (separate from the engine's position observer).
   private var _serverSyncTimer: Timer?
   private static let serverSyncIntervalSec: TimeInterval = 60.0
@@ -302,7 +308,18 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
       volume: 1.0,
       eqEnabled: eqEnabled,
       itemId: itemId
-    ) { _ in }
+    ) { [weak self] _ in
+      // The stamp below goes out before the engine has the track, so it
+      // carries no position and, when the stash has no length, no duration -
+      // the lock screen showed no timestamps. Stamp again once the engine is
+      // loaded, unless Flutter has come up and owns the tile by now.
+      self?.queue.async {
+        guard let self = self, self._currentItemId != nil, !self.flutterIsAlive() else { return }
+        let rate = AbsorbAudioEngine.shared.isPlaying ? Double(self.currentSpeed()) : 0
+        self.updateNowPlayingInfo(rate: rate)
+        self.emit("[NativeCore] engine loaded - re-stamped Now Playing at \(self.globalPosition())s")
+      }
+    }
 
     configureRemoteCommandsIfNeeded()
     updateNowPlayingInfo(rate: 0)
@@ -400,6 +417,15 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
   /// app on relaunch) see the right position. Best-effort - no retry on
   /// failure since we'll try again on the next 60s tick.
   private func pushProgressToServer() {
+    // Flutter has come up and owns sync now - it reports through its own
+    // playback session, while this path PATCHes bare progress. Keeping the
+    // timer running past the handoff double-reported the position (and once
+    // Dart replaces the stream it 404s against a session the server closed).
+    if flutterIsAlive() {
+      emit("[NativeCore] server sync stopped - Flutter took over")
+      stopServerSyncTimer()
+      return
+    }
     // Runs every 60s while the native core drives playback - keeps the
     // widget's audio-activity signal fresh so it renders as playing.
     if AbsorbAudioEngine.shared.isPlaying { absorbStampAudioActivity() }
@@ -484,6 +510,33 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
 
   // MARK: - MPRemoteCommandCenter
 
+  /// Point the lock screen skip buttons at the user's skip amounts. Called
+  /// from Dart at startup and whenever the setting (or the playing item's
+  /// per-library override) changes. Applies immediately even before the
+  /// commands are armed, because `preferredIntervals` lives on the shared
+  /// command center and whoever writes it last wins - audio_service only
+  /// writes it when it re-applies its controls.
+  func setSkipIntervals(forward: Int, backward: Int) {
+    queue.async { [weak self] in
+      guard let self = self else { return }
+      let fwd = max(1, forward)
+      let back = max(1, backward)
+      if fwd != self._skipForwardSec || back != self._skipBackwardSec {
+        self.emit("[NativeCore] skip intervals fwd=\(fwd)s back=\(back)s")
+      }
+      self._skipForwardSec = fwd
+      self._skipBackwardSec = back
+      // Always re-assert, even when unchanged: audio_service writes the same
+      // properties whenever it re-applies its controls (it does after a stop),
+      // so a push that looks redundant here may still be undoing a stale write.
+      DispatchQueue.main.async {
+        let cc = MPRemoteCommandCenter.shared()
+        cc.skipForwardCommand.preferredIntervals = [NSNumber(value: fwd)]
+        cc.skipBackwardCommand.preferredIntervals = [NSNumber(value: back)]
+      }
+    }
+  }
+
   /// Register the remote command handlers up front, without loading a player or
   /// starting playback. They defer to Flutter while it's alive, so this is a
   /// no-op for normal foreground use - but it guarantees a native target stays
@@ -533,9 +586,10 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
       return .success
     }
 
-    cc.skipForwardCommand.preferredIntervals = [30]
+    cc.skipForwardCommand.preferredIntervals = [NSNumber(value: _skipForwardSec)]
     cc.skipForwardCommand.addTarget { [weak self] event in
-      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 30
+      let fallback = self?._skipForwardSec ?? 30
+      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? Double(fallback)
       if self?.flutterIsAlive() == true {
         self?.emit("[NativeCore] remote: skipForward - Flutter is alive, deferring")
         return .success
@@ -543,9 +597,10 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
       self?.skipForward(seconds: Int(interval))
       return .success
     }
-    cc.skipBackwardCommand.preferredIntervals = [10]
+    cc.skipBackwardCommand.preferredIntervals = [NSNumber(value: _skipBackwardSec)]
     cc.skipBackwardCommand.addTarget { [weak self] event in
-      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 10
+      let fallback = self?._skipBackwardSec ?? 10
+      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? Double(fallback)
       if self?.flutterIsAlive() == true {
         self?.emit("[NativeCore] remote: skipBackward - Flutter is alive, deferring")
         return .success

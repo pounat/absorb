@@ -192,7 +192,7 @@
                 android:layout_height="wrap_content">
                 <ImageButton
                     android:id="@+id/widget_pp"
-                    android:layout_width="72dp"
+                    android:layout_width="84dp"
                     android:layout_height="52dp"
                     android:padding="12dp"
                     android:src="@drawable/ic_widget_play_dark"

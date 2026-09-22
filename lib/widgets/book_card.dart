@@ -13,10 +13,12 @@ import 'book_detail_sheet.dart';
 import 'episode_list_sheet.dart';
 import 'hover_cover_actions.dart';
 import '../utils/app_platform.dart';
+import '../utils/desktop_workspace.dart';
 
 class BookCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final bool showProgress;
+  final bool showSubtitle;
   final bool isWide;
   final double coverAspectRatio;
   final String? sourcePlaylistId;
@@ -31,6 +33,7 @@ class BookCard extends StatelessWidget {
     super.key,
     required this.item,
     this.showProgress = false,
+    this.showSubtitle = false,
     this.isWide = false,
     this.coverAspectRatio = 1.0,
     this.sourcePlaylistId,
@@ -48,72 +51,93 @@ class BookCard extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
+
     final itemId = item['id'] as String?;
     final media = item['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
 
     final title = metadata['title'] as String? ?? l.bookCardUnknownTitle;
+    final subtitle = metadata['subtitle'] as String? ?? '';
     final authorName = metadata['authorName'] as String? ?? '';
     final coverUrl = lib.getCoverUrl(itemId);
 
     // Progress from LibraryProvider (fetched via /api/me, same source as book detail)
     final progress = lib.getProgress(itemId);
     final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
-    final isExplicit =
-        PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
+    final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final isDownloaded = DownloadService().isDownloaded(itemId ?? '');
     // Only compute for podcast shows that aren't being rendered as an episode
     // (an episode card shows the recentEpisode payload, not show-level info).
-    final unfinishedCount =
-        (lib.isPodcastLibrary && item['recentEpisode'] == null)
+    final unfinishedCount = (lib.isPodcastLibrary && item['recentEpisode'] == null)
         ? lib.getUnfinishedEpisodeCount(item)
         : 0;
 
     final headers = lib.mediaHeaders;
 
     final card = isWide
-        ? _buildWideCard(
-            context,
-            cs,
-            tt,
-            l,
-            title,
-            authorName,
-            coverUrl,
-            progress,
-            headers,
-            isExplicit: isExplicit,
-          )
-        : _buildCompactCard(
-            context,
-            cs,
-            tt,
-            l,
-            title,
-            authorName,
-            coverUrl,
-            progress,
-            headers,
-            isFinished: isFinished,
-            isDownloaded: isDownloaded,
-            isExplicit: isExplicit,
-            unfinishedCount: unfinishedCount,
-          );
-
-    final canEdit =
-        itemId != null &&
+        ? _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit)
+        : _buildCompactCard(context, cs, tt, l, title, subtitle, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
+    final canEdit = itemId != null &&
         !lib.isPodcastLibrary &&
         !lib.isOffline &&
-        context.watch<AuthProvider>().canUpdateMetadata;
-    return HoverCoverActions(
-      onMenu: itemId == null || selectionMode
-          ? null
-          : () => _onLongPress(context),
+        isDesktopWorkspace(context) &&
+        (context.watch<AuthProvider?>()?.canUpdateMetadata ?? false);
+    // Desktop hover actions only; selection is drawn below, on every layout.
+    final hovered = HoverCoverActions(
+      onMenu: itemId == null || selectionMode ? null : () => _onLongPress(context),
       editItemId: canEdit && !selectionMode ? itemId : null,
       selectionMode: selectionMode,
-      selected: selected,
-      onSelectionToggle: onSelectionToggle,
       child: card,
+    );
+    if (!selectionMode) return hovered;
+    // Selection sits on top of the finished card rather than inside both
+    // layouts: the overlay swallows the tap, so nothing below it can open a
+    // sheet while the shelf is being ticked through.
+    return Stack(
+      children: [
+        hovered,
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onSelectionToggle,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: selected
+                    ? Border.all(color: cs.primary, width: 3)
+                    : null,
+                color: selected
+                    ? cs.primary.withValues(alpha: 0.18)
+                    : Colors.transparent,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 6,
+          left: 6,
+          child: IgnorePointer(
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected
+                    ? cs.primary
+                    : Colors.black.withValues(alpha: 0.55),
+                border: Border.all(
+                  color: selected ? cs.primary : Colors.white70,
+                ),
+              ),
+              child: Icon(
+                selected ? Icons.check_rounded : Icons.circle_outlined,
+                size: 17,
+                color: selected ? cs.onPrimary : Colors.white70,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -220,14 +244,7 @@ class BookCard extends StatelessWidget {
               height: 120,
               child: Stack(
                 children: [
-                  _CoverImage(
-                    coverUrl: coverUrl,
-                    cs: cs,
-                    fit: BoxFit.contain,
-                    httpHeaders: headers,
-                    title: title,
-                    author: authorName,
-                  ),
+                  _CoverImage(coverUrl: coverUrl, cs: cs, fit: BoxFit.contain, httpHeaders: headers, title: title, author: authorName),
                   if (isExplicit)
                     Positioned(
                       top: 4,
@@ -345,6 +362,7 @@ class BookCard extends StatelessWidget {
     TextTheme tt,
     AppLocalizations l,
     String title,
+    String subtitle,
     String authorName,
     String? coverUrl,
     double progress,
@@ -378,14 +396,7 @@ class BookCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _CoverImage(
-                    coverUrl: coverUrl,
-                    cs: cs,
-                    httpHeaders: headers,
-                    coverAspectRatio: coverAspectRatio,
-                    title: title,
-                    author: authorName,
-                  ),
+                  _CoverImage(coverUrl: coverUrl, cs: cs, httpHeaders: headers, coverAspectRatio: coverAspectRatio, title: title, author: authorName),
                   if (progress > 0 && !isFinished)
                     Positioned(
                       left: 0,
@@ -481,6 +492,20 @@ class BookCard extends StatelessWidget {
             ),
           ),
         ),
+        // Subtitle. A book without one hands the line to the author instead
+        // of leaving a gap under the title.
+        if (showSubtitle && subtitle.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: tt.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.75),
+              ),
+            ),
+          ),
         if (authorName.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -506,15 +531,7 @@ class _CoverImage extends StatelessWidget {
   final String? title;
   final String? author;
 
-  const _CoverImage({
-    required this.coverUrl,
-    required this.cs,
-    this.fit = BoxFit.cover,
-    this.httpHeaders = const {},
-    this.coverAspectRatio = 1.0,
-    this.title,
-    this.author,
-  });
+  const _CoverImage({required this.coverUrl, required this.cs, this.fit = BoxFit.cover, this.httpHeaders = const {}, this.coverAspectRatio = 1.0, this.title, this.author});
 
   @override
   Widget build(BuildContext context) {
@@ -529,24 +546,16 @@ class _CoverImage extends StatelessWidget {
     if (coverUrl!.startsWith('/')) {
       final file = File(coverUrl!);
       if (file.existsSync()) {
-        return BlurPaddedCover(
+        return EinkCoverTone(child: BlurPaddedCover(
           enabled: isSquare,
-          blurChild: Image.file(
-            file,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          ),
-          child: Image.file(
-            file,
-            fit: effectiveFit,
-            errorBuilder: (_, __, ___) => _placeholder(),
-          ),
-        );
+          blurChild: Image.file(file, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+          child: Image.file(file, fit: effectiveFit, errorBuilder: (_, __, ___) => _placeholder()),
+        ));
       }
       return _placeholder();
     }
 
-    return BlurPaddedCover(
+    return EinkCoverTone(child: BlurPaddedCover(
       enabled: isSquare,
       blurChild: CachedNetworkImage(
         imageUrl: coverUrl!,
@@ -561,7 +570,7 @@ class _CoverImage extends StatelessWidget {
         placeholder: (_, __) => _placeholder(),
         errorWidget: (_, __, ___) => _placeholder(),
       ),
-    );
+    ));
   }
 
   /// Home shelves used to show a bare headphones icon here while the library

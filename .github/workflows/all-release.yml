@@ -28,6 +28,29 @@ on:
         required: false
         type: string
         default: ""
+      play_notes:
+        description: "Play Store release notes (optional, 500 chars max), attached to the Play release"
+        required: false
+        type: string
+      play_track:
+        description: "Play track (internal, alpha, beta, or a closed track's name; default internal)"
+        required: false
+        type: string
+        default: ""
+      play_release:
+        description: "Release on the Play track so its testers get it, instead of leaving a draft"
+        required: false
+        type: boolean
+        default: false
+      app_store_notes:
+        description: "App Store What's New for the review submission (optional, used with app_store_submit)"
+        required: false
+        type: string
+      app_store_submit:
+        description: "Submit the build for App Store review; release stays manual, press Release in App Store Connect after approval"
+        required: false
+        type: boolean
+        default: false
 
 # Every job that touches the release needs write access to Releases.
 permissions:
@@ -204,17 +227,39 @@ jobs:
             gh release upload "$VERSION_TAG" "$ARTIFACT" --clobber
           fi
 
-      # Park the AAB in Play Console as an internal-track DRAFT (nothing
-      # submitted or rolled out). Skips silently if the secret isn't set.
-      - name: Upload AAB to Play Console (internal, draft)
+      # Play Store release notes go in as a whatsnew-<locale> file. Google
+      # rejects anything over 500 characters, so fail here with a clear count
+      # rather than deep inside the upload.
+      - name: Write Play Store release notes
+        if: matrix.flavor == 'playstore' && inputs.play_notes != ''
+        env:
+          PLAY_NOTES: ${{ inputs.play_notes }}
+        run: |
+          LEN=$(printf '%s' "$PLAY_NOTES" | wc -m)
+          if [ "$LEN" -gt 500 ]; then
+            echo "Play Store notes are $LEN characters, the limit is 500"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/whatsnew"
+          printf '%s' "$PLAY_NOTES" > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
+          echo "PLAY_WHATSNEW=$RUNNER_TEMP/whatsnew" >> "$GITHUB_ENV"
+          echo "Play Store notes: $LEN characters"
+
+      # Park the AAB in Play Console. By default it lands as a DRAFT on the
+      # internal track (nothing submitted or rolled out); with play_release the
+      # release completes on the chosen track, which is what hands it to that
+      # track's testers. Testers belong to the track in Play Console, not to
+      # the upload. Skips silently if the secret isn't set.
+      - name: Upload AAB to Play Console
         if: matrix.flavor == 'playstore' && env.PLAY_SERVICE_ACCOUNT_JSON != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.barnabas.absorb
           releaseFiles: ${{ env.ARTIFACT }}
-          track: internal
-          status: draft
+          tracks: ${{ inputs.play_track || 'internal' }}
+          status: ${{ inputs.play_release && 'completed' || 'draft' }}
+          whatsNewDirectory: ${{ env.PLAY_WHATSNEW }}
 
   # iOS must build on macOS; runs in parallel with the Android jobs above.
   ios:
@@ -339,6 +384,34 @@ jobs:
             echo "  + Beta group: $BETA_GROUP"
             ARGS+=(--beta-group "$BETA_GROUP")
           fi
+          app-store-connect publish "${ARGS[@]}"
+
+      # App Store review submission, opt-in. Creates or reuses the App Store
+      # version matching pubspec, attaches What's New, and submits the
+      # processed build for review. Release type is MANUAL so nothing goes
+      # live on its own: after approval you press Release in App Store
+      # Connect. Best-effort like the TestFlight step, it waits on Apple's
+      # processing and can time out even when the upload itself worked.
+      - name: Submit to App Store review (best-effort)
+        if: inputs.app_store_submit
+        continue-on-error: true
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          APP_STORE_NOTES: ${{ inputs.app_store_notes }}
+          RAW_VERSION: ${{ needs.prepare.outputs.raw }}
+        run: |
+          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -1)
+          VERSION_STRING="${RAW_VERSION%%+*}"
+          ARGS=(--path "$IPA_PATH" --skip-package-upload --app-store
+                --release-type MANUAL --version-string "$VERSION_STRING"
+                --max-find-build-wait 40 --max-build-processing-wait 40)
+          if [ -n "$APP_STORE_NOTES" ]; then
+            echo "  + What's New ($(printf '%s' "$APP_STORE_NOTES" | wc -c) chars)"
+            ARGS+=(--whats-new "$APP_STORE_NOTES" --locale en-US)
+          fi
+          echo "  + Submitting $VERSION_STRING for App Store review (manual release)"
           app-store-connect publish "${ARGS[@]}"
 
   # Single Discord ping once both halves finish, success or fail.

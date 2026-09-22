@@ -1,0 +1,35 @@
+name: flutter_chrome_cast
+description: A Flutter plugin for integrating Google Cast devices. Discover, connect, and control media playback on Chromecast and Cast-enabled devices.
+version: 1.4.1
+repository: https://github.com/felnanuke2/flutter_google_cast
+license: BSD-3-Clause
+
+environment:
+  sdk: ">=2.17.1 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  get: ^4.7.2
+  marquee: ^2.2.3
+  permission_handler: ^12.0.0+1
+  plugin_platform_interface: ^2.1.8
+  rxdart: ^0.28.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  pigeon: ^25.3.2
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.felnanuke.google_cast
+        pluginClass: GoogleCastPlugin

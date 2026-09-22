@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../utils/episode_key.dart';
+import '../widgets/nav_hold_options.dart'
+    show navHoldTabs, navHoldPrefKey, navHoldMenuPrefKey;
 import 'audio_player_service.dart';
 import 'reader_font_service.dart';
 import 'scoped_prefs.dart';
@@ -87,6 +90,7 @@ class BackupService {
       'cardSingleRow': await PlayerSettings.getCardSingleRow(),
       'cardMoreInline': await PlayerSettings.getCardMoreInline(),
       'rectangleCovers': await PlayerSettings.getRectangleCovers(),
+      'coverSize': await PlayerSettings.getCoverSize(),
       'coverPlayButton': await PlayerSettings.getCoverPlayButton(),
       'whenFinished': await PlayerSettings.getWhenFinished(),
       'sleepRewindSeconds': await PlayerSettings.getSleepRewindSeconds(),
@@ -113,7 +117,7 @@ class BackupService {
       'queueCollectionName': await PlayerSettings.getQueueCollectionName(),
       'coverSeedColor': await PlayerSettings.getCoverSeedColor(),
       'speedPresets': await PlayerSettings.getSpeedPresets(),
-      'cardBackground': await PlayerSettings.getCardBackground(),
+      'cardBackground': await PlayerSettings.getCardBackgroundRaw(),
       'lockSeekBar': await PlayerSettings.getLockSeekBar(),
       'mediaControlsSpeedBookmark': await PlayerSettings.getMediaControlsSpeedBookmark(),
       'progressTextScale': await PlayerSettings.getProgressTextScale(),
@@ -194,8 +198,12 @@ class BackupService {
     // Saved ebooks (scoped)
     final savedEbooks = await ScopedPrefs.getStringList('saved_ebooks');
 
-    // Rolling download series (scoped)
+    // Rolling download series (scoped). The id set carries no type, so the
+    // companion name map has to come along or the auto-download list restores
+    // as a column of unnamed ids until the caches happen to repopulate.
     final rollingDownloadSeries = await ScopedPrefs.getStringList('rolling_download_series');
+    final rollingDownloadSourceNames =
+        await ScopedPrefs.getString('rolling_download_source_names');
 
     // Upcoming-scan per-series overrides + removed-books list (scoped)
     final upcomingAlwaysScan = await ScopedPrefs.getStringList('upcoming_always_scan_series');
@@ -208,6 +216,9 @@ class BackupService {
     final absorbingFinishedManualAdds =
         await ScopedPrefs.getStringList('absorbing_finished_manual_adds');
     final absorbingManualRemoves = await ScopedPrefs.getStringList('absorbing_manual_removes');
+    final absorbingOrder = await ScopedPrefs.getStringList('absorbing_seen_ids');
+    // Books hidden from the local "finished this year" count and list
+    final yearHiddenIds = await ScopedPrefs.getStringList('year_hidden_ids');
 
     // Pending offline state (scoped) - server hasn't received these yet
     final pendingSyncs = await ScopedPrefs.getStringList('pending_syncs');
@@ -277,6 +288,25 @@ class BackupService {
       if (value != null && value.isNotEmpty) metadataOverrides[itemId] = value;
     }
 
+    // Podcast bookmarks (scoped, keyed 'showId-episodeId'). An ABS bookmark
+    // has no episode id, so these never go to the server - the backup is the
+    // only way they reach another device. Book bookmarks are left out: they
+    // round-trip through ABS already.
+    final podcastBookmarks = <String, List<String>>{};
+    final bookmarkPrefix = '${scopePrefix}bookmarks_';
+    for (final key in prefs.getKeys()) {
+      if (!key.startsWith(bookmarkPrefix)) continue;
+      final itemKey = key.substring(bookmarkPrefix.length);
+      if (!isEpisodeKey(itemKey)) continue;
+      final List<String> stored;
+      try {
+        stored = prefs.getStringList(key) ?? const [];
+      } catch (_) {
+        continue; // the pending-create/delete keys are Strings, not lists
+      }
+      if (stored.isNotEmpty) podcastBookmarks[itemKey] = stored;
+    }
+
     // Ebook annotations (scoped, keyed by itemId). Highlights, bookmarks and
     // their notes live only on-device (ABS has no ebook annotation API), so
     // the backup is their only way to survive a reinstall.
@@ -302,6 +332,20 @@ class BackupService {
       'volumeNavWhilePlaying': await PlayerSettings.getEreaderVolumeNavWhilePlaying(),
     };
 
+    // Nav-tab hold shortcuts (scoped): one entry per tab plus the arrangement
+    // of the hold menu. A shortcut that means nothing on the receiving device
+    // (an admin page, ReadMeABook) is filtered out when the menu is drawn, so
+    // travelling is safe.
+    final navHold = <String, dynamic>{};
+    for (final tab in navHoldTabs) {
+      final v = await ScopedPrefs.getString(navHoldPrefKey(tab));
+      if (v != null && v.isNotEmpty) navHold[tab] = v;
+    }
+    final navHoldMenu = await ScopedPrefs.getString(navHoldMenuPrefKey);
+    if (navHoldMenu != null && navHoldMenu.isNotEmpty) {
+      navHold['menuIds'] = navHoldMenu;
+    }
+
     // Per-podcast UI prefs (GLOBAL, not scoped - keyed by itemId)
     final podcastPrefs = <String, Map<String, dynamic>>{};
     void collectPodcast(String prefix, String bucket, Object? Function(String) read) {
@@ -320,6 +364,24 @@ class BackupService {
 
     // Custom download path (GLOBAL)
     final customDownloadPath = prefs.getString('custom_download_path');
+
+    // Settings-sync setup (scoped). This lives in the backup file but never in
+    // the synced payload itself - a sync config that synced itself would be
+    // circular, and the point of putting it here is that restoring a backup on
+    // a second phone leaves the two already keeping each other in step.
+    //
+    // The WebDAV password rides with `includeAccounts` for the same reason the
+    // server tokens do: a settings-only backup is a file people hand around,
+    // and it should not carry the key to their Nextcloud.
+    final settingsSync = <String, dynamic>{
+      'url': await ScopedPrefs.getString('settingsSyncUrl'),
+      'username': await ScopedPrefs.getString('settingsSyncUser'),
+      'headers': await ScopedPrefs.getString('settingsSyncHeaders'),
+      'enabled': await ScopedPrefs.getBool('settingsSyncEnabled'),
+      'includeRmab': await ScopedPrefs.getBool('settingsSyncIncludeRmab'),
+      if (includeAccounts)
+        'password': await ScopedPrefs.getString('settingsSyncPass'),
+    }..removeWhere((_, v) => v == null);
 
     // Accounts & custom headers (optional - contain auth data)
     List<Map<String, dynamic>>? accounts;
@@ -350,6 +412,9 @@ class BackupService {
       'notes': notes,
       'savedEbooks': savedEbooks,
       'rollingDownloadSeries': rollingDownloadSeries,
+      if (rollingDownloadSourceNames != null &&
+          rollingDownloadSourceNames.isNotEmpty)
+        'rollingDownloadSourceNames': rollingDownloadSourceNames,
       'upcomingAlwaysScan': upcomingAlwaysScan,
       'upcomingNeverScan': upcomingNeverScan,
       if (upcomingIgnoredBooks != null && upcomingIgnoredBooks.isNotEmpty)
@@ -358,6 +423,10 @@ class BackupService {
       'absorbingManualAdds': absorbingManualAdds,
       'absorbingFinishedManualAdds': absorbingFinishedManualAdds,
       'absorbingManualRemoves': absorbingManualRemoves,
+      // Only when there is one: an empty list from a device that has not
+      // loaded its shelf yet must not wipe the order everywhere else.
+      if (absorbingOrder.isNotEmpty) 'absorbingOrder': absorbingOrder,
+      'yearHiddenIds': yearHiddenIds,
       'pendingSyncs': pendingSyncs,
       'pendingOfflineListening': pendingOfflineListening,
       'bookmarksPendingCreates': bookmarksPendingCreates,
@@ -369,9 +438,12 @@ class BackupService {
       'librarySettings': librarySettings,
       'metadataOverrides': metadataOverrides,
       'ebookAnnotations': ebookAnnotations,
+      'podcastBookmarks': podcastBookmarks,
       'ereader': ereader,
+      if (navHold.isNotEmpty) 'navHold': navHold,
       'podcastPrefs': podcastPrefs,
       'customDownloadPath': customDownloadPath,
+      if (settingsSync.isNotEmpty) 'settingsSync': settingsSync,
       'accounts': accounts,
       'customHeaders': customHeaders,
     };
@@ -537,6 +609,7 @@ class BackupService {
     if (s['cardSingleRow'] != null) PlayerSettings.setCardSingleRow(s['cardSingleRow'] as bool);
     if (s['cardMoreInline'] != null) PlayerSettings.setCardMoreInline(s['cardMoreInline'] as bool);
     if (s['rectangleCovers'] != null) PlayerSettings.setRectangleCovers(s['rectangleCovers'] as bool);
+    if (s['coverSize'] != null) PlayerSettings.setCoverSize(s['coverSize'] as String);
     if (s['coverPlayButton'] != null) PlayerSettings.setCoverPlayButton(s['coverPlayButton'] as bool);
     if (s['sleepRewindSeconds'] != null) PlayerSettings.setSleepRewindSeconds(s['sleepRewindSeconds'] as int);
     if (s['sleepTimerTab'] != null) PlayerSettings.setSleepTimerTab(s['sleepTimerTab'] as int);
@@ -671,6 +744,53 @@ class BackupService {
         rollingDownloadSeries.cast<String>(),
       );
     }
+    final rollingDownloadSourceNames =
+        data['rollingDownloadSourceNames'] as String?;
+    if (rollingDownloadSourceNames != null &&
+        rollingDownloadSourceNames.isNotEmpty) {
+      await ScopedPrefs.setString(
+        'rolling_download_source_names',
+        rollingDownloadSourceNames,
+      );
+    }
+
+    // Settings-sync setup. Restoring it is what makes a backup taken on one
+    // phone leave the second one already syncing. A backup saved without login
+    // info carries no password, so sync stays switched off until one is typed
+    // rather than silently failing to authenticate on every foreground.
+    final settingsSync = data['settingsSync'] as Map<String, dynamic>?;
+    if (settingsSync != null) {
+      final url = settingsSync['url'] as String?;
+      final username = settingsSync['username'] as String?;
+      final headers = settingsSync['headers'] as String?;
+      final password = settingsSync['password'] as String?;
+      if (url != null) await ScopedPrefs.setString('settingsSyncUrl', url);
+      if (username != null) {
+        await ScopedPrefs.setString('settingsSyncUser', username);
+      }
+      if (headers != null) {
+        await ScopedPrefs.setString('settingsSyncHeaders', headers);
+      }
+      if (password != null) {
+        await ScopedPrefs.setString('settingsSyncPass', password);
+      }
+      if (settingsSync['includeRmab'] is bool) {
+        await ScopedPrefs.setBool(
+          'settingsSyncIncludeRmab',
+          settingsSync['includeRmab'] as bool,
+        );
+      }
+      final wantEnabled = settingsSync['enabled'] == true;
+      await ScopedPrefs.setBool(
+        'settingsSyncEnabled',
+        wantEnabled && password != null && password.isNotEmpty,
+      );
+      // This device has just taken on another's settings wholesale, so clear
+      // the sync bookkeeping: leaving the donor's "last seen" timestamp behind
+      // would make the next pull think it had already caught up.
+      await ScopedPrefs.remove('settingsSyncLastSeen');
+      await ScopedPrefs.remove('settingsSyncLastHash');
+    }
 
     // Upcoming-scan per-series overrides (scoped)
     final upcomingAlwaysScan = data['upcomingAlwaysScan'] as List<dynamic>?;
@@ -712,6 +832,14 @@ class BackupService {
     final absorbingManualRemoves = data['absorbingManualRemoves'] as List<dynamic>?;
     if (absorbingManualRemoves != null) {
       await ScopedPrefs.setStringList('absorbing_manual_removes', absorbingManualRemoves.cast<String>());
+    }
+    final absorbingOrder = data['absorbingOrder'] as List<dynamic>?;
+    if (absorbingOrder != null && absorbingOrder.isNotEmpty) {
+      await ScopedPrefs.setStringList('absorbing_seen_ids', absorbingOrder.cast<String>());
+    }
+    final yearHiddenIds = data['yearHiddenIds'] as List<dynamic>?;
+    if (yearHiddenIds != null) {
+      await ScopedPrefs.setStringList('year_hidden_ids', yearHiddenIds.cast<String>());
     }
 
     // Pending offline state (scoped) - so offline changes still push after restore
@@ -825,6 +953,40 @@ class BackupService {
       }
     }
 
+    // Podcast bookmarks (scoped, keyed 'showId-episodeId'). Merged rather than
+    // overwritten: this device's own episode bookmarks live nowhere else, so a
+    // straight replace would throw away anything made since the file was
+    // written. Same position (within a second) counts as the same bookmark.
+    final podcastBookmarks = data['podcastBookmarks'] as Map<String, dynamic>?;
+    if (podcastBookmarks != null) {
+      for (final entry in podcastBookmarks.entries) {
+        final incoming = (entry.value as List<dynamic>?)?.whereType<String>().toList();
+        if (incoming == null || incoming.isEmpty) continue;
+        final key = 'bookmarks_${entry.key}';
+        final existing = (await ScopedPrefs.getStringList(key)).toList();
+        final positions = <double>[];
+        for (final raw in existing) {
+          try {
+            final pos = (jsonDecode(raw) as Map<String, dynamic>)['pos'] as num?;
+            if (pos != null) positions.add(pos.toDouble());
+          } catch (_) {}
+        }
+        for (final raw in incoming) {
+          double? pos;
+          try {
+            pos = ((jsonDecode(raw) as Map<String, dynamic>)['pos'] as num?)?.toDouble();
+          } catch (_) {
+            continue; // not a bookmark we can read - leave it out
+          }
+          if (pos == null) continue;
+          if (positions.any((p) => (p - pos!).abs() < 1.0)) continue;
+          positions.add(pos);
+          existing.add(raw);
+        }
+        await ScopedPrefs.setStringList(key, existing);
+      }
+    }
+
     // E-reader appearance + behavior (scoped)
     final er = data['ereader'] as Map<String, dynamic>?;
     if (er != null) {
@@ -844,6 +1006,21 @@ class BackupService {
       }
       if (er['volumeNav'] != null) await PlayerSettings.setEreaderVolumeNav(er['volumeNav'] as String);
       if (er['volumeNavWhilePlaying'] != null) await PlayerSettings.setEreaderVolumeNavWhilePlaying(er['volumeNavWhilePlaying'] as bool);
+    }
+
+    // Nav-tab hold shortcuts (scoped)
+    final navHold = data['navHold'] as Map<String, dynamic>?;
+    if (navHold != null) {
+      for (final tab in navHoldTabs) {
+        final v = navHold[tab];
+        if (v is String && v.isNotEmpty) {
+          await ScopedPrefs.setString(navHoldPrefKey(tab), v);
+        }
+      }
+      final menuIds = navHold['menuIds'];
+      if (menuIds is String && menuIds.isNotEmpty) {
+        await ScopedPrefs.setString(navHoldMenuPrefKey, menuIds);
+      }
     }
 
     // Per-podcast UI prefs (GLOBAL, not scoped)

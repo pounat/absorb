@@ -49,6 +49,7 @@ class HomeScreenState extends State<HomeScreen>
   bool _hideEbookOnly = false;
   bool _rectangleCovers = false;
   int _bookshelfCoverSize = 120;
+  bool _showSubtitles = false;
   bool _selectionMode = false;
   bool _batchActionBusy = false;
   final Set<String> _selectedItemIds = {};
@@ -225,12 +226,14 @@ class HomeScreenState extends State<HomeScreen>
       PlayerSettings.getHideEbookOnly(),
       PlayerSettings.getRectangleCoversFor(libId),
       PlayerSettings.getBookshelfCoverSize(),
+      PlayerSettings.getShowSubtitlesFor(libId),
     ]);
     if (mounted)
       setState(() {
         _hideEbookOnly = results[0] as bool;
         _rectangleCovers = results[1] as bool;
         _bookshelfCoverSize = results[2] as int;
+        _showSubtitles = results[3] as bool;
       });
   }
 
@@ -387,6 +390,9 @@ class HomeScreenState extends State<HomeScreen>
       PlayerSettings.getRectangleCoversFor(_coversLibraryId).then((v) {
         if (mounted && v != _rectangleCovers)
           setState(() => _rectangleCovers = v);
+      });
+      PlayerSettings.getShowSubtitlesFor(_coversLibraryId).then((v) {
+        if (mounted && v != _showSubtitles) setState(() => _showSubtitles = v);
       });
     }
     if (lib.isLoading) {
@@ -905,6 +911,7 @@ class HomeScreenState extends State<HomeScreen>
                             onTitleTap: _selectionMode ? null : titleTap,
                             coverAspectRatio: _rectangleCovers ? 2 / 3 : 1.0,
                             desktopScale: _desktopShelfScale,
+                            showSubtitles: _showSubtitles,
                             selectionMode: selectionAvailable && _selectionMode,
                             selectedItemIds: _selectedItemIds,
                             onSelectionToggle: selectionAvailable
@@ -1246,7 +1253,8 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
         !lib.isPodcastLibrary &&
         !lib.isOffline &&
         recentEpisode == null &&
-        context.watch<AuthProvider>().canUpdateMetadata;
+        isDesktopWorkspace(context) &&
+        (context.watch<AuthProvider?>()?.canUpdateMetadata ?? false);
     return HoverCoverActions(
       onMenu: widget.selectionMode ? null : openQuickActions,
       editItemId: canEdit && !widget.selectionMode ? itemId : null,

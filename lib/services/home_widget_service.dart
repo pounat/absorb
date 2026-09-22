@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'audio_player_service.dart';
 import 'api_service.dart';
 import 'download_service.dart';
+import 'progress_sync_service.dart';
 import 'scoped_prefs.dart';
 import 'user_account_service.dart';
 import 'wear_player_service.dart';
@@ -20,6 +21,10 @@ const String _androidWidgetName = 'NowPlayingWidget';
 const String _androidWidgetCompactName = 'NowPlayingWidgetCompact';
 const String _androidWidgetTinyName = 'NowPlayingWidgetTiny';
 const String _androidWidgetStatsName = 'StatsWidget';
+// The widgets' Kotlin package. It stays put when the dev flavor changes the
+// application id, and home_widget would otherwise look the classes up under
+// the new id and find nothing.
+const String _androidWidgetPackage = 'com.barnabas.absorb';
 const String _iOSWidgetName = 'NowPlayingWidget';
 const String _iOSArtWidgetName = 'NowPlayingArtWidget';
 const String _iOSStatsWidgetName = 'StatsWidget';
@@ -35,6 +40,7 @@ class HomeWidgetService {
   Timer? _statsTimer;
   Timer? _heartbeatTimer;
   Timer? _pendingUpdate;
+  bool _backgrounded = false;
   String? _lastCoverItemId;
   DateTime? _lastUpdate;
   DateTime? _lastStatsFetch;
@@ -67,6 +73,7 @@ class HomeWidgetService {
     // Set up App Group for iOS widget data sharing.
     if (Platform.isIOS) {
       await HomeWidget.setAppGroupId(_appGroupId);
+      _appGroupSet = true;
       debugPrint('[WidgetDebug] setAppGroupId=$_appGroupId');
       try {
         _groupContainerPath = await _widgetChannel.invokeMethod<String>(
@@ -99,9 +106,28 @@ class HomeWidgetService {
         } else if (call.method == 'log') {
           final msg = (call.arguments as Map?)?['msg'] as String?;
           if (msg != null) debugPrint('[WidgetDebug] $msg');
+        } else if (call.method == 'reassertClaim') {
+          // Native saw the session torn down with no ended event coming
+          // (headphones disconnected while paused) - take the claim back so
+          // the next press still reaches this app. Slight delay so the route
+          // change finishes settling first.
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            AudioPlayerService().reassertIosClaimWhilePaused(
+              'route disconnected',
+            );
+          });
         }
         return null;
       });
+
+      // Native buffers its early log lines (Flutter keeps only one
+      // pre-handler message per channel); this tells AppDelegate the handler
+      // is live so it can flush them and switch to sending directly.
+      try {
+        await _widgetChannel.invokeMethod('logReady');
+      } catch (e) {
+        debugPrint('[WidgetDebug] logReady failed: $e');
+      }
     }
 
     final player = AudioPlayerService();
@@ -167,6 +193,40 @@ class HomeWidgetService {
       ? stashedPosition
       : null;
 
+  /// Whether the local progress record for the last-played item says it is
+  /// done: flagged finished, or saved within a second of the end, which is
+  /// the same cut-off the play path uses to start a book over.
+  static bool lastPlayedIsFinished(Map<String, dynamic>? local) {
+    if (local == null) return false;
+    if (local['isFinished'] == true) return true;
+    final duration = (local['duration'] as num?)?.toDouble() ?? 0;
+    final currentTime = (local['currentTime'] as num?)?.toDouble() ?? 0;
+    return duration > 0 && currentTime >= duration - 1.0;
+  }
+
+  /// The stash readers/writers below can run before [init] (the boot-time
+  /// engine adopt fires right after the player service starts), and the
+  /// HomeWidget plugin throws on iOS until it has been told the app group.
+  /// Idempotent, so calling it again from [init] is fine.
+  bool _appGroupSet = false;
+  Future<void> _ensureAppGroupId() async {
+    if (_appGroupSet || !Platform.isIOS) return;
+    await HomeWidget.setAppGroupId(_appGroupId);
+    _appGroupSet = true;
+  }
+
+  /// Overwrite the stashed position with a live engine reading, so a restore
+  /// that prefers the stash resumes exactly where the audio actually is
+  /// instead of jumping back to an older save.
+  Future<void> stashLivePosition(double seconds) async {
+    try {
+      await _ensureAppGroupId();
+      await HomeWidget.saveWidgetData<double>('np_position_s', seconds);
+    } catch (e) {
+      debugPrint('[WidgetDebug] stashLivePosition failed: $e');
+    }
+  }
+
   /// Read the last stashed playback position for an item. On iOS the native
   /// player may have advanced it while Flutter was dead. On Android it is an
   /// independent fallback when a headless Android Auto launch has stale
@@ -177,6 +237,7 @@ class HomeWidgetService {
   ) async {
     if (!supportsStashedNowPlayingPosition(defaultTargetPlatform)) return null;
     try {
+      await _ensureAppGroupId();
       final stashedItem = await HomeWidget.getWidgetData<String>('np_item_id');
       if (stashedItem != itemId) return null;
       final stashedEpisode = await HomeWidget.getWidgetData<String>(
@@ -188,6 +249,28 @@ class HomeWidgetService {
     } catch (e) {
       debugPrint('[WidgetDebug] getStashedNowPlayingPosition failed: $e');
       return null;
+    }
+  }
+
+  /// Forget the stashed position for [itemId] when progress is reset or the
+  /// item is marked not finished. Otherwise the next play resumes from the
+  /// stash and the first sync writes the old spot straight back to the server.
+  Future<void> clearStashedNowPlayingPosition(
+    String itemId,
+    String? episodeId,
+  ) async {
+    if (!supportsStashedNowPlayingPosition(defaultTargetPlatform)) return;
+    try {
+      await _ensureAppGroupId();
+      final stashedItem = await HomeWidget.getWidgetData<String>('np_item_id');
+      if (stashedItem != itemId) return;
+      final stashedEpisode =
+          await HomeWidget.getWidgetData<String>('np_episode_id');
+      if (stashedEpisode != episodeId) return;
+      await HomeWidget.saveWidgetData<double>('np_position_s', 0.0);
+      debugPrint('[WidgetDebug] Cleared stashed position for $itemId ep=$episodeId');
+    } catch (e) {
+      debugPrint('[WidgetDebug] clearStashedNowPlayingPosition failed: $e');
     }
   }
 
@@ -382,44 +465,29 @@ class HomeWidgetService {
     final itemId = prefs.getString('widget_item_id');
     debugPrint('[HomeWidget] play_pause: cold resume, itemId=$itemId');
     if (itemId == null) return;
+    final episodeId = prefs.getString('widget_episode_id');
 
-    final serverUrl = prefs.getString('server_url');
-    final token = prefs.getString('token');
-    final refreshToken = prefs.getString('refresh_token');
-    final username = prefs.getString('username');
-    debugPrint(
-      '[HomeWidget] play_pause: server=${serverUrl != null}, token=${token != null}',
-    );
-    if (serverUrl == null || token == null) return;
-
-    Map<String, String>? customHeaders;
-    final headersJson = prefs.getString('custom_headers');
-    if (headersJson != null) {
-      try {
-        customHeaders = Map<String, String>.from(
-          jsonDecode(headersJson) as Map,
-        );
-      } catch (_) {}
+    // The last-played marker still names an item after it finishes with
+    // nothing queued behind it. A headset or car play press then restarted
+    // it from the top (the play path treats a saved position at the end as
+    // "start over") and the first sync un-finished it on the server
+    // (GH #374). A finished item is nothing to resume.
+    final progressKey = episodeId != null ? '$itemId-$episodeId' : itemId;
+    if (lastPlayedIsFinished(
+      await ProgressSyncService().getLocal(progressKey),
+    )) {
+      debugPrint(
+        '[HomeWidget] play_pause: last played $progressKey is finished - '
+        'nothing to resume',
+      );
+      return;
     }
 
-    final api = ApiService(
-      baseUrl: serverUrl,
-      token: token,
-      refreshToken: refreshToken,
-      isLegacyToken: refreshToken == null,
-      customHeaders: customHeaders ?? const {},
-      loadPersistedTokens: () =>
-          UserAccountService().loadPersistedTokens(serverUrl, username),
-      onTokensRefreshed: (access, refresh) =>
-          UserAccountService().persistRefreshedTokens(
-            access,
-            refresh,
-            serverUrl: serverUrl,
-            username: username,
-          ),
+    final api = _apiFromPrefs(prefs);
+    debugPrint(
+      '[HomeWidget] play_pause: api=${api != null}',
     );
-
-    final episodeId = prefs.getString('widget_episode_id');
+    if (api == null) return;
 
     try {
       // A downloaded item needs nothing from the server to start: the download
@@ -490,12 +558,49 @@ class HomeWidgetService {
   /// Cold-resume a downloaded item straight from its download record. Returns
   /// false when the item isn't downloaded (or the record is unusable) so the
   /// caller falls back to fetching it from the server.
+  /// A saved session rebuilt from prefs, for paths that run before (or
+  /// without) the providers - the widget cold resume and the launch-time
+  /// load-paused. Null when no server credentials are saved.
+  ApiService? _apiFromPrefs(SharedPreferences prefs) {
+    final serverUrl = prefs.getString('server_url');
+    final token = prefs.getString('token');
+    if (serverUrl == null || token == null) return null;
+    final refreshToken = prefs.getString('refresh_token');
+    final username = prefs.getString('username');
+    Map<String, String>? customHeaders;
+    final headersJson = prefs.getString('custom_headers');
+    if (headersJson != null) {
+      try {
+        customHeaders = Map<String, String>.from(
+          jsonDecode(headersJson) as Map,
+        );
+      } catch (_) {}
+    }
+    return ApiService(
+      baseUrl: serverUrl,
+      token: token,
+      refreshToken: refreshToken,
+      isLegacyToken: refreshToken == null,
+      customHeaders: customHeaders ?? const {},
+      loadPersistedTokens: () =>
+          UserAccountService().loadPersistedTokens(serverUrl, username),
+      onTokensRefreshed: (access, refresh) =>
+          UserAccountService().persistRefreshedTokens(
+            access,
+            refresh,
+            serverUrl: serverUrl,
+            username: username,
+          ),
+    );
+  }
+
   Future<bool> _resumeFromDownloadRecord(
     AudioPlayerService player,
     ApiService api,
     String itemId,
-    String? episodeId,
-  ) async {
+    String? episodeId, {
+    bool loadOnly = false,
+  }) async {
     final downloads = DownloadService();
     final dlKey = episodeId != null ? '$itemId-$episodeId' : itemId;
     if (!downloads.isDownloaded(dlKey)) return false;
@@ -528,6 +633,7 @@ class HomeWidgetService {
       episodeId: episodeId,
       episodeTitle: episodeId != null ? title : null,
       libraryId: info.libraryId,
+      loadOnly: loadOnly,
     );
     return true;
   }
@@ -716,6 +822,16 @@ class HomeWidgetService {
   ) async {
     final itemId = player.currentItemId;
     if (itemId == null) return;
+    // While a new item is loading the ids already point at it but the
+    // player's position still belongs to the previous source. Stamping that
+    // pair leaves the new episode carrying the old one's position when the
+    // load fails (GH #385: a podcast auto-advance whose session never
+    // started resumed the next episode from the end of the previous one).
+    // The stash catches up on the update that follows a finished load.
+    if (player.isLoadingNewItem) {
+      debugPrint('[WidgetDebug] Skipping np stash while $itemId is loading');
+      return;
+    }
     await HomeWidget.saveWidgetData<String>('np_item_id', itemId);
     await HomeWidget.saveWidgetData<String?>(
       'np_episode_id',
@@ -825,10 +941,17 @@ class HomeWidgetService {
 
   Future<void> _updateAllWidgets() async {
     if (Platform.isAndroid) {
-      await HomeWidget.updateWidget(name: _androidWidgetName);
-      await HomeWidget.updateWidget(name: _androidWidgetCompactName);
-      await HomeWidget.updateWidget(name: _androidWidgetTinyName);
-      await HomeWidget.updateWidget(name: _androidWidgetStatsName);
+      for (final name in [
+        _androidWidgetName,
+        _androidWidgetCompactName,
+        _androidWidgetTinyName,
+        _androidWidgetStatsName,
+      ]) {
+        await HomeWidget.updateWidget(
+          name: name,
+          qualifiedAndroidName: '$_androidWidgetPackage.$name',
+        );
+      }
     } else if (Platform.isIOS) {
       await HomeWidget.updateWidget(iOSName: _iOSWidgetName);
       await HomeWidget.updateWidget(iOSName: _iOSArtWidgetName);
@@ -838,7 +961,10 @@ class HomeWidgetService {
 
   Future<void> _updateStatsWidget() async {
     if (Platform.isAndroid) {
-      await HomeWidget.updateWidget(name: _androidWidgetStatsName);
+      await HomeWidget.updateWidget(
+        name: _androidWidgetStatsName,
+        qualifiedAndroidName: '$_androidWidgetPackage.$_androidWidgetStatsName',
+      );
     } else if (Platform.isIOS) {
       await HomeWidget.updateWidget(iOSName: _iOSStatsWidgetName);
     }
@@ -1103,6 +1229,12 @@ class HomeWidgetService {
     return count;
   }
 
+  /// Width requested from the server for the widget's copy of the cover.
+  /// Larger than the player's 400 because the widget can be far bigger than a
+  /// notification icon; the Kotlin side downscales to its own safe ceiling
+  /// before handing anything to RemoteViews.
+  static const int _widgetCoverWidth = 1000;
+
   Future<void> _updateCoverArt(String itemId) async {
     final player = AudioPlayerService();
     final coverUrl = player.currentCoverUrl;
@@ -1130,8 +1262,18 @@ class HomeWidgetService {
           final coverDir = await _getCoverDirectory();
           final coverFile = File('${coverDir.path}/$itemId.jpg');
 
+          // The player's cover URL asks the server for 400px, which is plenty
+          // for a notification and soft on a large home screen widget - a big
+          // tile is around 1000px on a modern phone, so 400 gets upscaled 2.5x.
+          // Ask for a bigger one just for the widget file. The Kotlin side caps
+          // what it actually hands to RemoteViews, so this only improves the
+          // source it has to work from.
+          final widgetCoverUrl = coverUrl.replaceAllMapped(
+            RegExp(r'([?&])width=\d+'),
+            (m) => '${m[1]}width=$_widgetCoverWidth',
+          );
           final response = await http
-              .get(Uri.parse(coverUrl))
+              .get(Uri.parse(widgetCoverUrl))
               .timeout(const Duration(seconds: 10));
           if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
             await coverFile.writeAsBytes(response.bodyBytes);
@@ -1190,6 +1332,20 @@ class HomeWidgetService {
   void _startProgressTimer() {
     if (_progressTimer?.isActive == true) return;
     _progressTimer = Timer.periodic(const Duration(seconds: 120), (_) {
+      if (_backgrounded) {
+        // Off-screen, widget reloads are budgeted by iOS and pointless, but
+        // the np_* stash must keep tracking background playback: it is what
+        // the cold-launch Now Playing primer and the post-kill resume read.
+        // Without this, a process killed during a long background listen
+        // leaves them minutes stale.
+        final player = AudioPlayerService();
+        if (!player.isPlaying) {
+          _stopProgressTimer();
+          return;
+        }
+        _stashPlaybackStateForNativeCore(player);
+        return;
+      }
       _scheduleUpdate();
       // Piggyback a stats refresh; the 15-min throttle inside refreshStats
       // keeps this cheap even though the timer ticks every 2 minutes.
@@ -1208,7 +1364,13 @@ class HomeWidgetService {
   }
 
   void onAppBackgrounded() {
-    _stopProgressTimer();
+    _backgrounded = true;
+    // While playing, the progress timer stays alive in stash-only mode (see
+    // _startProgressTimer) so the position the primer and post-kill resume
+    // read keeps up with background playback.
+    if (!AudioPlayerService().isPlaying) {
+      _stopProgressTimer();
+    }
     // Stop polling stats while backgrounded-and-paused - nothing is accruing.
     // Keep it running if we're still playing so the widget's "today" total
     // keeps ticking during long background listening sessions.
@@ -1219,6 +1381,7 @@ class HomeWidgetService {
   }
 
   void onAppForegrounded() {
+    _backgrounded = false;
     if (AudioPlayerService().isPlaying) {
       _startProgressTimer();
       _scheduleUpdate();

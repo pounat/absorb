@@ -20,7 +20,10 @@ import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
+import 'book_stats_sheet.dart';
+import '../services/book_stats_service.dart';
 import '../services/wording.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -53,6 +56,7 @@ import 'stackable_sheet.dart';
 import 'ebook_router.dart';
 import '../utils/duration_format.dart';
 import '../utils/url_file_download.dart';
+import '../utils/share_origin.dart';
 
 // ─── BOOK DETAIL BOTTOM SHEET ───────────────────────────────
 
@@ -191,7 +195,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   Map<String, dynamic>? _rating;
   String? _asin;
   bool _isLoading = true;
-  bool _chaptersExpanded = false;
   bool _bookmarksExpanded = false;
   BookmarkPreviewPlayer? _preview;
   bool? _loggedPreviewVisible;
@@ -242,6 +245,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
     _loadItem();
     _loadBookmarks();
+    _warmStats();
     SocketService().addItemUpdatedListener(_onSocketItemUpdated);
     PlayerSettings.getRectangleCovers().then((v) { if (mounted) setState(() => _squareCovers = !v); });
     PlayerSettings.getShowGoodreadsButton().then((v) { if (mounted) setState(() => _showGoodreads = v); });
@@ -278,6 +282,165 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     _liveRefreshDebounce = Timer(const Duration(milliseconds: 800), () {
       if (mounted) _loadItem();
     });
+  }
+
+  bool _finishedChaptersExpanded = false;
+
+  /// Start the stats load (own sessions, and the server-wide scan for
+  /// admins) the moment the sheet opens, so the stats card fills in on its
+  /// own and the stats sheet opens on numbers already fetched or already on
+  /// their way instead of starting over.
+  void _warmStats() {
+    final auth = context.read<AuthProvider>();
+    final api = auth.apiService;
+    if (api == null) return;
+    unawaited(BookStatsService.instance
+        .ensureLoaded(widget.itemId, api, isAdmin: auth.isAdmin));
+  }
+
+  String _sessionDay(BuildContext context, int ms) {
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    final locale = Localizations.localeOf(context).toString();
+    return d.year == DateTime.now().year
+        ? DateFormat.MMMd(locale).format(d)
+        : DateFormat.yMMMd(locale).format(d);
+  }
+
+  String _sessionWhen(BuildContext context, int ms) {
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    final locale = Localizations.localeOf(context).toString();
+    return '${_sessionDay(context, ms)}, ${DateFormat.jm(locale).format(d)}';
+  }
+
+  Widget _listeningStatsBlock(BuildContext context, ColorScheme cs, TextTheme tt, Color accent, String title) {
+    final l = AppLocalizations.of(context)!;
+    final me = context.read<AuthProvider>().username;
+    return ListenableBuilder(
+      listenable: BookStatsService.instance.stats(widget.itemId),
+      builder: (context, _) {
+        final s = BookStatsService.instance.stats(widget.itemId);
+        final sessions = s.sessions;
+        Widget stat(String label, String value) => Expanded(
+              child: Column(children: [
+                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
+                const SizedBox(height: 2),
+                Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                    style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+              ]),
+            );
+        return Container(
+          decoration: BoxDecoration(
+            color: cs.onSurface.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+          ),
+          child: Column(children: [
+            InkWell(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              onTap: () => showBookStatsSheet(context, itemId: widget.itemId, title: title),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 10, 8),
+                child: Row(children: [
+                  Icon(Icons.insights_rounded, size: 18, color: accent),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(l.bookStatsAction,
+                      style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface))),
+                  // Admins: how many others are on this book. A spinner while
+                  // the first scan for it is still running.
+                  if (s.isAdmin && s.serverLoading && s.users.isEmpty && s.checkedAt == null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: SizedBox(width: 12, height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant)),
+                    )
+                  else if (s.isAdmin && (s.checkedAt != null || s.users.isNotEmpty)) ...[
+                    Text(l.detailOtherListeners(s.othersCount(me)),
+                        style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                    const SizedBox(width: 4),
+                  ],
+                  Icon(Icons.chevron_right_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.4)),
+                ]),
+              ),
+            ),
+            if (s.loading && !s.failed)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(14, 0, 14, 14),
+                child: LinearProgressIndicator(minHeight: 2),
+              )
+            else if (s.failed)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                child: Text(l.statsCouldNotLoad, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              )
+            else if (sessions.isEmpty && s.mySessions == 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                child: Text(l.detailSessionsNone, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              )
+            else ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+                child: Row(children: [
+                  stat(l.bookStatsListened, formatHm(s.mySeconds)),
+                  stat(l.bookStatsSessions, '${s.mySessions}'),
+                  stat(l.bookStatsLast, s.myLast == null ? '-' : _sessionDay(context, s.myLast!)),
+                ]),
+              ),
+              if (sessions.isNotEmpty) ...[
+                Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.08)),
+                for (final sess in sessions.take(5)) _sessionRow(context, cs, tt, sess),
+              ],
+              if (sessions.length > 5)
+                InkWell(
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                  onTap: () => showPlaybackHistorySheet(
+                    context,
+                    itemId: widget.itemId,
+                    initialTab: PlaybackHistoryTab.sessions,
+                    accent: accent,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Center(child: Text(l.detailSessionsAll(sessions.length),
+                        style: tt.labelMedium?.copyWith(color: accent, fontWeight: FontWeight.w600))),
+                  ),
+                )
+              else
+                const SizedBox(height: 6),
+            ],
+          ]),
+        );
+      },
+    );
+  }
+  Widget _sessionRow(BuildContext context, ColorScheme cs, TextTheme tt, Map<String, dynamic> s) {
+    final at = (s['updatedAt'] as num?)?.toInt() ?? (s['startedAt'] as num?)?.toInt();
+    final listened = (s['timeListening'] as num?)?.toDouble() ?? 0;
+    final start = (s['startTime'] as num?)?.toDouble() ?? 0;
+    final end = (s['currentTime'] as num?)?.toDouble() ?? start;
+    final device = s['deviceInfo'] as Map<String, dynamic>?;
+    final where = (device?['deviceName'] as String?) ?? (device?['clientName'] as String?) ?? '';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(at == null ? '-' : _sessionWhen(context, at),
+                style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.8))),
+            const SizedBox(height: 2),
+            Text(
+              '${formatHm(start / _displaySpeed)} - ${formatHm(end / _displaySpeed)}'
+              '${where.isNotEmpty ? '  ·  $where' : ''}',
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4)),
+            ),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        Text(formatHm(listened), style: tt.labelMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurfaceVariant)),
+      ]),
+    );
   }
 
   Future<void> _loadBookmarks() async {
@@ -349,7 +512,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
               _asin = freshAsin;
             });
             await ApiService.setCachedAudibleRating(
-                widget.itemId, freshRating, freshAsin);
+                widget.itemId, freshRating, freshAsin,
+                count: (rating['count'] as num?)?.toInt());
           }
           return;
         }
@@ -529,11 +693,13 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   }
 
   Widget _buildContent(BuildContext context, ColorScheme cs, TextTheme tt, AppLocalizations l) {
-    final accent = _coverScheme?.primary ?? cs.primary;
+    final accent =
+        (PlayerSettings.einkMode ? null : _coverScheme?.primary) ?? cs.primary;
     final media = _item!['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final chapters = media['chapters'] as List<dynamic>? ?? [];
     final title = metadata['title'] as String? ?? l.unknown;
+    final subtitle = metadata['subtitle'] as String? ?? '';
     final authorName = metadata['authorName'] as String? ?? '';
     final descRaw = metadata['description'] as String? ?? '';
     final duration = (media['duration'] as num?)?.toDouble() ?? 0;
@@ -621,9 +787,49 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         const SizedBox(height: 16),
       ],
       Text(title, textAlign: TextAlign.center, style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
+      if (subtitle.isNotEmpty) ...[
+        const SizedBox(height: 4),
+        Text(subtitle, textAlign: TextAlign.center,
+          style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
+      ],
       const SizedBox(height: 4),
       _buildAuthorLinks(context, metadata, cs, tt, accent),
       _buildNarratorLinks(context, metadata, cs, tt, accent),
+      // Series as a pill in the rating's style: a bounded target with its
+      // own edges, so it can't be mistaken for the narrator line above it.
+      if (seriesEntries.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            for (final s in seriesEntries)
+              GestureDetector(
+                onTap: () => _openSeries(context, s['id'] as String?, s['name'] as String? ?? ''),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accent.withValues(alpha: 0.18)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.auto_stories_rounded, size: 14, color: accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${s['name'] as String? ?? ''}'
+                      '${(s['sequence'] as String? ?? '').isNotEmpty ? ' #${s['sequence']}' : ''}',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accent),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(Icons.chevron_right_rounded, size: 16, color: accent.withValues(alpha: 0.6)),
+                  ]),
+                ),
+              ),
+          ],
+        ),
+      ],
       // ─── AUDIBLE RATING (space always reserved) ─────────
       const SizedBox(height: 8),
       if (_rating != null && (_rating!['rating'] as num).toDouble() > 0)
@@ -642,6 +848,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 const SizedBox(width: 6),
                 Text((_rating!['rating'] as num).toStringAsFixed(1),
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant)),
+                if (((_rating!['count'] as num?) ?? 0) > 0) ...[
+                  const SizedBox(width: 3),
+                  Text('(${_formatRatingCount((_rating!['count'] as num).toInt(), l.localeName)})',
+                    style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+                ],
                 const SizedBox(width: 4),
                 Text(l.onAudible, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
               ]),
@@ -651,15 +862,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       else
         const SizedBox(height: 20),
       const SizedBox(height: 12),
-      if (progress > 0 && !isFinished) ...[
-        ClipRRect(borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(value: progress.clamp(0.0, 1.0), minHeight: 4,
-            backgroundColor: cs.onSurface.withValues(alpha: 0.1), valueColor: AlwaysStoppedAnimation(accent))),
-        const SizedBox(height: 4),
-        Text(l.percentComplete((progress * 100).toStringAsFixed(1)), textAlign: TextAlign.center,
-          style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
-        const SizedBox(height: 12),
-      ],
       if (isEbookOnly && AppPlatform.isWeb)
         SizedBox(height: 52, child: FilledButton.icon(
           onPressed: null,
@@ -704,58 +906,141 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             final isCurrentPlaying =
                 player.currentItemId == widget.itemId && player.isPlaying;
             final showAbsorbingState = _isAbsorbing || isCurrentPlaying;
+            final onAccent = _coverScheme?.onPrimary ?? cs.onPrimary;
+            // How far into the book you are fills the button from the left,
+            // the way the download button fills while it fetches.
+            final showFill = progress > 0 && !isFinished;
 
-            return FilledButton.icon(
-              onPressed: showAbsorbingState
-                  ? () async {
-                      if (isCurrentPlaying) {
-                        final lib = context.read<LibraryProvider>();
-                        await _activateQueueSource();
-                        unawaited(lib.syncQueueAutoDownloads());
+            return Material(
+              color: accent,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: showAbsorbingState
+                    ? () async {
+                        if (isCurrentPlaying) {
+                          final lib = context.read<LibraryProvider>();
+                          await _activateQueueSource();
+                          unawaited(lib.syncQueueAutoDownloads());
+                        }
+                        if (!context.mounted) return;
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                        AppShell.goToAbsorbingGlobal();
                       }
-                      if (!context.mounted) return;
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                      AppShell.goToAbsorbingGlobal();
-                    }
-                  : () {
-                      setState(() => _isAbsorbing = true);
-                      _startAbsorb(
-                        context,
-                        auth: auth,
-                        title: title,
-                        author: authorName,
-                        coverUrl: _coverUrl,
-                        duration: duration,
-                        chapters: chapters,
-                      );
-                    },
-              icon: showAbsorbingState
-                  ? SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: AbsorbingWave(color: _coverScheme?.onPrimary ?? cs.onPrimary),
-                    )
-                  : isFinished
-                      ? AbsorbReplayIcon(size: 24, color: _coverScheme?.onPrimary ?? cs.onPrimary)
-                      : Icon(Icons.waves_rounded, size: 24, color: _coverScheme?.onPrimary ?? cs.onPrimary),
-              label: Text(
-                showAbsorbingState
-                    ? Wording.of(context).absorbing
-                    : isFinished
-                        ? Wording.of(context).absorbAgain
-                        : Wording.of(context).absorb,
-                style: tt.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600, color: _coverScheme?.onPrimary ?? cs.onPrimary),
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: accent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    : () {
+                        setState(() => _isAbsorbing = true);
+                        _startAbsorb(
+                          context,
+                          auth: auth,
+                          title: title,
+                          author: authorName,
+                          coverUrl: _coverUrl,
+                          duration: duration,
+                          chapters: chapters,
+                        );
+                      },
+                child: Stack(children: [
+                  if (showFill)
+                    FractionallySizedBox(
+                      widthFactor: progress.clamp(0.0, 1.0),
+                      child: Container(color: onAccent.withValues(alpha: 0.22)),
+                    ),
+                  Center(
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      showAbsorbingState
+                          ? SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: AbsorbingWave(color: onAccent),
+                            )
+                          : isFinished
+                              ? AbsorbReplayIcon(size: 24, color: onAccent)
+                              : Icon(Icons.waves_rounded, size: 24, color: onAccent),
+                      const SizedBox(width: 8),
+                      Text(
+                        showAbsorbingState
+                            ? Wording.of(context).absorbing
+                            : isFinished
+                                ? Wording.of(context).absorbAgain
+                                : Wording.of(context).absorb,
+                        style: tt.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600, color: onAccent),
+                      ),
+                    ]),
+                  ),
+                  if (showFill)
+                    Positioned(
+                      right: 14,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Text(
+                          '${(progress * 100).toStringAsFixed(0)}%',
+                          style: tt.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: onAccent.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ),
+                    ),
+                ]),
               ),
             );
           },
         ),
       ),
-      // Primary action row: Download | Fully Absorb | Read (when ebook)
+      // A companion ebook gets its own, smaller button under Absorb with the
+      // reading progress filled in the same way. Ebook-only books already
+      // have Read as the big button above.
+      if (!isEbookOnly && ebookFile != null && canReadEbook(ebookFile)) ...[
+        const SizedBox(height: 8),
+        Builder(builder: (context) {
+          final ebookProgress = lib.getEbookProgress(widget.itemId);
+          final showFill = ebookProgress > 0 && ebookProgress < 1;
+          return SizedBox(
+            height: 40,
+            child: Material(
+              color: accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _openEbookReader(context, auth, ebookFile, title),
+                child: Stack(children: [
+                  if (showFill)
+                    FractionallySizedBox(
+                      widthFactor: ebookProgress.clamp(0.0, 1.0),
+                      child: Container(color: accent.withValues(alpha: 0.22)),
+                    ),
+                  Center(
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.menu_book_rounded, size: 18, color: accent),
+                      const SizedBox(width: 8),
+                      Text(l.readEbook,
+                          style: tt.labelLarge?.copyWith(fontWeight: FontWeight.w600, color: accent)),
+                    ]),
+                  ),
+                  if (showFill)
+                    Positioned(
+                      right: 14,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Text(
+                          '${(ebookProgress * 100).toStringAsFixed(0)}%',
+                          style: tt.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: accent.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ),
+                    ),
+                ]),
+              ),
+            ),
+          );
+        }),
+      ],
+      // Primary action row: Download | Fully Absorb | ebook download (ebook-only)
       const SizedBox(height: 12),
       Row(children: [
         if (AppPlatform.isWeb && auth.canDownload) ...[
@@ -794,14 +1079,14 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             ]),
           ),
         )),
-        if (!AppPlatform.isWeb && ebookFile != null && canReadEbook(ebookFile)) ...[
+        if (!AppPlatform.isWeb && isEbookOnly && ebookFile != null && canReadEbook(ebookFile)) ...[
           const SizedBox(width: 8),
           // For ebook-only books the big button above is already "Read", so this
           // slot is the offline download (matching the audiobook download
-          // button's Saved/green styling). For audiobooks with a companion ebook
-          // it stays "Read" - the audio download already pulls the ebook along.
-          Expanded(child: isEbookOnly
-              ? ListenableBuilder(
+          // button's Saved/green styling). Audiobooks with a companion ebook
+          // have the Read button under Absorb instead, and the audio download
+          // already pulls the ebook along.
+          Expanded(child: ListenableBuilder(
                   listenable: DownloadService(),
                   builder: (_, __) {
                     final saved = DownloadService().isDownloaded(widget.itemId);
@@ -833,22 +1118,6 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                       ),
                     );
                   },
-                )
-              : GestureDetector(
-                  onTap: () => _openEbookReader(context, auth, ebookFile, title),
-                  child: Container(
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: cs.onSurface.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
-                    ),
-                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.menu_book_rounded, size: 16, color: cs.onSurfaceVariant),
-                      const SizedBox(width: 6),
-                      Text(l.readEbook, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w500)),
-                    ]),
-                  ),
                 )),
         ],
       ]),
@@ -895,6 +1164,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           ]),
         ),
       ),
+      if (!lib.isOffline && !isEbookOnly) ...[
+        const SizedBox(height: 16),
+        _listeningStatsBlock(context, cs, tt, accent, title),
+      ],
       const SizedBox(height: 16),
       Wrap(spacing: 8, runSpacing: 8, children: [
         if (year.isNotEmpty) _chip(Icons.calendar_today_rounded, year),
@@ -940,55 +1213,77 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                   startedAt: (progressData['startedAt'] as num).toInt(),
                   finishedAt: (progressData['finishedAt'] as num).toInt())),
       ]),
-      if (seriesEntries.isNotEmpty) ...[const SizedBox(height: 16),
-        ...seriesEntries.map((s) {
-          final name = s['name'] as String? ?? '';
-          final seq = s['sequence'] as String? ?? '';
-          final seriesId = s['id'] as String?;
-          return Padding(padding: const EdgeInsets.only(bottom: 4),
-            child: GestureDetector(
-              onTap: () => _openSeries(context, seriesId, name),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: accent.withValues(alpha: 0.15)),
-                ),
-                child: Row(children: [
-                  Icon(Icons.auto_stories_rounded, size: 16, color: accent.withValues(alpha: 0.7)),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text('$name${seq.isNotEmpty ? ' #$seq' : ''}',
-                    style: tt.bodySmall?.copyWith(color: accent.withValues(alpha: 0.9), fontWeight: FontWeight.w500))),
-                  Icon(Icons.chevron_right_rounded, size: 18, color: accent.withValues(alpha: 0.5)),
-                ]),
-              ),
-            ));
-        })],
       if (descRaw.isNotEmpty) ...[const SizedBox(height: 16),
         Text(l.aboutSection, style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         HtmlDescription(
           html: descRaw,
-          maxLines: 6,
+          maxLines: null,
           style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.7), height: 1.5),
           linkColor: accent,
         )],
       if (chapters.isNotEmpty) ...[const SizedBox(height: 16),
-        GestureDetector(onTap: () => setState(() => _chaptersExpanded = !_chaptersExpanded),
-          child: Row(children: [
-            Text(l.chaptersCount(chapters.length), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
-            const Spacer(), Icon(_chaptersExpanded ? Icons.expand_less : Icons.expand_more, color: cs.onSurface.withValues(alpha: 0.3), size: 20)])),
-        if (_chaptersExpanded) ...[const SizedBox(height: 8),
-          ...chapters.asMap().entries.map((e) {
-            final ch = e.value as Map<String, dynamic>;
-            return Padding(padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(children: [
-                SizedBox(width: 28, child: Text('${e.key + 1}', style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3)))),
-                Expanded(child: Text(ch['title'] as String? ?? l.chapterNumber(e.key + 1), maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6)))),
-                Text(formatHm((((ch['end'] as num?)?.toDouble() ?? 0) - ((ch['start'] as num?)?.toDouble() ?? 0)) / _displaySpeed), style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))),
-              ]));
-          })]],
+        Text(l.chaptersCount(chapters.length), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        // Always open, laid out like the card's chapter list: the chapter
+        // you're in is lit, the ones behind you are ticked, and a tap jumps
+        // there after a confirmation.
+        ListenableBuilder(
+          listenable: AudioPlayerService(),
+          builder: (context, _) {
+            final player = AudioPlayerService();
+            final isActive = player.hasBook && player.currentItemId == widget.itemId;
+            final pos = isActive ? player.position.inMilliseconds / 1000.0 : currentTime;
+            // Chapters behind you fold into one row so the list opens on
+            // where you are, not on what you've already heard.
+            var done = 0;
+            while (done < chapters.length &&
+                pos >= (((chapters[done] as Map<String, dynamic>)['end'] as num?)?.toDouble() ?? 0)) {
+              done++;
+            }
+            // Accordion open and close; instant on e-ink, where animation
+            // only smears.
+            final anim = PlayerSettings.einkMode
+                ? Duration.zero
+                : const Duration(milliseconds: 250);
+            return Column(children: [
+              if (done > 0) ...[
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => setState(() => _finishedChaptersExpanded = !_finishedChaptersExpanded),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                    child: Row(children: [
+                      SizedBox(width: 28, child: AnimatedRotation(
+                          turns: _finishedChaptersExpanded ? 0.5 : 0,
+                          duration: anim,
+                          child: Icon(Icons.expand_more_rounded,
+                              size: 18, color: cs.onSurface.withValues(alpha: 0.4)))),
+                      Expanded(child: Text(l.detailChaptersFinished(done),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.5)))),
+                    ]),
+                  ),
+                ),
+                ClipRect(
+                  child: AnimatedSize(
+                    duration: anim,
+                    curve: Curves.easeInOut,
+                    alignment: Alignment.topCenter,
+                    child: _finishedChaptersExpanded
+                        ? Column(children: [
+                            for (var i = 0; i < done; i++)
+                              _chapterRow(context, cs, tt, accent, auth, chapters, i, pos, isActive, title, authorName, duration),
+                          ])
+                        : const SizedBox(width: double.infinity),
+                  ),
+                ),
+              ],
+              for (var i = done; i < chapters.length; i++)
+                _chapterRow(context, cs, tt, accent, auth, chapters, i, pos, isActive, title, authorName, duration),
+            ]);
+          },
+        ),
+      ],
       if (_bookmarks.isNotEmpty) ...[const SizedBox(height: 16),
         GestureDetector(onTap: () => setState(() => _bookmarksExpanded = !_bookmarksExpanded),
           child: Row(children: [
@@ -1007,6 +1302,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 ])),
               ]));
           })]],
+      const SizedBox(height: 20),
       ]);
   }
 
@@ -1076,8 +1372,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   // Actions run on this (live) sheet context just like the detail sheet, so we
   // never pop-then-touch a defunct context; navigation actions dismiss us.
   Widget _buildQuickContent(BuildContext context, ColorScheme cs, TextTheme tt, AppLocalizations l) {
-    final accent = _coverScheme?.primary ?? cs.primary;
-    final onAccent = _coverScheme?.onPrimary ?? cs.onPrimary;
+    final accent =
+        (PlayerSettings.einkMode ? null : _coverScheme?.primary) ?? cs.primary;
+    final onAccent =
+        (PlayerSettings.einkMode ? null : _coverScheme?.onPrimary) ?? cs.onPrimary;
     final media = _item!['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final chapters = media['chapters'] as List<dynamic>? ?? [];
@@ -1134,7 +1432,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         // Primary actions: Absorb | Download side by side
         if (!isEbookOnly)
           Row(children: [
-            Expanded(child: _quickAbsorbButton(context, cs, tt, auth, accent, onAccent, title, authorName, duration, chapters, isFinished)),
+            Expanded(child: _quickAbsorbButton(context, cs, tt, auth, accent, onAccent, title, authorName, duration, chapters, isFinished, progress)),
             if (!AppPlatform.isWeb) ...[
               const SizedBox(width: 10),
               Expanded(child: DownloadWideButton(itemId: widget.itemId, coverUrl: _coverUrl, title: title, author: authorName, accent: accent)),
@@ -1308,7 +1606,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   }
 
   Widget _quickAbsorbButton(BuildContext context, ColorScheme cs, TextTheme tt, AuthProvider auth,
-      Color accent, Color onAccent, String title, String author, double duration, List<dynamic> chapters, bool isFinished) {
+      Color accent, Color onAccent, String title, String author, double duration, List<dynamic> chapters, bool isFinished,
+      double progress) {
     return ListenableBuilder(
       listenable: AudioPlayerService(),
       builder: (_, __) {
@@ -1334,23 +1633,31 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 },
           child: Container(
             height: 36,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(14)),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              showAbsorbingState
-                  ? SizedBox(width: 16, height: 16, child: AbsorbingWave(color: onAccent))
-                  : isFinished
-                      ? AbsorbReplayIcon(size: 16, color: onAccent)
-                      : Icon(Icons.waves_rounded, size: 16, color: onAccent),
-              const SizedBox(width: 8),
-              Flexible(child: Text(
+            child: Stack(children: [
+              if (progress > 0 && !isFinished)
+                FractionallySizedBox(
+                  widthFactor: progress.clamp(0.0, 1.0),
+                  child: Container(color: onAccent.withValues(alpha: 0.22)),
+                ),
+              Positioned.fill(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 showAbsorbingState
-                    ? Wording.of(context).absorbing
+                    ? SizedBox(width: 16, height: 16, child: AbsorbingWave(color: onAccent))
                     : isFinished
-                        ? Wording.of(context).absorbAgain
-                        : Wording.of(context).absorb,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: onAccent),
-              )),
+                        ? AbsorbReplayIcon(size: 16, color: onAccent)
+                        : Icon(Icons.waves_rounded, size: 16, color: onAccent),
+                const SizedBox(width: 8),
+                Flexible(child: Text(
+                  showAbsorbingState
+                      ? Wording.of(context).absorbing
+                      : isFinished
+                          ? Wording.of(context).absorbAgain
+                          : Wording.of(context).absorb,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: onAccent),
+                )),
+              ])),
             ]),
           ),
         );
@@ -1684,6 +1991,32 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     return stars;
   }
 
+  static String get _audibleDomain {
+    final code = (ui.PlatformDispatcher.instance.locale.countryCode ?? 'US').toUpperCase();
+    const domains = {
+      'US': 'audible.com',
+      'GB': 'audible.co.uk',
+      'AU': 'audible.com.au',
+      'CA': 'audible.ca',
+      'DE': 'audible.de',
+      'FR': 'audible.fr',
+      'IT': 'audible.it',
+      'ES': 'audible.es',
+      'JP': 'audible.co.jp',
+      'IN': 'audible.in',
+      'BR': 'audible.com.br',
+    };
+    return domains[code] ?? 'audible.com';
+  }
+
+  static String _formatRatingCount(int count, String locale) {
+    try {
+      return NumberFormat.decimalPattern(locale).format(count);
+    } catch (_) {
+      return NumberFormat.decimalPattern().format(count);
+    }
+  }
+
   void _showAudibleReviews(BuildContext context) {
     final asin = _asin;
     if (asin == null) return;
@@ -1772,6 +2105,34 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
   }
 
+  // The name and its comma are one Wrap child so the comma can never start
+  // the next line. Padding makes the tap target the full line height, not
+  // just the glyphs, so a thumb between two stacked links lands on one.
+  Widget _nameLink(String name, TextStyle? linkStyle, TextStyle? commaStyle,
+      {required bool comma, required VoidCallback onTap}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Flexible(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(2, 6, comma ? 0 : 2, 6),
+              child: Text(name, style: linkStyle),
+            ),
+          ),
+        ),
+        if (comma)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Text(', ', style: commaStyle),
+          ),
+      ],
+    );
+  }
+
   Widget _buildAuthorLinks(BuildContext context, Map<String, dynamic> metadata, ColorScheme cs, TextTheme tt, Color accent) {
     final authors = metadata['authors'] as List<dynamic>? ?? [];
     // Fall back to authorName string if no structured authors array
@@ -1796,8 +2157,12 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     return Wrap(
       alignment: WrapAlignment.center,
       children: [
-        for (int i = 0; i < visible.length; i++) ...[
-          GestureDetector(
+        for (int i = 0; i < visible.length; i++)
+          _nameLink(
+            (visible[i] as Map<String, dynamic>?)?['name'] as String? ?? '',
+            linkStyle,
+            commaStyle,
+            comma: i < visible.length - 1 || (!showAll && remaining > 0),
             onTap: () {
               final a = visible[i] as Map<String, dynamic>? ?? {};
               final id = a['id'] as String? ?? '';
@@ -1805,20 +2170,17 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
               if (id.isEmpty || name.isEmpty) return;
               showAuthorDetailSheet(context, authorId: id, authorName: name);
             },
-            child: Text(
-              (visible[i] as Map<String, dynamic>?)?['name'] as String? ?? '',
-              style: linkStyle,
-            ),
           ),
-          if (i < visible.length - 1 || (!showAll && remaining > 0))
-            Text(', ', style: commaStyle),
-        ],
         if (!showAll)
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () => setState(() => _authorsExpanded = true),
-            child: Text(AppLocalizations.of(context)!.andCountMore(remaining), style: tt.bodyMedium?.copyWith(
-              color: accent.withValues(alpha: 0.7),
-            )),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+              child: Text(AppLocalizations.of(context)!.andCountMore(remaining), style: tt.bodyMedium?.copyWith(
+                color: accent.withValues(alpha: 0.7),
+              )),
+            ),
           ),
       ],
     );
@@ -1867,23 +2229,35 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       child: Wrap(
         alignment: WrapAlignment.center,
         children: [
-          if (prefix.isNotEmpty) Text(prefix, style: baseStyle),
-          for (int i = 0; i < visible.length; i++) ...[
-            GestureDetector(
-              onTap: () => showNarratorBooksSheet(context, narratorName: visible[i]),
-              child: Text(visible[i], style: linkStyle),
+          if (prefix.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(prefix, style: baseStyle),
             ),
-            if (i < visible.length - 1 || (!showAll && remaining > 0))
-              Text(', ', style: commaStyle),
-          ],
+          for (int i = 0; i < visible.length; i++)
+            _nameLink(
+              visible[i],
+              linkStyle,
+              commaStyle,
+              comma: i < visible.length - 1 || (!showAll && remaining > 0),
+              onTap: () => showNarratorBooksSheet(context, narratorName: visible[i]),
+            ),
           if (!showAll)
             GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () => setState(() => _narratorsExpanded = true),
-              child: Text(l.andCountMore(remaining), style: tt.bodySmall?.copyWith(
-                color: accent.withValues(alpha: 0.7),
-              )),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                child: Text(l.andCountMore(remaining), style: tt.bodySmall?.copyWith(
+                  color: accent.withValues(alpha: 0.7),
+                )),
+              ),
             ),
-          if (suffix.isNotEmpty) Text(suffix, style: baseStyle),
+          if (suffix.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(suffix, style: baseStyle),
+            ),
         ],
       ),
     );
@@ -1893,10 +2267,14 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     if (seriesId == null) return;
     final auth = context.read<AuthProvider>();
     final itemLibraryId = _item?['libraryId'] as String?;
+    // This book is in the series by definition, so the sheet can show it at
+    // once instead of a spinner while the server answers.
+    final item = _item;
     showSeriesBooksSheet(
       context,
       seriesName: seriesName,
       seriesId: seriesId,
+      books: item != null ? [item] : const [],
       serverUrl: auth.serverUrl,
       token: auth.token,
       libraryId: itemLibraryId,
@@ -1939,7 +2317,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
   Future<void> _removeEbookOffline(BuildContext context) async {
     final l = AppLocalizations.of(context)!;
-    await DownloadService().deleteDownload(widget.itemId);
+    await DownloadService().deleteDownload(widget.itemId, byUser: true);
     if (mounted) showOverlayToast(context, l.ebookRemovedOffline, icon: Icons.delete_outline_rounded);
   }
 
@@ -2275,7 +2653,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
   }
 
-  Future<void> _startAbsorb(BuildContext context, {required AuthProvider auth, required String title, required String author, required String? coverUrl, required double duration, required List<dynamic> chapters}) async {
+  /// [startTime] plays from there instead of the saved position (a chapter
+  /// tapped in the list); on the live session it is a seek.
+  Future<void> _startAbsorb(BuildContext context, {required AuthProvider auth, required String title, required String author, required String? coverUrl, required double duration, required List<dynamic> chapters, double? startTime}) async {
     // Discard, not stop: we're about to start playback ourselves, so briefly
     // resuming the previous book would just be an audible blip.
     await _preview?.discard();
@@ -2286,6 +2666,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
     if (player.currentItemId == widget.itemId) {
       await _activateQueueSource();
+      if (startTime != null) {
+        await player.seekTo(Duration(milliseconds: (startTime * 1000).round()));
+      }
       if (!player.isPlaying) await player.play(fromUi: true);
       unawaited(lib.syncQueueAutoDownloads());
       rootNav.popUntil((route) => route.isFirst);
@@ -2305,7 +2688,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     rootNav.popUntil((route) => route.isFirst);
     AppShell.goToAbsorbingGlobal();
 
-    final error = await player.playItem(api: api, itemId: widget.itemId, title: title, author: author, coverUrl: coverUrl, totalDuration: duration, chapters: chapters, libraryId: _item?['libraryId'] as String?, fromUi: true);
+    final error = await player.playItem(api: api, itemId: widget.itemId, title: title, author: author, coverUrl: coverUrl, totalDuration: duration, chapters: chapters, libraryId: _item?['libraryId'] as String?, fromUi: true, startTime: startTime ?? 0, forceStartTime: startTime != null);
     if (error != null) {
       unawaited(_restoreActivatedQueueSource(queueModeBackup));
       final ctx = rootNavigatorKey.currentContext;
@@ -2315,6 +2698,76 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
     lib.refreshLocalProgress();
     lib.refresh();
+  }
+
+  Widget _chapterRow(BuildContext context, ColorScheme cs, TextTheme tt, Color accent, AuthProvider auth,
+      List<dynamic> chapters, int i, double pos, bool isActive, String title, String author, double duration) {
+    final l = AppLocalizations.of(context)!;
+    final ch = chapters[i] as Map<String, dynamic>;
+    final chTitle = ch['title'] as String? ?? l.chapterNumber(i + 1);
+    final start = (ch['start'] as num?)?.toDouble() ?? 0;
+    final end = (ch['end'] as num?)?.toDouble() ?? 0;
+    final isCurrent = pos >= start && pos < end;
+    final done = pos >= end;
+    final pct = duration > 0 ? (end / duration * 100).round() : 0;
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      selected: isCurrent,
+      selectedTileColor: accent.withValues(alpha: 0.1),
+      leading: SizedBox(width: 28, child: done
+          ? Icon(Icons.check_rounded, size: 16, color: cs.onSurfaceVariant.withValues(alpha: 0.4))
+          : Text('${i + 1}', textAlign: TextAlign.center,
+              style: tt.labelMedium?.copyWith(
+                  fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w400,
+                  color: isCurrent ? accent : cs.onSurfaceVariant))),
+      title: Text(chTitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: tt.bodyMedium?.copyWith(
+              fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
+              color: isCurrent
+                  ? cs.onSurface
+                  : done
+                      ? cs.onSurface.withValues(alpha: 0.4)
+                      : cs.onSurface.withValues(alpha: 0.7))),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text('$pct%', style: tt.labelSmall?.copyWith(
+            color: isCurrent ? accent.withValues(alpha: 0.7) : cs.onSurface.withValues(alpha: 0.24),
+            fontSize: 10, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 8),
+        Text(formatHm((end - start) / _displaySpeed), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+      ]),
+      onTap: () => _jumpToChapter(context, auth, chTitle, start, isActive, title, author, duration, chapters),
+    );
+  }
+
+  /// Confirm, then seek the live session or start the book at [start].
+  Future<void> _jumpToChapter(BuildContext context, AuthProvider auth, String chTitle, double start,
+      bool isActive, String title, String author, double duration, List<dynamic> chapters) async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dlg) => AlertDialog(
+        title: Text(isActive ? l.detailChaptersJumpTitle : l.cardChaptersPlayFromChapterTitle),
+        content: Text(isActive
+            ? l.detailChaptersJumpContent(chTitle)
+            : l.cardChaptersPlayFromChapterContent(chTitle)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dlg, false), child: Text(l.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(dlg, true),
+              child: Text(isActive ? l.detailChaptersJump : l.cardChaptersPlay)),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    if (isActive) {
+      await AudioPlayerService().seekTo(Duration(milliseconds: (start * 1000).round()));
+      return;
+    }
+    setState(() => _isAbsorbing = true);
+    await _startAbsorb(context, auth: auth, title: title, author: author,
+        coverUrl: _coverUrl, duration: duration, chapters: chapters, startTime: start);
   }
 
   Future<void> _markFinished(BuildContext context, AuthProvider auth, double duration) async {
@@ -2379,10 +2832,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     if (api == null) return;
     try {
       await api.markNotFinished(widget.itemId, currentTime: currentTime, duration: duration);
-      await ProgressSyncService().deleteLocal(widget.itemId);
       if (context.mounted) {
         final lib = context.read<LibraryProvider>();
-        lib.resetProgressFor(widget.itemId);
+        await lib.markNotFinishedLocally(widget.itemId);
         lib.unblockFromAbsorbing(widget.itemId);
         await _loadItem();
         await lib.refresh();
@@ -2425,7 +2877,13 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     await ProgressSyncService().deleteLocal(widget.itemId);
     
     // Reset server progress (PATCH to zero + hide from continue listening)
-    final serverSuccess = await api.resetProgress(widget.itemId, duration);
+    String? progressId;
+    if (context.mounted) {
+      final data = context.read<LibraryProvider>().getProgressData(widget.itemId);
+      progressId = data?['id'] as String?;
+    }
+    final serverSuccess =
+        await api.resetProgress(widget.itemId, duration, progressId: progressId);
     
     // Clear from library provider (mark as reset — forces 0 progress)
     if (context.mounted) context.read<LibraryProvider>().resetProgressFor(widget.itemId);
@@ -2574,6 +3032,19 @@ class _FullCoverViewer extends StatefulWidget {
 
 class _FullCoverViewerState extends State<_FullCoverViewer> {
   bool _saving = false;
+  final _transform = TransformationController();
+
+  // How far a one-finger drag has pulled the (unzoomed) cover, so it follows
+  // the finger and a flick dismisses like every other sheet in the app.
+  double _dragY = 0;
+
+  bool get _zoomed => _transform.value.getMaxScaleOnAxis() > 1.05;
+
+  @override
+  void dispose() {
+    _transform.dispose();
+    super.dispose();
+  }
 
   Future<void> _saveAndShare() async {
     if (_saving) return;
@@ -2587,11 +3058,10 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
       final file = File('${dir.path}/$safeTitle$ext');
       await file.writeAsBytes(response.bodyBytes);
       if (!mounted) return;
-      final box = context.findRenderObject() as RenderBox?;
-      final origin = box != null
-          ? box.localToGlobal(Offset.zero) & box.size
-          : null;
-      await Share.shareXFiles([XFile(file.path)], sharePositionOrigin: origin);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        sharePositionOrigin: shareOriginFor(context),
+      );
     } catch (e) {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
@@ -2611,21 +3081,49 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(children: [
-        // Dismiss on tap outside image
-        GestureDetector(onTap: () => Navigator.pop(context)),
-        // Zoomable cover — fills screen so zoomed content can pan freely
+        // Tap closes (a tap on a zoomed cover just zooms it back out first).
+        // A one-finger swipe drags the unzoomed cover along and dismisses -
+        // tracked through the viewer's own callbacks, because the viewer
+        // claims every gesture and a competing detector would never win.
         Positioned.fill(
-          child: InteractiveViewer(
-            clipBehavior: Clip.none,
-            minScale: 1.0,
-            maxScale: 5.0,
-            child: Center(
-              child: CachedNetworkImage(
-                imageUrl: widget.url,
-                httpHeaders: widget.headers,
-                fit: BoxFit.contain,
-                placeholder: (_, __) => const CircularProgressIndicator(strokeWidth: 2),
-                errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 48, color: Colors.white54),
+          child: GestureDetector(
+            onTap: () {
+              if (_zoomed) {
+                setState(() => _transform.value = Matrix4.identity());
+              } else {
+                Navigator.pop(context);
+              }
+            },
+            child: Transform.translate(
+              offset: Offset(0, _dragY),
+              child: InteractiveViewer(
+                transformationController: _transform,
+                clipBehavior: Clip.none,
+                minScale: 1.0,
+                maxScale: 5.0,
+                onInteractionUpdate: (d) {
+                  if (!_zoomed && d.pointerCount == 1) {
+                    setState(() => _dragY += d.focalPointDelta.dy);
+                  }
+                },
+                onInteractionEnd: (d) {
+                  if (_zoomed) return;
+                  if (_dragY.abs() > 120 ||
+                      d.velocity.pixelsPerSecond.dy.abs() > 800) {
+                    Navigator.pop(context);
+                  } else if (_dragY != 0) {
+                    setState(() => _dragY = 0);
+                  }
+                },
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: widget.url,
+                    httpHeaders: widget.headers,
+                    fit: BoxFit.contain,
+                    placeholder: (_, __) => const CircularProgressIndicator(strokeWidth: 2),
+                    errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 48, color: Colors.white54),
+                  ),
+                ),
               ),
             ),
           ),

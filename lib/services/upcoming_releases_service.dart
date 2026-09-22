@@ -400,6 +400,26 @@ class UpcomingReleasesService extends ChangeNotifier {
   static const alwaysScanPrefKey = 'upcoming_always_scan_series';
   static const neverScanPrefKey = 'upcoming_never_scan_series';
 
+  /// Whether a series is manually excluded from scans.
+  static Future<bool> isNeverScan(String seriesId) async =>
+      (await ScopedPrefs.getStringList(neverScanPrefKey)).contains(seriesId);
+
+  /// Add or remove a series from the never-scan exclusion. Excluding also
+  /// clears any always-scan override.
+  static Future<void> setNeverScan(String seriesId, bool value) async {
+    if (seriesId.isEmpty) return;
+    final never = (await ScopedPrefs.getStringList(neverScanPrefKey)).toSet();
+    final changed = value ? never.add(seriesId) : never.remove(seriesId);
+    if (!changed) return;
+    await ScopedPrefs.setStringList(neverScanPrefKey, never.toList());
+    if (value) {
+      final always = (await ScopedPrefs.getStringList(alwaysScanPrefKey)).toSet();
+      if (always.remove(seriesId)) {
+        await ScopedPrefs.setStringList(alwaysScanPrefKey, always.toList());
+      }
+    }
+  }
+
   // Notification
   static const _notifChannelId = 'absorb_upcoming_scan';
   String get _notifChannelName =>

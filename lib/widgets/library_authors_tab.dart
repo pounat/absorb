@@ -9,6 +9,11 @@ class LibraryAuthorsTab extends StatelessWidget {
   final bool isLoadingAuthors;
   final bool authorsLoaded;
   final double desktopMaxCrossAxisExtent;
+
+  /// More pages exist past [authors]: the grid shows a loader cell and calls
+  /// [onLoadMore] as the user nears the bottom.
+  final bool hasMore;
+  final VoidCallback? onLoadMore;
   final Future<void> Function() onRefresh;
   final Widget? headerSliver;
   final ScrollController? scrollController;
@@ -16,7 +21,7 @@ class LibraryAuthorsTab extends StatelessWidget {
   final Set<String> selectedAuthorIds;
   final String? matchingAuthorId;
   final void Function(Map<String, dynamic> author, int index)?
-  onSelectionToggle;
+      onSelectionToggle;
 
   const LibraryAuthorsTab({
     super.key,
@@ -24,6 +29,8 @@ class LibraryAuthorsTab extends StatelessWidget {
     required this.isLoadingAuthors,
     required this.authorsLoaded,
     this.desktopMaxCrossAxisExtent = kDesktopLibraryTileMaxExtent,
+    this.hasMore = false,
+    this.onLoadMore,
     required this.onRefresh,
     this.headerSliver,
     this.scrollController,
@@ -42,7 +49,7 @@ class LibraryAuthorsTab extends StatelessWidget {
     final headers = <Widget>[if (headerSliver != null) headerSliver!];
 
     Widget body;
-    if (isLoadingAuthors) {
+    if (isLoadingAuthors && authors.isEmpty) {
       body = CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -83,6 +90,22 @@ class LibraryAuthorsTab extends StatelessWidget {
         ],
       );
     } else {
+      // Same next-page trigger as the books grid: driven by which tile index
+      // the viewport builds, not by scroll metrics, which go stale after
+      // items are appended beyond the fold (see LibraryBooksTab).
+      final cols = responsiveGridCount(context);
+      final loadAheadAt = authors.length - cols * 8;
+      final route = ModalRoute.of(context);
+      final loadMore = onLoadMore;
+      void maybeLoadAhead(int index) {
+        if (!hasMore || isLoadingAuthors || loadMore == null) return;
+        if (index < loadAheadAt) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (route != null && !route.isCurrent) return;
+          loadMore();
+        });
+      }
+
       body = CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -100,20 +123,33 @@ class LibraryAuthorsTab extends StatelessWidget {
                 context,
                 childAspectRatio: 0.68,
                 desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
+                crossAxisCount: cols,
               ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final author = authors[index];
-                final authorId = author['id'] as String? ?? '';
-                return GridAuthorTile(
-                  author: author,
-                  selectionMode: selectionMode,
-                  isSelected: selectedAuthorIds.contains(authorId),
-                  isMatching: matchingAuthorId == authorId,
-                  onSelectionToggle: onSelectionToggle == null
-                      ? null
-                      : () => onSelectionToggle!(author, index),
-                );
-              }, childCount: authors.length),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  maybeLoadAhead(index);
+                  if (index >= authors.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  }
+                  final author = authors[index];
+                  final authorId = author['id'] as String? ?? '';
+                  return GridAuthorTile(
+                    author: author,
+                    selectionMode: selectionMode,
+                    isSelected: selectedAuthorIds.contains(authorId),
+                    isMatching: matchingAuthorId == authorId,
+                    onSelectionToggle: onSelectionToggle == null
+                        ? null
+                        : () => onSelectionToggle!(author, index),
+                  );
+                },
+                childCount: authors.length + (hasMore ? 1 : 0),
+              ),
             ),
           ),
         ],

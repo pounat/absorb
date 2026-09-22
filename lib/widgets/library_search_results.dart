@@ -66,7 +66,7 @@ class BookResultTile extends StatelessWidget {
             FocusManager.instance.primaryFocus?.unfocus();
             if (itemId != null) {
               final lib = context.read<LibraryProvider>();
-              if (lib.isPodcastLibrary) {
+              if (lib.isPodcastItem(item)) {
                 EpisodeListSheet.show(context, item);
               } else {
                 showBookDetailSheet(context, itemId);

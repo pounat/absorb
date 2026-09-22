@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -7,6 +8,7 @@ import 'api_service.dart';
 import 'audio_player_service.dart';
 import 'book_track_resolver.dart';
 import 'offline_source.dart';
+import 'transcription_service.dart';
 
 /// Auditions a book at a given position WITHOUT moving the user's real playback
 /// position. Resolves audio for ANY book - downloaded (local files) or streamed
@@ -37,6 +39,9 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
   // hitting Listen again restarts the clip from the top instead of resuming
   // mid-clip - makes it easy to re-judge the in-point while trimming.
   int? _lastSeekMs;
+
+  // Temp WAV when the audition had to fall back to an extracted clip.
+  String? _clipPath;
 
   /// The audition auto-stops after this long so a single tap never plays the
   /// rest of the book (a single-file m4b would otherwise run for hours). The
@@ -125,12 +130,31 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
         }
       });
       if (track.local) {
-        await player.setAudioSource(localAudioSource(track.source));
+        try {
+          await player.setAudioSource(localAudioSource(track.source));
+          _lastSeekMs = (local * 1000).round();
+        } catch (e) {
+          // A second player can't always open a huge single-file book: on a
+          // 60-hour m4b the sample index alone is a ~75MB Java allocation,
+          // and the main player is already holding its own copy. Decode just
+          // the clip natively and play that instead.
+          debugPrint('$_tag: direct open failed, extracting a clip ($e)');
+          final clip = await TranscriptionService.instance.extractClipWav(
+            sourcePath: track.source,
+            startSeconds: local,
+            durationSeconds: clipLength.inSeconds.toDouble(),
+          );
+          if (_disposed) return;
+          if (clip == null) rethrow;
+          _clipPath = clip;
+          await player.setFilePath(clip);
+          _lastSeekMs = 0;
+        }
       } else {
         await player.setAudioSource(AudioSource.uri(Uri.parse(track.source),
             headers: api?.mediaHeaders, options: mp3ExtractorOptions()));
+        _lastSeekMs = (local * 1000).round();
       }
-      _lastSeekMs = (local * 1000).round();
       await player.seek(Duration(milliseconds: _lastSeekMs!));
       if (_disposed) return;
       // Start the auto-stop BEFORE awaiting play(): just_audio's play() future
@@ -172,10 +196,21 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
     });
   }
 
+  Future<void> _deleteClip() async {
+    final path = _clipPath;
+    _clipPath = null;
+    if (path == null) return;
+    try {
+      final f = File(path);
+      if (f.existsSync()) await f.delete();
+    } catch (_) {}
+  }
+
   Future<void> _disposePlayer() async {
     _autoStop?.cancel();
     _autoStop = null;
     _lastSeekMs = null;
+    await _deleteClip();
     await _stateSub?.cancel();
     _stateSub = null;
     final p = _player;
@@ -236,6 +271,7 @@ class BookmarkPreviewPlayer extends ChangeNotifier {
     _autoStop?.cancel();
     _stateSub?.cancel();
     _player?.dispose();
+    unawaited(_deleteClip());
     if (shouldResume) AudioPlayerService().play();
     super.dispose();
   }

@@ -275,7 +275,13 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
           'title': 'Episode',
         };
         syntheticEntry['_absorbingKey'] = key;
-        _absorbingIdsAdd(key, atFront: false);
+        // The playing episode goes back to the front it held when it started;
+        // everything else joins at the end so the queue order is untouched.
+        final isActive = player.hasBook && key == activeKey;
+        if (isActive) {
+          debugPrint('[Absorbing] backfilled playing episode $key at front');
+        }
+        _absorbingIdsAdd(key, atFront: isActive);
         _absorbingItemCache[key] = syntheticEntry;
         allowedKeys.add(key);
       }
@@ -294,7 +300,17 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       final hasProgress = key.length > 36
           ? _progressMap.containsKey(key)
           : _progressMap.keys.any((k) => k == key || k.startsWith('$key-'));
-      if (!hasProgress) toRemove.add(key);
+      if (!hasProgress) {
+        // A just-started episode has no fetched progress yet, and the sections
+        // can still name an older recentEpisode - evicting it here dumps the
+        // playing item to the end of the queue once the backfill re-adds it.
+        if (player.hasBook && key == activeKey) {
+          debugPrint(
+              '[Absorbing] sweep spared the playing item $key (no progress fetched yet)');
+          continue;
+        }
+        toRemove.add(key);
+      }
     }
     for (final id in toRemove) {
       _absorbingBookIds.remove(id);
@@ -327,7 +343,8 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       _absorbingItemCache.remove(old);
     }
     for (final entry in migrateAdd.entries) {
-      _absorbingIdsAdd(entry.key, atFront: false);
+      _absorbingIdsAdd(entry.key,
+          atFront: player.hasBook && entry.key == activeKey);
       _absorbingItemCache[entry.key] = entry.value;
     }
 
@@ -430,7 +447,21 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       self.resetProgressFor(key);
     }
 
-    unblockFromAbsorbing(key);
+    // Hand over the name of what is starting. Without it a new episode's
+    // queue entry was copied from the show's card and kept that card's
+    // episode - another one - under this episode's id.
+    final player = AudioPlayerService();
+    final playingKey = player.currentEpisodeId == null
+        ? player.currentItemId
+        : '${player.currentItemId}-${player.currentEpisodeId}';
+    final startingEpisode = key.length > 36 && playingKey == key;
+    unblockFromAbsorbing(
+      key,
+      episodeTitle: startingEpisode
+          ? (player.currentEpisodeTitle ?? player.currentTitle)
+          : null,
+      episodeDuration: startingEpisode && duration > 0 ? duration : null,
+    );
     if (!wasFinished) return;
 
     try {
@@ -475,13 +506,12 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
               final episodeId = key.substring(37);
               final cached = Map<String, dynamic>.from(e);
               cached['_absorbingKey'] = key;
-              cached['recentEpisode'] = {
-                ...?(cached['recentEpisode'] as Map<String, dynamic>?),
-                'id': episodeId,
-                if (episodeTitle != null) 'title': episodeTitle,
-                if (episodeDuration != null && episodeDuration > 0)
-                  'duration': episodeDuration,
-              };
+              cached['recentEpisode'] = _episodeStub(
+                cached['recentEpisode'] as Map<String, dynamic>?,
+                episodeId,
+                episodeTitle,
+                episodeDuration,
+              );
               _absorbingItemCache[key] = cached;
             } else {
               _absorbingItemCache[key] = e;
@@ -496,19 +526,52 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       if (cached['_absorbingKey'] == null) cached['_absorbingKey'] = key;
       final episodeId = key.substring(37);
       final re = cached['recentEpisode'] as Map<String, dynamic>?;
+      final storedTitle = re?['title'] as String?;
       if (re == null || (re['id'] as String?) != episodeId) {
-        cached['recentEpisode'] = {
-          ...?re,
-          'id': episodeId,
-          if (episodeTitle != null) 'title': episodeTitle,
-          if (episodeDuration != null && episodeDuration > 0)
-            'duration': episodeDuration,
-        };
-      } else if (episodeTitle != null && re['title'] == null) {
+        cached['recentEpisode'] =
+            _episodeStub(re, episodeId, episodeTitle, episodeDuration);
+        changed = true;
+      } else if (episodeTitle != null && storedTitle == null) {
         cached['recentEpisode'] = {...re, 'title': episodeTitle};
+        changed = true;
+      } else if (episodeTitle != null &&
+          storedTitle != 'Episode' &&
+          storedTitle != episodeTitle) {
+        // Right id under another episode's name: an entry saved before the
+        // fix above. The rest of it is that other episode's too, so keep
+        // only what is known about this one.
+        cached['recentEpisode'] =
+            _episodeStub(null, episodeId, episodeTitle, episodeDuration);
+        changed = true;
       }
     }
     if (changed) _saveManualAbsorbing();
+    if (isCompound &&
+        (_absorbingItemCache[key]?['recentEpisode']
+                as Map<String, dynamic>?)?['title'] ==
+            'Episode') {
+      unawaited(_enrichEpisodeTitles());
+    }
+  }
+
+  /// The episode part of a queue entry for [episodeId]. [existing] is only
+  /// kept when it is that same episode; another episode's fields (title,
+  /// duration, audio file) must not end up under this id. With no title known
+  /// it carries the 'Episode' placeholder that _enrichEpisodeTitles swaps for
+  /// the real episode from the server.
+  Map<String, dynamic> _episodeStub(
+    Map<String, dynamic>? existing,
+    String episodeId,
+    String? title,
+    double? duration,
+  ) {
+    final same = existing != null && existing['id'] == episodeId;
+    return {
+      if (same) ...existing,
+      'id': episodeId,
+      if (title != null) 'title': title else if (!same || existing['title'] == null) 'title': 'Episode',
+      if (duration != null && duration > 0) 'duration': duration,
+    };
   }
 
   void clearAbsorbingBlock(String key) {
@@ -856,6 +919,30 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     }
   }
 
+  // Per-series server book list with a short TTL: the up-next label refreshes
+  // on every player item change and shouldn't refetch the same series each
+  // time, but a freshly added book should still show up within minutes.
+  final Map<String, (DateTime, List<dynamic>)> _upNextSeriesCache = {};
+
+  Future<List<dynamic>?> _seriesBooksFor(String libraryId, String seriesId) async {
+    final cached = _upNextSeriesCache[seriesId];
+    if (cached != null &&
+        DateTime.now().difference(cached.$1) < const Duration(minutes: 5)) {
+      return cached.$2;
+    }
+    if (_api == null) return null;
+    try {
+      final books = await _api!.getAllBooksBySeries(libraryId, seriesId);
+      if (books.isNotEmpty) {
+        _upNextSeriesCache[seriesId] = (DateTime.now(), books);
+      }
+      return books;
+    } catch (e) {
+      debugPrint('[UpNext] series fetch failed: $e');
+      return null;
+    }
+  }
+
   Future<void> _addNextSeriesBookToAbsorbing(String finishedBookId) async {
     var finished = _itemDataWithSeries(finishedBookId);
     var (seriesId, currentSeq) =
@@ -881,44 +968,51 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
 
     final candidates = <double, MapEntry<String, Map<String, dynamic>>>{};
 
-    for (final entry in _absorbingItemCache.entries) {
-      final key = entry.key;
-      if (key == finishedBookId || key.length > 36) continue;
-      if (_manualAbsorbRemoves.contains(key)) continue;
-      if ((this as LibraryProvider).isItemFinishedByKey(key)) continue;
-      final (sid, seq) = _StateMixin._extractSeries(entry.value);
-      if (sid != seriesId || seq == null || seq <= currentSeq) continue;
-      candidates[seq] = MapEntry(key, entry.value);
+    // Same server-first ordering as _peekNextBookInSeries, and for the same
+    // reason: partial local series metadata used to advance to whichever
+    // book happened to have it, not the actual next one.
+    final advLibraryId =
+        finished?['libraryId'] as String? ?? _selectedLibraryId;
+    var usedServerList = false;
+    if (_api != null && advLibraryId != null) {
+      final books = await _seriesBooksFor(advLibraryId, seriesId);
+      if (books != null && books.isNotEmpty) {
+        usedServerList = true;
+        for (final book in books) {
+          if (book is! Map<String, dynamic>) continue;
+          final id = book['id'] as String?;
+          if (id == null || id == finishedBookId) continue;
+          if (_manualAbsorbRemoves.contains(id)) continue;
+          if (_progressMap[id]?['isFinished'] == true) continue;
+          final (sid, seq) = _StateMixin._extractSeries(book);
+          if (sid != seriesId || seq == null || seq <= currentSeq) continue;
+          candidates[seq] = MapEntry(id, book);
+        }
+      }
     }
 
-    for (final dlInfo in DownloadService().downloadedItems) {
-      final id = dlInfo.itemId;
-      if (id == finishedBookId || id.length > 36) continue;
-      if (_manualAbsorbRemoves.contains(id)) continue;
-      if (candidates.values.any((e) => e.key == id)) continue;
-      if (_progressMap[id]?['isFinished'] == true) continue;
-      final data = _itemDataWithSeries(id);
-      if (data == null) continue;
-      final (sid, seq) = _StateMixin._extractSeries(data);
-      if (sid != seriesId || seq == null || seq <= currentSeq) continue;
-      candidates[seq] = MapEntry(id, data);
-    }
-
-    if (candidates.isEmpty && _api != null && _selectedLibraryId != null) {
-      final books = await _api!.getBooksBySeries(
-        _selectedLibraryId!,
-        seriesId,
-        limit: 100,
-      );
-      for (final book in books) {
-        if (book is! Map<String, dynamic>) continue;
-        final id = book['id'] as String?;
-        if (id == null || id == finishedBookId) continue;
-        if (_manualAbsorbRemoves.contains(id)) continue;
-        if (_progressMap[id]?['isFinished'] == true) continue;
-        final (sid, seq) = _StateMixin._extractSeries(book);
+    if (!usedServerList) {
+      for (final entry in _absorbingItemCache.entries) {
+        final key = entry.key;
+        if (key == finishedBookId || key.length > 36) continue;
+        if (_manualAbsorbRemoves.contains(key)) continue;
+        if ((this as LibraryProvider).isItemFinishedByKey(key)) continue;
+        final (sid, seq) = _StateMixin._extractSeries(entry.value);
         if (sid != seriesId || seq == null || seq <= currentSeq) continue;
-        candidates[seq] = MapEntry(id, book);
+        candidates[seq] = MapEntry(key, entry.value);
+      }
+
+      for (final dlInfo in DownloadService().downloadedItems) {
+        final id = dlInfo.itemId;
+        if (id == finishedBookId || id.length > 36) continue;
+        if (_manualAbsorbRemoves.contains(id)) continue;
+        if (candidates.values.any((e) => e.key == id)) continue;
+        if (_progressMap[id]?['isFinished'] == true) continue;
+        final data = _itemDataWithSeries(id);
+        if (data == null) continue;
+        final (sid, seq) = _StateMixin._extractSeries(data);
+        if (sid != seriesId || seq == null || seq <= currentSeq) continue;
+        candidates[seq] = MapEntry(id, data);
       }
     }
 
@@ -1545,11 +1639,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
 
     List<dynamic> books;
     try {
-      books = await api.getBooksBySeries(
-        libraryId,
-        seriesId,
-        limit: 100,
-      );
+      books = await api.getAllBooksBySeries(libraryId, seriesId);
     } catch (error) {
       debugPrint('[QueueDownload] Series fetch failed: $error');
       return [_queueDownloadItem(currentKey, current)];
@@ -1739,7 +1829,10 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
   Future<List<Map<String, dynamic>>> fetchBooksBySeries(
       String libraryId, String seriesId) async {
     if (_api == null) return const [];
-    final books = await _api!.getBooksBySeries(libraryId, seriesId, limit: 100);
+    // Shares the up-next cache (5 minute TTL): a long series on a slow server
+    // took 15s to fetch, and the queue sheet is reopened far more often than
+    // a series changes.
+    final books = await _seriesBooksFor(libraryId, seriesId) ?? const [];
     return books.whereType<Map<String, dynamic>>().toList();
   }
 
@@ -2025,37 +2118,39 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       candidates[seq] = d;
     }
 
-    for (final entry in _absorbingItemCache.entries) {
-      consider(entry.key, entry.value);
-    }
-    final dl = DownloadService();
-    for (final dlInfo in dl.downloadedItems) {
-      final id = dlInfo.itemId;
-      if (id.length > 36) continue;
-      if (candidates.values.any((d) => d['id'] == id)) continue;
-      final d = _itemDataWithSeries(id);
-      if (d != null) consider(id, d);
-    }
-
-    // Server fallback when next book isn't loaded locally. Mirrors what
-    // _addNextSeriesBookToAbsorbing does so the peek matches the eventual
-    // advance behaviour.
+    // Server order is the truth for what comes next. Local metadata - old
+    // download records especially - often lacks the series block, and a
+    // fallback that only ran on ZERO local candidates let a partial set win:
+    // the one shelf-cached book with series info (typically the newest add)
+    // became "up next" even when it was the LAST book of the series, while
+    // the downloaded actual-next books were silently skipped. So consult the
+    // server first and scan local data only when it's unreachable.
     final libraryId = data?['libraryId'] as String? ?? _selectedLibraryId;
-    if (candidates.isEmpty && _api != null && libraryId != null) {
-      try {
-        final books = await _api!.getBooksBySeries(
-          libraryId,
-          seriesId,
-          limit: 100,
-        );
+    var usedServerList = false;
+    if (_api != null && libraryId != null) {
+      final books = await _seriesBooksFor(libraryId, seriesId);
+      if (books != null && books.isNotEmpty) {
+        usedServerList = true;
         for (final book in books) {
           if (book is! Map<String, dynamic>) continue;
           final id = book['id'] as String?;
           if (id == null) continue;
           consider(id, book);
         }
-      } catch (e) {
-        debugPrint('[UpNext] series fetch failed: $e');
+      }
+    }
+
+    if (!usedServerList) {
+      for (final entry in _absorbingItemCache.entries) {
+        consider(entry.key, entry.value);
+      }
+      final dl = DownloadService();
+      for (final dlInfo in dl.downloadedItems) {
+        final id = dlInfo.itemId;
+        if (id.length > 36) continue;
+        if (candidates.values.any((d) => d['id'] == id)) continue;
+        final d = _itemDataWithSeries(id);
+        if (d != null) consider(id, d);
       }
     }
 

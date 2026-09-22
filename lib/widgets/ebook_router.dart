@@ -19,17 +19,28 @@ bool canReadEbook(Map<String, dynamic>? ebookFile) =>
     ebookFile != null && readableEbookFormats.contains(ebookExt(ebookFile));
 
 /// Routes an ebook to the right reader for its format, or toasts when the
-/// format isn't supported in-app.
-void openEbookReader(
+/// format isn't supported in-app. [openAtCfi] jumps an EPUB straight to a
+/// saved location (a highlight) instead of resuming where reading left off.
+/// [findText] hands an EPUB a transcript to fuzzy-locate once it has loaded
+/// (Find in ebook), with [findChapterHint] naming the audio chapter it came from.
+Future<void> openEbookReader(
   BuildContext context, {
   required String itemId,
   required String title,
   required Map<String, dynamic> ebookFile,
-}) {
+  String? openAtCfi,
+  String? findText,
+  String? findChapterHint,
+  double? findPositionSeconds,
+  bool startReadAlong = false,
+}) async {
   final ext = ebookExt(ebookFile);
   final Widget viewer;
   if (ext == 'epub') {
-    viewer = EbookReaderView(itemId: itemId, title: title, ebookFile: ebookFile);
+    viewer = EbookReaderView(
+        itemId: itemId, title: title, ebookFile: ebookFile, openAtCfi: openAtCfi,
+        findText: findText, findChapterHint: findChapterHint,
+        findPositionSeconds: findPositionSeconds, startReadAlong: startReadAlong);
   } else if (ext == 'pdf') {
     viewer = PdfReaderView(itemId: itemId, title: title, ebookFile: ebookFile);
   } else if (foliateEbookFormats.contains(ext)) {
@@ -39,7 +50,7 @@ void openEbookReader(
         icon: Icons.menu_book_outlined);
     return;
   }
-  Navigator.of(context, rootNavigator: true).push(
+  await Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute(builder: (_) => viewer),
   );
 }

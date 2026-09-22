@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../screens/library_screen.dart';
 import '../utils/desktop_workspace.dart';
 import 'library_grid_tiles.dart';
@@ -14,6 +15,10 @@ class LibraryListsTab extends StatelessWidget {
   final void Function(Map<String, dynamic>) onOpenCollection;
   final void Function(Map<String, dynamic>) onOpenPlaylist;
   final Future<void> Function() onRefresh;
+  /// The lists couldn't be loaded, which is a different thing from having
+  /// none - the tab says so rather than claiming the library is empty.
+  final bool hasError;
+  final Future<void> Function()? onRetry;
   final Widget? headerSliver;
   final ScrollController? scrollController;
 
@@ -26,6 +31,8 @@ class LibraryListsTab extends StatelessWidget {
     required this.onOpenPlaylist,
     required this.onRefresh,
     this.isLoading = false,
+    this.hasError = false,
+    this.onRetry,
     this.headerSliver,
     this.scrollController,
   });
@@ -55,6 +62,7 @@ class LibraryListsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
     final headers = <Widget>[if (headerSliver != null) headerSliver!];
 
     Widget body;
@@ -73,17 +81,36 @@ class LibraryListsTab extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.collections_bookmark_outlined,
-                          size: 56,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                        ),
+                            hasError
+                                ? Icons.cloud_off_rounded
+                                : Icons.collections_bookmark_outlined,
+                            size: 56,
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
-                        Text(
-                          'No collections or playlists',
-                          style: tt.bodyLarge?.copyWith(
-                            color: cs.onSurfaceVariant,
+                        Text(hasError ? l.listsLoadFailed : l.listsNone,
+                            style: tt.bodyLarge
+                                ?.copyWith(color: cs.onSurfaceVariant)),
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 40),
+                          child: Text(
+                            hasError
+                                ? l.listsLoadFailedHint
+                                : l.listsNoneHint,
+                            textAlign: TextAlign.center,
+                            style: tt.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant
+                                    .withValues(alpha: 0.7)),
                           ),
                         ),
+                        if (hasError && onRetry != null) ...[
+                          const SizedBox(height: 16),
+                          FilledButton.tonal(
+                            onPressed: () => onRetry!(),
+                            child: Text(l.retry),
+                          ),
+                        ],
                       ],
                     ),
             ),

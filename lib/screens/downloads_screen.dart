@@ -122,7 +122,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     if (confirmed != true || !mounted) return;
 
     for (final itemId in _selected.toList()) {
-      await DownloadService().deleteDownload(itemId);
+      await DownloadService().deleteDownload(itemId, byUser: true);
     }
 
     _exitSelection();
@@ -155,7 +155,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await DownloadService().deleteDownload(info.itemId);
+    await DownloadService().deleteDownload(info.itemId, byUser: true);
     await _load();
     if (mounted) {
       showOverlayToast(context, l.downloadsRemovedTitle(info.title ?? ''),

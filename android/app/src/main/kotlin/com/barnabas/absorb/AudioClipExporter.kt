@@ -39,8 +39,19 @@ object AudioClipExporter {
         durationSeconds: Double,
         outPath: String,
     ): Boolean {
+        // An MP3 can't be seeked accurately (see [Mp3Slicer]), so cut the window
+        // out by frame count first and decode that instead. Anything else - an
+        // M4B book, a streamed URL - goes straight through untouched.
+        val sliced = if (isLocal) Mp3Slicer.prepare(context, source, startSeconds, durationSeconds) else null
         return try {
-            val decoded = decodeWindow(context, source, isLocal, headers, startSeconds, durationSeconds)
+            val decoded = decodeWindow(
+                context,
+                sliced?.path ?: source,
+                isLocal,
+                headers,
+                sliced?.startSeconds ?: startSeconds,
+                durationSeconds,
+            )
             if (decoded == null || decoded.pcm.isEmpty()) {
                 Log.e(TAG, "no PCM decoded from clip window")
                 return false
@@ -52,6 +63,8 @@ object AudioClipExporter {
             Log.e(TAG, "exportM4a failed: ${e.message}", e)
             try { File(outPath).delete() } catch (_: Exception) {}
             false
+        } finally {
+            sliced?.temp?.delete()
         }
     }
 
@@ -93,7 +106,10 @@ object AudioClipExporter {
 
             val startUs = (startSeconds * 1_000_000L).toLong()
             val durationUs = (durationSeconds * 1_000_000L).toLong()
-            extractor.seekTo(startUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            val landedUs = AudioSeek.seekTo(extractor, startUs)
+            if (landedUs in 0 until startUs - 1_000_000L) {
+                Log.d(TAG, "seek landed ${(startUs - landedUs) / 1000}ms early, trimming the head")
+            }
 
             codec = MediaCodec.createDecoderByType(mime)
             codec.configure(inFormat, null, null, 0)
@@ -110,7 +126,6 @@ object AudioClipExporter {
                 inFormat.getInteger(MediaFormat.KEY_PCM_ENCODING) else 2
 
             val out = ByteArrayOutputStream()
-            var firstSampleUs = -1L
             var collectedUs = 0L
 
             while (!sawOutputEOS) {
@@ -138,9 +153,14 @@ object AudioClipExporter {
                 } else if (outIndex >= 0) {
                     val outBuf = codec.getOutputBuffer(outIndex)
                     if (outBuf != null && info.size > 0) {
-                        if (firstSampleUs < 0) firstSampleUs = info.presentationTimeUs
-                        appendInterleaved(outBuf, info, outChannels, target, pcmEncoding, out)
-                        collectedUs = info.presentationTimeUs - firstSampleUs
+                        // Decoding starts on a frame boundary at or before the
+                        // requested time, so drop whatever came out ahead of it -
+                        // otherwise the clip starts early and runs short.
+                        val aheadUs = startUs - info.presentationTimeUs
+                        val skipFrames =
+                            if (aheadUs > 0) (aheadUs * outRate / 1_000_000L).toInt() else 0
+                        appendInterleaved(outBuf, info, outChannels, target, pcmEncoding, out, skipFrames)
+                        collectedUs = out.size().toLong() * 1_000_000L / (outRate.toLong() * target * 2)
                     }
                     codec.releaseOutputBuffer(outIndex, false)
                     if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) sawOutputEOS = true
@@ -155,7 +175,11 @@ object AudioClipExporter {
         }
     }
 
-    /** Append decoded frames as 16-bit little-endian PCM with [target] channels. */
+    /**
+     * Append decoded frames as 16-bit little-endian PCM with [target] channels.
+     * [skipFrames] drops that many frames off the front, for a buffer that
+     * starts before the clip the caller asked for.
+     */
     private fun appendInterleaved(
         buf: ByteBuffer,
         info: MediaCodec.BufferInfo,
@@ -163,6 +187,7 @@ object AudioClipExporter {
         target: Int,
         pcmEncoding: Int,
         out: ByteArrayOutputStream,
+        skipFrames: Int = 0,
     ) {
         buf.position(info.offset)
         buf.limit(info.offset + info.size)
@@ -170,16 +195,20 @@ object AudioClipExporter {
         if (pcmEncoding == 4) { // ENCODING_PCM_FLOAT
             val fb = buf.order(ByteOrder.nativeOrder()).asFloatBuffer()
             val frames = fb.remaining() / ch
+            val skip = skipFrames.coerceIn(0, frames)
+            fb.position(skip * ch)
             val frame = FloatArray(ch)
-            for (f in 0 until frames) {
+            for (f in skip until frames) {
                 for (c in 0 until ch) frame[c] = fb.get()
                 writeFrame16(out, frame, ch, target)
             }
         } else { // 16-bit PCM
             val sb = buf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
             val frames = sb.remaining() / ch
+            val skip = skipFrames.coerceIn(0, frames)
+            sb.position(skip * ch)
             val frame = FloatArray(ch)
-            for (f in 0 until frames) {
+            for (f in skip until frames) {
                 for (c in 0 until ch) frame[c] = sb.get() / 32768f
                 writeFrame16(out, frame, ch, target)
             }

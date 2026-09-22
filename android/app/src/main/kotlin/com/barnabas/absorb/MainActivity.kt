@@ -11,18 +11,23 @@ import java.io.File
 import java.io.FileInputStream
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
-import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.os.StatFs
 
 import android.util.Log
 import android.view.KeyEvent
+import android.view.WindowManager
 import com.ryanheise.audioservice.AudioService
 import com.ryanheise.audioservice.AudioServiceActivity
 import com.ryanheise.audioservice.AudioServicePlugin
+import com.ryanheise.just_audio.GainController
 import com.ryanheise.just_audio.MonoController
+import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodCall
@@ -40,15 +45,32 @@ class MainActivity : AudioServiceActivity() {
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
-    private var loudnessEnhancer: LoudnessEnhancer? = null
     private var currentSessionId: Int = 0
     private var eqEnabled: Boolean = false
-    private var eqLoudnessGainMb: Int = 0  // gain from EQ loudness slider
+    // Loudness is sample gain in the player's audio sink (GainAudioProcessor),
+    // not a session effect, so it survives the activity and effect teardown.
+    private var eqLoudnessGainMb: Int = 0
     // Some devices (e.g. older Samsung on Android 9) have a broken audio-effect
     // HAL that fails to initialize. Constructing AudioEffects against it during
     // playback can crash the process natively, which Kotlin can't catch. Once
     // init proves the engine is unavailable, skip attaching native effects.
     private var effectsAvailable: Boolean = true
+
+    // Android brings a task back from a dead process by recreating its root
+    // activity with the intent that first created it. When that was the
+    // widget's play button, every later plain open (the widget cover, the
+    // installer's Open button, Recents) replayed the play deep link and the
+    // app started playing on its own. A real tap always creates the activity
+    // fresh, so only a recreated one can be carrying a replay.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        if (savedInstanceState != null &&
+            intent?.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
+            Log.d(TAG, "Dropping replayed widget launch ${intent.data}")
+            intent.action = Intent.ACTION_MAIN
+            intent.data = null
+        }
+        super.onCreate(savedInstanceState)
+    }
 
     override fun provideFlutterEngine(context: Context): FlutterEngine? {
         // Headless service starts (Android Auto binds, media buttons on a
@@ -121,6 +143,24 @@ class MainActivity : AudioServiceActivity() {
             }
         Log.d(TAG, "EQ method channel registered")
 
+        // Auto scroll in the ebook reader keeps the screen on for as long as it
+        // runs; the reader releases it when the scroll stops or it closes.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.screen_wake")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "set" -> {
+                        val on = call.argument<Boolean>("on") ?: false
+                        if (on) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.audio_diag")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -165,6 +205,35 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
 
+        // On-device bookmark transcription: decode a window of a downloaded
+        // audio file into 16kHz mono WAV for Whisper. Heavy work runs on a
+        // worker thread; the result is posted back on the main thread.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.barnabas.absorb/transcription")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "extractWav" -> {
+                        val sourcePath = call.argument<String>("sourcePath")
+                        val outPath = call.argument<String>("outPath")
+                        val startSeconds = call.argument<Double>("startSeconds") ?: 0.0
+                        val durationSeconds = call.argument<Double>("durationSeconds") ?: 0.0
+                        if (sourcePath == null || outPath == null) {
+                            result.error("ARGS", "sourcePath and outPath are required", null)
+                        } else {
+                            Thread {
+                                val ok = try {
+                                    AudioWindowExtractor.extractWav(applicationContext, sourcePath, startSeconds, durationSeconds, outPath)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "extractWav crashed: ${e.message}")
+                                    false
+                                }
+                                Handler(Looper.getMainLooper()).post { result.success(ok) }
+                            }.start()
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         volumeKeysChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "com.absorb.volume_keys")
         volumeKeysChannel?.setMethodCallHandler { call, result ->
@@ -203,6 +272,25 @@ class MainActivity : AudioServiceActivity() {
             return true
         }
         return super.onKeyUp(keyCode, event)
+    }
+
+    // Physical page-turn keys - e-ink devices like the Boox Palma map their
+    // side button to these. They must be grabbed BEFORE the view tree: a
+    // focused WebView treats PAGE_UP/DOWN as scroll keys and shifts the
+    // paginated book vertically instead of letting the app turn the page.
+    // The Dart side decides what they do (page turn in the reader, play/pause
+    // toggle otherwise).
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_PAGE_UP ||
+            event.keyCode == KeyEvent.KEYCODE_PAGE_DOWN) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                volumeKeysChannel?.invokeMethod(
+                    "pagePressed",
+                    if (event.keyCode == KeyEvent.KEYCODE_PAGE_UP) "up" else "down")
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     // Move downloaded temp files into the user's SAF folder, creating the nested
@@ -368,17 +456,7 @@ class MainActivity : AudioServiceActivity() {
             } catch (e: Exception) {
                 Log.w(TAG, "Virtualizer not supported: ${e.message}"); null
             }
-            loudnessEnhancer = try {
-                LoudnessEnhancer(sessionId).apply {
-                    setTargetGain(eqLoudnessGainMb)
-                    enabled = false
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "LoudnessEnhancer not supported: ${e.message}"); null
-            }
-
-            // Alpha: capture LoudnessEnhancer/eq state on attach for GH #179 (volume falls off).
-            Log.d(TAG, "Effects attached to session $sessionId: eqEnabled=$eqEnabled loudnessGainMb=$eqLoudnessGainMb loudnessEffectOk=${loudnessEnhancer != null}")
+            Log.d(TAG, "Effects attached to session $sessionId: eqEnabled=$eqEnabled loudnessGainMb=$eqLoudnessGainMb")
             result.success(true)
         } catch (e: Exception) {
             Log.e(TAG, "attachSession failed: ${e.message}")
@@ -434,8 +512,7 @@ class MainActivity : AudioServiceActivity() {
     private fun handleSetLoudness(gain: Int, result: MethodChannel.Result) {
         try {
             eqLoudnessGainMb = gain
-            loudnessEnhancer?.setTargetGain(gain)
-            loudnessEnhancer?.enabled = gain > 0
+            GainController.setGainMb(gain)
             result.success(true)
         } catch (e: Exception) {
             result.error("EQ_ERROR", e.message, null)
@@ -446,12 +523,9 @@ class MainActivity : AudioServiceActivity() {
         try { equalizer?.release() } catch (_: Exception) {}
         try { bassBoost?.release() } catch (_: Exception) {}
         try { virtualizer?.release() } catch (_: Exception) {}
-        try { loudnessEnhancer?.release() } catch (_: Exception) {}
         equalizer = null
         bassBoost = null
         virtualizer = null
-        loudnessEnhancer = null
-        eqLoudnessGainMb = 0
         eqEnabled = false
     }
 
@@ -478,6 +552,12 @@ class MainActivity : AudioServiceActivity() {
             Log.d(TAG, "Discarding search intent: $action")
             return
         }
+        // FlutterActivity never adopts a new intent, so the widget's "launched
+        // from" query kept answering with whatever intent created the activity.
+        // On a task restored from a dead process that lost a fresh play-button
+        // tap and replayed an old one. Keep the latest so the query sees the
+        // tap that actually opened the app this time.
+        setIntent(intent)
         super.onNewIntent(intent)
     }
 

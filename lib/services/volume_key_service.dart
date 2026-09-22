@@ -69,17 +69,47 @@ class EreaderVolumeNav with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  /// Registers the channel handler app-wide so physical page keys work before
+  /// any reader has opened - outside the reader they toggle play/pause.
+  static void ensureHandler() => _channel.setMethodCallHandler(_onCall);
+
   static Future<dynamic> _onCall(MethodCall call) async {
-    if (call.method != 'volumePressed') return null;
     final nav = _active;
-    if (nav == null || !nav._watching) return null;
     final up = (call.arguments as String? ?? '') == 'up';
-    // 'normal' matches the ABS app: volume up = previous page, down = next.
-    final prev = nav._mode == 'mirrored' ? !up : up;
-    if (prev) {
-      nav.onPrev();
-    } else {
-      nav.onNext();
+    if (call.method == 'volumePressed') {
+      if (nav == null || !nav._watching) return null;
+      // 'normal' matches the ABS app: volume up = previous page, down = next.
+      final prev = nav._mode == 'mirrored' ? !up : up;
+      if (prev) {
+        nav.onPrev();
+      } else {
+        nav.onNext();
+      }
+      return null;
+    }
+    if (call.method == 'pagePressed') {
+      // Dedicated page keys (Boox Palma side button and page-turn covers).
+      // While a reader is open they always turn pages - no setting needed,
+      // that is their whole job. Otherwise they toggle play/pause so the
+      // button stays useful while just listening.
+      if (nav != null) {
+        final prev = nav._mode == 'mirrored' ? !up : up;
+        if (prev) {
+          nav.onPrev();
+        } else {
+          nav.onNext();
+        }
+        return null;
+      }
+      final player = AudioPlayerService();
+      if (player.currentItemId != null) {
+        if (player.isPlaying) {
+          player.pause();
+        } else {
+          player.play(fromUi: true, logDetail: 'page key');
+        }
+      }
+      return null;
     }
     return null;
   }

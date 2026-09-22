@@ -452,6 +452,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
           duration: duration,
           isFinished: false,
         );
+        await lib.markNotFinishedLocally(key);
       }
     }
 

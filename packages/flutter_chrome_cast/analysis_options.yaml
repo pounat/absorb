@@ -1,0 +1,59 @@
+include: package:flutter_lints/flutter.yaml
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options
+
+analyzer:
+  # Exclude generated files and build artifacts
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/build/**"
+    - "**/.dart_tool/**"
+  
+  # Enable more strict analysis
+  language:
+    # strict-casts: true
+    # strict-inference: true
+    # strict-raw-types: true
+
+linter:
+  rules:
+    # Documentation rules
+    public_member_api_docs: true
+    
+    # Testing-related rules
+    # These rules help encourage good testing practices
+    
+    # Code quality rules that make testing easier
+    # avoid_catches_without_on_clauses: true
+    # avoid_catching_errors: true
+    # avoid_empty_else: true
+    # avoid_returning_null_for_future: true
+    # avoid_slow_async_io: true
+    # cancel_subscriptions: true
+    # close_sinks: true
+    
+    # Test-specific rules (these apply to test files)
+    # Note: These only work when you have test files
+    # avoid_redundant_argument_values: true  # Helps in test assertions
+    # prefer_const_constructors_in_immutables: true  # Better test objects
+    
+    # Rules that make code more testable
+    # prefer_final_locals: true
+    # prefer_final_in_for_each: true
+    # prefer_single_quotes: true
+    # avoid_function_literals_in_foreach_calls: true
+    # avoid_positional_boolean_parameters: true
+    
+    # # Error handling (important for testing)
+    # use_build_context_synchronously: true
+    
+    # # Performance rules (help with test performance)
+    # avoid_unnecessary_containers: true
+    # sized_box_for_whitespace: true
+    
+    # # Code organization (makes tests cleaner)
+    # directives_ordering: true
+    # sort_constructors_first: true
+    # sort_unnamed_constructors_first: true

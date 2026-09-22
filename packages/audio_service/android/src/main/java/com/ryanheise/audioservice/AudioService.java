@@ -109,6 +109,10 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static final Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
     private static volatile int lastMediaKeyCode = -1;
     private static volatile long lastMediaKeyAt = 0;
+    // Who dispatched the last media key: our own widget, the car, or the
+    // system on behalf of a headset. Lets the Dart side tell a press the
+    // user made on Absorb's widget from one a car head unit sent.
+    private static volatile String lastMediaKeyPkg = null;
     private static volatile long lastPlayAt = 0;
     private static volatile long lastPauseAt = 0;
     // Stamped whenever a car client (Android Auto / Automotive) touches the
@@ -135,6 +139,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         snapshot.put("lastPauseCaller", "mediaSession");
         snapshot.put("lastPauseCallerAgeMs", lastPauseAt == 0 ? -1 : now - lastPauseAt);
         snapshot.put("carClientAgeMs", lastCarClientAt == 0 ? -1 : now - lastCarClientAt);
+        snapshot.put("lastKeyPkg", lastMediaKeyPkg);
         return snapshot;
     }
 
@@ -271,12 +276,29 @@ public class AudioService extends MediaBrowserServiceCompat {
                     }
                 }
             }
+            bitmap = capArtSize(bitmap);
             artBitmapCache.put(artUriString, bitmap);
             return bitmap;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
+    }
+
+    // The Wear OS media controls bridge rejects session artwork above this
+    // size ("Image is too large (1200x1200)") and shows a blank cover on the
+    // watch. Downloaded covers are stored at 1200px; server covers arrive at
+    // 800px and always worked. Every phone-side reader scales down anyway.
+    private static final int MAX_ART_EDGE_PX = 800;
+
+    private static Bitmap capArtSize(Bitmap bitmap) {
+        if (bitmap == null) return null;
+        int w = bitmap.getWidth();
+        int h = bitmap.getHeight();
+        int longest = Math.max(w, h);
+        if (longest <= MAX_ART_EDGE_PX) return bitmap;
+        float scale = (float) MAX_ART_EDGE_PX / longest;
+        return Bitmap.createScaledBitmap(bitmap, Math.max(1, Math.round(w * scale)), Math.max(1, Math.round(h * scale)), true);
     }
 
     private static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
@@ -851,13 +873,13 @@ public class AudioService extends MediaBrowserServiceCompat {
      */
     synchronized void setMetadata(MediaMetadataCompat mediaMetadata) {
         String artCacheFilePath = mediaMetadata.getString("artCacheFile");
+        String artUri = mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
         if (artCacheFilePath != null) {
             // Load local files and network images, cached in files
             artBitmap = loadArtBitmap(artCacheFilePath, null);
             mediaMetadata = putArtToMetadata(mediaMetadata);
         } else {
             // Load content:// URIs
-            String artUri = mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
             if (artUri != null && artUri.startsWith("content:")) {
                 String loadThumbnailUri = mediaMetadata.getString("loadThumbnailUri");
                 artBitmap = loadArtBitmap(artUri, loadThumbnailUri);
@@ -866,10 +888,18 @@ public class AudioService extends MediaBrowserServiceCompat {
                 artBitmap = null;
             }
         }
+        android.util.Log.i("AbsorbArt", "setMetadata art="
+                + (artCacheFilePath != null ? "file" : artUri == null ? "none" : artUri.substring(0, Math.min(8, artUri.length())))
+                + " bitmap=" + describeBitmap(artBitmap));
         this.mediaMetadata = mediaMetadata;
         mediaSession.setMetadata(mediaMetadata);
         handler.removeCallbacksAndMessages(null);
         handler.post(this::updateNotification);
+    }
+
+    private static String describeBitmap(Bitmap b) {
+        if (b == null) return "null";
+        return b.getWidth() + "x" + b.getHeight() + " " + b.getConfig() + " " + (b.getByteCount() / 1024) + "KB";
     }
 
     private MediaMetadataCompat putArtToMetadata(MediaMetadataCompat mediaMetadata) {
@@ -1035,6 +1065,11 @@ public class AudioService extends MediaBrowserServiceCompat {
                 stampCarController();
                 lastMediaKeyCode = event.getKeyCode();
                 lastMediaKeyAt = SystemClock.elapsedRealtime();
+                try {
+                    lastMediaKeyPkg = mediaSession.getCurrentControllerInfo().getPackageName();
+                } catch (Exception e) {
+                    lastMediaKeyPkg = null;
+                }
                 switch (event.getKeyCode()) {
                 case KEYCODE_BYPASS_PLAY:
                     onPlay();

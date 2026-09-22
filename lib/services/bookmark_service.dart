@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/episode_key.dart';
 import 'api_service.dart';
 import 'scoped_prefs.dart';
+import 'settings_sync_service.dart';
 import 'user_account_service.dart';
 
 /// A single bookmark in an audiobook.
@@ -27,6 +29,20 @@ class Bookmark {
     return title;
   }
 
+  /// The inverse of [serverTitle]: split a server title back into title and
+  /// note at the first " - ", so a bookmark written on one phone comes apart
+  /// the same way on another. Re-encoding the split pair yields the identical
+  /// server string, so nothing is ever lost - at worst a title that itself
+  /// contains " - " moves its tail into the note.
+  static ({String title, String? note}) splitServerTitle(String raw) {
+    final i = raw.indexOf(' - ');
+    if (i <= 0) return (title: raw.trim(), note: null);
+    final title = raw.substring(0, i).trim();
+    final note = raw.substring(i + 3).trim();
+    if (title.isEmpty || note.isEmpty) return (title: raw.trim(), note: null);
+    return (title: title, note: note);
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'pos': positionSeconds,
@@ -36,6 +52,15 @@ class Bookmark {
       };
 
   factory Bookmark.fromJson(Map<String, dynamic> json) {
+    var title = json['title'] as String? ?? 'Bookmark';
+    var note = json['note'] as String?;
+    // Bookmarks pulled from the server before splitServerTitle existed were
+    // stored with the combined "title - note" as their title - come apart now.
+    if (note == null || note.isEmpty) {
+      final parts = splitServerTitle(title);
+      title = parts.title;
+      note = parts.note;
+    }
     return Bookmark(
       id: json['id'] as String? ?? '${DateTime.now().millisecondsSinceEpoch}',
       positionSeconds: (json['pos'] as num?)?.toDouble() ?? (json['time'] as num?)?.toDouble() ?? 0,
@@ -44,22 +69,23 @@ class Bookmark {
           : json['createdAt'] != null
               ? DateTime.fromMillisecondsSinceEpoch((json['createdAt'] as num).toInt())
               : DateTime.now(),
-      title: json['title'] as String? ?? 'Bookmark',
-      note: json['note'] as String?,
+      title: title,
+      note: note,
     );
   }
 
-  /// Create from ABS server bookmark format: { title, time, createdAt }
-  /// Server only has "title" - we put it into the note body since we don't
-  /// know what part is the title vs note.
+  /// Create from ABS server bookmark format: { title, time, createdAt }.
+  /// The server only has "title", carrying our "title - note" encoding.
   factory Bookmark.fromServer(Map<String, dynamic> json) {
+    final parts = splitServerTitle(json['title'] as String? ?? 'Bookmark');
     return Bookmark(
       id: '${(json['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch}',
       positionSeconds: (json['time'] as num?)?.toDouble() ?? 0,
       created: json['createdAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch((json['createdAt'] as num).toInt())
           : DateTime.now(),
-      title: json['title'] as String? ?? 'Bookmark',
+      title: parts.title,
+      note: parts.note,
     );
   }
 
@@ -84,6 +110,13 @@ class Bookmark {
 }
 
 /// Stores per-book bookmarks in SharedPreferences with server sync.
+///
+/// Podcast episodes are keyed by the compound "showId-episodeId" key. Those
+/// stay on the device: an ABS bookmark carries a library item id and nothing
+/// else, so a pushed episode bookmark would come back attached to the whole
+/// show, landing every episode's marks in one pile at times that mean nothing
+/// outside the episode they were made in. They travel between devices in the
+/// settings backup instead, which is why every local change nudges the sync.
 class BookmarkService {
   static final BookmarkService _instance = BookmarkService._();
   factory BookmarkService() => _instance;
@@ -135,6 +168,23 @@ class BookmarkService {
       } catch (e) {
         debugPrint('[Bookmarks] Failed to parse pending deletes: $e');
       }
+    }
+
+    // Episode bookmarks are local-only now. Older builds queued them for a
+    // push that the server can only 404, so clear out any that are still
+    // sitting in the queue instead of retrying them forever.
+    final strandedCreates =
+        _unpushed.where((k) => isEpisodeKey(k.split('::').first)).toList();
+    if (strandedCreates.isNotEmpty) {
+      _unpushed.removeAll(strandedCreates);
+      await _persistUnpushed();
+    }
+    final strandedDeletes = _pendingDeletes.keys.where(isEpisodeKey).toList();
+    if (strandedDeletes.isNotEmpty) {
+      for (final k in strandedDeletes) {
+        _pendingDeletes.remove(k);
+      }
+      await _persistPendingDeletes();
     }
 
     _hydratedScope = scope;
@@ -204,6 +254,11 @@ class BookmarkService {
 
     await _ensureHydrated();
 
+    if (isEpisodeKey(itemId)) {
+      SettingsSyncService().noteLocalChange();
+      return bookmark;
+    }
+
     // Flag the bookmark pending BEFORE pushing it to the server. If the app is
     // suspended or killed mid-push (common on iOS right after bookmarking then
     // pausing), the flag is already persisted, so the next sync keeps and
@@ -255,6 +310,11 @@ class BookmarkService {
 
     await ScopedPrefs.setStringList(key, updated);
 
+    if (isEpisodeKey(itemId)) {
+      SettingsSyncService().noteLocalChange();
+      return;
+    }
+
     // Update on server
     if (api != null && time != null && serverTitle != null) {
       await api.updateBookmark(itemId, time: time, title: serverTitle);
@@ -302,6 +362,12 @@ class BookmarkService {
     if ((oldTime - newPos).abs() < 0.05) return; // no real change
 
     await _ensureHydrated();
+
+    if (isEpisodeKey(itemId)) {
+      SettingsSyncService().noteLocalChange();
+      debugPrint('[Bookmarks] Moved $bookmarkId: ${oldTime}s -> ${newPos}s (local)');
+      return;
+    }
 
     // The old position's pending-create (if any) no longer applies. Flag the
     // new position pending BEFORE the network calls (same write-ahead reasoning
@@ -355,6 +421,11 @@ class BookmarkService {
 
     await _ensureHydrated();
 
+    if (isEpisodeKey(itemId)) {
+      SettingsSyncService().noteLocalChange();
+      return;
+    }
+
     // If this bookmark was an unpushed offline create, drop the pending-create
     // flag - the server never knew about it, so there's nothing to delete.
     if (time != null) {
@@ -386,6 +457,10 @@ class BookmarkService {
   /// Merges local and server bookmarks by position (time).
   /// If [preloadedServerBookmarks] is provided, uses that instead of fetching.
   Future<void> syncBookmarks(String itemId, ApiService api, {List<Map<String, dynamic>>? preloadedServerBookmarks}) async {
+    // Episode bookmarks never reach the server, so there is nothing to merge -
+    // and an empty server list here would read as "deleted everywhere" and
+    // wipe them.
+    if (isEpisodeKey(itemId)) return;
     try {
       await _ensureHydrated();
 
@@ -429,9 +504,12 @@ class BookmarkService {
           existing.add(jsonEncode(serverBm.toJson()));
           await ScopedPrefs.setStringList(key, existing);
           debugPrint('[Bookmarks] Synced from server: "${serverBm.title}" at ${serverBm.formattedPosition}');
-        } else if (serverBm.title != localMatch.serverTitle && serverBm.created.isAfter(localMatch.created)) {
-          // Server is newer - update local note body with server content
-          localMatch.note = serverBm.title;
+        } else if (serverBm.serverTitle != localMatch.serverTitle && serverBm.created.isAfter(localMatch.created)) {
+          // Server is newer - take its title and note (fromServer already
+          // split the combined server string back into the two fields).
+          localMatch
+            ..title = serverBm.title
+            ..note = serverBm.note;
           await _saveAll(itemId, localBookmarks);
           debugPrint('[Bookmarks] Updated from server: "${serverBm.title}"');
         }

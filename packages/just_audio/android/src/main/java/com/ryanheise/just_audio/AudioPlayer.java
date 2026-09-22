@@ -956,11 +956,11 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
                         Context context,
                         boolean enableFloatOutput,
                         boolean enableAudioTrackPlaybackParams) {
-                    Log.i(TAG, "PATCH ACTIVE: buildAudioSink with SonicAudioProcessor + MonoProcessor, AudioTrack speed DISABLED");
+                    Log.i(TAG, "PATCH ACTIVE: buildAudioSink with SonicAudioProcessor + MonoProcessor + GainAudioProcessor, AudioTrack speed DISABLED");
                     return new DefaultAudioSink.Builder(context)
                         .setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(false)
-                        .setAudioProcessors(new androidx.media3.common.audio.AudioProcessor[]{sonicAudioProcessor, monoProcessor})
+                        .setAudioProcessors(new androidx.media3.common.audio.AudioProcessor[]{sonicAudioProcessor, monoProcessor, new GainAudioProcessor()})
                         .build();
                 }
             };

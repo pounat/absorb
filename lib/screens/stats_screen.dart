@@ -1855,7 +1855,7 @@ class SessionDetailsSheet extends StatefulWidget {
 }
 
 class SessionDetailsSheetState extends State<SessionDetailsSheet> {
-  bool _jumping = false;
+  _JumpTarget? _jumping;
   bool _saving = false;
 
   static double _n(dynamic v) => v is num ? v.toDouble() : 0;
@@ -2149,15 +2149,21 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
     return '';
   }
 
-  Future<void> _jumpToStart() async {
-    if (_jumping) return;
+  Future<void> _jumpToStart() => _jumpTo(_JumpTarget.start);
+
+  Future<void> _jumpToEnd() => _jumpTo(_JumpTarget.end);
+
+  Future<void> _jumpTo(_JumpTarget target) async {
+    if (_jumping != null) return;
     final s = widget.session;
     final itemId = s['libraryItemId'] as String?;
     if (itemId == null) return;
     final episodeId = s['episodeId'] as String?;
-    final startTime = _n(s['startTime']);
+    final position = target == _JumpTarget.end
+        ? _n(s['currentTime'])
+        : _n(s['startTime']);
 
-    setState(() => _jumping = true);
+    setState(() => _jumping = target);
 
     final lib = context.read<LibraryProvider>();
     final api = context.read<AuthProvider>().apiService;
@@ -2165,7 +2171,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
 
     if (player.currentItemId == itemId &&
         player.currentEpisodeId == episodeId) {
-      await player.seekTo(Duration(seconds: startTime.round()));
+      await player.seekTo(Duration(seconds: position.round()));
       if (!player.isPlaying) player.play();
       if (!mounted) return;
       _finishJump();
@@ -2175,7 +2181,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
     if (api == null) {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
-        setState(() => _jumping = false);
+        setState(() => _jumping = null);
         showOverlayToast(context, l.bookmarksNotConnected,
             icon: Icons.error_outline_rounded);
       }
@@ -2194,7 +2200,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
     if (fullItem == null) {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
-        setState(() => _jumping = false);
+        setState(() => _jumping = null);
         showOverlayToast(context, l.statsScreenCouldNotLoadItem,
             icon: Icons.error_outline_rounded);
       }
@@ -2220,7 +2226,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
       if (episode is! Map<String, dynamic>) {
         if (mounted) {
           final l = AppLocalizations.of(context)!;
-          setState(() => _jumping = false);
+          setState(() => _jumping = null);
           showOverlayToast(context, l.statsScreenCouldNotFindEpisode,
               icon: Icons.error_outline_rounded);
         }
@@ -2252,7 +2258,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
       coverUrl: coverUrl,
       totalDuration: duration,
       chapters: chapters,
-      startTime: startTime,
+      startTime: position,
       forceStartTime: true,
       episodeId: episodeId,
       episodeTitle: episodeTitle,
@@ -2261,7 +2267,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
 
     if (!mounted) return;
     if (error != null) {
-      setState(() => _jumping = false);
+      setState(() => _jumping = null);
       showOverlayToast(
         context,
         error,
@@ -2276,6 +2282,47 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
     Navigator.pop(context);
     widget.onJumped?.call();
     AppShell.goToAbsorbingGlobal();
+  }
+
+  Widget _jumpButton(
+    AppLocalizations l, {
+    required _JumpTarget target,
+    required IconData icon,
+    required String label,
+    required double position,
+    required VoidCallback onPressed,
+  }) {
+    final busy = _jumping == target;
+    return FilledButton.icon(
+      onPressed: _jumping != null ? null : onPressed,
+      icon: busy
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2))
+          : Icon(icon),
+      label: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            busy ? l.statsScreenLoading : label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Opacity(
+            opacity: 0.8,
+            child: Text(
+              _fmtPos(position),
+              style: const TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.normal),
+            ),
+          ),
+        ],
+      ),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      ),
+    );
   }
 
   @override
@@ -2457,25 +2504,29 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
                         _playMethodLabel(playMethod, l)),
                   const SizedBox(height: 24),
                   if (itemId != null)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _jumping ? null : _jumpToStart,
-                        icon: _jumping
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2))
-                            : const Icon(Icons.replay_rounded),
-                        label: Text(_jumping
-                            ? l.statsScreenLoading
-                            : l.statsScreenJumpToSessionStart(_fmtPos(startTime))),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                    Row(children: [
+                      Expanded(
+                        child: _jumpButton(
+                          l,
+                          target: _JumpTarget.start,
+                          icon: Icons.skip_previous_rounded,
+                          label: l.statsScreenJumpToStart,
+                          position: startTime,
+                          onPressed: _jumpToStart,
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _jumpButton(
+                          l,
+                          target: _JumpTarget.end,
+                          icon: Icons.skip_next_rounded,
+                          label: l.statsScreenJumpToEnd,
+                          position: currentTime,
+                          onPressed: _jumpToEnd,
+                        ),
+                      ),
+                    ]),
                   const SizedBox(height: 10),
                   Row(children: [
                     if (widget.allowEdit) ...[
@@ -2546,3 +2597,5 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
     }
   }
 }
+
+enum _JumpTarget { start, end }

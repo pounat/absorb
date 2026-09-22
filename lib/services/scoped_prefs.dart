@@ -169,6 +169,23 @@ class ScopedPrefs {
 
   // ── Convenience ──
 
+  /// The item-keyed tails of every stored key starting with [prefix], for
+  /// prefix-keyed stores like `ebook_annotations_<itemId>` that have no index
+  /// of their own.
+  static Future<List<String>> suffixesWithPrefix(String prefix) async {
+    final prefs = await SharedPreferences.getInstance();
+    final scoped = _scope(prefix);
+    final out = <String>{};
+    for (final key in prefs.getKeys()) {
+      if (key.startsWith(scoped)) {
+        out.add(key.substring(scoped.length));
+      } else if (_shouldFallback && key.startsWith(prefix)) {
+        out.add(key.substring(prefix.length));
+      }
+    }
+    return out.toList();
+  }
+
   static Future<bool> containsKey(String key) async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey(_scope(key))) return true;

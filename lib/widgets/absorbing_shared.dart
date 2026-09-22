@@ -8,6 +8,7 @@ import '../providers/library_provider.dart';
 import '../services/download_service.dart';
 import '../services/playback_history_service.dart';
 import '../utils/app_platform.dart';
+import '../services/player_settings.dart';
 import 'overlay_toast.dart';
 
 String dateLabel(DateTime dt, [AppLocalizations? l]) {
@@ -72,6 +73,29 @@ IconData historyIcon(PlaybackEventType type) {
     case PlaybackEventType.sessionStart: return Icons.fiber_manual_record_rounded;
     case PlaybackEventType.sessionEnd: return Icons.stop_circle_outlined;
     case PlaybackEventType.clickDebounce: return Icons.touch_app_rounded;
+  }
+}
+
+/// Lifts the shadows of cover art in e-ink mode. Dark covers (Project Hail
+/// Mary) render as a featureless black blob on an e-ink panel, so the tones
+/// get compressed into the panel's legible range: pure black comes up to a
+/// dark grey that still dithers with detail, white stays white. Off e-ink
+/// this is a pass-through.
+class EinkCoverTone extends StatelessWidget {
+  final Widget child;
+  const EinkCoverTone({super.key, required this.child});
+
+  static const _lift = ColorFilter.matrix(<double>[
+    0.8, 0, 0, 0, 51,
+    0, 0.8, 0, 0, 51,
+    0, 0, 0.8, 0, 51,
+    0, 0, 0, 1, 0,
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!PlayerSettings.einkMode) return child;
+    return ColorFiltered(colorFilter: _lift, child: child);
   }
 }
 
@@ -289,7 +313,7 @@ class _DownloadWideButtonState extends State<DownloadWideButton> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
           TextButton(onPressed: () {
-            dl.deleteDownload(widget.itemId);
+            dl.deleteDownload(widget.itemId, byUser: true);
             Navigator.pop(ctx);
             showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
           },

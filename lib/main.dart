@@ -26,6 +26,7 @@ import 'services/progress_sync_service.dart';
 import 'services/local_session_service.dart';
 import 'services/equalizer_service.dart';
 import 'services/sleep_timer_service.dart';
+import 'services/settings_sync_service.dart';
 import 'services/scoped_prefs.dart';
 import 'services/user_account_service.dart';
 import 'services/android_auto_service.dart';
@@ -80,6 +81,22 @@ ColorScheme manualColorScheme(Color seed, Brightness brightness) {
       : Colors.black;
   return base.copyWith(primary: seed, onPrimary: onSeed);
 }
+/// Route transition that just shows the page - e-ink panels smear animations
+/// into a mess of ghosting, so pages should simply appear.
+class _InstantPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _InstantPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) =>
+      child;
+}
+
 /// Whether to disable the fade animation when switching bottom nav tabs.
 final ValueNotifier<bool> snappyTransitionsNotifier = ValueNotifier(false);
 
@@ -144,6 +161,32 @@ void applyManualSeed(int argb) => manualSeedNotifier.value = Color(argb);
 void applyGradientIntensity(double value) => gradientIntensityNotifier.value = value;
 void applyUseColorEverywhere(bool value) => useColorEverywhereNotifier.value = value;
 
+/// E-ink mode overrides the theme (light, flat, monochrome, no animations)
+/// without touching the user's saved appearance settings. The notifier drives
+/// the theme rebuild; PlayerSettings.einkMode is the cheap check for
+/// non-widget code (socket gating, card backgrounds).
+final ValueNotifier<bool> einkModeNotifier = ValueNotifier(false);
+void applyEinkModeTheme(bool value) {
+  PlayerSettings.einkMode = value;
+  einkModeNotifier.value = value;
+}
+
+/// Push every appearance setting from storage into the notifiers that drive
+/// the theme. The individual appliers above are called by the settings screen
+/// as the user changes each one; this is for when the whole store is replaced
+/// underneath a running app - a settings-sync pull or a restore - where
+/// nothing has told the theme it moved.
+Future<void> applyAppearanceFromPrefs() async {
+  applyThemeMode(await PlayerSettings.getThemeMode());
+  applyFlatBackground(await PlayerSettings.getFlatBackground());
+  applyEinkModeTheme(await PlayerSettings.getEinkMode());
+  applyColorSource(await PlayerSettings.getColorSource());
+  applyManualSeed(await PlayerSettings.getManualSeedColor());
+  applyGradientIntensity(await PlayerSettings.getGradientIntensity());
+  applyUseColorEverywhere(await PlayerSettings.getUseColorEverywhere());
+  await applyOrientationLock();
+}
+
 /// Apply the saved rotation preference. When "lock portrait" is on the app is
 /// pinned to portrait; otherwise all orientations are allowed (the default).
 /// Safe to call any time the setting changes.
@@ -190,6 +233,7 @@ void main() async {
     }
     applyThemeMode(savedTheme);
     flatNotifier.value = await PlayerSettings.getFlatBackground();
+    applyEinkModeTheme(await PlayerSettings.getEinkMode());
     colorSourceNotifier.value = await PlayerSettings.getColorSource();
     manualSeedNotifier.value = Color(await PlayerSettings.getManualSeedColor());
     gradientIntensityNotifier.value = await PlayerSettings.getGradientIntensity();
@@ -200,6 +244,7 @@ void main() async {
     classicWordingNotifier.value = await PlayerSettings.getClassicWording();
     PlayerSettings.showExplicitBadge = await PlayerSettings.getShowExplicitBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
+    PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
     // Restore last cover seed color so the theme doesn't flash on startup
     {
       final seedInt = await PlayerSettings.getCoverSeedColor();
@@ -270,10 +315,12 @@ class AbsorbApp extends StatelessWidget {
         manualSeedNotifier,
         gradientIntensityNotifier,
         useColorEverywhereNotifier,
+        einkModeNotifier,
       ]),
       builder: (context, _) {
-        final currentMode = themeNotifier.value;
-        final isFlat = flatNotifier.value;
+        final isEink = einkModeNotifier.value;
+        final currentMode = isEink ? ThemeMode.light : themeNotifier.value;
+        final isFlat = flatNotifier.value || isEink;
         final overrideLocale = localeNotifier.value;
         // Japanese shares many codepoints with Chinese (Han unification) but
         // draws some kanji differently. Flutter on Android doesn't hint the
@@ -354,12 +401,50 @@ class AbsorbApp extends StatelessWidget {
           surfaceContainerHighest: isFlat ? const Color(0xFFEDEDED) : const Color(0xFFE0E0E0),
         );
 
-            const pageTransition = PageTransitionsTheme(
-              builders: {
-                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-              },
-            );
+        // E-ink panels dither mid greys into visible noise, so the light
+        // scheme goes monochrome high-contrast: black ink on white paper, and
+        // the color accents (which would render as grey anyway) become black.
+        if (isEink) {
+          lightScheme = lightScheme.copyWith(
+            primary: Colors.black,
+            onPrimary: Colors.white,
+            primaryContainer: Colors.white,
+            onPrimaryContainer: Colors.black,
+            secondary: Colors.black,
+            onSecondary: Colors.white,
+            // Selected chips/segments paint secondaryContainer - near-white
+            // reads as "nothing selected" on e-ink, so selection goes solid
+            // black with white text.
+            secondaryContainer: Colors.black,
+            onSecondaryContainer: Colors.white,
+            tertiary: Colors.black,
+            onTertiary: Colors.white,
+            tertiaryContainer: const Color(0xFFEFEFEF),
+            onTertiaryContainer: Colors.black,
+            onSurface: Colors.black,
+            onSurfaceVariant: Colors.black,
+            outline: Colors.black,
+            outlineVariant: Colors.black54,
+            surfaceTint: Colors.transparent,
+            inverseSurface: Colors.black,
+            onInverseSurface: Colors.white,
+            inversePrimary: Colors.white,
+          );
+        }
+
+            final pageTransition = isEink
+                ? const PageTransitionsTheme(
+                    builders: {
+                      TargetPlatform.android: _InstantPageTransitionsBuilder(),
+                      TargetPlatform.iOS: _InstantPageTransitionsBuilder(),
+                    },
+                  )
+                : const PageTransitionsTheme(
+                    builders: {
+                      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                    },
+                  );
 
             return MaterialApp(
               navigatorKey: rootNavigatorKey,
@@ -386,16 +471,37 @@ class AbsorbApp extends StatelessWidget {
                 colorScheme: lightScheme,
                 fontFamilyFallback: cjkFallback,
                 scaffoldBackgroundColor: lightScheme.surface,
+                // Ink ripples ghost on e-ink, so touch feedback goes silent.
+                splashFactory: isEink ? NoSplash.splashFactory : null,
+                highlightColor: isEink ? Colors.transparent : null,
                 cardTheme: CardThemeData(
                   color: lightScheme.surfaceContainerHigh,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
+                    // Near-white surfaces blend together on e-ink; a hairline
+                    // keeps cards readable as cards.
+                    side: isEink
+                        ? const BorderSide(color: Colors.black38)
+                        : BorderSide.none,
                   ),
                 ),
                 navigationBarTheme: NavigationBarThemeData(
                   backgroundColor: lightScheme.surface,
-                  indicatorColor: lightScheme.primary.withValues(alpha: 0.15),
+                  // E-ink: a solid black pill with a white icon beats a 15%
+                  // tint that dithers away.
+                  indicatorColor: isEink
+                      ? Colors.black
+                      : lightScheme.primary.withValues(alpha: 0.15),
+                  iconTheme: isEink
+                      ? WidgetStateProperty.resolveWith(
+                          (states) => IconThemeData(
+                            color: states.contains(WidgetState.selected)
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+                        )
+                      : null,
                   labelTextStyle: WidgetStatePropertyAll(
                     TextStyle(
                       fontSize: 11,
@@ -616,6 +722,7 @@ class _AuthGateState extends State<AuthGate> {
     }
     applyThemeMode(scopedTheme);
     flatNotifier.value = await PlayerSettings.getFlatBackground();
+    applyEinkModeTheme(await PlayerSettings.getEinkMode());
     colorSourceNotifier.value = await PlayerSettings.getColorSource();
     manualSeedNotifier.value = Color(await PlayerSettings.getManualSeedColor());
     gradientIntensityNotifier.value = await PlayerSettings.getGradientIntensity();
@@ -624,6 +731,7 @@ class _AuthGateState extends State<AuthGate> {
     classicWordingNotifier.value = await PlayerSettings.getClassicWording();
     PlayerSettings.showExplicitBadge = await PlayerSettings.getShowExplicitBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
+    PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
     // Rotation lock: main() applied it before scope was active, so that pass
     // read the never-written unscoped key and always came up unlocked. The
     // timeout matters: on a headless boot (Android Auto bind) there is no
@@ -693,6 +801,10 @@ class _AuthGateState extends State<AuthGate> {
     if (!AppPlatform.isWeb) {
       AudioPlayerService.onColdStartPlayRequested =
           HomeWidgetService().resumeLastPlayedIfAvailable;
+      // A headset press may have cold-launched this process into the background
+      // with the native core already playing - adopt that audio now rather than
+      // leaving the lock screen blank until the next press.
+      unawaited(AudioPlayerService().adoptBackgroundEngineIfRunning());
     }
     debugPrint('[Init] AudioPlayerService done (${sw.elapsedMilliseconds}ms)');
 
@@ -723,6 +835,9 @@ class _AuthGateState extends State<AuthGate> {
       await LocalSessionService().init();
       if (!AppPlatform.isWeb) await EqualizerService().init();
       await SleepTimerService().loadAutoSleepSettings();
+      // Watch for settings changes and pull the synced copy on the way in.
+      await SettingsSyncService().startIfEnabled();
+      unawaited(SettingsSyncService().onAppForegrounded());
       if (AppPlatform.isAndroid) {
         // Pre-populate Android Auto browse tree in background.
         Future.microtask(() => AndroidAutoService().refresh());

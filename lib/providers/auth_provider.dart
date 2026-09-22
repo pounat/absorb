@@ -506,37 +506,53 @@ class AuthProvider extends ChangeNotifier {
         // Load local server config
         await _loadLocalServerSettings();
 
-        // Check if server is actually reachable.
-        // If local server is enabled and we're on WiFi, try local first
-        // (lower latency) and only fall back to remote if local fails.
+        // Check if server is actually reachable. With a local address set,
+        // local and remote are pinged together: local answering inside two
+        // seconds wins outright, otherwise launch carries on with the remote
+        // answer and a local reply inside six seconds still switches the app
+        // over quietly. No WiFi gate any more - a local address can sit
+        // behind a VPN or Tailscale and answer on cellular, and a LAN address
+        // off its network just fails in the background at no cost to launch.
         var reachable = false;
         if (_localServerEnabled && _localServerUrl.isNotEmpty) {
           final connectivity = await Connectivity().checkConnectivity();
-          if (connectivity.contains(ConnectivityResult.wifi)) {
-            debugPrint(
-              '[Auth] On WiFi with local server enabled, trying local first... (${sw.elapsedMilliseconds}ms)',
-            );
-            final localReachable = await ApiService.pingServer(
-              _localServerUrl,
-              customHeaders: _customHeaders,
-            ).timeout(const Duration(seconds: 2), onTimeout: () => false);
-            if (localReachable) {
-              debugPrint(
-                '[Auth] Local server reachable - using local (${sw.elapsedMilliseconds}ms)',
-              );
-              _useLocalServer = true;
-              reachable = true;
-            }
-          }
-        }
-        if (!reachable) {
           debugPrint(
-            '[Auth] pinging remote server... (${sw.elapsedMilliseconds}ms)',
+            '[Auth] Local server enabled, pinging local and remote together '
+            '(net=${connectivity.map((c) => c.name).join(',')}) (${sw.elapsedMilliseconds}ms)',
           );
+          final localPing = ApiService.pingServer(
+            _localServerUrl,
+            customHeaders: _customHeaders,
+          ).timeout(const Duration(seconds: 6), onTimeout: () => false);
           // Cap at 5s so a silently-dropping reverse proxy or dead network
           // path doesn't hold up app launch. The health-check timer will
           // re-probe every 60s once we're past startup, so a transient
           // false-offline self-corrects quickly.
+          final remotePing = ApiService.pingServer(
+            restoredUrl,
+            customHeaders: _customHeaders,
+          ).timeout(const Duration(seconds: 5), onTimeout: () => false);
+          final localReachable = await localPing.timeout(
+            const Duration(seconds: 2),
+            onTimeout: () => false,
+          );
+          if (localReachable) {
+            debugPrint(
+              '[Auth] Local server reachable - using local (${sw.elapsedMilliseconds}ms)',
+            );
+            _useLocalServer = true;
+            reachable = true;
+          } else {
+            unawaited(localPing.then(_adoptLateLocalAnswer));
+            reachable = await remotePing;
+            debugPrint(
+              '[Auth] remote ping result: reachable=$reachable (${sw.elapsedMilliseconds}ms)',
+            );
+          }
+        } else {
+          debugPrint(
+            '[Auth] pinging remote server... (${sw.elapsedMilliseconds}ms)',
+          );
           reachable = await ApiService.pingServer(
             restoredUrl,
             customHeaders: _customHeaders,
@@ -742,6 +758,10 @@ class AuthProvider extends ChangeNotifier {
     _refreshToken = tokens.refreshToken;
     _serverReachable = true;
     debugPrint('[Auth] Login response keys: ${result.keys.toList()}');
+    final serverSettings = result['serverSettings'];
+    debugPrint('[Auth] Server version='
+        '${serverSettings is Map ? serverSettings['version'] : null} '
+        'source=${result['Source']}');
     debugPrint('[Auth] Login user keys: ${user.keys.toList()}');
     debugPrint(
       '[Auth] accessToken=${tokens.accessToken != null}, refreshToken=${tokens.refreshToken != null}, legacyToken=${tokens.legacyToken != null}, isLegacy=$_isLegacyToken',
@@ -1076,6 +1096,21 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// The launch-time local ping answering after the two-second decision
+  /// already went to remote. Switch quietly; the library reloads on the
+  /// local address through the usual auth notification.
+  void _adoptLateLocalAnswer(bool reachable) {
+    if (!reachable || _useLocalServer) return;
+    if (!_localServerEnabled || _localServerUrl.isEmpty || _serverUrl == null) {
+      return;
+    }
+    _useLocalServer = true;
+    _serverReachable = true;
+    debugPrint('[Auth] Local server answered late - switching to local');
+    SocketService().switchServer(activeServerUrl!);
+    notifyListeners();
+  }
+
   /// Check if the configured local server is reachable.
   /// Called on WiFi connectivity changes by LibraryProvider.
   Future<void> checkLocalServer() async {
@@ -1087,7 +1122,7 @@ class AuthProvider extends ChangeNotifier {
       final reachable = await ApiService.pingServer(
         _localServerUrl,
         customHeaders: _customHeaders,
-      ).timeout(const Duration(seconds: 3), onTimeout: () => false);
+      ).timeout(const Duration(seconds: 6), onTimeout: () => false);
       _useLocalServer = reachable;
       if (reachable) _serverReachable = true;
     } catch (_) {
@@ -1296,6 +1331,7 @@ class AuthProvider extends ChangeNotifier {
     PlayerSettings.showExplicitBadge =
         await PlayerSettings.getShowExplicitBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
+    PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
 
     // Reload EQ settings from the new account's scope. Without this the
     // EqualizerService singleton keeps the previous account's in-memory

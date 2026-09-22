@@ -18,7 +18,7 @@ import org.json.JSONObject
  *
  * Android Auto cannot load HTTP or file:// URIs directly — it requires
  * content:// URIs.  This provider maps:
- *   content://com.barnabas.absorb.covers/cover/<itemId>
+ *   content://<applicationId>.covers/cover/<itemId>
  *
  * Lookup order:
  *   1. Locally downloaded cover (item's download directory)
@@ -28,12 +28,16 @@ import org.json.JSONObject
 class CoverContentProvider : ContentProvider() {
 
     companion object {
-        const val AUTHORITY = "com.barnabas.absorb.covers"
         private const val TAG = "CoverProvider"
         private val refreshLock = Any()
 
-        fun buildCoverUri(itemId: String): Uri {
-            return Uri.parse("content://$AUTHORITY/cover/$itemId")
+        // Per install: the dev flavor sits beside the stable app under its own
+        // application id, and two apps can't share a provider authority.
+        fun authority(context: android.content.Context): String =
+            "${context.packageName}.covers"
+
+        fun buildCoverUri(context: android.content.Context, itemId: String): Uri {
+            return Uri.parse("content://${authority(context)}/cover/$itemId")
         }
     }
 

@@ -1,0 +1,3 @@
+packages/** linguist-vendored
+assets/foliate/** linguist-vendored
+lib/l10n/app_localizations*.dart linguist-generated

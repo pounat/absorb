@@ -392,6 +392,14 @@
     }
   },
   "bookmarksTitle": "Alle Lesezeichen",
+  "bookmarksTabBookmarks": "Lesezeichen",
+  "highlightOpenInBook": "In Buch öffnen",
+  "quoteShareAction": "Teilen",
+  "quoteShapePortrait": "Portrait",
+  "quoteShapeSquare": "Quadrat",
+  "quoteShapeStory": "Geschichte",
+  "quoteFieldTitle": "Titel",
+  "quoteFieldDetail": "Details",
   "bookmarksCancelSelection": "Auswahl aufheben",
   "bookmarksSortedByNewest": "Sortiert nach neuesten",
   "bookmarksSortedByPosition": "Sortiert nach Position",
@@ -608,8 +616,7 @@
   "settingsPodcastTabDesc": "Gib einer Podcast-Bibliothek einen eigenen Tab in der unteren Leiste",
   "settingsPodcastTabLibrary": "Podcasts Registerkarte",
   "settingsMergeImpliedByPodcastTab": "Immer eingeschaltet, während der Podcasts-Tab aktiviert ist",
-  "settingsEpisodeNotifs": "Benachrichtigung für neue Folgen",
-  "settingsEpisodeNotifsDesc": "Abonnierte Podcasts im Hintergrund prüfen",
+  "settingsEpisodeNotifs": "Benachrichtigungseinstellungen",
   "notifIntervalOff": "Aus",
   "notifIntervalMinutes": "Alle {n} Minuten",
   "@notifIntervalMinutes": {
@@ -654,6 +661,8 @@
   "useColorEverywhereSubtitle": "Nutze die benutzerdefinierte Farbe statt der dynamischen für die Buchdetails und die Wiedergabekarten",
   "flatBackgroundLabel": "Flacher Hintergrund",
   "flatBackgroundSubtitle": "Hintergrundverlauf entfernen. Schwarz im Dunkelmodus für OLED-Bildschirme.",
+  "einkModeLabel": "E-Ink Modus",
+  "einkModeIntroConfirm": "Einschalten",
   "backgroundIntensityLabel": "Hintergrundintensität",
   "startScreenLabel": "Startbildschirm",
   "startScreenSubtitle": "Welcher Tab beim Start der App geöffnet wird",
@@ -668,6 +677,10 @@
   "progressTextSize": "Fortschritts-Textgröße",
   "rectangleBookCoversOnSubtitle": "Cover werden im 2:3-Buchformat angezeigt",
   "rectangleBookCoversOffSubtitle": "Cover sind quadratisch",
+  "coverSize": "Cover Größe",
+  "coverSizeSmall": "Klein",
+  "coverSizeMedium": "Mittel",
+  "coverSizeLarge": "Groß",
   "sectionAbsorbingCards": "Absorbing-Karten",
   "fullScreenPlayer": "Vollbild-Player",
   "fullScreenPlayerOnSubtitle": "An - Bücher öffnen sich beim Abspielen im Vollbild",
@@ -683,7 +696,6 @@
   "cardScrubbersChapterSubtitle": "Nur die Kapitelleiste kann suchen",
   "cardScrubbersLockedSubtitle": "Fortschritt wird angezeigt, ohne zu suchen",
   "speedAdjustedTime": "Geschwindigkeitsangepasste Zeit",
-  "speedAdjustedTimeOnSubtitle": "An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit",
   "speedAdjustedTimeOffSubtitle": "Aus - zeigt die reine Audiodauer",
   "buttonLayout": "Button-Anordnung",
   "buttonLayoutSubtitle": "Wie die Aktions-Buttons auf der Karte angeordnet sind",
@@ -741,6 +753,10 @@
   "queueModeBooks": "Bücher",
   "queueModePodcasts": "Podcasts",
   "autoDownloadQueue": "Auto-Download-Warteschlange",
+  "autoDownloadThisSeriesLabel": "Diese Serie automatisch herunterladen",
+  "autoDownloadThisShowLabel": "Diesen Podcast automatisch herunterladen",
+  "autoDownloadThisPlaylistLabel": "Wiedergabeliste automatisch herunterladen",
+  "autoDownloadThisCollectionLabel": "Diese Sammlung automatisch herunterladen",
   "autoDownloadQueueOnSubtitle": "Die nächsten {count} Inhalte heruntergeladen halten",
   "@autoDownloadQueueOnSubtitle": {
     "placeholders": {
@@ -843,6 +859,7 @@
   "shakeAddTime": "Zeit hinzufügen",
   "shakeReset": "Zurücksetzen",
   "shakeAdds": "Schütteln fügt hinzu",
+  "sleepAddAmount": "Zeit hinzufügen",
   "shakeAddsValue": "{minutes} Min.",
   "@shakeAddsValue": {
     "placeholders": {
@@ -924,6 +941,10 @@
   "autoDownloadOnWifiOffSubtitle": "Aus",
   "concurrentDownloads": "Gleichzeitige Downloads",
   "autoDownload": "Auto-Download",
+  "autoDownloadSubtitle": "Aktiviere pro Serie, Podcast, Wiedergabeliste oder Sammlung über deren Detailseiten",
+  "autoDownloadEnabledFor": "Eingeschaltet für",
+  "autoDownloadEnabledForNone": "Noch nichts",
+  "autoDownloadSourceUnnamed": "Noch nicht geladen",
   "keepNext": "Nächste behalten",
   "keepNextInfoTitle": "Nächste behalten",
   "deleteAbsorbedDownloads": "Absorbed Downloads löschen",
@@ -1670,6 +1691,9 @@
   "asinLabel": "ASIN",
   "isbnLabel": "ISBN",
   "coverImage": "Coverbild",
+  "coverRemove": "Cover entfernen",
+  "coverRemoved": "Cover entfernt",
+  "coverRemoveFailed": "Konnte Cover nicht entfernen",
   "coverUrlLabel": "Cover-URL",
   "coverUrlHint": "https://...",
   "localMetadata": "Lokale Metadaten",
@@ -1703,6 +1727,28 @@
   "deleteCollectionContent": "Möchtest du diese Sammlung wirklich löschen?",
   "deleteCollectionFailed": "Sammlung konnte nicht gelöscht werden",
   "deletePermissionRequired": "Löschberechtigung erforderlich. Bitte wende dich hierzu an den Administrator.",
+  "deleteFilesCheckbox": "Dateien auf dem Server ebenfalls löschen",
+  "deleteFilesCheckedHint": "Die Dateien werden auf dem Server endgültig gelöscht.",
+  "deleteFilesUncheckedHint": "Die Dateien bleiben auf dem Server. Ein erneuter Scan kann sie wieder hinzufügen.",
+  "deleteFromServerAction": "Vom Server löschen",
+  "deleteFromServerTitle": "Vom Server löschen",
+  "deleteFromServerContent": "\"{title}\" aus Audiobookshelf entfernen?",
+  "@deleteFromServerContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deletedFromServer": "\"{title}\" gelöscht",
+  "@deletedFromServer": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFromServerFailed": "Konnte dies nicht löschen. Überprüfe die Server-Protokolle.",
   "playlistNotFound": "Playlist nicht gefunden",
   "deletePlaylist": "Playlist löschen",
   "deletePlaylistContent": "Möchtest du diese Playlist wirklich löschen?",
@@ -1748,6 +1794,7 @@
   "saved": "Heruntergeladen",
   "selectLibrary": "Bibliothek auswählen",
   "switchLibraryTooltip": "Bibliothek wechseln",
+  "refreshTooltip": "Aktualisieren",
   "noBooksFound": "Keine Bücher gefunden",
   "userFallback": "Benutzer",
   "rootAdmin": "Root-Admin",
@@ -2092,14 +2139,6 @@
     }
   },
   "deleteBookmarkQuestion": "Lesezeichen löschen?",
-  "bookmarkAtPosition": "Lesezeichen bei {position}",
-  "@bookmarkAtPosition": {
-    "placeholders": {
-      "position": {
-        "type": "String"
-      }
-    }
-  },
   "cardIconsOnlyChip": "Nur Symbole",
   "cardMoreInGridChip": "\"Mehr\" im Raster",
   "cardLayoutHidden": "Ausgeblendet",
@@ -2223,6 +2262,22 @@
   "adminMissingBadge": "Fehlend",
   "adminInvalidBadge": "Ungültig",
   "adminMissingDeleteTitle": "Eintrag entfernen",
+  "adminMissingDeleteOneContent": "\"{title}\" aus Audiobookshelf entfernen?",
+  "@adminMissingDeleteOneContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingDeleteManyContent": "{count} Einträge aus Audiobookshelf entfernen?",
+  "@adminMissingDeleteManyContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminMissingDeleteCount": "\"{count}\" löschen?",
   "@adminMissingDeleteCount": {
     "placeholders": {
@@ -2631,6 +2686,10 @@
   "adminPodcastsAutoDownloadOnSubtitle": "Server lädt neue Episoden automatisch herunter",
   "adminPodcastsAutoDownloadOffSubtitle": "Neue Episoden werden nicht automatisch heruntergeladen",
   "adminPodcastsFailedAutoDownloadUpdate": "Auto-Download-Einstellung konnte nicht aktualisiert werden",
+  "adminPodcastsMaxEpisodesToKeep": "Anzahl zu behaltender Episoden",
+  "adminPodcastsMaxEpisodesToKeepHelp": "0 behält alle Episoden. Nachdem eine neue Episode heruntergeladen wurde, wird die älteste Episode entfernt so fern das Limit erreicht wurde.",
+  "adminPodcastsNoEpisodeLimit": "Kein Limit",
+  "adminPodcastsEpisodeLimitInvalid": "0 oder eine ganze Zahl eingeben",
   "adminPodcastsCheckSchedule": "Prüfplan",
   "adminPodcastsFrequency": "Häufigkeit",
   "adminPodcastsFreqHourly": "Stündlich",
@@ -2729,6 +2788,13 @@
   "episodeListExplicitChip": "Explizit",
   "episodeListSortNewest": "Neueste",
   "episodeListSortOldest": "Älteste",
+  "episodeListSortBy": "Episoden sortieren",
+  "episodeListSortPubDate": "Veröffentlichungsdatum",
+  "episodeListSortTitle": "Titel",
+  "episodeListSortSeason": "Staffel",
+  "episodeListSortEpisode": "Episoden Nummer",
+  "episodeListSortFileName": "Dateiname",
+  "episodeListSortReverseHint": "Erneut tippen, um Reihenfolge umzukehren",
   "episodeListAddedToAbsorbing": "\"{title}\" zu Absorbing hinzugefügt",
   "@episodeListAddedToAbsorbing": {
     "placeholders": {
@@ -3140,6 +3206,86 @@
   "upcomingReleasesBadgeUpcoming": "KOMMEND",
   "upcomingReleasesBadgeAdded": "HINZUGEFÜGT",
   "upcomingReleasesBadgeMissing": "FEHLT",
+  "upcomingReleasesScanSettingsTitle": "Scan Einstellungen",
+  "upcomingReleasesFinishedAfterNever": "Niemals",
+  "upcomingReleasesSkippedTitle": "Übersprungene Serien",
+  "upcomingReleasesSkippedNone": "Noch nichts übersprungen",
+  "upcomingReleasesSkippedScanNow": "Jetzt scannen",
+  "upcomingReleasesSkippedAlwaysScan": "Immer scannen",
+  "upcomingReleasesSkippedNeverScan": "Niemals scannen",
+  "upcomingReleasesSkippedScanFound": "Neue Veröffentlichungen in {name} gefunden",
+  "@upcomingReleasesSkippedScanFound": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "upcomingReleasesSkippedScanNone": "Nichts Neues in {name}",
+  "@upcomingReleasesSkippedScanNone": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "upcomingReleasesSkippedOtherLibrary": "Diese Liste kam aus einer anderen Bibliothek. Neu scannen zum Aktualisieren.",
+  "upcomingReleasesChipUpcoming": "Bevorstehend",
+  "upcomingReleasesChipMissing": "{count, plural, one {}=0{fehlt} =1{1 fehlt} other{{count} fehlen}}",
+  "@upcomingReleasesChipMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesNoMissing": "Keine fehlenden Bücher gefunden",
+  "upcomingReleasesScanSeries": "Serie scannen",
+  "upcomingReleasesScanUpcomingOption": "Bevorstehende Veröffentlichungen",
+  "upcomingReleasesScanUpcomingOptionDesc": "Schneller Scan nach neuen und bevorstehenden Büchern",
+  "upcomingReleasesScanDeepOption": "Tiefer Scan",
+  "upcomingReleasesLastScanReport": "Letzter Scan-Report",
+  "upcomingReleasesReportChecked": "Auf Audible überprüft: {count}",
+  "@upcomingReleasesReportChecked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportSkipped": "Übersprungen: {count}",
+  "@upcomingReleasesReportSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportUnmatched": "Nicht auf Audible gefunden: {count}",
+  "@upcomingReleasesReportUnmatched": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBadgeNew": "NEU",
+  "upcomingReleasesOpenLibrarySeries": "Serie in Bibliothek öffnen",
+  "upcomingReleasesAsinCopied": "Serien ASIN kopiert",
+  "upcomingReleasesSetSeriesAsin": "Serien ASIN setzen",
+  "upcomingReleasesSetAsinSave": "Speichern",
+  "upcomingReleasesRestore": "Wiederherstellen",
+  "upcomingReleasesRestoredToast": "Wiederhergestellt",
+  "upcomingReleasesRestoredNextScan": "Wiederhergestellt - wird nach dem nächsten Scan angezeigt",
+  "upcomingReleasesBulkRemove": "Entfernen",
+  "upcomingReleasesBulkRequestSkipped": "{count} Übersprungen",
+  "@upcomingReleasesBulkRequestSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeScreenEpisodeFallback": "Episode",
   "libraryScreenUnknownTitle": "Unbekannter Titel",
   "playlistDetailDefaultName": "Playlist",
@@ -3335,8 +3481,7 @@
   },
   "notesExport": "Exportieren",
   "notesNewNote": "Neue Notiz",
-  "librarySortFilterUpcomingReleases": "Kommende Veröffentlichungen",
-  "librarySortFilterUpcomingReleasesSubtitle": "Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen",
+  "librarySortFilterUpcomingReleases": "Serien Scan",
   "sleepTimerSheetChaptersLeft": "{count, plural, =1{Noch 1 Kapitel} other{Noch {count} Kapitel}}",
   "@sleepTimerSheetChaptersLeft": {
     "placeholders": {
@@ -3525,7 +3670,6 @@
   "tipsSheetTapToSeekTitle": "Tippen zum Spulen",
   "tipsSheetTapToSeekDesc": "Tippe irgendwo auf den Kapitel- oder Buchfortschrittsbalken, um direkt zu dieser Stelle zu springen. Du kannst die Balken auch ziehen, um feiner zu steuern.",
   "tipsSheetSpeedAdjustedTimeTitle": "Geschwindigkeitsangepasste Zeit",
-  "tipsSheetSpeedAdjustedTimeDesc": "Restzeit und Kapitelzeiten passen sich automatisch deiner Wiedergabegeschwindigkeit an. Hörst du mit 1,5x? Die angezeigte Zeit zeigt, wie lange es tatsächlich dauert.",
   "tipsSheetPlaybackHistoryTitle": "Wiedergabe-Verlauf",
   "tipsSheetPlaybackHistoryDesc": "Tippe auf einer Karte auf den Verlaufs-Button, um eine Zeitleiste mit jeder Wiedergabe, Pause, Sprung und Geschwindigkeitsänderung zu sehen. Tippe auf ein Ereignis, um zu dieser Stelle zurückzuspringen.",
   "tipsSheetAutoRewindTitle": "Auto-Zurückspulen",
@@ -3548,6 +3692,10 @@
   "tipsSheetCarModeDesc": "Tippe auf das Auto-Symbol, um in den Modus mit großen Buttons zu wechseln, der für sicherere Bedienung beim Fahren gedacht ist.",
   "tipsSheetAudibleSeriesTitle": "Audible-Serien-Suche",
   "tipsSheetAudibleSeriesDesc": "Öffne eine Serie und tippe auf das Drei-Punkte-Symbol, um die komplette Serienliste von Audible zu laden, inklusive fehlender Einträge und noch nicht gestarteter Bücher.",
+  "tipsSheetTranscribeBookmarkTitle": "Lesezeichen transkribieren",
+  "tipsSheetFindBetweenFormatsTitle": "Wechsel zwischen Hörbuch und eBook",
+  "tipsSheetClipExportTitle": "Audio-Clips exportieren",
+  "tipsSheetClipExportDesc": "Öffne ein Lesezeichen und tippe Clip exportieren um einen kurzen Audioschnipsel des Buches, inklusive Coverart zu erstellen - Super um deine Lieblings Szenen zu teilen.",
   "bookCardUnknownTitle": "Unbekannter Titel",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Fertig",
@@ -3714,10 +3862,12 @@
       }
     }
   },
+  "statsWeekStartsOn": "Wochenbeginn",
   "episodeListNewEpisodePosition": "Position neuer Folgen",
   "episodeListPositionTop": "Anfang der Warteschlange",
   "episodeListPositionSecond": "Zweite in der Warteschlange",
   "episodeListPositionEnd": "Ende der Warteschlange",
+  "episodeListPositionNone": "Nicht zur Warteschlange hinzufügen",
   "lpQueueDownloadingItems": "{count, plural, =1{Warteschlange: 1 Eintrag wird heruntergeladen} other{Warteschlange: {count} Einträge werden heruntergeladen}}",
   "@lpQueueDownloadingItems": {
     "placeholders": {
@@ -4348,6 +4498,68 @@
   "readerBookmarkDefault": "Lesezeichen",
   "readerNoteTitle": "Notiz",
   "readerNoteHint": "Notiz hinzufügen...",
+  "syncSettingsExperimental": "Experimentell",
+  "syncSettingsConnection": "Verbindung",
+  "syncSettingsConnectionNotSet": "Nicht eingerichtet",
+  "syncSettingsIncludeRmab": "ReadMeABook Einstellungen",
+  "syncSettingsOk": "Verbunden",
+  "syncSettingsNoRemote": "Verbunden - noch nichts Synchronisiert",
+  "syncSettingsAuthFailed": "Falscher Benutzername oder Passwort",
+  "syncSettingsNetworkError": "Adresse konnte nicht erreicht werden",
+  "syncSettingsNotConfigured": "Zuerst Adresse, Benutzername und Passwort ausfüllen",
+  "syncSettingsTooLarge": "Einstellungen zu groß zum synchronisieren",
+  "syncSettingsUploaded": "Einstellungen hochgeladen",
+  "syncSettingsApplied": "Einstellungen von anderem Gerät aktualisiert",
+  "syncSettingsUpToDate": "Bereits auf dem neusten Stand",
+  "syncSettingsLastSynced": "Zuletzt synchronisiert {when}",
+  "@syncSettingsLastSynced": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSettingsNever": "Noch nicht synchronisiert",
+  "navHoldAskNextTime": "Erneut fragen",
+  "navHoldNothing": "Nichts",
+  "navHoldPlayPause": "Play / Pause",
+  "navHoldOfflineMode": "Offline Modus",
+  "navHoldOfflineOn": "Offline Modus an",
+  "navHoldOfflineOff": "Offline Modus aus",
+  "navHoldMenu": "Menü immer anzeigen",
+  "navHoldStop": "Wiedergabe stoppen",
+  "bookStatsAction": "Hörstatistik",
+  "bookStatsYou": "Du",
+  "bookStatsEveryone": "Jeder",
+  "bookStatsListened": "Gehörte Zeit",
+  "bookStatsSessions": "Sitzungen",
+  "bookStatsFirst": "Zuerst gehört",
+  "bookStatsLast": "Zuletzt gehört",
+  "bookStatsListeners": "Nutzer die es angefangen haben",
+  "bookStatsFinishedCount": "Nutzer die es beendet haben",
+  "bookStatsTotalTime": "Gehörte Zeit aller Nutzer",
+  "bookStatsNobody": "Noch niemand hat es gehört",
+  "navHoldScanAll": "Alle Bibliotheken scannen",
+  "navHoldScanLibrary": "Scanne {name}",
+  "@navHoldScanLibrary": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "navHoldScanStarted": "Scan gestartet",
+  "navHoldScanFailed": "Kann Scan nicht starten",
+  "navHoldAdminLogs": "Server Logs",
+  "navHoldAdminPage": "Admin: {page}",
+  "@navHoldAdminPage": {
+    "placeholders": {
+      "page": {
+        "type": "String"
+      }
+    }
+  },
+  "navHoldReadBook": "Aktuelles Buch lesen",
   "readerCopied": "In Zwischenablage kopiert",
   "readerTooltipCopy": "Kopieren",
   "readerTooltipSearch": "Suchen",
@@ -4373,11 +4585,18 @@
       }
     }
   },
-  "autoDownloadSubtitle": "Pro Serie oder Podcast über deren Detailseiten aktivieren",
+  "findInEbookNoEbook": "Dieses Buch hat kein eBook.",
+  "findInAudiobook": "Im Hörbuch finden",
+  "findInAudiobookSearching": "Suche nach dieser Stelle im Hörbuch...",
+  "findInAudiobookNotFound": "Konnte diese Stelle nicht im Hörbuch finden.",
+  "transcriptionWhisperInfo": "Transkriptionen werden von Whisper erstellt. Einer Open-Source Spracherkennung. Alles lokal auf diesem Gerät.",
+  "transcriptionWhisperLearnMore": "Mehr über Whisper erfahren",
+  "findInAudiobookStay": "Weiterlesen",
+  "findInAudiobookGoPlayer": "Im Player öffnen",
+  "settingsEpisodeNotifsDesc": "Abonnierte Podcasts im Hintergrund prüfen",
+  "speedAdjustedTimeOnSubtitle": "An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit",
+  "librarySortFilterUpcomingReleasesSubtitle": "Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen",
+  "tipsSheetSpeedAdjustedTimeDesc": "Restzeit und Kapitelzeiten passen sich automatisch deiner Wiedergabegeschwindigkeit an. Hörst du mit 1,5x? Die angezeigte Zeit zeigt, wie lange es tatsächlich dauert.",
   "keepNextInfoContent": "Die Anzahl der Elemente, die heruntergeladen bleiben sollen, einschließlich des Elements, das du gerade hörst. Beispiel: \"Nächste 3 behalten\" bedeutet, das aktuelle Buch plus die nächsten 2 in der Serie oder im Podcast bleiben heruntergeladen.",
-  "deleteAbsorbedDownloadsInfoContent": "Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von diesem Gerät gelöscht, nachdem du sie in Absorb zu Ende gehört hast. Wenn du einen Titel im Web oder auf einem anderen Gerät beendest, bleibt der Download hier erhalten.",
-  "adminMissingDeleteOneContent": "\"{title}\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.",
-  "@adminMissingDeleteOneContent": {"placeholders": {"title": {"type": "String"}}},
-  "adminMissingDeleteManyContent": "\"{count}\" aus Audiobookshelf entfernen? Die Dateien auf der Festplatte werden nicht gelöscht.",
-  "@adminMissingDeleteManyContent": {"placeholders": {"count": {"type": "int"}}}
+  "deleteAbsorbedDownloadsInfoContent": "Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von diesem Gerät gelöscht, nachdem du sie in Absorb zu Ende gehört hast. Wenn du einen Titel im Web oder auf einem anderen Gerät beendest, bleibt der Download hier erhalten."
 }
