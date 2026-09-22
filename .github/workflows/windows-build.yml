@@ -11,7 +11,10 @@ on:
 jobs:
   build:
     name: Build Windows app
-    runs-on: windows-latest
+    # windows-latest is the VS 2026 image, whose STL turns the deprecated
+    # <experimental/coroutine> include in flutter_inappwebview_windows and
+    # permission_handler_windows into a hard error. VS 2022 only warns.
+    runs-on: windows-2022
     timeout-minutes: 90
 
     steps:
