@@ -88,7 +88,7 @@ class _GridBookTileState extends State<GridBookTile> {
     final unfinishedCount =
         lib.isPodcastLibrary ? lib.getUnfinishedEpisodeCount(widget.item) : 0;
 
-    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.isWeb);
+    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.lacksPhonePlugins);
     final canEdit = itemId.isNotEmpty &&
         !lib.isPodcastLibrary &&
         !lib.isOffline &&

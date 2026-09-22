@@ -626,7 +626,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            if (!AppPlatform.isWeb) ...[
+            if (!AppPlatform.lacksPhonePlugins) ...[
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(

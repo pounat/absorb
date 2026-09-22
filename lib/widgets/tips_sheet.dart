@@ -92,7 +92,7 @@ void showTipsSheet(BuildContext context) {
               title: w.tipsSheetQuickAddAbsorbingTitle,
               desc: w.tipsSheetQuickAddAbsorbingDesc,
             ),
-            if (!AppPlatform.isWeb)
+            if (!AppPlatform.lacksPhonePlugins)
               _tipCard(cs, tt,
                 icon: Icons.vibration_rounded,
                 title: l.tipsSheetShakeExtendSleepTitle,
@@ -133,7 +133,7 @@ void showTipsSheet(BuildContext context) {
               title: l.tipsSheetSeriesQueueModeTitle,
               desc: l.tipsSheetSeriesQueueModeDesc,
             ),
-            if (!AppPlatform.isWeb)
+            if (!AppPlatform.lacksPhonePlugins)
               _tipCard(cs, tt,
                 icon: Icons.airplanemode_active_rounded,
                 title: l.tipsSheetOfflineModeTitle,
@@ -144,7 +144,7 @@ void showTipsSheet(BuildContext context) {
               title: l.tipsSheetUpcomingReleasesTitle,
               desc: l.tipsSheetUpcomingReleasesDesc,
             ),
-            if (!AppPlatform.isWeb)
+            if (!AppPlatform.lacksPhonePlugins)
               _tipCard(cs, tt,
                 icon: Icons.equalizer_rounded,
                 title: l.tipsSheetPerBookEqTitle,
@@ -165,7 +165,7 @@ void showTipsSheet(BuildContext context) {
               title: l.tipsSheetSleepFadeChimeTitle,
               desc: l.tipsSheetSleepFadeChimeDesc,
             ),
-            if (!AppPlatform.isWeb)
+            if (!AppPlatform.lacksPhonePlugins)
               _tipCard(cs, tt,
                 icon: Icons.directions_car_rounded,
                 title: l.tipsSheetCarModeTitle,

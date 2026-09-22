@@ -199,7 +199,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
   }
 
   Future<void> _download() async {
-    if (AppPlatform.isWeb) return;
+    if (AppPlatform.lacksPhonePlugins) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -404,7 +404,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
 
             // Download + Finished row
             Row(children: [
-              if (!AppPlatform.isWeb) ...[
+              if (!AppPlatform.lacksPhonePlugins) ...[
                 Expanded(child: _downloadCell(cs, l, dlKey)),
                 const SizedBox(width: 8),
               ],
@@ -670,7 +670,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       _playButton(cs, tt, l, progress, isFinished),
       const SizedBox(height: 10),
       Row(children: [
-        if (!AppPlatform.isWeb) ...[
+        if (!AppPlatform.lacksPhonePlugins) ...[
           Expanded(child: _downloadCell(cs, l, dlKey)),
           const SizedBox(width: 8),
         ],

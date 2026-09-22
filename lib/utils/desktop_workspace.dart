@@ -88,7 +88,7 @@ NavigatorState contentNavigator(BuildContext context) =>
 /// MediaQuery whose size is overridden to the content pane, which would
 /// disagree with the shell's own breakpoint between 960 and ~1208px.
 bool isDesktopWorkspace(BuildContext context) {
-  if (!AppPlatform.isWeb) return false;
+  if (!AppPlatform.lacksPhonePlugins) return false;
   if (DesktopWorkspaceScope.isActive(context)) return true;
   // Subscribe to size changes so callers rebuild on window resize.
   MediaQuery.sizeOf(context);

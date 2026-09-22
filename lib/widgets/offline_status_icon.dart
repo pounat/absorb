@@ -18,7 +18,7 @@ class OfflineStatusIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (AppPlatform.isWeb) return const SizedBox.shrink();
+    if (AppPlatform.lacksPhonePlugins) return const SizedBox.shrink();
     final lib = context.watch<LibraryProvider>();
     final auth = context.watch<AuthProvider>();
     final l = AppLocalizations.of(context)!;

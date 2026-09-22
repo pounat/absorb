@@ -2884,7 +2884,7 @@ class AudioPlayerService extends ChangeNotifier {
       // Configure streaming cache if enabled
       final cacheSizeMb = await PlayerSettings.getStreamingCacheSizeMb();
       debugPrint('[Player] Streaming cache setting: $cacheSizeMb MB');
-      if (!AppPlatform.isWeb && cacheSizeMb > 0) {
+      if (!AppPlatform.lacksPhonePlugins && cacheSizeMb > 0) {
         try {
           await AudioPlayer.configureStreamingCache(cacheSizeMb);
           debugPrint('[Player] Streaming cache configured: $cacheSizeMb MB');
@@ -2964,7 +2964,7 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// Check if BT audio (A2DP/SCO) is currently connected via native AudioManager.
   static Future<bool> _isBluetoothAudioConnected() async {
-    if (AppPlatform.isWeb) return false;
+    if (AppPlatform.lacksPhonePlugins) return false;
     try {
       final result = await _eqChannel.invokeMethod<bool>(
         'isBluetoothAudioConnected',
@@ -2986,7 +2986,7 @@ class AudioPlayerService extends ChangeNotifier {
   static bool get wasNoisyPause => _noisyPause;
 
   static Future<void> _configureAudioSession() async {
-    if (AppPlatform.isWeb) return;
+    if (AppPlatform.lacksPhonePlugins) return;
     final session = await AudioSession.instance;
     _duckBriefInterruptions =
         AppPlatform.isAndroid &&
@@ -4015,7 +4015,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   static Future<bool?> _setAudioSessionActive(bool active) async {
-    if (AppPlatform.isWeb) return null;
+    if (AppPlatform.lacksPhonePlugins) return null;
     return (await AudioSession.instance).setActive(active);
   }
 
@@ -4073,7 +4073,7 @@ class AudioPlayerService extends ChangeNotifier {
           unawaited(
             _progressSync.addTimeSaved(streamingSeconds, _player?.speed ?? 1.0),
           );
-          if (!AppPlatform.isWeb) {
+          if (!AppPlatform.lacksPhonePlugins) {
             unawaited(
               HomeWidgetService().addLocalListeningSeconds(streamingSeconds),
             );
@@ -5355,7 +5355,7 @@ class AudioPlayerService extends ChangeNotifier {
     // screen shows artwork even when the user is offline. Fall back to the
     // remote HTTP URL when there's no local cover (streaming).
     String? effectiveCoverUrl;
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       effectiveCoverUrl = coverUrl;
     } else if (AppPlatform.isIOS) {
       final localCover = DownloadService().getInfo(itemId).localCoverPath;
@@ -6096,7 +6096,7 @@ class AudioPlayerService extends ChangeNotifier {
                 unawaited(
                   _progressSync.addTimeSaved(secs, _player?.speed ?? 1.0),
                 );
-                if (!AppPlatform.isWeb) {
+                if (!AppPlatform.lacksPhonePlugins) {
                   unawaited(HomeWidgetService().addLocalListeningSeconds(secs));
                 }
                 if (online) await LocalSessionService().pushActive(api: _api!);
@@ -6108,7 +6108,7 @@ class AudioPlayerService extends ChangeNotifier {
                   _progressSync.addTimeSaved(secs, _player?.speed ?? 1.0),
                 );
                 // Widget ticks forward even when the server is unreachable.
-                if (!AppPlatform.isWeb) {
+                if (!AppPlatform.lacksPhonePlugins) {
                   unawaited(HomeWidgetService().addLocalListeningSeconds(secs));
                 }
                 _lastServerSync = DateTime.now();
@@ -6672,7 +6672,7 @@ class AudioPlayerService extends ChangeNotifier {
     if (ok && elapsed > 0) {
       // Tick the StatsWidget forward locally so "today" stays fresh between
       // 15-min authoritative refreshes (which Android Doze throttles).
-      if (!AppPlatform.isWeb) {
+      if (!AppPlatform.lacksPhonePlugins) {
         unawaited(HomeWidgetService().addLocalListeningSeconds(elapsed));
       }
     }

@@ -187,7 +187,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
   }
 
   String? get _coverUrl {
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       final episodeId = _episodeId;
       final downloadKey = episodeId == null ? _itemId : '$_itemId-$episodeId';
       final localCover = DownloadService().getInfo(downloadKey).localCoverPath;
@@ -203,7 +203,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     return lib.getCoverUrl(_itemId, width: 1200);
   }
   bool get _isLocalCover =>
-      !AppPlatform.isWeb && _coverUrl != null && _coverUrl!.startsWith('/');
+      !AppPlatform.lacksPhonePlugins && _coverUrl != null && _coverUrl!.startsWith('/');
 
   @override
   void initState() {
@@ -525,7 +525,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     final url = _coverUrl;
     if (url == null) return;
     final ImageProvider provider;
-    if (!AppPlatform.isWeb && url.startsWith('/')) {
+    if (!AppPlatform.lacksPhonePlugins && url.startsWith('/')) {
       provider = FileImage(File(url));
     } else {
       provider = CachedNetworkImageProvider(url, headers: context.read<LibraryProvider>().mediaHeaders);
@@ -557,7 +557,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
 
     try {
       final ImageProvider provider;
-      if (!AppPlatform.isWeb && url.startsWith('/')) {
+      if (!AppPlatform.lacksPhonePlugins && url.startsWith('/')) {
         provider = FileImage(File(url));
       } else {
         final lib = context.read<LibraryProvider>();
@@ -714,7 +714,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                   child: LayoutBuilder(
                     builder: (context, outerConstraints) {
                     final compact = outerConstraints.maxHeight < 600;
-                    final wide = AppPlatform.isWeb
+                    final wide = AppPlatform.lacksPhonePlugins
                         ? outerConstraints.maxWidth >= 900
                         : outerConstraints.maxWidth >
                             outerConstraints.maxHeight;
@@ -769,7 +769,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                   coverH = s;
                                 }
                                 final dlKey = _episodeId != null ? '$_itemId-$_episodeId' : _itemId;
-                                final isDownloaded = !AppPlatform.isWeb &&
+                                final isDownloaded = !AppPlatform.lacksPhonePlugins &&
                                     DownloadService().isDownloaded(dlKey);
                                 final castService = ChromecastService();
                                 final isCastingThis = castService.isCasting && castService.castingItemId == _itemId;
@@ -1055,7 +1055,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                     );
                   }),
                 ),
-                if (AppPlatform.isWeb)
+                if (AppPlatform.lacksPhonePlugins)
                   Positioned(
                     top: 16,
                     right: 20,
@@ -1080,7 +1080,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     ),
     );
 
-    if (!AppPlatform.isWeb) return player;
+    if (!AppPlatform.lacksPhonePlugins) return player;
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
         const SingleActivator(LogicalKeyboardKey.escape): _dismissExpanded,

@@ -463,7 +463,7 @@ class _EpisodeCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final lib = context.watch<LibraryProvider>();
-    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.isWeb);
+    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.lacksPhonePlugins);
 
     final itemId = item['id'] as String? ?? '';
     final media = item['media'] as Map<String, dynamic>? ?? {};

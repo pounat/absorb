@@ -436,7 +436,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
       (LibraryFilter.inProgress, l.inProgress, Icons.play_circle_outline_rounded),
       (LibraryFilter.finished, l.filterFinished, Icons.check_circle_outline_rounded),
       (LibraryFilter.notStarted, l.notStarted, Icons.circle_outlined),
-      if (!AppPlatform.isWeb)
+      if (!AppPlatform.lacksPhonePlugins)
         (LibraryFilter.downloaded, l.downloaded, Icons.download_done_rounded),
       (LibraryFilter.hasEbook, l.hasEbook, Icons.menu_book_rounded),
       (LibraryFilter.noEbook, l.noEbook, Icons.menu_book_outlined),

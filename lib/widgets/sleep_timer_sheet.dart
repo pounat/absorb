@@ -164,7 +164,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 // Rewind on sleep
                 _buildRewindSection(accent, tt, l),
 
-                if (!AppPlatform.isWeb) ...[
+                if (!AppPlatform.lacksPhonePlugins) ...[
                   const SizedBox(height: 12),
                   Container(
                       height: 0.5,
@@ -284,7 +284,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
       Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
       const SizedBox(height: 12),
       _buildRewindSection(accent, tt, l),
-      if (!AppPlatform.isWeb) ...[
+      if (!AppPlatform.lacksPhonePlugins) ...[
         const SizedBox(height: 12),
         Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
         const SizedBox(height: 12),

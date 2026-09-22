@@ -62,7 +62,7 @@ class LibraryProvider extends ChangeNotifier
     AudioPlayerService.setOnPeekNextItemCallback(peekNextQueueItemForPreBuffer);
     AudioPlayerService.setOnPlayStartedCallback((key, duration) async {
       await _prepareAbsorbingForPlayback(key, duration);
-      if (AppPlatform.isWeb) return;
+      if (AppPlatform.lacksPhonePlugins) return;
       // Auto-download the book/episode you're listening to kicks off quickly so
       // it doesn't feel broken; the short wait still skips it if you stop or
       // switch right away. Rolling/queue look-ahead stays deferred to keep the
@@ -104,7 +104,7 @@ class LibraryProvider extends ChangeNotifier
   }
 
   void updateAuth(AuthProvider auth) {
-    if (!AppPlatform.isWeb && !_listeningToDownloads) {
+    if (!AppPlatform.lacksPhonePlugins && !_listeningToDownloads) {
       _listeningToDownloads = true;
       DownloadService().addListener(_onDownloadsChanged);
     }
@@ -207,7 +207,7 @@ class LibraryProvider extends ChangeNotifier
 
         _buildProgressMap(auth);
 
-        if (!AppPlatform.isWeb && !auth.serverReachable) {
+        if (!AppPlatform.lacksPhonePlugins && !auth.serverReachable) {
           debugPrint('[Library] Server not reachable — going offline');
           _networkOffline = true;
           _buildOfflineSections();
@@ -222,7 +222,7 @@ class LibraryProvider extends ChangeNotifier
           ProgressSyncService().flushPendingSync(api: _api!);
           ProgressSyncService().flushOfflineListeningTime(api: _api!);
           LocalSessionService().flushPending(api: _api!);
-          if (!AppPlatform.isWeb) DownloadService().enrichMetadata(_api!);
+          if (!AppPlatform.lacksPhonePlugins) DownloadService().enrichMetadata(_api!);
           // Start proactive reachability verification so the cloud icon
           // reflects actual server state, not just the initial login result.
           _startHealthCheckTimer();
@@ -408,7 +408,7 @@ class LibraryProvider extends ChangeNotifier
     await _loadSectionPrefs();
     notifyListeners();
     await loadPersonalizedView(force: true);
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       AndroidAutoService().refresh(force: true);
       CarPlayService().refreshTemplates();
     }
@@ -430,7 +430,7 @@ class LibraryProvider extends ChangeNotifier
     await _loadSectionPrefs();
     notifyListeners();
     await loadPersonalizedView();
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       AndroidAutoService().refresh(force: true);
       CarPlayService().refreshTemplates();
     }

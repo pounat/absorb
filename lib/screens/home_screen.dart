@@ -761,7 +761,7 @@ class HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                           ),
-                          if (!desktop && !AppPlatform.isWeb)
+                          if (!desktop && !AppPlatform.lacksPhonePlugins)
                             const SliverToBoxAdapter(
                               child: FeatureHint(
                                 prefKey: 'hint_continue_listening_gestures',
@@ -1123,7 +1123,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
-    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.isWeb);
+    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.lacksPhonePlugins);
 
     final item = widget.item;
     final lib = widget.lib;

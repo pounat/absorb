@@ -1208,7 +1208,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       if (dl.isDownloaded(book['id'] as String? ?? '')) downloaded++;
     }
     // Nothing downloads in a browser, so neither download pill shows there.
-    final allDownloaded = AppPlatform.isWeb || downloaded == _books.length;
+    final allDownloaded = AppPlatform.lacksPhonePlugins || downloaded == _books.length;
     final hasSeriesId = widget.seriesId != null && widget.seriesId!.isNotEmpty;
     return [
                 // Only once the up next book is past the first few rows.
@@ -1217,7 +1217,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                     icon: Icons.keyboard_double_arrow_down_rounded,
                     label: l.seriesJumpToUpNext,
                     onTap: _jumpToUpNext),
-                if (!AppPlatform.isWeb && hasSeriesId)
+                if (!AppPlatform.lacksPhonePlugins && hasSeriesId)
                   ActionPillData(
                     icon: _autoDownloadEnabled ? Icons.downloading_rounded : Icons.download_outlined,
                     label: _autoDownloadEnabled ? l.turnAutoDownloadOff : l.turnAutoDownloadOn,
@@ -1265,7 +1265,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                       if (confirmed == true) _markAllFinished();
                     }
                   }),
-                if (!AppPlatform.isWeb && hasSeriesId)
+                if (!AppPlatform.lacksPhonePlugins && hasSeriesId)
                   ActionPillData(
                     icon: _scanExcluded ? Icons.visibility_rounded : Icons.visibility_off_rounded,
                     label: _scanExcluded ? l.seriesIncludeInScan : l.seriesExcludeFromScan,
@@ -1280,7 +1280,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
   }
 
   Future<void> _downloadAll() async {
-    if (AppPlatform.isWeb) return;
+    if (AppPlatform.lacksPhonePlugins) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -1559,10 +1559,10 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final progress = lib.getProgress(bookId);
     final isFinished = lib.getProgressData(bookId)?['isFinished'] == true;
     final isDownloaded =
-        !AppPlatform.isWeb && DownloadService().isDownloaded(bookId);
+        !AppPlatform.lacksPhonePlugins && DownloadService().isDownloaded(bookId);
     final isDownloading =
-        !AppPlatform.isWeb && DownloadService().isDownloading(bookId);
-    final downloadPct = AppPlatform.isWeb
+        !AppPlatform.lacksPhonePlugins && DownloadService().isDownloading(bookId);
+    final downloadPct = AppPlatform.lacksPhonePlugins
         ? 0
         : (DownloadService().downloadProgress(bookId) * 100)
             .clamp(0, 100)
@@ -1612,7 +1612,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                   child: Stack(children: [
                     Positioned.fill(
                       child: coverUrl != null
-                          ? (!AppPlatform.isWeb && coverUrl.startsWith('/')
+                          ? (!AppPlatform.lacksPhonePlugins && coverUrl.startsWith('/')
                               ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => _placeholder(cs))
                               : CachedNetworkImage(

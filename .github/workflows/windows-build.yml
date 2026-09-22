@@ -1,0 +1,55 @@
+name: Windows Desktop Build
+
+# Builds the Windows desktop app from whichever branch the run is started on
+# and uploads the runner folder as a workflow artifact. Nothing is signed and
+# nothing goes to a release: download the zip from the run page, unpack it
+# anywhere and start absorb.exe.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Windows app
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          full=$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*//' | tr -d '\r')
+          echo "name=absorb-${full/+/-}-windows" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: flutter build windows --release
+
+      # The runner folder needs the VC++ runtime next to the exe on machines
+      # that never installed the redistributable.
+      - name: Add the VC++ runtime DLLs
+        shell: pwsh
+        run: |
+          $out = "build\windows\x64\runner\Release"
+          $crt = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" -Directory -ErrorAction SilentlyContinue | Select-Object -Last 1
+          foreach ($dll in "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
+            $src = if ($crt) { Join-Path $crt.FullName $dll } else { "C:\Windows\System32\$dll" }
+            if (-not (Test-Path $src)) { $src = "C:\Windows\System32\$dll" }
+            Copy-Item $src $out
+          }
+          Get-ChildItem $out | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.name }}
+          path: build/windows/x64/runner/Release
+          if-no-files-found: error
+          retention-days: 14

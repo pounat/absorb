@@ -347,7 +347,7 @@ class AuthProvider extends ChangeNotifier {
   /// to call unconditionally — the service is a no-op on non-Android
   /// platforms and when no watch is connected.
   void _pushSessionToWear() {
-    if (AppPlatform.isWeb) return;
+    if (AppPlatform.lacksPhonePlugins) return;
     final url = _serverUrl;
     final token = _accessToken;
     if (url == null || token == null) return;
@@ -562,7 +562,7 @@ class AuthProvider extends ChangeNotifier {
           );
         }
         _serverReachable = reachable;
-        if (AppPlatform.isWeb && !reachable) {
+        if (AppPlatform.lacksPhonePlugins && !reachable) {
           _accessToken = null;
           _refreshToken = null;
           _isLegacyToken = false;
@@ -830,7 +830,7 @@ class AuthProvider extends ChangeNotifier {
 
     await _onAccountActivated();
 
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       await HomeWidgetService().clearStats();
       HomeWidgetService().refreshStats(force: true);
       _pushSessionToWear();
@@ -922,7 +922,7 @@ class AuthProvider extends ChangeNotifier {
 
     await _onAccountActivated();
 
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       await HomeWidgetService().clearStats();
       HomeWidgetService().refreshStats(force: true);
       _pushSessionToWear();
@@ -1036,7 +1036,7 @@ class AuthProvider extends ChangeNotifier {
 
     await _onAccountActivated();
 
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       await HomeWidgetService().clearStats();
       HomeWidgetService().refreshStats(force: true);
       _pushSessionToWear();
@@ -1049,7 +1049,7 @@ class AuthProvider extends ChangeNotifier {
 
   /// Load local server settings from PlayerSettings.
   Future<void> _loadLocalServerSettings() async {
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       _localServerEnabled = false;
       _localServerUrl = '';
       _useLocalServer = false;
@@ -1075,7 +1075,7 @@ class AuthProvider extends ChangeNotifier {
   /// local URL with the new account's token, producing 401s.
   Future<void> _onAccountActivated() async {
     PlayerSettings.notifySettingsChanged();
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       await EqualizerService().reloadForActiveAccount();
     }
 
@@ -1114,7 +1114,7 @@ class AuthProvider extends ChangeNotifier {
   /// Check if the configured local server is reachable.
   /// Called on WiFi connectivity changes by LibraryProvider.
   Future<void> checkLocalServer() async {
-    if (AppPlatform.isWeb) return;
+    if (AppPlatform.lacksPhonePlugins) return;
     if (!_localServerEnabled || _localServerUrl.isEmpty || _serverUrl == null)
       return;
     final wasLocal = _useLocalServer;
@@ -1171,7 +1171,7 @@ class AuthProvider extends ChangeNotifier {
     required bool enabled,
     required String url,
   }) async {
-    if (AppPlatform.isWeb) return;
+    if (AppPlatform.lacksPhonePlugins) return;
     final normalizedUrl = normalizeServerUrl(url);
     _localServerEnabled = enabled;
     _localServerUrl = normalizedUrl;
@@ -1212,7 +1212,7 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (_) {}
 
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       AndroidAutoService().clearCache();
       CarPlayService().clearAndRefresh();
     }
@@ -1220,7 +1220,7 @@ class AuthProvider extends ChangeNotifier {
     // Drop the per-library search index so the next account can't reuse it.
     BookSearchIndex().clear();
 
-    if (!AppPlatform.isWeb) await HomeWidgetService().clearStats();
+    if (!AppPlatform.lacksPhonePlugins) await HomeWidgetService().clearStats();
 
     // Clear cached session metadata for this user (track URLs would be invalid
     // on next login anyway)
@@ -1285,7 +1285,7 @@ class AuthProvider extends ChangeNotifier {
       await prefs.remove('default_library_id');
     } catch (_) {}
 
-    if (!AppPlatform.isWeb) WearAuthService.instance.clear();
+    if (!AppPlatform.lacksPhonePlugins) WearAuthService.instance.clear();
 
     notifyListeners();
   }
@@ -1306,7 +1306,7 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (_) {}
 
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       AndroidAutoService().clearCache();
       CarPlayService().clearAndRefresh();
     }
@@ -1336,7 +1336,7 @@ class AuthProvider extends ChangeNotifier {
     // Reload EQ settings from the new account's scope. Without this the
     // EqualizerService singleton keeps the previous account's in-memory
     // state and would write it back into the new scope on any change.
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       await EqualizerService().reloadForActiveAccount();
     }
 
@@ -1380,7 +1380,7 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (_) {}
 
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       await HomeWidgetService().clearStats();
       HomeWidgetService().refreshStats(force: true);
     }

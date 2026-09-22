@@ -102,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
       final account = widget.prefillAccount;
-      if (AppPlatform.isWeb) {
+      if (AppPlatform.lacksPhonePlugins) {
         final serverUrl = serverUrlFromWebOrigin(Uri.base);
         if (serverUrl != null) {
           _setInitialHeaders(account?.customHeaders ?? auth.customHeaders);
@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _prefillLogin(String serverUrl, String username) {
-    final resolvedServerUrl = AppPlatform.isWeb
+    final resolvedServerUrl = AppPlatform.lacksPhonePlugins
         ? serverUrlFromWebOrigin(Uri.base) ?? serverUrl
         : serverUrl;
     final uri = Uri.tryParse(resolvedServerUrl);
@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen>
       final info = await PackageInfo.fromPlatform();
       if (mounted) setState(() => _appVersion = 'v${info.version}');
     } catch (_) {}
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       try {
         final trust = await PlayerSettings.getTrustAllCerts();
         if (mounted) setState(() => _trustAllCerts = trust);
@@ -182,14 +182,14 @@ class _LoginScreenState extends State<LoginScreen>
     _apiKeyController.dispose();
     _usernameFocus.dispose();
     for (final (k, v) in _headerControllers) { k.dispose(); v.dispose(); }
-    if (!AppPlatform.isWeb) OidcService().cancel();
+    if (!AppPlatform.lacksPhonePlugins) OidcService().cancel();
     super.dispose();
   }
 
   String _lastValidatedServer = '';
 
   String get _resolvedServerUrl {
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       return serverUrlFromWebOrigin(Uri.base) ?? '';
     }
 
@@ -274,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen>
         }
       });
 
-      if (ok && !AppPlatform.isWeb) {
+      if (ok && !AppPlatform.lacksPhonePlugins) {
         OidcService.checkOidcEnabled(fullUrl, customHeaders: headers).then((config) {
           if (mounted && _resolvedServerUrl == fullUrl) {
             setState(() => _oidcConfig = config);
@@ -355,7 +355,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _handleOidcLogin() async {
-    if (AppPlatform.isWeb || !_serverValid) return;
+    if (AppPlatform.lacksPhonePlugins || !_serverValid) return;
 
     setState(() {
       _isOidcLoading = true;
@@ -548,7 +548,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   Padding(
                                     padding: const EdgeInsets.only(left: 4, bottom: 16),
                                     child: Text(
-                                      AppPlatform.isWeb ? l.loginSignIn : l.loginConnectToServer,
+                                      AppPlatform.lacksPhonePlugins ? l.loginSignIn : l.loginConnectToServer,
                                       style: tt.titleSmall?.copyWith(
                                         color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                                         fontWeight: FontWeight.w500,
@@ -557,7 +557,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
 
                                   // Server URL
-                                  if (!AppPlatform.isWeb) _buildInputField(
+                                  if (!AppPlatform.lacksPhonePlugins) _buildInputField(
                                     controller: _serverController,
                                     label: l.loginServerAddress,
                                     hint: l.loginServerHint,
@@ -736,7 +736,7 @@ class _LoginScreenState extends State<LoginScreen>
                                         ),
                                       ),
                                     ),
-                                    if (!AppPlatform.isWeb) ...[
+                                    if (!AppPlatform.lacksPhonePlugins) ...[
                                       const SizedBox(height: 8),
                                       const Divider(height: 1),
                                       const SizedBox(height: 4),
@@ -968,7 +968,7 @@ class _LoginScreenState extends State<LoginScreen>
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
-        withData: AppPlatform.isWeb,
+        withData: AppPlatform.lacksPhonePlugins,
       );
       if (result == null || result.files.isEmpty) return;
 
@@ -1394,7 +1394,7 @@ class _LoginScreenState extends State<LoginScreen>
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
-          child: !AppPlatform.isWeb &&
+          child: !AppPlatform.lacksPhonePlugins &&
                   _serverValid && _oidcConfig != null && _oidcConfig!.enabled
               ? _buildOidcButton(cs, tt)
               : const SizedBox.shrink(),

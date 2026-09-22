@@ -232,7 +232,7 @@ class BookCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _handleTap(context),
-        onLongPress: AppPlatform.isWeb || selectionMode
+        onLongPress: AppPlatform.lacksPhonePlugins || selectionMode
             ? null
             : () => _onLongPress(context),
         borderRadius: BorderRadius.circular(16),
@@ -381,7 +381,7 @@ class BookCard extends StatelessWidget {
           aspectRatio: coverAspectRatio,
           child: _PressableCard(
             onTap: () => _handleTap(context),
-            onLongPress: AppPlatform.isWeb || selectionMode
+            onLongPress: AppPlatform.lacksPhonePlugins || selectionMode
                 ? null
                 : () => _onLongPress(context),
             borderRadius: 12,

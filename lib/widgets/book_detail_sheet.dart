@@ -862,7 +862,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       else
         const SizedBox(height: 20),
       const SizedBox(height: 12),
-      if (isEbookOnly && AppPlatform.isWeb)
+      if (isEbookOnly && AppPlatform.lacksPhonePlugins)
         SizedBox(height: 52, child: FilledButton.icon(
           onPressed: null,
           icon: const Icon(Icons.menu_book_rounded, size: 24),
@@ -1043,11 +1043,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       // Primary action row: Download | Fully Absorb | ebook download (ebook-only)
       const SizedBox(height: 12),
       Row(children: [
-        if (AppPlatform.isWeb && auth.canDownload) ...[
+        if (AppPlatform.lacksPhonePlugins && auth.canDownload) ...[
           Expanded(child: _webDownloadButton(context, cs, l, auth)),
           const SizedBox(width: 8),
         ],
-        if (!isEbookOnly && !AppPlatform.isWeb) ...[
+        if (!isEbookOnly && !AppPlatform.lacksPhonePlugins) ...[
           Expanded(child: DownloadWideButton(itemId: widget.itemId, coverUrl: _coverUrl, title: title, author: authorName, accent: accent)),
           const SizedBox(width: 8),
         ],
@@ -1079,7 +1079,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             ]),
           ),
         )),
-        if (!AppPlatform.isWeb && isEbookOnly && ebookFile != null && canReadEbook(ebookFile)) ...[
+        if (!AppPlatform.lacksPhonePlugins && isEbookOnly && ebookFile != null && canReadEbook(ebookFile)) ...[
           const SizedBox(width: 8),
           // For ebook-only books the big button above is already "Read", so this
           // slot is the offline download (matching the audiobook download
@@ -1433,7 +1433,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         if (!isEbookOnly)
           Row(children: [
             Expanded(child: _quickAbsorbButton(context, cs, tt, auth, accent, onAccent, title, authorName, duration, chapters, isFinished, progress)),
-            if (!AppPlatform.isWeb) ...[
+            if (!AppPlatform.lacksPhonePlugins) ...[
               const SizedBox(width: 10),
               Expanded(child: DownloadWideButton(itemId: widget.itemId, coverUrl: _coverUrl, title: title, author: authorName, accent: accent)),
             ],
@@ -1518,17 +1518,17 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         if (!lib.isOffline && !lib.isPodcastLibrary && auth.isAdmin) {
           add(Icons.collections_bookmark_rounded, l.addToCollection, () => CollectionPickerSheet.show(context, widget.itemId));
         }
-        if (!AppPlatform.isWeb && ebookFile != null && canReadEbook(ebookFile)) {
+        if (!AppPlatform.lacksPhonePlugins && ebookFile != null && canReadEbook(ebookFile)) {
           add(Icons.menu_book_rounded, l.readEbook, () => _openEbookReader(context, auth, ebookFile, title));
         }
         // Save/Send push the file elsewhere, which needs the server's own file
         // entry (with ino) - the cache-synthesized fallback can't serve them.
         final serverEbookFile = resolveEbookFile(_item);
-        if (!AppPlatform.isWeb && serverEbookFile != null) {
+        if (!AppPlatform.lacksPhonePlugins && serverEbookFile != null) {
           add(_ebookSaved ? Icons.download_done_rounded : Icons.save_alt_rounded,
             l.ebookSaveToDevice, () => _saveEbook(context, auth, serverEbookFile, title));
         }
-        if (!AppPlatform.isWeb &&
+        if (!AppPlatform.lacksPhonePlugins &&
             serverEbookFile != null &&
             auth.ereaderDevices.isNotEmpty) {
           add(Icons.send_to_mobile_rounded, l.sendToEreader, () => _sendToEreader(context, auth));
@@ -2024,7 +2024,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       asin,
       countryCode: ui.PlatformDispatcher.instance.locale.countryCode,
     );
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       unawaited(_launchAudibleReviews(context, uri));
       return;
     }

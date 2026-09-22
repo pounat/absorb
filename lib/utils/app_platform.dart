@@ -12,4 +12,9 @@ abstract final class AppPlatform {
 
   static bool get isDesktop => isMacOS || isWindows || isLinux;
   static bool get isMobile => isAndroid || isIOS;
+
+  /// The phone's plugins - audio engine, downloads, widgets, car, cast,
+  /// notifications - exist on Android and iOS only. The browser and, for now,
+  /// the desktop OSes run without them and take the web code paths.
+  static bool get lacksPhonePlugins => isWeb || isDesktop;
 }

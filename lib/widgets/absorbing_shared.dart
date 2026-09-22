@@ -228,7 +228,7 @@ class _DownloadWideButtonState extends State<DownloadWideButton> {
 
   @override void initState() {
     super.initState();
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       _dl = DownloadService()..addListener(_rebuild);
     }
   }

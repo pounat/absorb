@@ -191,7 +191,7 @@ Future<void> applyAppearanceFromPrefs() async {
 /// pinned to portrait; otherwise all orientations are allowed (the default).
 /// Safe to call any time the setting changes.
 Future<void> applyOrientationLock() async {
-  if (AppPlatform.isWeb) return;
+  if (AppPlatform.lacksPhonePlugins) return;
   final lock = await PlayerSettings.getLockPortrait();
   await SystemChrome.setPreferredOrientations(lock
       ? const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]
@@ -206,13 +206,13 @@ Future<void> applyOrientationLock() async {
 void main() async {
   if (!AppPlatform.isWeb) HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  final setupLinkStream = AppPlatform.isWeb ? null : AppLinks().uriLinkStream;
+  final setupLinkStream = AppPlatform.lacksPhonePlugins ? null : AppLinks().uriLinkStream;
 
   // These calls use platform channels that require an Activity. When Android
   // Auto cold-starts the app for the MediaBrowserService, no Activity exists
   // and these calls can hang forever - blocking runApp() and freezing on the
   // splash screen. Wrap in try-catch with a timeout so we always reach runApp().
-  if (!AppPlatform.isWeb) {
+  if (!AppPlatform.lacksPhonePlugins) {
     try {
       FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
     } catch (_) {}
@@ -277,7 +277,7 @@ void main() async {
   };
 
   // Remove native splash — Flutter will render the AuthGate splash immediately
-  if (!AppPlatform.isWeb) {
+  if (!AppPlatform.lacksPhonePlugins) {
     try {
       FlutterNativeSplash.remove();
     } catch (_) {}
@@ -451,7 +451,7 @@ class AbsorbApp extends StatelessWidget {
               title: 'Absorb',
               debugShowCheckedModeBanner: false,
               scrollBehavior:
-                  AppPlatform.isWeb ? const _AppScrollBehavior() : null,
+                  AppPlatform.lacksPhonePlugins ? const _AppScrollBehavior() : null,
               locale: overrideLocale,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
@@ -531,7 +531,7 @@ class AbsorbApp extends StatelessWidget {
                   shape: const RoundedRectangleBorder(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   ),
-                  constraints: AppPlatform.isWeb
+                  constraints: AppPlatform.lacksPhonePlugins
                       ? const BoxConstraints(maxWidth: 640)
                       : null,
                 ),
@@ -590,7 +590,7 @@ class AbsorbApp extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   ),
-                  constraints: AppPlatform.isWeb
+                  constraints: AppPlatform.lacksPhonePlugins
                       ? const BoxConstraints(maxWidth: 640)
                       : null,
                 ),
@@ -742,7 +742,7 @@ class _AuthGateState extends State<AuthGate> {
     } catch (_) {}
     // Background new-episode notifications: re-register the periodic job
     // (self-healing after OEM kills) and wire up notification taps.
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       EpisodeNotificationService.syncRegistration();
       EpisodeNotificationService.initTapHandling();
     }
@@ -776,7 +776,7 @@ class _AuthGateState extends State<AuthGate> {
 
     // Downloads must be loaded before the audio handler so getChildren()
     // can serve the Android Auto browse tree immediately.
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       debugPrint('[Init] DownloadService... (${sw.elapsedMilliseconds}ms)');
       try {
         await DownloadService().init().timeout(const Duration(seconds: 8));
@@ -798,7 +798,7 @@ class _AuthGateState extends State<AuthGate> {
     // the UI has bootstrapped the current item) through the existing
     // home-widget restore path. Registered as a static callback to avoid a
     // circular import between AudioPlayerService and HomeWidgetService.
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       AudioPlayerService.onColdStartPlayRequested =
           HomeWidgetService().resumeLastPlayedIfAvailable;
       // A headset press may have cold-launched this process into the background
@@ -808,7 +808,7 @@ class _AuthGateState extends State<AuthGate> {
     }
     debugPrint('[Init] AudioPlayerService done (${sw.elapsedMilliseconds}ms)');
 
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       try {
         await Permission.notification.request();
       } catch (e) {
@@ -833,7 +833,7 @@ class _AuthGateState extends State<AuthGate> {
       // fold it into the offline ledger so the normal flush ships it.
       await ProgressSyncService().migrateOrphanStreamingTime();
       await LocalSessionService().init();
-      if (!AppPlatform.isWeb) await EqualizerService().init();
+      if (!AppPlatform.lacksPhonePlugins) await EqualizerService().init();
       await SleepTimerService().loadAutoSleepSettings();
       // Watch for settings changes and pull the synced copy on the way in.
       await SettingsSyncService().startIfEnabled();
@@ -856,7 +856,7 @@ class _AuthGateState extends State<AuthGate> {
       // (so we get real UIKit system icon types like `.play`, `.search`).
       // Depends on AudioPlayerService + HomeWidgetService so they're ready
       // when the shortcut handler fires.
-      if (!AppPlatform.isWeb) await QuickActionsService().init();
+      if (!AppPlatform.lacksPhonePlugins) await QuickActionsService().init();
     } catch (e) {
       debugPrint('[Init] Service init failed: $e');
     }

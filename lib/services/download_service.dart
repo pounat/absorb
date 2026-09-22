@@ -621,7 +621,7 @@ class DownloadService extends ChangeNotifier {
       _queue.map((q) => _downloads[q.itemId]).whereType<DownloadInfo>().toList();
 
   Future<void> init() {
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       _initialized = true;
       return Future.value();
     }
@@ -1335,7 +1335,7 @@ class DownloadService extends ChangeNotifier {
     // that block, since the user asked for it back.
     bool automatic = false,
   }) async {
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       return 'Downloads are not available in the browser.';
     }
     if (shouldStart?.call() == false) return null;

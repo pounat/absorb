@@ -259,7 +259,7 @@ class _AppShellState extends State<AppShell>
   void _startServerTaskRefreshTimer() {
     _serverTaskRefreshTimer?.cancel();
     _serverTaskRefreshTimer = null;
-    if (!mounted || !AppPlatform.isWeb) return;
+    if (!mounted || !AppPlatform.lacksPhonePlugins) return;
     final auth = context.read<AuthProvider>();
     if (!auth.isAdmin || auth.apiService == null || _serverTaskTracker == null) {
       return;
@@ -527,7 +527,7 @@ class _AppShellState extends State<AppShell>
     super.initState();
     _instance = this;
     EreaderVolumeNav.ensureHandler();
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       _serverTaskTracker = ServerTaskTracker();
       _serverUpdateController.addListener(_onServerUpdateChanged);
     }
@@ -537,7 +537,7 @@ class _AppShellState extends State<AppShell>
       _onDesktopExitGuardChanged,
     );
     unawaited(_loadDesktopSidebarPreference());
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       _currentIndex = 0;
     } else if (!widget.startOnAbsorbing) {
       _loadStartScreen();
@@ -562,7 +562,7 @@ class _AppShellState extends State<AppShell>
     context.read<LibraryProvider>().addListener(_onLibraryChanged);
     _loadPodcastTabPrefs();
     PlayerSettings.settingsChanged.addListener(_loadPodcastTabPrefs);
-    if (!AppPlatform.isWeb) WelcomeSheet.showIfNeeded(context);
+    if (!AppPlatform.lacksPhonePlugins) WelcomeSheet.showIfNeeded(context);
     _checkForUpdate();
   }
 
@@ -640,7 +640,7 @@ class _AppShellState extends State<AppShell>
   static const _isGithubBuild = bool.fromEnvironment('GITHUB_BUILD');
 
   void _checkForUpdate() async {
-    if (AppPlatform.isWeb || !_isGithubBuild) return;
+    if (AppPlatform.lacksPhonePlugins || !_isGithubBuild) return;
     final includePreReleases = await PlayerSettings.getIncludePreReleases();
     final info = await UpdateCheckerService.check(
       includePreReleases: includePreReleases,
@@ -662,7 +662,7 @@ class _AppShellState extends State<AppShell>
     _cast.removeListener(_onCastChanged);
     _serverTaskRefreshTimer?.cancel();
     _serverTaskTracker?.dispose();
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       _serverUpdateController.removeListener(_onServerUpdateChanged);
     }
     PlayerSettings.settingsChanged.removeListener(_loadPodcastTabPrefs);
@@ -775,7 +775,7 @@ class _AppShellState extends State<AppShell>
   }
 
   Future<void> _maybeAutoExpand() async {
-    if (AppPlatform.isWeb) return;
+    if (AppPlatform.lacksPhonePlugins) return;
     // Only auto-open the full-screen player from the Absorbing tab - starting
     // playback from elsewhere (another tab, the nav long-press) shouldn't
     // yank the user into the player.
@@ -894,7 +894,7 @@ class _AppShellState extends State<AppShell>
     context.read<LibraryProvider>().onAppForegrounded();
     SleepTimerService().onAppForegrounded();
     AudioPlayerService.onAppForegrounded();
-    if (!AppPlatform.isWeb) {
+    if (!AppPlatform.lacksPhonePlugins) {
       HomeWidgetService().onAppForegrounded();
       ReviewService.onAppForegrounded();
     }
@@ -913,7 +913,7 @@ class _AppShellState extends State<AppShell>
     context.read<LibraryProvider>().onAppBackgrounded();
     SleepTimerService().onAppBackgrounded();
     AudioPlayerService.onAppBackgrounded();
-    if (!AppPlatform.isWeb) HomeWidgetService().onAppBackgrounded();
+    if (!AppPlatform.lacksPhonePlugins) HomeWidgetService().onAppBackgrounded();
     unawaited(SettingsSyncService().onAppBackgrounded());
   }
 
@@ -992,7 +992,7 @@ class _AppShellState extends State<AppShell>
       _lastRefresh = now;
       lib.refresh();
       // Keep Android Auto / CarPlay browse tree in sync
-      if (!AppPlatform.isWeb) {
+      if (!AppPlatform.lacksPhonePlugins) {
         AndroidAutoService().refresh();
         CarPlayService().refreshTemplates();
       }
@@ -1001,7 +1001,7 @@ class _AppShellState extends State<AppShell>
 
   @override
   Widget build(BuildContext context) {
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       final taskAccess = context.select<AuthProvider, (bool, Object?)>(
         (auth) => (auth.isAdmin, auth.apiService),
       );
@@ -1009,7 +1009,7 @@ class _AppShellState extends State<AppShell>
     }
     return LayoutBuilder(
       builder: (context, constraints) {
-        final workspaceTier = AppPlatform.isWeb
+        final workspaceTier = AppPlatform.lacksPhonePlugins
             ? workspaceLayoutTierForWidth(constraints.maxWidth)
             : WorkspaceLayoutTier.mobile;
         final desktopRequested = workspaceTier != WorkspaceLayoutTier.mobile;
@@ -1045,7 +1045,7 @@ class _AppShellState extends State<AppShell>
   void _handleBack(bool didPop, Object? _) {
     if (didPop) return;
 
-    if (AppPlatform.isWeb) {
+    if (AppPlatform.lacksPhonePlugins) {
       final pane = _paneNavigatorKey.currentState;
       if (pane != null && pane.canPop()) {
         unawaited(pane.maybePop());

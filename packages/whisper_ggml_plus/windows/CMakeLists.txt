@@ -32,8 +32,11 @@ add_compile_definitions(
   GGML_USE_CPU
 )
 
-add_subdirectory("${GGML_ROOT_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/ggml")
-add_subdirectory("${WHISPER_SRC_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/whisper")
+# EXCLUDE_FROM_ALL keeps the libraries' own install() rules out of the app
+# bundle step, whose prefix is a generator expression they cannot resolve.
+# They still build as link dependencies of the plugin.
+add_subdirectory("${GGML_ROOT_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/ggml" EXCLUDE_FROM_ALL)
+add_subdirectory("${WHISPER_SRC_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/whisper" EXCLUDE_FROM_ALL)
 
 add_library(${PROJECT_NAME} SHARED
   "${CMAKE_CURRENT_LIST_DIR}/whisper_ggml_plus.cpp"
