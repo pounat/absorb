@@ -1,7 +1,11 @@
 {
   "@@locale": "it",
   "appTitle": "A B S O R B",
+  "loginTagline": "Avvia Absorbing",
+  "loginServerHelper": "IP:port (ad es. 192.168.1.5:13378)",
+  "loginAdvanced": "Avanzate",
   "loginHeaderName": "Nome intestazione",
+  "loginHeaderValue": "Valore",
   "loginTrustAllCertificates": "Fidati di tutti i certificati (per le impostazioni CA auto-firmate / personalizzate)",
   "adminSetupFileNoteWithHeaders": "Una chiave API dedicata e le tue intestazioni personalizzate saranno incluse in modo che possano raggiungere il server. Trattare il link come una password.",
   "setupLinkShareDescription": "Invia questo link privato o scansiona il codice QR per accedere come {username}.",
