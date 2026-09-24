@@ -16,5 +16,6 @@
       }
     }
   },
-  "loginSessionExpired": "Impostazioni ripristinate. Sessione scaduta - accedi per continuare."
+  "loginSessionExpired": "Impostazioni ripristinate. Sessione scaduta - accedi per continuare.",
+  "libraryTitle": "Libreria"
 }
