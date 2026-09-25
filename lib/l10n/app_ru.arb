@@ -21,6 +21,7 @@
   "noDownloadedBooks": "Нет загруженных книг",
   "yourLibraryIsEmpty": "Ваша библиотека пуста",
   "loginCouldNotReachServer": "Не удалось подключиться к серверу",
+  "libraryAllBooksStarted": "Все книги начаты",
   "librarySearchAuthors": "Авторы",
   "librarySearchTags": "Теги",
   "librarySearchGenres": "Жанры",
