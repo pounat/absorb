@@ -387,6 +387,38 @@
       }
     }
   },
+  "downloadFailedMissingFile": "Konnte \"{title}\" nicht herunterladen - eine der Dateien ist nicht auf dem Server. Ein Bibliothek-Scan könnte das beheben.",
+  "@downloadFailedMissingFile": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedNoSpace": "Konnte \"{title}\" nicht herunterladen - nicht genügend Speicherplatz",
+  "@downloadFailedNoSpace": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedPermission": "Konnte \"{title}\" nicht herunterladen - überprüfe den Download-Speicherort in den Einstellungen",
+  "@downloadFailedPermission": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedGeneric": "Konnte \"{title} \" nicht herunterladen",
+  "@downloadFailedGeneric": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "downloadsSelectedCount": "{count} ausgewählt",
   "@downloadsSelectedCount": {
     "placeholders": {
