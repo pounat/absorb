@@ -7,6 +7,7 @@
   "retry": "Повторить",
   "listsNone": "Нет коллекций или плейлистов",
   "listsNoneHint": "Коллекции и плейлисты создаются на вашем сервере Audiobookshelf и появляются здесь.",
+  "listsLoadFailed": "Не удалось загрузить ваши списки",
   "listsLoadFailedHint": "Absorb не смог достичь вашего сервера для коллекций и плейлистов.",
   "cancel": "Отменить",
   "delete": "Удалить",
@@ -85,6 +86,7 @@
   },
   "setupLinkInvalid": "Эта ссылка на вход недействительна или неполная",
   "loginFailed": "Не удалось войти",
+  "loginSessionExpired": "Настройки восстановлены. Сессия истекла - войдите, чтобы продолжить.",
   "loginSettingsRestored": "Настройки восстановлены",
   "loginRestoreFailed": "Ошибка восстановления: {error}",
   "@loginRestoreFailed": {
@@ -94,6 +96,7 @@
       }
     }
   },
+  "loginSavedAccounts": "сохранённые аккаунты",
   "libraryTitle": "Библиотека",
   "librarySearchBooksHint": "Поиск книг, серий, авторов, чтецов...",
   "libraryTabLibrary": "Библиотека",
@@ -471,6 +474,7 @@
   "clearLocalMetadata": "Очистить локальные метаданные",
   "addBookmark": "Добавить закладку",
   "editBookmark": "Изменить закладку",
+  "searchForMetadataAbove": "Искать метаданные выше",
   "audible": "Audible",
   "iTunes": "iTunes",
   "rewindRangeValue": "{min}с – {max}с",
