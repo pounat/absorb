@@ -5,6 +5,10 @@
   "offline": "Не в сети",
   "stillOffline": "Не удается подключиться. Нажмите, чтобы попробовать еще раз.",
   "retry": "Повторить",
+  "listsNone": "Нет коллекций или плейлистов",
+  "listsNoneHint": "Коллекции и плейлисты создаются на вашем сервере Audiobookshelf и появляются здесь.",
+  "listsLoadFailed": "Не удалось загрузить ваши списки",
+  "listsLoadFailedHint": "Absorb не смог достичь вашего сервера для коллекций и плейлистов.",
   "cancel": "Отменить",
   "delete": "Удалить",
   "remove": "Убрать",
@@ -18,9 +22,97 @@
   "off": "Выкл",
   "disabled": "Отключено",
   "later": "Позже",
+  "gotIt": "Понятно",
+  "or": "или",
+  "file": "Файл",
+  "more": "Больше",
+  "noThanks": "Нет, спасибо",
+  "homeTitle": "Главная",
+  "downloads": "Сохраненные",
   "noDownloadedBooks": "Нет загруженных книг",
   "yourLibraryIsEmpty": "Ваша библиотека пуста",
+  "loginConnectToServer": "Подключиться к вашему серверу",
+  "loginServerHelper": "IP:port тоже работает (например 192.168.1.5:13378)",
   "loginCouldNotReachServer": "Не удалось подключиться к серверу",
+  "loginApiKey": "Ключ API",
+  "loginWaitingForSso": "Ожидаем SSO...",
+  "loginRedirectUri": "Redirect URI: audiobookshelf://oauth",
+  "loginOrSignInManually": "или войти вручную",
+  "loginUsername": "Логин",
+  "loginUsernameRequired": "Пожалуйста, введите логин",
+  "loginPassword": "Пароль",
+  "loginSignIn": "Войти",
+  "loginSignInAs": "Войти как {username}?",
+  "@loginSignInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSignInToServer": "Войти на этот сервер?",
+  "loginSignedInAs": "Вы вошли как {username}.",
+  "@loginSignedInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkShare": "Поделиться ссылкой",
+  "setupLinkCopy": "Копировать ссылку",
+  "setupLinkCopied": "Ссылка для входа скопирована",
+  "setupLinkSaveFile": "Сохранить файл настроек",
+  "setupLinkQrError": "Эта ссылка слишком большая для QR-кода. Поделитесь ссылкой.",
+  "setupLinkShareSubject": "Absorb вход для {username}",
+  "@setupLinkShareSubject": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkConfirmTitle": "Войти с этой ссылкой?",
+  "setupLinkConfirmBody": "Войдите в {server} как {username}? Продолжайте только если вы доверяете этой ссылке.",
+  "@setupLinkConfirmBody": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      },
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkInvalid": "Эта ссылка на вход недействительна или неполная",
+  "loginFailed": "Не удалось войти",
+  "loginSessionExpired": "Настройки восстановлены. Сессия истекла - войдите, чтобы продолжить.",
+  "loginSettingsRestored": "Настройки восстановлены",
+  "loginRestoreFailed": "Ошибка восстановления: {error}",
+  "@loginRestoreFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSavedAccounts": "сохранённые аккаунты",
+  "libraryTitle": "Библиотека",
+  "librarySearchBooksHint": "Поиск книг, серий, авторов, чтецов...",
+  "libraryTabLibrary": "Библиотека",
+  "libraryTabSeries": "Серии",
+  "libraryTabAuthors": "Авторы",
+  "libraryTabNarrators": "Чтецы",
+  "libraryNoBooks": "Книги не найдены",
+  "libraryNoUnfinishedBooks": "Нет незавершенных книг",
+  "libraryNoBooksInProgress": "Нет начатых книг",
+  "libraryNoFinishedBooks": "Нет завершенных книг",
+  "libraryAllBooksStarted": "Все книги начаты",
+  "libraryNoAuthorsFound": "Авторы не найдены",
+  "libraryNoNarratorsFound": "Чтецы не найдены",
+  "libraryNoResults": "Результаты не найдены",
+  "librarySearchBooks": "Книги",
+  "librarySearchSeries": "Серии",
   "librarySearchAuthors": "Авторы",
   "librarySearchTags": "Теги",
   "librarySearchGenres": "Жанры",
@@ -59,6 +151,27 @@
       }
     }
   },
+  "sort": "Сортировка",
+  "filter": "Фильтр",
+  "filterActive": "Фильтр ●",
+  "title": "Название",
+  "author": "Автор",
+  "dateAdded": "Дата добавления",
+  "numberOfBooks": "Количество книг",
+  "publishedYear": "Год публикации",
+  "duration": "Длительность",
+  "collapseSeries": "Свернуть серии",
+  "downloaded": "Скачано",
+  "hasEbook": "Имеет eBook",
+  "explicitContent": "Ненорм. лексика",
+  "clearFilter": "Очистить фильтр",
+  "noGenresFound": "Жанры не найдены",
+  "noTagsFound": "Теги не найдены",
+  "fileSize": "Размер файла",
+  "absorbingStop": "Стоп",
+  "absorbingDone": "Готово",
+  "carModeBookLabel": "Книга",
+  "carModeChapterLabel": "Глава",
   "carModeBookmarkDefault": "Закладка",
   "carModeBookmarkAdded": "Закладка добавлена",
   "downloadsTitle": "Сохраненные",
@@ -99,6 +212,38 @@
   },
   "downloadsRemovedTitle": "\"{title}\" удалено",
   "@downloadsRemovedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedMissingFile": "Не удалось скачать \"{title}\" - один из файлов не на сервере. Попробуйте пересканировать библиотеку.",
+  "@downloadFailedMissingFile": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedNoSpace": "Не удалось скачать \"{title}\" - Не хватает памяти",
+  "@downloadFailedNoSpace": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedPermission": "",
+  "@downloadFailedPermission": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedGeneric": "Не удалось скачать \"{title}\"",
+  "@downloadFailedGeneric": {
     "placeholders": {
       "title": {
         "type": "String"
@@ -296,17 +441,72 @@
   "lockSeekBarOnSubtitle": "Вкл. - уведомление покажет прогресс, на экране блокировки и Android Auto, но ползунок переместить невозможно",
   "lockSeekBarOffSubtitle": "Выкл. - ползунок прогресса перемещается в уведомлении, на экране блокировки и Android Auto",
   "sectionSleepTimer": "Таймер сна",
+  "timer": "Таймер",
+  "addMoreTime": "Добавить время",
+  "cancelTimer": "Сбросить таймер",
   "sectionDownloadsAndStorage": "Загрузки и хранилище",
+  "downloadOverWifiOnly": "Сеть для скачивания",
+  "downloadOverWifiOnSubtitle": "Только Wi-Fi",
+  "downloadOverWifiOffSubtitle": "Любая связь",
+  "streamingCacheCleared": "Кэш вещания очищен",
   "sectionLibrary": "Библиотека",
   "sectionPermissions": "Разрешения",
   "sectionIssuesAndSupport": "Проблемы и поддержка",
+  "clearLogsQuestion": "Очистить логи?",
   "sectionAdvanced": "Расширенные",
   "supportTheDev": "Поддержать разработчика",
+  "buyMeACoffee": "Поддержать проект",
   "allBookmarks": "Все закладки",
   "addAccount": "Добавить аккаунт",
+  "restoreBookmarksChip": "Закладки для книг(и) {count}",
+  "@restoreBookmarksChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "signOut": "Выйти",
+  "removeAccountAction": "Удаление учётной записи",
   "tipsAndHiddenFeatures": "Советы и скрытые возможности",
+  "adminRmabSubtitle": "Открыть в приложении",
+  "rmabRequestErrorAlreadyAvailable": "Уже в вашей библиотеке",
+  "clearLocalMetadata": "Очистить локальные метаданные",
+  "addBookmark": "Добавить закладку",
+  "editBookmark": "Изменить закладку",
+  "searchForMetadataAbove": "Искать метаданные выше",
+  "audible": "Audible",
+  "iTunes": "iTunes",
+  "rewindRangeValue": "{min}с – {max}с",
+  "@rewindRangeValue": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "checkForUpdate": "Проверить наличие обновлений",
+  "absorbingSharedToday": "Сегодня",
+  "absorbingSharedYesterday": "Вчера",
+  "absorbingSharedMonday": "Понедельник",
+  "absorbingSharedTuesday": "Вторник",
+  "absorbingSharedWednesday": "Среда",
+  "absorbingSharedThursday": "Четверг",
+  "absorbingSharedFriday": "Пятница",
+  "absorbingSharedSaturday": "Суббота",
+  "absorbingSharedSunday": "Воскресенье",
+  "tipsSheetAutoRewindTitle": "Авто-перемотка",
+  "tipsSheetUpcomingReleasesTitle": "Предстоящие Релизы",
+  "tipsSheetCarModeTitle": "Режим \"В автомобиле\"",
+  "authSsoUnexpectedResponse": "SSO вернул неожиданный ответ",
+  "authSwitchedToLocalServer": "Переключено на локальный сервер",
+  "authSwitchedToRemoteServer": "Переключено на удаленный сервер",
+  "statsWeekStartsOn": "Начало недели в",
+  "downloadNotifProgressChannelName": "Прогресс загрузки",
+  "downloadNotifProgressChannelDesc": "Показывает прогресс во время скачивания аудиокниги",
   "chapterTimeHintFull": "ЧЧ:ММ:СС или секунд",
   "chapterInvalidTime": "Неверное время",
   "chapterLocked": "Глава заблокирована",
