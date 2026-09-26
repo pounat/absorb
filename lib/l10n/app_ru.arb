@@ -452,10 +452,25 @@
   "clearLogsQuestion": "Очистить логи?",
   "sectionAdvanced": "Расширенные",
   "supportTheDev": "Поддержать разработчика",
+  "buyMeACoffee": "Поддержать проект",
   "allBookmarks": "Все закладки",
   "addAccount": "Добавить аккаунт",
+  "restoreBookmarksChip": "Закладки для книг(и) {count}",
+  "@restoreBookmarksChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "signOut": "Выйти",
+  "removeAccountAction": "Удаление учётной записи",
   "tipsAndHiddenFeatures": "Советы и скрытые возможности",
+  "adminRmabSubtitle": "Открыть в приложении",
+  "rmabRequestErrorAlreadyAvailable": "Уже в вашей библиотеке",
+  "clearLocalMetadata": "Очистить локальные метаданные",
+  "addBookmark": "Добавить закладку",
+  "editBookmark": "Изменить закладку",
   "audible": "Audible",
   "iTunes": "iTunes",
   "rewindRangeValue": "{min}с – {max}с",
