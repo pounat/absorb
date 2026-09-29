@@ -162,6 +162,8 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
     private ExoPlayer player;
     private androidx.media3.common.audio.ChannelMixingAudioProcessor monoProcessor;
     private static androidx.media3.common.audio.ChannelMixingAudioProcessor sMonoProcessor;
+    private DeEsserAudioProcessor deEsserProcessor;
+    private static DeEsserAudioProcessor sDeEsserProcessor;
     private Integer audioSessionId;
     private MediaSource mediaSource;
     private Integer currentIndex;
@@ -950,17 +952,21 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
                 }));
             sMonoProcessor = monoProcessor;
             MonoController.register(AudioPlayer::setMonoEnabled);
+            deEsserProcessor = new DeEsserAudioProcessor();
+            sDeEsserProcessor = deEsserProcessor;
+            DeEsserController.register(AudioPlayer::setDeEsserStrength);
             RenderersFactory renderersFactory = new DefaultRenderersFactory(context) {
                 @Override
                 protected AudioSink buildAudioSink(
                         Context context,
                         boolean enableFloatOutput,
                         boolean enableAudioTrackPlaybackParams) {
-                    Log.i(TAG, "PATCH ACTIVE: buildAudioSink with SonicAudioProcessor + MonoProcessor + GainAudioProcessor, AudioTrack speed DISABLED");
+                    Log.i(TAG, "PATCH ACTIVE: buildAudioSink with SonicAudioProcessor + MonoProcessor + DeEsserProcessor + GainAudioProcessor, AudioTrack speed DISABLED");
                     return new DefaultAudioSink.Builder(context)
                         .setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(false)
-                        .setAudioProcessors(new androidx.media3.common.audio.AudioProcessor[]{sonicAudioProcessor, monoProcessor, new GainAudioProcessor()})
+                        // De-ess before the loudness gain so the boost doesn't clip sibilance first.
+                        .setAudioProcessors(new androidx.media3.common.audio.AudioProcessor[]{sonicAudioProcessor, monoProcessor, deEsserProcessor, new GainAudioProcessor()})
                         .build();
                 }
             };
@@ -1207,6 +1213,11 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
         // Always keep mono source upmix matrix regardless of mode
         sMonoProcessor.putChannelMixingMatrix(
             new androidx.media3.common.audio.ChannelMixingMatrix(1, 2, new float[]{1f, 1f}));
+    }
+
+    private static void setDeEsserStrength(final int strength) {
+        DeEsserAudioProcessor p = sDeEsserProcessor;
+        if (p != null) p.setStrength(strength);
     }
 
     public void setLoopMode(final int mode) {

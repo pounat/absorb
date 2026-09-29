@@ -23,6 +23,7 @@ class EqualizerService extends ChangeNotifier {
   double _bassBoost = 0.0; // 0.0–1.0
   double _virtualizer = 0.0; // 0.0–1.0
   double _loudnessGain = 0.0; // 0.0–1.0
+  double _deEsser = 0.0; // 0.0–1.0
   bool _mono = false;
   bool _skipSilence = false;
   bool _perItem = false;
@@ -61,16 +62,17 @@ class EqualizerService extends ChangeNotifier {
   double get bassBoost => _bassBoost;
   double get virtualizer => _virtualizer;
   double get loudnessGain => _loudnessGain;
+  double get deEsser => _deEsser;
   bool get mono => _mono;
   bool get skipSilence => _skipSilence;
   bool get perItem => _perItem;
   String? get currentItemId => _currentItemId;
 
-  /// True when any audio processing (band EQ, bass, loudness, or mono) is
-  /// active. iOS uses this to decide whether the processing tap must be live;
-  /// effects work even with the band-EQ master switch off.
+  /// True when any audio processing (band EQ, bass, loudness, de-esser, or
+  /// mono) is active. iOS uses this to decide whether the processing tap must
+  /// be live; effects work even with the band-EQ master switch off.
   bool get anyProcessingActive =>
-      _enabled || _bassBoost > 0 || _loudnessGain > 0 || _mono;
+      _enabled || _bassBoost > 0 || _loudnessGain > 0 || _deEsser > 0 || _mono;
 
   /// Initialize — try to connect to platform EQ, fall back to software presets.
   Future<void> init() async {
@@ -231,6 +233,19 @@ class EqualizerService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set de-esser strength (0.0–1.0). Reduces sibilance ("s"/"sh" harshness)
+  /// in a ~4–9 kHz band.
+  Future<void> setDeEsser(double value) async {
+    _deEsser = value.clamp(0.0, 1.0);
+    // Effects apply independently of the band-EQ master switch on both platforms.
+    try {
+      await _channel.invokeMethod('setDeEsser', {'strength': (_deEsser * 1000).round()});
+    } catch (_) {}
+    _tapApplier?.call(anyProcessingActive);
+    await _saveSettings();
+    notifyListeners();
+  }
+
   /// Reset everything to flat/off.
   Future<void> resetAll() async {
     _activePreset = 'flat';
@@ -238,6 +253,7 @@ class EqualizerService extends ChangeNotifier {
     _bassBoost = 0.0;
     _virtualizer = 0.0;
     _loudnessGain = 0.0;
+    _deEsser = 0.0;
     _mono = false;
     _skipSilence = false;
     _skipSilenceApplier?.call(_skipSilence);
@@ -282,6 +298,7 @@ class EqualizerService extends ChangeNotifier {
       await _channel.invokeMethod('setBassBoost', {'strength': (_bassBoost * 1000).round()});
       await _channel.invokeMethod('setVirtualizer', {'strength': (_virtualizer * 1000).round()});
       await _channel.invokeMethod('setLoudness', {'gain': (_loudnessGain * 1500).round()});
+      await _channel.invokeMethod('setDeEsser', {'strength': (_deEsser * 1000).round()});
       await _channel.invokeMethod('setEnabled', {'enabled': _enabled});
       await _channel.invokeMethod('setMono', {'enabled': _mono});
     } catch (_) {}
@@ -304,6 +321,7 @@ class EqualizerService extends ChangeNotifier {
       await _channel.invokeMethod('setMono', {'enabled': _mono});
       await _channel.invokeMethod('setBassBoost', {'strength': (_bassBoost * 1000).round()});
       await _channel.invokeMethod('setLoudness', {'gain': (_loudnessGain * 1500).round()});
+      await _channel.invokeMethod('setDeEsser', {'strength': (_deEsser * 1000).round()});
     } catch (_) {}
   }
 
@@ -353,6 +371,7 @@ class EqualizerService extends ChangeNotifier {
         'bassBoost': 0.0,
         'virtualizer': 0.0,
         'loudnessGain': 0.0,
+        'deEsser': 0.0,
         'mono': false,
         'skipSilence': false,
         'bands': List<double>.filled(bandCount, 0.0),
@@ -368,6 +387,7 @@ class EqualizerService extends ChangeNotifier {
       'bassBoost': await ScopedPrefs.getDouble(_itemKey('bassBoost', itemId)) ?? 0.0,
       'virtualizer': await ScopedPrefs.getDouble(_itemKey('virtualizer', itemId)) ?? 0.0,
       'loudnessGain': await ScopedPrefs.getDouble(_itemKey('loudnessGain', itemId)) ?? 0.0,
+      'deEsser': await ScopedPrefs.getDouble(_itemKey('deEsser', itemId)) ?? 0.0,
       'mono': await ScopedPrefs.getBool(_itemKey('mono', itemId)) ?? false,
       'skipSilence': await ScopedPrefs.getBool(_itemKey('skipSilence', itemId)) ?? false,
       'bands': bands,
@@ -381,6 +401,7 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble(_itemKey('bassBoost', itemId), s['bassBoost'] as double);
     await ScopedPrefs.setDouble(_itemKey('virtualizer', itemId), s['virtualizer'] as double);
     await ScopedPrefs.setDouble(_itemKey('loudnessGain', itemId), s['loudnessGain'] as double);
+    await ScopedPrefs.setDouble(_itemKey('deEsser', itemId), s['deEsser'] as double? ?? 0.0);
     await ScopedPrefs.setBool(_itemKey('mono', itemId), s['mono'] as bool);
     await ScopedPrefs.setBool(_itemKey('skipSilence', itemId), s['skipSilence'] as bool? ?? false);
     final bands = (s['bands'] as List).cast<double>();
@@ -395,6 +416,7 @@ class EqualizerService extends ChangeNotifier {
       _bassBoost = 0.0;
       _virtualizer = 0.0;
       _loudnessGain = 0.0;
+      _deEsser = 0.0;
       _mono = false;
       _skipSilence = false;
       _bandLevels = List.filled(_bandLevels.length, 0.0);
@@ -405,6 +427,7 @@ class EqualizerService extends ChangeNotifier {
     _bassBoost = await ScopedPrefs.getDouble(_itemKey('bassBoost', itemId)) ?? 0.0;
     _virtualizer = await ScopedPrefs.getDouble(_itemKey('virtualizer', itemId)) ?? 0.0;
     _loudnessGain = await ScopedPrefs.getDouble(_itemKey('loudnessGain', itemId)) ?? 0.0;
+    _deEsser = await ScopedPrefs.getDouble(_itemKey('deEsser', itemId)) ?? 0.0;
     _mono = await ScopedPrefs.getBool(_itemKey('mono', itemId)) ?? false;
     _skipSilence = await ScopedPrefs.getBool(_itemKey('skipSilence', itemId)) ?? false;
     final bandStr = await ScopedPrefs.getString(_itemKey('bands', itemId));
@@ -421,6 +444,7 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble(_itemKey('bassBoost', itemId), _bassBoost);
     await ScopedPrefs.setDouble(_itemKey('virtualizer', itemId), _virtualizer);
     await ScopedPrefs.setDouble(_itemKey('loudnessGain', itemId), _loudnessGain);
+    await ScopedPrefs.setDouble(_itemKey('deEsser', itemId), _deEsser);
     await ScopedPrefs.setBool(_itemKey('mono', itemId), _mono);
     await ScopedPrefs.setBool(_itemKey('skipSilence', itemId), _skipSilence);
     await ScopedPrefs.setString(_itemKey('bands', itemId), _bandLevels.map((l) => l.toStringAsFixed(1)).join(','));
@@ -433,6 +457,7 @@ class EqualizerService extends ChangeNotifier {
     _bassBoost = await ScopedPrefs.getDouble('eq_bassBoost') ?? 0.0;
     _virtualizer = await ScopedPrefs.getDouble('eq_virtualizer') ?? 0.0;
     _loudnessGain = await ScopedPrefs.getDouble('eq_loudnessGain') ?? 0.0;
+    _deEsser = await ScopedPrefs.getDouble('eq_deEsser') ?? 0.0;
     _mono = await ScopedPrefs.getBool('eq_mono') ?? false;
     _skipSilence = await ScopedPrefs.getBool('eq_skipSilence') ?? false;
 
@@ -468,6 +493,7 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble('eq_bassBoost', _bassBoost);
     await ScopedPrefs.setDouble('eq_virtualizer', _virtualizer);
     await ScopedPrefs.setDouble('eq_loudnessGain', _loudnessGain);
+    await ScopedPrefs.setDouble('eq_deEsser', _deEsser);
     await ScopedPrefs.setBool('eq_mono', _mono);
     await ScopedPrefs.setBool('eq_skipSilence', _skipSilence);
     await ScopedPrefs.setString('eq_bands', _bandLevels.map((l) => l.toStringAsFixed(1)).join(','));
