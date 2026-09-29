@@ -1264,7 +1264,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       customHeaders: auth.customHeaders,
     ).timeout(
       const Duration(seconds: 6),
-      onTimeout: () => (ok: false, detail: 'no answer within 6s'),
+      onTimeout: () => (ok: false, detail: 'no answer within 6s', needsClientCert: false),
     );
     final reachable = probe.ok;
 

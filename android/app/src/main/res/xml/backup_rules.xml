@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="file" path="mtls"/>
+    <exclude domain="file" path="mtls_client.p12"/>
+    <exclude domain="sharedpref" path="absorb_mtls.xml"/>
+</full-backup-content>

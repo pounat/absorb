@@ -435,6 +435,39 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       }
     }
 
+    // mTLS client certificate for playback. Dart's HTTP stack is covered
+    // separately by HttpOverrides.
+    MtlsIdentityStore.shared.restore()
+    let mtlsChannel = FlutterMethodChannel(name: "com.absorb.mtls",
+                                           binaryMessenger: messenger)
+    mtlsChannel.setMethodCallHandler { (call, result) in
+      switch call.method {
+      case "setCertificate":
+        let args = call.arguments as? [String: Any]
+        guard let bundle = (args?["bundle"] as? FlutterStandardTypedData)?.data else {
+          result(FlutterError(code: "MTLS_ERROR", message: "Missing certificate bundle", details: nil))
+          return
+        }
+        let ok = MtlsIdentityStore.shared.setCertificate(
+          bundle: bundle,
+          password: args?["password"] as? String ?? "",
+          host: args?["host"] as? String ?? "",
+          port: args?["port"] as? Int ?? 443)
+        if ok {
+          result(nil)
+        } else {
+          result(FlutterError(code: "MTLS_ERROR",
+                              message: "Certificate bundle could not be loaded", details: nil))
+        }
+      case "clearCertificate":
+        MtlsIdentityStore.shared.clearCertificate()
+        result(nil)
+
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     let storageChannel = FlutterMethodChannel(name: "com.absorb.storage",
                                               binaryMessenger: messenger)
     storageChannel.setMethodCallHandler { (call, result) in

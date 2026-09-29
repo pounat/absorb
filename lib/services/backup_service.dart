@@ -383,7 +383,9 @@ class BackupService {
         'password': await ScopedPrefs.getString('settingsSyncPass'),
     }..removeWhere((_, v) => v == null);
 
-    // Accounts & custom headers (optional - contain auth data)
+    // Accounts & custom headers (optional - contain auth data). The mTLS client
+    // certificate is left out on purpose: a private key does not belong in a file
+    // that gets handed around.
     List<Map<String, dynamic>>? accounts;
     Map<String, String>? customHeaders;
     if (includeAccounts) {

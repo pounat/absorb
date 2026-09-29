@@ -1287,7 +1287,7 @@ class AuthProvider extends ChangeNotifier {
 
     // Set the new account as active in the account service. It may have been
     // removed since the caller loaded its saved-account row.
-    final selected = UserAccountService().switchTo(
+    final selected = await UserAccountService().switchTo(
       account.serverUrl,
       account.username,
     );

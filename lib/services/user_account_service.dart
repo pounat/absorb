@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/server_url.dart';
 import 'api_service.dart';
 import 'auth_tokens.dart';
+import 'mtls_service.dart';
 
 /// Represents a saved user account (server + credentials).
 class SavedAccount {
@@ -132,11 +133,13 @@ class UserAccountService {
     _accounts.insert(0, account); // Most recent first
     _activeScopeKey = account.scopeKey;
     await _persist();
+    // A certificate picked during login belongs to no account yet.
+    await MtlsService().adoptCertificateForActiveAccount();
     debugPrint('[UserAccount] Saved & activated: ${account.username}@${account.serverUrl}');
   }
 
   /// Switch to a different saved account. Returns the account or null if not found.
-  SavedAccount? switchTo(String serverUrl, String username) {
+  Future<SavedAccount?> switchTo(String serverUrl, String username) async {
     final account = _accounts.firstWhere(
       (a) => a.serverUrl == serverUrl && a.username == username,
       orElse: () => SavedAccount(serverUrl: '', username: '', token: ''),
@@ -144,12 +147,16 @@ class UserAccountService {
     if (account.token.isEmpty) return null;
     _activeScopeKey = account.scopeKey;
     _persistActiveKey();
+    // Awaited: a client cached in the meantime would keep the old identity.
+    await MtlsService().loadForActiveAccount();
     debugPrint('[UserAccount] Switched to: ${account.username}@${account.serverUrl}');
     return account;
   }
 
   /// Remove a saved account. Does NOT delete its scoped data (in case the
-  /// user wants to re-add later). Returns true if found and removed.
+  /// user wants to re-add later), including the mTLS certificate — signing out
+  /// comes through here and needs it to sign back in. The account row's own
+  /// Remove action clears it. Returns true if found and removed.
   Future<bool> removeAccount(String serverUrl, String username) async {
     final before = _accounts.length;
     _accounts.removeWhere(
@@ -338,6 +345,9 @@ class UserAccountService {
 
     final oldScope = old.scopeKey;
     final newScope = updated.scopeKey;
+    // Before the scoped prefs: the password is one of them and has to stay with
+    // the bundle.
+    await MtlsService().migrateScope(oldScope, newScope);
     await _migrateScopedData(oldScope, newScope);
 
     _accounts[idx] = updated;
@@ -345,6 +355,8 @@ class UserAccountService {
     // reads/writes land on the migrated data.
     if (_activeScopeKey == oldScope) {
       _activeScopeKey = newScope;
+      // The platform layer keys the certificate by server, not by scope.
+      await MtlsService().loadForActiveAccount();
     }
     await _persist();
     debugPrint(

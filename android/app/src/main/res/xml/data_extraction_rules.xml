@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="mtls"/>
+        <exclude domain="file" path="mtls_client.p12"/>
+        <exclude domain="sharedpref" path="absorb_mtls.xml"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="mtls"/>
+        <exclude domain="file" path="mtls_client.p12"/>
+        <exclude domain="sharedpref" path="absorb_mtls.xml"/>
+    </device-transfer>
+</data-extraction-rules>

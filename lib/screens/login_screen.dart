@@ -10,11 +10,13 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/backup_service.dart';
+import '../services/mtls_service.dart';
 import '../services/oidc_service.dart';
 import '../services/settings_sync_service.dart';
 import '../services/setup_link_service.dart';
 import '../services/user_account_service.dart';
 import '../widgets/absorb_wave_icon.dart';
+import '../widgets/mtls_certificate_sheet.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/setup_link_login.dart';
 import '../services/audio_player_service.dart';
@@ -58,6 +60,15 @@ class _LoginScreenState extends State<LoginScreen>
   // are diagnosable instead of just "could not reach server".
   String? _serverErrorDetail;
   Timer? _debounce;
+
+  // Set when a connection attempt failed the way an mTLS server fails it.
+  bool _needsClientCert = false;
+
+  // Staged for this login only, deliberately not read from MtlsService: an
+  // account still signed in may have one of its own, which is not this server's.
+  String? _stagedCertLabel;
+  String? _certPromptDismissedFor;
+  bool _loginInFlight = false;
 
   // Login error
   String? _loginError;
@@ -168,6 +179,11 @@ class _LoginScreenState extends State<LoginScreen>
     _usernameFocus.dispose();
     for (final (k, v) in _headerControllers) { k.dispose(); v.dispose(); }
     OidcService().cancel();
+    // Owned by no account yet, so it must not stay active for whoever is signed
+    // in — unless a login is still running and about to claim it.
+    if (!_loginInFlight && MtlsService().hasStaged) {
+      unawaited(MtlsService().clearStaged());
+    }
     super.dispose();
   }
 
@@ -196,8 +212,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     // Only invalidate if the server text actually changed from what we validated
-    final cleanUrl = text.replaceAll(RegExp(r'^https?://'), '');
-    final fullUrl = '$_protocol$cleanUrl';
+    final fullUrl = _serverUrl;
     if (fullUrl != _lastValidatedServer) {
       setState(() {
         _serverValid = false;
@@ -230,8 +245,10 @@ class _LoginScreenState extends State<LoginScreen>
     final text = _serverController.text.trim();
     if (text.isEmpty) return;
 
-    final cleanUrl = text.replaceAll(RegExp(r'^https?://'), '');
-    final fullUrl = '$_protocol$cleanUrl';
+    final fullUrl = _serverUrl;
+
+    // The address may have been edited since, and still means this server.
+    if (_stagedCertLabel != null) MtlsService().repinStaged(fullUrl);
 
     try {
       final headers = _collectHeaders();
@@ -245,6 +262,10 @@ class _LoginScreenState extends State<LoginScreen>
         _serverValid = ok;
         _serverError = ok ? null : AppLocalizations.of(context)!.loginCouldNotReachServer;
         _serverErrorDetail = ok ? null : result.detail;
+        // Not once one has been picked here, or it loops back to the import.
+        _needsClientCert = result.needsClientCert &&
+            _stagedCertLabel == null &&
+            _certPromptDismissedFor != fullUrl;
         if (ok) {
           _lastValidatedServer = fullUrl;
         } else {
@@ -270,12 +291,106 @@ class _LoginScreenState extends State<LoginScreen>
         _serverValid = false;
         _serverError = AppLocalizations.of(context)!.loginCouldNotReachServer;
         _serverErrorDetail = e.toString();
+        _needsClientCert = false;
         _oidcConfig = null;
       });
     }
   }
 
+  Widget _buildClientCertPrompt(ColorScheme cs) {
+    final l = AppLocalizations.of(context)!;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.tertiary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: cs.tertiary.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lock_outline, size: 18, color: cs.tertiary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l.mtlsServerRequiresCertTitle,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface,
+                  ),
+                ),
+              ),
+              // A WAF's 403 looks the same, so the guess is dismissible.
+              GestureDetector(
+                onTap: () => setState(() {
+                  _certPromptDismissedFor = _serverUrl;
+                  _needsClientCert = false;
+                }),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(Icons.close_rounded, size: 18, color: cs.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l.mtlsServerRequiresCertBody,
+            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.tonal(
+              onPressed: _pickClientCert,
+              child: Text(l.mtlsSelectAndRetry),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The address as typed, in the shape [ApiService] is given it.
+  String get _serverUrl =>
+      '$_protocol${_serverController.text.trim().replaceAll(RegExp(r'^https?://'), '')}';
+
+  Future<void> _pickClientCert() async {
+    final imported = await showMtlsCertificateSheet(context, stagedForServer: _serverUrl);
+    if (!mounted || !imported) return;
+    setState(() {
+      _stagedCertLabel = MtlsService().label;
+      _needsClientCert = false;
+      _serverError = null;
+      _serverErrorDetail = null;
+    });
+    await _checkServer();
+  }
+
+  Future<void> _removeClientCert() async {
+    await MtlsService().clearStaged();
+    if (!mounted) return;
+    setState(() => _stagedCertLabel = null);
+    await _checkServer();
+  }
+
   Future<void> _handleLogin() async {
+    _loginInFlight = true;
+    try {
+      await _login();
+    } finally {
+      _loginInFlight = false;
+      // The screen went away mid-login, so dispose's cleanup never ran.
+      if (!mounted && MtlsService().hasStaged) {
+        unawaited(MtlsService().clearStaged());
+      }
+    }
+  }
+
+  Future<void> _login() async {
     final apiKey = _apiKeyController.text.trim();
 
     // Skip form validation when an API key is supplied — the username
@@ -297,9 +412,7 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     final auth = context.read<AuthProvider>();
-    final serverText = _serverController.text.trim();
-    final cleanUrl = serverText.replaceAll(RegExp(r'^https?://'), '');
-    final fullUrl = '$_protocol$cleanUrl';
+    final fullUrl = _serverUrl;
 
     final headers = _collectHeaders();
 
@@ -337,6 +450,18 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _handleOidcLogin() async {
+    _loginInFlight = true;
+    try {
+      await _oidcLogin();
+    } finally {
+      _loginInFlight = false;
+      if (!mounted && MtlsService().hasStaged) {
+        unawaited(MtlsService().clearStaged());
+      }
+    }
+  }
+
+  Future<void> _oidcLogin() async {
     if (!_serverValid) return;
 
     setState(() {
@@ -344,9 +469,7 @@ class _LoginScreenState extends State<LoginScreen>
       _loginError = null;
     });
 
-    final serverText = _serverController.text.trim();
-    final cleanUrl = serverText.replaceAll(RegExp(r'^https?://'), '');
-    final fullUrl = '$_protocol$cleanUrl';
+    final fullUrl = _serverUrl;
 
     final headers = _collectHeaders();
     final oidc = OidcService();
@@ -612,6 +735,11 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
                                   ],
 
+                                  if (_needsClientCert) ...[
+                                    const SizedBox(height: 10),
+                                    _buildClientCertPrompt(cs),
+                                  ],
+
                                   // Advanced: Custom Headers — must be before server validation
                                   const SizedBox(height: 8),
                                   GestureDetector(
@@ -726,6 +854,42 @@ class _LoginScreenState extends State<LoginScreen>
                                               applyTrustAllCerts(v);
                                               _revalidateServer();
                                             },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Divider(height: 1),
+                                    const SizedBox(height: 4),
+                                    // Always reachable: detection cannot catch
+                                    // every proxy.
+                                    Text(l.mtlsCertificate,
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            _stagedCertLabel ?? l.mtlsNoCertificate,
+                                            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (_stagedCertLabel != null)
+                                          GestureDetector(
+                                            onTap: _removeClientCert,
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              child: Icon(Icons.close_rounded, size: 18, color: cs.error.withValues(alpha: 0.6)),
+                                            ),
+                                          ),
+                                        GestureDetector(
+                                          onTap: _pickClientCert,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 4),
+                                            child: Text(
+                                              _stagedCertLabel == null ? l.mtlsSelectCertificate : l.mtlsChangeCertificate,
+                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cs.primary),
+                                            ),
                                           ),
                                         ),
                                       ],

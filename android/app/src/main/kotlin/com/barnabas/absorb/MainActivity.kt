@@ -189,6 +189,33 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
 
+        // mTLS client certificate for the native stack; Dart's own HTTP is
+        // covered by HttpOverrides.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.mtls")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setCertificate" -> {
+                        val bundle = call.argument<ByteArray>("bundle")
+                        val password = call.argument<String>("password") ?: ""
+                        val host = call.argument<String>("host") ?: ""
+                        val port = call.argument<Int>("port") ?: 443
+                        if (bundle == null) {
+                            result.error("MTLS_ERROR", "Missing certificate bundle", null)
+                        } else if (MtlsCertStore.setCertificate(applicationContext, bundle, password, host, port)) {
+                            result.success(null)
+                        } else {
+                            result.error("MTLS_ERROR", "Certificate bundle could not be loaded", null)
+                        }
+                    }
+                    "clearCertificate" -> {
+                        MtlsCertStore.clearCertificate(applicationContext)
+                        result.success(null)
+                    }
+
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.clip")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
