@@ -17,9 +17,13 @@ void _removeToast(OverlayEntry entry) {
 
 /// Show a styled toast that renders above modal sheets and overlays.
 ///
-/// Pass [icon] for a leading icon (e.g. Icons.check_circle_rounded).
-void showOverlayToast(BuildContext context, String message, {IconData? icon}) {
-  _insertOverlayToast(Overlay.maybeOf(context), message, icon: icon);
+/// Pass [icon] for a leading icon (e.g. Icons.check_circle_rounded). With
+/// [onTap] the toast is an offer: it stays up longer and tapping it runs the
+/// action.
+void showOverlayToast(BuildContext context, String message,
+    {IconData? icon, VoidCallback? onTap}) {
+  _insertOverlayToast(Overlay.maybeOf(context), message,
+      icon: icon, onTap: onTap);
 }
 
 /// Show the same toast from provider/service code that owns a navigator but
@@ -36,6 +40,7 @@ void _insertOverlayToast(
   OverlayState? overlay,
   String message, {
   IconData? icon,
+  VoidCallback? onTap,
 }) {
   final previous = _currentToast;
   if (previous != null) _removeToast(previous);
@@ -49,6 +54,7 @@ void _insertOverlayToast(
     builder: (_) => _AnimatedToast(
       message: message,
       icon: icon,
+      onTap: onTap,
       onDone: () {
         _removeToast(entry);
         if (_currentToast == entry) _currentToast = null;
@@ -152,9 +158,11 @@ class _LiveToast extends StatelessWidget {
 class _AnimatedToast extends StatefulWidget {
   final String message;
   final IconData? icon;
+  final VoidCallback? onTap;
   final VoidCallback onDone;
 
-  const _AnimatedToast({required this.message, this.icon, required this.onDone});
+  const _AnimatedToast(
+      {required this.message, this.icon, this.onTap, required this.onDone});
 
   @override
   State<_AnimatedToast> createState() => _AnimatedToastState();
@@ -172,7 +180,7 @@ class _AnimatedToastState extends State<_AnimatedToast>
       vsync: this,
     )..forward();
 
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(Duration(seconds: widget.onTap != null ? 6 : 2), () {
       if (mounted) _controller.reverse().then((_) => widget.onDone());
     });
   }
@@ -198,36 +206,45 @@ class _AnimatedToastState extends State<_AnimatedToast>
             end: Offset.zero,
           ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut)),
           child: Center(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: cs.surface.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.icon != null) ...[
-                        Icon(widget.icon, size: 18, color: cs.primary),
-                        const SizedBox(width: 8),
-                      ],
-                      Flexible(
-                        child: Text(
-                          widget.message,
-                          style: TextStyle(
-                            color: cs.onSurface,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.none,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onTap == null
+                  ? null
+                  : () {
+                      widget.onDone();
+                      widget.onTap!();
+                    },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: cs.surface.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.icon != null) ...[
+                          Icon(widget.icon, size: 18, color: cs.primary),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Text(
+                            widget.message,
+                            style: TextStyle(
+                              color: cs.onSurface,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.none,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

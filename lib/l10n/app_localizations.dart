@@ -15548,6 +15548,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Playing this passage in the audiobook'**
   String get findInAudiobookPlaying;
+
+  /// No description provided for @catchUpAudioAhead.
+  ///
+  /// In en, this message translates to:
+  /// **'The audiobook is further along. Tap to go there.'**
+  String get catchUpAudioAhead;
+
+  /// No description provided for @catchUpPageAhead.
+  ///
+  /// In en, this message translates to:
+  /// **'This page is ahead of the audiobook. Tap to move the audiobook here.'**
+  String get catchUpPageAhead;
+
+  /// No description provided for @readerShortcutButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcut button'**
+  String get readerShortcutButton;
 }
 
 class _AppLocalizationsDelegate

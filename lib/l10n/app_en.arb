@@ -5061,5 +5061,8 @@
   "findInAudiobookAfterLabel": "When the spot is found",
   "findInAudiobookStay": "Keep reading",
   "findInAudiobookGoPlayer": "Open the player",
-  "findInAudiobookPlaying": "Playing this passage in the audiobook"
+  "findInAudiobookPlaying": "Playing this passage in the audiobook",
+  "catchUpAudioAhead": "The audiobook is further along. Tap to go there.",
+  "catchUpPageAhead": "This page is ahead of the audiobook. Tap to move the audiobook here.",
+  "readerShortcutButton": "Shortcut button"
 }

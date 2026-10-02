@@ -31,16 +31,27 @@ import '../services/sync_point_store.dart';
 import '../services/transcript_line_store.dart';
 import '../services/transcription_service.dart';
 import '../services/volume_key_service.dart';
+import '../utils/chapter_title_match.dart';
 import 'overlay_toast.dart';
 import 'transcription_download_prompt.dart';
 import 'progress_dialog.dart';
 import 'quote_share_sheet.dart';
 import 'book_detail_sheet.dart';
-import 'card_buttons.dart' show CardSpeedSheet, MoreMenuItem, SimpleBookmarkSheet;
+import 'card_button_config.dart' show buttonDefById, localizedCardButtonLabel;
+import 'card_buttons.dart'
+    show CardSpeedSheet, MoreMenuItem, SimpleBookmarkSheet, showInactiveToast;
 import 'card_chapters_sheet.dart';
 import 'chromecast_button.dart';
 import 'equalizer_sheet.dart';
 import 'sleep_timer_sheet.dart';
+
+typedef _ReaderAction = ({
+  IconData icon,
+  String label,
+  Color? tint,
+  bool enabled,
+  VoidCallback onTap,
+});
 
 /// Reader background/text presets (e-reader themes). Colors are hex so they
 /// feed both the WebView CSS and the Flutter overlays.
@@ -174,6 +185,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // Read along: follow the audiobook by coloring the words being spoken.
   bool _readAlongOn = false;
   bool _didAutoReadAlong = false;
+  // Backgrounding stops read along; this brings it back on return.
+  bool _readAlongResume = false;
+  // Catch up offers: each direction is offered once per visit.
+  bool _didScheduleCatchUp = false;
+  bool _offeredPageToAudio = false;
+  bool _offeredAudioToPage = false;
   // Listening ahead: the runway fills faster with the playhead standing
   // still, and nobody wants to hear words the page can't show yet. Armed at
   // start; the first gated tick pauses a playing book (resumed by itself
@@ -257,6 +274,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   static const _kFont = 'ereader_font';
   static const _kPinTop = 'ereader_pin_top';
   static const _kKeepAwake = 'ereader_keep_awake';
+  static const _kBarAction = 'ereader_bar_action';
 
   // Gates the WebView mount until the entering route animation completes, so
   // the heavy platform view doesn't stutter the open transition.
@@ -274,6 +292,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   String _audioAuthor = '';
   String? _audioCoverUrl;
   bool _startingAudio = false;
+  // Which control sits in the player bar's left slot.
+  String _barAction = 'speed';
   // Held from initState so dispose can lift the quiet without a context read.
   late final LibraryProvider _quietLib;
 
@@ -325,13 +345,18 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       final drifted = _bgDrifted;
       _bgCfi = null;
       _bgDrifted = false;
+      final resumeReadAlong = _readAlongResume;
+      _readAlongResume = false;
       if (drifted && cfi != null && cfi.isNotEmpty) {
         Future.delayed(const Duration(milliseconds: 350), () async {
           if (!mounted || !_readerActive) return;
           await _epubController?.display(cfi: cfi);
           // The live page moved under the blind; re-seat it on the page after.
           if (_autoScroll) await _epubController?.autoScrollResync();
+          if (resumeReadAlong) await _resumeReadAlong();
         });
+      } else if (resumeReadAlong) {
+        unawaited(_resumeReadAlong());
       }
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
@@ -343,6 +368,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       // a second, and nobody is reading a page they can't see.
       if (_readAlongOn) {
         debugPrint('[ReadAlong] app backgrounded - stopping');
+        _readAlongResume = true;
         _stopReadAlong();
       }
     } else {
@@ -389,7 +415,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       libraryId: lib.selectedLibraryId,
       fromUi: true,
     );
-    if (mounted) setState(() => _startingAudio = false);
+    if (!mounted) return;
+    setState(() => _startingAudio = false);
+    unawaited(_maybeOfferCatchUp(audioStarting: true));
   }
 
   void _loadSkipSettings() {
@@ -436,6 +464,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _fontId = await ScopedPrefs.getString(_kFont) ?? 'original';
     _pinTop = await ScopedPrefs.getBool(_kPinTop) ?? false;
     _keepAwake = await ScopedPrefs.getBool(_kKeepAwake) ?? true;
+    _barAction = await ScopedPrefs.getString(_kBarAction) ?? 'speed';
     if (mounted) _syncScreenWake();
     _volumeNavMode = await PlayerSettings.getEreaderVolumeNav();
     _volumeNavWhilePlaying = await PlayerSettings.getEreaderVolumeNavWhilePlaying();
@@ -2273,14 +2302,15 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   /// Runs the whole Find in ebook flow: fuzzy-locate the transcript, decide
   /// whether the best hit is trustworthy, then jump + flash or toast and stay.
-  Future<void> _runFindInEbook(String transcript, String? chapterHint) async {
+  Future<void> _runFindInEbook(String transcript, String? chapterHint,
+      {double? positionSeconds}) async {
     final l = AppLocalizations.of(context)!;
     if (_finding) return;
     setState(() => _finding = true);
     showProgressDialog(context, l.findInEbookSearching);
 
     Map<String, dynamic>? decision;
-    final pos = widget.findPositionSeconds;
+    final pos = positionSeconds ?? widget.findPositionSeconds;
     var windowSeconds = findInEbookWindowSeconds;
     try {
       decision = await _decideFindTarget(transcript, chapterHint,
@@ -2363,7 +2393,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     if (nearSeconds != null) hintBases.addAll(await _syncHintBases(nearSeconds));
     if (chapterHint != null) {
       for (final ch in _chapters) {
-        if (_chapterTitlesAgree(chapterHint, ch.title)) {
+        if (chapterTitlesAgree(chapterHint, ch.title)) {
           final base = ch.href.split('#').first.split('/').last.toLowerCase();
           if (base.isNotEmpty && !hintBases.contains(base)) hintBases.add(base);
         }
@@ -2383,7 +2413,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     double scoreOf(Map<String, dynamic> c) {
       final fine = (c['fine'] as num?)?.toDouble() ?? 0;
       final agrees = chapterHint != null &&
-          _chapterTitlesAgree(chapterHint, _chapterForHref(c['href'] as String? ?? '') ?? '');
+          chapterTitlesAgree(chapterHint, _chapterForHref(c['href'] as String? ?? '') ?? '');
       return fine + (agrees ? _findHintBonus : 0);
     }
 
@@ -2449,63 +2479,6 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       SyncPoint(t: seconds, si: idx.toInt(), off: off, src: 'e', err: err),
       spineLength: hrefs.isEmpty ? null : hrefs.length,
     );
-  }
-
-  /// True when an audio chapter title and a TOC chapter title plausibly name
-  /// the same chapter: equal, one's words are a subset of the other's, or they
-  /// share a number. Word-level, not substring - raw containment would make
-  /// "Chapter 1" match "Chapter 10". Spelled-out numbers normalize to digits
-  /// first, so "Chapter Nine" can't claim "Chapter Thirty-Nine" via word
-  /// subset (the hyphen splits it into two words), and "Chapter 39" matches
-  /// "Chapter Thirty-Nine" like it should.
-  bool _chapterTitlesAgree(String? audio, String? toc) {
-    if (audio == null || toc == null) return false;
-    final a = _chapterTitleWords(audio), t = _chapterTitleWords(toc);
-    if (a.isEmpty || t.isEmpty) return false;
-    if (a.containsAll(t) || t.containsAll(a)) return true;
-    final an = a.where((w) => RegExp(r'^\d+$').hasMatch(w)).toSet();
-    final tn = t.where((w) => RegExp(r'^\d+$').hasMatch(w)).toSet();
-    return an.isNotEmpty && an.intersection(tn).isNotEmpty;
-  }
-
-  static const _numberUnits = {
-    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6,
-    'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12,
-    'thirteen': 13, 'fourteen': 14, 'fifteen': 15, 'sixteen': 16,
-    'seventeen': 17, 'eighteen': 18, 'nineteen': 19,
-  };
-  static const _numberTens = {
-    'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50, 'sixty': 60,
-    'seventy': 70, 'eighty': 80, 'ninety': 90,
-  };
-
-  /// Title words with spelled-out numbers collapsed to digit tokens
-  /// ("thirty nine" -> "39", "nine" -> "9").
-  Set<String> _chapterTitleWords(String s) {
-    final raw = s
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^\p{L}\p{N} ]+', unicode: true), ' ')
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toList();
-    final out = <String>{};
-    for (var i = 0; i < raw.length; i++) {
-      final w = raw[i];
-      final tens = _numberTens[w];
-      if (tens != null) {
-        final unit = i + 1 < raw.length ? _numberUnits[raw[i + 1]] : null;
-        if (unit != null && unit < 10) {
-          out.add('${tens + unit}');
-          i++;
-        } else {
-          out.add('$tens');
-        }
-        continue;
-      }
-      final unit = _numberUnits[w];
-      out.add(unit != null ? '$unit' : w);
-    }
-    return out;
   }
 
   /// Fuzzy passage search over the separate search Book (same instance the
@@ -2701,6 +2674,193 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // How far a failed probe shifts the search around the original estimate,
   // at minimum; a long section widens it so the probes spread across it.
   static const double _scanStepSeconds = 90.0;
+  static const double _catchUpMinGapSeconds = 300;
+
+  /// Where the audiobook should be for the page at [cfi] and the range it
+  /// could sit in, from sync points or a uniquely named audio chapter. Nothing
+  /// is transcribed.
+  Future<({double est, double lo, double hi})?> _audioEstimateForPage(
+      String cfi) async {
+    final api = context.read<AuthProvider>().apiService;
+    final info = await _selectionSectionInfo(cfi, '');
+    if (info == null) return null;
+    final si = (info['si'] as num).toInt();
+    final offset = (info['offset'] as num).toDouble();
+    final total = (info['total'] as num).toDouble();
+    if (total <= 0 || offset < 0) return null;
+    final audio = await resolveAudioChapters(widget.itemId, api);
+    if (audio.duration <= 0) return null;
+    final spine = await _spineHrefs();
+    await SyncPointStore.instance.load(
+      widget.itemId,
+      audioDuration: audio.duration,
+      spineLength: spine.isEmpty ? null : spine.length,
+    );
+    final sync = await _syncPointCandidate(
+        si: si,
+        offset: offset,
+        total: total,
+        fallbackRate: _fallbackSecPerChar,
+        top: audio.duration);
+    if (sync != null) return (est: sync.est, lo: sync.lo, hi: sync.hi);
+    // A title that several audio chapters share can't place the page.
+    final tocTitle = _chapterForHref(info['href'] as String? ?? '');
+    final named = [
+      for (final ch in audio.chapters)
+        if (ch is Map<String, dynamic> &&
+            chapterTitlesAgree(ch['title'] as String?, tocTitle))
+          ch,
+    ];
+    if (named.length != 1) return null;
+    final a =
+        _chapterAnchorEstimate(named.first, offset, total, audio.duration);
+    return (est: a.est, lo: a.lo, hi: a.hi);
+  }
+
+  /// Offers to close a big gap between the page and the audiobook. Opening
+  /// the book only offers going to the audio; starting audio from here
+  /// ([audioStarting]) can offer either. Nothing moves until the toast is tapped.
+  Future<void> _maybeOfferCatchUp({required bool audioStarting}) async {
+    if (!mounted || !_readerActive || !_hasAudio || !_transcriptionOn) return;
+    if (_readAlongOn || _finding) return;
+    // These opens put a page on screen that is not where the reading stopped.
+    if (widget.findText != null ||
+        widget.openAtCfi != null ||
+        widget.startReadAlong) {
+      return;
+    }
+    if (_offeredPageToAudio && (_offeredAudioToPage || !audioStarting)) return;
+    final cfi = _currentCfi;
+    if (cfi == null || cfi.isEmpty) return;
+    final transcription = TranscriptionService.instance;
+    if (!transcription.canTranscribeBook(widget.itemId)) return;
+    final l = AppLocalizations.of(context)!;
+    final lib = context.read<LibraryProvider>();
+    if (lib.getProgressData(widget.itemId)?['isFinished'] == true) return;
+    var hasModel = false;
+    for (final size in TranscriptionModelSize.values) {
+      if (await transcription.isModelDownloaded(size)) {
+        hasModel = true;
+        break;
+      }
+    }
+    if (!hasModel) return;
+    final player = AudioPlayerService();
+    final live = player.currentItemId == widget.itemId &&
+        player.currentEpisodeId == null;
+    final audioAt = live
+        ? player.position.inMilliseconds / 1000.0
+        : await ProgressSyncService().getSavedPosition(widget.itemId);
+    if (!mounted) return;
+    ({double est, double lo, double hi})? page;
+    try {
+      page = await _audioEstimateForPage(cfi);
+    } catch (e) {
+      debugPrint('[CatchUp] estimate failed: $e');
+    }
+    if (!mounted || page == null || _readAlongOn || _finding) return;
+    final gap = page.est - audioAt;
+    final apart = gap.abs() >= _catchUpMinGapSeconds &&
+        (audioAt < page.lo || audioAt > page.hi);
+    debugPrint('[CatchUp] page est=${page.est.toStringAsFixed(0)}s '
+        '(${page.lo.toStringAsFixed(0)}-${page.hi.toStringAsFixed(0)}s) '
+        'audio=${audioAt.toStringAsFixed(0)}s apart=$apart '
+        'audioStarting=$audioStarting');
+    if (!apart) return;
+    if (gap < 0) {
+      if (_offeredPageToAudio) return;
+      if (!audioStarting) {
+        // Already offered at this audio position.
+        final key = 'catchup_offered_at_${widget.itemId}';
+        final last = await ScopedPrefs.getDouble(key);
+        if (last != null && (last - audioAt).abs() < 120) return;
+        await ScopedPrefs.setDouble(key, audioAt);
+        if (!mounted) return;
+      }
+      _offeredPageToAudio = true;
+      showOverlayToast(context, l.catchUpAudioAhead,
+          icon: Icons.headphones_rounded,
+          onTap: () => _catchUpPageToAudio(audioAt));
+    } else {
+      if (!audioStarting || _offeredAudioToPage) return;
+      _offeredAudioToPage = true;
+      showOverlayToast(context, l.catchUpPageAhead,
+          icon: Icons.menu_book_rounded,
+          onTap: () => _findInAudiobookFromSelection(
+              cfiOverride: _currentCfi ?? cfi,
+              textOverride: '',
+              flashPassage: false));
+    }
+  }
+
+  /// Waits briefly for the audiobook's details and the first page.
+  Future<void> _catchUpOnOpen() async {
+    for (var i = 0;
+        i < 20 && mounted && (!_hasAudio || _currentCfi == null);
+        i++) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    if (mounted) await _maybeOfferCatchUp(audioStarting: false);
+  }
+
+  /// Find in ebook from inside the reader, at the audiobook's position
+  /// ([savedAt] when this book is not the one loaded).
+  Future<void> _catchUpPageToAudio(double savedAt) async {
+    if (!mounted || _finding || _readAlongOn) return;
+    final l = AppLocalizations.of(context)!;
+    final api = context.read<AuthProvider>().apiService;
+    final player = AudioPlayerService();
+    final live = player.currentItemId == widget.itemId &&
+        player.currentEpisodeId == null;
+    final pos = live ? player.position.inMilliseconds / 1000.0 : savedAt;
+    showProgressDialog(context, l.transcribing);
+    String? text;
+    String? error;
+    try {
+      final r = await TranscriptionService.instance.transcribeAt(
+        itemId: widget.itemId,
+        positionSeconds: pos,
+        windowSeconds: findInEbookWindowSeconds,
+        leadSeconds: findInEbookWindowSeconds,
+        preferAccuracy: false,
+        feature: TranscriptionFeature.readAlong,
+      );
+      text = r.text.trim();
+      try {
+        final f = File(r.audioPath);
+        if (f.existsSync()) await f.delete();
+      } catch (_) {}
+    } on TranscriptionException catch (e) {
+      error = switch (e.kind) {
+        TranscriptionError.busy => l.transcriptionBusyMsg,
+        TranscriptionError.empty => l.transcriptionEmptyMsg,
+        TranscriptionError.modelMissing => l.transcriptionNoModelDownloaded,
+        TranscriptionError.notDownloaded => l.transcriptionNotDownloadedBook,
+        _ => l.transcriptionFailedMsg,
+      };
+    } catch (_) {
+      error = l.transcriptionFailedMsg;
+    }
+    if (!mounted) return;
+    Navigator.pop(context); // progress dialog
+    if (error != null || text == null || text.isEmpty) {
+      showOverlayToast(context, error ?? l.transcriptionEmptyMsg,
+          icon: Icons.error_outline_rounded);
+      return;
+    }
+    final audio = await resolveAudioChapters(widget.itemId, api);
+    if (!mounted) return;
+    String? chapterHint;
+    final chIdx =
+        ChapterLookup.indexAtWithGrace(audio.chapters, pos, audio.duration);
+    if (chIdx != null) {
+      final t = ((audio.chapters[chIdx] as Map<String, dynamic>)['title']
+              as String?)
+          ?.trim();
+      if (t != null && t.isNotEmpty) chapterHint = t;
+    }
+    await _runFindInEbook(text, chapterHint, positionSeconds: pos);
+  }
 
   /// Reverse of Find in ebook: locate the selected text in the audio and start
   /// listening there. Estimate from the audio chapter and how far through the
@@ -2710,7 +2870,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// [cfiOverride]/[textOverride] let an existing highlight reuse this flow
   /// without a live selection.
   Future<void> _findInAudiobookFromSelection(
-      {String? cfiOverride, String? textOverride}) async {
+      {String? cfiOverride,
+      String? textOverride,
+      bool flashPassage = true}) async {
     final l = AppLocalizations.of(context)!;
     final cfi = cfiOverride ?? _selectionCfi;
     final selText = textOverride ?? _selectionText ?? '';
@@ -2800,7 +2962,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       return;
     }
     await _startAudioAt(targetTime,
-        goToPlayer: after == 'player', passageCfi: cfi);
+        goToPlayer: after == 'player', passageCfi: flashPassage ? cfi : null);
     // Third landing: stay in the reader and follow along from the spot the
     // user highlighted, now that the audio is playing this book. playItem can
     // resolve a beat before the player state settles - wait for it, or the
@@ -2860,7 +3022,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final agreeing = <Map<String, dynamic>>[];
     for (final ch in audio.chapters) {
       final m = ch as Map<String, dynamic>;
-      if (_chapterTitlesAgree(m['title'] as String?, tocTitle)) agreeing.add(m);
+      if (chapterTitlesAgree(m['title'] as String?, tocTitle)) agreeing.add(m);
     }
     Map<String, dynamic>? audioCh;
     Map<String, dynamic>? audioChAlt;
@@ -2983,7 +3145,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         Map<String, dynamic>? aCh;
         for (final ch in audio.chapters) {
           final m = ch as Map<String, dynamic>;
-          if (_chapterTitlesAgree(m['title'] as String?, aTitle)) {
+          if (chapterTitlesAgree(m['title'] as String?, aTitle)) {
             aCh = m;
             break;
           }
@@ -3715,6 +3877,31 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       }
       return;
     }
+    await _startReadAlong();
+  }
+
+  /// Picks read along back up after the app was backgrounded, without
+  /// touching playback: coming back must never pause what you are hearing.
+  Future<void> _resumeReadAlong() async {
+    final player = AudioPlayerService();
+    bool stillWanted() =>
+        mounted &&
+        _readerActive &&
+        !_readAlongOn &&
+        player.currentItemId == widget.itemId &&
+        player.currentEpisodeId == null;
+    if (!stillWanted()) return;
+    if (!await PlayerSettings.getTranscriptionEnabled()) return;
+    if (!stillWanted() ||
+        !TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
+      return;
+    }
+    debugPrint('[ReadAlong] back in the foreground - picking up again');
+    await _startReadAlong(holdPlayback: false);
+  }
+
+  Future<void> _startReadAlong({bool holdPlayback = true}) async {
+    final player = AudioPlayerService();
     // Read along turns the pages itself, so the blind can't run at the same
     // time - one of them has to own the page.
     if (_autoScroll) {
@@ -3728,9 +3915,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     // nobody wants to hear words the page can't show yet. A playing book
     // resumes by itself once ready; a paused one gets a toast.
     final wasPlaying = player.isPlaying;
-    if (wasPlaying) await player.pause();
+    final hold = holdPlayback && wasPlaying;
+    if (hold) await player.pause();
     _readAlongGateArmed = false;
-    _readAlongGatePaused = wasPlaying;
+    _readAlongGatePaused = hold;
     _readAlongGateWaiting = !wasPlaying;
     if (mounted) {
       setState(() {
@@ -5118,7 +5306,6 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// sense with the book open, on the app surface like the speed sheet.
   void _showReaderControls() {
     final accent = Theme.of(context).colorScheme.primary;
-    final tt = Theme.of(context).textTheme;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -5154,11 +5341,19 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   final cellH =
                       (cols == 2 ? 72.0 : 80.0) * textScale.clamp(1.0, 1.7) + 8;
                   return Wrap(spacing: gap, runSpacing: gap, children: [
-                    for (final tile in _readerControlTiles(ctx, accent, tt))
+                    for (final tile in _readerControlTiles(ctx, accent))
                       SizedBox(width: cellW, height: cellH, child: tile),
                   ]);
                 }),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _pickBarAction();
+                  },
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                  label: Text(AppLocalizations.of(ctx)!.readerShortcutButton),
+                ),
               ]),
             ),
           ),
@@ -5167,156 +5362,281 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     );
   }
 
-  List<Widget> _readerControlTiles(BuildContext ctx, Color accent, TextTheme tt) {
-    final l = AppLocalizations.of(context)!;
-    final player = AudioPlayerService();
-    final isActive = player.hasBook && player.currentItemId == widget.itemId;
-    return [
-      MoreMenuItem(
-        icon: Icons.list_rounded,
-        label: l.chapters,
-        accent: accent,
-        onTap: () {
-          Navigator.pop(ctx);
-          _showAudioChapters(accent, tt);
-        },
-      ),
-      MoreMenuItem(
-        icon: Icons.nightlight_round_outlined,
-        label: l.timer,
-        accent: accent,
-        onTap: () {
-          Navigator.pop(ctx);
-          showSleepTimerSheet(context, accent);
-        },
-      ),
-      MoreMenuItem(
-        icon: Icons.bookmark_outline_rounded,
-        label: l.bookmarks,
-        accent: accent,
-        enabled: isActive,
-        onTap: () {
-          Navigator.pop(ctx);
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-            useSafeArea: true,
-            builder: (_) => DraggableScrollableSheet(
-              initialChildSize: 0.6,
-              minChildSize: 0.05,
-              snap: true,
-              maxChildSize: 0.9,
-              expand: false,
-              builder: (_, sc) => SimpleBookmarkSheet(
-                itemId: widget.itemId,
-                player: player,
-                accent: accent,
-                scrollController: sc,
-                onChanged: () {},
-              ),
-            ),
-          );
-        },
-      ),
-      MoreMenuItem(
-        icon: Icons.equalizer_rounded,
-        label: l.equalizerLabel,
-        accent: accent,
-        onTap: () {
-          Navigator.pop(ctx);
-          showEqualizerSheet(context, accent,
-              itemId: widget.itemId, itemTitle: widget.title);
-        },
-      ),
-      // Cast is Android only; iPhones get the AirPlay route picker instead,
-      // same split as the card.
-      if (Platform.isIOS)
-        MoreMenuItem(
-          icon: Icons.airplay_rounded,
-          label: 'AirPlay',
-          accent: accent,
+  List<Widget> _readerControlTiles(BuildContext ctx, Color accent) {
+    Widget tile(String id) {
+      Widget build() {
+        final a = _readerAction(id);
+        return MoreMenuItem(
+          icon: a.icon,
+          label: a.label,
+          accent: a.tint ?? accent,
+          enabled: a.enabled,
           onTap: () {
             Navigator.pop(ctx);
-            const MethodChannel('com.absorb.audio_output')
-                .invokeMethod('showRoutePicker')
-                .catchError((_) => null);
+            a.onTap();
           },
-        )
-      else
-        ListenableBuilder(
-          listenable: ChromecastService(),
-          builder: (_, __) {
-            final cast = ChromecastService();
-            final String label;
-            if (cast.isCasting && cast.castingItemId == widget.itemId) {
-              label = l.castingToDevice(cast.connectedDeviceName ?? 'device');
-            } else if (cast.isConnected) {
-              label = l.castToDeviceNamed(cast.connectedDeviceName ?? 'device');
-            } else {
-              label = l.castToDevice;
-            }
-            return MoreMenuItem(
-              icon: cast.isConnected
-                  ? Icons.cast_connected_rounded
-                  : Icons.cast_rounded,
-              label: label,
-              accent: accent,
-              onTap: () {
-                Navigator.pop(ctx);
-                _castFromReader();
-              },
-            );
-          },
-        ),
-      MoreMenuItem(
-        icon: Icons.info_outline_rounded,
-        label: l.bookDetailsLabel,
-        accent: accent,
-        onTap: () {
-          Navigator.pop(ctx);
-          showBookDetailSheet(context, widget.itemId);
-        },
-      ),
-      ListenableBuilder(
-        listenable: DownloadService(),
-        builder: (_, __) {
-          final dl = DownloadService();
-          final downloaded = dl.isDownloaded(widget.itemId);
-          final downloading = dl.isDownloading(widget.itemId);
-          final progress = dl.downloadProgress(widget.itemId);
-          final isDark = Theme.of(ctx).brightness == Brightness.dark;
-          final green = isDark
-              ? Colors.greenAccent.withValues(alpha: 0.7)
-              : Colors.green.shade700;
-          final IconData icon;
-          final String label;
-          final Color tileAccent;
-          if (downloaded) {
-            icon = Icons.download_done_rounded;
-            label = l.saved;
-            tileAccent = green;
-          } else if (downloading) {
-            icon = Icons.downloading_rounded;
-            label = '${(progress * 100).toStringAsFixed(0)}%';
-            tileAccent = accent;
-          } else {
-            icon = Icons.download_outlined;
-            label = l.download;
-            tileAccent = accent;
-          }
-          return MoreMenuItem(
-            icon: icon,
-            label: label,
-            accent: tileAccent,
-            onTap: () {
-              Navigator.pop(ctx);
-              if (!downloaded && !downloading) _downloadFromReader();
-            },
-          );
-        },
-      ),
+        );
+      }
+
+      final listenable = _readerActionListenable(id);
+      return listenable == null
+          ? build()
+          : ListenableBuilder(listenable: listenable, builder: (_, __) => build());
+    }
+
+    return [
+      for (final id in _readerActionIds)
+        if (id != _barActionId) tile(id),
     ];
+  }
+
+  // Cast is Android only; iPhones get the AirPlay route picker instead, same
+  // split as the card.
+  List<String> get _readerActionIds => [
+        'chapters',
+        'speed',
+        'sleep',
+        'bookmarks',
+        'equalizer',
+        Platform.isIOS ? 'airplay' : 'cast',
+        'details',
+        'download',
+      ];
+
+  // A choice restored from the other platform may not exist on this one.
+  String get _barActionId =>
+      _readerActionIds.contains(_barAction) ? _barAction : 'speed';
+
+  Listenable? _readerActionListenable(String id) => switch (id) {
+        'cast' => ChromecastService(),
+        'download' => DownloadService(),
+        _ => null,
+      };
+
+  /// One of the reader's audio controls as it stands right now, for a tile in
+  /// the controls sheet or the player bar's shortcut.
+  _ReaderAction _readerAction(String id) {
+    final l = AppLocalizations.of(context)!;
+    final accent = Theme.of(context).colorScheme.primary;
+    final player = AudioPlayerService();
+    switch (id) {
+      case 'chapters':
+        return (
+          icon: Icons.list_rounded,
+          label: l.chapters,
+          tint: null,
+          enabled: true,
+          onTap: () => _showAudioChapters(accent, Theme.of(context).textTheme),
+        );
+      case 'speed':
+        return (
+          icon: Icons.speed_rounded,
+          label: l.speed,
+          tint: null,
+          enabled: true,
+          onTap: () => showModalBottomSheet(
+                context: context,
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                // The sheet sits on the app surface, not the page, so it
+                // keeps the theme accent.
+                builder: (_) => CardSpeedSheet(
+                  player: player,
+                  accent: accent,
+                  itemId: widget.itemId,
+                ),
+              ),
+        );
+      case 'sleep':
+        return (
+          icon: Icons.nightlight_round_outlined,
+          label: l.timer,
+          tint: null,
+          enabled: true,
+          onTap: () => showSleepTimerSheet(context, accent),
+        );
+      case 'bookmarks':
+        return (
+          icon: Icons.bookmark_outline_rounded,
+          label: l.bookmarks,
+          tint: null,
+          enabled: player.hasBook && player.currentItemId == widget.itemId,
+          onTap: () => showModalBottomSheet(
+                context: context,
+                backgroundColor: Colors.transparent,
+                isScrollControlled: true,
+                useSafeArea: true,
+                builder: (_) => DraggableScrollableSheet(
+                  initialChildSize: 0.6,
+                  minChildSize: 0.05,
+                  snap: true,
+                  maxChildSize: 0.9,
+                  expand: false,
+                  builder: (_, sc) => SimpleBookmarkSheet(
+                    itemId: widget.itemId,
+                    player: player,
+                    accent: accent,
+                    scrollController: sc,
+                    onChanged: () {},
+                  ),
+                ),
+              ),
+        );
+      case 'equalizer':
+        return (
+          icon: Icons.equalizer_rounded,
+          label: l.equalizerLabel,
+          tint: null,
+          enabled: true,
+          onTap: () => showEqualizerSheet(context, accent,
+              itemId: widget.itemId, itemTitle: widget.title),
+        );
+      case 'airplay':
+        return (
+          icon: Icons.airplay_rounded,
+          label: 'AirPlay',
+          tint: null,
+          enabled: true,
+          onTap: () => const MethodChannel('com.absorb.audio_output')
+              .invokeMethod('showRoutePicker')
+              .catchError((_) => null),
+        );
+      case 'cast':
+        final cast = ChromecastService();
+        final String label;
+        if (cast.isCasting && cast.castingItemId == widget.itemId) {
+          label = l.castingToDevice(cast.connectedDeviceName ?? 'device');
+        } else if (cast.isConnected) {
+          label = l.castToDeviceNamed(cast.connectedDeviceName ?? 'device');
+        } else {
+          label = l.castToDevice;
+        }
+        return (
+          icon: cast.isConnected
+              ? Icons.cast_connected_rounded
+              : Icons.cast_rounded,
+          label: label,
+          tint: null,
+          enabled: true,
+          onTap: _castFromReader,
+        );
+      case 'details':
+        return (
+          icon: Icons.info_outline_rounded,
+          label: l.bookDetailsLabel,
+          tint: null,
+          enabled: true,
+          onTap: () => showBookDetailSheet(context, widget.itemId),
+        );
+      default:
+        final dl = DownloadService();
+        final downloaded = dl.isDownloaded(widget.itemId);
+        final downloading = dl.isDownloading(widget.itemId);
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return (
+          icon: downloaded
+              ? Icons.download_done_rounded
+              : downloading
+                  ? Icons.downloading_rounded
+                  : Icons.download_outlined,
+          label: downloaded
+              ? l.saved
+              : downloading
+                  ? '${(dl.downloadProgress(widget.itemId) * 100).toStringAsFixed(0)}%'
+                  : l.download,
+          tint: !downloaded
+              ? null
+              : isDark
+                  ? Colors.greenAccent.withValues(alpha: 0.7)
+                  : Colors.green.shade700,
+          enabled: true,
+          onTap: () {
+            if (!downloaded && !downloading) _downloadFromReader();
+          },
+        );
+    }
+  }
+
+  /// The player bar's left slot. Long press swaps what sits there.
+  Widget _barShortcut(Color fg, Color dim) {
+    final id = _barActionId;
+    Widget build() {
+      final a = _readerAction(id);
+      return GestureDetector(
+        onLongPress: _pickBarAction,
+        child: id == 'speed'
+            ? TextButton(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: a.onTap,
+                child: Text(_speedLabel(AudioPlayerService().speed),
+                    style: TextStyle(color: fg, fontWeight: FontWeight.w700)),
+              )
+            : IconButton(
+                icon: Icon(a.icon, color: a.enabled ? fg : dim),
+                iconSize: 26,
+                onPressed:
+                    a.enabled ? a.onTap : () => showInactiveToast(context),
+              ),
+      );
+    }
+
+    final listenable = _readerActionListenable(id);
+    return listenable == null
+        ? build()
+        : ListenableBuilder(listenable: listenable, builder: (_, __) => build());
+  }
+
+  Future<void> _pickBarAction() async {
+    final l = AppLocalizations.of(context)!;
+    final current = _barActionId;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(l.readerShortcutButton,
+                      style: Theme.of(ctx)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+              ),
+              for (final id in _readerActionIds)
+                ListTile(
+                  leading: Icon(
+                      buttonDefById(id)?.icon ?? _readerAction(id).icon),
+                  title: Text(switch (buttonDefById(id)) {
+                    final def? => localizedCardButtonLabel(l, def),
+                    null => _readerAction(id).label,
+                  }),
+                  trailing: id == current
+                      ? Icon(Icons.check_rounded, color: cs.primary)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, id),
+                ),
+              const SizedBox(height: 8),
+            ]),
+          ),
+        );
+      },
+    );
+    if (picked == null || picked == current || !mounted) return;
+    setState(() => _barAction = picked);
+    await ScopedPrefs.setString(_kBarAction, picked);
   }
 
   Future<void> _showAudioChapters(Color accent, TextTheme tt) async {
@@ -5443,29 +5763,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 width: 64,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: const Size(0, 36),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () => showModalBottomSheet(
-                      context: context,
-                      backgroundColor: Theme.of(context).colorScheme.surface,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                      ),
-                      // The sheet sits on the app surface, not the page, so
-                      // it keeps the theme accent.
-                      builder: (_) => CardSpeedSheet(
-                        player: player,
-                        accent: Theme.of(context).colorScheme.primary,
-                        itemId: widget.itemId,
-                      ),
-                    ),
-                    child: Text(_speedLabel(player.speed),
-                        style: TextStyle(color: fg, fontWeight: FontWeight.w700)),
-                  ),
+                  child: _barShortcut(fg, dim),
                 ),
               ),
               Expanded(
@@ -5490,7 +5788,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                       onPressed: _startingAudio
                           ? null
                           : (isActive
-                                ? () => player.togglePlayPause(fromUi: true)
+                                ? () {
+                                    final starting = !player.isPlaying;
+                                    player.togglePlayPause(fromUi: true);
+                                    if (starting) {
+                                      _maybeOfferCatchUp(audioStarting: true);
+                                    }
+                                  }
                                 : _startThisBook),
                     ),
                     IconButton(
@@ -5665,6 +5969,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   _didAutoReadAlong = true;
                   Future.delayed(const Duration(milliseconds: 900), () {
                     if (mounted && !_readAlongOn) _toggleReadAlong();
+                  });
+                }
+                if (!_didScheduleCatchUp) {
+                  _didScheduleCatchUp = true;
+                  // Past the load rescue and settle re-displays.
+                  Future.delayed(const Duration(milliseconds: 2500), () {
+                    if (mounted) _catchUpOnOpen();
                   });
                 }
                 final findText = widget.findText;

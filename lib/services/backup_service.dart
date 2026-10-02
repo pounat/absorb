@@ -328,6 +328,7 @@ class BackupService {
       'spread': await ScopedPrefs.getInt('ereader_spread'),
       'theme': await ScopedPrefs.getString('ereader_theme'),
       'font': await ScopedPrefs.getString('ereader_font'),
+      'barAction': await ScopedPrefs.getString('ereader_bar_action'),
       'volumeNav': await PlayerSettings.getEreaderVolumeNav(),
       'volumeNavWhilePlaying': await PlayerSettings.getEreaderVolumeNavWhilePlaying(),
     };
@@ -996,6 +997,7 @@ class BackupService {
       if (er['marginV'] != null) await ScopedPrefs.setInt('ereader_margin_v', er['marginV'] as int);
       if (er['spread'] != null) await ScopedPrefs.setInt('ereader_spread', er['spread'] as int);
       if (er['theme'] != null) await ScopedPrefs.setString('ereader_theme', er['theme'] as String);
+      if (er['barAction'] != null) await ScopedPrefs.setString('ereader_bar_action', er['barAction'] as String);
       if (er['font'] != null) {
         final fontId = er['font'] as String;
         await ScopedPrefs.setString('ereader_font', fontId);

@@ -16,6 +16,7 @@ import 'api_service.dart';
 import 'download_service.dart';
 import 'player_settings.dart';
 import 'remote_audio_slice.dart';
+import '../utils/whisper_language.dart';
 
 /// On-device bookmark transcription using Whisper (whisper.cpp via
 /// whisper_ggml_plus). Opt-in. Downloaded books decode from their files;
@@ -165,6 +166,34 @@ class TranscriptionService {
   // window and pass the answer explicitly from then on.
   final Map<String, String> _bookLang = {};
 
+  // The book's metadata language as a Whisper code, so a tagged book skips
+  // detection altogether.
+  final Map<String, String> _metadataLang = {};
+
+  String _langFor(String? itemId) {
+    if (itemId == null) return 'auto';
+    final known = _bookLang[itemId] ?? _metadataLang[itemId];
+    if (known != null) return known;
+    // Streamed books get theirs from the item fetch in _streamTracksFor.
+    final raw = DownloadService().getCachedSessionData(itemId);
+    if (raw == null || raw.isEmpty) return 'auto';
+    String? named;
+    try {
+      final session = jsonDecode(raw) as Map<String, dynamic>;
+      final meta = session['mediaMetadata'] as Map<String, dynamic>?;
+      named = whisperLanguageCode(meta?['language'] as String?);
+    } catch (_) {}
+    if (named == null) return 'auto';
+    _rememberMetadataLanguage(itemId, named);
+    return named;
+  }
+
+  void _rememberMetadataLanguage(String itemId, String code) {
+    if (_metadataLang.containsKey(itemId)) return;
+    _metadataLang[itemId] = code;
+    debugPrint('[Transcribe] $itemId is tagged "$code", skipping detection');
+  }
+
   // Model management
 
   Future<String> _modelDir() => WhisperController.getModelDir();
@@ -273,6 +302,9 @@ class TranscriptionService {
     final item = await api.getLibraryItem(apiItemId);
     final media = item?['media'] as Map<String, dynamic>?;
     if (media == null) return null;
+    final named = whisperLanguageCode(
+        (media['metadata'] as Map<String, dynamic>?)?['language'] as String?);
+    if (named != null) _rememberMetadataLanguage(itemId, named);
     final raw = <Map<String, dynamic>>[];
     if (isEpisode) {
       final episodeId = itemId.substring(37);
@@ -506,7 +538,7 @@ class TranscriptionService {
       // inferred rather than naming it. `.transcription` is a (exported)
       // WhisperTranscribeResponse whose `.text` is the full transcript.
       final String text;
-      final lang = _bookLang[itemId] ?? 'auto';
+      final lang = _langFor(itemId);
       try {
         _markStep('audio decoded, running whisper ${info.fileName}');
         final result = await _whisper.transcribe(
@@ -597,7 +629,7 @@ class TranscriptionService {
       }
 
       final List<({double start, double end, String text})> segments;
-      final lang = _bookLang[itemId] ?? 'auto';
+      final lang = _langFor(itemId);
       try {
         _markStep('audio decoded, running whisper ${info.fileName}');
         final result = await _whisper.transcribe(
@@ -694,7 +726,7 @@ class TranscriptionService {
     _busy = true;
     final watch = Stopwatch()..start();
     try {
-      final lang = itemId == null ? 'auto' : (_bookLang[itemId] ?? 'auto');
+      final lang = _langFor(itemId);
       final String text;
       try {
         _markStep('audio decoded, running whisper ${info.fileName}');
@@ -740,7 +772,7 @@ class TranscriptionService {
     lastModelUsed = info.size;
     _busy = true;
     try {
-      final lang = itemId == null ? 'auto' : (_bookLang[itemId] ?? 'auto');
+      final lang = _langFor(itemId);
       final List<({double start, double end, String text})> segments;
       try {
         _markStep('audio decoded, running whisper ${info.fileName}');
