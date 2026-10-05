@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
+import '../services/screen_wake.dart';
 import '../services/volume_key_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/home_widget_service.dart';
@@ -246,15 +247,21 @@ class _AppShellState extends State<AppShell>
     _syncNavBarListener(index);
     if (snappyTransitionsNotifier.value || einkModeNotifier.value) {
       setState(() => _currentIndex = index);
+      _syncPlayerOnScreen();
     } else {
       _fadeController.reverse().then((_) {
         if (!mounted) return;
         setState(() {
           _currentIndex = index;
         });
+        _syncPlayerOnScreen();
         _fadeController.forward();
       });
     }
+  }
+
+  void _syncPlayerOnScreen() {
+    PlayerScreenWake.onScreen.value = _currentIndex == 2 || _expandedIsOpen;
   }
 
   /// Subscribe to the active screen's barsRevealNotifier when on Home or
@@ -343,6 +350,7 @@ class _AppShellState extends State<AppShell>
     PlayerSettings.getStartScreen().then((idx) {
       if (mounted && idx != _currentIndex && idx >= 0 && idx <= 4) {
         setState(() => _currentIndex = idx);
+        _syncPlayerOnScreen();
         _ensurePageBuilt(idx);
         _restoreBookLibraryForCurrentTab(restoreLibraryPage: true);
       }
@@ -354,8 +362,10 @@ class _AppShellState extends State<AppShell>
     super.initState();
     _instance = this;
     EreaderVolumeNav.ensureHandler();
+    PlayerScreenWake.start();
     if (!widget.startOnAbsorbing) _loadStartScreen();
     _ensurePageBuilt(_currentIndex);
+    _syncPlayerOnScreen();
     _playerHadBook = _player.hasBook;
     _wasPlaying = _player.isPlaying;
     _lastItemId = _player.currentItemId;
@@ -623,6 +633,7 @@ class _AppShellState extends State<AppShell>
     }
 
     _expandedIsOpen = true;
+    _syncPlayerOnScreen();
     final nav = Navigator.of(context, rootNavigator: true);
     await nav.push(
       ExpandedCardRoute(
@@ -631,6 +642,7 @@ class _AppShellState extends State<AppShell>
     );
     // Route was popped — expanded view closed
     _expandedIsOpen = false;
+    _syncPlayerOnScreen();
   }
 
   @override

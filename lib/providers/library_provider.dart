@@ -27,6 +27,8 @@ import '../utils/absorbing_inclusion.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../widgets/overlay_toast.dart';
+import '../services/ebook_cache.dart';
+import '../services/screen_wake.dart';
 
 part '_lp_state.dart';
 part '_lp_core.dart';

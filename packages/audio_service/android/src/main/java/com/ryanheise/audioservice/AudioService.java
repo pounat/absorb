@@ -7,6 +7,8 @@ import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.database.ContentObserver;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
@@ -129,6 +131,54 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (isCarPackage(pkg)) lastCarClientAt = SystemClock.elapsedRealtime();
     }
 
+    // Android Auto's connection, from the car app connection provider:
+    // 2 = projection (Android Auto), 1 = the car's own Android, 0 = no car.
+    // The moment projection ends is stamped so Dart can tell the system's
+    // late pause after the engine went off from an ordinary pause.
+    private static final Uri CAR_CONNECTION_URI = Uri.parse("content://androidx.car.app.connection");
+    private static volatile int carConnectionState = 0;
+    private static volatile long carGoneAt = 0;
+    private ContentObserver carConnectionObserver;
+
+    private void readCarConnectionState() {
+        int state = 0;
+        try (Cursor c = getContentResolver().query(CAR_CONNECTION_URI,
+                new String[]{"CarConnectionState"}, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int col = c.getColumnIndex("CarConnectionState");
+                if (col >= 0) state = c.getInt(col);
+            }
+        } catch (Exception e) {
+            // No Android Auto on this phone.
+        }
+        if (carConnectionState == 2 && state != 2) carGoneAt = SystemClock.elapsedRealtime();
+        carConnectionState = state;
+    }
+
+    private void watchCarConnection() {
+        try {
+            carConnectionObserver = new ContentObserver(new Handler(Looper.getMainLooper())) {
+                @Override
+                public void onChange(boolean selfChange) {
+                    readCarConnectionState();
+                }
+            };
+            getContentResolver().registerContentObserver(CAR_CONNECTION_URI, false, carConnectionObserver);
+        } catch (Exception e) {
+            carConnectionObserver = null;
+        }
+        readCarConnectionState();
+    }
+
+    private void stopWatchingCarConnection() {
+        if (carConnectionObserver == null) return;
+        try {
+            getContentResolver().unregisterContentObserver(carConnectionObserver);
+        } catch (Exception ignored) {
+        }
+        carConnectionObserver = null;
+    }
+
     public static Map<String, Object> getDiagnosticSnapshot() {
         final long now = SystemClock.elapsedRealtime();
         final Map<String, Object> snapshot = new HashMap<>();
@@ -139,6 +189,8 @@ public class AudioService extends MediaBrowserServiceCompat {
         snapshot.put("lastPauseCaller", "mediaSession");
         snapshot.put("lastPauseCallerAgeMs", lastPauseAt == 0 ? -1 : now - lastPauseAt);
         snapshot.put("carClientAgeMs", lastCarClientAt == 0 ? -1 : now - lastCarClientAt);
+        snapshot.put("carConnectionState", carConnectionState);
+        snapshot.put("carGoneAgeMs", carGoneAt == 0 ? -1 : now - carGoneAt);
         snapshot.put("lastKeyPkg", lastMediaKeyPkg);
         return snapshot;
     }
@@ -378,6 +430,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         playing = false;
         processingState = AudioProcessingState.idle;
         mediaSession = new MediaSessionCompat(this, "media-session");
+        watchCarConnection();
 
         configure(new AudioServiceConfig(getApplicationContext()));
 
@@ -434,6 +487,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        stopWatchingCarConnection();
         if (listener != null) {
             listener.onDestroy();
             listener = null;

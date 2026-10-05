@@ -638,10 +638,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// releases it outright since the platform never clears it on its own.
   void _syncScreenWake() {
     if (_screenWakeHeldOff) {
-      ScreenWake.keepOn(false);
+      ScreenWake.hold('reader', false);
       return;
     }
-    ScreenWake.keepOn(_keepAwake || _autoScroll || _readAlongOn);
+    ScreenWake.hold('reader', _keepAwake || _autoScroll || _readAlongOn);
   }
 
   /// The reader is being used again after the auto scroll sleep timer let
@@ -685,7 +685,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _speedToast?.dismiss();
     _autoScrollSleepTimer?.cancel();
     if (_autoScroll) _epubController?.autoScrollStop();
-    ScreenWake.keepOn(false);
+    ScreenWake.hold('reader', false);
     _quietLib.setReaderQuiet(false);
     WidgetsBinding.instance.removeObserver(this);
     _volumeNav.detach();
@@ -1944,7 +1944,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         await _epubController?.autoScrollStart(speed: _autoScrollSpeed) ?? false;
     if (!mounted || !started) return;
     _screenWakeHeldOff = false;
-    ScreenWake.keepOn(true);
+    ScreenWake.hold('reader', true);
     showOverlayToast(context, AppLocalizations.of(context)!.readerAutoScrollStarted,
         icon: Icons.swap_vert_rounded);
     setState(() {
@@ -3950,7 +3950,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _readAlongLastMatch = DateTime.now();
     _readAlongLost = false;
     _readAlongSeekAt = null;
-    ScreenWake.keepOn(true);
+    ScreenWake.hold('reader', true);
     _readAlongTimer?.cancel();
     // 100ms so a word is never skipped at 2x: the sweep below moves at most
     // one word per tick, ten words a second.

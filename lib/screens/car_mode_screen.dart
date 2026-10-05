@@ -11,6 +11,7 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../widgets/card_buttons.dart';
+import '../services/screen_wake.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 
@@ -92,6 +93,9 @@ class _CarModeScreenState extends State<CarModeScreen>
     PlayerSettings.getNotificationChapterProgress().then((v) {
       if (mounted && v != _preferChapterBar) setState(() => _preferChapterBar = v);
     });
+    PlayerSettings.getKeepScreenOnInCarMode().then((v) {
+      if (mounted) ScreenWake.hold('car', v);
+    });
   }
 
   void _onPlayerChanged() {
@@ -105,6 +109,7 @@ class _CarModeScreenState extends State<CarModeScreen>
     _displayTimer?.cancel();
     PlayerSettings.settingsChanged.removeListener(_loadSkipSettings);
     widget.player.removeListener(_onPlayerChanged);
+    ScreenWake.hold('car', false);
     _playPauseController.dispose();
     // Back to the user's saved rotation preference - the old empty list
     // ("all allowed") silently dropped the portrait lock until a restart.

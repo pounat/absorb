@@ -233,6 +233,7 @@
     </application>
 
     <queries>
+        <provider android:authorities="androidx.car.app.connection" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

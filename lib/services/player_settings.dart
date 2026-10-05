@@ -843,6 +843,15 @@ class PlayerSettings {
   // alive but paused) belongs to the car system's own resume behavior; this
   // covers the cold start where no session exists for it to resume.
   static Future<bool> getAutoplayOnCarConnect() => _get('autoplayOnCarConnect', false);
+  static Future<bool> getKeepScreenOnInPlayer() => _get('keepScreenOnPlayer', false);
+  static Future<void> setKeepScreenOnInPlayer(bool value) =>
+      _set('keepScreenOnPlayer', value, notify: true);
+  static Future<bool> getKeepScreenOnInCarMode() => _get('keepScreenOnCarMode', false);
+  static Future<int> getCarDisconnectRewindSeconds() => _get('carDisconnectRewind', 0);
+  static Future<void> setCarDisconnectRewindSeconds(int seconds) =>
+      _set('carDisconnectRewind', seconds, notify: true);
+  static Future<void> setKeepScreenOnInCarMode(bool value) =>
+      _set('keepScreenOnCarMode', value, notify: true);
 
   // Android Auto / CarPlay library browsing. Book sort is 'title', 'author' or
   // 'added' (newest first); reverse flips whichever is picked. Podcast shows
@@ -1203,7 +1212,7 @@ class PlayerSettings {
 
   // ── Card button order ──
 
-  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'lyrics', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'download'];
+  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'lyrics', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'wake', 'download'];
 
   static Future<List<String>> getCardButtonOrder() async {
     final stored = await ScopedPrefs.getStringList('card_button_order');

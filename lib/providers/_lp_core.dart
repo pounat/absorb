@@ -1395,6 +1395,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   void setReaderQuiet(bool quiet) {
     if (_readerQuiet == quiet) return;
     _readerQuiet = quiet;
+    PlayerScreenWake.covered.value = quiet;
     if (quiet) {
       _readerQuietAt = DateTime.now();
       debugPrint('[Library] Reader open - quieting live work');

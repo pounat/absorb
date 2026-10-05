@@ -95,6 +95,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifSpeedBookmark = false;
   bool _duckBriefInterruptions = false;
   bool _autoplayOnCarConnect = false;
+  bool _keepScreenOnPlayer = false;
+  bool _keepScreenOnCarMode = false;
+  int _carDisconnectRewind = 0;
   String _carBookSort = 'title';
   bool _carBookSortReverse = false;
   String _carPodcastSort = 'title';
@@ -1078,6 +1081,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
     final autoplayOnCarConnect = await PlayerSettings.getAutoplayOnCarConnect();
+    final keepScreenOnPlayer = await PlayerSettings.getKeepScreenOnInPlayer();
+    final keepScreenOnCarMode = await PlayerSettings.getKeepScreenOnInCarMode();
+    final carDisconnectRewind = await PlayerSettings.getCarDisconnectRewindSeconds();
     final carBookSort = await PlayerSettings.getCarBookSort();
     final carBookSortReverse = await PlayerSettings.getCarBookSortReverse();
     final carPodcastSort = await PlayerSettings.getCarPodcastSort();
@@ -1102,6 +1108,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _notifSpeedBookmark = notifSpeedBookmark;
       _duckBriefInterruptions = duckBriefInterruptions;
       _autoplayOnCarConnect = autoplayOnCarConnect;
+      _keepScreenOnPlayer = keepScreenOnPlayer;
+      _keepScreenOnCarMode = keepScreenOnCarMode;
+      _carDisconnectRewind = carDisconnectRewind;
       _carBookSort = carBookSort;
       _carBookSortReverse = carBookSortReverse;
       _carPodcastSort = carPodcastSort;
@@ -2437,6 +2446,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(l.keepScreenOnPlayer),
+                      subtitle: Text(l.keepScreenOnPlayerSubtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _keepScreenOnPlayer,
+                      onChanged: _loaded ? (v) {
+                        setState(() => _keepScreenOnPlayer = v);
+                        PlayerSettings.setKeepScreenOnInPlayer(v);
+                      } : null,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     ValueListenableBuilder<bool>(
                       valueListenable: classicWordingNotifier,
                       builder: (context, _, __) {
@@ -3094,6 +3114,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         setState(() => _autoplayOnCarConnect = v);
                         PlayerSettings.setAutoplayOnCarConnect(v);
                       } : null,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(l.keepScreenOnCarMode),
+                      subtitle: Text(l.keepScreenOnCarModeSubtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _keepScreenOnCarMode,
+                      onChanged: _loaded ? (v) {
+                        setState(() => _keepScreenOnCarMode = v);
+                        PlayerSettings.setKeepScreenOnInCarMode(v);
+                      } : null,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Row(children: [
+                              Flexible(child: Text(l.carDisconnectRewind, style: tt.bodyMedium)),
+                              _infoIcon(l.carDisconnectRewind, l.carDisconnectRewindInfo),
+                            ]),
+                          ),
+                          Text(
+                            _carDisconnectRewind == 0
+                                ? l.carDisconnectRewindOff
+                                : l.carDisconnectRewindValue(_carDisconnectRewind),
+                            style: tt.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700, color: cs.primary)),
+                        ],
+                      ),
+                    ),
+                    Slider(
+                      value: _carDisconnectRewind.toDouble(),
+                      min: 0,
+                      max: 30,
+                      divisions: 30,
+                      onChanged: _loaded ? (v) {
+                        setState(() => _carDisconnectRewind = v.round());
+                      } : null,
+                      onChangeEnd: (v) =>
+                          PlayerSettings.setCarDisconnectRewindSeconds(v.round()),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     _carSortPicker(

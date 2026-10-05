@@ -88,6 +88,7 @@ class CarPlayService {
   void _onConnectionChange(ConnectionStatusTypes status) {
     debugPrint('[CarPlay] Connection status: $status');
     if (status == ConnectionStatusTypes.disconnected) {
+      if (_connected) unawaited(AudioPlayerService().onCarDisconnected());
       _connected = false;
       _rootTemplate = null;
       _lastRootBuilt = null;

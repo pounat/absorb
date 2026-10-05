@@ -18,6 +18,7 @@ import '../services/transcription_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/playback_history_service.dart';
 import '../services/scoped_prefs.dart';
+import '../services/screen_wake.dart';
 import '../services/sleep_timer_service.dart';
 import '../utils/episode_key.dart';
 import 'absorb_slider.dart';
@@ -81,6 +82,22 @@ class _PressableState extends State<Pressable> {
 }
 
 /// Show a toast when the user taps a button that requires active playback.
+/// The card's Keep screen on button: holds the screen while the player is up
+/// and playing, until the app is closed. With the Settings switch on it only
+/// says so.
+void toggleKeepScreenOn(BuildContext context) {
+  final l = AppLocalizations.of(context)!;
+  if (PlayerScreenWake.always) {
+    showOverlayToast(context, l.keepScreenOnAlwaysHint,
+        icon: Icons.lightbulb_rounded);
+    return;
+  }
+  final on = !PlayerScreenWake.sessionOn.value;
+  PlayerScreenWake.sessionOn.value = on;
+  showOverlayToast(context, on ? l.keepScreenOnUntilClosed : l.keepScreenOnOff,
+      icon: on ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded);
+}
+
 void showInactiveToast(BuildContext context) {
   final l = AppLocalizations.of(context)!;
   showOverlayToast(context, l.startPlayingSomethingFirst,
@@ -1857,6 +1874,17 @@ class CardActionDelegate {
           accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
           onTap: () => openCarMode(context),
         );
+      case 'wake':
+        return ValueListenableBuilder<bool>(
+          valueListenable: PlayerScreenWake.wanted,
+          builder: (_, on, __) => CardWideButton(
+            icon: on ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded,
+            label: l.keepScreenOn,
+            accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+            highlighted: on,
+            onTap: () => toggleKeepScreenOn(context),
+          ),
+        );
       case 'notes':
         return CardWideButton(
           icon: Icons.note_rounded, label: l.notes,
@@ -2011,6 +2039,14 @@ class CardActionDelegate {
         return MoreMenuItem(
           icon: Icons.directions_car_rounded, label: l.carModeTitle, accent: accent,
           onTap: () { Navigator.pop(ctx); openCarMode(context); },
+        );
+      case 'wake':
+        return MoreMenuItem(
+          icon: PlayerScreenWake.wanted.value
+              ? Icons.lightbulb_rounded
+              : Icons.lightbulb_outline_rounded,
+          label: l.keepScreenOn, accent: accent,
+          onTap: () { Navigator.pop(ctx); toggleKeepScreenOn(context); },
         );
       case 'notes':
         return MoreMenuItem(
