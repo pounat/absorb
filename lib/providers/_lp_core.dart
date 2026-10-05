@@ -531,11 +531,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       final isFinished =
           _progressMap[dl.itemId]?['isFinished'] == true || progress >= 0.999;
 
-      if (progress > 0 && !isFinished) {
-        continueEntities.add(entity);
-      } else {
-        downloadedEntities.add(entity);
-      }
+      if (progress > 0 && !isFinished) continueEntities.add(entity);
+      downloadedEntities.add(entity);
     }
 
     _personalizedSections = [
