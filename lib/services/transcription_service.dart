@@ -8,13 +8,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:whisper_ggml_plus/whisper_ggml_plus.dart';
 
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../main.dart' show rootNavigatorKey;
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import 'api_service.dart';
+import 'audio_player_service.dart';
 import 'download_service.dart';
-import 'player_settings.dart';
 import 'remote_audio_slice.dart';
 import '../utils/whisper_language.dart';
 
@@ -149,13 +150,59 @@ class TranscriptionService {
 
   // A native crash in the audio decode or in whisper takes the app down with
   // nothing in the log, and the two look identical from outside. These say
-  // which step was running when the log stops. Only the first few per run:
-  // the live transcript does this every few seconds.
+  // which step was running when the log stops, with the memory numbers
+  // jetsam would have judged. Logged for the first few per run only (the live
+  // transcript does this every few seconds), but every step leaves a marker
+  // that the next launch reports if the run never finished.
+  static const _stepMarkerKey = 'transcribe_step_marker';
   int _stepMarks = 0;
   void _markStep(String step) {
-    if (_stepMarks >= 6) return;
+    unawaited(_stampStep(step, log: _stepMarks < 6));
     _stepMarks++;
-    debugPrint('[Transcribe] step: $step');
+  }
+
+  Future<void> _stampStep(String step, {required bool log}) async {
+    final memory = await _memoryNumbers();
+    if (log) debugPrint('[Transcribe] step: $step ($memory)');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_stepMarkerKey,
+          '${DateTime.now().millisecondsSinceEpoch}|$memory|$step');
+    } catch (_) {}
+  }
+
+  Future<void> _clearStepMarker() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_stepMarkerKey);
+    } catch (_) {}
+  }
+
+  Future<String> _memoryNumbers() async {
+    if (Platform.isIOS) {
+      final m = await AudioPlayerService.iosMemoryInfo();
+      return 'footprint=${m.footprintMb}MB available=${m.availableMb}MB';
+    }
+    return 'rss=${ProcessInfo.currentRss ~/ 1048576}MB';
+  }
+
+  /// A step marker still present at launch means the last run died inside
+  /// transcription. Say which step and how much memory it held.
+  Future<void> reportInterruptedRun() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_stepMarkerKey);
+      if (raw == null) return;
+      await prefs.remove(_stepMarkerKey);
+      final parts = raw.split('|');
+      if (parts.length < 3) return;
+      final at = int.tryParse(parts[0]) ?? 0;
+      final ago = DateTime.now()
+          .difference(DateTime.fromMillisecondsSinceEpoch(at))
+          .inMinutes;
+      debugPrint('[Transcribe] previous run ended during "${parts.sublist(2).join('|')}" '
+          '${ago}min ago (${parts[1]})');
+    } catch (_) {}
   }
 
   /// Which model the last run actually used, after [_modelFor] had its say.
@@ -553,6 +600,7 @@ class TranscriptionService {
           threads: _threads(),
         );
         text = (result?.transcription.text ?? '').trim();
+        _noteEngine(result);
         _cacheLanguage(itemId, result?.language, text.isNotEmpty);
       } catch (e) {
         if (e is TranscriptionException) rethrow;
@@ -571,6 +619,7 @@ class TranscriptionService {
       return out;
     } finally {
       _busy = false;
+      unawaited(_clearStepMarker());
       if (wavPath != null) {
         try {
           final f = File(wavPath);
@@ -657,6 +706,7 @@ class TranscriptionService {
                 ))
             .where((s) => s.text.isNotEmpty)
             .toList();
+        _noteEngine(result);
         _cacheLanguage(itemId, result?.language, segments.isNotEmpty);
       } catch (e) {
         if (e is TranscriptionException) rethrow;
@@ -671,6 +721,7 @@ class TranscriptionService {
       return segments;
     } finally {
       _busy = false;
+      unawaited(_clearStepMarker());
       if (wavPath != null) {
         try {
           final f = File(wavPath);
@@ -740,6 +791,7 @@ class TranscriptionService {
           threads: _threads(),
         );
         text = (result?.transcription.text ?? '').trim();
+        _noteEngine(result);
         if (itemId != null) _cacheLanguage(itemId, result?.language, text.isNotEmpty);
       } catch (e) {
         if (e is TranscriptionException) rethrow;
@@ -751,6 +803,7 @@ class TranscriptionService {
       return text;
     } finally {
       _busy = false;
+      unawaited(_clearStepMarker());
     }
   }
 
@@ -793,6 +846,7 @@ class TranscriptionService {
                 ))
             .where((s) => s.text.isNotEmpty)
             .toList();
+        _noteEngine(result);
         if (itemId != null) _cacheLanguage(itemId, result?.language, segments.isNotEmpty);
       } catch (e) {
         if (e is TranscriptionException) rethrow;
@@ -802,6 +856,7 @@ class TranscriptionService {
       return segments;
     } finally {
       _busy = false;
+      unawaited(_clearStepMarker());
     }
   }
 
@@ -813,6 +868,25 @@ class TranscriptionService {
   // those drop to idle clocks and drag a 7s window out past 30s. Four threads
   // stay on the big and mid cores and hold their speed unboosted.
   int _threads() => (Platform.numberOfProcessors - 1).clamp(2, 4);
+
+  String? _loggedBackend;
+
+  /// What the engine reported about itself: which backend it is on, said
+  /// once, and whatever ggml and whisper logged, which is where a Metal
+  /// kernel that failed to build shows up.
+  void _noteEngine(dynamic result) {
+    final backend = result?.backend as String?;
+    if (backend != null && backend != _loggedBackend) {
+      _loggedBackend = backend;
+      debugPrint('[Transcribe] whisper runs on $backend');
+    }
+    final log = (result?.log as String?)?.trim();
+    if (log == null || log.isEmpty) return;
+    for (final line in log.split('\n')) {
+      final t = line.trim();
+      if (t.isNotEmpty) debugPrint('[WhisperCpp] $t');
+    }
+  }
 
   /// Remember what language detection settled on, but only from a window that
   /// actually produced output - a detection made on silence or music would

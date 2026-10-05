@@ -14,6 +14,7 @@ import 'playback_history_service.dart' hide PlaybackEvent;
 import 'progress_sync_service.dart';
 import 'local_session_service.dart';
 import 'sync_logic.dart';
+import 'transcription_service.dart';
 import 'sleep_timer_service.dart';
 import 'equalizer_service.dart';
 import 'external_audio_output_types.dart';
@@ -2917,6 +2918,7 @@ class AudioPlayerService extends ChangeNotifier {
       _handler!._cachedLockSeekBar = await PlayerSettings.getLockSeekBar();
       debugPrint('[Player] AudioService initialized');
       if (Platform.isIOS) unawaited(_reportPreviousBackgroundDeath());
+      unawaited(TranscriptionService.instance.reportInterruptedRun());
       // Configure streaming cache if enabled
       final cacheSizeMb = await PlayerSettings.getStreamingCacheSizeMb();
       debugPrint('[Player] Streaming cache setting: $cacheSizeMb MB');
@@ -3324,7 +3326,7 @@ class AudioPlayerService extends ChangeNotifier {
   /// iOS memory figures from the native side: `footprint` is what jetsam
   /// judges (phys_footprint, not RSS) and `available` is how much more the
   /// process may take before it is killed. Both in MB, -1 when unavailable.
-  static Future<({int footprintMb, int availableMb})> _iosMemoryInfo() async {
+  static Future<({int footprintMb, int availableMb})> iosMemoryInfo() async {
     try {
       final info = await _eqChannelForDiag
           .invokeMethod<Map<dynamic, dynamic>>('getMemoryInfo');
@@ -3346,7 +3348,7 @@ class AudioPlayerService extends ChangeNotifier {
   /// came back from the background: iOS ended it there (or the user swiped
   /// it away).
   static Future<void> _logBackgroundMemory(int rssMb, int droppedMb) async {
-    final m = await _iosMemoryInfo();
+    final m = await iosMemoryInfo();
     final playing = _instance.isPlaying;
     debugPrint('[Memory] Backgrounded: footprint=${m.footprintMb}MB '
         'available=${m.availableMb}MB rss=${rssMb}MB playing=$playing, '
@@ -3366,7 +3368,7 @@ class AudioPlayerService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_bgMarkerKey);
     } catch (_) {}
-    final m = await _iosMemoryInfo();
+    final m = await iosMemoryInfo();
     debugPrint('[Memory] Foregrounded: footprint=${m.footprintMb}MB '
         'available=${m.availableMb}MB');
   }
@@ -3395,7 +3397,7 @@ class AudioPlayerService extends ChangeNotifier {
   static void onMemoryPressure() {
     if (!Platform.isIOS) return;
     unawaited(() async {
-      final m = await _iosMemoryInfo();
+      final m = await iosMemoryInfo();
       debugPrint('[Memory] iOS memory warning: footprint=${m.footprintMb}MB '
           'available=${m.availableMb}MB');
     }());

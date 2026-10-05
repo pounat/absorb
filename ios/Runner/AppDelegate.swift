@@ -97,6 +97,9 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     AbsorbAudioBridge.logSink = { [weak self] line in
       self?.logToFlutter(line)
     }
+    AudioWindowExtractor.logSink = { [weak self] line in
+      self?.logToFlutter(line)
+    }
 
     // Register the native player core as an AppIntent dependency. The widget
     // intent declares `@Dependency var core: AbsorbPlayerCoreProtocol` - that
@@ -897,18 +900,41 @@ private final class VolumeKeyWatcher {
 /// conversion and downmix via its output settings, so no ffmpeg is needed.
 /// Used by the opt-in bookmark transcription feature.
 enum AudioWindowExtractor {
+  static var logSink: ((String) -> Void)?
+
+  private static func log(_ line: String) {
+    NSLog("%@", line)
+    logSink?(line)
+  }
+
+  private static func describe(_ track: AVAssetTrack) -> String {
+    let descriptions = track.formatDescriptions as! [CMFormatDescription]
+    guard let first = descriptions.first,
+          let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(first)?.pointee else {
+      return "unknown format"
+    }
+    let id = asbd.mFormatID
+    let bytes = [UInt8((id >> 24) & 0xff), UInt8((id >> 16) & 0xff),
+                 UInt8((id >> 8) & 0xff), UInt8(id & 0xff)]
+    let codec = String(bytes: bytes, encoding: .ascii)?
+      .trimmingCharacters(in: .whitespaces) ?? "\(id)"
+    return "\(codec) \(Int(asbd.mSampleRate))Hz \(asbd.mChannelsPerFrame)ch"
+  }
+
   static func extractWav(sourcePath: String, startSeconds: Double, durationSeconds: Double, outPath: String) -> Bool {
     let asset = AVURLAsset(url: URL(fileURLWithPath: sourcePath))
     guard let track = asset.tracks(withMediaType: .audio).first else {
-      NSLog("[Transcribe] no audio track in %@", sourcePath)
+      log("[Transcribe] no audio track in \(sourcePath)")
       return false
     }
+    log("[Transcribe] decoding \(URL(fileURLWithPath: sourcePath).lastPathComponent): "
+        + "\(describe(track)), \(Int(startSeconds))s +\(Int(durationSeconds))s")
 
     let reader: AVAssetReader
     do {
       reader = try AVAssetReader(asset: asset)
     } catch {
-      NSLog("[Transcribe] reader init failed: %@", error.localizedDescription)
+      log("[Transcribe] reader init failed: \(error.localizedDescription)")
       return false
     }
 
@@ -930,7 +956,7 @@ enum AudioWindowExtractor {
     guard reader.canAdd(output) else { return false }
     reader.add(output)
     guard reader.startReading() else {
-      NSLog("[Transcribe] startReading failed: %@", reader.error?.localizedDescription ?? "nil")
+      log("[Transcribe] startReading failed: \(reader.error?.localizedDescription ?? "nil")")
       return false
     }
 
@@ -953,7 +979,7 @@ enum AudioWindowExtractor {
     }
 
     if reader.status == .failed {
-      NSLog("[Transcribe] reader failed: %@", reader.error?.localizedDescription ?? "nil")
+      log("[Transcribe] reader failed: \(reader.error?.localizedDescription ?? "nil")")
       return false
     }
     if pcm.isEmpty { return false }

@@ -24,6 +24,7 @@
 #endif
 
 extern "C" const char* get_vad_model_path();
+extern "C" bool absorb_metal_usable();
 
 using json = nlohmann::json;
 
@@ -96,8 +97,33 @@ static std::string default_vad_model_path() {
 
 static struct whisper_context * g_ctx = nullptr;
 static std::string g_model_path = "";
+static bool g_use_gpu = true;
 static std::mutex g_mutex;
 static std::atomic<bool> g_should_abort(false);
+
+// Everything ggml and whisper say, including a Metal kernel that failed to
+// build. The tail rides back to Dart with each response.
+static std::mutex g_log_mutex;
+static std::string g_log;
+static bool g_log_hooked = false;
+
+static void capture_whisper_log(enum ggml_log_level level, const char * text, void * user_data) {
+    (void) level;
+    (void) user_data;
+    fputs(text, stderr);
+    std::lock_guard<std::mutex> lock(g_log_mutex);
+    g_log += text;
+    if (g_log.size() > 8192) {
+        g_log.erase(0, g_log.size() - 8192);
+    }
+}
+
+static std::string take_whisper_log() {
+    std::lock_guard<std::mutex> lock(g_log_mutex);
+    std::string out;
+    out.swap(g_log);
+    return out;
+}
 
 static void dispose_context_locked() {
     if (g_ctx != nullptr) {
@@ -162,16 +188,22 @@ json transcribe(json jsonBody)
     json jsonResult;
     jsonResult["@type"] = "transcribe";
 
-    if (g_ctx == nullptr || g_model_path != params.model) {
+    if (!g_log_hooked) {
+        whisper_log_set(capture_whisper_log, nullptr);
+        g_log_hooked = true;
+    }
+    const bool use_gpu = absorb_metal_usable();
+    if (g_ctx == nullptr || g_model_path != params.model || g_use_gpu != use_gpu) {
         dispose_context_locked();
-        
+
         whisper_context_params cparams = whisper_context_default_params();
-        cparams.use_gpu = true; 
+        cparams.use_gpu = use_gpu;
         cparams.flash_attn = true;
 
         g_ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
         if (g_ctx != nullptr) {
             g_model_path = params.model;
+            g_use_gpu = use_gpu;
         }
     }
 
@@ -311,6 +343,7 @@ json transcribe(json jsonBody)
     }
     
     jsonResult["text"] = text_result;
+    jsonResult["language"] = whisper_lang_str(whisper_full_lang_id(g_ctx));
     return jsonResult;
 }
 
@@ -330,7 +363,10 @@ extern "C"
                 return jsonToChar({{"@type", "dispose"}, {"message", "whisper context disposed"}});
             }
             if (jsonBody["@type"] == "getTextFromWavFile") {
-                return jsonToChar(transcribe(jsonBody));
+                json result = transcribe(jsonBody);
+                result["backend"] = g_use_gpu ? "metal" : "cpu";
+                result["log"] = take_whisper_log();
+                return jsonToChar(result);
             }
             if (jsonBody["@type"] == "getVersion") {
                 return jsonToChar({{"@type", "version"}, {"message", "lib v1.8.3-accel"}});
