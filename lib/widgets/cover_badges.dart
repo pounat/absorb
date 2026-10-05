@@ -99,3 +99,21 @@ class CoverStateBadges extends StatelessWidget {
     );
   }
 }
+
+/// Small book icon for a cover corner, on books that come with an ebook:
+///   Positioned(top: 4, left: 4, child: EbookCoverBadge())
+class EbookCoverBadge extends StatelessWidget {
+  const EbookCoverBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.menu_book_rounded, size: 11, color: Colors.white),
+    );
+  }
+}

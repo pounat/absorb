@@ -60,11 +60,13 @@ class HomeSection extends StatelessWidget {
         ? null
         : _collectionNameFromTitle(title);
 
-    // Check if any entities have recentEpisode (podcast episode sections)
-    final hasEpisodeEntities = !isEpisodeSection && entities.isNotEmpty &&
-        entities.first is Map<String, dynamic> &&
-        (entities.first as Map<String, dynamic>)['recentEpisode'] != null;
-    final effectiveEpisode = isEpisodeSection || hasEpisodeEntities;
+    // A shelf of nothing but episodes keeps the episode layout. The Downloads
+    // shelf can mix episodes with books, and then it is sized for the books
+    // so their covers follow the cover size and the author line fits.
+    final onlyEpisodeEntities = !isEpisodeSection && entities.isNotEmpty &&
+        entities.every((e) =>
+            e is Map<String, dynamic> && e['recentEpisode'] != null);
+    final effectiveEpisode = isEpisodeSection || onlyEpisodeEntities;
 
     final bool isRectCover = coverAspectRatio < 1.0;
     // Book and series covers follow the cover size setting like the library
@@ -82,16 +84,23 @@ class HomeSection extends StatelessWidget {
     // cards have no subtitle to show, so they stay as they are.
     final bool subtitleLine =
         showSubtitles && !isContinueListening && !effectiveEpisode && !isAuthorSection;
-    final double cardHeight =
-        (isContinueListening
-                ? 120
-                : effectiveEpisode
-                    ? 200
-                    : isAuthorSection
-                        ? 170
-                        : (isRectCover ? 260 : 200) +
-                            (cardWidth - 140) / coverAspectRatio) +
-            (subtitleLine ? 18 : 0);
+    // The text under a cover card is measured from the theme and the system
+    // font size, so the author line is never cut off when the title wraps or
+    // a subtitle is shown.
+    final scaler = MediaQuery.textScalerOf(context);
+    double lineHeight(TextStyle? style) =>
+        scaler.scale((style?.fontSize ?? 12) * (style?.height ?? 1.4));
+    final double textBlock = 6 +
+        lineHeight(tt.labelMedium) * (isRectCover ? 1 : 2) +
+        lineHeight(tt.labelSmall) * (subtitleLine ? 2 : 1) +
+        6;
+    final double cardHeight = isContinueListening
+        ? 120
+        : effectiveEpisode
+            ? 200
+            : isAuthorSection
+                ? 170
+                : cardWidth / coverAspectRatio + textBlock;
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),

@@ -899,6 +899,33 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             // How far into the book you are fills the button from the left,
             // the way the download button fills while it fetches.
             final showFill = progress > 0 && !isFinished;
+            // Offline with nothing to play: only the ebook may be on the
+            // phone, and the Read button below still works.
+            if (lib.isOffline &&
+                !showAbsorbingState &&
+                !DownloadService().isDownloaded(widget.itemId)) {
+              return Material(
+                color: accent.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(16),
+                child: Center(
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.cloud_off_rounded, size: 22, color: onAccent),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        ebookFile != null && canReadEbook(ebookFile)
+                            ? l.absorbAudioNotDownloadedEbookOnly
+                            : l.absorbAudioNotDownloaded,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: tt.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600, color: onAccent),
+                      ),
+                    ),
+                  ]),
+                ),
+              );
+            }
 
             return Material(
               color: accent,

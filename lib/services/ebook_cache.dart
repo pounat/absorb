@@ -50,6 +50,16 @@ Map<String, dynamic>? resolveEbookFile(Map<String, dynamic>? item) {
   return firstReadable ?? firstEbook;
 }
 
+/// Whether a library item comes with an ebook, from the full item or from
+/// the minified list form, which only carries the format.
+bool hasEbookFile(Map<String, dynamic>? item) {
+  if (item == null) return false;
+  if (resolveEbookFile(item) != null) return true;
+  final media = item['media'] as Map<String, dynamic>?;
+  final fmt = media?['ebookFormat'];
+  return fmt is String && fmt.isNotEmpty;
+}
+
 Directory? _ebookCacheDirHandle;
 
 Future<Directory> _ebookCacheDir() async {

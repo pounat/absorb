@@ -1310,6 +1310,7 @@ class AuthProvider extends ChangeNotifier {
     // values until restart.
     PlayerSettings.showExplicitBadge =
         await PlayerSettings.getShowExplicitBadge();
+    PlayerSettings.showEbookBadge = await PlayerSettings.getShowEbookBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
     PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
 

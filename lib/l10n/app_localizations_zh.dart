@@ -2954,6 +2954,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ebookOnlyNoAudio => '仅电子书 - 无音频';
 
   @override
+  String get absorbAudioNotDownloaded => 'Audio not downloaded';
+
+  @override
+  String get absorbAudioNotDownloadedEbookOnly =>
+      'Audio not downloaded, ebook only';
+
+  @override
   String get fullyAbsorbed => '已完成';
 
   @override
@@ -3909,6 +3916,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get showExplicitBadgeOffSubtitle => '关闭 - 隐藏敏感内容标记';
+
+  @override
+  String get showEbookBadge => 'Show ebook badge';
+
+  @override
+  String get showEbookBadgeOnSubtitle =>
+      'Books with an ebook show a book icon on the cover';
+
+  @override
+  String get showEbookBadgeOffSubtitle => 'Off - ebook badge hidden';
 
   @override
   String get libraryFallback => 'Library';

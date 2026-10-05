@@ -147,6 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _hideEbookOnly = false;
   bool _showGoodreadsButton = false;
   bool _showExplicitBadge = true;
+  bool _showEbookBadge = true;
   bool _loggingEnabled = false;
   bool _fullScreenPlayer = false;
   bool _lockPortrait = false;
@@ -1001,6 +1002,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final coverSize = await PlayerSettings.getCoverSize();
     final flatBackground = await PlayerSettings.getFlatBackground();
     final showSubtitles = await PlayerSettings.getShowSubtitles();
+    final showEbookBadge = await PlayerSettings.getShowEbookBadge();
     final einkMode = await PlayerSettings.getEinkMode();
     final colorSource = await PlayerSettings.getColorSource();
     final manualSeed = await PlayerSettings.getManualSeedColor();
@@ -1169,6 +1171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _longBackSkip = longBack;
       _trustAllCerts = trustCerts;
       _showExplicitBadge = showExplicit;
+      _showEbookBadge = showEbookBadge;
       _includePreReleases = preReleases;
       _sleepFadeDuration = fadeDur;
       _sleepChime = chime;
@@ -3887,6 +3890,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onChanged: _loaded ? (v) {
                         setState(() => _showExplicitBadge = v);
                         PlayerSettings.setShowExplicitBadge(v);
+                      } : null,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(l.showEbookBadge),
+                      subtitle: Text(
+                        _showEbookBadge
+                            ? l.showEbookBadgeOnSubtitle
+                            : l.showEbookBadgeOffSubtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _showEbookBadge,
+                      onChanged: _loaded ? (v) {
+                        setState(() => _showEbookBadge = v);
+                        PlayerSettings.setShowEbookBadge(v);
                       } : null,
                     ),
                     if (lib.libraries.length > 1) ...[

@@ -112,6 +112,7 @@ class BackupService {
       'sectionGridView': await PlayerSettings.getSectionGridView(),
       'collapseBookSeries': await PlayerSettings.getCollapseBookSeries(),
       'showExplicitBadge': await PlayerSettings.getShowExplicitBadge(),
+      'showEbookBadge': await PlayerSettings.getShowEbookBadge(),
       'includePreReleases': await PlayerSettings.getIncludePreReleases(),
       'language': await PlayerSettings.getLanguage(),
       'showUpNextLabel': await PlayerSettings.getShowUpNextLabel(),
@@ -637,6 +638,7 @@ class BackupService {
     if (s['sectionGridView'] != null) await PlayerSettings.setSectionGridView(s['sectionGridView'] as bool);
     if (s['collapseBookSeries'] != null) await PlayerSettings.setCollapseBookSeries(s['collapseBookSeries'] as bool);
     if (s['showExplicitBadge'] != null) await PlayerSettings.setShowExplicitBadge(s['showExplicitBadge'] as bool);
+    if (s['showEbookBadge'] != null) await PlayerSettings.setShowEbookBadge(s['showEbookBadge'] as bool);
     if (s['includePreReleases'] != null) await PlayerSettings.setIncludePreReleases(s['includePreReleases'] as bool);
     if (s['language'] != null) await PlayerSettings.setLanguage(s['language'] as String);
     if (s['showUpNextLabel'] != null) await PlayerSettings.setShowUpNextLabel(s['showUpNextLabel'] as bool);

@@ -5464,6 +5464,18 @@ abstract class AppLocalizations {
   /// **'eBook Only - No Audio'**
   String get ebookOnlyNoAudio;
 
+  /// No description provided for @absorbAudioNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio not downloaded'**
+  String get absorbAudioNotDownloaded;
+
+  /// No description provided for @absorbAudioNotDownloadedEbookOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio not downloaded, ebook only'**
+  String get absorbAudioNotDownloadedEbookOnly;
+
   /// No description provided for @fullyAbsorbed.
   ///
   /// In en, this message translates to:
@@ -7213,6 +7225,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Off - explicit badge hidden'**
   String get showExplicitBadgeOffSubtitle;
+
+  /// No description provided for @showEbookBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Show ebook badge'**
+  String get showEbookBadge;
+
+  /// No description provided for @showEbookBadgeOnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Books with an ebook show a book icon on the cover'**
+  String get showEbookBadgeOnSubtitle;
+
+  /// No description provided for @showEbookBadgeOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Off - ebook badge hidden'**
+  String get showEbookBadgeOffSubtitle;
 
   /// No description provided for @libraryFallback.
   ///

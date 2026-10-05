@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/ebook_cache.dart';
 import 'absorbing_shared.dart';
 import 'book_detail_sheet.dart';
 import 'books_sheet_shared.dart' show coverGridTextScale, coverGridDecodeWidth;
@@ -79,6 +80,7 @@ class _GridBookTileState extends State<GridBookTile> {
     final progress = lib.getProgress(itemId);
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final isDownloaded = _dl.isDownloaded(itemId);
+    final hasEbook = PlayerSettings.showEbookBadge && hasEbookFile(widget.item);
     final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
     final isSubscribed = lib.isPodcastLibrary && lib.isPodcastSubscribed(itemId);
     final unfinishedCount =
@@ -192,6 +194,12 @@ class _GridBookTileState extends State<GridBookTile> {
                         ),
                         child: Text(l.libraryGridTilesExplicitBadge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
                       ),
+                    ),
+
+                  if (hasEbook && !widget.selectionMode)
+                    Positioned(
+                      top: widget.sequenceBadge != null ? 24 : 4, left: 4,
+                      child: const EbookCoverBadge(),
                     ),
 
                   // Sequence badge

@@ -3019,6 +3019,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get ebookOnlyNoAudio => 'eBook Only - No Audio';
 
   @override
+  String get absorbAudioNotDownloaded => 'Audio not downloaded';
+
+  @override
+  String get absorbAudioNotDownloadedEbookOnly =>
+      'Audio not downloaded, ebook only';
+
+  @override
   String get fullyAbsorbed => 'Fully Absorbed';
 
   @override
@@ -3994,6 +4001,16 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get showExplicitBadgeOffSubtitle => 'Off - explicit badge hidden';
+
+  @override
+  String get showEbookBadge => 'Show ebook badge';
+
+  @override
+  String get showEbookBadgeOnSubtitle =>
+      'Books with an ebook show a book icon on the cover';
+
+  @override
+  String get showEbookBadgeOffSubtitle => 'Off - ebook badge hidden';
 
   @override
   String get libraryFallback => 'Library';

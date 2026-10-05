@@ -815,6 +815,13 @@ class PlayerSettings {
     await _set('showExplicitBadge', value);
   }
 
+  static bool showEbookBadge = true;
+  static Future<bool> getShowEbookBadge() => _get('showEbookBadge', true);
+  static Future<void> setShowEbookBadge(bool value) async {
+    showEbookBadge = value;
+    await _set('showEbookBadge', value, notify: true);
+  }
+
   /// Cached value for synchronous access when building audio sources.
   static bool mp3IndexSeeking = false;
   static Future<bool> getMp3IndexSeeking() => _get('mp3IndexSeeking', false);
