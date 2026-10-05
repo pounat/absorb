@@ -537,6 +537,72 @@ class DownloadService extends ChangeNotifier {
   DownloadInfo getInfo(String itemId) =>
       _downloads[itemId] ?? DownloadInfo(itemId: itemId);
 
+  // Books whose ebook was opened in the reader. The cached copy stays listed
+  // and kept when there is no audio download to carry it. Never a download
+  // record: the player must not think the audio is on the phone.
+  final Map<String, DownloadInfo> _keptEbooks = {};
+
+  List<DownloadInfo> get keptEbooks => _keptEbooks.values.toList();
+
+  DownloadInfo? keptEbook(String itemId) => _keptEbooks[itemId];
+
+  Future<void> keepEbook({
+    required ApiService api,
+    required String itemId,
+    Map<String, dynamic>? item,
+  }) async {
+    if (_keptEbooks.containsKey(itemId)) return;
+    Map<String, dynamic>? full;
+    try {
+      full = await api.getLibraryItem(itemId);
+    } catch (_) {}
+    final stored = full ?? item;
+    if (stored == null) return;
+    final media = stored['media'] as Map<String, dynamic>?;
+    final metadata = media?['metadata'] as Map<String, dynamic>?;
+    String? coverPath;
+    try {
+      final resp = await http
+          .get(Uri.parse(_hiResCoverUrl(api.getCoverUrl(itemId, width: 800))),
+              headers: api.mediaHeaders)
+          .timeout(const Duration(seconds: 10));
+      if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+        final f = await ebookCoverCacheFile(itemId);
+        await f.writeAsBytes(resp.bodyBytes);
+        coverPath = f.path;
+      }
+    } catch (_) {}
+    _keptEbooks[itemId] = DownloadInfo(
+      itemId: itemId,
+      status: DownloadStatus.downloaded,
+      sessionData: jsonEncode({
+        'libraryItem': stored,
+        'mediaMetadata': metadata,
+        'duration': 0,
+        'chapters': const <dynamic>[],
+      }),
+      title: metadata?['title'] as String?,
+      author: metadata?['authorName'] as String?,
+      localCoverPath: coverPath,
+      libraryId: stored['libraryId'] as String?,
+    );
+    await _save();
+    notifyListeners();
+    debugPrint('[Download] ebook kept for offline: $itemId');
+  }
+
+  Future<void> deleteKeptEbook(String itemId) async {
+    if (_keptEbooks.remove(itemId) == null) return;
+    // A downloaded audiobook still reads from the same cached file.
+    if (_downloads.containsKey(itemId)) {
+      await deleteCachedEbookCover(itemId);
+    } else {
+      await deleteCachedEbook(itemId);
+    }
+    await _save();
+    notifyListeners();
+  }
+
   bool isDownloaded(String itemId) =>
       _downloads[itemId]?.status == DownloadStatus.downloaded;
 
@@ -649,6 +715,18 @@ class DownloadService extends ChangeNotifier {
     // to write them. Drop the old setting so new downloads use SAF or internal.
     if (prefs.getString('custom_download_path') != null) {
       await prefs.remove('custom_download_path');
+    }
+    final keptJson = prefs.getString('kept_ebooks');
+    if (keptJson != null) {
+      try {
+        final map = jsonDecode(keptJson) as Map<String, dynamic>;
+        for (final entry in map.entries) {
+          _keptEbooks[entry.key] =
+              DownloadInfo.fromJson(entry.value as Map<String, dynamic>);
+        }
+      } catch (e) {
+        debugPrint('[Download] kept ebooks init error: $e');
+      }
     }
     final json = prefs.getString('downloads');
     if (json != null) {
@@ -1276,6 +1354,9 @@ class DownloadService extends ChangeNotifier {
       }
     }
     await prefs.setString('downloads', jsonEncode(map));
+    await prefs.setString('kept_ebooks', jsonEncode({
+      for (final e in _keptEbooks.entries) e.key: e.value.toJson(),
+    }));
   }
 
   List<String>? getLocalPaths(String itemId) {
@@ -1508,6 +1589,13 @@ class DownloadService extends ChangeNotifier {
   /// (killed mid-transfer, offline at the time). Called when the app comes up
   /// with a working connection; cheap when everything is already cached.
   Future<void> catchUpEbookCaches(ApiService api) async {
+    // An ebook opened from a streamed book has a cached file and nothing
+    // that lists it. Give those a record once, so they show offline.
+    for (final id in await cachedEbookItemIds()) {
+      if (_downloads.containsKey(id) || _keptEbooks.containsKey(id)) continue;
+      if (!_ebookRecheckDone.add('kept:$id')) continue;
+      await keepEbook(api: api, itemId: id);
+    }
     var changed = false;
     for (final entry in _downloads.entries.toList()) {
       final info = entry.value;
@@ -2770,8 +2858,8 @@ class DownloadService extends ChangeNotifier {
       debugPrint('[Download] cover cleanup failed: $e');
     }
 
-    // Drop the offline ebook copy too, if any.
-    await deleteCachedEbook(itemId);
+    // Drop the offline ebook copy too, unless the reader has a claim on it.
+    if (!_keptEbooks.containsKey(itemId)) await deleteCachedEbook(itemId);
 
     _downloads.remove(itemId);
     await _save();

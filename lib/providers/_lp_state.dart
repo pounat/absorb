@@ -398,6 +398,8 @@ mixin _StateMixin on ChangeNotifier {
     if (dl.localCoverPath != null) {
       return dl.localCoverPath;
     }
+    final kept = DownloadService().keptEbook(itemId);
+    if (kept?.localCoverPath != null) return kept!.localCoverPath;
 
     if (dl.status == DownloadStatus.none) {
       final match = DownloadService()

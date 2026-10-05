@@ -860,6 +860,22 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     if (savedProgress != null) _progress = savedProgress.clamp(0.0, 1.0);
   }
 
+  /// The file is on the device now, but the offline lists only know records.
+  /// An ebook-only book becomes a download record; a book with audio gets a
+  /// kept ebook record, so the copy outlives the audio download.
+  Future<void> _rememberForOffline(ApiService api) async {
+    final downloads = DownloadService();
+    if (!downloads.isDownloaded(widget.itemId)) {
+      final registered = await downloads.registerEbookDownload(
+        api: api,
+        itemId: widget.itemId,
+        onlyIfNoAudio: true,
+      );
+      if (registered) return;
+    }
+    await downloads.keepEbook(api: api, itemId: widget.itemId);
+  }
+
   Future<void> _downloadAndOpen() async {
     try {
       final auth = context.read<AuthProvider>();
@@ -874,16 +890,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       debugPrint('[EbookReader] open item=${widget.itemId} ext=${ebookExtFromFile(widget.ebookFile)} '
           'cached=${await isEbookCached(widget.itemId, widget.ebookFile)} playing=$playing');
       final file = await fetchEbookToCache(api, widget.itemId, widget.ebookFile, widget.title);
-      // The file is now on the device, but the offline library only lists
-      // download records. An ebook-only book that has been read should be
-      // there too, not just one saved from its detail sheet.
-      if (!DownloadService().isDownloaded(widget.itemId)) {
-        unawaited(DownloadService().registerEbookDownload(
-          api: api,
-          itemId: widget.itemId,
-          onlyIfNoAudio: true,
-        ));
-      }
+      unawaited(_rememberForOffline(api));
       final len = file.existsSync() ? await file.length() : 0;
       final locations = await loadCachedLocations(file);
       debugPrint('[EbookReader] file ready item=${widget.itemId} bytes=$len '

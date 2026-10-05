@@ -1456,6 +1456,12 @@ abstract class AppLocalizations {
   /// **'Completed'**
   String get downloadsCompleted;
 
+  /// No description provided for @downloadsEbooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Ebooks'**
+  String get downloadsEbooks;
+
   /// No description provided for @downloadsWaiting.
   ///
   /// In en, this message translates to:

@@ -746,6 +746,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get downloadsCompleted => 'Terminé';
 
   @override
+  String get downloadsEbooks => 'Ebooks';
+
+  @override
   String get downloadsWaiting => 'En attente...';
 
   @override

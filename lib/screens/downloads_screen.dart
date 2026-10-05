@@ -7,6 +7,8 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/ebook_cache.dart';
+import '../widgets/ebook_router.dart';
 import '../services/signed_out_playback.dart';
 import '../services/wording.dart';
 import '../widgets/absorb_page_header.dart';
@@ -173,6 +175,51 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     }
   }
 
+  Future<void> _openEbook(DownloadInfo info) async {
+    final l = AppLocalizations.of(context)!;
+    final ebookFile = await cachedEbookFileFor(info.itemId);
+    if (!mounted) return;
+    if (ebookFile == null) {
+      showOverlayToast(context, l.findInEbookNoEbook,
+          icon: Icons.menu_book_outlined);
+      return;
+    }
+    await openEbookReader(
+      context,
+      itemId: info.itemId,
+      title: info.title ?? '',
+      ebookFile: ebookFile,
+    );
+  }
+
+  Future<void> _deleteEbook(DownloadInfo info) async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.delete_outline_rounded),
+        title: Text(l.downloadsDeleteCount(1)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await DownloadService().deleteKeptEbook(info.itemId);
+    await _load();
+    if (mounted) {
+      showOverlayToast(context, l.downloadsRemovedTitle(info.title ?? ''),
+          icon: Icons.delete_outline_rounded);
+    }
+  }
+
   /// Plays straight from the download record, so it works offline and from
   /// any library - the one way to reach a downloaded podcast when the app
   /// started offline stuck in a book library.
@@ -328,7 +375,14 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         final active = filterByLibrary(ds.activeDownloads);
                         final queued = filterByLibrary(ds.queuedDownloads);
                         final completed = filterByLibrary(ds.downloadedItems);
-                        final hasAny = active.isNotEmpty || queued.isNotEmpty || completed.isNotEmpty;
+                        final downloadedIds = completed.map((d) => d.itemId).toSet();
+                        final ebooks = filterByLibrary(ds.keptEbooks)
+                            .where((e) => !downloadedIds.contains(e.itemId))
+                            .toList();
+                        final hasAny = active.isNotEmpty ||
+                            queued.isNotEmpty ||
+                            completed.isNotEmpty ||
+                            ebooks.isNotEmpty;
 
                         if (!hasAny) {
                           return Center(
@@ -414,6 +468,33 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                   mediaHeaders: context.read<LibraryProvider>().mediaHeaders,
                                 ),
                             ],
+                            // Ebooks kept from the reader, no audio on the phone
+                            if (ebooks.isNotEmpty) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4, top: 4, bottom: 8),
+                                child: Text(l.downloadsEbooks,
+                                    style: tt.labelMedium?.copyWith(
+                                        color: cs.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                              for (final info in ebooks)
+                                _DownloadCard(
+                                  info: info,
+                                  fileSize: cachedEbookBytesSync(info.itemId),
+                                  cs: cs,
+                                  tt: tt,
+                                  selecting: false,
+                                  isSelected: false,
+                                  onToggle: () {},
+                                  onPlay: () => _openEbook(info),
+                                  onLongPress: () {},
+                                  onDelete: () => _deleteEbook(info),
+                                  formatBytes: _formatBytes,
+                                  mediaHeaders: context.read<LibraryProvider>().mediaHeaders,
+                                  playIcon: Icons.menu_book_rounded,
+                                  playTooltip: l.readEbook,
+                                ),
+                            ],
                           ],
                         );
                       },
@@ -479,6 +560,8 @@ class _DownloadCard extends StatelessWidget {
   final VoidCallback onDelete;
   final String Function(int) formatBytes;
   final Map<String, String> mediaHeaders;
+  final IconData playIcon;
+  final String? playTooltip;
 
   const _DownloadCard({
     required this.info,
@@ -493,6 +576,8 @@ class _DownloadCard extends StatelessWidget {
     required this.onDelete,
     required this.formatBytes,
     required this.mediaHeaders,
+    this.playIcon = Icons.play_circle_outline_rounded,
+    this.playTooltip,
   });
 
   @override
@@ -575,9 +660,8 @@ class _DownloadCard extends StatelessWidget {
                 ),
                 if (!selecting)
                   IconButton(
-                    icon: Icon(Icons.play_circle_outline_rounded,
-                        color: cs.primary, size: 26),
-                    tooltip: Wording.of(context).absorb,
+                    icon: Icon(playIcon, color: cs.primary, size: 26),
+                    tooltip: playTooltip ?? Wording.of(context).absorb,
                     onPressed: onPlay,
                   ),
                 if (!selecting)

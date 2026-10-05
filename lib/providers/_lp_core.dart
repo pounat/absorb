@@ -459,10 +459,23 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       }
       return (dl.itemId.length > 36) == isPodcast;
     }).toList();
+    final downloadedIds = downloads.map((d) => d.itemId).toSet();
+    final keptEbooks = isPodcast
+        ? const <DownloadInfo>[]
+        : DownloadService().keptEbooks.where((k) {
+            if (downloadedIds.contains(k.itemId)) return false;
+            final libraryId = k.libraryId;
+            if (libraryId != null &&
+                libraryId.isNotEmpty &&
+                _selectedLibraryId != null) {
+              return libraryId == _selectedLibraryId;
+            }
+            return true;
+          }).toList();
     debugPrint(
         '[Library] Building offline sections: ${downloads.length}/${allDownloads.length} downloads (${isPodcast ? "podcast" : "book"}) '
-        'library=$_selectedLibraryId of ${_libraries.length}');
-    if (downloads.isEmpty) {
+        '+${keptEbooks.length} kept ebooks library=$_selectedLibraryId of ${_libraries.length}');
+    if (downloads.isEmpty && keptEbooks.isEmpty) {
       _personalizedSections = [];
       _errorMessage = null;
       _isLoading = false;
@@ -476,6 +489,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       double duration = 0;
       List<dynamic> chapters = [];
       String? episodeTitle;
+      Map<String, dynamic>? ebookFile;
       if (dl.sessionData != null) {
         try {
           final session = jsonDecode(dl.sessionData!) as Map<String, dynamic>;
@@ -483,6 +497,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           chapters = session['chapters'] as List<dynamic>? ?? [];
           episodeTitle = session['episodeTitle'] as String? ??
               session['displayTitle'] as String?;
+          ebookFile = resolveEbookFile(
+              session['libraryItem'] as Map<String, dynamic>?);
         } catch (_) {}
       }
 
@@ -519,6 +535,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
             },
             'duration': duration,
             'chapters': chapters,
+            if (ebookFile != null) 'ebookFile': ebookFile,
           },
         };
       }
@@ -533,6 +550,27 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
 
       if (progress > 0 && !isFinished) continueEntities.add(entity);
       downloadedEntities.add(entity);
+    }
+    for (final kept in keptEbooks) {
+      Map<String, dynamic>? item;
+      try {
+        item = (jsonDecode(kept.sessionData ?? '{}')
+            as Map<String, dynamic>)['libraryItem'] as Map<String, dynamic>?;
+      } catch (_) {}
+      final ebookFile = resolveEbookFile(item);
+      downloadedEntities.add({
+        'id': kept.itemId,
+        if (kept.libraryId != null) 'libraryId': kept.libraryId,
+        'media': {
+          'metadata': {
+            'title': kept.title ?? 'Unknown Title',
+            'authorName': kept.author ?? '',
+          },
+          'duration': 0,
+          'chapters': const <dynamic>[],
+          if (ebookFile != null) 'ebookFile': ebookFile,
+        },
+      });
     }
 
     _personalizedSections = [
@@ -583,6 +621,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       double duration = 0;
       List<dynamic> chapters = [];
       String? episodeTitle;
+      Map<String, dynamic>? ebookFile;
       if (dl.sessionData != null) {
         try {
           final session = jsonDecode(dl.sessionData!) as Map<String, dynamic>;
@@ -590,6 +629,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           chapters = session['chapters'] as List<dynamic>? ?? [];
           episodeTitle = session['episodeTitle'] as String? ??
               session['displayTitle'] as String?;
+          ebookFile = resolveEbookFile(
+              session['libraryItem'] as Map<String, dynamic>?);
         } catch (_) {}
       }
 
@@ -625,6 +666,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
             },
             'duration': duration,
             'chapters': chapters,
+            if (ebookFile != null) 'ebookFile': ebookFile,
           },
         });
       }

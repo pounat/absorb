@@ -519,9 +519,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
     // Offline fallback: build item from local download data
     final dl = DownloadService().getInfo(widget.itemId);
-    if (dl.sessionData != null) {
+    final sessionData =
+        dl.sessionData ?? DownloadService().keptEbook(widget.itemId)?.sessionData;
+    if (sessionData != null) {
       try {
-        final session = jsonDecode(dl.sessionData!) as Map<String, dynamic>;
+        final session = jsonDecode(sessionData) as Map<String, dynamic>;
         // Prefer full libraryItem if it wasn't stripped
         final localItem = session['libraryItem'] as Map<String, dynamic>?;
         if (localItem != null && mounted) {

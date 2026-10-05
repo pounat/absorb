@@ -745,6 +745,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get downloadsCompleted => 'Abgeschlossen';
 
   @override
+  String get downloadsEbooks => 'Ebooks';
+
+  @override
   String get downloadsWaiting => 'Warten...';
 
   @override

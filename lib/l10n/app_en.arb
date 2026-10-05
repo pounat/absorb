@@ -329,6 +329,7 @@
   "downloadsDownloading": "Downloading",
   "downloadsQueued": "Queued",
   "downloadsCompleted": "Completed",
+  "downloadsEbooks": "Ebooks",
   "downloadsWaiting": "Waiting...",
   "downloadsCancel": "Cancel",
   "downloadsDelete": "Delete",

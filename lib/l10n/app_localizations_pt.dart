@@ -738,6 +738,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get downloadsCompleted => 'Completed';
 
   @override
+  String get downloadsEbooks => 'Ebooks';
+
+  @override
   String get downloadsWaiting => 'Waiting...';
 
   @override

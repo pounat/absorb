@@ -728,6 +728,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get downloadsCompleted => '已完成';
 
   @override
+  String get downloadsEbooks => 'Ebooks';
+
+  @override
   String get downloadsWaiting => '等待中...';
 
   @override

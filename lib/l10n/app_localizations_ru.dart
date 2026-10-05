@@ -739,6 +739,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get downloadsCompleted => 'Завершено';
 
   @override
+  String get downloadsEbooks => 'Ebooks';
+
+  @override
   String get downloadsWaiting => 'Подождите...';
 
   @override
