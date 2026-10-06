@@ -6972,6 +6972,9 @@ class AudioPlayerService extends ChangeNotifier {
         _setupSync();
       }
     }
+    // BookOrbit audio streams through the in-app proxy, which a long
+    // suspension can take down; a lock screen play doesn't foreground the app.
+    if (_api?.isBookOrbit == true) await _api!.ensureMediaReady();
     // A source streaming through a session the server no longer has (closed
     // by the pause timeout, or replaced since) would play from the cache
     // until that runs out, then die with a 404 and a five-second retry.
@@ -7164,8 +7167,12 @@ class AudioPlayerService extends ChangeNotifier {
     if (_knownOffline || _isOfflineMode) return false;
     if (ChromecastService().isCasting) return false;
     final lastPause = _lastPauseTime;
-    if (lastPause == null ||
-        DateTime.now().difference(lastPause) < _serverPositionCheckMinPause) {
+    // BookOrbit has no live progress push to cover a short pause, so check
+    // after any pause long enough for someone to have listened elsewhere.
+    final minPause = _api!.isBookOrbit
+        ? const Duration(seconds: 10)
+        : _serverPositionCheckMinPause;
+    if (lastPause == null || DateTime.now().difference(lastPause) < minPause) {
       return false;
     }
     final manualOffline =

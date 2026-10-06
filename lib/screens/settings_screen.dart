@@ -1750,6 +1750,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Row(children: [
                             Flexible(child: Text(auth.username ?? l.userFallback, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                               overflow: TextOverflow.ellipsis)),
+                            const SizedBox(width: 8),
+                            _serverKindTag(cs, tt, auth.isBookOrbit),
                             if (auth.isAdmin) ...[
                               const SizedBox(width: 8),
                               Container(
@@ -2582,7 +2584,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff))),
                               ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual))),
                               ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeAuto))),
-                              ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
+                              if (!context.read<AuthProvider>().isBookOrbit || _mergedQueueMode == 'playlist')
+                                ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
                             ],
                             selected: {_mergedQueueMode},
                             onSelectionChanged: _loaded
@@ -2600,7 +2603,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff))),
                               ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual))),
                               ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeSeriesLabel))),
-                              ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
+                              if (!context.read<AuthProvider>().isBookOrbit || _bookQueueMode == 'playlist')
+                                ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
                             ],
                             selected: {_bookQueueMode},
                             onSelectionChanged: _loaded
@@ -2618,7 +2622,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ButtonSegment(value: 'off', icon: const Icon(Icons.stop_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeOff))),
                                 ButtonSegment(value: 'manual', icon: const Icon(Icons.queue_music_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeManual))),
                                 ButtonSegment(value: 'auto_next', icon: const Icon(Icons.skip_next_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModeShowLabel))),
-                                ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
+                                if (!context.read<AuthProvider>().isBookOrbit || _podcastQueueMode == 'playlist')
+                                  ButtonSegment(value: 'playlist', icon: const Icon(Icons.playlist_play_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.queueModePlaylist))),
                               ],
                               selected: {_podcastQueueMode},
                               onSelectionChanged: _loaded
@@ -4929,7 +4934,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(auth.username ?? l.userFallback, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Row(children: [
+                Flexible(child: Text(auth.username ?? l.userFallback, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 8),
+                _serverKindTag(cs, tt, auth.isBookOrbit),
+              ]),
               const SizedBox(height: 6),
               Row(children: [
                 Icon(Icons.dns_rounded, size: 13, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
@@ -4968,6 +4978,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
+          if (!auth.isBookOrbit) ...[
           InkWell(
             onTap: () {
               Navigator.pop(ctx);
@@ -5009,6 +5020,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
+          ],
           // Other accounts
           if (otherAccounts.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -5019,9 +5031,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: cs.onSurfaceVariant.withValues(alpha: 0.4), fontWeight: FontWeight.w600, letterSpacing: 0.5))),
             ),
             ...otherAccounts.map((account) {
-              final shortUrl = account.serverUrl
+              final host = account.serverUrl
                   .replaceAll(RegExp(r'^https?://'), '')
                   .replaceAll(RegExp(r'/+$'), '');
+              final shortUrl = account.backend.isBookOrbit
+                  ? '$host - ${account.backend.displayName}'
+                  : host;
               return InkWell(
                 onTap: () { Navigator.pop(ctx); _switchAccount(context, account); },
                 onLongPress: () { Navigator.pop(ctx); _accountOptions(context, account); },
@@ -5308,3 +5323,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 }
+
+/// The kind of server the account is on, spelled to show where the app's
+/// name comes from: ABS and orb, or abs and BookOrbit's ORB.
+Widget _serverKindTag(ColorScheme cs, TextTheme tt, bool bookOrbit) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: cs.onSurface.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        bookOrbit ? 'absORB' : 'ABSorb',
+        style: tt.labelSmall?.copyWith(
+          color: cs.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+          fontSize: 9,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );

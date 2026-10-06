@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
@@ -45,7 +46,10 @@ class BookResultTile extends StatelessWidget {
     final isFinished = itemId != null && lib.getProgressData(itemId)?['isFinished'] == true;
 
     String? coverUrl;
-    if (itemId != null && serverUrl != null && token != null) {
+    final bookOrbitApi = context.read<AuthProvider>().apiService;
+    if (itemId != null && bookOrbitApi != null && bookOrbitApi.isBookOrbit) {
+      coverUrl = lib.getCoverUrl(itemId, width: 200);
+    } else if (itemId != null && serverUrl != null && token != null) {
       final cleanUrl = serverUrl!.endsWith('/')
           ? serverUrl!.substring(0, serverUrl!.length - 1)
           : serverUrl!;
@@ -396,7 +400,10 @@ class AuthorResultTile extends StatelessWidget {
     final numBooks = author['numBooks'] as int?;
 
     String? imageUrl;
-    if (authorId.isNotEmpty && serverUrl != null && token != null) {
+    final api = context.read<AuthProvider>().apiService;
+    if (api != null && api.isBookOrbit) {
+      if (author['imagePath'] != null) imageUrl = api.getAuthorImageUrl(authorId);
+    } else if (authorId.isNotEmpty && serverUrl != null && token != null) {
       final cleanUrl = serverUrl!.endsWith('/')
           ? serverUrl!.substring(0, serverUrl!.length - 1)
           : serverUrl!;

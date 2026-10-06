@@ -315,6 +315,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
   // ─── Quick Match Tab ────────────────────────────────────────
 
   Widget _buildQuickMatchTab(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    final bookOrbit = context.read<AuthProvider>().isBookOrbit;
     return ListView(
       controller: widget.scrollController,
       padding: EdgeInsets.fromLTRB(20, 16, 20, 32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
@@ -324,7 +325,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
         _searchField(_searchCtrl, l.authorName, Icons.person_rounded, cs, tt),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(
+          if (bookOrbit) const Spacer() else Expanded(
             child: Container(
               height: 44,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -465,6 +466,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
   // ─── Custom Tab ─────────────────────────────────────────────
 
   Widget _buildCustomTab(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    final bookOrbit = context.read<AuthProvider>().isBookOrbit;
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
@@ -486,7 +488,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
           padding: EdgeInsets.fromLTRB(20, 0, 20, 32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
           children: [
             _field(l.authorName, _nameCtrl, tt),
-            _field(l.asinLabel, _asinCtrl, tt),
+            if (!bookOrbit) _field(l.asinLabel, _asinCtrl, tt),
             _field(l.descriptionLabel, _descCtrl, tt, maxLines: 6),
             const SizedBox(height: 12),
             Text(l.authorImage, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),

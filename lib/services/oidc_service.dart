@@ -6,6 +6,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:http/http.dart' as http;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'dart:io' show HttpClient, HttpHeaders;
+import 'api_service.dart';
 
 /// Manages the OIDC/OAuth2 PKCE flow for audiobookshelf SSO login.
 class OidcService {
@@ -18,6 +19,7 @@ class OidcService {
   String? _codeChallenge;
   String? _state;
   String? _serverUrl;
+  String? _nonce;
 
   /// The raw cookie strings from the /auth/openid response.
   List<String> _rawCookies = [];
@@ -145,16 +147,131 @@ class OidcService {
     }
 
     debugPrint('[OIDC] Opening Custom Tab for: $providerUrl');
+    return _openBrowser(providerUrl, 'audiobookshelf');
+  }
 
-    // Open the OIDC provider in an in-app browser tab. On Android this is a
-    // Chrome Custom Tab; on iOS, ASWebAuthenticationSession. Both intercept
-    // the audiobookshelf:// callback and return it to us. Unlike an external
-    // browser, neither can be hijacked by PWAs or other apps registered for
-    // the provider's domain.
+  /// BookOrbit only takes this return address from an app (unless its admin
+  /// renamed it), the same one BookOrbit's own apps use.
+  static const bookOrbitRedirectUri = 'bookorbit://oauth2-callback';
+
+  /// The identity provider's sign-in page for a BookOrbit login, with PKCE.
+  /// BookOrbit leaves this step to the app and only checks the result.
+  static Uri bookOrbitAuthorizeUrl({
+    required String authorizationEndpoint,
+    required BookOrbitOidcProvider provider,
+    required String state,
+    required String nonce,
+    required String codeChallenge,
+  }) {
+    final endpoint = Uri.parse(authorizationEndpoint);
+    return endpoint.replace(queryParameters: {
+      ...endpoint.queryParameters,
+      'response_type': 'code',
+      'client_id': provider.clientId,
+      'scope': provider.scopes,
+      'redirect_uri': bookOrbitRedirectUri,
+      'state': state,
+      'nonce': nonce,
+      'code_challenge': codeChallenge,
+      'code_challenge_method': 'S256',
+    });
+  }
+
+  /// Start a BookOrbit single sign-on through [provider]. Returns the
+  /// callback like [startLogin].
+  Future<Uri?> startBookOrbitLogin(
+    String serverUrl,
+    BookOrbitOidcProvider provider, {
+    Map<String, String> customHeaders = const {},
+  }) async {
+    _serverUrl = serverUrl.endsWith('/') ? serverUrl.substring(0, serverUrl.length - 1) : serverUrl;
+    _generatePkce();
+    _nonce = _generateRandom(16);
+    _rawCookies = [];
+    _customHeaders = customHeaders;
+    _lastError = null;
+    _lastWasUserCancel = false;
+    final String url;
+    try {
+      final start = await BookOrbitApiService.oidcState(_serverUrl!, provider.slug, customHeaders: customHeaders);
+      _state = start.state;
+      url = bookOrbitAuthorizeUrl(
+        authorizationEndpoint: start.authorizationEndpoint,
+        provider: provider,
+        state: start.state,
+        nonce: _nonce!,
+        codeChallenge: _codeChallenge!,
+      ).toString();
+    } catch (e) {
+      debugPrint('[OIDC] BookOrbit start failed: $e');
+      _lastError = 'Could not start sign-in with ${provider.displayName}: $e';
+      _cleanup();
+      return null;
+    }
+    debugPrint('[OIDC] Opening BookOrbit sign-in with ${provider.slug}');
+    return _openBrowser(url, 'bookorbit');
+  }
+
+  /// Finish a BookOrbit sign-on from its callback. Returns an
+  /// Audiobookshelf-shaped login response, or null with [lastError] set.
+  Future<Map<String, dynamic>?> handleBookOrbitCallback(Uri uri) async {
+    _lastError = null;
+    _lastWasUserCancel = false;
+    final providerError = uri.queryParameters['error'];
+    final code = uri.queryParameters['code'];
+    final state = uri.queryParameters['state'];
+    if (providerError != null) {
+      final detail = uri.queryParameters['error_description'];
+      _lastError = 'The sign-in provider answered "$providerError"${detail != null ? ': $detail' : ''}. '
+          'Check that $bookOrbitRedirectUri is an allowed redirect URI for this client.';
+      _cleanup();
+      return null;
+    }
+    if (code == null || code.isEmpty) {
+      _lastError = 'OIDC provider returned no authorization code. '
+          'Check the provider logs for an "invalid redirect_uri" or '
+          '"invalid client" error.';
+      _cleanup();
+      return null;
+    }
+    if (state != _state) {
+      _lastError = 'OIDC state mismatch - possible session expiry or '
+          'cross-tab interference. Try again.';
+      _cleanup();
+      return null;
+    }
+    if (_serverUrl == null || _codeVerifier == null || _nonce == null) {
+      _lastError = 'OIDC flow state was lost between popup and callback.';
+      _cleanup();
+      return null;
+    }
+    final (result, status, message) = await BookOrbitApiService.signInWithOidc(
+      serverUrl: _serverUrl!,
+      code: code,
+      codeVerifier: _codeVerifier!,
+      redirectUri: bookOrbitRedirectUri,
+      nonce: _nonce!,
+      state: state!,
+      customHeaders: _customHeaders,
+    );
+    _cleanup();
+    if (result == null) {
+      _lastError = status == 0
+          ? 'BookOrbit sign-in request failed: $message'
+          : 'BookOrbit returned HTTP $status${message != null && message.isNotEmpty ? ': $message' : ''}';
+    }
+    return result;
+  }
+
+  /// Open [url] in an in-app browser tab. On Android this is a Chrome Custom
+  /// Tab; on iOS, ASWebAuthenticationSession. Both intercept the [scheme]
+  /// callback and return it to us. Unlike an external browser, neither can be
+  /// hijacked by PWAs or other apps registered for the provider's domain.
+  Future<Uri?> _openBrowser(String url, String scheme) async {
     try {
       final resultUrl = await FlutterWebAuth2.authenticate(
-        url: providerUrl,
-        callbackUrlScheme: 'audiobookshelf',
+        url: url,
+        callbackUrlScheme: scheme,
       );
       debugPrint('[OIDC] Custom Tab returned: $resultUrl');
       return Uri.parse(resultUrl);
@@ -278,6 +395,7 @@ class OidcService {
     _codeVerifier = null;
     _codeChallenge = null;
     _state = null;
+    _nonce = null;
     _rawCookies = [];
     _customHeaders = const {};
   }
@@ -316,6 +434,42 @@ class OidcService {
       hasLocalAuth: authMethods.contains('local'),
     );
   }
+
+  /// The single sign-on providers a BookOrbit server offers.
+  static Future<OidcConfig?> checkBookOrbitOidc(String serverUrl, {Map<String, String> customHeaders = const {}}) async {
+    final options = await BookOrbitApiService.loginOptions(serverUrl, customHeaders: customHeaders);
+    if (options == null) return null;
+    final providers = [
+      for (final p in options.oidcProviders)
+        BookOrbitOidcProvider(
+          slug: p['slug'] as String,
+          displayName: '${p['displayName'] ?? p['slug']}',
+          clientId: p['clientId'] as String,
+          scopes: (p['scopes'] as String?)?.trim().isNotEmpty == true ? p['scopes'] as String : 'openid profile email',
+        ),
+    ];
+    return OidcConfig(
+      enabled: providers.isNotEmpty,
+      buttonText: '',
+      hasLocalAuth: options.passwordLogin,
+      bookOrbitProviders: providers,
+    );
+  }
+}
+
+/// A BookOrbit single sign-on provider, from its public login options.
+class BookOrbitOidcProvider {
+  final String slug;
+  final String displayName;
+  final String clientId;
+  final String scopes;
+
+  const BookOrbitOidcProvider({
+    required this.slug,
+    required this.displayName,
+    required this.clientId,
+    required this.scopes,
+  });
 }
 
 /// Configuration about what auth methods a server supports.
@@ -323,10 +477,12 @@ class OidcConfig {
   final bool enabled;
   final String buttonText;
   final bool hasLocalAuth;
+  final List<BookOrbitOidcProvider> bookOrbitProviders;
 
   const OidcConfig({
     required this.enabled,
     required this.buttonText,
     required this.hasLocalAuth,
+    this.bookOrbitProviders = const [],
   });
 }

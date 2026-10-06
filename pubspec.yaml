@@ -125,6 +125,7 @@ dependencies:
   # foliate-js host for MOBI/AZW3/FB2/CBZ (already transitive via the epub
   # viewer; pinned direct so the bridge API is a declared dependency)
   flutter_inappwebview: ^6.0.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:

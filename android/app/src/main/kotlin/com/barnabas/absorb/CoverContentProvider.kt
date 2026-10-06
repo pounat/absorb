@@ -105,6 +105,9 @@ class CoverContentProvider : ContentProvider() {
             val prefs = context.getSharedPreferences(
                 "FlutterSharedPreferences", android.content.Context.MODE_PRIVATE
             )
+            if (prefs.getString("flutter.server_backend", null) == "bookorbit") {
+                return fetchViaBookOrbitProxy(context, prefs, itemId)
+            }
             val serverUrl = prefs.getString("flutter.server_url", null)
             var token = prefs.getString("flutter.token", null)
             if (serverUrl.isNullOrEmpty() || token.isNullOrEmpty()) {
@@ -138,6 +141,49 @@ class CoverContentProvider : ContentProvider() {
             Log.e(TAG, "Error fetching cover for $itemId", e)
             return null
         }
+    }
+
+    // BookOrbit covers need a Bearer header and its refresh tokens are single
+    // use, so they come through the app's loopback proxy, which owns the
+    // session. Nothing here touches the tokens.
+    private fun fetchViaBookOrbitProxy(
+        context: android.content.Context,
+        prefs: android.content.SharedPreferences,
+        itemId: String,
+    ): File? {
+        val port = try {
+            prefs.getLong("flutter.bookorbit_proxy_port", 0L)
+        } catch (e: ClassCastException) {
+            0L
+        }
+        val secret = prefs.getString("flutter.bookorbit_proxy_secret", null)
+        if (port <= 0L || secret.isNullOrEmpty()) {
+            Log.w(TAG, "BookOrbit proxy not set up - cannot fetch cover")
+            return null
+        }
+        val cacheDir = File(context.cacheDir, "aa_covers")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        val cacheFile = File(cacheDir, "$itemId.jpg")
+        val connection = URL("http://127.0.0.1:$port/$secret/api/v1/books/$itemId/cover?medium=audio")
+            .openConnection() as HttpURLConnection
+        connection.connectTimeout = 3000
+        connection.readTimeout = 8000
+        try {
+            if (connection.responseCode != 200) {
+                Log.w(TAG, "BookOrbit cover fetch failed: HTTP ${connection.responseCode} for $itemId")
+                return null
+            }
+            connection.inputStream.use { input ->
+                cacheFile.outputStream().use { output -> input.copyTo(output) }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "BookOrbit cover fetch error for $itemId: ${e.message}")
+            cacheFile.delete()
+            return null
+        } finally {
+            connection.disconnect()
+        }
+        return if (cacheFile.length() > 0) cacheFile else null
     }
 
     private fun fetchCover(

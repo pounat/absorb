@@ -59,6 +59,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="audiobookshelf" />
+                <data android:scheme="bookorbit" />
             </intent-filter>
         </activity>
 

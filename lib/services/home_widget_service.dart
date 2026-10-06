@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'audio_player_service.dart';
 import 'api_service.dart';
+import 'bookorbit_media_proxy.dart';
+import 'server_backend.dart';
 import 'download_service.dart';
 import 'progress_sync_service.dart';
 import 'scoped_prefs.dart';
@@ -366,7 +368,8 @@ class HomeWidgetService {
       } catch (_) {}
     }
 
-    final api = ApiService(
+    final api = ApiService.forSession(
+      backend: ServerBackend.loadActive(prefs),
       baseUrl: serverUrl,
       token: token,
       refreshToken: refreshToken,
@@ -382,6 +385,7 @@ class HomeWidgetService {
             username: username,
           ),
     );
+    await api.ensureMediaReady();
 
     try {
       final fullItem = await api.getLibraryItem(itemId);
@@ -576,7 +580,8 @@ class HomeWidgetService {
         );
       } catch (_) {}
     }
-    return ApiService(
+    return ApiService.forSession(
+      backend: ServerBackend.loadActive(prefs),
       baseUrl: serverUrl,
       token: token,
       refreshToken: refreshToken,
@@ -903,8 +908,11 @@ class HomeWidgetService {
     // via the widget without their server progress falling behind.
     final api = player.currentApi;
     if (api != null) {
+      // The native core only knows the Audiobookshelf progress endpoint. With
+      // no token it skips the push, and the app syncs on its next start.
       await HomeWidget.saveWidgetData<String>('np_server_url', api.baseUrl);
-      await HomeWidget.saveWidgetData<String>('np_api_token', api.token);
+      await HomeWidget.saveWidgetData<String>(
+          'np_api_token', api.isBookOrbit ? '' : api.token);
     }
 
     // EQ-enabled flag in the app group so a cold widget-launch (engine never
@@ -1127,11 +1135,13 @@ class HomeWidgetService {
       final localReachable = await ApiService.pingServer(
         localUrl,
         customHeaders: headers,
+        backend: ServerBackend.loadActive(prefs),
       ).timeout(const Duration(seconds: 3), onTimeout: () => false);
       if (localReachable) baseUrl = localUrl;
     }
 
-    return ApiService(
+    return ApiService.forSession(
+      backend: ServerBackend.loadActive(prefs),
       baseUrl: baseUrl,
       token: token,
       refreshToken: refreshToken,
@@ -1146,7 +1156,7 @@ class HomeWidgetService {
             serverUrl: remoteUrl,
             username: username,
           ),
-    );
+    ).withMediaReady();
   }
 
   Map<String, dynamic> _extractDailyMap(Map<String, dynamic>? stats) {
@@ -1268,10 +1278,14 @@ class HomeWidgetService {
           // Ask for a bigger one just for the widget file. The Kotlin side caps
           // what it actually hands to RemoteViews, so this only improves the
           // source it has to work from.
-          final widgetCoverUrl = coverUrl.replaceAllMapped(
+          var widgetCoverUrl = coverUrl.replaceAllMapped(
             RegExp(r'([?&])width=\d+'),
             (m) => '${m[1]}width=$_widgetCoverWidth',
           );
+          if (BookOrbitMediaProxy.instance.owns(widgetCoverUrl)) {
+            await BookOrbitMediaProxy.instance.ensureRunning();
+            widgetCoverUrl = widgetCoverUrl.replaceFirst('/thumbnail?', '/cover?');
+          }
           final response = await http
               .get(Uri.parse(widgetCoverUrl))
               .timeout(const Duration(seconds: 10));

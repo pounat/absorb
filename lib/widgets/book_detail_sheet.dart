@@ -1,3 +1,4 @@
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -8,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'overlay_toast.dart';
+import '../services/bookorbit_mapper.dart';
 import 'absorb_placement.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
@@ -189,6 +191,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   Map<String, dynamic>? _item;
   Map<String, dynamic>? _rating;
   String? _asin;
+  // BookOrbit only: its "more like this" picks for the book.
+  List<Map<String, dynamic>> _similar = const [];
+  bool _similarLoaded = false;
+  bool _savingStatus = false;
   bool _isLoading = true;
   bool _bookmarksExpanded = false;
   BookmarkPreviewPlayer? _preview;
@@ -469,6 +475,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
           setState(() { _item = finalItem; _isLoading = false; });
           _deriveCoverScheme();
+          if (api.isBookOrbit && !_similarLoaded) {
+            _similarLoaded = true;
+            unawaited(_loadSimilar(api));
+          }
 
           // Fetch Audible rating
           final media = finalItem['media'] as Map<String, dynamic>? ?? {};
@@ -719,6 +729,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final isFinished = progressData?['isFinished'] == true;
     final currentTime = (progressData?['currentTime'] as num?)?.toDouble() ?? 0;
     final ebookFile = resolveEbookFile(_item) ?? _cachedEbookFallback;
+    final bookOrbitOnline = auth.isBookOrbit && !lib.isOffline;
+    final readStatus = _displayReadStatus(isFinished);
+    final providerBadges = auth.isBookOrbit ? _providerBadges() : const <Map<String, dynamic>>[];
 
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
     // Preview only makes sense before the book has been started. The 60s
@@ -829,7 +842,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       ],
       // ─── AUDIBLE RATING (space always reserved) ─────────
       const SizedBox(height: 8),
-      if (_rating != null && (_rating!['rating'] as num).toDouble() > 0)
+      if (providerBadges.isNotEmpty)
+        _providerBadgeRow(cs, lib, providerBadges)
+      else if (_rating != null && (_rating!['rating'] as num).toDouble() > 0)
         Center(
           child: GestureDetector(
             onTap: _asin != null ? () => _showAudibleReviews(context) : null,
@@ -1182,6 +1197,12 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       ],
       const SizedBox(height: 16),
       Wrap(spacing: 8, runSpacing: 8, children: [
+        if (bookOrbitOnline)
+          _chip(
+            _readStatusIcon(readStatus),
+            _readStatusLabel(l, readStatus),
+            onTap: _savingStatus ? null : () => _pickReadStatus(auth, lib, readStatus),
+          ),
         if (year.isNotEmpty) _chip(Icons.calendar_today_rounded, year),
         _chip(Icons.schedule_rounded, formatHm(duration)),
         if (chapters.isNotEmpty) _chip(Icons.list_rounded, l.chaptersChip(chapters.length)),
@@ -1234,6 +1255,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.7), height: 1.5),
           linkColor: accent,
         )],
+      if (bookOrbitOnline) ...[
+        const SizedBox(height: 16),
+        _personalNoteBlock(cs, tt, auth),
+      ],
       if (chapters.isNotEmpty) ...[const SizedBox(height: 16),
         Text(l.chaptersCount(chapters.length), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
@@ -1314,8 +1339,316 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 ])),
               ]));
           })]],
+      if (_similar.isNotEmpty && !lib.isOffline) ...[
+        const SizedBox(height: 16),
+        Text(l.moreLikeThis, style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: (_squareCovers ? 100.0 : 135.0) + 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _similar.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => _similarTile(cs, tt, lib, auth, _similar[i]),
+          ),
+        ),
+      ],
       const SizedBox(height: 20),
       ]);
+  }
+
+  Future<void> _loadSimilar(ApiService api) async {
+    final list = await api.getSimilarBooks(widget.itemId);
+    if (mounted && list.isNotEmpty) setState(() => _similar = list.take(20).toList());
+  }
+
+  Widget _similarTile(ColorScheme cs, TextTheme tt, LibraryProvider lib, AuthProvider auth, Map<String, dynamic> book) {
+    final id = book['id'] as String;
+    final width = _squareCovers ? 100.0 : 90.0;
+    final height = _squareCovers ? 100.0 : 135.0;
+    final url = book['hasCover'] == true ? auth.apiService?.getCoverUrl(id) : null;
+    final blank = Container(
+      color: cs.surfaceContainerHighest,
+      child: Icon(Icons.menu_book_rounded, color: cs.onSurfaceVariant),
+    );
+    return SizedBox(
+      width: width,
+      child: GestureDetector(
+        onTap: () => showBookDetailSheet(context, id),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: url == null
+                  ? blank
+                  : CachedNetworkImage(
+                      imageUrl: url,
+                      httpHeaders: lib.mediaHeaders,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(color: cs.surfaceContainerHighest),
+                      errorWidget: (_, __, ___) => blank,
+                    ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            book['title'] as String? ?? '',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.8), height: 1.2),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  /// BookOrbit's status for the book, squared with the finish button, which
+  /// changes the server without reloading the book here.
+  String _displayReadStatus(bool isFinished) {
+    final s = ((_item?['bookOrbit'] as Map?)?['readStatus'] as Map?)?['status'] as String? ?? 'unread';
+    final done = s == 'read' || s == 'skimmed';
+    if (isFinished && !done) return 'read';
+    if (!isFinished && done) return 'reading';
+    return s;
+  }
+
+  static String _readStatusLabel(AppLocalizations l, String s) => switch (s) {
+        'want_to_read' => l.readStatusWantToRead,
+        'reading' => l.readStatusReading,
+        'on_hold' => l.readStatusOnHold,
+        'rereading' => l.readStatusRereading,
+        'read' => l.readStatusRead,
+        'skimmed' => l.readStatusSkimmed,
+        'abandoned' => l.readStatusAbandoned,
+        _ => l.readStatusUnread,
+      };
+
+  static IconData _readStatusIcon(String s) => switch (s) {
+        'want_to_read' => Icons.bookmark_add_outlined,
+        'reading' || 'rereading' => Icons.auto_stories_outlined,
+        'on_hold' => Icons.pause_circle_outline_rounded,
+        'read' || 'skimmed' => Icons.check_circle_outline_rounded,
+        'abandoned' => Icons.do_not_disturb_on_outlined,
+        _ => Icons.radio_button_unchecked_rounded,
+      };
+
+  // Unread and Read stay with the finish button: a hand-set Unread would
+  // keep BookOrbit from ever moving the book back to Reading.
+  static const _pickableReadStatuses = ['want_to_read', 'reading', 'rereading', 'on_hold', 'skimmed', 'abandoned'];
+
+  Future<void> _pickReadStatus(AuthProvider auth, LibraryProvider lib, String current) async {
+    final l = AppLocalizations.of(context)!;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        final tt = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+              child: Text(l.readStatusTitle, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(l.readStatusHint, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+            ),
+            for (final s in _pickableReadStatuses)
+              ListTile(
+                leading: Icon(_readStatusIcon(s)),
+                title: Text(_readStatusLabel(l, s)),
+                trailing: s == current ? Icon(Icons.check_rounded, color: cs.primary) : null,
+                onTap: () => Navigator.pop(ctx, s),
+              ),
+          ]),
+        );
+      },
+    );
+    final api = auth.apiService;
+    if (picked == null || picked == current || api == null || !mounted) return;
+    setState(() => _savingStatus = true);
+    final ok = await api.setReadStatus(widget.itemId, picked);
+    if (!mounted) return;
+    setState(() {
+      _savingStatus = false;
+      if (ok) {
+        final bo = Map<String, dynamic>.from((_item?['bookOrbit'] as Map?) ?? const {});
+        bo['readStatus'] = {...?(bo['readStatus'] as Map?)?.cast<String, dynamic>(), 'status': picked};
+        _item = {..._item!, 'bookOrbit': bo};
+      }
+    });
+    if (ok) {
+      unawaited(lib.refresh());
+    } else {
+      showOverlayToast(context, l.failedToUpdateCheckConnection, icon: Icons.error_outline_rounded);
+    }
+  }
+
+  Widget _personalNoteBlock(ColorScheme cs, TextTheme tt, AuthProvider auth) {
+    final l = AppLocalizations.of(context)!;
+    final note = ((_item?['bookOrbit'] as Map?)?['personalNote'] as String?)?.trim() ?? '';
+    if (note.isEmpty) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => _editPersonalNote(auth, note),
+          icon: const Icon(Icons.edit_note_rounded, size: 18),
+          label: Text(l.personalNoteAdd),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: () => _editPersonalNote(auth, note),
+      borderRadius: BorderRadius.circular(10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text(l.personalNoteTitle, style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+          const Spacer(),
+          Icon(Icons.edit_rounded, size: 16, color: cs.onSurface.withValues(alpha: 0.4)),
+        ]),
+        const SizedBox(height: 6),
+        Text(note, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.7), height: 1.5)),
+      ]),
+    );
+  }
+
+  Future<void> _editPersonalNote(AuthProvider auth, String current) async {
+    final l = AppLocalizations.of(context)!;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => _PersonalNoteDialog(initial: current),
+    );
+    final api = auth.apiService;
+    if (result == null || result.trim() == current || api == null || !mounted) return;
+    final ok = await api.setPersonalNote(widget.itemId, result);
+    if (!mounted) return;
+    if (!ok) {
+      showOverlayToast(context, l.failedToUpdateCheckConnection, icon: Icons.error_outline_rounded);
+      return;
+    }
+    setState(() {
+      final bo = Map<String, dynamic>.from((_item?['bookOrbit'] as Map?) ?? const {});
+      bo['personalNote'] = result.trim().isEmpty ? null : result.trim();
+      _item = {..._item!, 'bookOrbit': bo};
+    });
+  }
+
+  /// BookOrbit's provider links and ratings the way its web book page shows
+  /// them, with the live Audible rating folded into the Audible badge.
+  List<Map<String, dynamic>> _providerBadges() {
+    final bo = _item?['bookOrbit'] as Map?;
+    if (bo == null) return const [];
+    final badges = BookOrbitMapper.providerBadges(bo['providerIds'] as Map?, bo['communityRatings'] as List?);
+    final live = _rating != null && (_rating!['rating'] as num).toDouble() > 0 ? _rating! : null;
+    if (live == null) return badges;
+    final i = badges.indexWhere((b) => b['key'] == 'audible');
+    final audible = i >= 0 ? badges[i] : BookOrbitMapper.providerBadge('audible');
+    if (audible['rating'] == null) {
+      audible['rating'] = (live['rating'] as num).toDouble();
+      audible['count'] = (live['count'] as num?)?.toInt();
+    }
+    if (i < 0) badges.add(audible);
+    return badges;
+  }
+
+  Widget _providerBadgeRow(ColorScheme cs, LibraryProvider lib, List<Map<String, dynamic>> badges) {
+    final base = context.read<AuthProvider>().apiService?.baseUrl.replaceAll(RegExp(r'/+$'), '');
+    return Center(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          for (var i = 0; i < badges.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            _providerBadgeChip(cs, lib, base, badges[i]),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  Widget _providerBadgeChip(ColorScheme cs, LibraryProvider lib, String? base, Map<String, dynamic> b) {
+    final l = AppLocalizations.of(context)!;
+    final color = Color(b['color'] as int);
+    final rating = (b['rating'] as num?)?.toDouble();
+    final count = (b['count'] as num?)?.toInt() ?? 0;
+    final label = b['label'] as String;
+    final url = b['url'] as String?;
+    final VoidCallback? onTap = b['key'] == 'audible' && _asin != null
+        ? () => _showAudibleReviews(context)
+        : url == null
+            ? null
+            : () => _openProviderPage(url);
+    final mark = Text(b['mark'] as String,
+        style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: cs.onSurface));
+    final icon = b['icon'] as String?;
+    return Tooltip(
+      message: rating == null
+          ? label
+          : '$label ${rating.toStringAsFixed(1)}${count > 0 ? ' (${_formatRatingCount(count, l.localeName)})' : ''}',
+      child: Material(
+        color: color.withValues(alpha: 0.10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: BorderSide(color: color.withValues(alpha: 0.45)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 24,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              SizedBox(
+                width: 24,
+                child: Center(
+                  child: icon == null || base == null
+                      ? mark
+                      : SvgPicture.network(
+                          '$base/assets/provider-icons/$icon',
+                          width: 14,
+                          height: 14,
+                          headers: lib.mediaHeaders,
+                          placeholderBuilder: (_) => mark,
+                          errorBuilder: (_, __, ___) => mark,
+                        ),
+                ),
+              ),
+              if (rating != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: cs.surface.withValues(alpha: 0.5),
+                    border: Border(left: BorderSide(color: color.withValues(alpha: 0.3))),
+                  ),
+                  child: Text(
+                    rating == rating.roundToDouble() ? rating.toStringAsFixed(0) : rating.toStringAsFixed(1),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openProviderPage(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   // ─── QUICK ACTIONS (long-press) ─────────────────────────────
@@ -1444,7 +1777,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                   item: _item, addedToast: Wording.of(context).addedToAbsorbing);
             }
           });
-        if (!lib.isOffline) {
+        // BookOrbit has no playlists; its collections are personal, so
+        // everyone gets Add to Collection there instead.
+        if (!lib.isOffline && !auth.isBookOrbit) {
           add(Icons.playlist_add_rounded, l.addToPlaylist, () => PlaylistPickerSheet.show(context, widget.itemId));
         }
         if (!includeOpenDetails && !lib.isOffline) {
@@ -1459,7 +1794,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             ),
           );
         }
-        if (!lib.isOffline && !lib.isPodcastLibrary && auth.isAdmin) {
+        if (!lib.isOffline && !lib.isPodcastLibrary && (auth.isAdmin || auth.isBookOrbit)) {
           add(Icons.collections_bookmark_rounded, l.addToCollection, () => CollectionPickerSheet.show(context, widget.itemId));
         }
         if (ebookFile != null && canReadEbook(ebookFile)) {
@@ -2278,7 +2613,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
       if (!cachedFile.existsSync()) {
         final cleanBase = api.baseUrl.endsWith('/') ? api.baseUrl.substring(0, api.baseUrl.length - 1) : api.baseUrl;
-        final url = '$cleanBase/api/items/${widget.itemId}/file/$ino';
+        final url = api.isBookOrbit
+            ? api.buildEbookUrl(widget.itemId, ino)
+            : '$cleanBase/api/items/${widget.itemId}/file/$ino';
 
         // Use streamed download with proper headers (including custom
         // reverse-proxy headers) and manual redirect following so auth
@@ -3061,6 +3398,47 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// Edits a BookOrbit private note. Owns its controller so the text field
+/// outlives the dialog's closing animation.
+class _PersonalNoteDialog extends StatefulWidget {
+  final String initial;
+  const _PersonalNoteDialog({required this.initial});
+
+  @override
+  State<_PersonalNoteDialog> createState() => _PersonalNoteDialogState();
+}
+
+class _PersonalNoteDialogState extends State<_PersonalNoteDialog> {
+  late final TextEditingController _ctrl = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l.personalNoteTitle),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        minLines: 3,
+        maxLines: 8,
+        maxLength: 10000,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: InputDecoration(hintText: l.personalNoteHint),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+        FilledButton(onPressed: () => Navigator.pop(context, _ctrl.text), child: Text(l.save)),
+      ],
     );
   }
 }

@@ -87,6 +87,17 @@ class _MetadataEditViewState extends State<MetadataEditView>
   bool _quickMatching = false;
   String _provider = 'audible';
   static const _providerKeys = ['audible', 'itunes', 'openlibrary'];
+  // The server's own provider list, when it offers one (BookOrbit).
+  List<Map<String, String>>? _serverProviders;
+
+  Future<void> _loadServerProviders() async {
+    final list = await context.read<AuthProvider>().apiService?.bookMatchProviders();
+    if (!mounted || list == null || list.isEmpty) return;
+    setState(() {
+      _serverProviders = list;
+      if (!list.any((p) => p['key'] == _provider)) _provider = list.first['key']!;
+    });
+  }
 
   String _providerLabel(AppLocalizations l, String key) {
     switch (key) {
@@ -102,6 +113,32 @@ class _MetadataEditViewState extends State<MetadataEditView>
   List<String> _coverResults = [];
   bool _coverSearching = false;
   String _coverProvider = 'best';
+  // BookOrbit keeps a square audiobook cover and a portrait book cover.
+  List<String> _coverSlots = const [];
+  String? _coverSlot;
+
+  Future<void> _loadCoverSlots() async {
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null || !api.isBookOrbit) return;
+    final slots = await api.coverSlots(widget.itemId);
+    final provider = await api.defaultCoverSearchProvider();
+    if (!mounted) return;
+    setState(() {
+      _coverSlots = slots;
+      _coverSlot = slots.contains('audio')
+          ? 'audio'
+          : slots.isNotEmpty
+              ? slots.first
+              : (widget.isEbookOnly ? 'ebook' : 'audio');
+      _coverProvider = provider ?? 'duckduckgo';
+    });
+  }
+
+  List<String> get _bookOrbitCoverProviders =>
+      ['duckduckgo', 'itunes', if (_coverSlot != 'ebook') 'audiobookcovers', 'all'];
+
+  String get _bookOrbitCoverProvider =>
+      _bookOrbitCoverProviders.contains(_coverProvider) ? _coverProvider : 'duckduckgo';
   bool _saving = false;
   bool _explicit = false;
   bool _abridged = false;
@@ -146,6 +183,8 @@ class _MetadataEditViewState extends State<MetadataEditView>
       unawaited(_restoreRunningTask());
     });
     _loadFilterSuggestions();
+    _loadServerProviders();
+    _loadCoverSlots();
     final m = widget.metadata;
     _titleCtrl = TextEditingController(text: m['title'] as String? ?? '');
     _subtitleCtrl = TextEditingController(text: m['subtitle'] as String? ?? '');
@@ -430,7 +469,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
           ? _safeString(book['cover'])
           : _safeString(book['image']);
       if (coverUrl.isNotEmpty) {
-        await api.updateItemCoverUrl(widget.itemId, coverUrl);
+        await api.updateItemCoverUrl(widget.itemId, coverUrl, coverSlot: _coverSlot);
       }
     }
 
@@ -616,9 +655,9 @@ class _MetadataEditViewState extends State<MetadataEditView>
     bool ok = await api.updateItemMedia(widget.itemId, update, tags: tags);
 
     if (ok && _coverFilePath != null) {
-      ok = await api.uploadItemCover(widget.itemId, _coverFilePath!);
+      ok = await api.uploadItemCover(widget.itemId, _coverFilePath!, coverSlot: _coverSlot);
     } else if (ok && _coverUrlCtrl.text.trim().isNotEmpty) {
-      ok = await api.updateItemCoverUrl(widget.itemId, _coverUrlCtrl.text.trim());
+      ok = await api.updateItemCoverUrl(widget.itemId, _coverUrlCtrl.text.trim(), coverSlot: _coverSlot);
     }
 
     if (!mounted) return;
@@ -677,7 +716,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
     setState(() => _saving = true);
-    final ok = await api.removeItemCover(widget.itemId);
+    final ok = await api.removeItemCover(widget.itemId, coverSlot: _coverSlot);
     if (!mounted) return;
     setState(() {
       _saving = false;
@@ -1194,7 +1233,12 @@ class _MetadataEditViewState extends State<MetadataEditView>
                     dropdownColor: cs.surfaceContainerHigh,
                     style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                     icon: Icon(Icons.expand_more_rounded, size: 18, color: cs.onSurfaceVariant),
-                    items: _providerKeys.map((k) => DropdownMenuItem(value: k, child: Text(_providerLabel(l, k)))).toList(),
+                    items: _serverProviders != null
+                        ? [
+                            for (final p in _serverProviders!)
+                              DropdownMenuItem(value: p['key'], child: Text(p['label'] ?? p['key']!)),
+                          ]
+                        : _providerKeys.map((k) => DropdownMenuItem(value: k, child: Text(_providerLabel(l, k)))).toList(),
                     onChanged: (v) { if (v != null) setState(() => _provider = v); },
                   ),
                 ),
@@ -1362,12 +1406,13 @@ class _MetadataEditViewState extends State<MetadataEditView>
 
   Widget _buildCustomTab(ColorScheme cs, TextTheme tt, AppLocalizations l) {
     final filePaths = fullLibraryFilePaths(widget.libraryFiles);
+    final bookOrbit = context.read<AuthProvider>().isBookOrbit;
     return Column(children: [
       // Save button bar
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
         child: Row(children: [
-          if (widget.isAdmin)
+          if (widget.isAdmin || bookOrbit)
             OutlinedButton.icon(
               key: MetadataEditView.quickMatchButtonKey,
               onPressed: _saving || _quickMatching ? null : _runServerQuickMatch,
@@ -1456,7 +1501,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
               Expanded(child: _field(l.isbnLabel, _isbnCtrl, tt)),
             ]),
             Row(children: [
-              Expanded(
+              if (!bookOrbit) Expanded(
                 child: InkWell(
                   onTap: () => setState(() => _explicit = !_explicit),
                   borderRadius: BorderRadius.circular(10),
@@ -1469,7 +1514,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
                   ]),
                 ),
               ),
-              const SizedBox(width: 12),
+              if (!bookOrbit) const SizedBox(width: 12),
               Expanded(
                 child: InkWell(
                   onTap: () => setState(() => _abridged = !_abridged),
@@ -1507,8 +1552,12 @@ class _MetadataEditViewState extends State<MetadataEditView>
   // ─── Cover Tab ──────────────────────────────────────────────
 
   Widget _buildCoverTab(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    final api = context.read<AuthProvider>().apiService;
+    final bookOrbit = api?.isBookOrbit == true;
     final base = _safeBaseCoverUrl();
-    final coverUrl = base.isEmpty ? '' : '$base?v=$_coverVersion';
+    final coverUrl = bookOrbit
+        ? api!.getCoverUrl(widget.itemId, width: null, coverSlot: _coverSlot)
+        : base.isEmpty ? '' : '$base?v=$_coverVersion';
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
@@ -1530,6 +1579,32 @@ class _MetadataEditViewState extends State<MetadataEditView>
           controller: _coverScroll,
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
           children: [
+            if (_coverSlots.length > 1) ...[
+              Center(
+                child: SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(
+                      value: 'audio',
+                      icon: const Icon(Icons.crop_square_rounded),
+                      label: Text(l.coverSlotAudiobook),
+                    ),
+                    ButtonSegment(
+                      value: 'ebook',
+                      icon: const Icon(Icons.crop_portrait_rounded),
+                      label: Text(l.coverSlotBook),
+                    ),
+                  ],
+                  selected: {_coverSlot ?? 'audio'},
+                  onSelectionChanged: _saving
+                      ? null
+                      : (s) => setState(() {
+                            _coverSlot = s.first;
+                            _coverResults = [];
+                          }),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Center(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -1631,18 +1706,31 @@ class _MetadataEditViewState extends State<MetadataEditView>
             const SizedBox(height: 8),
             Row(children: [
               DropdownButton<String>(
-                value: _coverProvider,
+                value: bookOrbit ? _bookOrbitCoverProvider : _coverProvider,
                 onChanged: (v) => setState(() => _coverProvider = v ?? 'best'),
-                items: const [
-                  DropdownMenuItem(value: 'best', child: Text('Best')),
-                  DropdownMenuItem(value: 'all', child: Text('All')),
-                  DropdownMenuItem(value: 'google', child: Text('Google')),
-                  DropdownMenuItem(value: 'fantlab', child: Text('FantLab')),
-                  DropdownMenuItem(value: 'audible', child: Text('Audible')),
-                  DropdownMenuItem(value: 'itunes', child: Text('iTunes')),
-                  DropdownMenuItem(value: 'openlibrary', child: Text('OpenLibrary')),
-                  DropdownMenuItem(value: 'audiobookcovers', child: Text('AudiobookCovers.com')),
-                ],
+                items: bookOrbit
+                    ? [
+                        for (final p in _bookOrbitCoverProviders)
+                          DropdownMenuItem(
+                            value: p,
+                            child: Text(switch (p) {
+                              'duckduckgo' => 'DuckDuckGo',
+                              'itunes' => 'iTunes',
+                              'audiobookcovers' => 'AudiobookCovers.com',
+                              _ => 'All',
+                            }),
+                          ),
+                      ]
+                    : const [
+                        DropdownMenuItem(value: 'best', child: Text('Best')),
+                        DropdownMenuItem(value: 'all', child: Text('All')),
+                        DropdownMenuItem(value: 'google', child: Text('Google')),
+                        DropdownMenuItem(value: 'fantlab', child: Text('FantLab')),
+                        DropdownMenuItem(value: 'audible', child: Text('Audible')),
+                        DropdownMenuItem(value: 'itunes', child: Text('iTunes')),
+                        DropdownMenuItem(value: 'openlibrary', child: Text('OpenLibrary')),
+                        DropdownMenuItem(value: 'audiobookcovers', child: Text('AudiobookCovers.com')),
+                      ],
               ),
               const Spacer(),
               FilledButton.tonalIcon(
@@ -1661,7 +1749,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
                 crossAxisCount: 3,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
-                childAspectRatio: 1.0,
+                childAspectRatio: _coverSlot == 'ebook' ? 2 / 3 : 1.0,
                 children: [
                   for (final url in _coverResults)
                     GestureDetector(
@@ -1714,11 +1802,13 @@ class _MetadataEditViewState extends State<MetadataEditView>
       return;
     }
     final author = _coverSearchAuthorCtrl.text.trim();
-    final providers = switch (_coverProvider) {
-      'best' => _bestCoverProviders,
-      'all' => _allCoverProviders,
-      _ => [_coverProvider],
-    };
+    final providers = api.isBookOrbit
+        ? [_bookOrbitCoverProvider]
+        : switch (_coverProvider) {
+            'best' => _bestCoverProviders,
+            'all' => _allCoverProviders,
+            _ => [_coverProvider],
+          };
     // Query one provider at a time and append results as they arrive, so a
     // slow provider can't time out the whole search and covers stream in.
     setState(() {
@@ -1728,7 +1818,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
     final seen = <String>{};
     for (final p in providers) {
       if (!mounted) return;
-      final results = await api.searchCovers(title, author: author, provider: p);
+      final results = await api.searchCovers(title, author: author, provider: p, coverSlot: _coverSlot);
       if (!mounted) return;
       final fresh = results.where(seen.add).toList();
       if (fresh.isNotEmpty) setState(() => _coverResults = [..._coverResults, ...fresh]);
@@ -1746,7 +1836,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
     setState(() => _saving = true);
-    final ok = await api.updateItemCoverUrl(widget.itemId, url);
+    final ok = await api.updateItemCoverUrl(widget.itemId, url, coverSlot: _coverSlot);
     if (!mounted) return;
     if (ok) context.read<LibraryProvider>().refresh();
     setState(() {

@@ -19,11 +19,14 @@ String ebookExtFromFile(Map<String, dynamic> ebookFile) {
 }
 
 /// Formats the in-app readers can open. EPUB uses the full reader, PDF the
-/// dedicated viewer, and foliate-js covers MOBI/AZW3/CBZ. CBR is RAR-based
-/// and foliate-js can't read it, so it's recognized but stays download-only.
-const foliateEbookFormats = {'mobi', 'azw3', 'cbz'};
-const readableEbookFormats = {'epub', 'pdf', ...foliateEbookFormats};
-const allEbookFormats = {...readableEbookFormats, 'cbr'};
+/// dedicated viewer, foliate-js covers MOBI/AZW3, and comics get the comic
+/// reader. A CBZ opens on the phone; CBR (RAR) and CB7 (7-Zip) need a server
+/// that hands out the pages (BookOrbit), so on their own they stay
+/// download-only.
+const foliateEbookFormats = {'mobi', 'azw3'};
+const comicEbookFormats = {'cbz', 'cbr', 'cb7'};
+const readableEbookFormats = {'epub', 'pdf', 'cbz', ...foliateEbookFormats};
+const allEbookFormats = {...readableEbookFormats, 'cbr', 'cb7'};
 
 /// The ebook to use for a library item: the server's primary (media.ebookFile)
 /// when set, otherwise the best supplementary ebook from libraryFiles - epub
@@ -221,7 +224,9 @@ Future<File> fetchEbookToCache(
   // manual redirect hops below) plus `?token=` in the URL, because some
   // reverse proxies strip the header - the same reason audio file downloads
   // use the token form (see ApiService.buildFileUrl).
-  final url = '$cleanBase/api/items/$itemId/file/$ino?token=${api.token}';
+  final url = api.isBookOrbit
+      ? api.buildEbookUrl(itemId, ino)
+      : '$cleanBase/api/items/$itemId/file/$ino?token=${api.token}';
 
   debugPrint('[EbookCache] downloading item=$itemId path=/api/items/$itemId/file/$ino');
   final startedAt = DateTime.now();

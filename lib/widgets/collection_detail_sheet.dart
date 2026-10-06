@@ -50,6 +50,18 @@ class CollectionDetailSheet extends StatefulWidget {
 
 class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
   bool _editing = false;
+  bool _savingPublic = false;
+
+  Future<void> _setPublic(LibraryProvider lib, bool isPublic) async {
+    setState(() => _savingPublic = true);
+    final ok = await lib.setCollectionPublic(widget.collectionId, isPublic);
+    if (!mounted) return;
+    setState(() => _savingPublic = false);
+    if (!ok) {
+      showOverlayToast(context, AppLocalizations.of(context)!.failedToUpdateCheckConnection,
+          icon: Icons.error_outline_rounded);
+    }
+  }
   bool _gridView = false;
   List<Map<String, dynamic>>? _editItems;
   final Set<String> _selectedItemIds = {};
@@ -204,11 +216,6 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
     final auth = context.read<AuthProvider>();
-    // Both gated at isAdmin in the UI; server returns 403 when admin lacks
-    // the `delete` permission flag and we show a friendly toast then.
-    final canEditCollection = auth.isAdmin;
-    final canDeleteCollection = auth.isAdmin;
-
     final collection = lib.collections.cast<Map<String, dynamic>>().where(
       (c) => c['id'] == widget.collectionId,
     ).firstOrNull;
@@ -216,6 +223,14 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     if (collection == null) {
       return Center(child: Text(l.collectionNotFound));
     }
+
+    // Both gated at isAdmin in the UI; server returns 403 when admin lacks
+    // the `delete` permission flag and we show a friendly toast then. A
+    // BookOrbit collection belongs to whoever made it.
+    final ownsBookOrbitCollection = auth.isBookOrbit &&
+        (collection['bookOrbit'] as Map?)?['isOwner'] == true;
+    final canEditCollection = auth.isAdmin || ownsBookOrbitCollection;
+    final canDeleteCollection = auth.isAdmin || ownsBookOrbitCollection;
 
     final name = collection['name'] as String? ?? l.collectionDetailDefaultName;
     final description = collection['description'] as String? ?? '';
@@ -290,6 +305,15 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
       const SizedBox(height: 12),
       Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.3),
         indent: 20, endIndent: 20),
+      if (_editing && ownsBookOrbitCollection)
+        SwitchListTile(
+          dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+          title: Text(l.collectionPublicTitle),
+          subtitle: Text(l.collectionPublicSubtitle),
+          value: (collection['bookOrbit'] as Map?)?['isPublic'] == true,
+          onChanged: _savingPublic ? null : (v) => _setPublic(lib, v),
+        ),
       if (!_editing)
         _buildPlayButton(cs, lib, books, name, l),
       // Content

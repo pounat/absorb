@@ -40,6 +40,7 @@ import '../widgets/rmab_config_sheet.dart'
 import '../widgets/rmab_search_results_sheet.dart';
 import '../widgets/scroll_reveal.dart';
 import '../services/scoped_prefs.dart';
+import '../services/server_backend.dart';
 import '../services/user_account_service.dart';
 import '../l10n/app_localizations.dart';
 
@@ -238,6 +239,48 @@ bool libraryFilterSupportsMediaType(
     LibraryFilter.feedOpen ||
     LibraryFilter.explicit => true,
     _ => false,
+  };
+}
+
+/// The sort a BookOrbit server actually runs for [sort]. It has no duration
+/// sort, only one author order, file dates are its date added, and it keeps
+/// no last-listened time to sort progress by.
+LibrarySort librarySortForServer(LibrarySort sort) {
+  if (!ServerBackend.active.isBookOrbit) return sort;
+  return switch (sort) {
+    LibrarySort.authorFirstLast => LibrarySort.authorName,
+    LibrarySort.progress => LibrarySort.dateStarted,
+    LibrarySort.duration ||
+    LibrarySort.fileCreated ||
+    LibrarySort.lastModified => LibrarySort.recentlyAdded,
+    _ => sort,
+  };
+}
+
+/// BookOrbit has no supplementary ebooks, track counts, abridged or explicit
+/// flags, or RSS feeds to filter on.
+bool libraryFilterSupportedOnServer(LibraryFilter filter) {
+  if (!ServerBackend.active.isBookOrbit) return true;
+  return switch (filter) {
+    LibraryFilter.hasSupplementaryEbook ||
+    LibraryFilter.noSupplementaryEbook ||
+    LibraryFilter.singleTrack ||
+    LibraryFilter.multipleTracks ||
+    LibraryFilter.abridged ||
+    LibraryFilter.feedOpen ||
+    LibraryFilter.explicit => false,
+    _ => true,
+  };
+}
+
+bool missingMetadataSupportedOnServer(MissingMetadataField field) {
+  if (!ServerBackend.active.isBookOrbit) return true;
+  return switch (field) {
+    MissingMetadataField.asin ||
+    MissingMetadataField.subtitle ||
+    MissingMetadataField.narrators ||
+    MissingMetadataField.chapters => false,
+    _ => true,
   };
 }
 
@@ -763,10 +806,10 @@ class LibraryScreenState extends State<LibraryScreen>
     if (!mounted) return;
     setState(() {
       // Book library sort/filter
-      _sort = LibrarySort.values.firstWhere(
+      _sort = librarySortForServer(LibrarySort.values.firstWhere(
         (s) => s.name == sortName,
         orElse: () => LibrarySort.recentlyAdded,
-      );
+      ));
       _sortAsc = sortAsc;
       if (_sort == LibrarySort.random) _randomSeed = Random().nextInt(100000);
       // Don't restore filter from prefs if the user (typically via a
@@ -780,9 +823,10 @@ class LibraryScreenState extends State<LibraryScreen>
           orElse: () => LibraryFilter.none,
         );
         if (!libraryFilterSupportsMediaType(
-          _filter,
-          isPodcast: isPodcast,
-        )) {
+              _filter,
+              isPodcast: isPodcast,
+            ) ||
+            !libraryFilterSupportedOnServer(_filter)) {
           _filter = LibraryFilter.none;
         }
         final restoredGenre = isPodcast ? podcastGenreFilter : genreFilter;
@@ -813,6 +857,10 @@ class LibraryScreenState extends State<LibraryScreen>
             : MissingMetadataField.values
                   .where((field) => field.name == missingMetadataFilterName)
                   .firstOrNull;
+        if (_missingMetadataFilter != null &&
+            !missingMetadataSupportedOnServer(_missingMetadataFilter!)) {
+          _missingMetadataFilter = null;
+        }
         if (_filter == LibraryFilter.missingMetadata &&
             _missingMetadataFilter == null) {
           _filter = LibraryFilter.none;

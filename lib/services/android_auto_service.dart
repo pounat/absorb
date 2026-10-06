@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'server_backend.dart';
 import 'audio_player_service.dart';
 import 'book_search_index.dart';
 import 'download_service.dart';
@@ -335,7 +336,8 @@ class AndroidAutoService {
         customHeaders = Map<String, String>.from(jsonDecode(headersJson) as Map);
       } catch (_) {}
     }
-    return ApiService(
+    return ApiService.forSession(
+      backend: ServerBackend.loadActive(prefs),
       baseUrl: url,
       token: token,
       refreshToken: refreshToken,
@@ -350,7 +352,7 @@ class AndroidAutoService {
             serverUrl: url,
             username: username,
           ),
-    );
+    ).withMediaReady();
   }
 
   Future<String?> getDefaultLibraryId() async {
@@ -983,11 +985,12 @@ class AndroidAutoService {
         title: l?.androidAutoCatCollections ?? 'Collections',
         playable: false,
       ),
-      MediaItem(
-        id: AutoMediaIds.libPlaylists(libraryId),
-        title: l?.androidAutoCatPlaylists ?? 'Playlists',
-        playable: false,
-      ),
+      if (!ServerBackend.active.isBookOrbit)
+        MediaItem(
+          id: AutoMediaIds.libPlaylists(libraryId),
+          title: l?.androidAutoCatPlaylists ?? 'Playlists',
+          playable: false,
+        ),
     ];
   }
 

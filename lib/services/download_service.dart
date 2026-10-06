@@ -1753,6 +1753,7 @@ class DownloadService extends ChangeNotifier {
         }
       }
 
+      await api.prepareDownload(apiItemId);
       final files = _resolveDurableFiles(api, apiItemId, audioTracks);
 
       // Pull the companion ebook into the offline cache too, so a downloaded
@@ -1875,7 +1876,7 @@ class DownloadService extends ChangeNotifier {
           task = DownloadTask(
             taskId: _taskId(itemId, i),
             url: files[i].url,
-            headers: api.mediaHeaders,
+            headers: api.downloadHeadersFor(files[i].url),
             filename: files[i].filename,
             baseDirectory: BaseDirectory.root,
             directory: bookDir.path,
@@ -1890,7 +1891,7 @@ class DownloadService extends ChangeNotifier {
           task = DownloadTask(
             taskId: _taskId(itemId, i),
             url: files[i].url,
-            headers: api.mediaHeaders,
+            headers: api.downloadHeadersFor(files[i].url),
             filename: files[i].filename,
             baseDirectory: BaseDirectory.applicationDocuments,
             directory: relDir!,
@@ -2028,7 +2029,7 @@ class DownloadService extends ChangeNotifier {
           ino.contains('#')) {
         throw Exception('Missing direct file URL for track ${i + 1}');
       }
-      out.add((url: api.buildFileUrl(apiItemId, ino), filename: _trackFileName(track, i)));
+      out.add((url: api.buildDownloadFileUrl(apiItemId, ino), filename: _trackFileName(track, i)));
     }
     return out;
   }

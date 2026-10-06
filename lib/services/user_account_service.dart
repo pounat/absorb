@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/server_url.dart';
 import 'api_service.dart';
 import 'auth_tokens.dart';
+import 'server_backend.dart';
 
 /// Represents a saved user account (server + credentials).
 class SavedAccount {
@@ -14,6 +15,7 @@ class SavedAccount {
   final String? userId;
   final bool isLegacyToken;
   final Map<String, String> customHeaders;
+  final ServerBackend backend;
 
   SavedAccount({
     required this.serverUrl,
@@ -23,6 +25,7 @@ class SavedAccount {
     this.userId,
     this.isLegacyToken = false,
     Map<String, String> customHeaders = const {},
+    this.backend = ServerBackend.audiobookshelf,
   }) : customHeaders = Map.unmodifiable(customHeaders);
 
   /// Unique key for scoping per-user SharedPreferences data.
@@ -43,6 +46,7 @@ class SavedAccount {
         'userId': userId,
         'isLegacyToken': isLegacyToken,
         'customHeaders': customHeaders,
+        'backend': backend.key,
       };
 
   factory SavedAccount.fromJson(
@@ -59,6 +63,7 @@ class SavedAccount {
         customHeaders: json.containsKey('customHeaders')
             ? Map<String, String>.from(json['customHeaders'] as Map? ?? const {})
             : legacyCustomHeaders,
+        backend: ServerBackend.fromKey(json['backend'] as String?),
       );
 
   @override
@@ -213,6 +218,7 @@ class UserAccountService {
         userId: old.userId,
         isLegacyToken: old.isLegacyToken,
         customHeaders: old.customHeaders,
+        backend: old.backend,
       );
       await _persist();
     }
@@ -328,6 +334,7 @@ class UserAccountService {
       userId: old.userId,
       isLegacyToken: old.isLegacyToken,
       customHeaders: old.customHeaders,
+      backend: old.backend,
     );
     await _persist();
   }
@@ -371,6 +378,7 @@ class UserAccountService {
       userId: old.userId,
       isLegacyToken: old.isLegacyToken,
       customHeaders: customHeaders,
+      backend: old.backend,
     );
 
     final oldScope = old.scopeKey;

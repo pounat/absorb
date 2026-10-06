@@ -7,6 +7,7 @@ import 'android_auto_service.dart';
 import 'api_service.dart';
 import 'audio_player_service.dart';
 import 'carplay_image_url.dart';
+import 'server_backend.dart';
 
 /// Manages Apple CarPlay browse tree and playback integration.
 /// Mirrors the Android Auto layout: 3 tabs (Continue, Library, Downloads)
@@ -428,6 +429,7 @@ class CarPlayService {
           complete();
         },
       ),
+      if (!ServerBackend.active.isBookOrbit)
       CPListItem(
         text: 'Playlists',
         accessoryType: CPListItemAccessoryTypes.disclosureIndicator,

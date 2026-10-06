@@ -12,6 +12,7 @@ import '../providers/library_provider.dart';
 import '../screens/upcoming_releases_screen.dart';
 import '../widgets/episode_list_sheet.dart';
 import 'api_service.dart';
+import 'server_backend.dart';
 import 'download_service.dart';
 import 'player_settings.dart';
 import 'scoped_prefs.dart';
@@ -388,12 +389,14 @@ Future<ApiService?> _buildApiService() async {
   final localEnabled = await PlayerSettings.getLocalServerEnabled();
   final localUrl = await PlayerSettings.getLocalServerUrl();
   if (localEnabled && localUrl.isNotEmpty) {
-    final localReachable = await ApiService.pingServer(localUrl, customHeaders: headers)
+    final localReachable = await ApiService.pingServer(localUrl,
+            customHeaders: headers, backend: ServerBackend.loadActive(prefs))
         .timeout(const Duration(seconds: 3), onTimeout: () => false);
     if (localReachable) baseUrl = localUrl;
   }
 
-  return ApiService(
+  return ApiService.forSession(
+    backend: ServerBackend.loadActive(prefs),
     baseUrl: baseUrl,
     token: token,
     refreshToken: refreshToken,
@@ -408,5 +411,5 @@ Future<ApiService?> _buildApiService() async {
           serverUrl: remoteUrl,
           username: username,
         ),
-  );
+  ).withMediaReady();
 }

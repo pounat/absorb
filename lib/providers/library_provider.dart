@@ -256,6 +256,7 @@ class LibraryProvider extends ChangeNotifier
             auth.setEreaderDevices(auth.filterDevicesForCurrentUser(devices));
           };
           socket.connect(auth.serverUrl!, auth.token!, customHeaders: auth.customHeaders);
+          _startBookOrbitPoll();
         }
         debugPrint('[Library] Calling loadLibraries()');
         await loadLibraries();
@@ -282,6 +283,7 @@ class LibraryProvider extends ChangeNotifier
       _connectivityDebounce?.cancel();
       _stopServerPingTimer();
       _stopHealthCheckTimer();
+      _stopBookOrbitPoll();
       SocketService().disconnect();
       _personalizedInFlight = null;
       _networkOffline = false;

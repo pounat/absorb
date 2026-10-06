@@ -87,6 +87,7 @@ mixin _StateMixin on ChangeNotifier {
   bool _isReconnecting = false;
   Timer? _serverPingTimer;
   Timer? _healthCheckTimer;
+  Timer? _bookOrbitPollTimer;
   Timer? _localProbeTimer;
   int _localProbeFailures = 0;
   DateTime? _localLastReachableAt;

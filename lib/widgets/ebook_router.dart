@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/ebook_cache.dart';
+import '../services/server_backend.dart';
+import 'comic_reader_view.dart';
 import 'ebook_reader_view.dart';
 import 'pdf_reader_view.dart';
 import 'foliate_reader_view.dart';
@@ -15,8 +17,13 @@ String ebookExt(Map<String, dynamic>? ebookFile) {
   return ext.startsWith('.') ? ext.substring(1) : ext;
 }
 
-bool canReadEbook(Map<String, dynamic>? ebookFile) =>
-    ebookFile != null && readableEbookFormats.contains(ebookExt(ebookFile));
+bool canReadEbook(Map<String, dynamic>? ebookFile) {
+  if (ebookFile == null) return false;
+  final ext = ebookExt(ebookFile);
+  // BookOrbit unpacks CBR and CB7 on the server and sends the pages.
+  if (comicEbookFormats.contains(ext) && ServerBackend.active.isBookOrbit) return true;
+  return readableEbookFormats.contains(ext);
+}
 
 /// Routes an ebook to the right reader for its format, or toasts when the
 /// format isn't supported in-app. [openAtCfi] jumps an EPUB straight to a
@@ -41,6 +48,8 @@ Future<void> openEbookReader(
         itemId: itemId, title: title, ebookFile: ebookFile, openAtCfi: openAtCfi,
         findText: findText, findChapterHint: findChapterHint,
         findPositionSeconds: findPositionSeconds, startReadAlong: startReadAlong);
+  } else if (comicEbookFormats.contains(ext)) {
+    viewer = ComicReaderView(itemId: itemId, title: title, ebookFile: ebookFile);
   } else if (ext == 'pdf') {
     viewer = PdfReaderView(itemId: itemId, title: title, ebookFile: ebookFile);
   } else if (foliateEbookFormats.contains(ext)) {

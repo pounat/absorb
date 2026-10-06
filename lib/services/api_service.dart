@@ -1,12 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'auth_tokens.dart';
+import 'bookorbit_mapper.dart';
+import 'bookorbit_media_proxy_stub.dart'
+    if (dart.library.io) 'bookorbit_media_proxy.dart';
+import 'player_settings.dart';
+import 'server_backend.dart';
+import 'socket_service.dart';
 import '../models/auth_session.dart';
 import '../utils/server_url.dart';
+
+part 'bookorbit_api_service.dart';
 
 /// Outcome of a local-session upsert. [serverTooOld] flags a 404/501 (the
 /// server predates /api/session/local) so the caller can fall back to the
@@ -298,6 +307,104 @@ class ApiService {
     _loadCachedServerVersion(baseUrl);
   }
 
+  /// The ApiService for a signed-in session: the plain Audiobookshelf client,
+  /// or the BookOrbit one that answers in Audiobookshelf shapes. [backend]
+  /// defaults to the active session's.
+  factory ApiService.forSession({
+    required String baseUrl,
+    required String token,
+    String? refreshToken,
+    bool isLegacyToken = false,
+    Map<String, String> customHeaders = const {},
+    FutureOr<bool> Function(String newAccessToken, String? newRefreshToken)?
+        onTokensRefreshed,
+    Future<AuthTokens?> Function()? loadPersistedTokens,
+    VoidCallback? onAuthExpired,
+    ServerBackend? backend,
+  }) {
+    if ((backend ?? ServerBackend.active).isBookOrbit) {
+      return BookOrbitApiService(
+        baseUrl: baseUrl,
+        token: token,
+        refreshToken: refreshToken,
+        isLegacyToken: isLegacyToken,
+        customHeaders: customHeaders,
+        onTokensRefreshed: onTokensRefreshed,
+        loadPersistedTokens: loadPersistedTokens,
+        onAuthExpired: onAuthExpired,
+      );
+    }
+    return ApiService(
+      baseUrl: baseUrl,
+      token: token,
+      refreshToken: refreshToken,
+      isLegacyToken: isLegacyToken,
+      customHeaders: customHeaders,
+      onTokensRefreshed: onTokensRefreshed,
+      loadPersistedTokens: loadPersistedTokens,
+      onAuthExpired: onAuthExpired,
+    );
+  }
+
+  ServerBackend get backend => ServerBackend.audiobookshelf;
+  bool get isBookOrbit => backend.isBookOrbit;
+
+  /// Await before handing media URLs to something that fetches them right
+  /// away. Only BookOrbit has anything to wait for (its media proxy).
+  Future<void> ensureMediaReady() async {}
+
+  Future<ApiService> withMediaReady() async {
+    await ensureMediaReady();
+    return this;
+  }
+
+  /// URL for downloading an ebook file for the reader.
+  String buildEbookUrl(String itemId, String ino) =>
+      '$_cleanBaseUrl/api/items/$itemId/file/$ino?token=$token';
+
+  /// How many pages a comic file has, when the server hands them out one at
+  /// a time (BookOrbit, which opens CBR and CB7 too). Null means the archive
+  /// has to be opened on the phone.
+  Future<int?> comicPageCount(String fileId) async => null;
+
+  /// Image of comic page [index] (from 0), when [comicPageCount] answered.
+  String? comicPageUrl(String fileId, int index) => null;
+
+  /// The cover slots a book uses on BookOrbit ('audio', 'ebook'). Empty on
+  /// Audiobookshelf, which has one cover per item.
+  Future<List<String>> coverSlots(String itemId) async => const [];
+
+  /// The cover search source the user picked as default on the server.
+  Future<String?> defaultCoverSearchProvider() async => null;
+
+  /// Books the server thinks are like [itemId], as {id, title, authorName,
+  /// hasCover, isAudiobook, finished}. Only BookOrbit has this.
+  Future<List<Map<String, dynamic>>> getSimilarBooks(String itemId) async => const [];
+
+  /// BookOrbit's per-user reading status (want_to_read, on_hold, ...).
+  Future<bool> setReadStatus(String itemId, String status) async => false;
+
+  /// A private note on a book, or null to remove it. Only BookOrbit has this.
+  Future<bool> setPersonalNote(String itemId, String? note) async => false;
+
+  /// The metadata providers the server has turned on, as {key, label}, when
+  /// it can say. Null means the app's own list applies.
+  Future<List<Map<String, String>>?> bookMatchProviders() async => null;
+
+  /// URL a background download fetches [ino] from. Same as [buildFileUrl]
+  /// on Audiobookshelf.
+  String buildDownloadFileUrl(String itemId, String ino) => buildFileUrl(itemId, ino);
+
+  /// Headers for a download of [url] built by [buildDownloadFileUrl].
+  Map<String, String> downloadHeadersFor(String url) => mediaHeaders;
+
+  /// Called once before a book's files are queued for download.
+  Future<void> prepareDownload(String itemId) async {}
+
+  /// Show a collection to everyone on the server or only its owner. Only
+  /// BookOrbit has this; Audiobookshelf collections are always shared.
+  Future<bool> setCollectionPublic(String collectionId, bool isPublic) async => false;
+
   /// Current access token (for external use like cover URLs, socket auth).
   String get token => _accessToken;
 
@@ -412,18 +519,21 @@ class ApiService {
     if (!lock.isCompleted) lock.complete();
   }
 
-  Future<bool> _refreshTokenPairOnce() async {
-    final refreshToken = _refreshToken;
-    if (_isLegacyToken || refreshToken == null) return false;
-    try {
-      final response = await _post(
+  Future<http.Response> _sendRefresh(String refreshToken) => _post(
         Uri.parse('$_cleanBaseUrl/auth/refresh'),
         headers: {
           ...customHeaders,
           'x-refresh-token': refreshToken,
           if (!kIsWeb) 'User-Agent': userAgent,
         },
-      ).timeout(const Duration(seconds: 15));
+      );
+
+  Future<bool> _refreshTokenPairOnce() async {
+    final refreshToken = _refreshToken;
+    if (_isLegacyToken || refreshToken == null) return false;
+    try {
+      final response = await _sendRefresh(refreshToken)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         debugPrint(
           '[API] Proactive token refresh failed: ${response.statusCode} '
@@ -454,7 +564,7 @@ class ApiService {
   static bool _apiKeyCheckRunning = false;
 
   void _checkRevokedApiKey() {
-    if (_apiKeyCheckRunning) return;
+    if (isBookOrbit || _apiKeyCheckRunning) return;
     final last = _apiKeyCheckedAt;
     if (last != null && DateTime.now().difference(last) < const Duration(minutes: 1)) return;
     _apiKeyCheckedAt = DateTime.now();
@@ -509,14 +619,8 @@ class ApiService {
           // Timeout is load-bearing: this is awaited from tryRestoreSession via
           // the 401-retry path, and a stalled response here would otherwise hold
           // the splash screen forever.
-          final response = await _post(
-            Uri.parse('$_cleanBaseUrl/auth/refresh'),
-            headers: {
-              ...customHeaders,
-              'x-refresh-token': refreshTokenSent,
-              if (!kIsWeb) 'User-Agent': userAgent,
-            },
-          ).timeout(const Duration(seconds: 15));
+          final response = await _sendRefresh(refreshTokenSent)
+              .timeout(const Duration(seconds: 15));
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -746,7 +850,16 @@ class ApiService {
     required String username,
     required String password,
     Map<String, String> customHeaders = const {},
+    ServerBackend backend = ServerBackend.audiobookshelf,
   }) async {
+    if (backend.isBookOrbit) {
+      return BookOrbitApiService.signIn(
+        serverUrl: serverUrl,
+        username: username,
+        password: password,
+        customHeaders: customHeaders,
+      );
+    }
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}login'
         : '$serverUrl/login';
@@ -780,7 +893,9 @@ class ApiService {
     required String serverUrl,
     required String apiKey,
     Map<String, String> customHeaders = const {},
+    ServerBackend backend = ServerBackend.audiobookshelf,
   }) async {
+    if (backend.isBookOrbit) return (null, 0);
     final base = serverUrl.endsWith('/') ? serverUrl : '$serverUrl/';
     final url = '${base}api/me';
 
@@ -800,7 +915,10 @@ class ApiService {
   }
 
   /// Ping the server to check connectivity.
-  static Future<bool> pingServer(String serverUrl, {Map<String, String> customHeaders = const {}}) async {
+  static Future<bool> pingServer(String serverUrl, {Map<String, String> customHeaders = const {}, ServerBackend? backend}) async {
+    if ((backend ?? ServerBackend.active).isBookOrbit) {
+      return (await BookOrbitApiService.probe(serverUrl, customHeaders: customHeaders)).ok;
+    }
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}ping'
         : '$serverUrl/ping';
@@ -822,7 +940,15 @@ class ApiService {
   static Future<({bool ok, String? detail})> pingServerDetailed(
     String serverUrl, {
     Map<String, String> customHeaders = const {},
+    ServerBackend? backend,
   }) async {
+    if ((backend ?? ServerBackend.active).isBookOrbit) {
+      return BookOrbitApiService.probe(
+        serverUrl,
+        customHeaders: customHeaders,
+        timeout: const Duration(seconds: 15),
+      );
+    }
     final url = serverUrl.endsWith('/') ? '${serverUrl}ping' : '$serverUrl/ping';
     try {
       final response = await http
@@ -865,7 +991,9 @@ class ApiService {
   }
 
   /// Get the server version via the /status endpoint (no auth needed).
-  static Future<String?> getServerVersion(String serverUrl, {Map<String, String> customHeaders = const {}}) async {
+  static Future<String?> getServerVersion(String serverUrl, {Map<String, String> customHeaders = const {}, ServerBackend? backend}) async {
+    // BookOrbit only tells a signed-in client its version.
+    if ((backend ?? ServerBackend.active).isBookOrbit) return null;
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}status'
         : '$serverUrl/status';
@@ -1078,7 +1206,9 @@ class ApiService {
   }
 
   /// Build a cover image URL for a library item.
-  String getCoverUrl(String itemId, {int? width = 400, int? updatedAt}) {
+  /// [coverSlot] picks BookOrbit's 'audio' (square) or 'ebook' (portrait)
+  /// cover and is ignored on Audiobookshelf, which has one.
+  String getCoverUrl(String itemId, {int? width = 400, int? updatedAt, String? coverSlot}) {
     var url = '$_cleanBaseUrl/api/items/$itemId/cover?token=$token';
     if (width != null) url += '&width=$width';
     if (updatedAt != null) url += '&ts=$updatedAt';
@@ -3881,7 +4011,7 @@ class ApiService {
   }
 
   /// Upload a cover image URL for a library item (admin only)
-  Future<bool> updateItemCoverUrl(String itemId, String url) async {
+  Future<bool> updateItemCoverUrl(String itemId, String url, {String? coverSlot}) async {
     try {
       final r = await _authPost(
         Uri.parse('$_cleanBaseUrl/api/items/$itemId/cover'),
@@ -3895,7 +4025,7 @@ class ApiService {
 
   /// Remove a library item's cover, leaving it with none (admin only).
   /// DELETE /api/items/:id/cover
-  Future<bool> removeItemCover(String itemId) async {
+  Future<bool> removeItemCover(String itemId, {String? coverSlot}) async {
     try {
       final r = await _authDelete(
         Uri.parse('$_cleanBaseUrl/api/items/$itemId/cover'),
@@ -3907,7 +4037,7 @@ class ApiService {
   }
 
   /// Upload a cover image file for a library item (admin only)
-  Future<bool> uploadItemCover(String itemId, String filePath) async {
+  Future<bool> uploadItemCover(String itemId, String filePath, {String? coverSlot}) async {
     try {
       final req = http.MultipartRequest(
         'POST',
@@ -3924,7 +4054,7 @@ class ApiService {
   /// Search provider cover images for a book.
   /// GET /api/search/covers?title=&author=&provider=  ->  { results: [url, ...] }
   Future<List<String>> searchCovers(String title,
-      {String? author, String provider = 'google'}) async {
+      {String? author, String provider = 'google', String? coverSlot}) async {
     try {
       final uri = Uri.parse('$_cleanBaseUrl/api/search/covers').replace(queryParameters: {
         'title': title,
