@@ -3268,6 +3268,7 @@
   "upcomingReleasesBadgeAdded": "HINZUGEFÜGT",
   "upcomingReleasesBadgeMissing": "FEHLT",
   "upcomingReleasesScanSettingsTitle": "Scan Einstellungen",
+  "upcomingReleasesFinishedAfterDesc": "Serien, deren letztes Buch älter als das ist, werden während der Scans übersprungen und nur jeden oder jeden zweiten Monat erneut überprüft.",
   "upcomingReleasesFinishedAfterNever": "Niemals",
   "upcomingReleasesSkippedTitle": "Übersprungene Serien",
   "upcomingReleasesSkippedNone": "Noch nichts übersprungen",
