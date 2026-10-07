@@ -52,6 +52,7 @@ import '../widgets/rmab_config_sheet.dart';
 import '../widgets/server_connection_editor.dart';
 import '../widgets/server_admin_status_badges.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/sign_in_again.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -1723,7 +1724,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: GestureDetector(
-                    onTap: () => _showAccountSheet(context),
+                    onTap: () => auth.isSignedOut ? openSignInAgain(context) : _showAccountSheet(context),
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1770,6 +1771,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             auth.serverUrl?.replaceAll(RegExp(r'^https?://'), '').replaceAll(RegExp(r'/+$'), '') ?? '',
                             maxLines: 1, overflow: TextOverflow.ellipsis,
                             style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
+                          if (auth.isSignedOut) ...[
+                            const SizedBox(height: 2),
+                            Text(l.signedOutTapToSignIn,
+                              style: tt.labelSmall?.copyWith(color: cs.error, fontWeight: FontWeight.w600)),
+                          ],
                         ])),
                         Icon(Icons.chevron_right_rounded, size: 20, color: cs.primary.withValues(alpha: 0.5)),
                       ]),

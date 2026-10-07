@@ -9,7 +9,6 @@ import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
 import '../services/ebook_cache.dart';
 import '../widgets/ebook_router.dart';
-import '../services/signed_out_playback.dart';
 import '../services/wording.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/card_buttons.dart' show showErrorToast;
@@ -18,11 +17,7 @@ import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 
 class DownloadsScreen extends StatefulWidget {
-  /// Opened from the sign-in screen after the session expired: plays without
-  /// a server and keeps the user here instead of heading into the app.
-  final bool signedOut;
-
-  const DownloadsScreen({super.key, this.signedOut = false});
+  const DownloadsScreen({super.key});
   @override
   State<DownloadsScreen> createState() => _DownloadsScreenState();
 }
@@ -224,13 +219,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   /// any library - the one way to reach a downloaded podcast when the app
   /// started offline stuck in a book library.
   Future<void> _play(DownloadInfo info) async {
-    final api = widget.signedOut
-        ? SignedOutPlayback.api()
-        : context.read<AuthProvider>().apiService;
+    final api = context.read<AuthProvider>().apiService;
     if (api == null || info.localPaths.isEmpty) return;
-    if (widget.signedOut) SignedOutPlayback.started();
     debugPrint(
-        '[Downloads] Play ${info.itemId} from the downloads list (signedOut=${widget.signedOut} library=${info.libraryId})');
+        '[Downloads] Play ${info.itemId} from the downloads list (library=${info.libraryId})');
     final isEpisode = info.itemId.length > 36;
     final itemId = isEpisode ? info.itemId.substring(0, 36) : info.itemId;
     final episodeId = isEpisode ? info.itemId.substring(37) : null;
@@ -265,7 +257,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       showErrorToast(context, error);
       return;
     }
-    if (widget.signedOut) return;
     context.read<LibraryProvider>().addToAbsorbing(info.itemId);
     Navigator.of(context).popUntil((route) => route.isFirst);
     AppShell.goToAbsorbingGlobal();
@@ -345,16 +336,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       ],
                     ]),
                   ),
-                  if (widget.signedOut)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                      child: Text(
-                        l.signedOutDownloadsNote(
-                            SignedOutPlayback.expiredAccount()?.username ?? ''),
-                        style: tt.bodySmall
-                            ?.copyWith(color: cs.onSurfaceVariant),
-                      ),
-                    ),
                   const SizedBox(height: 12),
 
                   // Content
@@ -500,9 +481,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       },
                     ),
                   ),
-
-                  if (widget.signedOut && !_selecting)
-                    const _SignedOutPlayerBar(),
 
                   // Bottom delete bar
                   if (_selecting && _selected.isNotEmpty)
@@ -851,101 +829,6 @@ class _ActiveDownloadCard extends StatelessWidget {
         child: Icon(Icons.headphones_rounded,
             size: 24, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
       ),
-    );
-  }
-}
-
-/// A small player for signed-out listening, where the main app with its
-/// cards isn't reachable. The notification and lock screen controls work as
-/// usual on top of this.
-class _SignedOutPlayerBar extends StatelessWidget {
-  const _SignedOutPlayerBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final player = AudioPlayerService();
-    return ListenableBuilder(
-      listenable: player,
-      builder: (context, _) {
-        if (!player.hasBook) return const SizedBox.shrink();
-        final total = player.totalDuration;
-        return Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHigh,
-            border: Border(
-              top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.3)),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          player.currentEpisodeTitle ?? player.currentTitle ?? '',
-                          style: tt.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          player.currentAuthor ?? '',
-                          style: tt.bodySmall
-                              ?.copyWith(color: cs.onSurfaceVariant),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.fast_rewind_rounded),
-                    onPressed: () async => player
-                        .skipBackward(await PlayerSettings.getBackSkip()),
-                  ),
-                  IconButton.filled(
-                    icon: Icon(player.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded),
-                    onPressed: () => player.togglePlayPause(fromUi: true),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.fast_forward_rounded),
-                    onPressed: () async => player
-                        .skipForward(await PlayerSettings.getForwardSkip()),
-                  ),
-                ]),
-                if (total > 0)
-                  StreamBuilder<Duration>(
-                    stream: player.absolutePositionStream,
-                    builder: (context, _) {
-                      final pos = player.position.inMilliseconds / 1000;
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6, right: 8),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: (pos / total).clamp(0.0, 1.0),
-                            minHeight: 4,
-                            backgroundColor: cs.surfaceContainerHighest,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

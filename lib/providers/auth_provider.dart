@@ -12,6 +12,7 @@ import '../services/audio_player_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/session_cache.dart';
 import '../services/socket_service.dart';
+import '../services/signed_out_playback.dart';
 import '../services/user_account_service.dart';
 import '../services/home_widget_service.dart';
 import '../services/wear_auth_service.dart';
@@ -63,9 +64,13 @@ class AuthProvider extends ChangeNotifier {
   bool _startOnAbsorbingAfterAccountChange = false;
   String? _errorMessage;
   bool _authExpiryInProgress = false;
+  // The session ended but the account is kept and the app stays usable on
+  // what is on the phone until the user signs back in.
+  bool _signedOut = false;
 
   // Getters
   bool get isAuthenticated => _accessToken != null && _serverUrl != null;
+  bool get isSignedOut => _signedOut && _accessToken == null && _serverUrl != null;
   bool get isLoading => _isLoading;
   bool get startOnAbsorbingAfterAccountChange =>
       _startOnAbsorbingAfterAccountChange;
@@ -233,6 +238,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   ApiService? get apiService {
+    // Signed out, every server call fails straight away as unreachable,
+    // which playback and sync already treat as offline.
+    if (isSignedOut) return SignedOutPlayback.api();
     final url = activeServerUrl;
     if (url != null && _accessToken != null) {
       return _createSessionApi(
@@ -405,15 +413,61 @@ class AuthProvider extends ChangeNotifier {
     // Show a message to the user
     final ctx = rootNavigatorKey.currentContext;
     final l = ctx != null ? AppLocalizations.of(ctx) : null;
-    final msg =
-        l?.authSessionExpired ?? 'Session expired. Please log in again.';
+    final msg = l?.authSignedOutKeepListening ??
+        'You have been signed out. Downloads still play. Tap the red cloud to sign in again.';
     if (ctx != null)
-      showOverlayToast(ctx, msg, icon: Icons.error_outline_rounded);
+      showOverlayToast(ctx, msg, icon: Icons.cloud_off_rounded);
     unawaited(
-      logout(forgetAccount: false).whenComplete(() {
+      _signOutKeepingAccount().whenComplete(() {
         _authExpiryInProgress = false;
       }),
     );
+  }
+
+  /// The session ran out: keep the account and the app running, drop the
+  /// tokens, and carry on with what is on the phone. Playback keeps going;
+  /// listening queues like offline and goes up after the next sign-in.
+  Future<void> _signOutKeepingAccount() async {
+    final server = _serverUrl;
+    final user = _username;
+    _accessToken = null;
+    _refreshToken = null;
+    _isLegacyToken = false;
+    _userJson = null;
+    _signedOut = true;
+    AudioPlayerService().useApi(SignedOutPlayback.api());
+    SignedOutPlayback.started();
+    AndroidAutoService().clearCache();
+    CarPlayService().clearAndRefresh();
+    WearAuthService.instance.clear();
+    try {
+      if (server != null && user != null) {
+        await UserAccountService().clearTokens(server, user);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+      await prefs.remove('refresh_token');
+    } catch (e) {
+      debugPrint('[Auth] Clearing the expired session failed: $e');
+    }
+    notifyListeners();
+  }
+
+  /// Open the app signed out on [account], whose session already ended, to
+  /// listen to what is on the phone (the sign-in screen's play downloads).
+  void continueSignedOut(SavedAccount account) {
+    _serverUrl = account.serverUrl;
+    _username = account.username;
+    _userId = account.userId;
+    _customHeaders = account.customHeaders;
+    _useLocalServer = false;
+    _accessToken = null;
+    _refreshToken = null;
+    _userJson = null;
+    _signedOut = true;
+    SignedOutPlayback.started();
+    debugPrint('[Auth] Continuing signed out as ${account.username}@${account.serverUrl}');
+    notifyListeners();
   }
 
   /// Try to restore a saved session from SharedPreferences.
@@ -1182,6 +1236,7 @@ class AuthProvider extends ChangeNotifier {
     bool allDevices = false,
   }) async {
     if (revokeServerSession) await adoptCompanionTokens();
+    _signedOut = false;
 
     // Stop any active playback
     try {

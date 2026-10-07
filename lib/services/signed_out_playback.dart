@@ -4,10 +4,10 @@ import 'audio_player_service.dart';
 import 'download_service.dart';
 import 'user_account_service.dart';
 
-/// Listening to downloads after the session expired. The account stays saved
-/// with its token cleared and remains the active scope, so progress and
-/// listening sessions queue under it exactly like offline listening, and
-/// signing back into it sends them up.
+/// Using the app after the session expired. The account stays saved with its
+/// token cleared and remains the active scope, so progress and listening
+/// sessions queue under it exactly like offline listening, and signing back
+/// into it sends them up.
 class SignedOutPlayback {
   SignedOutPlayback._();
 
@@ -43,13 +43,18 @@ class SignedOutPlayback {
     UserAccountService.beforeAccountChange = end;
   }
 
-  /// Stops signed-out playback before another sign-in changes the active
-  /// account, so its listening is saved under the account it belongs to.
-  static Future<void> end() async {
+  /// Runs before a sign-in changes the active account. Signing back into the
+  /// same account carries on playing; any other account stops playback
+  /// first, so its listening is saved under the account it belongs to.
+  static Future<void> end(SavedAccount next) async {
     if (!_active) return;
     _active = false;
-    debugPrint('[SignedOut] Signing in, stopping signed-out playback first');
     UserAccountService.beforeAccountChange = null;
+    if (expiredAccount()?.scopeKey == next.scopeKey) {
+      debugPrint('[SignedOut] Signed back in, playback carries on');
+      return;
+    }
+    debugPrint('[SignedOut] Signing in to another account, stopping signed-out playback first');
     try {
       final player = AudioPlayerService();
       if (player.hasBook) {

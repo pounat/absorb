@@ -15704,6 +15704,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Solid'**
   String get cardButtonFillSolid;
+
+  /// No description provided for @signedOutTapToSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed out. Tap to sign in again.'**
+  String get signedOutTapToSignIn;
+
+  /// No description provided for @authSignedOutKeepListening.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve been signed out. Downloads still play. Tap the red cloud to sign in again.'**
+  String get authSignedOutKeepListening;
+
+  /// No description provided for @signedOutSyncNote.
+  ///
+  /// In en, this message translates to:
+  /// **'What you listen to while signed out is kept on this phone and syncs when you sign back in as {username} on {server}. Any way of signing in to that account works.'**
+  String signedOutSyncNote(String username, String server);
 }
 
 class _AppLocalizationsDelegate

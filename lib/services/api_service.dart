@@ -447,6 +447,33 @@ class ApiService {
     }
   }
 
+  /// An API key can't be refreshed, so a 401 on one may mean it was revoked.
+  /// Ask the server once whether it still knows the key before signing out,
+  /// so a stray 401 from something in between doesn't end the session.
+  static DateTime? _apiKeyCheckedAt;
+  static bool _apiKeyCheckRunning = false;
+
+  void _checkRevokedApiKey() {
+    if (_apiKeyCheckRunning) return;
+    final last = _apiKeyCheckedAt;
+    if (last != null && DateTime.now().difference(last) < const Duration(minutes: 1)) return;
+    _apiKeyCheckedAt = DateTime.now();
+    _apiKeyCheckRunning = true;
+    () async {
+      try {
+        final r = await _get(Uri.parse('$_cleanBaseUrl/api/me'), headers: _headers)
+            .timeout(const Duration(seconds: 15));
+        if (r.statusCode == 401) {
+          debugPrint('[API] The server no longer accepts this API key');
+          onAuthExpired?.call();
+        }
+      } catch (_) {
+      } finally {
+        _apiKeyCheckRunning = false;
+      }
+    }();
+  }
+
   /// Attempt to refresh the access token using the refresh token. A rejected
   /// refresh is kept distinct from a temporary network/server failure so only
   /// an explicit 401/403 can expire the local session.
@@ -578,7 +605,11 @@ class ApiService {
   /// Static state outlives a single test, so a test that trips the cooldown
   /// would otherwise silently disable the pre-flight for whatever runs next.
   @visibleForTesting
-  static void resetPreflightCooldown() => _preflightCooldownUntil = null;
+  static void resetPreflightCooldown() {
+    _preflightCooldownUntil = null;
+    _apiKeyCheckedAt = null;
+    _apiKeyCheckRunning = false;
+  }
 
   /// Refresh BEFORE spending a known-expired access token, rather than firing
   /// the request, taking a 401, and recovering afterwards.
@@ -646,6 +677,8 @@ class ApiService {
         response = await _get(url, headers: refreshedHeaders).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    } else if (response.statusCode == 401) {
+      _checkRevokedApiKey();
     }
     return response;
   }
@@ -663,6 +696,8 @@ class ApiService {
         response = await _post(url, headers: refreshedHeaders, body: body).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    } else if (response.statusCode == 401) {
+      _checkRevokedApiKey();
     }
     return response;
   }
@@ -680,6 +715,8 @@ class ApiService {
         response = await _patch(url, headers: refreshedHeaders, body: body).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    } else if (response.statusCode == 401) {
+      _checkRevokedApiKey();
     }
     return response;
   }
@@ -697,6 +734,8 @@ class ApiService {
         response = await _delete(url, headers: refreshedHeaders).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    } else if (response.statusCode == 401) {
+      _checkRevokedApiKey();
     }
     return response;
   }

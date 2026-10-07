@@ -18,7 +18,6 @@ import '../widgets/absorb_wave_icon.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/setup_link_login.dart';
 import '../services/signed_out_playback.dart';
-import 'downloads_screen.dart';
 import '../services/audio_player_service.dart';
 import '../main.dart' show applyTrustAllCerts, flatNotifier;
 import '../l10n/app_localizations.dart';
@@ -526,6 +525,10 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
                                   ),
 
+                                  if (context.watch<AuthProvider>().isSignedOut) ...[
+                                    _buildSignedOutSyncNote(cs),
+                                    const SizedBox(height: 12),
+                                  ],
                                   // Server URL
                                   _buildInputField(
                                     controller: _serverController,
@@ -778,7 +781,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
 
-                  if (SignedOutPlayback.available) ...[
+                  if (SignedOutPlayback.available && !context.watch<AuthProvider>().isSignedOut) ...[
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
@@ -792,12 +795,12 @@ class _LoginScreenState extends State<LoginScreen>
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const DownloadsScreen(signedOut: true),
-                          ),
-                        ),
+                        onPressed: () {
+                          final account = SignedOutPlayback.expiredAccount();
+                          if (account != null) {
+                            context.read<AuthProvider>().continueSignedOut(account);
+                          }
+                        },
                       ),
                     ),
                   ],
@@ -1137,6 +1140,36 @@ class _LoginScreenState extends State<LoginScreen>
       }
       // If this is the root login screen, AuthGate will react to the state change
     }
+  }
+
+  /// Signing back in after the session ended: say which account the
+  /// listening done since then belongs to, since only that one sends it up.
+  Widget _buildSignedOutSyncNote(ColorScheme cs) {
+    final l = AppLocalizations.of(context)!;
+    final tt = Theme.of(context).textTheme;
+    final auth = context.read<AuthProvider>();
+    final server = (auth.serverUrl ?? '')
+        .replaceAll(RegExp(r'^https?://'), '')
+        .replaceAll(RegExp(r'/+$'), '');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.sync_rounded, size: 18, color: cs.primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            l.signedOutSyncNote(auth.username ?? '', server),
+            style: tt.bodySmall?.copyWith(color: cs.onSurface, height: 1.4),
+          ),
+        ),
+      ]),
+    );
   }
 
   Widget _buildInputField({

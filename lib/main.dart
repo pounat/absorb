@@ -858,7 +858,7 @@ class _AuthGateState extends State<AuthGate> {
       return const AuthLoadingScreen();
     }
 
-    if (auth.isAuthenticated) {
+    if (auth.isAuthenticated || auth.isSignedOut) {
       return AppShell(
         key: ValueKey(UserAccountService().activeScopeKey),
         startOnAbsorbing: auth.startOnAbsorbingAfterAccountChange,

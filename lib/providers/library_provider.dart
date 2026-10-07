@@ -179,6 +179,10 @@ class LibraryProvider extends ChangeNotifier
         _stopServerPingTimer();
         _stopHealthCheckTimer();
         _isLoading = true;
+        // Signing back in after a lapsed session hands the still-playing
+        // book its new connection.
+        final freshApi = auth.apiService;
+        if (freshApi != null) AudioPlayerService().useApi(freshApi);
         notifyListeners();
       }
 
@@ -263,6 +267,39 @@ class LibraryProvider extends ChangeNotifier
         notifyListeners();
         _completeAccountLoad(accountLoadGeneration);
       });
+    } else if (auth.isSignedOut) {
+      // The session ended but the account stays: show what is on the phone
+      // until the user signs back in, which then loads like a fresh login.
+      final key = 'signed-out:${auth.username}@${auth.serverUrl}';
+      if (_lastAuthKey == key) return;
+      _lastAuthKey = key;
+      _lastUseLocalServer = null;
+      final generation = ++_accountLoadGeneration;
+      final completer = _accountReadyCompleter;
+      if (completer != null && !completer.isCompleted) completer.complete();
+      _accountReadyCompleter = null;
+      _connectivitySub?.cancel();
+      _connectivityDebounce?.cancel();
+      _stopServerPingTimer();
+      _stopHealthCheckTimer();
+      SocketService().disconnect();
+      _personalizedInFlight = null;
+      _networkOffline = false;
+      debugPrint('[Library] Signed out - showing what is on the phone');
+      () async {
+        await _loadManualAbsorbing();
+        await _loadRollingDownloadSeries();
+        await _loadSubscribedPodcasts();
+        await _loadYearHidden();
+        await _loadKnownEpisodeIds();
+        await _restoreCachedLibraries();
+        if (generation != _accountLoadGeneration) return;
+        _buildOfflineSections();
+        _isLoading = false;
+        notifyListeners();
+        refreshLocalProgress();
+      }();
+      notifyListeners();
     } else {
       _accountLoadGeneration++;
       final completer = _accountReadyCompleter;

@@ -87,7 +87,7 @@ class UserAccountService {
 
   /// Runs before a sign-in changes the active account, so anything still
   /// being recorded for the old one is saved under it first.
-  static Future<void> Function()? beforeAccountChange;
+  static Future<void> Function(SavedAccount next)? beforeAccountChange;
 
   List<SavedAccount> _accounts = [];
   String? _activeScopeKey;
@@ -159,7 +159,7 @@ class UserAccountService {
     // this far has already written the new session, and bailing out now
     // leaves the old account's scope active under it.
     try {
-      await beforeAccountChange?.call();
+      await beforeAccountChange?.call(account);
     } catch (e) {
       debugPrint('[UserAccount] beforeAccountChange failed: $e');
     }
