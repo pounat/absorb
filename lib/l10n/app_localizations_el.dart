@@ -9098,4 +9098,20 @@ class AppLocalizationsEl extends AppLocalizations {
   @override
   String get carDisconnectRewindInfo =>
       'When the car is turned off without pausing first, the phone can take a few seconds to notice that Android Auto or CarPlay has disconnected, and playback continues until it does. This rewinds by the amount set here so nothing is missed. Time how long your car takes to pause after it is turned off and use that. Nothing happens if playback was already paused when the car disconnected.';
+
+  @override
+  String get cardButtonFill => 'Button background';
+
+  @override
+  String get cardButtonFillSubtitle =>
+      'How the buttons on the player card are filled';
+
+  @override
+  String get cardButtonFillClear => 'Clear';
+
+  @override
+  String get cardButtonFillSubtle => 'Subtle';
+
+  @override
+  String get cardButtonFillSolid => 'Solid';
 }

@@ -158,6 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _rectangleCovers = false;
   bool _showSubtitles = false;
   String _coverSize = 'medium';
+  String _cardButtonFill = 'subtle';
   // Per-library overrides shown in the Library section, scoped to whichever
   // library is currently selected (scales to accounts with many libraries -
   // no giant list, just "whatever you're browsing right now").
@@ -1000,6 +1001,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final progressScale = results.last as double;
     final mp3IndexSeek = await PlayerSettings.getMp3IndexSeeking();
     final coverSize = await PlayerSettings.getCoverSize();
+    final cardButtonFill = await PlayerSettings.getCardButtonFill();
     final flatBackground = await PlayerSettings.getFlatBackground();
     final showSubtitles = await PlayerSettings.getShowSubtitles();
     final showEbookBadge = await PlayerSettings.getShowEbookBadge();
@@ -1162,6 +1164,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _rectangleCovers = rectCovers;
       _showSubtitles = showSubtitles;
       _coverSize = coverSize;
+      _cardButtonFill = cardButtonFill;
       _coverPlayButton = coverPlay;
       _cardBackground = cardBg;
       _progressTextScale = progressScale;
@@ -2124,6 +2127,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 final v = selected.first;
                                 setState(() => _coverSize = v);
                                 PlayerSettings.setCoverSize(v);
+                              } : null,
+                              style: const ButtonStyle(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l.cardButtonFill, style: tt.titleSmall),
+                          const SizedBox(height: 4),
+                          Text(
+                            l.cardButtonFillSubtitle,
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: SegmentedButton<String>(
+                              showSelectedIcon: false,
+                              segments: [
+                                ButtonSegment(value: 'clear', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillClear, maxLines: 1))),
+                                ButtonSegment(value: 'subtle', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillSubtle, maxLines: 1))),
+                                ButtonSegment(value: 'solid', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillSolid, maxLines: 1))),
+                              ],
+                              selected: {_cardButtonFill},
+                              onSelectionChanged: _loaded ? (selected) {
+                                final v = selected.first;
+                                setState(() => _cardButtonFill = v);
+                                PlayerSettings.setCardButtonFill(v);
                               } : null,
                               style: const ButtonStyle(
                                 visualDensity: VisualDensity.compact,

@@ -242,6 +242,7 @@ void main() async {
     PlayerSettings.showEbookBadge = await PlayerSettings.getShowEbookBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
     PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
+    PlayerSettings.cardButtonFill = await PlayerSettings.getCardButtonFill();
     // Restore last cover seed color so the theme doesn't flash on startup
     {
       final seedInt = await PlayerSettings.getCoverSeedColor();
@@ -720,6 +721,7 @@ class _AuthGateState extends State<AuthGate> {
     PlayerSettings.showEbookBadge = await PlayerSettings.getShowEbookBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
     PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
+    PlayerSettings.cardButtonFill = await PlayerSettings.getCardButtonFill();
     // Rotation lock: main() applied it before scope was active, so that pass
     // read the never-written unscoped key and always came up unlocked. The
     // timeout matters: on a headless boot (Android Auto bind) there is no

@@ -1313,6 +1313,7 @@ class AuthProvider extends ChangeNotifier {
     PlayerSettings.showEbookBadge = await PlayerSettings.getShowEbookBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
     PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
+    PlayerSettings.cardButtonFill = await PlayerSettings.getCardButtonFill();
 
     // Reload EQ settings from the new account's scope. Without this the
     // EqualizerService singleton keeps the previous account's in-memory

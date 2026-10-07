@@ -46,6 +46,21 @@ Color _inkAccent(Color accent) =>
 double _inkAlpha(double normal, double eink) =>
     PlayerSettings.einkMode ? eink : normal;
 
+/// A card button's fill under the Button background setting. Subtle is the
+/// tint at the given strength; Solid lays it over an opaque surface.
+Color _buttonFill(ColorScheme cs, Color tint, double normal, double eink, {bool neutral = false}) =>
+    switch (PlayerSettings.cardButtonFill) {
+      'clear' => Colors.transparent,
+      'solid' => neutral
+          ? cs.surfaceContainerHighest
+          : Color.alphaBlend(tint.withValues(alpha: 0.2), cs.surfaceContainerHighest),
+      _ => tint.withValues(alpha: _inkAlpha(normal, eink)),
+    };
+
+/// A card button's edge; Clear drops it with the fill.
+Color _buttonEdge(Color tint, double normal, double eink) =>
+    PlayerSettings.cardButtonFill == 'clear' ? Colors.transparent : tint.withValues(alpha: _inkAlpha(normal, eink));
+
 /// Wrapper that gives any child a press-down opacity+scale effect.
 class Pressable extends StatefulWidget {
   final VoidCallback? onTap;
@@ -152,13 +167,13 @@ class CardWideButton extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
           color: highlighted
-              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-              : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+              ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+              : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
           borderRadius: BorderRadius.circular(radius),
           border: Border.all(
               color: highlighted
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
         ),
         child: showIconOnly
           ? Center(child: Icon(icon, size: iconSize, color: fgColor))
@@ -269,12 +284,12 @@ class CardSleepButtonInline extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: active
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+                  ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: active
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: Stack(children: [
               if (active && isTime)
@@ -378,12 +393,12 @@ class CardDownloadButtonInline extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: downloaded
-                  ? dlGreen.withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+                  ? _buttonFill(cs, dlGreen, 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: downloaded
-                  ? dlGreen.withValues(alpha: _inkAlpha(0.3, 0.9))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(dlGreen, 0.3, 0.9)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: Stack(children: [
               if (downloading)
@@ -508,9 +523,9 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+          color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+          border: Border.all(color: _buttonEdge(cs.onSurface, 0.08, 0.55)),
         ),
         child: cp || widget.iconsOnly
           ? Center(child: Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant))
@@ -644,9 +659,9 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
           child: Container(
             height: h,
             decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+              color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+              border: Border.all(color: _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: content,
           ),
@@ -1735,12 +1750,12 @@ class CardActionDelegate {
             padding: EdgeInsets.symmetric(vertical: vPad),
             decoration: BoxDecoration(
               color: castActive
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+                  ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: castActive
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: iconsOnly
               ? Center(child: Icon(moreIcon, size: iconSz, color: iconColor))

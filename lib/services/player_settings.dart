@@ -1105,6 +1105,15 @@ class PlayerSettings {
   static Future<bool> getRectangleCovers() => _get('rectangleCovers', false);
   static Future<void> setRectangleCovers(bool value) => _set('rectangleCovers', value, notify: true);
 
+  /// How the player card's buttons are filled: 'clear' (no fill or edge),
+  /// 'subtle' (the long-standing look) or 'solid'. Cached for builders.
+  static String cardButtonFill = 'subtle';
+  static Future<String> getCardButtonFill() => _get('cardButtonFill', 'subtle');
+  static Future<void> setCardButtonFill(String value) async {
+    cardButtonFill = value;
+    await _set('cardButtonFill', value, notify: true);
+  }
+
   /// Cached value for synchronous access in grid builders.
   /// 'small' | 'medium' | 'large'; medium keeps the long-standing layout.
   static String coverSize = 'medium';

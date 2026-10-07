@@ -15674,6 +15674,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When the car is turned off without pausing first, the phone can take a few seconds to notice that Android Auto or CarPlay has disconnected, and playback continues until it does. This rewinds by the amount set here so nothing is missed. Time how long your car takes to pause after it is turned off and use that. Nothing happens if playback was already paused when the car disconnected.'**
   String get carDisconnectRewindInfo;
+
+  /// No description provided for @cardButtonFill.
+  ///
+  /// In en, this message translates to:
+  /// **'Button background'**
+  String get cardButtonFill;
+
+  /// No description provided for @cardButtonFillSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How the buttons on the player card are filled'**
+  String get cardButtonFillSubtitle;
+
+  /// No description provided for @cardButtonFillClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get cardButtonFillClear;
+
+  /// No description provided for @cardButtonFillSubtle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtle'**
+  String get cardButtonFillSubtle;
+
+  /// No description provided for @cardButtonFillSolid.
+  ///
+  /// In en, this message translates to:
+  /// **'Solid'**
+  String get cardButtonFillSolid;
 }
 
 class _AppLocalizationsDelegate
