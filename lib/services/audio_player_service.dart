@@ -114,9 +114,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       'keyCode=${snap['lastKeyCode']} keyAgeMs=${snap['lastKeyAgeMs']} '
       'lastPlayCaller=${snap['lastPlayCaller']} playAgeMs=${snap['lastPlayCallerAgeMs']} '
       'lastPauseCaller=${snap['lastPauseCaller']} pauseAgeMs=${snap['lastPauseCallerAgeMs']} '
-      'carClientAgeMs=${snap['carClientAgeMs']} '
-      'carState=${snap['carConnectionState']} carGoneAgeMs=${snap['carGoneAgeMs']} '
-      'keyPkg=${snap['lastKeyPkg']}',
+      'carClientAgeMs=${snap['carClientAgeMs']} keyPkg=${snap['lastKeyPkg']}',
     );
   }
 
@@ -3112,7 +3110,6 @@ class AudioPlayerService extends ChangeNotifier {
                 debugPrint(
                   '[AudioSession] Permanent focus loss - not resuming on its own',
                 );
-                unawaited(service._rewindIfCarJustLeft());
               }
               // The notification reads the player directly, but the home
               // widget, cards and watch only refresh on notify - without this
@@ -7364,7 +7361,6 @@ class AudioPlayerService extends ChangeNotifier {
       _stuckCheckTimer = null;
     }
     await _player?.pause();
-    unawaited(_rewindIfCarJustLeft());
     _logEvent(PlaybackEventType.pause);
     _onPlaybackStateChangedCallback?.call(false);
 
@@ -7478,62 +7474,6 @@ class AudioPlayerService extends ChangeNotifier {
       overridePosition: from.inMilliseconds / 1000.0,
     );
     notifyListeners();
-  }
-
-  /// CarPlay reported the car gone. iOS pauses on the lost route on its own,
-  /// so a pause in the last moments counts the same as still playing.
-  Future<void> onCarDisconnected() async {
-    final lastPause = _lastPauseTime;
-    final pausedByRoute = !isPlaying &&
-        _noisyPause &&
-        lastPause != null &&
-        DateTime.now().difference(lastPause) < const Duration(seconds: 20);
-    if (!isPlaying && !pausedByRoute) return;
-    if (isPlaying) await pause();
-    await rewindForCarDisconnect();
-  }
-
-  DateTime? _lastCarRewindAt;
-
-  /// Android: a pause that may be the system's late reaction to the car going
-  /// away. The service stamps the moment Android Auto's projection ended; if
-  /// that was just before this pause, or turns up within a few seconds after
-  /// it, the stretch in between played to nobody.
-  Future<void> _rewindIfCarJustLeft() async {
-    if (!Platform.isAndroid) return;
-    if (await PlayerSettings.getCarDisconnectRewindSeconds() <= 0) return;
-    final last = _lastCarRewindAt;
-    if (last != null && DateTime.now().difference(last) < const Duration(minutes: 1)) {
-      return;
-    }
-    for (var attempt = 0; attempt < 3; attempt++) {
-      final snap = await AudioPlayerHandler._absorbDiagSnapshot();
-      final gone = snap?['carGoneAgeMs'];
-      debugPrint('[CarRewind] check ${attempt + 1}: carState=${snap?['carConnectionState']} '
-          'carGoneAgeMs=$gone playing=$isPlaying');
-      if (gone is int && gone >= 0 && gone < 30000) {
-        _lastCarRewindAt = DateTime.now();
-        await rewindForCarDisconnect();
-        return;
-      }
-      if (isPlaying) return;
-      await Future.delayed(const Duration(seconds: 4));
-    }
-  }
-
-  /// Takes back the stretch that played after the car disconnected, in real
-  /// seconds, so the setting matches a stopwatch at any playback speed.
-  Future<void> rewindForCarDisconnect() async {
-    final seconds = await PlayerSettings.getCarDisconnectRewindSeconds();
-    if (seconds <= 0 || _player == null || !hasBook) return;
-    var target = position - Duration(milliseconds: (seconds * 1000 * speed).round());
-    if (target < Duration.zero) target = Duration.zero;
-    debugPrint('[CarRewind] car disconnected while playing - rewinding ${seconds}s');
-    await seekTo(
-      target,
-      logAs: PlaybackEventType.autoRewind,
-      logDetail: '${seconds}s (car disconnected)',
-    );
   }
 
   /// Rewind triggered by the sleep timer firing. Same mechanics as a manual

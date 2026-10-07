@@ -81,7 +81,6 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
         Platform.isIOS ? l.carConnectAutoplayIos : l.carConnectAutoplay,
         [l.carConnectAutoplayOnSubtitle, l.carConnectAutoplayOffSubtitle]),
     SettingSearchEntry('Car', Platform.isIOS ? l.sectionCarIos : l.sectionCar, l.keepScreenOnCarMode, [l.keepScreenOnCarModeSubtitle]),
-    SettingSearchEntry('Car', Platform.isIOS ? l.sectionCarIos : l.sectionCar, l.carDisconnectRewind, [l.carDisconnectRewindInfo]),
     SettingSearchEntry('Car', Platform.isIOS ? l.sectionCarIos : l.sectionCar, l.carBookOrder, [l.title, l.author, l.dateAdded]),
     SettingSearchEntry('Car', Platform.isIOS ? l.sectionCarIos : l.sectionCar, l.carBookOrderReverse, [l.carBookOrderReverseSubtitle]),
     SettingSearchEntry('Car', Platform.isIOS ? l.sectionCarIos : l.sectionCar, l.carPodcastOrder, [l.title, l.dateAdded]),

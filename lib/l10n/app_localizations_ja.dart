@@ -9085,21 +9085,6 @@ class AppLocalizationsJa extends AppLocalizations {
       'The screen stays on while car mode is open';
 
   @override
-  String get carDisconnectRewind => 'Rewind when the car disconnects';
-
-  @override
-  String get carDisconnectRewindOff => 'Off';
-
-  @override
-  String carDisconnectRewindValue(int seconds) {
-    return '$seconds seconds';
-  }
-
-  @override
-  String get carDisconnectRewindInfo =>
-      'When the car is turned off without pausing first, the phone can take a few seconds to notice that Android Auto or CarPlay has disconnected, and playback continues until it does. This rewinds by the amount set here so nothing is missed. Time how long your car takes to pause after it is turned off and use that. Nothing happens if playback was already paused when the car disconnected.';
-
-  @override
   String get cardButtonFill => 'Button background';
 
   @override

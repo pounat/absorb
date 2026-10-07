@@ -32,7 +32,6 @@ class BackupService {
       'speedAdjustedTime': await PlayerSettings.getSpeedAdjustedTime(),
       'keepScreenOnPlayer': await PlayerSettings.getKeepScreenOnInPlayer(),
       'keepScreenOnCarMode': await PlayerSettings.getKeepScreenOnInCarMode(),
-      'carDisconnectRewind': await PlayerSettings.getCarDisconnectRewindSeconds(),
       'forwardSkip': await PlayerSettings.getForwardSkip(),
       'backSkip': await PlayerSettings.getBackSkip(),
       'longSkipButtons': await PlayerSettings.getLongSkipButtons(),
@@ -542,7 +541,6 @@ class BackupService {
     if (s['speedAdjustedTime'] != null) PlayerSettings.setSpeedAdjustedTime(s['speedAdjustedTime'] as bool);
     if (s['keepScreenOnPlayer'] != null) PlayerSettings.setKeepScreenOnInPlayer(s['keepScreenOnPlayer'] as bool);
     if (s['keepScreenOnCarMode'] != null) PlayerSettings.setKeepScreenOnInCarMode(s['keepScreenOnCarMode'] as bool);
-    if (s['carDisconnectRewind'] != null) PlayerSettings.setCarDisconnectRewindSeconds(s['carDisconnectRewind'] as int);
     if (s['forwardSkip'] != null) PlayerSettings.setForwardSkip(s['forwardSkip'] as int);
     if (s['backSkip'] != null) PlayerSettings.setBackSkip(s['backSkip'] as int);
     if (s['shakeMode'] != null) PlayerSettings.setShakeMode(s['shakeMode'] as String);

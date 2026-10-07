@@ -15651,30 +15651,6 @@ abstract class AppLocalizations {
   /// **'The screen stays on while car mode is open'**
   String get keepScreenOnCarModeSubtitle;
 
-  /// No description provided for @carDisconnectRewind.
-  ///
-  /// In en, this message translates to:
-  /// **'Rewind when the car disconnects'**
-  String get carDisconnectRewind;
-
-  /// No description provided for @carDisconnectRewindOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Off'**
-  String get carDisconnectRewindOff;
-
-  /// No description provided for @carDisconnectRewindValue.
-  ///
-  /// In en, this message translates to:
-  /// **'{seconds} seconds'**
-  String carDisconnectRewindValue(int seconds);
-
-  /// No description provided for @carDisconnectRewindInfo.
-  ///
-  /// In en, this message translates to:
-  /// **'When the car is turned off without pausing first, the phone can take a few seconds to notice that Android Auto or CarPlay has disconnected, and playback continues until it does. This rewinds by the amount set here so nothing is missed. Time how long your car takes to pause after it is turned off and use that. Nothing happens if playback was already paused when the car disconnected.'**
-  String get carDisconnectRewindInfo;
-
   /// No description provided for @cardButtonFill.
   ///
   /// In en, this message translates to:

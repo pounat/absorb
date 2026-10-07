@@ -854,9 +854,6 @@ class PlayerSettings {
   static Future<void> setKeepScreenOnInPlayer(bool value) =>
       _set('keepScreenOnPlayer', value, notify: true);
   static Future<bool> getKeepScreenOnInCarMode() => _get('keepScreenOnCarMode', false);
-  static Future<int> getCarDisconnectRewindSeconds() => _get('carDisconnectRewind', 0);
-  static Future<void> setCarDisconnectRewindSeconds(int seconds) =>
-      _set('carDisconnectRewind', seconds, notify: true);
   static Future<void> setKeepScreenOnInCarMode(bool value) =>
       _set('keepScreenOnCarMode', value, notify: true);
 
