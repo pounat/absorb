@@ -13485,6 +13485,66 @@ abstract class AppLocalizations {
   /// **'That destination is already used by \"{title}\".'**
   String adminUploadDestinationUsedBy(String title);
 
+  /// No description provided for @adminUploadAddToExistingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder already exists'**
+  String get adminUploadAddToExistingTitle;
+
+  /// No description provided for @adminUploadAddToExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'That folder belongs to \"{title}\". Add the files to it? The server picks them up on its next scan.'**
+  String adminUploadAddToExisting(String title);
+
+  /// No description provided for @adminUploadAddToExistingNoItem.
+  ///
+  /// In en, this message translates to:
+  /// **'That folder already exists on the server. Add the files to it?'**
+  String get adminUploadAddToExistingNoItem;
+
+  /// No description provided for @adminUploadAddToBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to an existing book'**
+  String get adminUploadAddToBook;
+
+  /// No description provided for @adminUploadAddToBookHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search this library'**
+  String get adminUploadAddToBookHint;
+
+  /// No description provided for @adminUploadNoBooksFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No books found'**
+  String get adminUploadNoBooksFound;
+
+  /// No description provided for @adminUploadAddingTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding files to \"{title}\"'**
+  String adminUploadAddingTo(String title);
+
+  /// No description provided for @adminUploadAddedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Added files to \"{title}\"'**
+  String adminUploadAddedTo(String title);
+
+  /// No description provided for @adminUploadTargetNoFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t find that book\'s folder on the server.'**
+  String get adminUploadTargetNoFolder;
+
+  /// No description provided for @adminUploadTargetFolderMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The server would put these files in \"{preview}\", not in that book\'s folder \"{folder}\". Nothing was uploaded.'**
+  String adminUploadTargetFolderMismatch(String preview, String folder);
+
   /// No description provided for @adminUploadUploading.
   ///
   /// In en, this message translates to:

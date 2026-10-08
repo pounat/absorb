@@ -1,10 +1,15 @@
+import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../services/book_search_index.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/overlay_toast.dart';
+import '../widgets/stackable_sheet.dart';
 
 typedef UploadFilePicker = Future<List<MediaUploadFile>?> Function();
 typedef UploadPathChecker =
@@ -125,6 +130,71 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
   int _metadataRequestId = 0;
   double? _progress;
   DateTime _lastProgressUpdate = DateTime.fromMillisecondsSinceEpoch(0);
+  // A book already on the server whose folder the files should join. The
+  // server only takes author, series and title, so they are filled from the
+  // book's real folder path and the fields lock until it is cleared.
+  _ExistingBook? _existingTarget;
+
+  Future<void> _pickExistingBook() async {
+    final api = widget.apiService;
+    final libraryId = _selectedLibraryId;
+    if (api == null || libraryId == null) return;
+    final l = AppLocalizations.of(context)!;
+    final picked = await showStackableSheet<Map<String, dynamic>>(
+      context: context,
+      showHandle: true,
+      useSafeArea: true,
+      initialChildSize: 0.92,
+      maxChildSize: 0.95,
+      builder: (_, __) => _ExistingBookPicker(api: api, libraryId: libraryId),
+    );
+    if (picked == null || !mounted) return;
+    final id = picked['id'] as String? ?? '';
+    final full = await api.getLibraryItem(id) ?? picked;
+    if (!mounted) return;
+    final relPath = (full['relPath'] as String? ?? picked['relPath'] as String? ?? '')
+        .replaceAll('\\', '/')
+        .replaceAll(RegExp(r'^/+|/+$'), '');
+    if (relPath.isEmpty) {
+      _showError(l.adminUploadTargetNoFolder);
+      return;
+    }
+    final metadata =
+        (full['media'] as Map<String, dynamic>?)?['metadata'] as Map<String, dynamic>? ?? {};
+    final title = metadata['title'] as String? ?? l.unknown;
+    final folderId = full['folderId'] as String? ?? picked['folderId'] as String?;
+    final parts = relPath.split('/');
+    // The server joins author, series and title; a shallower folder means
+    // the missing levels were empty, counted from the top.
+    String author = '', series = '', bookFolder = parts.last;
+    if (!_isPodcast) {
+      if (parts.length >= 3) {
+        author = parts[parts.length - 3];
+        series = parts[parts.length - 2];
+      } else if (parts.length == 2) {
+        author = parts[0];
+      }
+    }
+    setState(() {
+      _existingTarget = _ExistingBook(id: id, title: title, relPath: relPath);
+      _title.text = bookFolder;
+      _author.text = author;
+      _series.text = series;
+      if (folderId != null && _folders.any((f) => f['id']?.toString() == folderId)) {
+        _selectedFolderId = folderId;
+      }
+      _autoFetchMetadata = false;
+      _lastMetadataQuery = null;
+      if (_metadataSearching) {
+        _metadataRequestId++;
+        _metadataSearching = false;
+      }
+    });
+  }
+
+  void _clearExistingTarget() {
+    setState(() => _existingTarget = null);
+  }
 
   @override
   void initState() {
@@ -525,16 +595,48 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
       _showError(l.adminUploadPathCheckFailed);
       return;
     }
-    if (pathResult.exists) {
+    final target = _existingTarget;
+    if (target != null && !pathResult.exists) {
+      // The folder the server would build does not match the book's real
+      // one, usually a character it strips from names. Better a clear stop
+      // than a second copy of the book.
       setState(() => _uploading = false);
       widget.onNavigationGuardChanged?.call();
-      final existingTitle = pathResult.libraryItemTitle;
-      _showError(
-        existingTitle == null || existingTitle.isEmpty
-            ? l.adminUploadDestinationExists
-            : l.adminUploadDestinationUsedBy(existingTitle),
-      );
+      _showError(l.adminUploadTargetFolderMismatch(request.directory, target.relPath));
       return;
+    }
+    if (pathResult.exists && target == null) {
+      // The server happily writes into an existing folder, which is how an
+      // ebook joins an audiobook that is already there. Ask instead of
+      // refusing, since a slip here would merge two different books.
+      final existingTitle = pathResult.libraryItemTitle;
+      final addAnyway = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l.adminUploadAddToExistingTitle),
+          content: Text(
+            existingTitle == null || existingTitle.isEmpty
+                ? l.adminUploadAddToExistingNoItem
+                : l.adminUploadAddToExisting(existingTitle),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(l.adminUploadAddFiles),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (addAnyway != true) {
+        setState(() => _uploading = false);
+        widget.onNavigationGuardChanged?.call();
+        return;
+      }
     }
 
     final result = widget.uploader != null
@@ -542,7 +644,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
         : await api!.uploadMedia(request, onProgress: _updateProgress);
     if (!mounted) return;
 
-    final uploadedTitle = request.title;
+    final uploadedTitle = target?.title ?? request.title;
     final mustReselectFiles =
         !result.success &&
         _files.any(
@@ -560,6 +662,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
         _series.clear();
         _files = [];
         _lastMetadataQuery = null;
+        _existingTarget = null;
       } else if (mustReselectFiles) {
         _files = [];
       }
@@ -569,7 +672,9 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
     if (result.success) {
       showOverlayToast(
         context,
-        l.adminUploadComplete(uploadedTitle),
+        target != null
+            ? l.adminUploadAddedTo(uploadedTitle)
+            : l.adminUploadComplete(uploadedTitle),
         icon: Icons.check_circle_outline_rounded,
       );
     } else {
@@ -822,10 +927,55 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
             style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 14),
+          if (_existingTarget == null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: _uploading || _selectedLibraryId == null
+                    ? null
+                    : _pickExistingBook,
+                icon: const Icon(Icons.library_add_rounded, size: 18),
+                label: Text(l.adminUploadAddToBook),
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.library_add_rounded, size: 18, color: cs.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l.adminUploadAddingTo(_existingTarget!.title),
+                          style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          _existingTarget!.relPath,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _uploading ? null : _clearExistingTarget,
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
           TextFormField(
             key: AdminUploadScreen.titleFieldKey,
             controller: _title,
-            enabled: !_uploading,
+            enabled: !_uploading && _existingTarget == null,
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(labelText: l.title),
             validator: (value) => value == null || value.trim().isEmpty
@@ -840,7 +990,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
                 final author = TextFormField(
                   key: AdminUploadScreen.authorFieldKey,
                   controller: _author,
-                  enabled: !_uploading,
+                  enabled: !_uploading && _existingTarget == null,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: l.author,
@@ -851,7 +1001,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
                 final series = TextFormField(
                   key: AdminUploadScreen.seriesFieldKey,
                   controller: _series,
-                  enabled: !_uploading,
+                  enabled: !_uploading && _existingTarget == null,
                   decoration: InputDecoration(
                     labelText: l.seriesLabel,
                     hintText: l.adminUploadOptional,
@@ -872,8 +1022,10 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
                 );
               },
             ),
-            const SizedBox(height: 16),
-            _metadataControls(cs, tt, l),
+            if (_existingTarget == null) ...[
+              const SizedBox(height: 16),
+              _metadataControls(cs, tt, l),
+            ],
           ],
           if (destination != null) ...[
             const SizedBox(height: 14),
@@ -1131,6 +1283,199 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
           icon: Icon(Icons.expand_more_rounded, color: cs.onSurfaceVariant),
           items: items,
           onChanged: enabled ? onChanged : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _ExistingBook {
+  final String id;
+  final String title;
+  final String relPath;
+  const _ExistingBook({required this.id, required this.title, required this.relPath});
+}
+
+/// Search sheet that hands back the one book tapped.
+class _ExistingBookPicker extends StatefulWidget {
+  final ApiService api;
+  final String libraryId;
+  const _ExistingBookPicker({required this.api, required this.libraryId});
+
+  @override
+  State<_ExistingBookPicker> createState() => _ExistingBookPickerState();
+}
+
+class _ExistingBookPickerState extends State<_ExistingBookPicker> {
+  final _controller = TextEditingController();
+  Timer? _debounce;
+  List<Map<String, dynamic>> _results = [];
+  bool _searching = false;
+  bool _searched = false;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    final query = value.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _results = [];
+        _searched = false;
+        _searching = false;
+      });
+      return;
+    }
+    setState(() => _searching = true);
+    _debounce = Timer(const Duration(milliseconds: 400), () => _search(query));
+  }
+
+  Future<void> _search(String query) async {
+    final api = widget.api;
+    final index = BookSearchIndex();
+    List<Map<String, dynamic>> results = [];
+    try {
+      await index.ensureIndex(api, widget.libraryId);
+      if (!mounted || _controller.text.trim() != query) return;
+      if (index.isReady(widget.libraryId)) {
+        results = index.search(widget.libraryId, query).map((h) => h.item).toList();
+      }
+      if (results.isEmpty || index.isTruncated(widget.libraryId)) {
+        final server = await api.searchLibrary(widget.libraryId, query);
+        if (!mounted || _controller.text.trim() != query) return;
+        final seen = results.map((i) => i['id']).toSet();
+        for (final r in (server?['book'] as List<dynamic>? ?? const [])) {
+          final m = r as Map<String, dynamic>;
+          final item = (m['libraryItem'] as Map<String, dynamic>?) ?? m;
+          if (!seen.contains(item['id'])) results.add(item);
+        }
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _results = results;
+      _searching = false;
+      _searched = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.adminUploadAddToBook,
+                  style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _controller,
+                autofocus: true,
+                onChanged: _onChanged,
+                decoration: InputDecoration(
+                  hintText: l.adminUploadAddToBookHint,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _searching
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _searched && _results.isEmpty && !_searching
+              ? Center(
+                  child: Text(l.adminUploadNoBooksFound,
+                      style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  itemCount: _results.length,
+                  itemBuilder: (context, i) => _row(cs, tt, l, _results[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _row(ColorScheme cs, TextTheme tt, AppLocalizations l, Map<String, dynamic> item) {
+    final itemId = item['id'] as String? ?? '';
+    final metadata =
+        (item['media'] as Map<String, dynamic>?)?['metadata'] as Map<String, dynamic>? ?? {};
+    final title = metadata['title'] as String? ?? l.unknown;
+    final author = metadata['authorName'] as String? ?? '';
+    final relPath = item['relPath'] as String? ?? '';
+    final coverUrl = widget.api.getCoverUrl(itemId);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context).pop(item),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CachedNetworkImage(
+                    imageUrl: coverUrl,
+                    fit: BoxFit.cover,
+                    httpHeaders: widget.api.mediaHeaders,
+                    placeholder: (_, __) => ColoredBox(color: cs.surfaceContainerHighest),
+                    errorWidget: (_, __, ___) => ColoredBox(
+                      color: cs.surfaceContainerHighest,
+                      child: Icon(Icons.menu_book_rounded, color: cs.onSurfaceVariant),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    if (author.isNotEmpty)
+                      Text(author,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                    if (relPath.isNotEmpty)
+                      Text(relPath,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: tt.labelSmall?.copyWith(
+                              color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
+                  ],
+                ),
+              ),
+            ]),
+          ),
         ),
       ),
     );

@@ -7966,6 +7966,46 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get adminUploadAddToExistingTitle => 'Folder already exists';
+
+  @override
+  String adminUploadAddToExisting(String title) {
+    return 'That folder belongs to \"$title\". Add the files to it? The server picks them up on its next scan.';
+  }
+
+  @override
+  String get adminUploadAddToExistingNoItem =>
+      'That folder already exists on the server. Add the files to it?';
+
+  @override
+  String get adminUploadAddToBook => 'Add to an existing book';
+
+  @override
+  String get adminUploadAddToBookHint => 'Search this library';
+
+  @override
+  String get adminUploadNoBooksFound => 'No books found';
+
+  @override
+  String adminUploadAddingTo(String title) {
+    return 'Adding files to \"$title\"';
+  }
+
+  @override
+  String adminUploadAddedTo(String title) {
+    return 'Added files to \"$title\"';
+  }
+
+  @override
+  String get adminUploadTargetNoFolder =>
+      'Couldn\'t find that book\'s folder on the server.';
+
+  @override
+  String adminUploadTargetFolderMismatch(String preview, String folder) {
+    return 'The server would put these files in \"$preview\", not in that book\'s folder \"$folder\". Nothing was uploaded.';
+  }
+
+  @override
   String get adminUploadUploading => 'Wird hochgeladen...';
 
   @override

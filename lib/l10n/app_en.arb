@@ -4583,6 +4583,20 @@
   "adminUploadPathCheckFailed": "Couldn't check the destination folder. Nothing was uploaded.",
   "adminUploadDestinationExists": "That destination folder already exists on the server.",
   "adminUploadDestinationUsedBy": "That destination is already used by \"{title}\".",
+  "adminUploadAddToExistingTitle": "Folder already exists",
+  "adminUploadAddToExisting": "That folder belongs to \"{title}\". Add the files to it? The server picks them up on its next scan.",
+  "@adminUploadAddToExisting": { "placeholders": { "title": { "type": "String" } } },
+  "adminUploadAddToExistingNoItem": "That folder already exists on the server. Add the files to it?",
+  "adminUploadAddToBook": "Add to an existing book",
+  "adminUploadAddToBookHint": "Search this library",
+  "adminUploadNoBooksFound": "No books found",
+  "adminUploadAddingTo": "Adding files to \"{title}\"",
+  "@adminUploadAddingTo": { "placeholders": { "title": { "type": "String" } } },
+  "adminUploadAddedTo": "Added files to \"{title}\"",
+  "@adminUploadAddedTo": { "placeholders": { "title": { "type": "String" } } },
+  "adminUploadTargetNoFolder": "Couldn't find that book's folder on the server.",
+  "adminUploadTargetFolderMismatch": "The server would put these files in \"{preview}\", not in that book's folder \"{folder}\". Nothing was uploaded.",
+  "@adminUploadTargetFolderMismatch": { "placeholders": { "preview": { "type": "String" }, "folder": { "type": "String" } } },
   "@adminUploadDestinationUsedBy": {
     "placeholders": {
       "title": {
