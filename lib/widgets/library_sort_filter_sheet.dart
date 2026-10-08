@@ -356,6 +356,9 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
           (LibrarySort.alphabetical, l.name, Icons.sort_by_alpha_rounded),
           (LibrarySort.recentlyAdded, l.dateAdded, Icons.schedule_rounded),
           (LibrarySort.totalDuration, l.numberOfBooks, Icons.auto_stories_rounded),
+          (LibrarySort.seriesTotalDuration, l.sortTotalDuration, Icons.timer_outlined),
+          (LibrarySort.lastBookAdded, l.sortLastBookAdded, Icons.library_add_rounded),
+          (LibrarySort.lastBookUpdated, l.sortLastBookUpdated, Icons.update_rounded),
         ];
       case LibraryTab.authors:
         return [

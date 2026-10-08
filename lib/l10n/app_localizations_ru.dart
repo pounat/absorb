@@ -534,6 +534,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get numberOfBooks => 'Number of Books';
 
   @override
+  String get sortTotalDuration => 'Total duration';
+
+  @override
+  String get sortLastBookAdded => 'Last book added';
+
+  @override
+  String get sortLastBookUpdated => 'Last book updated';
+
+  @override
   String get publishedYear => 'Published Year';
 
   @override

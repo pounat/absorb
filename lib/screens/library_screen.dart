@@ -75,6 +75,9 @@ enum LibrarySort {
   sequence,
   random,
   totalDuration,
+  seriesTotalDuration,
+  lastBookAdded,
+  lastBookUpdated,
 }
 
 // ─── Filter modes ────────────────────────────────────────────
@@ -1156,7 +1159,12 @@ class LibraryScreenState extends State<LibraryScreen>
         break;
       case LibrarySort.duration:
       case LibrarySort.totalDuration:
+      case LibrarySort.seriesTotalDuration:
         sort = 'media.duration';
+        desc = _sortAsc ? 0 : 1;
+        break;
+      case LibrarySort.lastBookAdded:
+        sort = 'addedAt';
         desc = _sortAsc ? 0 : 1;
         break;
       case LibrarySort.fileSize:
@@ -1164,6 +1172,7 @@ class LibraryScreenState extends State<LibraryScreen>
         desc = _sortAsc ? 0 : 1;
         break;
       case LibrarySort.lastUpdated:
+      case LibrarySort.lastBookUpdated:
         sort = 'updatedAt';
         desc = _sortAsc ? 0 : 1;
         break;
@@ -1471,6 +1480,15 @@ class LibraryScreenState extends State<LibraryScreen>
         break;
       case LibrarySort.totalDuration:
         sort = 'numBooks';
+        break;
+      case LibrarySort.seriesTotalDuration:
+        sort = 'totalDuration';
+        break;
+      case LibrarySort.lastBookAdded:
+        sort = 'lastBookAdded';
+        break;
+      case LibrarySort.lastBookUpdated:
+        sort = 'lastBookUpdated';
         break;
       default:
         sort = 'name';

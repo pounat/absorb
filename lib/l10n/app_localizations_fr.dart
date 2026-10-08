@@ -541,6 +541,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get numberOfBooks => 'Nombre de livres';
 
   @override
+  String get sortTotalDuration => 'Total duration';
+
+  @override
+  String get sortLastBookAdded => 'Last book added';
+
+  @override
+  String get sortLastBookUpdated => 'Last book updated';
+
+  @override
   String get publishedYear => 'Année de publication';
 
   @override

@@ -527,6 +527,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get numberOfBooks => '书籍数量';
 
   @override
+  String get sortTotalDuration => 'Total duration';
+
+  @override
+  String get sortLastBookAdded => 'Last book added';
+
+  @override
+  String get sortLastBookUpdated => 'Last book updated';
+
+  @override
   String get publishedYear => '出版年份';
 
   @override

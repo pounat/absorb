@@ -539,6 +539,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get numberOfBooks => 'Anzahl Bücher';
 
   @override
+  String get sortTotalDuration => 'Total duration';
+
+  @override
+  String get sortLastBookAdded => 'Last book added';
+
+  @override
+  String get sortLastBookUpdated => 'Last book updated';
+
+  @override
   String get publishedYear => 'Erscheinungsjahr';
 
   @override

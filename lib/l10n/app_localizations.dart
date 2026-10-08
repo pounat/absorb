@@ -1054,6 +1054,24 @@ abstract class AppLocalizations {
   /// **'Number of Books'**
   String get numberOfBooks;
 
+  /// No description provided for @sortTotalDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Total duration'**
+  String get sortTotalDuration;
+
+  /// No description provided for @sortLastBookAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Last book added'**
+  String get sortLastBookAdded;
+
+  /// No description provided for @sortLastBookUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Last book updated'**
+  String get sortLastBookUpdated;
+
   /// No description provided for @publishedYear.
   ///
   /// In en, this message translates to:
