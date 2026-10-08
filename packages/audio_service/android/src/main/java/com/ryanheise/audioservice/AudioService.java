@@ -1,5 +1,7 @@
 package com.ryanheise.audioservice;
 
+import android.app.ActivityManager;
+import android.app.ApplicationExitInfo;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -9,7 +11,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioAttributes;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
+import android.media.AudioPlaybackConfiguration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -140,7 +145,153 @@ public class AudioService extends MediaBrowserServiceCompat {
         snapshot.put("lastPauseCallerAgeMs", lastPauseAt == 0 ? -1 : now - lastPauseAt);
         snapshot.put("carClientAgeMs", lastCarClientAt == 0 ? -1 : now - lastCarClientAt);
         snapshot.put("lastKeyPkg", lastMediaKeyPkg);
+        snapshot.put("route", describeActiveRoutes());
+        snapshot.put("outputs", describeExternalOutputs());
+        snapshot.put("musicVolume", describeMusicVolume());
+        snapshot.put("lastExit", lastExitInfo);
         return snapshot;
+    }
+
+    // Why the previous process of this app ended, from the system's own
+    // record, so a death with nothing in the log still has a reason.
+    private static volatile String lastExitInfo = "unread";
+
+    private void readLastExit() {
+        if (Build.VERSION.SDK_INT < 30) {
+            lastExitInfo = "n/a";
+            return;
+        }
+        try {
+            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            List<ApplicationExitInfo> exits = am.getHistoricalProcessExitReasons(getPackageName(), 0, 2);
+            if (exits.isEmpty()) {
+                lastExitInfo = "none";
+                return;
+            }
+            StringBuilder sb = new StringBuilder();
+            for (ApplicationExitInfo e : exits) {
+                if (sb.length() > 0) sb.append(" | ");
+                sb.append(exitReasonName(e.getReason()))
+                  .append(" at ").append(new java.util.Date(e.getTimestamp()))
+                  .append(" status=").append(e.getStatus())
+                  .append(" importance=").append(e.getImportance())
+                  .append(" rss=").append(e.getRss() / 1024).append("MB");
+                if (e.getDescription() != null) sb.append(" desc=\"").append(e.getDescription()).append('"');
+            }
+            lastExitInfo = sb.toString();
+        } catch (Exception ex) {
+            lastExitInfo = "err:" + ex.getClass().getSimpleName();
+        }
+    }
+
+    private static String exitReasonName(int reason) {
+        switch (reason) {
+            case ApplicationExitInfo.REASON_EXIT_SELF: return "exit-self";
+            case ApplicationExitInfo.REASON_SIGNALED: return "signaled";
+            case ApplicationExitInfo.REASON_LOW_MEMORY: return "low-memory";
+            case ApplicationExitInfo.REASON_CRASH: return "crash";
+            case ApplicationExitInfo.REASON_CRASH_NATIVE: return "native-crash";
+            case ApplicationExitInfo.REASON_ANR: return "anr";
+            case ApplicationExitInfo.REASON_INITIALIZATION_FAILURE: return "init-failure";
+            case ApplicationExitInfo.REASON_PERMISSION_CHANGE: return "permission-change";
+            case ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE: return "excessive-resource";
+            case ApplicationExitInfo.REASON_USER_REQUESTED: return "user-requested";
+            case ApplicationExitInfo.REASON_USER_STOPPED: return "user-stopped";
+            case ApplicationExitInfo.REASON_DEPENDENCY_DIED: return "dependency-died";
+            case ApplicationExitInfo.REASON_OTHER: return "other";
+            case ApplicationExitInfo.REASON_FREEZER: return "freezer";
+            case ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE: return "package-state-change";
+            case ApplicationExitInfo.REASON_PACKAGE_UPDATED: return "package-updated";
+            default: return "reason" + reason;
+        }
+    }
+
+    private static String deviceLabel(AudioDeviceInfo d) {
+        if (d == null) return "none";
+        CharSequence name = d.getProductName();
+        return deviceTypeName(d.getType()) + ":" + (name == null ? "?" : name);
+    }
+
+    private static String deviceTypeName(int type) {
+        switch (type) {
+            case AudioDeviceInfo.TYPE_BUILTIN_SPEAKER: return "speaker";
+            case AudioDeviceInfo.TYPE_BUILTIN_EARPIECE: return "earpiece";
+            case AudioDeviceInfo.TYPE_WIRED_HEADSET: return "wired-headset";
+            case AudioDeviceInfo.TYPE_WIRED_HEADPHONES: return "wired-headphones";
+            case AudioDeviceInfo.TYPE_USB_HEADSET: return "usb-headset";
+            case AudioDeviceInfo.TYPE_USB_DEVICE: return "usb";
+            case AudioDeviceInfo.TYPE_BLUETOOTH_A2DP: return "bt-a2dp";
+            case AudioDeviceInfo.TYPE_BLUETOOTH_SCO: return "bt-sco";
+            case AudioDeviceInfo.TYPE_HEARING_AID: return "hearing-aid";
+            case 26: return "ble-headset";
+            case 27: return "ble-speaker";
+            case 30: return "ble-broadcast";
+            case AudioDeviceInfo.TYPE_HDMI: return "hdmi";
+            case AudioDeviceInfo.TYPE_REMOTE_SUBMIX: return "remote-submix";
+            default: return "type" + type;
+        }
+    }
+
+    // Where the sound is going right now: every active media player on the
+    // device and the output it is routed to. The app's own player is the
+    // media one; other apps show up too, which is fine for a diagnostic.
+    private static String describeActiveRoutes() {
+        final AudioService svc = instance;
+        if (svc == null || Build.VERSION.SDK_INT < 31) return "n/a";
+        try {
+            final AudioManager am = (AudioManager) svc.getSystemService(Context.AUDIO_SERVICE);
+            final StringBuilder sb = new StringBuilder();
+            for (AudioPlaybackConfiguration c : am.getActivePlaybackConfigurations()) {
+                final AudioAttributes attrs = c.getAudioAttributes();
+                final int usage = attrs == null ? -1 : attrs.getUsage();
+                if (sb.length() > 0) sb.append(',');
+                sb.append("usage").append(usage).append("->").append(deviceLabel(c.getAudioDeviceInfo()));
+            }
+            return sb.length() == 0 ? "none" : sb.toString();
+        } catch (Exception e) {
+            return "err:" + e.getClass().getSimpleName();
+        }
+    }
+
+    // Media volume as "level/max" plus "muted" when the stream is muted, so a
+    // silent start can be told apart from the phone simply being turned down.
+    private static String describeMusicVolume() {
+        final AudioService svc = instance;
+        if (svc == null) return "n/a";
+        try {
+            final AudioManager am = (AudioManager) svc.getSystemService(Context.AUDIO_SERVICE);
+            String s = am.getStreamVolume(AudioManager.STREAM_MUSIC) + "/"
+                    + am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+            if (Build.VERSION.SDK_INT >= 23 && am.isStreamMute(AudioManager.STREAM_MUSIC)) s += " muted";
+            return s;
+        } catch (Exception e) {
+            return "err:" + e.getClass().getSimpleName();
+        }
+    }
+
+    // Headsets, speakers and cars the phone could send audio to, beyond its
+    // own speaker. Bluetooth here while the user hears nothing is the ghost
+    // route fingerprint.
+    private static String describeExternalOutputs() {
+        final AudioService svc = instance;
+        if (svc == null || Build.VERSION.SDK_INT < 23) return "n/a";
+        try {
+            final AudioManager am = (AudioManager) svc.getSystemService(Context.AUDIO_SERVICE);
+            final StringBuilder sb = new StringBuilder();
+            for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+                final int t = d.getType();
+                if (t == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                        || t == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+                        || t == AudioDeviceInfo.TYPE_TELEPHONY
+                        || t == AudioDeviceInfo.TYPE_REMOTE_SUBMIX
+                        || t == AudioDeviceInfo.TYPE_FM) continue;
+                if (sb.length() > 0) sb.append(',');
+                sb.append(deviceLabel(d));
+            }
+            return sb.length() == 0 ? "none" : sb.toString();
+        } catch (Exception e) {
+            return "err:" + e.getClass().getSimpleName();
+        }
     }
 
     public static void init(ServiceListener listener) {
@@ -365,6 +516,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     public void onCreate() {
         super.onCreate();
         instance = this;
+        readLastExit();
         // Absorb patch: if this is a recreated service (a previous instance's
         // onDestroy nulled the listener), re-register the existing handler so
         // media buttons keep routing to Dart instead of being dropped in

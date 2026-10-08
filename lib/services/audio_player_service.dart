@@ -114,7 +114,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       'keyCode=${snap['lastKeyCode']} keyAgeMs=${snap['lastKeyAgeMs']} '
       'lastPlayCaller=${snap['lastPlayCaller']} playAgeMs=${snap['lastPlayCallerAgeMs']} '
       'lastPauseCaller=${snap['lastPauseCaller']} pauseAgeMs=${snap['lastPauseCallerAgeMs']} '
-      'carClientAgeMs=${snap['carClientAgeMs']} keyPkg=${snap['lastKeyPkg']}',
+      'carClientAgeMs=${snap['carClientAgeMs']} keyPkg=${snap['lastKeyPkg']} '
+      'route=[${snap['route']}] outputs=[${snap['outputs']}]',
     );
   }
 
@@ -305,7 +306,12 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
             '[Player] playbackEvent error - too many rapid failures, stopping re-subscribe: $e',
           );
           if (PlaybackErrorPolicy.shouldRetryWithTranscode(e)) {
-            AudioPlayerService()._retryWithTranscode();
+            final service = AudioPlayerService();
+            if (service._localSessionMode) {
+              service._recoverLocalPlayback(e);
+            } else {
+              service._retryWithTranscode();
+            }
           }
         }
       },
@@ -2543,6 +2549,14 @@ class AudioPlayerService extends ChangeNotifier {
   /// we can tell apart "player thinks it's playing but no audio reaches
   /// speakers" from "player is buffering forever" from "wrong output
   /// route" etc.
+  /// The system's record of how the last process ended, for deaths the log
+  /// itself cannot see coming.
+  static Future<void> _reportPreviousExit() async {
+    final snap = await AudioPlayerHandler._absorbDiagSnapshot();
+    final info = snap?['lastExit'];
+    if (info != null) debugPrint('[Init] Previous process exit: $info');
+  }
+
   Future<void> _logAudioDiagnostics(String stage) async {
     try {
       final p = _player;
@@ -2561,6 +2575,18 @@ class AudioPlayerService extends ChangeNotifier {
         'item=$_currentItemId',
         'ep=$_currentEpisodeId',
       ];
+
+      if (Platform.isAndroid) {
+        // Which output the sound is actually leaving through. A player that
+        // advances with nothing audible and a Bluetooth route here means the
+        // audio went to a device the listener was not wearing.
+        final snap = await AudioPlayerHandler._absorbDiagSnapshot();
+        if (snap != null) {
+          pieces.add('route=[${snap['route']}]');
+          pieces.add('outputs=[${snap['outputs']}]');
+          pieces.add('musicVol=${snap['musicVolume']}');
+        }
+      }
 
       if (Platform.isIOS) {
         try {
@@ -2918,6 +2944,7 @@ class AudioPlayerService extends ChangeNotifier {
       _handler!._cachedLockSeekBar = await PlayerSettings.getLockSeekBar();
       debugPrint('[Player] AudioService initialized');
       if (Platform.isIOS) unawaited(_reportPreviousBackgroundDeath());
+      if (Platform.isAndroid) unawaited(_reportPreviousExit());
       unawaited(TranscriptionService.instance.reportInterruptedRun());
       // Configure streaming cache if enabled
       final cacheSizeMb = await PlayerSettings.getStreamingCacheSizeMb();
@@ -5186,6 +5213,44 @@ class AudioPlayerService extends ChangeNotifier {
 
   bool _transcodeRetryInFlight = false;
 
+  // Set when the player failed while paused; the next play rebuilds it
+  // instead of trusting its position or its decoder.
+  bool _playerBroken = false;
+
+  /// A downloaded book needs no server to come back from a decoder failure.
+  /// Android can take the decoder away from a paused app, which surfaces as
+  /// a renderer error; the file is fine. Playing: start over where it was.
+  /// Paused: leave it alone and rebuild on the next play, from the saved
+  /// position, so the error can't send the book back to the beginning.
+  Future<void> _recoverLocalPlayback(Object e) async {
+    if (_currentItemId == null || _api == null) return;
+    final wasPlaying = _player?.playing ?? false;
+    final startS = position.inMilliseconds / 1000.0;
+    debugPrint(
+      '[Player] Decoder failed on a local book at ${startS.toStringAsFixed(1)}s '
+      '(playing=$wasPlaying) - '
+      '${wasPlaying ? "restarting from there" : "rebuilding on the next play"}: $e',
+    );
+    if (!wasPlaying) {
+      _playerBroken = true;
+      return;
+    }
+    await playItem(
+      api: _api!,
+      itemId: _currentItemId!,
+      title: _currentTitle ?? '',
+      author: _currentAuthor ?? '',
+      coverUrl: _currentCoverUrl,
+      totalDuration: _totalDuration,
+      chapters: _chapters,
+      startTime: startS,
+      forceStartTime: startS > 0,
+      episodeId: _currentEpisodeId,
+      episodeTitle: _currentEpisodeTitle,
+      libraryId: _currentLibraryId,
+    );
+  }
+
   Future<void> _retryWithTranscode() async {
     if (_transcodeRetryInFlight) return;
     _transcodeRetryInFlight = true;
@@ -7020,7 +7085,10 @@ class AudioPlayerService extends ChangeNotifier {
           settings.maxRewind,
           activationDelay: settings.activationDelay,
         );
-        if (rewindSeconds > 0.5) {
+        // A player sitting at zero has lost its place (an error reset it);
+        // rewinding from there would only seek to the start on top of
+        // whatever the server check just restored.
+        if (rewindSeconds > 0.5 && position > Duration.zero) {
           final currentAbsolutePos = position.inMilliseconds / 1000.0;
           final currentSpeed = _player!.speed;
           var newPosSeconds =
@@ -7052,16 +7120,64 @@ class AudioPlayerService extends ChangeNotifier {
         }
       }
     }
+    final pausedFor = _lastPauseTime == null
+        ? null
+        : DateTime.now().difference(_lastPauseTime!);
     _lastPauseTime = null;
     // Reset server sync clock so the first sync after resume doesn't
     // include pause duration as timeListened
     _lastServerSync = DateTime.now();
     _lastAccrual = DateTime.now();
     _lastAccrualPos = null;
-    // Re-activate audio session in case a prior stop released it.
+    // Re-activate audio session in case a prior stop released it. The answer
+    // is the audio focus request: a refusal here on a resume from the
+    // background is a lead when the book then plays without sound.
     try {
-      (await AudioSession.instance).setActive(true);
-    } catch (_) {}
+      final activated = await (await AudioSession.instance).setActive(true);
+      debugPrint('[Player] Resume setActive(true)=$activated '
+          '(paused ${pausedFor?.inSeconds ?? '?'}s)');
+    } catch (e) {
+      debugPrint('[Player] Resume setActive(true) failed: $e');
+    }
+    // Android: a player left paused past the pause timeout comes back with
+    // the position moving and nothing audible, and only a rebuilt player
+    // sounds again. Rebuild it at the position the resume settled on, which
+    // already includes the auto rewind, so nothing seeks once audio starts.
+    final longPause = pausedFor != null && pausedFor >= _pauseStopTimeout;
+    if ((Platform.isAndroid && longPause || _playerBroken) &&
+        _player?.processingState != ProcessingState.idle &&
+        _currentItemId != null &&
+        _api != null) {
+      final why = _playerBroken
+          ? 'Player failed while paused'
+          : 'Long pause (${pausedFor!.inSeconds}s)';
+      _playerBroken = false;
+      // A position of zero means the player lost its place; the start then
+      // comes from the saved progress instead of being forced to the top.
+      final startS = position.inMilliseconds / 1000.0;
+      debugPrint(
+        '[Player] $why - rebuilding the player '
+        '${startS > 0 ? "at ${startS.toStringAsFixed(1)}s" : "from the saved position"} '
+        'instead of resuming it',
+      );
+      _logEvent(PlaybackEventType.play, detail: '$logDetail (rebuilt: $why)');
+      unawaited(playItem(
+        api: _api!,
+        itemId: _currentItemId!,
+        title: _currentTitle ?? '',
+        author: _currentAuthor ?? '',
+        coverUrl: _currentCoverUrl,
+        totalDuration: _totalDuration,
+        chapters: _chapters,
+        startTime: startS,
+        forceStartTime: startS > 0,
+        episodeId: _currentEpisodeId,
+        episodeTitle: _currentEpisodeTitle,
+        libraryId: _currentLibraryId,
+        fromUi: fromUi,
+      ));
+      return;
+    }
     // If the player is idle (source was disposed), we need to fully re-initialize
     // playback instead of just calling play() on an empty player.
     if (_player?.processingState == ProcessingState.idle &&
