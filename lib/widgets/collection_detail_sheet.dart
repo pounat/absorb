@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../services/player_settings.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'overlay_toast.dart';
@@ -66,6 +67,21 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
   List<Map<String, dynamic>>? _editItems;
   final Set<String> _selectedItemIds = {};
   bool _isRemovingSelected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Same list or grid choice as the Home section sheets, so the view you
+    // picked last time comes back instead of the list every time.
+    PlayerSettings.getSectionGridView().then((v) {
+      if (mounted && v != _gridView) setState(() => _gridView = v);
+    });
+  }
+
+  void _toggleGridView() {
+    setState(() => _gridView = !_gridView);
+    PlayerSettings.setSectionGridView(_gridView);
+  }
 
   void _openAddBooks(LibraryProvider lib, Map<String, dynamic> collection,
       String name, List<dynamic> books) {
@@ -285,7 +301,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                   : l.turnAutoDownloadOn),
             _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
-              () => setState(() => _gridView = !_gridView)),
+              _toggleGridView),
             if (canEditCollection)
               _headerIconButton(cs, Icons.edit_rounded, () => _startEdit(books),
                 tooltip: l.edit),
