@@ -57,7 +57,6 @@
   "loginApiKey": "API 密钥",
   "loginApiKeyDescription": "使用管理员生成的 API 密钥代替用户名/密码。当账号的令牌刷新失败时很有用。",
   "loginWaitingForSso": "正在等待单点登录(SSO)...",
-  "loginRedirectUri": "重定向 URI: audiobookshelf://oauth",
   "loginOrSignInManually": "或手动登录",
   "loginUsername": "用户名",
   "loginUsernameRequired": "请输入用户名",
