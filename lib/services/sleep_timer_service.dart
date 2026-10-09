@@ -106,7 +106,7 @@ class SleepTimerService extends ChangeNotifier {
   // certainly still playing, and _triggerSleep's cast branch below knows how
   // to apply the pause once the reconnect lands.
   bool get _isPlaybackActive =>
-      _player.isPlaying || _cast.isPlaying || _cast.isReconnecting;
+      _player.isPlaying || _cast.isReceiverActive || _cast.isReconnecting;
 
   // ── State ──
   SleepTimerMode _mode = SleepTimerMode.off;

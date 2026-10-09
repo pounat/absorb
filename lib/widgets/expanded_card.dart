@@ -765,7 +765,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                 final isDownloaded = DownloadService().isDownloaded(dlKey);
                                 final castService = ChromecastService();
                                 final isCastingThis = castService.isCasting && castService.castingItemId == _itemId;
-                                final coverPlaying = isCastingThis ? castService.isPlaying : (_isActive && widget.player.isPlaying);
+                                final coverPlaying = isCastingThis ? castService.isReceiverActive : (_isActive && widget.player.isPlaying);
                                 final coverLoading = _isStarting || (_isActive && widget.player.isLoadingOrBuffering);
                                 return Center(child: Column(
                                   mainAxisSize: MainAxisSize.min,
