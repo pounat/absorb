@@ -71,7 +71,6 @@
   "loginApiKey": "Clé API",
   "loginApiKeyDescription": "Utiliser une clé API générée par l’administrateur plutôt qu’un nom d’utilisateur et un mot de passe. Utile lorsque le rafraîchissement du jeton échoue pour votre compte.",
   "loginWaitingForSso": "En attente du SSO...",
-  "loginRedirectUri": "URI de redirection : audiobookshelf://oauth",
   "loginOrSignInManually": "ou se connecter manuellement",
   "loginUsername": "Utilisateur",
   "loginUsernameRequired": "Entrez votre nom d'utilisateur",
