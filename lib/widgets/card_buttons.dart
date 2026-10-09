@@ -97,14 +97,17 @@ class _PressableState extends State<Pressable> {
 }
 
 /// Show a toast when the user taps a button that requires active playback.
-/// The card's Keep screen on button: holds the screen while the player is up
-/// and playing, until the app is closed. With the Settings switch on it only
-/// says so.
+/// The card's Keep screen on button: holds the screen while the player is up,
+/// until the app is closed. With the Settings switch on, the button switches
+/// it off for this run only; the next launch follows Settings again.
 void toggleKeepScreenOn(BuildContext context) {
   final l = AppLocalizations.of(context)!;
   if (PlayerScreenWake.always) {
-    showOverlayToast(context, l.keepScreenOnAlwaysHint,
-        icon: Icons.lightbulb_rounded);
+    final off = !PlayerScreenWake.sessionOff.value;
+    PlayerScreenWake.sessionOff.value = off;
+    showOverlayToast(context,
+        off ? l.keepScreenOnOffUntilRestart : l.keepScreenOnUntilClosed,
+        icon: off ? Icons.lightbulb_outline_rounded : Icons.lightbulb_rounded);
     return;
   }
   final on = !PlayerScreenWake.sessionOn.value;
@@ -198,6 +201,9 @@ class MoreMenuItem extends StatelessWidget {
   final String label;
   final Color accent;
   final bool enabled;
+  // A toggle that is currently on: the pill lights up in the accent so the
+  // state shows before you press it.
+  final bool active;
   final VoidCallback onTap;
 
   const MoreMenuItem({
@@ -205,10 +211,12 @@ class MoreMenuItem extends StatelessWidget {
     required this.icon, required this.label,
     required this.accent, required this.onTap,
     this.enabled = true,
+    this.active = false,
   });
 
   @override Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ink = _inkAccent(accent);
     // Grid pill: centered icon over a short label, fills its (fixed-height)
     // grid cell. Matches the book menu's quick-actions pills. The loose
     // Flexible lets a long label ellipsise inside the cell at big font scales.
@@ -217,21 +225,28 @@ class MoreMenuItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHigh,
+          color: active ? ink.withValues(alpha: _inkAlpha(0.18, 0.0)) : cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+          border: Border.all(
+            color: active
+                ? ink.withValues(alpha: _inkAlpha(0.6, 1.0))
+                : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55)),
+            width: active ? 1.5 : 1,
+          ),
         ),
         child: Column(mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(icon, size: 22, color: enabled
-              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.85, 1.0))
+              ? ink.withValues(alpha: _inkAlpha(active ? 1.0 : 0.85, 1.0))
               : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))),
           const SizedBox(height: 7),
           Flexible(child: Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: enabled
-                  ? cs.onSurface.withValues(alpha: _inkAlpha(0.85, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)),
-              fontSize: 11, fontWeight: FontWeight.w500, height: 1.15))),
+              color: !enabled
+                  ? cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))
+                  : active
+                      ? ink
+                      : cs.onSurface.withValues(alpha: _inkAlpha(0.85, 1.0)),
+              fontSize: 11, fontWeight: active ? FontWeight.w700 : FontWeight.w500, height: 1.15))),
         ]),
       ),
     );
@@ -2056,11 +2071,12 @@ class CardActionDelegate {
           onTap: () { Navigator.pop(ctx); openCarMode(context); },
         );
       case 'wake':
+        final wakeOn = PlayerScreenWake.wanted.value;
         return MoreMenuItem(
-          icon: PlayerScreenWake.wanted.value
-              ? Icons.lightbulb_rounded
-              : Icons.lightbulb_outline_rounded,
-          label: l.keepScreenOn, accent: accent,
+          icon: wakeOn ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded,
+          label: wakeOn ? l.keepScreenOnActive : l.keepScreenOn,
+          accent: accent,
+          active: wakeOn,
           onTap: () { Navigator.pop(ctx); toggleKeepScreenOn(context); },
         );
       case 'notes':

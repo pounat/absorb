@@ -9112,6 +9112,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get keepScreenOn => 'Keep screen on';
 
   @override
+  String get keepScreenOnActive => 'Screen stays on';
+
+  @override
   String get keepScreenOnUntilClosed =>
       'Screen stays on until you close the app';
 
@@ -9119,7 +9122,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get keepScreenOnOff => 'Screen can turn off again';
 
   @override
-  String get keepScreenOnAlwaysHint => 'Already on in Settings';
+  String get keepScreenOnOffUntilRestart =>
+      'Off until the app restarts. The Settings switch stays on';
 
   @override
   String get keepScreenOnPlayer => 'Keep the screen on in the player';

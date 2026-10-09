@@ -15687,6 +15687,12 @@ abstract class AppLocalizations {
   /// **'Keep screen on'**
   String get keepScreenOn;
 
+  /// No description provided for @keepScreenOnActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen stays on'**
+  String get keepScreenOnActive;
+
   /// No description provided for @keepScreenOnUntilClosed.
   ///
   /// In en, this message translates to:
@@ -15699,11 +15705,11 @@ abstract class AppLocalizations {
   /// **'Screen can turn off again'**
   String get keepScreenOnOff;
 
-  /// No description provided for @keepScreenOnAlwaysHint.
+  /// No description provided for @keepScreenOnOffUntilRestart.
   ///
   /// In en, this message translates to:
-  /// **'Already on in Settings'**
-  String get keepScreenOnAlwaysHint;
+  /// **'Off until the app restarts. The Settings switch stays on'**
+  String get keepScreenOnOffUntilRestart;
 
   /// No description provided for @keepScreenOnPlayer.
   ///

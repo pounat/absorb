@@ -39,6 +39,9 @@ class PlayerScreenWake {
   static final covered = ValueNotifier<bool>(false);
   /// What the card's button shows: the switch or the session toggle.
   static final wanted = ValueNotifier<bool>(false);
+  // The card button switching the Settings choice off for this run only;
+  // the next launch follows Settings again.
+  static final sessionOff = ValueNotifier<bool>(false);
   static bool _always = false;
   static bool _started = false;
 
@@ -48,6 +51,7 @@ class PlayerScreenWake {
     if (_started) return;
     _started = true;
     sessionOn.addListener(_sync);
+    sessionOff.addListener(_sync);
     onScreen.addListener(_sync);
     covered.addListener(_sync);
     PlayerSettings.settingsChanged.addListener(_reload);
@@ -55,12 +59,16 @@ class PlayerScreenWake {
   }
 
   static Future<void> _reload() async {
-    _always = await PlayerSettings.getKeepScreenOnInPlayer();
+    final always = await PlayerSettings.getKeepScreenOnInPlayer();
+    // Flipping the switch in Settings is a fresh decision, so a card-button
+    // override from before it no longer applies.
+    if (always != _always) sessionOff.value = false;
+    _always = always;
     _sync();
   }
 
   static void _sync() {
-    wanted.value = _always || sessionOn.value;
+    wanted.value = (_always && !sessionOff.value) || sessionOn.value;
     ScreenWake.hold('player', wanted.value && onScreen.value && !covered.value);
   }
 }
