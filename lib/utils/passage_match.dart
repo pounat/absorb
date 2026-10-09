@@ -249,7 +249,7 @@ String _snapToSentences(String text, int start, int end) {
       s = i + 1;
       break;
     }
-    if (c == '.' || c == '!' || c == '?') {
+    if (c == '.' || c == '!' || c == '?' || c == '\u2026') {
       s = i + 1;
       break;
     }
@@ -257,7 +257,7 @@ String _snapToSentences(String text, int start, int end) {
   final maxE = (end + 260).clamp(0, text.length);
   for (var i = end; i < maxE; i++) {
     final c = text[i];
-    if (c == '.' || c == '!' || c == '?') {
+    if (c == '.' || c == '!' || c == '?' || c == '\u2026') {
       var j = i + 1;
       while (j < text.length && const ['"', "'", '”', '’'].contains(text[j])) {
         j++;

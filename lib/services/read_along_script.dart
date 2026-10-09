@@ -224,9 +224,13 @@ const String _body = r'''
   // "e.g." and "U.S." stay inside one sentence.
   RA.isTerm = function(raw, i) {
     var ch = raw[i];
-    if (ch !== '.' && ch !== '!' && ch !== '?') return false;
+    var dash = ch === '\u2014';
+    if (ch !== '.' && ch !== '!' && ch !== '?' && ch !== '\u2026' && !dash) return false;
     var j = i + 1;
     while (j < raw.length && '"\'”’)]'.indexOf(raw[j]) !== -1) j++;
+    // An em dash only ends a sentence when it closes a quote at the end of
+    // the paragraph; mid-sentence dashes stay inside it.
+    if (dash) return j > i + 1 && (j >= raw.length || raw[j] === '\n');
     return j >= raw.length || /\s/.test(raw[j]);
   };
 
