@@ -874,7 +874,7 @@ class ApiService {
           if (!kIsWeb) 'User-Agent': userAgent,
         },
         body: jsonEncode({'username': username, 'password': password}),
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         return (jsonDecode(response.body) as Map<String, dynamic>, 200);
