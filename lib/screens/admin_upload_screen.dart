@@ -927,7 +927,9 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
             style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 14),
-          if (_existingTarget == null)
+          // BookOrbit items carry file names, not a folder path, so the
+          // picker cannot aim an upload there.
+          if (_existingTarget == null && widget.apiService?.isBookOrbit != true)
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
