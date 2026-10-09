@@ -69,7 +69,7 @@
   "loginApiKey": "API Key",
   "loginApiKeyDescription": "Use an admin-generated API key instead of username/password. Useful when token refresh fails for your account.",
   "loginWaitingForSso": "Waiting for SSO...",
-  "loginRedirectUri": "Redirect URI: audiobookshelf://oauth",
+  "loginRedirectUri": "Redirect URI: absorb://oauth",
   "loginOrSignInManually": "or sign in manually",
   "loginUsername": "Username",
   "loginUsernameRequired": "Please enter your username",

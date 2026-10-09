@@ -54,11 +54,20 @@
             android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
             android:exported="true"
             android:taskAffinity="">
+            <!-- Audiobookshelf sign-in returns to absorb://oauth; the host keeps
+                 absorb://setup links with MainActivity. BookOrbit keeps its own
+                 scheme in a filter of its own, since a host here would apply
+                 to it too. -->
             <intent-filter android:label="flutter_web_auth_2">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="audiobookshelf" />
+                <data android:scheme="absorb" android:host="oauth" />
+            </intent-filter>
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="bookorbit" />
             </intent-filter>
         </activity>

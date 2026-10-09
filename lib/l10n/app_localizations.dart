@@ -505,7 +505,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginRedirectUri.
   ///
   /// In en, this message translates to:
-  /// **'Redirect URI: audiobookshelf://oauth'**
+  /// **'Redirect URI: absorb://oauth'**
   String get loginRedirectUri;
 
   /// No description provided for @loginOrSignInManually.

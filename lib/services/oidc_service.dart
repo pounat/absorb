@@ -41,7 +41,12 @@ class OidcService {
   bool _lastWasUserCancel = false;
   bool get lastWasUserCancel => _lastWasUserCancel;
 
-  static const _redirectUri = 'audiobookshelf://oauth';
+  // Absorb's own return address. The official app's audiobookshelf://oauth
+  // was shared with it before, and Android hands a shared scheme to whichever
+  // app answers first. A server allows this one under Settings > Authentication
+  // > Mobile redirect URIs, so a rejection gets its own message below.
+  static const _redirectUri = 'absorb://oauth';
+  static const redirectUri = _redirectUri;
   static const _clientId = 'Audiobookshelf-App';
 
   /// Generate a cryptographically random string of [length] bytes, base64url-encoded.
@@ -119,6 +124,13 @@ class OidcService {
         } else {
           final body = await response.transform(utf8.decoder).join();
           debugPrint('[OIDC] Unexpected status ${response.statusCode}: $body');
+          if (body.contains('Invalid redirect_uri')) {
+            _lastError = 'This server does not allow $_redirectUri yet. '
+                'Ask its admin to add it under Settings > Authentication > '
+                'Mobile redirect URIs in Audiobookshelf.';
+            _cleanup();
+            return null;
+          }
           // Truncate body to keep the snackbar readable.
           final preview = body.length > 200 ? '${body.substring(0, 200)}…' : body;
           _lastError = 'Server returned HTTP ${response.statusCode} from /auth/openid '
@@ -147,7 +159,7 @@ class OidcService {
     }
 
     debugPrint('[OIDC] Opening Custom Tab for: $providerUrl');
-    return _openBrowser(providerUrl, 'audiobookshelf');
+    return _openBrowser(providerUrl, 'absorb');
   }
 
   /// BookOrbit only takes this return address from an app (unless its admin
