@@ -2,7 +2,7 @@
 /// the same commit as the version bump for each beta. Full releases use an
 /// even patch number and never show it, so a stale value can't leak into a
 /// stable build - it only has to be right during a beta cycle.
-const int kBetaNumber = 8;
+const int kBetaNumber = 9;
 
 /// The beta number to show for [version] (`1.9.3+240` or `1.9.3`), or null
 /// when this isn't a beta build. Odd patch = beta cycle, even = full release.
