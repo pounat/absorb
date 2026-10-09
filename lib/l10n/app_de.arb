@@ -61,7 +61,6 @@
   "loginApiKey": "API-Schlüssel",
   "loginApiKeyDescription": "Verwende einen vom Admin generierten API-Schlüssel statt Benutzername/Passwort. Praktisch, wenn die Token-Erneuerung für dein Konto fehlschlägt.",
   "loginWaitingForSso": "Warte auf SSO...",
-  "loginRedirectUri": "Redirect-URI: audiobookshelf://oauth",
   "loginOrSignInManually": "oder manuell anmelden",
   "loginUsername": "Benutzername",
   "loginUsernameRequired": "Bitte gib deinen Benutzernamen ein",
