@@ -63,7 +63,6 @@
   "loginAdvanced": "Расширенные",
   "loginApiKey": "Ключ API",
   "loginWaitingForSso": "Ожидаем SSO...",
-  "loginRedirectUri": "Redirect URI: audiobookshelf://oauth",
   "loginOrSignInManually": "или войти вручную",
   "loginUsername": "Логин",
   "loginUsernameRequired": "Пожалуйста, введите логин",
