@@ -14223,6 +14223,24 @@ abstract class AppLocalizations {
   /// **'Line Spacing'**
   String get readerLineSpacing;
 
+  /// No description provided for @readerTextAlignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Alignment'**
+  String get readerTextAlignment;
+
+  /// No description provided for @readerAlignJustified.
+  ///
+  /// In en, this message translates to:
+  /// **'Justified'**
+  String get readerAlignJustified;
+
+  /// No description provided for @readerAlignLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get readerAlignLeft;
+
   /// No description provided for @readerSideMargins.
   ///
   /// In en, this message translates to:

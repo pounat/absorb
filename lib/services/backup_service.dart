@@ -327,6 +327,7 @@ class BackupService {
     final ereader = <String, dynamic>{
       'fontSize': await ScopedPrefs.getInt('ereader_fontSize'),
       'lineHeight': await ScopedPrefs.getDouble('ereader_lineHeight'),
+      'alignLeft': await ScopedPrefs.getBool('ereader_alignLeft'),
       'marginH': await ScopedPrefs.getInt('ereader_margin_h'),
       'marginV': await ScopedPrefs.getInt('ereader_margin_v'),
       'spread': await ScopedPrefs.getInt('ereader_spread'),
@@ -1001,6 +1002,7 @@ class BackupService {
     if (er != null) {
       if (er['fontSize'] != null) await ScopedPrefs.setInt('ereader_fontSize', er['fontSize'] as int);
       if (er['lineHeight'] != null) await ScopedPrefs.setDouble('ereader_lineHeight', (er['lineHeight'] as num).toDouble());
+      if (er['alignLeft'] != null) await ScopedPrefs.setBool('ereader_alignLeft', er['alignLeft'] as bool);
       if (er['marginH'] != null) await ScopedPrefs.setInt('ereader_margin_h', er['marginH'] as int);
       if (er['marginV'] != null) await ScopedPrefs.setInt('ereader_margin_v', er['marginV'] as int);
       if (er['spread'] != null) await ScopedPrefs.setInt('ereader_spread', er['spread'] as int);

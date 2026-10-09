@@ -8304,6 +8304,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get readerLineSpacing => 'Interligne';
 
   @override
+  String get readerTextAlignment => 'Alignment';
+
+  @override
+  String get readerAlignJustified => 'Justified';
+
+  @override
+  String get readerAlignLeft => 'Left';
+
+  @override
   String get readerSideMargins => 'Marges latérales';
 
   @override

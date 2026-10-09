@@ -232,6 +232,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // Reader settings
   int _fontSize = 16;
   double _lineHeight = 1.4;
+  // Books justify their text by default; on a narrow screen that opens wide
+  // gaps between words, so the reader can force a ragged right edge.
+  bool _alignLeft = false;
   int _marginH = 16; // left + right
   String _volumeNavMode = 'off';
   bool _volumeNavWhilePlaying = false;
@@ -266,6 +269,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   static const _kFontSize = 'ereader_fontSize';
   static const _kLineHeight = 'ereader_lineHeight';
+  static const _kAlignLeft = 'ereader_alignLeft';
   static const _kMargin = 'ereader_margin'; // legacy single margin (migrated)
   static const _kMarginH = 'ereader_margin_h';
   static const _kMarginV = 'ereader_margin_v';
@@ -455,6 +459,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   Future<void> _loadSettings() async {
     _fontSize = await ScopedPrefs.getInt(_kFontSize) ?? 16;
     _lineHeight = await ScopedPrefs.getDouble(_kLineHeight) ?? 1.4;
+    _alignLeft = await ScopedPrefs.getBool(_kAlignLeft) ?? false;
     final legacyMargin = await ScopedPrefs.getInt(_kMargin) ?? 16;
     _marginH = await ScopedPrefs.getInt(_kMarginH) ?? legacyMargin;
     _marginV = await ScopedPrefs.getInt(_kMarginV) ?? legacyMargin;
@@ -592,6 +597,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       'will-change': 'scroll-position',
     };
     final textRule = <String, String>{'color': 'inherit !important'};
+    if (_alignLeft) {
+      body['text-align'] = 'left !important';
+      textRule['text-align'] = 'left !important';
+      textRule['text-align-last'] = 'left !important';
+    }
     if (font.family.isNotEmpty) {
       final fam = font.downloadable ? '"${font.family}"' : font.family;
       body['font-family'] = '$fam !important';
@@ -624,6 +634,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     setState(() => _lineHeight = height);
     _applySettings();
     await ScopedPrefs.setDouble(_kLineHeight, height);
+  }
+
+  Future<void> _updateAlignLeft(bool left) async {
+    setState(() => _alignLeft = left);
+    _applySettings();
+    await ScopedPrefs.setBool(_kAlignLeft, left);
   }
 
   Future<void> _updateMarginH(int margin) async {
@@ -1598,6 +1614,28 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                     _updateLineHeight(double.parse(v.toStringAsFixed(1)));
                   },
                 ),
+                const SizedBox(height: 8),
+
+                // Text alignment
+                Row(children: [
+                  Icon(Icons.format_align_left_rounded, size: 20, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 12),
+                  Text(l.readerTextAlignment, style: tt.bodyMedium),
+                  const Spacer(),
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                    segments: [
+                      ButtonSegment(value: false, label: Text(l.readerAlignJustified)),
+                      ButtonSegment(value: true, label: Text(l.readerAlignLeft)),
+                    ],
+                    selected: {_alignLeft},
+                    onSelectionChanged: (sel) {
+                      setSheetState(() {});
+                      _updateAlignLeft(sel.first);
+                    },
+                  ),
+                ]),
                 const SizedBox(height: 8),
 
                 // Side margins (left + right)

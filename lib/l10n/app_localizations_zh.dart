@@ -8161,6 +8161,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerLineSpacing => 'Line Spacing';
 
   @override
+  String get readerTextAlignment => 'Alignment';
+
+  @override
+  String get readerAlignJustified => 'Justified';
+
+  @override
+  String get readerAlignLeft => 'Left';
+
+  @override
   String get readerSideMargins => 'Side margins';
 
   @override
