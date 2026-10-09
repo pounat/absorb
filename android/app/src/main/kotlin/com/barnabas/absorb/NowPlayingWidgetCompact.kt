@@ -17,6 +17,8 @@ import android.view.KeyEvent
 import android.view.View
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
+import android.util.TypedValue
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -36,6 +38,21 @@ class NowPlayingWidgetCompact : AppWidgetProvider() {
             } catch (e: Exception) {
                 android.util.Log.e("NowPlayingWidgetCompact", "updateWidget failed", e)
             }
+        }
+    }
+
+    // Re-render on resize so the short-row layout follows the height the
+    // launcher actually gives the widget.
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        try {
+            updateWidget(context, appWidgetManager, appWidgetId)
+        } catch (e: Exception) {
+            android.util.Log.e("NowPlayingWidgetCompact", "resize update failed", e)
         }
     }
 
@@ -108,6 +125,25 @@ class NowPlayingWidgetCompact : AppWidgetProvider() {
             // padding, so zero ours out to avoid double-padding.
             if (Build.MANUFACTURER.lowercase() in setOf("oneplus", "nothing")) {
                 views.setViewPadding(R.id.widget_outer, 0, 0, 0, 0)
+            }
+
+            // A launcher row shorter than the layout was drawn for: pull the
+            // vertical slack out and shrink the transport so the title and
+            // the buttons both fit instead of the pill being cut off.
+            val heightDp = WidgetClock.portraitHeightDp(appWidgetManager.getAppWidgetOptions(appWidgetId))
+            val shortRow = heightDp in 1 until WidgetClock.SHORT_ROW_MAX_HEIGHT_DP
+            if (shortRow) {
+                val density = context.resources.displayMetrics.density
+                val pad = (2 * density).toInt()
+                views.setViewPadding(R.id.widget_text_col, 0, pad, 0, pad)
+                views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 12f)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    views.setViewLayoutMargin(R.id.widget_controls, RemoteViews.MARGIN_TOP, 2f, TypedValue.COMPLEX_UNIT_DIP)
+                    views.setViewLayoutHeight(R.id.widget_play_pause, 32f, TypedValue.COMPLEX_UNIT_DIP)
+                    views.setViewLayoutWidth(R.id.widget_play_pause, 48f, TypedValue.COMPLEX_UNIT_DIP)
+                    views.setViewLayoutHeight(R.id.widget_skip_back, 32f, TypedValue.COMPLEX_UNIT_DIP)
+                    views.setViewLayoutHeight(R.id.widget_skip_forward, 32f, TypedValue.COMPLEX_UNIT_DIP)
+                }
             }
 
             val title = widgetData.getString("widget_title", null)

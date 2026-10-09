@@ -235,7 +235,10 @@ class NowPlayingWidgetTiny : AppWidgetProvider() {
             // height via MAX_HEIGHT; use the largest edge to size the cover.
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 40)
-            val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 40)
+            val heightDp = WidgetClock.portraitHeightDp(options).let { if (it > 0) it else 40 }
+            // Launchers with short rows (Nothing, OnePlus) give a 1-row widget
+            // too little height for title + progress + transport at once.
+            val shortRow = heightDp < WidgetClock.SHORT_ROW_MAX_HEIGHT_DP
             val density = context.resources.displayMetrics.density
             val targetPx = (maxOf(widthDp, heightDp, 80) * density).toInt()
 
@@ -287,7 +290,7 @@ class NowPlayingWidgetTiny : AppWidgetProvider() {
 
                 // When it's only tall enough for the button row, keep the panel
                 // tight; give it breathing room once text/progress appear.
-                val pad = ((if (showInfo) 22 else 4) * density).toInt()
+                val pad = ((if (showInfo) 22 else if (shortRow) 2 else 4) * density).toInt()
                 views.setViewPadding(R.id.widget_panel, 0, pad, 0, pad)
 
                 // The short tier now also carries a title line (see below), so
@@ -297,10 +300,14 @@ class NowPlayingWidgetTiny : AppWidgetProvider() {
                 // also exactly what the pill drawable's corner radius is tuned
                 // for.
                 if (!showInfo && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    views.setViewLayoutHeight(R.id.widget_pp, 40f, TypedValue.COMPLEX_UNIT_DIP)
-                    views.setViewLayoutWidth(R.id.widget_pp, 56f, TypedValue.COMPLEX_UNIT_DIP)
-                    views.setViewLayoutHeight(R.id.widget_skip_back, 40f, TypedValue.COMPLEX_UNIT_DIP)
-                    views.setViewLayoutHeight(R.id.widget_skip_forward, 40f, TypedValue.COMPLEX_UNIT_DIP)
+                    val h = if (shortRow) 32f else 40f
+                    views.setViewLayoutHeight(R.id.widget_pp, h, TypedValue.COMPLEX_UNIT_DIP)
+                    views.setViewLayoutWidth(R.id.widget_pp, if (shortRow) 48f else 56f, TypedValue.COMPLEX_UNIT_DIP)
+                    views.setViewLayoutHeight(R.id.widget_skip_back, h, TypedValue.COMPLEX_UNIT_DIP)
+                    views.setViewLayoutHeight(R.id.widget_skip_forward, h, TypedValue.COMPLEX_UNIT_DIP)
+                    if (shortRow) {
+                        views.setViewLayoutMargin(R.id.widget_controls, RemoteViews.MARGIN_TOP, 2f, TypedValue.COMPLEX_UNIT_DIP)
+                    }
                 }
 
                 // Transport + progress are in every panel size, including the
@@ -324,7 +331,8 @@ class NowPlayingWidgetTiny : AppWidgetProvider() {
                     R.id.widget_progress,
                     WidgetClock.drawProgressBar(WidgetClock.tinyBarWidthPx(widthDp, showTimes, density), (12 * density).toInt(), fraction, isPlaying, density)
                 )
-                views.setViewVisibility(R.id.widget_progress_row, View.VISIBLE)
+                // On a short row the bar is the line that does not fit.
+                views.setViewVisibility(R.id.widget_progress_row, if (shortRow && !showInfo) View.GONE else View.VISIBLE)
 
                 // Elapsed / remaining clocks flank the bar on wide widgets;
                 // the per-second ticker keeps them live while playing.
