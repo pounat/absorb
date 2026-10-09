@@ -259,12 +259,29 @@ String? _stripLibraryItem(String? sessionJson) {
     if (libItem == null) return sessionJson;
     final media = libItem['media'] as Map<String, dynamic>?;
     if (media != null) {
+      final own = ownEpisodeRecord(media, session['episodeId'] as String?);
       media.remove('episodes');
       media.remove('audioFiles');
+      if (own != null) media['episodes'] = [own];
     }
     return jsonEncode(session);
   } catch (_) {}
   return sessionJson;
+}
+
+/// The small part of a podcast episode's record worth keeping with its
+/// download: enough to order the show's downloads by publish date offline,
+/// where the server's episode list is out of reach.
+Map<String, dynamic>? ownEpisodeRecord(Map<String, dynamic> media, String? episodeId) {
+  if (episodeId == null) return null;
+  for (final e in media['episodes'] as List<dynamic>? ?? const []) {
+    if (e is! Map<String, dynamic> || e['id'] != episodeId) continue;
+    return {
+      for (final k in const ['id', 'title', 'publishedAt', 'pubDate', 'duration', 'season', 'episode', 'index'])
+        if (e[k] != null) k: e[k],
+    };
+  }
+  return null;
 }
 
 /// Sanitize a string for use as a filesystem directory/file name.
@@ -1805,9 +1822,11 @@ class DownloadService extends ChangeNotifier {
         final slimItem = Map<String, dynamic>.from(fullItem);
         final media = slimItem['media'] as Map<String, dynamic>?;
         if (media != null) {
+          final own = ownEpisodeRecord(media, episodeId);
           slimItem['media'] = Map<String, dynamic>.from(media)
             ..remove('episodes')
             ..remove('audioFiles');
+          if (own != null) (slimItem['media'] as Map<String, dynamic>)['episodes'] = [own];
         }
         slimItem['libraryFiles'] = [if (ebookFile != null) ebookFile];
         slimSession['libraryItem'] = slimItem;

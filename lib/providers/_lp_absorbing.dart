@@ -1242,7 +1242,54 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
           episodes[publishedAt] = entry;
         }
       }
-      if (finishedTimestamp == null || episodes.isEmpty) return;
+      // The queue only knows episodes that were put on it. Offline, the
+      // show's other downloads are just as playable, and each carries its
+      // own publish date, so they join the pick in date order too.
+      for (final info in dl.downloadedItems) {
+        if (!info.itemId.startsWith('$showId-')) continue;
+        final epId = info.itemId.substring(37);
+        if (epId != finishedEpId &&
+            (episodes.values.any((e) => e.key == info.itemId) ||
+                _progressMap[info.itemId]?['isFinished'] == true)) {
+          continue;
+        }
+        Map<String, dynamic>? session;
+        try {
+          session = jsonDecode(info.sessionData ?? '') as Map<String, dynamic>;
+        } catch (_) {
+          continue;
+        }
+        final item = session['libraryItem'] as Map<String, dynamic>? ?? {};
+        final media = item['media'] as Map<String, dynamic>? ?? {};
+        final own = (media['episodes'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .firstWhere((e) => e['id'] == epId, orElse: () => const {});
+        final publishedAt = (own['publishedAt'] as num?)?.toInt();
+        if (publishedAt == null) continue;
+        if (epId == finishedEpId) {
+          finishedTimestamp ??= publishedAt;
+          continue;
+        }
+        final entity = <String, dynamic>{
+          'id': showId,
+          'libraryId': item['libraryId'] ?? info.libraryId,
+          'media': {
+            'metadata': media['metadata'] ??
+                {'title': info.title ?? '', 'authorName': info.author ?? ''},
+          },
+          'recentEpisode': {
+            ...own,
+            'duration': own['duration'] ?? session['duration'],
+          },
+          '_absorbingKey': info.itemId,
+        };
+        episodes[publishedAt] = MapEntry(info.itemId, entity);
+      }
+      if (finishedTimestamp == null || episodes.isEmpty) {
+        debugPrint('[AutoAdvance] offline podcast advance: nothing to play next '
+            '(finished date known=${finishedTimestamp != null}, candidates=${episodes.length})');
+        return;
+      }
 
       final sorted = episodes.keys.toList()..sort();
       final int? nextTimestamp;
@@ -1259,9 +1306,11 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       final ep = nextData['recentEpisode'] as Map<String, dynamic>;
       final nextEpId = ep['id'] as String;
 
+      _absorbingItemCache[nextKey] ??= nextData;
       _absorbingIdsAdd(nextKey, afterKey: finishedKey);
       _saveManualAbsorbing();
       notifyListeners();
+      debugPrint('[AutoAdvance] offline podcast advance -> $nextKey');
 
       final media = nextData['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
