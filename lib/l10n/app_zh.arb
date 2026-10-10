@@ -91,6 +91,14 @@
   "adminSetupFileServerUrl": "新用户将使用的服务器 URL",
   "adminSetupFileSaveTitle": "保存配置文件",
   "adminSetupFileKeyError": "无法为此用户创建 API 密钥",
+  "adminSetupFileSaved": "{username} 的配置文件已保存",
+  "@adminSetupFileSaved": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "loginFailed": "登录失败",
   "loginSsoFailed": "单点登录失败或已取消",
   "loginSsoAuthFailed": "单点登录认证失败，请重试。",
@@ -221,8 +229,10 @@
   "hasEbook": "含电子书",
   "missingMetadata": "缺失元数据",
   "genre": "分类",
+  "tag": "标签",
   "clearFilter": "清除筛选",
   "noGenresFound": "未找到分类",
+  "noTagsFound": "未找到标签",
   "asc": "升序",
   "desc": "降序",
   "progressSort": "进度",
@@ -381,6 +391,52 @@
   "statsEpisodesFinished": "单集",
   "statsBooksThisYear": "今年书籍",
   "statsEpisodesThisYear": "今年单集",
+  "statsRemoveFromYearTitle": "从今年列表中移除",
+  "statsRemoveFromYearWithDate": "服务器上的完成日期仍为 {date}。此操作仅将 \"{title}\" 从您的 Absorb 年度书单中移除。",
+  "@statsRemoveFromYearWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsRemoveFromYearNoDate": "完成日期仍保留在服务器上。此操作仅将 \"{title}\" 从您的 Absorb 年度书单中移除。",
+  "@statsRemoveFromYearNoDate": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsRemovedFromYear": "已从今年列表中移除",
+  "statsAddBackToYearTitle": "重新加入今年列表",
+  "statsAddBackToYearBody": "将 \"{title}\" 重新加入您的 Absorb 年度书单？",
+  "@statsAddBackToYearBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsAddBack": "重新加入",
+  "statsAddedBackToYear": "已重新加入今年列表",
+  "statsNothingHidden": "没有隐藏项",
+  "statsBooksShort": "{count} 本有声书",
+  "@statsBooksShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsBookChallengeTitle": "阅读挑战",
+  "statsBookChallengeDesc": "今年待完成的有声书",
+  "statsDailyGoal": "每日目标",
+  "statsWeeklyGoal": "每周目标",
+  "statsMonthlyGoal": "每月目标",
   "statsChartDays7": "7 天",
   "statsChartDays30": "30天",
   "statsLast30Days": "过去 30 天",
