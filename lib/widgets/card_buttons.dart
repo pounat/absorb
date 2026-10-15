@@ -770,9 +770,9 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
         const SizedBox(height: 4),
         Text('${_speed.toStringAsFixed(2)}x', style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: widget.accent)),
         const SizedBox(height: 12),
-        const FeatureHint(
+        FeatureHint(
           prefKey: 'hint_speed_presets',
-          message: 'Tap + to save the current speed as a preset. Long-press a chip to remove it.',
+          message: l.cardSpeedPresetHint,
           padding: EdgeInsets.fromLTRB(0, 0, 0, 12),
         ),
         Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
@@ -1934,7 +1934,7 @@ class CardActionDelegate {
       case 'ebook':
         return CardWideButton(
           icon: isEbookPdf ? Icons.picture_as_pdf_rounded : Icons.menu_book_rounded,
-          label: 'Read',
+          label: l.readEbook,
           accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
           // The card handles the no-ebook case itself (it retries the item
           // fetch before toasting).
@@ -2142,7 +2142,7 @@ class CardActionDelegate {
       case 'ebook':
         return MoreMenuItem(
           icon: isEbookPdf ? Icons.picture_as_pdf_rounded : Icons.menu_book_rounded,
-          label: 'Read', accent: accent,
+          label: l.readEbook, accent: accent,
           onTap: () {
             Navigator.pop(ctx);
             onEbookTap?.call();
@@ -2608,7 +2608,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
         else
           const Spacer(),
         Text(
-          'Show more',
+          l.showMore,
           style: widget.tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
         ),
         const SizedBox(width: 8),

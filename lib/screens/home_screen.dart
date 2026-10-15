@@ -33,7 +33,6 @@ import '../widgets/scroll_reveal.dart';
 import '../widgets/section_labels.dart';
 import 'app_shell.dart';
 import '../l10n/app_localizations.dart';
-import '../utils/duration_format.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -690,11 +689,10 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                             ),
                           ),
                         ),
-                        const SliverToBoxAdapter(
+                        SliverToBoxAdapter(
                           child: FeatureHint(
                             prefKey: 'hint_continue_listening_gestures',
-                            message:
-                                'Tap a card to resume. Press and hold to see details.',
+                            message: l.homeResumeGestureHint,
                           ),
                         ),
                         SliverToBoxAdapter(
@@ -846,10 +844,13 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
   Color? _accent;
   String? _derivedCoverKey;
 
-  static String _fmtRemaining(double s) {
+  static String _fmtRemaining(double s, AppLocalizations l) {
     if (s <= 0) return '';
-    if (s < 60) return '<1m left';
-    return '${formatHm(s)} left';
+    if (s < 60) return l.homeRemainingLessThanMinute;
+    final hours = (s / 3600).floor();
+    final minutes = ((s % 3600) / 60).floor();
+    if (hours > 0) return l.homeRemainingHoursMinutes(hours, minutes);
+    return l.homeRemainingMinutes(minutes);
   }
 
   Widget _buildCoverImage(String? coverUrl, ColorScheme cs, Map<String, String> headers) {
@@ -1177,7 +1178,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
                         if (remaining > 0) ...[
                           const SizedBox(width: 6),
                           Expanded(
-                            child: Text(_fmtRemaining(remaining),
+                            child: Text(_fmtRemaining(remaining, l),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: tt.labelSmall?.copyWith(

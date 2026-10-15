@@ -5972,5 +5972,177 @@
   "comicLeftToRight": "Left to right",
   "comicRightToLeft": "Right to left (manga)",
   "comicNeedsConnection": "This comic opens page by page from your server, so it needs a connection.",
-  "comicNoPages": "No pages found in this comic."
+  "comicNoPages": "No pages found in this comic.",
+  "homeResumeGestureHint": "Tap a card to resume. Press and hold to see details.",
+  "homeRemainingLessThanMinute": "<1m left",
+  "homeRemainingMinutes": "{minutes}m left",
+  "@homeRemainingMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "homeRemainingHoursMinutes": "{hours}h {minutes}m left",
+  "@homeRemainingHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "statsYearInReview": "Year in Review",
+  "settingsClassicWording": "Classic wording",
+  "settingsClassicWordingOn": "Using \"Play\", \"Now Playing\", \"Finished\"",
+  "settingsClassicWordingOff": "Using \"Absorb\", \"Absorbing\", \"Fully Absorbed\"",
+  "settingsLockRotation": "Lock rotation",
+  "settingsLockRotationOn": "Screen stays in portrait",
+  "settingsLockRotationOff": "Screen can rotate with the device",
+  "settingsDuckBriefInterruptions": "Duck brief interruptions",
+  "settingsDuckBriefInterruptionsOn": "Notifications and prompts lower the volume instead of pausing",
+  "settingsDuckBriefInterruptionsOff": "Notifications and prompts pause playback",
+  "settingsAutoDownloadSeries": "Auto-download series",
+  "settingsAutoDownloadSeriesOn": "Starting a book in a series keeps the next books downloaded",
+  "settingsAutoDownloadSeriesOff": "Turn on series downloads yourself from the series menu",
+  "cardSpeedPresetHint": "Tap + to save the current speed as a preset. Long-press a chip to remove it.",
+  "clipPreviewEnding": "Preview ending",
+  "desktopReplaceCovers": "Replace covers",
+  "desktopReplaceDetails": "Replace details",
+  "adminServerLogsTitle": "Server logs",
+  "adminServerLogsLoadFailed": "Couldn’t load the server logs",
+  "adminLibrarySettingsDescription": "Control cover display, matching, completion, and library behavior.",
+  "adminLibraryWatcherGloballyDisabled": "The folder watcher is disabled in the server scanner settings.",
+  "adminLibraryCompletionRule": "Completion rule",
+  "adminLibraryMetadataSourcesDescription": "Choose which metadata sources are used. Drag them from highest to lowest priority.",
+  "adminLibraryMoveUp": "Move up",
+  "adminLibraryMoveDown": "Move down",
+  "adminLibraryDisabledSourcesHint": "Disabled sources are ignored when the scanner reads metadata.",
+  "adminLibrarySourceFolders": "Folder structure",
+  "adminLibrarySourceAudioOrEbook": "Audio file metadata or ebook metadata",
+  "adminLibrarySourceAudio": "Audio file metadata",
+  "adminLibrarySourceNfo": "NFO file",
+  "adminLibrarySourceTxt": "desc.txt and reader.txt files",
+  "adminLibrarySourceOpf": "OPF file",
+  "adminLibrarySourceAbs": "Audiobookshelf metadata file",
+  "adminLibraryScheduleTitle": "Schedule",
+  "adminLibraryScheduleDescription": "Run a library scan automatically on a recurring schedule.",
+  "adminLibraryAdvancedCron": "Advanced cron",
+  "adminLibraryMinuteInHour": "Minute {minute}",
+  "@adminLibraryMinuteInHour": {
+    "placeholders": {
+      "minute": {
+        "type": "String"
+      }
+    }
+  },
+  "adminLibraryScheduleTime": "Time",
+  "adminLibraryCronFieldHint": "Minute  Hour  Day  Month  Weekday",
+  "adminLibraryToolsTitle": "Tools",
+  "adminLibraryToolsDescription": "Clean up generated sidecar metadata files across this library.",
+  "adminLibraryRemoveJsonDescription": "Remove every metadata.json file found in the library item folders.",
+  "adminLibraryRemoveAbsDescription": "Remove every metadata.abs file found in the library item folders.",
+  "adminLibraryRemoveMetadataFile": "Remove metadata.{extension}",
+  "@adminLibraryRemoveMetadataFile": {
+    "placeholders": {
+      "extension": {
+        "type": "String"
+      }
+    }
+  },
+  "adminLibraryCronFivePartsRequired": "Enter a five-part cron expression before saving.",
+  "adminLibraryDetailsIntro": "Set the library name, media type, provider, icon, and folders.",
+  "adminLibraryMetadataDeleteConfirmTitle": "Remove all {filename} files?",
+  "@adminLibraryMetadataDeleteConfirmTitle": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "adminLibraryMetadataDeleteConfirmBody": "This permanently removes {filename} from every item folder in this library. The media files are not changed.",
+  "@adminLibraryMetadataDeleteConfirmBody": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "adminLibraryMetadataDeleteFailed": "Could not remove {filename} files.",
+  "@adminLibraryMetadataDeleteFailed": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "adminLibraryMetadataDeleteNotFound": "No {filename} files were found.",
+  "@adminLibraryMetadataDeleteNotFound": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "adminLibraryMetadataDeleteNoneRemoved": "{found} {filename} files were found, but none could be removed.",
+  "@adminLibraryMetadataDeleteNoneRemoved": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "adminLibraryMetadataDeleteSuccess": "Removed {removed} of {found} {filename} files.",
+  "@adminLibraryMetadataDeleteSuccess": {
+    "placeholders": {
+      "removed": {
+        "type": "int"
+      },
+      "found": {
+        "type": "int"
+      },
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryTabLists": "Lists",
+  "libraryListsCollectionsCount": "{count} collections",
+  "@libraryListsCollectionsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryListsPlaylistsCount": "{count} playlists",
+  "@libraryListsPlaylistsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryListsMixedCount": "{collections} collections, {playlists} playlists",
+  "@libraryListsMixedCount": {
+    "placeholders": {
+      "collections": {
+        "type": "int"
+      },
+      "playlists": {
+        "type": "int"
+      }
+    }
+  },
+  "adminServerLogsDisplay": "Display",
+  "adminServerLogsLevel": "Server log level",
+  "adminServerLogsSavingLevel": "Saving log level…",
+  "adminServerLogsEmpty": "No server logs yet",
+  "adminServerLogsNoMatches": "No logs match",
+  "downloadStorageInternalDefault": "App Internal Storage (Default)"
 }

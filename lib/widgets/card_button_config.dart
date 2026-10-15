@@ -44,7 +44,7 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
     case 'download':
       return l.download;
     case 'ebook':
-      return 'Read';
+      return l.readEbook;
     case 'findinebook':
       return l.findInEbook;
     case 'lyrics':

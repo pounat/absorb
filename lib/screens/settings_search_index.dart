@@ -30,9 +30,9 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Appearance', l.sectionAppearance, l.rectangleBookCovers, [l.rectangleBookCoversOnSubtitle, l.rectangleBookCoversOffSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.coverSize, [l.coverSizeSubtitle, l.coverSizeSmall, l.coverSizeMedium, l.coverSizeLarge]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.cardButtonFill, [l.cardButtonFillSubtitle, l.cardButtonFillClear, l.cardButtonFillSubtle, l.cardButtonFillSolid]),
-    SettingSearchEntry('Appearance', l.sectionAppearance, 'Classic wording', const ['Using "Play", "Now Playing", "Finished"', 'Using "Absorb", "Absorbing", "Fully Absorbed"']),
+    SettingSearchEntry('Appearance', l.sectionAppearance, l.settingsClassicWording, [l.settingsClassicWordingOn, l.settingsClassicWordingOff]),
     if (!(Platform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600))
-      SettingSearchEntry('Appearance', l.sectionAppearance, 'Lock rotation', const ['Screen stays in portrait', 'Screen can rotate with the device']),
+      SettingSearchEntry('Appearance', l.sectionAppearance, l.settingsLockRotation, [l.settingsLockRotationOn, l.settingsLockRotationOff]),
 
     // ── Customize Stats ──
     SettingSearchEntry('Customize Stats', l.settingsCustomizeStats, l.statsGoalTitle, [l.statsGoalDaily, l.statsGoalWeekly, l.statsGoalMonthly, l.statsGoalOff]),
@@ -73,7 +73,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Media Controls', l.sectionMediaControls, l.nowPlayingText, [l.nowPlayingTextSubtitle, l.nowPlayingPiecePercent, l.nowPlayingPieceTimeLeft, l.nowPlayingPieceNarrator, l.nowPlayingPieceSeries]),
     SettingSearchEntry('Media Controls', l.sectionMediaControls, l.lockSeekBar, [l.lockSeekBarOnSubtitle, l.lockSeekBarOffSubtitle]),
     if (Platform.isAndroid) ...[
-      SettingSearchEntry('Media Controls', l.sectionMediaControls, 'Duck brief interruptions', const ['Notifications and prompts lower the volume instead of pausing', 'Notifications and prompts pause playback']),
+      SettingSearchEntry('Media Controls', l.sectionMediaControls, l.settingsDuckBriefInterruptions, [l.settingsDuckBriefInterruptionsOn, l.settingsDuckBriefInterruptionsOff]),
       SettingSearchEntry('Media Controls', l.sectionMediaControls, l.speedBookmarkInControls, [l.speedBookmarkOnSubtitle, l.speedBookmarkOffSubtitle]),
     ],
 
@@ -106,7 +106,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     // ── Downloads & Storage ──
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.downloadOverWifiOnly, [l.downloadOverWifiOnSubtitle, l.downloadOverWifiOffSubtitle]),
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.autoDownloadOnWifi, [l.autoDownloadOnWifiOnSubtitle, l.autoDownloadOnWifiOffSubtitle]),
-    SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, 'Auto-download series', const ['Starting a book in a series keeps the next books downloaded', 'Turn on series downloads yourself from the series menu']),
+    SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.settingsAutoDownloadSeries, [l.settingsAutoDownloadSeriesOn, l.settingsAutoDownloadSeriesOff]),
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.concurrentDownloads, const []),
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.autoDownload, [l.autoDownloadSubtitle]),
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.keepNext, const []),
