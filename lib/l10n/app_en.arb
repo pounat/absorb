@@ -335,6 +335,12 @@
   "downloadsDownloading": "Downloading",
   "downloadsQueued": "Queued",
   "downloadsCompleted": "Completed",
+  "downloadsExportAudio": "Export audio files",
+  "@downloadsExportAudio": {
+    "description": "Action on an iOS completed download that opens the share sheet for AirDrop or Save to Files."
+  },
+  "downloadsExportUnavailable": "Some audio files are missing or unreadable. Download it again before exporting.",
+  "downloadsExportFailed": "Couldn't export the audio files. Please try again.",
   "downloadsEbooks": "Ebooks",
   "downloadsWaiting": "Waiting...",
   "downloadsCancel": "Cancel",

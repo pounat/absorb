@@ -26,6 +26,7 @@ A modern audiobookshelf client with a card-based player experience.
 - **Card-based player** — full-screen "Absorbing" cards replace the traditional player screen
 - **Audiobookshelf integration** — connects to your self-hosted audiobookshelf server
 - **Offline playback** — download books for listening without a connection
+- **Export downloaded audio on iOS** — open Downloads, tap the menu beside a completed book or podcast episode, and choose **Export audio files**. Use **AirDrop** to send the original tracks or **Save to Files** to keep a copy you can browse in the Files app. Multi-file books export every track. Saved copies remain after you remove the download in Absorb.
 - **Podcast support** — chaptered podcasts with rich HTML descriptions
 - **Backup & restore** — export all settings to a `.absorb` file and import on any device, with optional account credentials for seamless device migration
 - **Multi-account** — sign into multiple servers and switch between them
