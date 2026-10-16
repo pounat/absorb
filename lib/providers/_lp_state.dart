@@ -416,7 +416,7 @@ mixin _StateMixin on ChangeNotifier {
       }
     }
 
-    if (_api != null) return _api!.getCoverUrl(apiItemId, width: width);
+    if (_api != null) return _api!.getCoverUrl(apiItemId, width: width, updatedAt: _itemUpdatedAt[apiItemId]);
     return dl.coverUrl;
   }
 }

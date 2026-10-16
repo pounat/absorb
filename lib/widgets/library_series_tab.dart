@@ -38,6 +38,7 @@ class LibrarySeriesTab extends StatelessWidget {
     Widget body;
     if (seriesItems.isEmpty && isLoadingSeriesPage) {
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -50,6 +51,7 @@ class LibrarySeriesTab extends StatelessWidget {
       );
     } else if (seriesItems.isEmpty && !isLoadingSeriesPage) {
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -73,6 +75,7 @@ class LibrarySeriesTab extends StatelessWidget {
       );
     } else {
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [

@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'library_cached_cover.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
@@ -320,7 +320,7 @@ class _GridBookTileState extends State<GridBookTile> {
             cacheWidth: decodeWidth,
             errorBuilder: (_, __, ___) => placeholder);
       }
-      return CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
+      return LibraryCachedCover(imageUrl: coverUrl, fit: BoxFit.cover,
           httpHeaders: headers, memCacheWidth: decodeWidth,
           placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder);
@@ -340,11 +340,11 @@ class _GridBookTileState extends State<GridBookTile> {
       ]);
     }
     return Stack(fit: StackFit.expand, children: [
-      CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
+      LibraryCachedCover(imageUrl: coverUrl, fit: BoxFit.cover,
           httpHeaders: headers, memCacheWidth: 32,
           errorWidget: (_, __, ___) => const SizedBox.shrink()),
       Container(color: Colors.black.withValues(alpha: 0.15)),
-      CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.contain,
+      LibraryCachedCover(imageUrl: coverUrl, fit: BoxFit.contain,
           httpHeaders: headers, memCacheWidth: decodeWidth,
           placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder),
@@ -492,7 +492,7 @@ class _StackedCovers extends StatelessWidget {
           cacheWidth: decodeWidth,
           errorBuilder: (_, __, ___) => _placeholder());
     }
-    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+    return LibraryCachedCover(imageUrl: url, fit: BoxFit.cover,
         httpHeaders: mediaHeaders, memCacheWidth: decodeWidth,
         placeholder: (_, __) => _placeholder(),
         errorWidget: (_, __, ___) => _placeholder());
@@ -937,7 +937,7 @@ class GridAuthorTile extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   child: imageUrl != null
                       ? ClipOval(
-                          child: CachedNetworkImage(
+                          child: LibraryCachedCover(
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
                             httpHeaders: headers,
