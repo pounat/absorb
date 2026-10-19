@@ -245,6 +245,9 @@ class ApiService {
     } catch (_) {}
   }
 
+  static const Duration _uploadInactivityTimeout = Duration(seconds: 60);
+  static const Duration _uploadResponseTimeout = Duration(seconds: 120);
+
   final String baseUrl;
   String _accessToken;
   String? _refreshToken;
@@ -3702,11 +3705,43 @@ class ApiService {
     MediaUploadRequest upload, {
     void Function(int sentBytes, int totalBytes)? onProgress,
   }) async {
+    // A stalled proxy or socket used to hang this forever (GH #322). Two
+    // windows: no bytes for 60s while sending, or no reply 120s after the
+    // last byte (the server moves/copies every file before it answers).
+    final abort = Completer<void>();
+    Timer? watchdog;
+    String? timeoutReason;
+    var settled = false;
+
+    void arm(Duration window, String reason) {
+      watchdog?.cancel();
+      if (settled || abort.isCompleted) return;
+      watchdog = Timer(window, () {
+        timeoutReason = reason;
+        if (!abort.isCompleted) abort.complete();
+      });
+    }
+
+    void armStall() =>
+        arm(_uploadInactivityTimeout, 'Upload timed out: connection stalled');
+    void armResponse() => arm(_uploadResponseTimeout,
+        'Upload timed out: server took too long to respond');
+
     try {
-      final request = http.MultipartRequest(
+      final request = http.AbortableMultipartRequest(
         'POST',
         Uri.parse('$_cleanBaseUrl/api/upload'),
+        abortTrigger: abort.future,
       );
+      // IOClient and BrowserClient honour abortTrigger; the explicit race
+      // covers any other injected client.
+      Future<T> orAbort<T>(Future<T> work) => Future.any<T>([
+            work,
+            abort.future.then<T>(
+              (_) => throw http.RequestAbortedException(request.url),
+            ),
+          ]);
+
       request.headers.addAll(mediaHeaders);
       request.fields.addAll({
         'title': upload.title.trim(),
@@ -3723,37 +3758,63 @@ class ApiService {
         (total, file) => total + file.size,
       );
       var sentBytes = 0;
+      var filesDone = 0;
+      final fileCount = upload.files.length;
+
+      Stream<List<int>> track(Stream<List<int>> source) => source.transform(
+            StreamTransformer<List<int>, List<int>>.fromHandlers(
+              handleData: (chunk, sink) {
+                if (settled || abort.isCompleted) return;
+                sentBytes += chunk.length;
+                onProgress?.call(sentBytes, totalBytes);
+                armStall();
+                sink.add(chunk);
+              },
+              handleDone: (sink) {
+                filesDone++;
+                if (filesDone == fileCount) {
+                  // On web, BrowserClient reads the whole body into memory
+                  // before fetch starts, so "done" here isn't "sent". There's
+                  // no reliable signal there, so leave it to the browser.
+                  if (kIsWeb) {
+                    watchdog?.cancel();
+                  } else {
+                    armResponse();
+                  }
+                }
+                sink.close();
+              },
+            ),
+          );
 
       for (var i = 0; i < upload.files.length; i++) {
         final file = upload.files[i];
         if (file.bytes != null) {
-          final source = Stream<List<int>>.value(file.bytes!);
-          final tracked = source.map((chunk) {
-            sentBytes += chunk.length;
-            onProgress?.call(sentBytes, totalBytes);
-            return chunk;
-          });
           request.files.add(http.MultipartFile(
             '$i',
-            tracked,
+            track(Stream<List<int>>.value(file.bytes!)),
             file.size > 0 ? file.size : file.bytes!.length,
             filename: file.name,
           ));
         } else if (file.path != null && file.path!.isNotEmpty) {
-          request.files.add(await http.MultipartFile.fromPath(
+          // Same as MultipartFile.fromPath, but tracked so path uploads get
+          // progress and stall detection too.
+          final part = await http.MultipartFile.fromPath(
             '$i',
             file.path!,
             filename: file.name,
-          ));
-        } else if (file.readStream != null) {
-          final tracked = file.readStream!.map((chunk) {
-            sentBytes += chunk.length;
-            onProgress?.call(sentBytes, totalBytes);
-            return chunk;
-          });
+          );
           request.files.add(http.MultipartFile(
             '$i',
-            tracked,
+            track(part.finalize()),
+            part.length,
+            filename: part.filename,
+            contentType: part.contentType,
+          ));
+        } else if (file.readStream != null) {
+          request.files.add(http.MultipartFile(
+            '$i',
+            track(file.readStream!),
             file.size,
             filename: file.name,
           ));
@@ -3765,8 +3826,13 @@ class ApiService {
         }
       }
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      armStall();
+      final client = _httpClient;
+      final streamedResponse = await orAbort(
+        client != null ? client.send(request) : request.send(),
+      );
+      final response =
+          await orAbort(http.Response.fromStream(streamedResponse));
       if (response.statusCode == 200) {
         onProgress?.call(totalBytes, totalBytes);
         return const MediaUploadResult(success: true);
@@ -3778,8 +3844,16 @@ class ApiService {
         error: error.isEmpty ? 'HTTP ${response.statusCode}' : error,
       );
     } catch (e) {
+      final reason = timeoutReason;
+      if (reason != null) {
+        debugPrint('[API] uploadMedia aborted: $reason');
+        return MediaUploadResult(success: false, error: reason);
+      }
       debugPrint('[API] uploadMedia error: $e');
       return MediaUploadResult(success: false, error: '$e');
+    } finally {
+      settled = true;
+      watchdog?.cancel();
     }
   }
 
