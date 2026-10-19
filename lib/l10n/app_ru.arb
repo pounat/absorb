@@ -9,6 +9,9 @@
   "listsNoneHint": "Коллекции и плейлисты создаются на вашем сервере Audiobookshelf и появляются здесь.",
   "listsLoadFailed": "Не удалось загрузить ваши списки",
   "listsLoadFailedHint": "Absorb не смог достичь вашего сервера для коллекций и плейлистов.",
+  "listsNoneBookOrbit": "Нет коллекций или Smart Scopes",
+  "listsNoneHintBookOrbit": "Коллекции и Smart Scopes сделаны на вашем сервере BookOrbit и отображаются здесь.",
+  "listsLoadFailedHintBookOrbit": "Absorb не смог связаться с вашим сервером для коллекций и Smart Scope.",
   "cancel": "Отменить",
   "delete": "Удалить",
   "remove": "Убрать",
@@ -61,9 +64,17 @@
   "loginServerHelper": "IP:port тоже работает (например 192.168.1.5:13378)",
   "loginCouldNotReachServer": "Не удалось подключиться к серверу",
   "loginAdvanced": "Расширенные",
+  "loginCustomHttpHeaders": "Пользовательские HTTP-заголовки",
   "loginCustomHeadersDescription": "Для Cloudflare туннелей или обратных прокси для которых требуются дополнительные заголовки. Добавьте заголовки перед введением URL вашего сервера.",
+  "loginHeaderName": "Имя заголовка",
+  "loginHeaderValue": "Значение",
+  "loginAddHeader": "Добавить заголовок",
+  "loginSelfSignedCertificates": "Самоподписанные сертификаты",
+  "loginTrustAllCertificates": "Доверять всем сертификатам (для самоподписанных / пользовательских настроек ЦС)",
   "loginApiKey": "Ключ API",
+  "loginApiKeyDescription": "Использовать созданный администратором API ключ вместо имени пользователя/пароля. Полезно при сбое обновления токена для вашей учетной записи.",
   "loginWaitingForSso": "Ожидаем SSO...",
+  "loginRedirectUri": "Редирект URI: absorb://oauth",
   "loginOrSignInManually": "или войти вручную",
   "loginUsername": "Логин",
   "loginUsernameRequired": "Пожалуйста, введите логин",
@@ -87,8 +98,53 @@
     }
   },
   "adminCreateSetupFile": "Поделиться входом",
+  "adminSetupFileDescription": "Создает приватную ссылку для {username}, которая работает только в приложении Absorb.",
+  "@adminSetupFileDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileServerUrl": "URL сервера, который будет использовать новый пользователь",
+  "adminSetupFileNoteWithHeaders": "Выделенный ключ API и пользовательские заголовки будут включены, чтобы они могли получить доступ к серверу. Считайте ссылку, как пароль.",
+  "adminSetupFileNote": "Выделенный ключ API будет включен. Считать ссылку, как пароль.",
   "adminSetupFileCreate": "Создать ссылку",
+  "adminSetupFileSaveTitle": "Сохранить конфигурационный файл",
+  "adminSetupFileKeyError": "Не удалось создать ключ API для этого пользователя",
+  "adminSetupFileSaved": "Файл настройки для {username} сохранен",
+  "@adminSetupFileSaved": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileFailed": "Не удалось войти: {error}",
+  "@adminSetupFileFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "setupLinkShareTitle": "Поделиться входом",
+  "setupLinkShareDescription": "Отправьте эту приватную ссылку или отсканируйте QR-код, чтобы войти как {username}.",
+  "@setupLinkShareDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkPrivateWarning": "Любой пользователь по этой ссылке может войти как {username}. Считайте это как пароль.",
+  "@setupLinkPrivateWarning": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "setupLinkShare": "Поделиться ссылкой",
   "setupLinkCopy": "Копировать ссылку",
   "setupLinkCopied": "Ссылка для входа скопирована",
@@ -115,13 +171,42 @@
     }
   },
   "setupLinkInvalid": "Эта ссылка на вход недействительна или неполная",
+  "setupLinkSigningIn": "Проверка ссылки для входа...",
+  "loginPlayDownloads": "Воспроизвести загрузки",
+  "signedOutDownloadsNote": "Вы вышли. Всё, что вы слушаете здесь, синхронизируется с {username} , когда вы снова войдете.",
+  "@signedOutDownloadsNote": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "loginPasteLink": "Вставить ссылку для входа",
+  "loginPasteLinkHelp": "Вставьте полученную вами ссылку для входа. Считайте ее паролем.",
   "loginFailed": "Не удалось войти",
   "loginSsoFailed": "Вход по SSO не удался или был отменен",
   "loginSsoAuthFailed": "Ошибка аутентификации SSO. Пожалуйста, попробуй еще раз.",
   "loginRestoreFromBackup": "Импорт",
+  "loginInvalidBackupFile": "Недопустимый файл резервной копии",
   "loginRestoreBackupTitle": "Восстановить бэкап?",
+  "loginRestoreBackupWithAccounts": "Это восстановит все настройки и {count} сохраненный(х) аккаунт(а/ов). Вы будете автоматически авторизованы.",
+  "@loginRestoreBackupWithAccounts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loginRestoreBackupNoAccounts": "Будут восстановлены все настройки. Учетные записи не были включены в эту резервную копию.",
   "loginRestore": "Восстановить",
+  "loginRestoredAndSignedIn": "Восстановлены настройки и авторизованы как {username}",
+  "@loginRestoredAndSignedIn": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "loginSessionExpired": "Настройки восстановлены. Сессия истекла - войдите, чтобы продолжить.",
   "loginSettingsRestored": "Настройки восстановлены",
   "loginRestoreFailed": "Ошибка восстановления: {error}",
@@ -215,22 +300,36 @@
   "sort": "Сортировка",
   "filter": "Фильтр",
   "filterActive": "Фильтр ●",
+  "name": "Название",
   "title": "Название",
   "author": "Автор",
   "dateAdded": "Дата добавления",
   "numberOfBooks": "Количество книг",
+  "sortTotalDuration": "Общее время",
+  "sortLastBookAdded": "Последняя добавленная книга",
+  "sortLastBookUpdated": "Последняя обновленная книга",
   "publishedYear": "Год публикации",
   "duration": "Длительность",
+  "random": "Случайно",
   "collapseSeries": "Свернуть серии",
   "notFinished": "Не Прослушано",
+  "inProgress": "В процессе",
   "filterFinished": "Прослушано",
+  "notStarted": "Не начато",
   "downloaded": "Скачано",
   "hasEbook": "Имеет eBook",
+  "noEbook": "Без eBook",
+  "hasSupplementaryEbook": "С дополнительным eBook",
+  "noSupplementaryEbook": "Без дополнительным eBook",
+  "noSeries": "Без серии",
+  "publishedDecade": "Десятилетие",
   "tracks": "Треки",
   "noTracks": "Нет треков",
   "singleTrack": "Один трек",
   "multipleTracks": "Несколько треков",
   "abridged": "Сокращено",
+  "issues": "Вопросы",
+  "rssFeedOpen": "Открытый RSS канал",
   "explicitContent": "Ненорм. лексика",
   "missingMetadata": "Отсутствуют метаданные",
   "genre": "Жанр",
@@ -261,6 +360,10 @@
   "absorbingNothingAbsorbingYet": "Пока ничего не поглощается",
   "absorbingDownloadEpisodesToListen": "Скачать выпуски для прослушивания офлайн",
   "absorbingDownloadBooksToListen": "Скачать книги для прослушивания офлайн",
+  "absorbingStartEpisodeFromShows": "Начать эпизод на вкладке «Шоу»",
+  "absorbingStartBookFromLibrary": "Начать книгу на вкладке «Библиотека»",
+  "carModeTitle": "Режим \"Авто\"",
+  "carModeNoBookLoaded": "Нет загруженных книг",
   "carModeBookLabel": "Книга",
   "carModeChapterLabel": "Глава",
   "carModeBookmarkDefault": "Закладка",
@@ -272,6 +375,7 @@
   "downloadsDownloading": "Идёт загрузка",
   "downloadsQueued": "Очередь",
   "downloadsCompleted": "Завершено",
+  "downloadsEbooks": "Ebooks",
   "downloadsWaiting": "Подождите...",
   "downloadsCancel": "Отменить",
   "downloadsDelete": "Удалить",
@@ -350,7 +454,39 @@
     }
   },
   "bookmarksTitle": "Все закладки",
+  "bookmarksTabBookmarks": "Закладки",
+  "bookmarksTabHighlights": "Выделение",
+  "highlightOpenInBook": "Открыть в книге",
+  "highlightsDeleteCount": "Удалить {count} выделение(ий)?",
+  "@highlightsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "highlightsDeletedCount": "Удалено {count} выделение(я)",
+  "@highlightsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "quoteShareTitle": "Поделиться цитатой",
   "quoteShareAction": "Поделиться",
+  "quoteShareFailed": "Не удалось создать изображение цитаты",
+  "quoteShapePortrait": "Вертикально",
+  "quoteShapeSquare": "Квадрат",
+  "quoteShapeStory": "История",
+  "quoteStyleBlur": "Размытие",
+  "quoteStyleDim": "Затемнение",
+  "quoteStyleNone": "Обложка",
+  "quoteTextLight": "Светлый текст",
+  "quoteTextDark": "Темный текст",
+  "quoteFieldTitle": "Заголовок",
+  "quoteFieldDetail": "Подробности",
+  "quoteFieldDetailHint": "Автор главы, страницы, который сказал это",
   "highlightsMeta": "{chapter} · {date}",
   "@highlightsMeta": {
     "placeholders": {
@@ -367,6 +503,8 @@
   "bookmarksSortedByPosition": "Сортировка по позиции",
   "bookmarksSelect": "Выберите закладку",
   "bookmarksNoBookmarks": "Закладок пока нет",
+  "bookmarksSearchHint": "Поиск закладок",
+  "bookmarksNoMatches": "По вашему запросу закладок не найдено",
   "batchDownloadQueued": "{count, plural, one {Скачивается {count} книга} few {Скачиваются {count} книги} many {Скачиваются {count} книг} =1{Скачивается {count} книга} other{Скачиваются {count} книги}}",
   "@batchDownloadQueued": {
     "placeholders": {
@@ -375,6 +513,7 @@
       }
     }
   },
+  "batchDownloadNothingNew": "Уже загружено",
   "bookmarksDeleteCount": "Удалить {count} закладку(ок)?",
   "@bookmarksDeleteCount": {
     "placeholders": {
@@ -471,6 +610,8 @@
       }
     }
   },
+  "statsRemovedFromYear": "Удалено за этот год",
+  "statsAddBackToYearTitle": "Добавить к этому году",
   "statsAddBackToYearBody": "Добавить \"{title}\" обратно в список Absorb \"Книги за этот год\"?",
   "@statsAddBackToYearBody": {
     "placeholders": {
@@ -479,6 +620,11 @@
       }
     }
   },
+  "statsAddBack": "Добавить",
+  "statsAddedBackToYear": "Добавлено в этот год",
+  "statsHiddenFromYear": "Скрыто за этот год",
+  "statsNothingHidden": "Ничего не скрыто",
+  "settingsCustomizeStats": "Изменить статистику",
   "statsGoalTitle": "Цель прослушивания",
   "statsGoalOff": "Выкл",
   "statsGoalDaily": "Ежедневно",
@@ -495,6 +641,8 @@
       }
     }
   },
+  "statsBookChallengeTitle": "Челлендж по чтению",
+  "statsBookChallengeDesc": "Книги для завершения в этом году",
   "statsDailyGoal": "Ежедневная цель",
   "statsWeeklyGoal": "Еженедельная цель",
   "statsMonthlyGoal": "Ежемесячная цель",
@@ -543,6 +691,17 @@
       }
     }
   },
+  "statsTimeSavedReset": "Сброс времени сохранён",
+  "statsTimeSavedResetConfirm": "Сохраненное время начнет подсчет с сегодняшнего дня",
+  "statsTimeSavedResetDone": "Время сброшено",
+  "statsOnPaceFor": "В соответствии с планом, {count} книг",
+  "@statsOnPaceFor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "statsDaysActive": "Дней Активности",
   "statsDailyAverage": "В среднем за день",
   "statsLast7Days": "Последние 7 дней",
@@ -554,9 +713,40 @@
   "appShellStatsTab": "Статистика",
   "appShellSettingsTab": "Настройки",
   "appShellDiscoverTab": "Подборка",
+  "appShellShowsTab": "Шоу",
   "appShellPodcastsTab": "Подкасты",
   "libraryTabEpisodes": "Выпуски",
   "filterAllEpisodes": "Все",
+  "filterUnplayed": "Непрослушано",
+  "episodeFeedEmpty": "Нет эпизодов, соответствующих этому фильтру",
+  "podcastFilterUpNext": "Следующий",
+  "podcastFilterNew": "Новый ",
+  "settingsPodcastTab": "Подкасты",
+  "settingsPodcastTabDesc": "Дать одной библиотеке подкастов свою собственную вкладку в нижней панели",
+  "settingsPodcastTabLibrary": "Библиотека вкладок подкастов",
+  "settingsMergeImpliedByPodcastTab": "Всегда включено, пока включена вкладка Подкастов",
+  "settingsEpisodeNotifs": "Настройки уведомлений",
+  "settingsEpisodeNotifsDesc": "Новые выпуски подкастов и предстоящие выпуски книг, проверены в фоне",
+  "notifIntervalOff": "Выключить",
+  "notifIntervalMinutes": "Каждые {n} минут",
+  "@notifIntervalMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "notifIntervalHour": "Каждый час",
+  "notifIntervalHours": "Каждые {n} часов",
+  "@notifIntervalHours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsBatteryUnrestricted": "Разрешить неограниченное использование заряда батареи",
+  "settingsBatteryUnrestrictedDesc": "Защищает систему от паузы в фоновом режиме на некоторых телефонах",
   "appShellPressBackToExit": "Нажмите «Назад» ещё раз, чтобы выйти",
   "settingsTitle": "Настройки",
   "sectionAppearance": "Внешний вид",
@@ -578,7 +768,9 @@
   "colorSourceManualDescription": "Использовать фиксированный цвет приложения",
   "colorSourceCustom": "По выбору",
   "useColorEverywhereLabel": "Использовать этот цвет везде",
+  "useColorEverywhereSubtitle": "Также раскрасьте страницы с описанием книг и карточку игрока в выбранный вами цвет вместо обложки каждой книги",
   "flatBackgroundLabel": "Плоский фон",
+  "flatBackgroundSubtitle": "Удалите фоновый градиент. Чистый чёрный в темном режиме для OLED экранов.",
   "einkModeIntroConfirm": "Включить",
   "backgroundIntensityLabel": "Интенсивность фона",
   "startScreenLabel": "Начальный экран",
@@ -590,7 +782,10 @@
   "disablePageFade": "Отключить затухание страницы",
   "disablePageFadeOnSubtitle": "Страницы переключаются мгновенно",
   "disablePageFadeOffSubtitle": "Страницы затухают при смене вкладок",
+  "rectangleBookCovers": "Прямоугольные обложки для книг",
   "progressTextSize": "Размер текста прогресса",
+  "rectangleBookCoversOnSubtitle": "Обложки отображаются в книжной пропорции 2:3",
+  "rectangleBookCoversOffSubtitle": "Обложки в виде квадрата",
   "coverSize": "Размер обложек",
   "coverSizeSubtitle": "Сколько обложек помещаются на сетке библиотеки",
   "coverSizeSmall": "Маленький",
@@ -600,6 +795,11 @@
   "fullScreenPlayer": "Полно экранный плеер",
   "fullScreenPlayerOnSubtitle": "Вкл - книги открываются в полноэкранном режиме при воспроизведении",
   "fullScreenPlayerOffSubtitle": "Выкл. - играть в режиме карт",
+  "fullBookScrubberOnSubtitle": "Вкл - видимый слайдер по всей книге",
+  "fullBookScrubberOffSubtitle": "Выкл. - только индикатор прогресса",
+  "cardScrubbersBoth": "Оба",
+  "cardScrubbersChapter": "Глава",
+  "cardScrubbersLocked": "Заблокировано",
   "buttonLayout": "Раскладка кнопок",
   "buttonLayoutSubtitle": "Как распределяются кнопки действий на карте",
   "whenAbsorbedInfoContent": "Управляет что случается с Картой Поглощение когда книга или выпуск прослушан.\n\nПрослушанные карты автоматически удаляются с экрана Поглощение.",
@@ -674,11 +874,55 @@
   "coverShapeSquare": "Квадратная",
   "coverShapeRectangle": "Прямоугольная",
   "coverShapeLabel": "Форма обложек",
+  "showSubtitles": "Показывать субтитры",
+  "subtitleVisibilityLabel": "Субтитры",
+  "subtitleVisibilityDefault": "По умолчанию",
+  "subtitleVisibilityShow": "Показать",
+  "subtitleVisibilityHide": "Скрыть",
+  "currentLibrarySettingsTitle": "Текущая библиотека: {name}",
+  "@currentLibrarySettingsTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "currentLibrarySkipBack": "Перейти назад",
+  "currentLibrarySkipForward": "Перейти вперед",
   "chapterProgressInNotification": "Прогресс главы в уведомлении и в Android Auto",
   "chapterProgressOnSubtitle": "Вкл. - уведомление и Android Auto покажут прогресс главы",
   "chapterProgressOffSubtitle": "Выкл. - они покажут прогресс всей книги",
   "chapterProgressInNotificationIos": "Прогресс главы на экране блокировки и CarPlay",
   "chapterProgressOnSubtitleIos": "Вкл. - блокировка экрана и CarPlay покажут прогресс главы",
+  "nowPlayingTopLine": "Верхняя линия",
+  "nowPlayingSecondLine": "Вторая линия",
+  "nowPlayingPieceChapter": "Глава",
+  "nowPlayingPieceTitle": "Название книги",
+  "nowPlayingPieceNarrator": "Чтец",
+  "nowPlayingPieceSeries": "Серии",
+  "nowPlayingPieceTimeLeft": "Оставшееся время",
+  "nowPlayingTimeLeft": "Осталось {time}",
+  "@nowPlayingTimeLeft": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockBadgeExtracting": "Чтение файла",
+  "bookDockBadgeError": "Ошибка",
+  "bookDockNoMatch": "Нет совпадений",
+  "bookDockApplied": "Применено",
+  "bookDockNoAuthor": "Пока нет автора",
+  "bookDockLookUpAgain": "Искать снова",
+  "bookDockRoleBook": "Книга",
+  "bookDockFieldLanguage": "Язык",
+  "bookDockFieldIsbn": "ISBN",
+  "bookDockAddToLibrary": "Добавить в библиотеку",
+  "bookDockUseFound": "Использовать найденные подробности",
+  "bookDockRemoveFailed": "Невозможно удалить этот файл",
+  "bookDockFileFailed": "Невозможно добавить этот файл в библиотеку",
+  "bomatchBack": "Все результаты",
   "speedBookmarkInControls": "Скорость и закладки в панели управления медиа",
   "speedBookmarkOnSubtitle": "Вкл. - уведомление покажет скорость и закладку; в Android Auto переключатели глав",
   "speedBookmarkOffSubtitle": "Выкл. - в уведомлении переключатели глав; в Android Auto скорость и закладка",
