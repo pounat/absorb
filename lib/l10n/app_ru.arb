@@ -61,6 +61,7 @@
   "loginServerHelper": "IP:port тоже работает (например 192.168.1.5:13378)",
   "loginCouldNotReachServer": "Не удалось подключиться к серверу",
   "loginAdvanced": "Расширенные",
+  "loginCustomHeadersDescription": "Для Cloudflare туннелей или обратных прокси для которых требуются дополнительные заголовки. Добавьте заголовки перед введением URL вашего сервера.",
   "loginApiKey": "Ключ API",
   "loginWaitingForSso": "Ожидаем SSO...",
   "loginOrSignInManually": "или войти вручную",
