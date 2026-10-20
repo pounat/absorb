@@ -1280,9 +1280,20 @@
   "streamingCacheInfoTitle": "Потоковый Кэш",
   "streamingCacheOff": "Выключить",
   "streamingCacheOffSubtitle": "Выкл - звук транслируется без кэширования",
+  "streamingCacheOnSubtitle": "{size} MB - недавно кэшированный потоковый аудио на диск",
+  "@streamingCacheOnSubtitle": {
+    "placeholders": {
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "clearCache": "Очистить кэш",
   "streamingCacheCleared": "Кэш вещания очищен",
   "sectionLibrary": "Библиотека",
+  "hideEbookOnlyTitles": "Скрыть заголовки только для eBooks",
   "hideEbookOnlyOnSubtitle": "Книги без аудио файлов скрыты",
+  "hideEbookOnlyOffSubtitle": "Выкл - все элементы библиотеки показаны",
   "showGoodreadsButton": "Показать кнопку 'Goodreads'",
   "showGoodreadsOnSubtitle": "Подробная информация о книге показывает ссылку на Goodreads",
   "sectionPermissions": "Разрешения",
@@ -1312,7 +1323,11 @@
   "sectionAdvanced": "Расширенные",
   "localServer": "Локальный сервер",
   "localServerInfoTitle": "Локальный Сервер",
+  "localServerUrlLabel": "URL локального сервера",
   "localServerUrlHint": "http://192.168.1.100:13378",
+  "disableAudioFocus": "Отключить аудиофокус",
+  "disableAudioFocusInfoTitle": "Аудиофокус",
+  "disableAudioFocusOnSubtitle": "Вкл - воспроизводится вместе с другим аудио (по-прежнему приостанавливается во время звонков)",
   "restartRequired": "Требуется перезапуск",
   "closeApp": "Закрыть приложение",
   "supportTheDev": "Поддержать разработчика",
@@ -1354,6 +1369,22 @@
   "logOut": "Выйти",
   "noSettingsOnly": "Нет, только настройки",
   "yesIncludeAccounts": "Да, включить аккаунты",
+  "fromAbsorbVersion": "Absorb v{version}",
+  "@fromAbsorbVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "restoreAccountsChip": "Аккаунт(ы) {count}",
+  "@restoreAccountsChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "restoreBookmarksChip": "Закладки для книг(и) {count}",
   "@restoreBookmarksChip": {
     "placeholders": {
@@ -1362,6 +1393,18 @@
       }
     }
   },
+  "restoreCustomHeadersChip": "Пользовательские заголовки",
+  "invalidBackupFile": "Недопустимый файл резервной копии",
+  "settingsRestoredSuccessfully": "Настройки успешно восстановлены",
+  "restoreFailed": "Ошибка восстановления: {error}",
+  "@restoreFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "logOutTitle": "Выйти?",
   "signOut": "Выйти",
   "changePasswordTitle": "Сменить пароль",
   "currentPassword": "Текущий пароль",
@@ -1376,9 +1419,82 @@
   "sessionsUnknownDevice": "Неизвестное устройство",
   "sessionsNone": "Нет активных сеансов",
   "sessionsLoadMore": "Загрузить ещё",
+  "sessionsRemove": "Выход из устройства",
+  "sessionsRemoveTitle": "Выйти из устройства?",
+  "sessionsRemoveContent": "Это удаляет сеанс обновления. Текущий доступ может продолжать работать, пока этот короткий токен не истечет.",
+  "sessionsRemoved": "Вы вышли на этом устройстве",
+  "sessionsRemoveFailed": "Не удалось выйти из устройства",
+  "sessionsSignOutAll": "Выйти из всех устройств",
+  "sessionsSignOutAllTitle": "Выйти из системы везде?",
+  "sessionsSignOutAllContent": "Это удаляет каждую сессию обновления, включая это устройство. Существующие токены доступа могут работать, пока они не закончится.",
+  "podcastScheduleServerTime": "Планировщик использует время сервера ({timeZone})",
+  "@podcastScheduleServerTime": {
+    "placeholders": {
+      "timeZone": {
+        "type": "String"
+      }
+    }
+  },
+  "podcastScheduleServerTimeUnknown": "Планировщик использует время сервера",
+  "editServerAddressTitle": "Редактировать адрес сервера",
+  "editServerAddressSubtitle": "Обновите адрес для {username}. Используйте это, если ваш сервер изменил адрес - это все равно тот же сервер, просто новый URL. Ваша статистика и загрузки сохраняются.",
+  "@editServerAddressSubtitle": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "editServerAddressField": "Адрес сервера",
+  "editServerAddressUpdated": "Адрес сервера обновлён",
+  "editServerAddressFailed": "Не удалось обновить адрес сервера",
+  "editServerAddressAction": "Редактировать адрес сервера",
+  "editServerConnectionTitle": "Редактировать подключение к серверу",
+  "editServerConnectionSubtitle": "Обновите адрес сервера и пользовательские заголовки для {username}. Ваша статистика и загрузки сохраняются.",
+  "@editServerConnectionSubtitle": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "editServerConnectionAction": "Редактировать подключение к серверу",
+  "editServerConnectionUpdated": "Подключение к серверу обновлено",
+  "editServerConnectionFailed": "Не удалось обновить соединение с сервером",
+  "editCustomHeadersDescription": "Используется для Cloudflare туннелей или обратных прокси. Эти заголовки применяются только к этой сохраненной учетной записи.",
   "removeAccountAction": "Удаление учётной записи",
+  "removeAccountTitle": "Удалить аккаунт?",
+  "removeAccountContent": "Удалить {username} на {server} из сохраненных аккаунтов?\n\nВы всегда можете добавить его обратно позже, войдя в систему снова.",
+  "@removeAccountContent": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      },
+      "server": {
+        "type": "String"
+      }
+    }
+  },
+  "switchAccountTitle": "Сменить аккаунт?",
+  "switchAccountContent": "Переключиться на {username} на {server}?\n\nВаше воспроизведение будет остановлено и приложение перезагрузится с другими данными учетной записи.",
+  "@switchAccountContent": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      },
+      "server": {
+        "type": "String"
+      }
+    }
+  },
+  "switchButton": "Переключить",
+  "downloadLocationSheetTitle": "Загрузить местоположение",
+  "downloadLocationSheetSubtitle": "Выберите, где сохраняются аудиокниги",
+  "currentLocation": "Текущее местоположение",
+  "existingDownloadsWarning": "Существующие загрузки сохраняются в их текущем местоположении. Новый путь используется только для новых загрузок.",
   "chooseFolder": "Выбрать папку",
   "chooseDownloadFolder": "Выбрать папку для скачивания",
+  "storagePermissionDenied": "Разрешение на доступ к памяти отклонено - включите его в настройках приложения",
   "openSettings": "Открыть настройки",
   "resetToDefault": "Сбросить по умолчанию",
   "redownload": "Скачать снова",
@@ -1425,7 +1541,70 @@
   },
   "adminCachePurged": "Кэш очищен",
   "adminRmabSubtitle": "Открыть в приложении",
+  "rmabConfigLegacyUrlLabel": "URL входа в веб-интерфейс (необязательно)",
+  "rmabConfigLegacyUrlHint": "https://rmab.example.com/?token=...",
+  "rmabConfigLegacyUrlHelp": "Вставьте ваш URL автовхода, так что «Открыть в просмотре браузера» вы вошли в систему. Оставьте пустым, чтобы использовать обычный вход.",
+  "rmabConfigConnect": "Подключиться",
+  "rmabConfigDisconnect": "Отключиться",
+  "rmabConfigOpenWebView": "Открыть в просмотре браузера",
+  "rmabConfigConnectedAs": "Подключено как {name}",
+  "@rmabConfigConnectedAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rmabConfigErrorInvalidUrl": "Введите корректный URL с http(s)",
+  "rmabConfigErrorMissingToken": "Введите свой API-токен",
+  "rmabConfigErrorUnauthorized": "Токен отклонён сервером",
+  "rmabConfigErrorForbidden": "Этот токен не допускается для этого действия",
+  "rmabConfigErrorNetwork": "Не удалось подключиться к RMAB. Проверьте URL-адрес.",
+  "rmabConfigErrorGeneric": "Невозможно подключиться",
+  "rmabConfigSavedSnackbar": "ReadMeABook подключён",
+  "rmabConfigDisconnectedSnackbar": "ReadMeABook отключён",
+  "rmabRequestCta": "Запрос через ReadMeABook",
+  "rmabSearchHeader": "Запрос через ReadMeABook",
+  "rmabSearchHint": "Поиск по названию или автору",
+  "rmabSearchEmpty": "Нет совпадений на вашем сервере ReadMeABook",
+  "rmabSearchError": "Не удалось найти ReadMeABook",
+  "rmabSearchPrompt": "Введите название или автора для поиска",
+  "rmabSearchFooterPrompt": "Ищете что-то еще?",
+  "rmabSearchFooterCta": "Поиск в ReadMeABook для \"{query}\"",
+  "@rmabSearchFooterCta": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "rmabBookDetailExplainer": "Этот запрос будет отправлен через ваш сервер ReadMeABook. Администратор будет проверять и обрабатывать его. Вы можете отслеживать его под My Requests на плитке ReadMeABook.",
+  "rmabBookAlreadyAvailable": "Уже в вашей библиотеке",
+  "rmabBookAlreadyRequested": "Уже запрошено",
+  "rmabRequestSubmitting": "Отправляем…",
+  "rmabRequestSent": "Запрос отправлен",
   "rmabRequestErrorAlreadyAvailable": "Уже в вашей библиотеке",
+  "rmabRequestErrorBeingProcessed": "Уже в обработке",
+  "rmabRequestErrorDuplicate": "Вы уже запрашивали это",
+  "rmabRequestErrorValidation": "Не удалось отправить запрос",
+  "rmabRequestErrorUserNotFound": "Токен пользователя больше не существует. Переподключение ReadMeABook.",
+  "rmabRequestErrorIgnored": "Эта книга находится в вашем списке игнор",
+  "rmabRequestErrorGeneric": "Не удалось отправить запрос",
+  "rmabRequestErrorTokenRejected": "Токен отклонен сервером. Переподключение ReadMeABook.",
+  "rmabMyRequestsTab": "Мои Запросы",
+  "rmabSetupTab": "Настройки",
+  "rmabMyRequestsEmpty": "Вы еще не запросили ни одной книги",
+  "rmabMyRequestsError": "Не удалось загрузить запросы",
+  "rmabMyRequestsRefresh": "Обновить",
+  "rmabRequestDetailTitle": "Детали запроса",
+  "rmabRequestDetailStatus": "Статус",
+  "rmabRequestDetailRequestedOn": "Запрошено",
+  "rmabRequestDetailCompletedOn": "Выполнено",
+  "rmabRequestDetailProgress": "Прогресс",
+  "rmabStatusActive": "В процессе",
+  "rmabStatusWaiting": "Ожидание",
+  "rmabStatusAvailable": "Доступно",
+  "rmabStatusDownloaded": "Загружено",
   "clearLocalMetadata": "Очистить локальные метаданные",
   "mono": "Моно",
   "stereo": "Стерео",
@@ -1492,16 +1671,66 @@
       }
     }
   },
+  "markAsFullyAbsorbedContent": "Это установит ваш прогресс на 100% и прекратит воспроизведение, если эта книга проигрывается.",
   "markedAsFinishedNiceWork": "Помечено как прослушано - красивая работа!",
+  "failedToUpdateCheckConnection": "Не удалось обновить - проверьте ваше соединение",
   "markAsNotFinishedQuestion": "Пометить как не прослушано?",
   "markAsNotFinishedContent": "Это очистит статус прослушано и вернет вашу позицию на начало.",
+  "unmark": "Снять метку",
   "markedAsNotFinishedBackAtIt": "Помечено как не прослушано - Ещё разок!",
   "resetProgressQuestion": "Сбросить прогресс?",
+  "resetProgressContent": "Это очистит весь прогресс для этой книги и вернет его в начало. Это действие невозможно отменить.",
+  "progressResetFreshStart": "Прогресс сброшен - свежий старт!",
+  "clearLocalMetadataQuestion": "Очистить локальные метаданные?",
+  "clearLocalMetadataContent": "Это удалит локально сохраненные метаданные и вернется к данным от сервера.",
+  "localMetadataCleared": "Локальные метаданные удалены",
+  "saveEbook": "Сохранить eBook",
+  "noEbookFileFound": "Не найден файл ebook",
   "bookmark": "Закладка",
   "bookmarks": "Закладки",
+  "bookmarksWithCount": "Закладки ({count})",
+  "@bookmarksWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playbackSpeed": "Скорость воспроизведения",
+  "noBookmarksYet": "Пока нет закладок",
+  "longPressBookmarkHint": "Долгое нажатие на кнопку закладки для быстрого сохранения",
   "addBookmark": "Добавить закладку",
   "editBookmark": "Изменить закладку",
   "titleLabel": "Название",
+  "noteOptionalLabel": "Заметка (необязательно)",
+  "editLayout": "Редактировать макет",
+  "inMenu": "В меню",
+  "bookmarkAdded": "Закладка добавлена",
+  "startPlayingSomethingFirst": "Начните играть что-то вначале",
+  "playbackHistory": "История воспроизведения",
+  "historyLocalTab": "История",
+  "historyServerTab": "Сессии",
+  "historyNoServerSessions": "Сессий сервера для этого элемента пока нет",
+  "historyServerLoadFailed": "Не удалось загрузить сессии сервера",
+  "clearHistoryTooltip": "Очистить историю",
+  "tapEventToJump": "Коснитесь события, чтобы перейти к этой позиции",
+  "noHistoryYet": "Истории пока нет",
+  "jumpedToPosition": "Переход к {position}",
+  "@jumpedToPosition": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+  "booksInSeriesCount": "{count} книг в этой серии",
+  "@booksInSeriesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "bookNumber": "Книга {number}",
   "@bookNumber": {
     "placeholders": {
@@ -1522,13 +1751,46 @@
   "markAllNotFinished": "Отметить всё как не прослушано",
   "markAllFinished": "Отметить всё как прослушано",
   "markAllNotFinishedQuestion": "Отметить всё как не прослушано?",
+  "fullyAbsorbSeries": "Полностью Absorb серии?",
+  "turnAutoDownloadOff": "Выключить автозагрузку",
+  "turnAutoDownloadOn": "Включить автозагрузку",
+  "autoDownloadThisSeries": "Автозагрузка этой серии?",
+  "autoDownloadSeriesContent": "Автоматически загружать следующие книги по мере прослушивания.",
+  "standalone": "Автономно",
   "episodes": "Выпуски",
+  "noEpisodesFound": "Эпизоды не найдены",
   "markFinished": "Отметить как прослушано",
   "markUnfinished": "Отметить как не прослушано",
+  "allEpisodes": "Все эпизоды",
+  "aboutThisEpisode": "Об этом эпизоде",
+  "reversePlayOrder": "Обратный порядок воспроизведения",
+  "selectedCount": "{count} выбрано",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "selectAll": "Выбрать все",
   "deselectAll": "Отменить всё",
+  "autoDownloadThisPodcast": "Автозагрузка этого подкаста?",
+  "autoDownloadPodcastContent": "Автоматически загружать следующие эпизоды по мере прослушивания.",
   "download": "Скачать",
+  "deleteDownload": "Удалить загруженные",
+  "casting": "Трансляция",
+  "castingTo": "Транслировать на",
+  "editDetails": "Редактировать сведения",
+  "quickMatch": "Быстрое совпадение",
+  "quickMatchNoUpdates": "Обновления не требуется",
+  "custom": "Кастомный",
+  "authorOptionalLabel": "Автор (необязательно)",
+  "noResultsFound": "Нет результатов.\nПопробуйте изменить запрос или поставщика.",
   "searchForMetadataAbove": "Искать метаданные выше",
+  "applyThisMatch": "Применить это совпадение?",
+  "metadataUpdated": "Метаданные обновлены",
+  "failedToUpdateMetadata": "Не удалось обновить метаданные",
+  "subtitleLabel": "Субтитры",
   "authorLabel": "Автор",
   "narratorLabel": "Чтец",
   "seriesLabel": "Серия",
@@ -1550,12 +1812,15 @@
   "coverUrlLabel": "URL обложки",
   "coverUrlHint": "https://...",
   "localMetadata": "Локальные метаданные",
+  "overrideLocalDisplay": "Переопределить локальное отображение",
+  "metadataSavedLocally": "Метаданные сохранены локально",
   "notes": "Заметки",
   "newNote": "Новая заметка",
   "editNote": "Редактировать заметку",
   "noNotesYet": "Заметок пока нет",
   "markdownIsSupported": "Поддерживается Markdown",
   "markdownMd": "Markdown (.md)",
+  "keepsFormattingIntact": "Сохраняет форматирование нетронутым",
   "plainTextTxt": "Простой текст (.txt)",
   "simpleTextNoFormatting": "Простой текст, без форматирования",
   "untitledNote": "Заметка без названия",
@@ -1563,7 +1828,11 @@
   "noteBodyHint": "Напиши заметку... (поддерживает markdown)",
   "nothingToPreview": "Нет ничего для предосмотра",
   "audioEnhancements": "Улучшение звука",
+  "presets": "ПРЕСЕТЫ",
+  "equalizer": "ЭКВАЛАЙЗЕР",
+  "effects": "ЭФФЕКТЫ",
   "bassBoost": "Усиление Басов",
+  "surround": "Объёмный",
   "loudness": "Громкость",
   "monoAudio": "Монозвук",
   "skipSilence": "Пропускать тишину",
@@ -1572,8 +1841,59 @@
   "deleteCollection": "Удалить коллекцию",
   "deleteCollectionContent": "Ты действительно хочешь удалить эту коллекцию?",
   "deleteCollectionFailed": "Не удалось удалить коллекцию",
+  "deletePermissionRequired": "Требуется разрешение на удаление. Попросите root администратора предоставить вам разрешение на удаление.",
+  "deleteFilesCheckbox": "Также удалить файлы на сервере",
+  "deleteFilesCheckedHint": "Файлы удалены с сервера безвозвратно.",
+  "deleteFilesUncheckedHint": "Файлы остаются на сервере, поэтому при следующем сканировании библиотеки их можно будет вернуть.",
+  "deleteFromServerAction": "Удалить с сервера",
+  "deleteFromServerTitle": "Удалить с сервера",
+  "deleteFromServerContent": "Удалить \"{title}\" из Audiobookshelf?",
+  "@deleteFromServerContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deletedFromServer": "Удалено \"{title}\"",
+  "@deletedFromServer": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFromServerFailed": "Не удалось удалить это. Проверьте логи сервера.",
+  "playlistNotFound": "Плейлист не найден",
+  "deletePlaylist": "Удалить плейлист",
+  "deletePlaylistContent": "Вы уверены, что хотите удалить этот плейлист?",
+  "newPlaylist": "Новый плейлист",
+  "playlistNameHint": "Название плейлиста",
+  "addedToName": "Добавлено в \"{name}\"",
+  "@addedToName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToAdd": "Ошибка добавления",
   "newCollection": "Новая коллекция",
   "collectionNameHint": "Название коллекции",
+  "listsNewCollectionSubtitle": "Группируйте книги в хранящийся список",
+  "listsNewCollectionNeedsBookSubtitle": "Начать с хотя бы одной книгой",
+  "listsNewPlaylistSubtitle": "Построeние книг для прослушивания",
+  "listsAddBooksNow": "Добавить книги сейчас",
+  "listsPickBooksNext": "Далее вы выберете книги. Коллекция на этом сервере должна иметь хотя бы одну книгу.",
+  "listsCreate": "Создать",
+  "listsCollectionNeedsBook": "Коллекция должна иметь хотя бы одну книгу, так что ничего не было создано.",
+  "listsCreateFailed": "Не удалось создать",
+  "castToDevice": "Передача на устройство",
+  "searchingForCastDevices": "Поиск Cast устройств...",
+  "castDevice": "Устройство для трансляции",
+  "stopCasting": "Остановить трансляцию",
+  "disconnect": "Отключиться",
+  "audioOutput": "Аудиовыход",
   "welcomeToAbsorb": "Добро пожаловать в Absorb",
   "welcomeTagline": "Клиент Audiobookshelf.",
   "welcomeAbsorbingTitle": "Поглощение",
