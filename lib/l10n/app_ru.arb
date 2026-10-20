@@ -457,6 +457,8 @@
   "bookmarksTabBookmarks": "Закладки",
   "bookmarksTabHighlights": "Выделение",
   "highlightOpenInBook": "Открыть в книге",
+  "highlightDeleteAction": "Удалить выделение",
+  "highlightDeleted": "Выделение удалено",
   "highlightsDeleteCount": "Удалить {count} выделение(ий)?",
   "@highlightsDeleteCount": {
     "placeholders": {
@@ -771,6 +773,9 @@
   "useColorEverywhereSubtitle": "Также раскрасьте страницы с описанием книг и карточку игрока в выбранный вами цвет вместо обложки каждой книги",
   "flatBackgroundLabel": "Плоский фон",
   "flatBackgroundSubtitle": "Удалите фоновый градиент. Чистый чёрный в темном режиме для OLED экранов.",
+  "einkModeLabel": "E-ink режим",
+  "einkModeSubtitle": "Высококонтрастный черно-белый без анимации, сделанный для экранов с электронным чернилами",
+  "einkModeIntroBody": "Сделано для экранов e-link. Приложение переключается на плоский черно-белый вид с высокой контрастностью, анимация выключена, проигрываемая карта теряет свой фон, а соединение с сервером остается выключенным, чтобы сэкономить заряд батареи. Воспроизведение и прогресс все еще синхронизируются нормально. Ваши настройки внешнего вида сохраняются и возвращаются, когда вы выключите это.",
   "einkModeIntroConfirm": "Включить",
   "backgroundIntensityLabel": "Интенсивность фона",
   "startScreenLabel": "Начальный экран",
@@ -795,15 +800,25 @@
   "fullScreenPlayer": "Полно экранный плеер",
   "fullScreenPlayerOnSubtitle": "Вкл - книги открываются в полноэкранном режиме при воспроизведении",
   "fullScreenPlayerOffSubtitle": "Выкл. - играть в режиме карт",
-  "fullBookScrubber": "Ползунок всей книги",
+  "fullBookScrubber": "Полосы прокрутки",
   "fullBookScrubberOnSubtitle": "Вкл - видимый слайдер по всей книге",
   "fullBookScrubberOffSubtitle": "Выкл. - только индикатор прогресса",
+  "cardScrubbers": "Полосы прокрутки Card",
   "cardScrubbersBoth": "Оба",
   "cardScrubbersChapter": "Глава",
   "cardScrubbersLocked": "Заблокировано",
+  "cardScrubbersBothSubtitle": "Полосы прокрутки всей книги и отдельных глав поддерживают перемотку",
+  "cardScrubbersChapterSubtitle": "Полоса прокрутки только для глав",
+  "cardScrubbersLockedSubtitle": "Отображать прогресс без полосы прокрутки",
+  "speedAdjustedTime": "Время с поправкой на скорость",
+  "speedAdjustedTimeOnSubtitle": "Вкл - все время отражает скорость воспроизведения",
+  "speedAdjustedTimeOffSubtitle": "Выкл - показывать исходную длительность аудио",
   "buttonLayout": "Раскладка кнопок",
   "buttonLayoutSubtitle": "Как распределяются кнопки действий на карте",
   "whenAbsorbedInfoContent": "Управляет что случается с Картой Поглощение когда книга или выпуск прослушан.\n\nПрослушанные карты автоматически удаляются с экрана Поглощение.",
+  "whenAbsorbedSubtitle": "Что происходит с поглощающей картой после завершения книги или эпизода",
+  "whenAbsorbedShowOverlay": "Показать оверлей",
+  "whenAbsorbedAutoRelease": "Авторелиз",
   "mergeLibraries": "Единая страница Поглощения",
   "mergeLibrariesInfoTitle": "Главная Поглощающая Страница",
   "mergeLibrariesInfoContent": "Если включено, в одном окне отображаются все ваши текущие книги и подкасты из каждой библиотеки. Когда отключено, отображаются только элементы из выбранной вами библиотеки.",
@@ -871,11 +886,19 @@
   "defaultSpeedSubtitle": "Новые книги начинаются с этой скоростью - каждая книга сохранит эту настройку",
   "skipBack": "Перейти назад",
   "skipForward": "Перейти вперед",
+  "iosLockScreenSkipHint": "Блокирующий экран рисует только числа iOS иконок для (5, 10, 15, 30, 45, 60, 75, 90). Остальные суммы показывают + на кнопке, но при этом все равно пропускать по вашим настройкам.",
+  "longSkipButtons": "Длинные кнопки пропуска",
+  "longSkipButtonsOnSubtitle": "Вкл - проигрыватель показывает секунды, большую пару пропуска ",
+  "longSkipButtonsOffSubtitle": "Выкл - обычные кнопки пропуска",
+  "longSkipBack": "Длинный пропуск назад",
+  "longSkipForward": "Длинный пропуск вперёд",
   "coverShapeDefault": "Стандартная",
   "coverShapeSquare": "Квадратная",
   "coverShapeRectangle": "Прямоугольная",
   "coverShapeLabel": "Форма обложек",
   "showSubtitles": "Показывать субтитры",
+  "showSubtitlesOnSubtitle": "Субтитры показываются под названиями книг в библиотеке и на главной",
+  "showSubtitlesOffSubtitle": "Выкл. - субтитры только в таблице с подробностями книги",
   "subtitleVisibilityLabel": "Субтитры",
   "subtitleVisibilityDefault": "По умолчанию",
   "subtitleVisibilityShow": "Показать",
@@ -888,6 +911,9 @@
       }
     }
   },
+  "currentLibrarySkipOverride": "Пользовательские суммы пропуска",
+  "currentLibrarySkipOverrideOnSubtitle": "Вкл - эта библиотека использует свои собственные пропускаемые суммы",
+  "currentLibrarySkipOverrideOffSubtitle": "Выкл. - эта библиотека использует общие пропущенные суммы",
   "currentLibrarySkipBack": "Перейти назад",
   "currentLibrarySkipForward": "Перейти вперед",
   "chapterProgressInNotification": "Прогресс главы в уведомлении и в Android Auto",
@@ -895,13 +921,30 @@
   "chapterProgressOffSubtitle": "Выкл. - они покажут прогресс всей книги",
   "chapterProgressInNotificationIos": "Прогресс главы на экране блокировки и CarPlay",
   "chapterProgressOnSubtitleIos": "Вкл. - блокировка экрана и CarPlay покажут прогресс главы",
+  "nowPlayingText": "Сейчас проигрывается текст",
+  "nowPlayingTextSubtitle": "Выберите какие элементы управления мультимедиа отображаются в каждой строке",
   "nowPlayingTopLine": "Верхняя линия",
   "nowPlayingSecondLine": "Вторая линия",
+  "nowPlayingNotShown": "Не отображать",
+  "nowPlayingTopLineRequired": "Верхняя строка должна иметь хотя бы одну позицию",
   "nowPlayingPieceChapter": "Глава",
   "nowPlayingPieceTitle": "Название книги",
   "nowPlayingPieceNarrator": "Чтец",
   "nowPlayingPieceSeries": "Серии",
+  "nowPlayingPiecePercent": "Процент книги",
+  "nowPlayingPieceChapterNumber": "Номер главы",
   "nowPlayingPieceTimeLeft": "Оставшееся время",
+  "nowPlayingChapterNumber": "Гл. {number}/{total}",
+  "@nowPlayingChapterNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "nowPlayingTimeLeft": "Осталось {time}",
   "@nowPlayingTimeLeft": {
     "placeholders": {
@@ -910,35 +953,299 @@
       }
     }
   },
+  "bookDockBadgePending": "Ожидание",
   "bookDockBadgeExtracting": "Чтение файла",
+  "bookDockBadgeFetching": "Искать",
   "bookDockBadgeError": "Ошибка",
+  "bookDockNeedsReview": "Требуется проверка",
   "bookDockNoMatch": "Нет совпадений",
   "bookDockApplied": "Применено",
+  "bookDockNotApplied": "Обнаруженные детали не используются",
+  "bookDockNoDestination": "Назначение не установлено",
   "bookDockNoAuthor": "Пока нет автора",
   "bookDockLookUpAgain": "Искать снова",
+  "bookDockLookingUp": "Поиск деталей еще раз",
+  "bookDockLookUpFailed": "Не удалось найти детали",
+  "bookDockProposedChanges": "Предлагаемые изменения",
+  "bookDockNoChanges": "Детали не найдены онлайн",
+  "bookDockStillReading": "Сервер все еще читает этот файл",
   "bookDockRoleBook": "Книга",
+  "bookDockRoleCover": "Обложка",
+  "bookDockRoleMetadata": "Метаданные",
+  "bookDockRoleExtra": "Дополнительно",
+  "bookDockFieldTitle": "Заголовок",
+  "bookDockFieldSubtitle": "Субтитры",
+  "bookDockFieldAuthors": "Авторы",
+  "bookDockFieldSeries": "Серии",
+  "bookDockFieldPublisher": "Издатель",
+  "bookDockFieldYear": "Год",
   "bookDockFieldLanguage": "Язык",
   "bookDockFieldIsbn": "ISBN",
+  "bookDockMatch": "{percent}% совпадения",
+  "@bookDockMatch": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockAdded": "Добавлено {date}",
+  "@bookDockAdded": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "bookDockAddToLibrary": "Добавить в библиотеку",
   "bookDockUseFound": "Использовать найденные подробности",
   "bookDockRemoveFailed": "Невозможно удалить этот файл",
+  "bookDockNoLibraries": "Ваш аккаунт не может добавить книги в библиотеку",
   "bookDockFileFailed": "Невозможно добавить этот файл в библиотеку",
+  "bookDockDetailsUpdated": "Подробности обновлены",
+  "bookDockUseFoundFailed": "Не найдено подробностей для использования",
+  "bookDockRemoveBody": "Это удалит {title} с сервера.",
+  "@bookDockRemoveBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockFiled": "Добавлено {title} в {library}",
+  "@bookDockFiled": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockFileFailedReason": "Не удалось добавить этот файл: {reason}",
+  "@bookDockFileFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockDuplicateTitle": "Уже в {library}",
+  "@bookDockDuplicateTitle": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bomatchSearchAll": "Поиск по всем источникам",
+  "bomatchSearching": "Поиск...",
+  "bomatchSearchFailed": "Не удалось найти совпадения. Проверьте подключение и повторите попытку.",
+  "bomatchNoResults": "Совпадений не найдено",
+  "bomatchStrong": "Точные совпадения",
+  "bomatchPossible": "Возможные совпадения",
+  "bomatchSourceTimeout": "истекло время ожидания",
+  "bomatchSourceBusy": "занято",
+  "bomatchSourceFailed": "ошибка",
+  "bomatchSameIsbn": "Такой же ISBN",
+  "bomatchFewDetails": "Больше подробностей",
   "bomatchBack": "Все результаты",
+  "bomatchFillEmpty": "Заполнить пустым",
+  "bomatchTakeAll": "Взять всё",
   "bomatchOnlyDifferences": "Только различия",
   "bomatchNow": "Сейчас",
   "bomatchEmpty": "Пустой",
   "bomatchKindNew": "Новый ",
   "bomatchKindChange": "Изменить",
+  "bomatchKindSmall": "Небольшое изменение",
+  "bomatchKindSame": "То же",
+  "bomatchKindNone": "Не в результате",
   "bomatchKeep": "Оставить",
   "bomatchUse": "Использовать",
+  "bomatchMerge": "Объединение",
   "bomatchReplace": "Заменить",
   "bomatchUseThis": "Использовать это",
+  "bomatchChosen": "Выбран",
+  "breqStatusRejected": "Отклонено",
+  "breqStatusCancelled": "Отменено",
+  "breqStatusSearching": "Поиск",
+  "breqStatusGrabbed": "Найден релиз",
+  "breqStatusDownloading": "Скачивание",
+  "breqStatusImporting": "Импортирование",
+  "breqStatusNeedsReview": "Требуется ревью",
+  "breqStatusAvailable": "Доступен",
+  "breqStatusFailed": "Ошибка",
+  "breqWaitingApproval": "В ожидании одобрения",
+  "breqWaitingRelease": "Ожидание выбора релиза",
+  "breqLookingForRelease": "Поиск релиза",
+  "breqStartingDownload": "Запуск скачивания",
+  "breqAddingToLibrary": "Добавление в библиотеку",
+  "breqWaitingCheck": "Ожидание проверки вручную",
+  "breqReady": "Готово в вашей библиотеке",
+  "breqSomethingWrong": "Что-то пошло не так",
+  "breqShowHidden": "Показывать скрытые",
+  "breqHidden": "Скрыто",
+  "breqMineEmpty": "Вы еще не запросили ни одной книги.",
+  "breqAllEmpty": "Пока что нет запросов.",
+  "breqLoadFailed": "Не удалось загрузить запросы.",
+  "breqLoadMore": "Загрузить ещё",
+  "breqApprove": "Одобрить",
+  "breqReject": "Отклонить",
+  "breqCancel": "Отменить запрос",
+  "breqHide": "Скрыть из списка",
+  "breqUnhide": "Показать в списке",
+  "breqLeave": "Запрос на выход",
+  "breqDelete": "Удалить запрос",
+  "breqOpenBook": "Открыть книгу",
+  "breqCancelConfirm": "Отменить этот запрос? Загрузка в процессе работы также прекращается.",
+  "breqDeleteConfirm": "Удалить данный запрос? Это действие не может быть отменено.",
+  "breqRejectTitle": "Отклонить запрос",
+  "breqRejectReason": "Причина (опционально)",
+  "breqApproveTitle": "Одобрить запрос",
+  "breqApproveLibraryNeeded": "Выберите библиотеку для этой книги.",
+  "breqApprovedToast": "Запрос одобрен",
+  "breqRejectedToast": "Запрос отклонен",
+  "breqCancelledToast": "Запрос отменён",
+  "breqHiddenToast": "Скрыть из списка",
+  "breqRestoredToast": "Назад в список",
+  "breqDeletedToast": "Запрос отклонен",
+  "breqLeftToast": "Вы покинули этот запрос",
+  "breqActionFailed": "Не удалось обновить запрос",
+  "breqFactRequestedBy": "По запросу",
+  "breqFactRequestedOn": "Запрошено",
+  "breqFactLibrary": "Библиотека",
+  "breqFactDecidedBy": "Утверждено",
+  "breqFactNote": "Заметка инициатора",
+  "breqIndexerError": "ошибка",
+  "breqSortBest": "Лучшее совпадение",
+  "breqSortSeeders": "Сидеры",
+  "breqSortSize": "Размер",
+  "breqSortNewest": "Сначала новые",
+  "breqVipOnly": "Только VIP",
+  "breqAlreadyGrabbed": "Загружено до",
+  "breqReasonIsbn": "ISBN",
+  "breqReasonTitle": "Заголовок",
+  "breqReasonAuthor": "Автор",
+  "breqReasonUnknownFormat": "Неизвестный формат",
+  "breqReasonExpectedSize": "Размер",
+  "breqReasonSuspiciousSize": "Нестандартный размер",
+  "breqReasonSeveralBooks": "Ряд книг",
+  "breqReviewTitle": "Загрузка ожидает проверки",
+  "breqReviewFailed": "Не удалось загрузить подробности.",
+  "breqReviewDockGone": "Загруженные файлы больше не отображаются в Book Dock.",
+  "breqReviewNoLibrary": "Этот запрос не содержит библиотеки для добавления книги.",
+  "breqGrabFailedReason": "Не удалось запустить эту загрузку: {reason}",
+  "@breqGrabFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReleaseCheckFailedReason": "Не удалось проверить, что находится в этом выпуске: {reason}",
+  "@breqReleaseCheckFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReleasesFailedReason": "Не удалось найти релизы: {reason}",
+  "@breqReleasesFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReviewFailedReason": "Не удалось загрузить данные загрузки: {reason}",
+  "@breqReviewFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqScore": "Оценка {score}",
+  "@breqScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "breqReasonPreferredFormat": "Предпочитаемый {format}",
+  "@breqReasonPreferredFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReasonFormat": "{format}",
+  "@breqReasonFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReasonSeeders": "{count} сидеров",
+  "@breqReasonSeeders": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReviewRequested": "Запрошено: {value}",
+  "@breqReviewRequested": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReviewImported": "Загружено: {value}",
+  "@breqReviewImported": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "breqKindBoth": "Оба",
+  "breqEbookLibrary": "Библиотека e-book",
+  "breqAudiobookLibrary": "Библиотека аудиокниг",
+  "breqRequestBoth": "Запросить оба",
+  "breqAddMeToBoth": "Добавить меня в оба",
+  "breqRequestEbook": "Запрос e-book",
+  "breqRequestAudiobook": "Запросить аудиокнигу",
+  "breqAddMeEbook": "Добавить меня в запрос на e-book",
+  "breqAddMeAudiobook": "Добавить меня в запрос на аудиокнигу",
+  "breqPairSubmitted": "Запрос e-book и аудиокниги",
+  "breqPairOneJoined": "Запрошено оба. Один из них уже на пути, поэтому вы были добавлены к этому запросу",
+  "breqJoinedBoth": "Вы добавлены к обоим запросам",
+  "breqJoinsOwned": "Запрошено. Оно присоединится к копии уже в вашей библиотеке",
   "speedBookmarkInControls": "Скорость и закладки в панели управления медиа",
   "speedBookmarkOnSubtitle": "Вкл. - уведомление покажет скорость и закладку; в Android Auto переключатели глав",
   "speedBookmarkOffSubtitle": "Выкл. - в уведомлении переключатели глав; в Android Auto скорость и закладка",
   "lockSeekBar": "Заблокировать ползунок на панели",
   "lockSeekBarOnSubtitle": "Вкл. - уведомление покажет прогресс, на экране блокировки и Android Auto, но ползунок переместить невозможно",
   "lockSeekBarOffSubtitle": "Выкл. - ползунок прогресса перемещается в уведомлении, на экране блокировки и Android Auto",
+  "autoRewindOnResume": "Автоперемотка после возобновления",
+  "autoRewindOnSubtitle": "Вкл - {min}с до {max}в зависимости от длины паузы",
+  "@autoRewindOnSubtitle": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "sectionSleepTimer": "Таймер сна",
   "timer": "Таймер",
   "addMoreTime": "Добавить время",
@@ -947,7 +1254,15 @@
   "downloadOverWifiOnly": "Сеть для скачивания",
   "downloadOverWifiOnSubtitle": "Только Wi-Fi",
   "downloadOverWifiOffSubtitle": "Любая связь",
+  "autoDownloadOnWifiOffSubtitle": "Выключить",
+  "concurrentDownloads": "Одновременные загрузки",
   "autoDownload": "Авто-скачивание",
+  "autoDownloadSubtitle": "Включить для каждой серии, подкаста, плейлиста или коллекции с их страниц деталей",
+  "autoDownloadEnabledFor": "Включено для",
+  "autoDownloadEnabledForNone": "Пока ничего",
+  "autoDownloadSourceUnnamed": "Ещё не загружено",
+  "keepNext": "Продолжить далее",
+  "keepNextInfoTitle": "Продолжить Далее",
   "deleteAbsorbedOnSubtitle": "Скачанное удаляется после прослушивание",
   "deleteAbsorbedOffSubtitle": "Выкл. - скачанное после прослушивание не удаляется",
   "downloadLocation": "Папка скачивания",
@@ -960,6 +1275,11 @@
       }
     }
   },
+  "manageDownloads": "Управление загрузками",
+  "streamingCache": "Потоковый кэш",
+  "streamingCacheInfoTitle": "Потоковый Кэш",
+  "streamingCacheOff": "Выключить",
+  "streamingCacheOffSubtitle": "Выкл - звук транслируется без кэширования",
   "streamingCacheCleared": "Кэш вещания очищен",
   "sectionLibrary": "Библиотека",
   "hideEbookOnlyOnSubtitle": "Книги без аудио файлов скрыты",
