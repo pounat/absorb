@@ -816,6 +816,8 @@
   "speedAdjustedTimeOffSubtitle": "Выкл - показывать исходную длительность аудио",
   "buttonLayout": "Раскладка кнопок",
   "buttonLayoutSubtitle": "Как распределяются кнопки действий на карте",
+  "whenAbsorbed": "При поглощении",
+  "whenAbsorbedInfoTitle": "При поглощении",
   "whenAbsorbedInfoContent": "Управляет что случается с Картой Поглощение когда книга или выпуск прослушан.\n\nПрослушанные карты автоматически удаляются с экрана Поглощение.",
   "whenAbsorbedSubtitle": "Что происходит с поглощающей картой после завершения книги или эпизода",
   "whenAbsorbedShowOverlay": "Показать оверлей",
@@ -1095,6 +1097,7 @@
       }
     }
   },
+  "breqTitle": "Запросы на книги",
   "breqTabRequest": "Запросить книгу",
   "breqTabMine": "Mои запросы",
   "breqTabAll": "Все запросы",
@@ -1126,6 +1129,7 @@
   "breqJoined": "Вы добавлены в существующий запрос",
   "breqFailed": "Не удалось отправить запрос",
   "breqStatusPending": "В обработке",
+  "breqStatusApproved": "Одобрено",
   "breqStatusRejected": "Отклонено",
   "breqStatusCancelled": "Отменено",
   "breqStatusSearching": "Поиск",
@@ -1176,6 +1180,61 @@
   "breqFactLibrary": "Библиотека",
   "breqFactDecidedBy": "Утверждено",
   "breqFactNote": "Заметка инициатора",
+  "breqLibraryCta": "Запросить книгу",
+  "breqFailedWithReason": "Ошибка: {reason}",
+  "@breqFailedWithReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqRequestedBy": "Запрошено: {name}",
+  "@breqRequestedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "breqActionFailedReason": "Не удалось обновить запрос: {reason}",
+  "@breqActionFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqFooterCta": "Запрос \"{query}\"",
+  "@breqFooterCta": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "breqFindRelease": "Поиск релиза",
+  "breqTryAnotherRelease": "Попробуйте другой релиз",
+  "breqApproveAndFind": "Одобрить и найти релиз",
+  "breqReviewButton": "Обзор скачанных",
+  "breqStopDownload": "Остановить загрузку",
+  "breqStopDownloadConfirm": "Остановить эту загрузку? Запрос возвращается к утвержденному релизу, чтобы можно было выбрать другой.",
+  "breqDiscardImport": "Отменить загрузку",
+  "breqDiscardConfirm": "Отменить эту загрузку? Запрос помечен как не удавшийся и может быть повторен в другой версии.",
+  "breqFileAnyway": "Добавить в библиотеку",
+  "breqFiledToast": "Добавлено в библиотеку",
+  "breqDiscardedToast": "Скачивание отменено",
+  "breqStoppedToast": "Загрузка остановлена",
+  "breqGrabTitle": "Скачать этот релиз?",
+  "breqGrab": "Скачать",
+  "breqGrabbed": "Скачивание началось",
+  "breqGrabFailed": "Не удалось запустить эту загрузку",
+  "breqReleaseVipWarning": "Этот трекер позволяет скачивать только VIP-аккаунтам.",
+  "breqReleaseNoBookFile": "В этом выпуске нет книжного файла BookOrbit который можно добавить в библиотеку.",
+  "breqReleaseCheckFailed": "Не удалось проверить, что находится в этом выпуске. Попробуйте еще раз или выберите другой.",
+  "breqCheckingRelease": "Проверка файлов...",
+  "breqSearchAgain": "Повторный поиск",
+  "breqSearchTerms": "Условия поиска",
   "breqIndexerError": "ошибка",
   "breqSortBest": "Лучшее совпадение",
   "breqSortSeeders": "Сидеры",
@@ -1421,6 +1480,8 @@
   "notificationsSubtitle": "Для загрузки прогресса и управления воспроизведением",
   "notificationsAlreadyEnabled": "Уведомления уже включены",
   "unrestrictedBattery": "Не ограничивать заряд батареи",
+  "unrestrictedBatterySubtitle": "Запрещает Android закрывать фоновое воспроизведение",
+  "batteryAlreadyUnrestricted": "Батарея уже не ограничена",
   "sectionIssuesAndSupport": "Проблемы и поддержка",
   "bugsAndFeatureRequests": "Ошибки и пожелания функций",
   "bugsAndFeatureRequestsSubtitle": "Открыть issue на GitHub",
@@ -1431,7 +1492,10 @@
   "enableLogging": "Включить логи",
   "enableLoggingOnSubtitle": "Вкл - логи сохраненные в файл (перезапустите для применения)",
   "enableLoggingOffSubtitle": "Вкл - логи не сохраняются",
+  "loggingEnabledSnackbar": "Логирование включено - перезапустите приложение, чтобы начать захват",
+  "loggingDisabledSnackbar": "Логирование выключено - перезапустите приложение, чтобы остановить захват",
   "sendLogs": "Отправить логи",
+  "sendLogsSubtitle": "Поделиться файлом журнала как вложением",
   "failedToShare": "Не удалось поделиться: {error}",
   "@failedToShare": {
     "placeholders": {
@@ -1443,16 +1507,28 @@
   "clearLogs": "Очистить логи",
   "logsCleared": "Логи очищены",
   "clearLogsQuestion": "Очистить логи?",
+  "clearLogsContent": "Это нельзя отменить. Отправьте их первыми, если они вам могут понадобиться.",
   "sectionAdvanced": "Расширенные",
   "localServer": "Локальный сервер",
   "localServerInfoTitle": "Локальный Сервер",
+  "localServerInfoContent": "Если вы используете сервер Audiobookshelf дома, здесь можно указать локальный URL-адрес или адрес в локальной сети. Absorb автоматически переключится на более быстрое локальное соединение, когда определит, что вы находитесь в домашней сети, и вернется к удаленному URL-адресу, когда вы окажетесь вне зоны доступа.",
+  "localServerOnConnectedSubtitle": "Подключено через локальный сервер",
+  "localServerOnRemoteSubtitle": "Включено - используется удаленный сервер",
+  "localServerOffSubtitle": "Автопереключение на сервер LAN на домашнем WiFi",
   "localServerUrlLabel": "URL локального сервера",
   "localServerUrlHint": "http://192.168.1.100:13378",
+  "localServerUrlSetSnackbar": "Указан URL локального сервера — подключение будет происходить автоматически при входе в домашнюю сеть",
   "disableAudioFocus": "Отключить аудиофокус",
   "disableAudioFocusInfoTitle": "Аудиофокус",
+  "disableAudioFocusInfoContent": "По умолчанию Android предоставляет аудио \"фокус\" одному приложению одновременно - когда Absorb проигрывается, другие аудио (музыка, видео) будут приостанавливаться. Отключение аудиофокуса позволяет Absorb проигрывать вместе с другими приложениями. Телефонные звонки будут приостановлены независимо от этой настройки.",
   "disableAudioFocusOnSubtitle": "Вкл - воспроизводится вместе с другим аудио (по-прежнему приостанавливается во время звонков)",
+  "disableAudioFocusOffSubtitle": "Выкл - остальные проигрыватели ставятся на паузу при воспроизведении Absorb",
   "restartRequired": "Требуется перезапуск",
+  "restartRequiredContent": "Для изменения аудиофокуса требуется перезапустить приложение. Закрыть приложение сейчас?",
   "closeApp": "Закрыть приложение",
+  "trustAllCertificates": "Доверять всем сертификатам",
+  "trustAllCertificatesInfoTitle": "Самоподписанные сертификаты",
+  "mp3IndexSeeking": "Поиск по индексу MP3",
   "supportTheDev": "Поддержать разработчика",
   "buyMeACoffee": "Поддержать проект",
   "appVersionFormat": "Absorb v{version}",
@@ -1663,10 +1739,33 @@
     }
   },
   "adminCachePurged": "Кэш очищен",
+  "adminRmab": "ReadMeABook",
   "adminRmabSubtitle": "Открыть в приложении",
+  "adminRmabAdd": "Добавить интеграцию с ReadMeABook",
+  "adminRmabUrlTitle": "ReadMeABook URL",
+  "adminRmabUrlHelp": "Вставьте URL токена входа. Создайте его в RMAB, Admin, Users.",
+  "adminRmabUrlHint": "https://rmab.example.com/?token=...",
+  "adminRmabInvalidUrl": "Введите корректный URL с http(s)",
+  "adminRmabSaved": "ReadMeABook сохранён",
+  "adminRmabRemoved": "ReadMeABook удалён",
+  "adminRmabReload": "Обновить",
+  "adminRmabLoadFailed": "Не удалось загрузить ReadMeABook. Проверьте свой URL.",
+  "adminRmabConnected": "Подключено",
+  "adminRmabAskAdmin": "Получите URL входа от администратора сервера",
+  "adminRmabUrlHelpUser": "Получите URL входа от администратора сервера. Он генерируется в RMAB > Администратор > Пользователи.",
+  "adminRmabSettingsInfo": "ReadMeABook - это сервис для запроса и скачивания аудиокниг. Он должен быть установлен и настроен администратором вашего сервера.",
+  "rmabConfigTitle": "Подключение ReadMeABook",
+  "rmabConfigExplainerAdmin": "ReadMeABook - это самохостинг для запроса аудиокниг. Генерируйте ключ API в RMAB под Admin Dashboard > Settings > API, затем вставьте ниже URL сервера и токен. Absorb не поддерживает или не загружает какой-либо контент, он просто посылает запросы на ваш сервер.",
+  "rmabConfigExplainerUser": "ReadMeABook — это самохостинг для запроса аудиокниг. Запросите администратора вашего сервера для RMAB URL и API токен. Absorb не размещает или не загружает какие-либо материалы, он просто отправляет запросы на ваш сервер.",
+  "rmabConfigLearnMore": "Подробнее о ReadMeABook",
+  "rmabConfigBaseUrlLabel": "URL-адрес RMAB сервера",
+  "rmabConfigBaseUrlHint": "https://rmab.example.com",
+  "rmabConfigTokenLabel": "API токен",
+  "rmabConfigTokenHint": "rmab_...",
   "rmabConfigLegacyUrlLabel": "URL входа в веб-интерфейс (необязательно)",
   "rmabConfigLegacyUrlHint": "https://rmab.example.com/?token=...",
   "rmabConfigLegacyUrlHelp": "Вставьте ваш URL автовхода, так что «Открыть в просмотре браузера» вы вошли в систему. Оставьте пустым, чтобы использовать обычный вход.",
+  "rmabConfigHeadersHelp": "Дополнительные заголовки, посылаемые с каждым запросом ReadMeABook, для обратных прокси типа доступа Cloudflare Access.",
   "rmabConfigConnect": "Подключиться",
   "rmabConfigDisconnect": "Отключиться",
   "rmabConfigOpenWebView": "Открыть в просмотре браузера",
@@ -1728,6 +1827,46 @@
   "rmabStatusWaiting": "Ожидание",
   "rmabStatusAvailable": "Доступно",
   "rmabStatusDownloaded": "Загружено",
+  "rmabStatusFailed": "Ошибка",
+  "rmabStatusCancelled": "Отменено",
+  "rmabStatusDenied": "Отказано",
+  "rmabStatusUnknown": "Неизвестно",
+  "narratedBy": "Распространяется {narrator}",
+  "@narratedBy": {
+    "placeholders": {
+      "narrator": {
+        "type": "String"
+      }
+    }
+  },
+  "percentComplete": "{percent}% выполнено",
+  "@percentComplete": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "absorbing": "Поглощение...",
+  "absorbAgain": "Поглощение снова",
+  "absorb": "Поглощение",
+  "ebookOnlyNoAudio": "только eBook - без аудио",
+  "absorbAudioNotDownloaded": "Аудио не загружено",
+  "absorbAudioNotDownloadedEbookOnly": "Аудио не загружено, только ebook",
+  "fullyAbsorbed": "Полностью Поглощено",
+  "fullyAbsorbAction": "Полное Поглощение",
+  "removeFromAbsorbing": "Удалить из Поглощения",
+  "addToAbsorbing": "Добавить в Поглощение",
+  "absorbNext": "Поглощение след",
+  "absorbNextAdded": "Следующий в Поглощении",
+  "absorbLast": "Поглощение последнего",
+  "absorbNextHint": "Сразу после того, что сейчас играет",
+  "absorbLastHint": "В конец списка",
+  "removedFromAbsorbing": "Удалено из Поглощения",
+  "addedToAbsorbing": "Добавлено в Поглощение",
+  "removeFromContinueListening": "Удалить из Продолжить слушать",
+  "removedFromContinueListening": "Удалить из Продолжить слушать",
+  "removeSeriesFromContinueSeries": "Удалить из Продолжить серию",
   "clearLocalMetadata": "Очистить локальные метаданные",
   "mono": "Моно",
   "stereo": "Стерео",
