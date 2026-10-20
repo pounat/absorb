@@ -795,6 +795,7 @@
   "fullScreenPlayer": "Полно экранный плеер",
   "fullScreenPlayerOnSubtitle": "Вкл - книги открываются в полноэкранном режиме при воспроизведении",
   "fullScreenPlayerOffSubtitle": "Выкл. - играть в режиме карт",
+  "fullBookScrubber": "Ползунок всей книги",
   "fullBookScrubberOnSubtitle": "Вкл - видимый слайдер по всей книге",
   "fullBookScrubberOffSubtitle": "Выкл. - только индикатор прогресса",
   "cardScrubbersBoth": "Оба",
