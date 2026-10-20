@@ -46,6 +46,7 @@
   "stay": "Остаться",
   "homeTitle": "Главная",
   "continueListening": "Продолжить Слушать",
+  "continueReading": "Продолжить чтение",
   "continueSeries": "Продолжить Серию",
   "recentlyAdded": "Недавно Добавлено",
   "listenAgain": "Послушать Ещё Раз",
@@ -989,6 +990,14 @@
       }
     }
   },
+  "bookDockGoesTo": "Перейти к {library}",
+  "@bookDockGoesTo": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
   "bookDockAdded": "Добавлено {date}",
   "@bookDockAdded": {
     "placeholders": {
@@ -1000,12 +1009,22 @@
   "bookDockAddToLibrary": "Добавить в библиотеку",
   "bookDockUseFound": "Использовать найденные подробности",
   "bookDockRemoveFailed": "Невозможно удалить этот файл",
+  "bookDockPickLibrary": "Добавить в какую библиотеку?",
   "bookDockNoLibraries": "Ваш аккаунт не может добавить книги в библиотеку",
   "bookDockFileFailed": "Невозможно добавить этот файл в библиотеку",
+  "bookDockDuplicateBody": "Файл с таким именем уже есть в этой библиотеке. Удалить его из Book Dock?",
   "bookDockDetailsUpdated": "Подробности обновлены",
   "bookDockUseFoundFailed": "Не найдено подробностей для использования",
   "bookDockRemoveBody": "Это удалит {title} с сервера.",
   "@bookDockRemoveBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockRemoved": "{title} удален из Book Dock",
+  "@bookDockRemoved": {
     "placeholders": {
       "title": {
         "type": "String"
@@ -1048,6 +1067,7 @@
   "bomatchSourceTimeout": "истекло время ожидания",
   "bomatchSourceBusy": "занято",
   "bomatchSourceFailed": "ошибка",
+  "bomatchLinked": "Связан",
   "bomatchSameIsbn": "Такой же ISBN",
   "bomatchFewDetails": "Больше подробностей",
   "bomatchBack": "Все результаты",
@@ -1067,6 +1087,45 @@
   "bomatchReplace": "Заменить",
   "bomatchUseThis": "Использовать это",
   "bomatchChosen": "Выбран",
+  "bomatchFrom": "Из {source}",
+  "@bomatchFrom": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "breqTabRequest": "Запросить книгу",
+  "breqTabMine": "Mои запросы",
+  "breqTabAll": "Все запросы",
+  "breqNoAccess": "Ваша учетная запись не может запрашивать книги на этом сервере.",
+  "breqTitleHint": "Заголовок книги",
+  "breqAuthorHint": "Автор",
+  "breqKindAudiobook": "Аудиокнига",
+  "breqKindEbook": "E-book",
+  "breqKindComic": "Комикс",
+  "breqSearch": "Поиск",
+  "breqSearching": "Поиск...",
+  "breqSearchFailed": "Не удалось найти. Проверьте подключение и повторите попытку.",
+  "breqSearchPrompt": "Найдите книгу, которой еще нет в библиотеке, и запросите ее.",
+  "breqNoResults": "Подходящих книг не найдено",
+  "breqInLibrary": "В вашей библиотеке",
+  "breqYouAsked": "Вы запрашивали это",
+  "breqSomeoneAsked": "Уже запрошен кем-то другим",
+  "breqView": "Просмотр",
+  "breqRequest": "Запрос",
+  "breqRequested": "Запрошено",
+  "breqAddMeToo": "Добавить меня тоже",
+  "breqLibrary": "Библиотека",
+  "breqLibraryApprover": "По решению утверждающего",
+  "breqLibraryChoose": "Выбрать библиотеку",
+  "breqNote": "Примечание для утверждающего",
+  "breqNoteHint": "Всё, что стоит знать об этом запросе",
+  "breqAutoApproved": "Ваши запросы одобрены прямо сейчас.",
+  "breqSubmitted": "Запрос отправлен",
+  "breqJoined": "Вы добавлены в существующий запрос",
+  "breqFailed": "Не удалось отправить запрос",
+  "breqStatusPending": "В обработке",
   "breqStatusRejected": "Отклонено",
   "breqStatusCancelled": "Отменено",
   "breqStatusSearching": "Поиск",
@@ -1247,13 +1306,70 @@
     }
   },
   "sectionSleepTimer": "Таймер сна",
+  "resetTimerOnPause": "Сброс таймера при паузе",
+  "resetTimerOnPauseOnSubtitle": "Таймер перезапустится с полной продолжительностью при возобновлении",
+  "resetTimerOnPauseOffSubtitle": "Таймер продолжится с предыдущего места",
+  "fadeVolumeBeforeSleep": "Затухание громкости перед сном",
+  "fadeVolumeOnSubtitle": "Постепенно снижать громкость в течение последних 30 секунд",
+  "fadeVolumeOffSubtitle": "Воспроизведение прекращается сразу после окончания таймера",
+  "autoSleepTimer": "Автоматический таймер сна",
+  "autoSleepTimerOnSubtitle": "{start} – {end} · {duration}",
+  "@autoSleepTimerOnSubtitle": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "int"
+      }
+    }
+  },
+  "autoSleepTimerOffSubtitle": "Автоматически запускать таймер сна в заданном временном интервале",
+  "windowStart": "Начало окна",
+  "windowEnd": "Конец окна",
+  "timerDuration": "Продолжительность таймера",
   "timer": "Таймер",
+  "endOfChapter": "Конец главы",
+  "startMinTimer": "Запустить таймер {minutes} минут",
+  "@startMinTimer": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepAfterChapters": "Сон после {count} {label}",
+  "@sleepAfterChapters": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "addMoreTime": "Добавить время",
   "cancelTimer": "Сбросить таймер",
+  "chaptersLeftCount": "{count} Гл. осталось",
+  "@chaptersLeftCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sectionDownloadsAndStorage": "Загрузки и хранилище",
   "downloadOverWifiOnly": "Сеть для скачивания",
   "downloadOverWifiOnSubtitle": "Только Wi-Fi",
   "downloadOverWifiOffSubtitle": "Любая связь",
+  "autoDownloadOnWifi": "Автозагрузка начатых книг",
+  "autoDownloadOnWifiInfoTitle": "Автозагрузка начатых книг",
+  "autoDownloadOnWifiInfoContent": "Когда вы начинаете стримить книгу, полная книга скачивается в фоновом режиме, так что вы будете иметь к ней доступ автономном режиме без ручной загрузки. Эти загрузки следуют вашим настройкам сети загрузок, так что установите в \"Любые подключения\", если вы хотите, чтобы они запускались на мобильной сети.",
+  "autoDownloadOnWifiOnSubtitle": "Загрузка потоковых книг в фоне автоматически",
   "autoDownloadOnWifiOffSubtitle": "Выключить",
   "concurrentDownloads": "Одновременные загрузки",
   "autoDownload": "Авто-скачивание",
@@ -1263,6 +1379,8 @@
   "autoDownloadSourceUnnamed": "Ещё не загружено",
   "keepNext": "Продолжить далее",
   "keepNextInfoTitle": "Продолжить Далее",
+  "keepNextInfoContent": "Количество загружаемых элементов, включая тот, который вы сейчас слушаете. Например, «Сохранить следующие 3» означает текущую книгу плюс следующие 2 в этой серии, подкаст, плейлист или коллекция останутся загруженными. Это применимо к каждой автоматической загрузке, которую вы включаете.",
+  "deleteAbsorbedDownloadsInfoContent": "Когда включено, загруженные книги или эпизоды автоматически удаляются с этого устройства после их завершения в Absorb. Завершение установки в Интернете или на другом устройстве не приведет к удалению загрузки здесь.",
   "deleteAbsorbedOnSubtitle": "Скачанное удаляется после прослушивание",
   "deleteAbsorbedOffSubtitle": "Выкл. - скачанное после прослушивание не удаляется",
   "downloadLocation": "Папка скачивания",
@@ -1278,6 +1396,7 @@
   "manageDownloads": "Управление загрузками",
   "streamingCache": "Потоковый кэш",
   "streamingCacheInfoTitle": "Потоковый Кэш",
+  "streamingCacheInfoContent": "Кэширует потоковый аудио на диск, чтобы он скачивался снова, если вы прокручиваете назад или повторно прослушиваете разделы. Кэш автоматически управляется - старые файлы удаляются по достижении лимита размера. Это отделяется от полностью загруженных книг.",
   "streamingCacheOff": "Выключить",
   "streamingCacheOffSubtitle": "Выкл - звук транслируется без кэширования",
   "streamingCacheOnSubtitle": "{size} MB - недавно кэшированный потоковый аудио на диск",
@@ -1294,10 +1413,14 @@
   "hideEbookOnlyTitles": "Скрыть заголовки только для eBooks",
   "hideEbookOnlyOnSubtitle": "Книги без аудио файлов скрыты",
   "hideEbookOnlyOffSubtitle": "Выкл - все элементы библиотеки показаны",
+  "homeCardsOpenDetailsOnSubtitle": "Нажатие кнопки Продолжить Слушать или Продолжить Чтение раскрывает детали",
   "showGoodreadsButton": "Показать кнопку 'Goodreads'",
   "showGoodreadsOnSubtitle": "Подробная информация о книге показывает ссылку на Goodreads",
   "sectionPermissions": "Разрешения",
   "notifications": "Уведомления",
+  "notificationsSubtitle": "Для загрузки прогресса и управления воспроизведением",
+  "notificationsAlreadyEnabled": "Уведомления уже включены",
+  "unrestrictedBattery": "Не ограничивать заряд батареи",
   "sectionIssuesAndSupport": "Проблемы и поддержка",
   "bugsAndFeatureRequests": "Ошибки и пожелания функций",
   "bugsAndFeatureRequestsSubtitle": "Открыть issue на GitHub",
