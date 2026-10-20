@@ -34,6 +34,9 @@ import 'services/carplay_service.dart';
 import 'services/chromecast_service.dart';
 import 'services/episode_notification_service.dart';
 import 'services/home_widget_service.dart';
+import 'services/siri_service.dart';
+import 'services/narrated_books.dart';
+import 'services/read_listen_sync.dart';
 import 'services/log_service.dart';
 import 'services/quick_actions_service.dart';
 import 'services/setup_link_service.dart';
@@ -204,6 +207,10 @@ Future<void> applyOrientationLock() async {
 void main() async {
   HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  ReadListenSync.instance.start();
+  try {
+    await NarratedBooks.load().timeout(const Duration(seconds: 2));
+  } catch (_) {}
   final appLinks = AppLinks();
 
   // These calls use platform channels that require an Activity. When Android
@@ -831,6 +838,10 @@ class _AuthGateState extends State<AuthGate> {
       if (Platform.isAndroid || Platform.isIOS) {
         // Initialize homescreen widget
         await HomeWidgetService().init();
+      }
+      if (Platform.isIOS) {
+        // Siri requests wait on this; a Siri launch reaches it headless.
+        await SiriService().init();
       }
       // App-icon long-press shortcuts. On Android the service registers
       // dynamic shortcuts + handler; on iOS it only wires the handler since

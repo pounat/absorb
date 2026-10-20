@@ -61,6 +61,7 @@ class BookCard extends StatelessWidget {
     // Progress from LibraryProvider (fetched via /api/me, same source as book detail)
     final progress = lib.getProgress(itemId);
     final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
+    final isSkimmed = lib.getProgressData(itemId)?['skimmed'] == true;
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final isDownloaded = DownloadService().isDownloaded(itemId ?? '');
     final hasEbook = PlayerSettings.showEbookBadge && hasEbookFile(item);
@@ -74,7 +75,7 @@ class BookCard extends StatelessWidget {
 
     final card = isWide
         ? _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit, hasEbook: hasEbook)
-        : _buildCompactCard(context, cs, tt, l, title, subtitle, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount, hasEbook: hasEbook);
+        : _buildCompactCard(context, cs, tt, l, title, subtitle, authorName, coverUrl, progress, headers, isFinished: isFinished, isSkimmed: isSkimmed, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount, hasEbook: hasEbook);
     if (!selectionMode) return card;
     // Selection sits on top of the finished card rather than inside both
     // layouts: the overlay swallows the tap, so nothing below it can open a
@@ -321,6 +322,7 @@ class BookCard extends StatelessWidget {
     double progress,
     Map<String, String> headers, {
     bool isFinished = false,
+    bool isSkimmed = false,
     bool isDownloaded = false,
     bool isExplicit = false,
     int unfinishedCount = 0,
@@ -408,6 +410,7 @@ class BookCard extends StatelessWidget {
                       child: CoverStateBadges(
                         isDownloaded: isDownloaded,
                         isFinished: isFinished,
+                        isSkimmed: isSkimmed,
                         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
                       ),
                     ),

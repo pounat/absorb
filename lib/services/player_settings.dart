@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'narrated_books.dart';
 import 'scoped_prefs.dart';
 import '../widgets/card_button_config.dart';
 
@@ -209,6 +210,17 @@ class PlayerSettings {
   // On-device bookmark transcription (Whisper, opt-in). Stored globally
   // (raw SharedPreferences, not per-account) because the downloaded Whisper
   // model is shared across every profile on the device.
+
+  /// Moves the ebook to where listening stopped, and the audiobook to where
+  /// reading stopped, for books with both (transcription does the finding).
+  static Future<bool> getSyncReadingListening() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('syncReadingListening') ?? false;
+  }
+  static Future<void> setSyncReadingListening(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('syncReadingListening', value);
+  }
 
   static Future<bool> getTranscriptionEnabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -952,6 +964,11 @@ class PlayerSettings {
   static Future<bool> getHideEbookOnly() => _get('hideEbookOnly', false);
   static Future<void> setHideEbookOnly(bool value) => _set('hideEbookOnly', value, notify: true);
 
+  /// Tapping a Continue Listening or Continue Reading card on Home opens its
+  /// details instead of picking up where it left off.
+  static Future<bool> getHomeCardsOpenDetails() => _get('homeCardsOpenDetails', false);
+  static Future<void> setHomeCardsOpenDetails(bool value) => _set('homeCardsOpenDetails', value, notify: true);
+
   static Future<bool> getCollapseSeries() => _get('collapseSeries', false);
   static Future<void> setCollapseSeries(bool value) => _set('collapseSeries', value, notify: true);
 
@@ -1359,11 +1376,14 @@ class PlayerSettings {
   /// Check if an item has no audio content.
   /// For minified responses (library list), duration == 0 means no audio files.
   /// For full responses (detail sheet), we also check ebookFile + audioFiles.
-  static bool isEbookOnly(Map<String, dynamic> item) {
+  /// [countNarration] off asks about the server's own audio only, leaving
+  /// out an EPUB found to read itself aloud.
+  static bool isEbookOnly(Map<String, dynamic> item, {bool countNarration = true}) {
     // Podcasts are never eBook-only (minified podcasts lack duration/audioFiles)
     if ((item['mediaType'] as String?) == 'podcast') return false;
     // BookOrbit Book Dock files have no tracks until they are filed.
     if (item['bookDock'] != null) return false;
+    if (countNarration && NarratedBooks.contains(item['id'])) return false;
     final media = item['media'] as Map<String, dynamic>? ?? {};
     final duration = (media['duration'] as num?)?.toDouble() ?? 0;
     if (duration > 0) return false; // Has audio content

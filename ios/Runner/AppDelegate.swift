@@ -5,6 +5,7 @@ import UIKit
 import AVFoundation
 import AVKit
 import CoreMedia
+import Intents
 import MediaPlayer
 import just_audio
 import os
@@ -94,6 +95,9 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     AbsorbAudioEngine.logSink = { [weak self] line in
       self?.logToFlutter(line)
     }
+    SiriBridge.logSink = { [weak self] line in
+      self?.logToFlutter(line)
+    }
     AbsorbAudioBridge.logSink = { [weak self] line in
       self?.logToFlutter(line)
     }
@@ -131,6 +135,16 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     registerAudioSessionObservers()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Siri's "Play <book> on Absorb" runs here in the app process (in-app
+  /// intent handling), so playback starts without an Intents extension.
+  /// Anything else goes on to Flutter's own handling for plugins.
+  override func application(_ application: UIApplication, handlerFor intent: INIntent) -> Any? {
+    if intent is INPlayMediaIntent {
+      return SiriMediaHandler.shared
+    }
+    return super.application(application, handlerFor: intent)
   }
 
   private func registerAudioSessionObservers() {
@@ -351,6 +365,7 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 
     IOSQueueAdvancer.shared.register(with: messenger)
     AbsorbAudioBridge.shared.register(with: messenger)
+    SiriBridge.shared.register(with: messenger)
 
     // CarPlay Now Playing custom buttons (chapter nav, speed, bookmark). These
     // decorate CPNowPlayingTemplate only — the lock screen is untouched.

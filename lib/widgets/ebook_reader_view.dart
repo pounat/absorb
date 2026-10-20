@@ -9,11 +9,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dictionary_sheet.dart';
 import '../services/dictionary_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../screens/app_shell.dart';
 import '../services/api_service.dart';
+import '../services/audio_locator.dart';
 import '../services/audio_player_service.dart';
 import '../services/chapter_lookup.dart';
 import '../services/chromecast_service.dart';
@@ -26,6 +28,13 @@ import '../services/reader_font_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/lyrics_service.dart';
 import '../services/read_along_script.dart';
+import '../services/read_listen_sync.dart';
+import '../services/ebook_history.dart';
+import '../services/local_session_service.dart';
+import 'absorbing_shared.dart' show dateLabel, timeOfDay;
+import '../services/media_overlay.dart';
+import '../services/narration_script.dart';
+import '../services/narration_service.dart';
 import '../services/screen_wake.dart';
 import '../services/sync_point_store.dart';
 import '../services/transcript_line_store.dart';
@@ -34,6 +43,7 @@ import '../services/volume_key_service.dart';
 import '../utils/chapter_title_match.dart';
 import 'overlay_toast.dart';
 import 'transcription_download_prompt.dart';
+import 'narration_download_dialog.dart';
 import 'progress_dialog.dart';
 import 'quote_share_sheet.dart';
 import 'book_detail_sheet.dart';
@@ -90,6 +100,9 @@ class EbookReaderView extends StatefulWidget {
   /// The audio position [findText] was transcribed at, so a not-confident
   /// first pass can transcribe a longer window and retry.
   final double? findPositionSeconds;
+  /// Find in ebook on a book whose audio is its EPUB's narration: the book
+  /// time to open at, on the sentence read then.
+  final double? openAtAudioSeconds;
   /// Turn read along on as soon as the book is displayed, for the card's
   /// Read along button.
   final bool startReadAlong;
@@ -103,6 +116,7 @@ class EbookReaderView extends StatefulWidget {
     this.findText,
     this.findChapterHint,
     this.findPositionSeconds,
+    this.openAtAudioSeconds,
     this.startReadAlong = false,
   });
 
@@ -127,6 +141,32 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   String? _bgCfi;
   bool _bgDrifted = false;
   String? _initialCfi;
+  // Set when the saved spot is another app's format (AudioBooth saves a JSON
+  // locator): the reader opens at the start and moves to this percentage once
+  // epub.js can map percentages to pages.
+  double? _pendingPercentJump;
+  String? _firstShownCfi;
+  // The place is written back only once the reader has moved from where it
+  // opened. The landing can be off from the server's spot (another app's
+  // page size, a percent jump, a slow server), and saving it replaced the
+  // real place before a single page was turned.
+  bool _holdOpenSpot = true;
+
+  // Reading time kept as a session (the Tt switch): counted while the page
+  // is on screen and has moved in the last few minutes, and not while this
+  // book's audio plays (that listening session already counts it).
+  static const _kLogReading = 'ereader_log_reading';
+  bool _logReading = false;
+  Timer? _readingTimer;
+  ApiService? _readingApi;
+  String? _readingSessionId;
+  DateTime? _readingStartedAt;
+  double? _readingStartPct;
+  int _readingSeconds = 0;
+  int _readingSent = 0;
+  DateTime _readingActiveAt = DateTime.now();
+  bool _readingAudioWasOn = false;
+  double _audioTotal = 0;
   bool _showControls = false;
   List<EpubChapter> _chapters = [];
   double _progress = 0;
@@ -158,6 +198,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // Track touch start position to distinguish taps from swipes
   double? _touchDownX;
   double? _touchDownY;
+  DateTime? _touchDownAt;
   double? _ptrDownX;
   double? _ptrDownY;
 
@@ -227,7 +268,35 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   DateTime? _readAlongSeekAt;
   DateTime? _readAlongLastMatch;
   bool _readAlongLost = false;
+  // You moved the page yourself while read along runs. The narration keeps
+  // its coloring wherever it is, but the page stops following it until you
+  // tap Back to narration or the narration reaches the page you are on.
+  bool _readAlongBrowsing = false;
+  DateTime _readAlongBrowseAt = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime? _readAlongSeenSince;
   DateTime _readAlongOffPageLog = DateTime.fromMillisecondsSinceEpoch(0);
+
+  // A narrated EPUB (EPUB 3 media overlays) knows which sentence is read
+  // when, so its read along follows those timings instead of transcribing.
+  MediaOverlay? _narration;
+  bool _narrationReadAlong = false;
+  OverlayClip? _narrationWentTo;
+  DateTime _narrationTurnAt = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _narrationTickBusy = false;
+  // Where the lit sentence was on the last tick: on, low, before, after.
+  String? _narrationWhere;
+
+  bool get _narrationOnScreen => _narrationWhere == 'on' || _narrationWhere == 'low';
+
+  bool _narrationFromServer = false;
+  bool _audioIsNarration = false;
+
+  /// Read along can follow the narration when the book's audio is that
+  /// narration: BookOrbit plays it as the audio, and an Audiobookshelf
+  /// ebook-only book has it fetched out of the EPUB. A book with its own
+  /// audiobook keeps transcription.
+  bool get _useNarration =>
+      _narration != null && (_narrationFromServer || !_hasAudio || _audioIsNarration);
 
   // Reader settings
   int _fontSize = 16;
@@ -249,9 +318,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // Page layout: auto shows two pages on wide screens (tablets), single forces
   // one page, two forces a spread. Stored as index 0=auto/1=single/2=two.
   EpubSpread _spread = EpubSpread.auto;
+  // Scroll down through the book instead of turning pages.
+  bool _scroll = false;
   // Keep the title and progress bar on screen above the page instead of
   // fading them in over it. The page gets shorter, never covered.
   bool _pinTop = false;
+  // What the top bar's progress follows: 'book', 'chapter' or 'both'.
+  String _topBarProgress = 'book';
   // Hold the screen on for the whole read, not only while auto scroll or
   // read along moves the page (GH #384).
   bool _keepAwake = true;
@@ -277,7 +350,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   static const _kTheme = 'ereader_theme';
   static const _kFont = 'ereader_font';
   static const _kPinTop = 'ereader_pin_top';
+  static const _kTopBarProgress = 'ereader_top_bar_progress';
   static const _kKeepAwake = 'ereader_keep_awake';
+  // App-wide, not per account: one switch for every server's books.
+  static const _kScroll = 'ereader_scroll_mode';
   static const _kBarAction = 'ereader_bar_action';
 
   // Gates the WebView mount until the entering route animation completes, so
@@ -291,6 +367,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // This item's audiobook metadata, so the controls can show (and start
   // playback) even before a session is running.
   bool _hasAudio = false;
+  // A download made on another account: the server signed in now is not this
+  // book's, and the same id there can be a different book. Its place is kept
+  // on the phone and nothing about it goes to this server.
+  late final bool _otherAccount = DownloadService().isFromOtherAccount(widget.itemId);
   double _audioDuration = 0;
   List<dynamic> _audioChapters = const [];
   String _audioAuthor = '';
@@ -305,6 +385,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ReadListenSync.instance.readerOpened(widget.itemId);
+    _readingApi = context.read<AuthProvider>().apiService;
+    ScopedPrefs.getBool(_kLogReading).then((on) {
+      if (on == true && mounted) {
+        setState(() => _logReading = true);
+        _startReadingClock();
+      }
+    });
     _epubController = EpubController();
     _quietLib = context.read<LibraryProvider>();
     _quietLib.setReaderQuiet(true);
@@ -330,8 +418,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // Volume-key turns are ignored while auto scroll runs: the blind is already
   // showing the next page, and a turn underneath it leaves that page unread.
   late final EreaderVolumeNav _volumeNav = EreaderVolumeNav(
-    onPrev: () { if (!_autoScroll && !_readAlongOn) _epubController?.prev(); },
-    onNext: () { if (!_autoScroll && !_readAlongOn) _epubController?.next(); },
+    onPrev: () {
+      if (_autoScroll) return;
+      _userMoved('volume key');
+      _epubController?.prev();
+    },
+    onNext: () {
+      if (_autoScroll) return;
+      _userMoved('volume key');
+      _epubController?.next();
+    },
   );
 
   @override
@@ -366,7 +462,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         state == AppLifecycleState.hidden) {
       // Leaving the foreground: snapshot the real page and stop trusting
       // relocations until we're back (they'll be resize artifacts).
-      if (_readerActive) _bgCfi = _currentCfi;
+      if (_readerActive) {
+        _bgCfi = _currentCfi;
+        unawaited(_narrationCarryReadingSpot());
+        if (_logReading) unawaited(_sendReadingTime());
+      }
       _readerActive = false;
       // Following along costs transcription and a WebView call several times
       // a second, and nobody is reading a page they can't see.
@@ -384,6 +484,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   Future<void> _loadAudioMeta() async {
     final lib = context.read<LibraryProvider>();
     _audioCoverUrl = lib.getCoverUrl(widget.itemId);
+    if (_otherAccount) return;
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
     try {
@@ -397,6 +498,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         _audioDuration = dur;
         _audioChapters = media['chapters'] as List<dynamic>? ?? const [];
         _hasAudio = dur > 0;
+        _audioTotal = dur;
+        _audioIsNarration = media['narration'] != null;
       });
     } catch (_) {}
   }
@@ -465,9 +568,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _marginV = await ScopedPrefs.getInt(_kMarginV) ?? legacyMargin;
     final si = (await ScopedPrefs.getInt(_kSpread) ?? 0).clamp(0, 2);
     _spread = _spreadModes[si];
+    _scroll = (await SharedPreferences.getInstance()).getBool(_kScroll) ?? false;
     _themeId = await ScopedPrefs.getString(_kTheme) ?? '';
     _fontId = await ScopedPrefs.getString(_kFont) ?? 'original';
     _pinTop = await ScopedPrefs.getBool(_kPinTop) ?? false;
+    final barProgress = await ScopedPrefs.getString(_kTopBarProgress);
+    if (barProgress == 'chapter' || barProgress == 'both') _topBarProgress = barProgress!;
     _keepAwake = await ScopedPrefs.getBool(_kKeepAwake) ?? true;
     _barAction = await ScopedPrefs.getString(_kBarAction) ?? 'speed';
     if (mounted) _syncScreenWake();
@@ -563,6 +669,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     setState(() {
       // Re-open at the current page after the layout rebuild.
       _initialCfi = _currentCfi ?? _initialCfi;
+      _pendingPercentJump = null;
       _spread = mode;
       _locationsReady = false;
       _viewerKey++; // force the viewer to remount with the new spread
@@ -570,6 +677,28 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       _didInitViewer = false; // fresh JS context needs its wiring again
     });
     await ScopedPrefs.setInt(_kSpread, index);
+  }
+
+  Future<void> _updateScroll(bool on) async {
+    if (on == _scroll) return;
+    // The rolling blind and the gliding page are different machinery, and
+    // read along follows the page, so both stop rather than carry over.
+    if (_autoScroll) await _toggleAutoScroll();
+    if (_readAlongOn) _stopReadAlong();
+    if (!mounted) return;
+    setState(() {
+      // Re-open at the current page after the layout rebuild.
+      _initialCfi = _currentCfi ?? _initialCfi;
+      _pendingPercentJump = null;
+      _scroll = on;
+      _locationsReady = false;
+      _chapterPage = 0;
+      _chapterPageTotal = 0;
+      _viewerKey++;
+      _didLoadRescue = false;
+      _didInitViewer = false;
+    });
+    await (await SharedPreferences.getInstance()).setBool(_kScroll, on);
   }
 
   EpubTheme _buildTheme(_ReaderPalette p) {
@@ -615,6 +744,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         'html': {'background': '${p.bg} !important'},
         'body': body,
         'p, div, span, h1, h2, h3, h4, h5, h6, li, td, th, a, em, strong, blockquote': textRule,
+        // A picture with a fixed width wider than the page spilled past its
+        // column and showed on the next page as a strip down the left edge.
+        // Contain keeps a narrowed picture's shape without resizing small
+        // inline ones.
+        'img': {'max-width': '100% !important', 'object-fit': 'contain'},
       },
     );
   }
@@ -675,6 +809,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     await ScopedPrefs.setBool(_kKeepAwake, on);
   }
 
+  Future<void> _updateTopBarProgress(String mode) async {
+    if (mode == _topBarProgress) return;
+    setState(() => _topBarProgress = mode);
+    await ScopedPrefs.setString(_kTopBarProgress, mode);
+  }
+
   Future<void> _updatePinTop(bool on) async {
     if (on == _pinTop) return;
     // The WebView gets shorter or taller, so epub.js re-paginates and
@@ -697,6 +837,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   @override
   void dispose() {
+    _narrationSpotTimer?.cancel();
+    unawaited(_narrationCarryReadingSpot());
+    ReadListenSync.instance.readerClosed(widget.itemId, _currentCfi, moved: !_holdOpenSpot);
+    _rememberSpot(EbookSpotReason.closed);
+    _readingTimer?.cancel();
+    if (_logReading) unawaited(_sendReadingTime(closing: true));
     _stopReadAlong();
     _speedToast?.dismiss();
     _autoScrollSleepTimer?.cancel();
@@ -755,10 +901,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       return;
     }
     _lastReaderTap = now;
-    // Read along owns the page: a turn underneath it would only be pulled
-    // back to the narration. Every tap reaches the controls instead, so the
-    // button to switch it off is always one tap away.
-    final action = _readAlongOn
+    // In scroll mode the finger moves the page, so a tap only shows or hides
+    // the controls. Edge taps turn pages during read along too; the page then
+    // stops following the narration until you go back to it.
+    final action = _scroll
         ? 'menu'
         : (frac < 0.25 ? 'prev' : (frac > 0.75 ? 'next' : 'menu'));
     debugPrint('[ReaderTap] frac=${frac.toStringAsFixed(2)} src=$source -> $action ctrl=${_epubController != null}');
@@ -781,8 +927,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   void _commitReaderTap(String action) {
     if (action == 'prev') {
+      _userMoved('tap');
       _epubController?.prev();
     } else if (action == 'next') {
+      _userMoved('tap');
       _epubController?.next();
     } else {
       _toggleControls();
@@ -864,16 +1012,32 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       _initialCfi = pointCfi(target);
       _settleJumpCfi = _initialCfi;
     }
+    if (_otherAccount) return;
     final progressData = lib.getProgressData(widget.itemId);
     final loc = progressData?['ebookLocation'] as String?;
-    if (_initialCfi == null && loc != null && loc.isNotEmpty) {
-      _initialCfi = loc;
-    }
     // Seed the displayed percent from saved progress so the bar shows the
     // resume position until epub.js's location index is ready, and so the
     // pre-index save keeps this value instead of regressing to 0.
     final savedProgress = (progressData?['ebookProgress'] as num?)?.toDouble();
     if (savedProgress != null) _progress = savedProgress.clamp(0.0, 1.0);
+    if (_initialCfi == null && loc != null && loc.isNotEmpty) {
+      // Only an epub CFI can be opened directly, the same check the ABS web
+      // reader makes. Anything else in this field came from another app.
+      if (loc.startsWith('epubcfi(')) {
+        _initialCfi = loc;
+      } else {
+        debugPrint('[EbookReader] saved location is not a CFI '
+            '(${loc.length} chars, starts "${loc.substring(0, min(10, loc.length))}") '
+            'item=${widget.itemId} - opening at saved percent=$savedProgress');
+        if (savedProgress != null && savedProgress > 0) {
+          _pendingPercentJump = savedProgress.clamp(0.0, 1.0);
+        }
+      }
+    } else if (_initialCfi == null && savedProgress != null && savedProgress > 0 && savedProgress < 1) {
+      // A percent with no place to go with it: open there rather than at
+      // the start, which would then be saved over the real spot.
+      _pendingPercentJump = savedProgress;
+    }
   }
 
   /// The file is on the device now, but the offline lists only know records.
@@ -892,6 +1056,66 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     await downloads.keepEbook(api: api, itemId: widget.itemId);
   }
 
+  /// Takes the server's place in the book when it differs from the phone's:
+  /// the web reader or another device may have moved on, and a BookOrbit
+  /// library refresh carries no ebook position at all, which left the reader
+  /// starting over and then saving the start on top of the real spot. A place
+  /// this phone hasn't sent yet wins unless the server's ebook place is newer,
+  /// and a slow server keeps the phone's.
+  Future<void> _pullServerPosition(ApiService api) async {
+    if (widget.openAtCfi != null || !mounted) return;
+    final lib = context.read<LibraryProvider>();
+    if (lib.isOffline) return;
+    try {
+      final pending =
+          (await ProgressSyncService().getPendingEbookProgress())[widget.itemId];
+      final server = await api
+          .getEbookPosition(widget.itemId)
+          .timeout(const Duration(seconds: 6), onTimeout: () {
+        debugPrint('[EbookReader] server position check timed out item=${widget.itemId}');
+        return null;
+      });
+      if (!mounted || server == null) return;
+      if (pending != null) {
+        final serverAt = (server['ebookUpdatedAt'] as num?)?.toInt();
+        final pendingAt = (pending['ts'] as num?)?.toInt();
+        if (serverAt == null || pendingAt == null || pendingAt >= serverAt) return;
+        debugPrint('[EbookReader] dropping the queued place for item=${widget.itemId}: '
+            'the server moved on after it');
+        await ProgressSyncService().dropPendingEbookProgress(widget.itemId);
+        if (!mounted) return;
+      }
+      final loc = server['ebookLocation'] as String?;
+      final serverProgress = (server['ebookProgress'] as num?)?.toDouble();
+      final local = lib.getProgressData(widget.itemId);
+      if (loc == null || !loc.startsWith('epubcfi(')) {
+        // Kobo and KOReader leave a percent with no CFI: open there rather
+        // than at the phone's older place or the start.
+        if (serverProgress == null || serverProgress <= 0 || serverProgress >= 1) return;
+        final localProgress = (local?['ebookProgress'] as num?)?.toDouble();
+        if (localProgress != null && (localProgress - serverProgress).abs() < 0.005) return;
+        debugPrint('[EbookReader] taking the server percent item=${widget.itemId} '
+            'pct=$serverProgress (no CFI)');
+        _initialCfi = null;
+        _progress = serverProgress;
+        _pendingPercentJump = serverProgress;
+        return;
+      }
+      if (local?['ebookLocation'] == loc) return;
+      final progress = serverProgress ??
+          (local?['ebookProgress'] as num?)?.toDouble() ??
+          0;
+      debugPrint('[EbookReader] taking the server position item=${widget.itemId} '
+          '(phone had ${local?['ebookLocation'] == null ? 'none' : 'another'})');
+      lib.applyLocalEbookProgress(widget.itemId, location: loc, progress: progress);
+      _initialCfi = null;
+      _pendingPercentJump = null;
+      _loadInitialLocation();
+    } catch (e) {
+      debugPrint('[EbookReader] server position check failed: $e');
+    }
+  }
+
   Future<void> _downloadAndOpen() async {
     try {
       final auth = context.read<AuthProvider>();
@@ -905,8 +1129,17 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       final playing = AudioPlayerService().isPlaying;
       debugPrint('[EbookReader] open item=${widget.itemId} ext=${ebookExtFromFile(widget.ebookFile)} '
           'cached=${await isEbookCached(widget.itemId, widget.ebookFile)} playing=$playing');
-      final file = await fetchEbookToCache(api, widget.itemId, widget.ebookFile, widget.title);
-      unawaited(_rememberForOffline(api));
+      // Asked while the file downloads, so a slow answer costs no extra wait.
+      final serverSpot = _otherAccount ? null : _pullServerPosition(api);
+      final file = await NarrationService.instance
+          .readerFile(api, widget.itemId, widget.ebookFile, widget.title);
+      unawaited(_loadNarration(api, file));
+      if (_otherAccount) {
+        await _restoreOtherAccountSpot();
+      } else {
+        unawaited(_rememberForOffline(api));
+        await serverSpot;
+      }
       final len = file.existsSync() ? await file.length() : 0;
       final locations = await loadCachedLocations(file);
       debugPrint('[EbookReader] file ready item=${widget.itemId} bytes=$len '
@@ -931,7 +1164,30 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   Timer? _ebookPushTimer;
   ApiService? _ebookPushApi;
 
+  Future<void> _restoreOtherAccountSpot() async {
+    debugPrint('[EbookReader] item=${widget.itemId} is another account\'s download - '
+        'its place stays on this phone');
+    final spot = await DownloadService().otherAccountReadingSpot(widget.itemId);
+    if (spot == null || !mounted) return;
+    _progress = spot.progress.clamp(0.0, 1.0);
+    if (_initialCfi != null) return;
+    if (spot.location.startsWith('epubcfi(')) {
+      _initialCfi = spot.location;
+    } else if (spot.progress > 0 && spot.progress < 1) {
+      _pendingPercentJump = spot.progress;
+    }
+  }
+
   void _syncProgress(String cfi, double progress) {
+    _readingActiveAt = DateTime.now();
+    // Read along and auto scroll move the page on their own; those count.
+    if (_readAlongOn || _autoScroll) _holdOpenSpot = false;
+    if (_holdOpenSpot) return;
+    if (_useNarration && !_readAlongOn) _noteNarrationSpot();
+    if (_otherAccount) {
+      unawaited(DownloadService().saveOtherAccountReadingSpot(widget.itemId, cfi, progress));
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -1438,6 +1694,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   void _navigateToChapter(String href) {
+    _userMoved('chapter');
     final escaped = href.replaceAll("'", "\\'");
     _epubController?.webViewController?.evaluateJavascript(
       source: '''
@@ -1676,6 +1933,30 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 ),
                 const SizedBox(height: 12),
 
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l.readerScrollMode, style: tt.bodyMedium),
+                  subtitle: Text(l.readerScrollModeHint,
+                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                  value: _scroll,
+                  onChanged: (v) {
+                    setSheetState(() {});
+                    _updateScroll(v);
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l.readerLogReading, style: tt.bodyMedium),
+                  subtitle: Text(l.readerLogReadingHint,
+                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                  value: _logReading,
+                  onChanged: (v) {
+                    _setLogReading(v);
+                    setSheetState(() {});
+                  },
+                ),
+                const SizedBox(height: 4),
+
                 // Page layout — Auto shows two pages on wide screens (tablets).
                 Row(children: [
                   Icon(Icons.auto_stories_rounded, size: 20, color: cs.onSurfaceVariant),
@@ -1693,10 +1974,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                     ],
                     selected: {_spreadModes.indexOf(_spread)},
                     showSelectedIcon: false,
-                    onSelectionChanged: (s) {
-                      setSheetState(() {});
-                      _updateSpread(s.first);
-                    },
+                    // Pages side by side don't apply to a scrolling book.
+                    onSelectionChanged: _scroll
+                        ? null
+                        : (s) {
+                            setSheetState(() {});
+                            _updateSpread(s.first);
+                          },
                   ),
                 ),
                 SwitchListTile(
@@ -1710,6 +1994,29 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                     _updatePinTop(v);
                   },
                 ),
+                Row(children: [
+                  Icon(Icons.linear_scale_rounded, size: 20, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 12),
+                  Text(l.readerTopBarProgress, style: tt.bodyMedium),
+                ]),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<String>(
+                    segments: [
+                      ButtonSegment(value: 'book', label: Text(l.readerTopBarProgressBook)),
+                      ButtonSegment(value: 'chapter', label: Text(l.readerTopBarProgressChapter)),
+                      ButtonSegment(value: 'both', label: Text(l.readerTopBarProgressBoth)),
+                    ],
+                    selected: {_topBarProgress},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (s) {
+                      setSheetState(() {});
+                      _updateTopBarProgress(s.first);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 4),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(l.readerKeepAwake, style: tt.bodyMedium),
@@ -1770,15 +2077,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
                 // Read along, mirrored from the transcription settings so the
                 // reader can change them without leaving the book.
-                if (_transcriptionOn) ...[
+                if (_transcriptionOn || _useNarration) ...[
                   Row(children: [
                     Icon(Icons.graphic_eq_rounded, size: 20, color: cs.onSurfaceVariant),
                     const SizedBox(width: 12),
                     Expanded(child: Text(l.readAlong, style: tt.bodyMedium)),
                   ]),
                   const SizedBox(height: 8),
-                  // E-ink always follows by sentence, so the choice is hidden.
-                  if (!PlayerSettings.einkMode) ...[
+                  // E-ink always follows by sentence, and an EPUB's own
+                  // narration is timed by the sentence, so the choice is hidden.
+                  if (!PlayerSettings.einkMode && !_useNarration) ...[
                     SizedBox(
                       width: double.infinity,
                       child: SegmentedButton<String>(
@@ -2234,6 +2542,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   void _jumpToSearchResult(EpubSearchResult result) {
+    _rememberSpot(EbookSpotReason.beforeJump);
+    _holdOpenSpot = false;
     final wc = _epubController?.webViewController;
     final query = _lastSearchedQuery;
     final occ = _resultOccByCfi[result.cfi] ?? 0;
@@ -2351,6 +2661,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       {double? positionSeconds}) async {
     final l = AppLocalizations.of(context)!;
     if (_finding) return;
+    _holdOpenSpot = false;
     setState(() => _finding = true);
     showProgressDialog(context, l.findInEbookSearching);
 
@@ -2628,6 +2939,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       {bool flash = true}) async {
     final wc = _epubController?.webViewController;
     if (wc == null || href.isEmpty || excerpt.trim().isEmpty) return false;
+    if (!_readAlongOn) _rememberSpot(EbookSpotReason.beforeJump);
     // A hit that runs across several paragraphs gives epub.js a range it
     // displays ten pages short of (seen with a 12s read along window). The
     // first paragraph on its own lands on the right page.
@@ -2672,9 +2984,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
             var hay = normChars.join('');
             var needle = excerpt.toLowerCase().replace(/\s+/g,' ').trim();
             var pos = hay.indexOf(needle);
+            var rawStart = -1, rawEnd = -1;
+            if (pos !== -1) { rawStart = map[pos]; rawEnd = map[pos + needle.length - 1] + 1; }
+            else {
+              var sq = needle.replace(/ /g, ''), sh = [], smap = [];
+              for (var z = 0; z < hay.length; z++) { if (hay[z] !== ' ') { sh.push(hay[z]); smap.push(map[z]); } }
+              var spos = sq.length >= 8 ? sh.join('').indexOf(sq) : -1;
+              if (spos !== -1) { pos = spos; rawStart = smap[spos]; rawEnd = smap[spos + sq.length - 1] + 1; dbg.squeezed = true; }
+            }
             dbg.pos = pos; dbg.hayLen = hay.length;
             if (pos !== -1 && nodes.length) {
-              var rawStart = map[pos], rawEnd = map[pos + needle.length - 1] + 1;
               var locate = function(off){
                 for (var q=0;q<nodes.length;q++){ var e2=nodes[q]; if (off < e2.start + e2.len) return {node:e2.node, offset:off - e2.start}; }
                 var last = nodes[nodes.length-1]; return {node:last.node, offset:last.len};
@@ -2705,61 +3024,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     return false;
   }
 
-  // Find in audiobook: how much audio each probe transcribes, how many
-  // estimate-correct-retry rounds the main anchor gets, and the ceiling once
-  // the fallback candidates (player position, book percentage, neighbouring
-  // chapters) have taken two rounds each. A probe is roughly ten seconds.
-  static const double _probeWindowSeconds = 30.0;
-  static const int _maxProbes = 5;
-  static const int _maxTotalProbes = 12;
-  // Narration pace measured on real books: ~0.07-0.08 s per character. Used
-  // when no audio chapter anchors the estimate, and to reject absurd
-  // chapter-derived rates (3-second "chapters" exist in the wild).
-  static const double _fallbackSecPerChar = 0.075;
-  // How far a failed probe shifts the search around the original estimate,
-  // at minimum; a long section widens it so the probes spread across it.
-  static const double _scanStepSeconds = 90.0;
   static const double _catchUpMinGapSeconds = 300;
 
   /// Where the audiobook should be for the page at [cfi] and the range it
-  /// could sit in, from sync points or a uniquely named audio chapter. Nothing
-  /// is transcribed.
+  /// could sit in. Nothing is transcribed.
   Future<({double est, double lo, double hi})?> _audioEstimateForPage(
       String cfi) async {
     final api = context.read<AuthProvider>().apiService;
     final info = await _selectionSectionInfo(cfi, '');
     if (info == null) return null;
-    final si = (info['si'] as num).toInt();
-    final offset = (info['offset'] as num).toDouble();
-    final total = (info['total'] as num).toDouble();
-    if (total <= 0 || offset < 0) return null;
-    final audio = await resolveAudioChapters(widget.itemId, api);
-    if (audio.duration <= 0) return null;
-    final spine = await _spineHrefs();
-    await SyncPointStore.instance.load(
-      widget.itemId,
-      audioDuration: audio.duration,
-      spineLength: spine.isEmpty ? null : spine.length,
-    );
-    final sync = await _syncPointCandidate(
-        si: si,
-        offset: offset,
-        total: total,
-        fallbackRate: _fallbackSecPerChar,
-        top: audio.duration);
-    if (sync != null) return (est: sync.est, lo: sync.lo, hi: sync.hi);
-    // A title that several audio chapters share can't place the page.
-    final tocTitle = _chapterForHref(info['href'] as String? ?? '');
-    final named = [
-      for (final ch in audio.chapters)
-        if (ch is Map<String, dynamic> &&
-            chapterTitlesAgree(ch['title'] as String?, tocTitle))
-          ch,
-    ];
-    if (named.length != 1) return null;
-    final a =
-        _chapterAnchorEstimate(named.first, offset, total, audio.duration);
-    return (est: a.est, lo: a.lo, hi: a.hi);
+    return _audioLocator.estimate(info, api);
   }
 
   /// Offers to close a big gap between the page and the audiobook. Opening
@@ -2767,6 +3041,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// ([audioStarting]) can offer either. Nothing moves until the toast is tapped.
   Future<void> _maybeOfferCatchUp({required bool audioStarting}) async {
     if (!mounted || !_readerActive || !_hasAudio || !_transcriptionOn) return;
+    // A narrated book keeps page and audio together by itself.
+    if (_useNarration) return;
     if (_readAlongOn || _finding) return;
     // These opens put a page on screen that is not where the reading stopped.
     if (widget.findText != null ||
@@ -2845,7 +3121,21 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         i++) {
       await Future.delayed(const Duration(milliseconds: 500));
     }
-    if (mounted) await _maybeOfferCatchUp(audioStarting: false);
+    if (!mounted) return;
+    if (_hasAudio && !_useNarration && await PlayerSettings.getSyncReadingListening()) {
+      // Kept in sync: listening that got ahead moves the page by itself.
+      final cfi = await ReadListenSync.instance.ebookSpotForReader(widget.itemId);
+      if (cfi == null || !mounted || !_holdOpenSpot || _readAlongOn) return;
+      debugPrint('[SyncSpot] opened behind the audio - going to $cfi');
+      _rememberSpot(EbookSpotReason.beforeSync);
+      await _epubController?.display(cfi: cfi);
+      if (mounted) {
+        showOverlayToast(context, AppLocalizations.of(context)!.syncEbookMoved,
+            icon: Icons.headphones_rounded);
+      }
+      return;
+    }
+    await _maybeOfferCatchUp(audioStarting: false);
   }
 
   /// Find in ebook from inside the reader, at the audiobook's position
@@ -2923,6 +3213,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final selText = textOverride ?? _selectionText ?? '';
     _dismissSelection();
     if (cfi == null) return;
+    if (_useNarration) {
+      await _playNarrationFromCfi(cfi);
+      return;
+    }
     if (!TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
       showOverlayToast(context, l.transcriptionNotDownloadedBook,
           icon: Icons.download_rounded);
@@ -3022,547 +3316,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     }
   }
 
+  AudioLocator get _audioLocator => AudioLocator(widget.itemId, _ReaderBookText(this));
+
   Future<double?> _locateAudioForSelection(String cfi, String selText) async {
+    final api = context.read<AuthProvider>().apiService;
     final info = await _selectionSectionInfo(cfi, selText);
     if (info == null) {
       debugPrint('[FindAudio] selection offset not resolved');
       return null;
     }
-    final si = (info['si'] as num).toInt();
-    final offset = (info['offset'] as num).toDouble();
-    final total = (info['total'] as num).toDouble();
-    final href = info['href'] as String? ?? '';
-    if (total <= 0 || offset < 0) return null;
-
-    final api = context.read<AuthProvider>().apiService;
-    final audio = await resolveAudioChapters(widget.itemId, api);
-    if (audio.chapters.isEmpty) {
-      debugPrint('[FindAudio] no audio chapters');
-      return null;
-    }
-    final spineAll = await _spineHrefs();
-    await SyncPointStore.instance.load(
-      widget.itemId,
-      audioDuration: audio.duration > 0 ? audio.duration : null,
-      spineLength: spineAll.isEmpty ? null : spineAll.length,
-    );
-    Future<double> remember(double t) async {
-      await SyncPointStore.instance.add(
-        widget.itemId,
-        SyncPoint(t: t, si: si, off: offset, src: 'a'),
-      );
-      return t;
-    }
-
-    // Which audio chapter is this section? That anchors both the initial
-    // estimate and the seconds-per-character correction rate. Books whose
-    // chapters are plain names (alternating POV) repeat titles, so collect
-    // every agreeing audio chapter and pick by occurrence - the 3rd "Sydney"
-    // section anchors on the 3rd "Sydney" audio chapter. When the counts
-    // don't line up, take the one nearest the selection's position in the
-    // book, and keep a runner-up to probe if the first anchor turns out wrong.
-    final tocTitle = _chapterForHref(href);
-    final bookEnd = audio.duration > 0 ? audio.duration : double.infinity;
-    final pct = (info['pct'] as num?)?.toDouble();
-    final agreeing = <Map<String, dynamic>>[];
-    for (final ch in audio.chapters) {
-      final m = ch as Map<String, dynamic>;
-      if (chapterTitlesAgree(m['title'] as String?, tocTitle)) agreeing.add(m);
-    }
-    Map<String, dynamic>? audioCh;
-    Map<String, dynamic>? audioChAlt;
-    if (agreeing.length == 1) {
-      audioCh = agreeing.first;
-    } else if (agreeing.length > 1) {
-      // Occurrence counting walks the spine and counts transitions into the
-      // title, so a chapter split across several files still counts once and
-      // two same-named chapters separated by an unnamed split file count
-      // twice.
-      final hrefs = await _spineHrefs();
-      var occurrence = 0;
-      String? prev;
-      for (var i = 0; i <= si && i < hrefs.length; i++) {
-        final t = _chapterForHref(hrefs[i]);
-        if (t == tocTitle && prev != tocTitle) occurrence++;
-        prev = t;
-      }
-      final targetFrac = (pct != null && pct > 0)
-          ? pct
-          : (hrefs.isNotEmpty ? si / hrefs.length : 0.5);
-      double fracOf(Map<String, dynamic> m) {
-        final s = (m['start'] as num?)?.toDouble() ?? 0;
-        final e = (m['end'] as num?)?.toDouble() ?? s;
-        return audio.duration > 0 ? ((s + e) / 2) / audio.duration : 0;
-      }
-      final byFrac = List<Map<String, dynamic>>.from(agreeing)
-        ..sort((x, y) => (fracOf(x) - targetFrac)
-            .abs()
-            .compareTo((fracOf(y) - targetFrac).abs()));
-      final picked = (occurrence >= 1 && occurrence <= agreeing.length)
-          ? agreeing[occurrence - 1]
-          : byFrac.first;
-      audioCh = picked;
-      for (final m in byFrac) {
-        if (!identical(m, picked)) {
-          audioChAlt = m;
-          break;
-        }
-      }
-      debugPrint('[FindAudio] "$tocTitle" matches ${agreeing.length} audio '
-          'chapters, occurrence #$occurrence -> '
-          '"${picked['title']}"@${((picked['start'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}s'
-          '${audioChAlt != null ? ', runner-up @${((audioChAlt['start'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}s' : ''}');
-    }
-
-    double lo, hi, rate;
-    double est;
-    var anchorRate = double.nan;
-    if (audioCh != null) {
-      final a = _chapterAnchorEstimate(audioCh, offset, total, bookEnd);
-      lo = a.lo;
-      hi = a.hi;
-      rate = a.rate;
-      est = a.est;
-      final chStart = (audioCh['start'] as num?)?.toDouble() ?? 0;
-      final chEnd = (audioCh['end'] as num?)?.toDouble() ?? bookEnd;
-      anchorRate = (chEnd - chStart) / total;
-      if (anchorRate > 0.2 && chEnd.isFinite) {
-        // One audio chapter covering several ebook sections (a whole part
-        // with no chapter markers): pace through the text of the sections
-        // before this one under the same TOC entry, and take the rate from
-        // the run as a whole rather than this section alone.
-        final hrefs = await _spineHrefs();
-        var first = si;
-        while (first > 0 &&
-            first > si - 12 &&
-            first - 1 < hrefs.length &&
-            _chapterForHref(hrefs[first - 1]) == tocTitle) {
-          first--;
-        }
-        var last = si;
-        while (last + 1 < hrefs.length &&
-            last < si + 12 &&
-            (_chapterForHref(hrefs[last + 1]) ?? tocTitle) == tocTitle) {
-          last++;
-        }
-        final counts = await _sectionCharCounts(first, last);
-        if (counts.length == last - first + 1) {
-          double before = 0, run = 0;
-          for (var i = 0; i < counts.length; i++) {
-            final n = first + i == si ? total : counts[i];
-            run += n;
-            if (first + i < si) before += n;
-          }
-          final runRate = run > 0 ? (chEnd - chStart) / run : double.nan;
-          rate = (runRate >= 0.03 && runRate <= 0.2)
-              ? runRate
-              : _fallbackSecPerChar;
-          est = (chStart + (before + offset) * rate).clamp(chStart, chEnd);
-          lo = chStart;
-          hi = chEnd;
-          debugPrint('[FindAudio] anchor spans sections $first-$last '
-              '(${run.toInt()} chars, ${before.toInt()} before this one) '
-              'rate=${rate.toStringAsFixed(4)} est=${est.toStringAsFixed(1)}');
-        }
-      }
-      // A marker that sits a little late (the part's interlude narrated under
-      // the previous chapter) puts the passage just before the anchor, where
-      // a scan clamped at the chapter start can never look.
-      lo = (lo - 900).clamp(0.0, lo);
-      debugPrint('[FindAudio] si=$si target@${offset.toInt()}/${total.toInt()} '
-          'toc="$tocTitle" audioCh="${audioCh['title']}" '
-          '${lo.toStringAsFixed(0)}-${hi.isFinite ? hi.toStringAsFixed(0) : '?'}s '
-          'rate=${rate.toStringAsFixed(4)} est=${est.toStringAsFixed(1)}');
-    } else {
-      // Calibre-split books often have spine sections the TOC never names
-      // (toc=null), or titles no audio chapter agrees with. Best fallback:
-      // anchor on the nearest PRECEDING section that does map to an audio
-      // chapter and pace forward through the intervening text. The whole-book
-      // percentage is the last resort - on books with songs or front matter
-      // it was measured ~800s off, far outside the probes' scan range.
-      double? anchoredEst;
-      var anchorStart = 0.0;
-      final hrefs = await _spineHrefs();
-      for (var a = si - 1; a >= 0 && a >= si - 8; a--) {
-        if (a >= hrefs.length) continue;
-        final aTitle = _chapterForHref(hrefs[a]);
-        if (aTitle == null) continue;
-        Map<String, dynamic>? aCh;
-        for (final ch in audio.chapters) {
-          final m = ch as Map<String, dynamic>;
-          if (chapterTitlesAgree(m['title'] as String?, aTitle)) {
-            aCh = m;
-            break;
-          }
-        }
-        if (aCh == null) continue;
-        final aStart = (aCh['start'] as num?)?.toDouble() ?? 0;
-        final counts = await _sectionCharCounts(a, si - 1);
-        if (counts.length == si - a) {
-          final between = counts.fold<double>(0, (x, y) => x + y);
-          anchorStart = aStart;
-          anchoredEst = aStart + (between + offset) * _fallbackSecPerChar;
-          debugPrint('[FindAudio] anchored on si=$a "${aCh['title']}" '
-              'start=${aStart.toStringAsFixed(0)} '
-              'charsBetween=${between.toInt()} est=${anchoredEst.toStringAsFixed(1)}');
-        }
-        break;
-      }
-
-      if (anchoredEst != null) {
-        lo = anchorStart;
-        hi = bookEnd;
-        rate = _fallbackSecPerChar;
-        est = anchoredEst;
-      } else if (pct != null && pct > 0 && audio.duration > 0) {
-        lo = 0;
-        hi = audio.duration;
-        rate = _fallbackSecPerChar;
-        est = (pct * audio.duration).clamp(0.0, audio.duration);
-        debugPrint('[FindAudio] fallback estimate (toc="$tocTitle") '
-            'pct=${(pct * 100).toStringAsFixed(2)}% est=${est.toStringAsFixed(1)}');
-      } else {
-        debugPrint('[FindAudio] no audio chapter matches toc="$tocTitle", '
-            'no anchor, no location percentage - giving up');
-        return null;
-      }
-    }
-    if (hi.isInfinite) hi = est + 3600;
-
-    // The section's narration length sets how far apart the probes spread:
-    // 90s steps suit a short section, a 40-minute chapter wants them wider so
-    // five probes cover it instead of one corner.
-    final scanStep = (total * rate / 4).clamp(_scanStepSeconds, 300.0);
-    final dur = audio.duration;
-    final probed = <double>[est];
-    var probesLeft = _maxTotalProbes;
-
-    Future<double?> run(String label, double e, double from, double to,
-        double pace, int rounds, {double? step}) async {
-      if (probesLeft <= 0) return null;
-      final n = rounds < probesLeft ? rounds : probesLeft;
-      probesLeft -= n;
-      debugPrint('[FindAudio] $label est=${e.toStringAsFixed(1)} '
-          'window ${from.toStringAsFixed(0)}-${to.toStringAsFixed(0)}s '
-          'rounds=$n');
-      return _probeForTarget(
-        si: si,
-        offset: offset,
-        estimate: e,
-        lo: from,
-        hi: to,
-        rate: pace,
-        duration: dur,
-        maxProbes: n,
-        scanStepSeconds: step ?? scanStep,
-      );
-    }
-
-    // A spot this book has already been matched at, in this section or the
-    // one either side, beats any chapter-title guess: it is known, and two
-    // of them give the real pace between. Probed first, in a window sized to
-    // how far the pacing had to reach.
-    final sync = await _syncPointCandidate(
-        si: si,
-        offset: offset,
-        total: total,
-        fallbackRate: rate,
-        top: dur > 0 ? dur : est + 3600);
-    if (sync != null) {
-      probed.add(sync.est);
-      final window = sync.hi - sync.lo;
-      final r = await run(sync.label, sync.est, sync.lo, sync.hi, sync.rate, 3,
-          step: (window / 3).clamp(45.0, _scanStepSeconds));
-      if (r != null) return remember(r);
-    }
-
-    final t = await run('anchor', est, lo, hi, rate, _maxProbes);
-    if (t != null) return remember(t);
-
-    // The anchor never matched. Fallback candidates, most likely first, two
-    // rounds each.
-    final extras =
-        <({String label, double est, double lo, double hi, double rate})>[];
-    final top = dur > 0 ? dur : double.infinity;
-    final pctEst = (pct != null && pct > 0 && dur > 0)
-        ? (pct * dur).clamp(0.0, dur)
-        : null;
-
-    // Where the audio is parked right now. People mostly look up the passage
-    // they just heard, so a player position near the estimate or the book
-    // percentage is the best lead there is.
-    final player = AudioPlayerService();
-    if (player.currentItemId == widget.itemId) {
-      final now = player.position.inMilliseconds / 1000.0;
-      final near = (now - est).abs() <= 1800 ||
-          (pctEst != null && (now - pctEst).abs() <= 1800);
-      if (near) {
-        extras.add((
-          label: 'player position',
-          est: now,
-          lo: (now - 900).clamp(0.0, now),
-          hi: (now + 900).clamp(now, top),
-          rate: _fallbackSecPerChar,
-        ));
-      }
-    }
-    // The whole-book percentage disagreeing with the anchor by more than a
-    // few minutes usually means the anchor is the wrong chapter.
-    if (pctEst != null && (pctEst - est).abs() > 300) {
-      extras.add((
-        label: 'book percentage',
-        est: pctEst,
-        lo: (pctEst - 1200).clamp(0.0, pctEst),
-        hi: (pctEst + 1200).clamp(pctEst, dur),
-        rate: _fallbackSecPerChar,
-      ));
-    }
-    // The same title elsewhere in the book.
-    if (audioChAlt != null) {
-      final alt = _chapterAnchorEstimate(audioChAlt, offset, total, bookEnd);
-      extras.add((
-        label: 'runner-up "${audioChAlt['title']}"',
-        est: alt.est,
-        lo: alt.lo,
-        hi: alt.hi.isFinite ? alt.hi : alt.est + 3600,
-        rate: alt.rate,
-      ));
-    }
-    // A chapter-derived pace far from real narration says the audio and
-    // ebook chapters are numbered differently (twice too fast means the ebook
-    // chapter holds twice the text the audio chapter narrates): try the
-    // neighbours, nearest to the book percentage first.
-    if (audioCh != null &&
-        (anchorRate.isNaN || anchorRate < 0.05 || anchorRate > 0.12)) {
-      final idx = audio.chapters.indexOf(audioCh);
-      final neighbours = <Map<String, dynamic>>[];
-      if (idx > 0) neighbours.add(audio.chapters[idx - 1] as Map<String, dynamic>);
-      if (idx >= 0 && idx + 1 < audio.chapters.length) {
-        neighbours.add(audio.chapters[idx + 1] as Map<String, dynamic>);
-      }
-      final withEst = neighbours
-          .map((n) => (ch: n, a: _chapterAnchorEstimate(n, offset, total, bookEnd)))
-          .toList();
-      if (pctEst != null) {
-        withEst.sort((x, y) =>
-            (x.a.est - pctEst).abs().compareTo((y.a.est - pctEst).abs()));
-      }
-      for (final n in withEst) {
-        extras.add((
-          label: 'neighbour "${n.ch['title']}"',
-          est: n.a.est,
-          lo: n.a.lo,
-          hi: n.a.hi.isFinite ? n.a.hi : n.a.est + 3600,
-          rate: n.a.rate,
-        ));
-      }
-    }
-
-    for (final c in extras) {
-      if (probed.any((p) => (p - c.est).abs() <= 120)) {
-        debugPrint('[FindAudio] skip ${c.label}: '
-            'est=${c.est.toStringAsFixed(1)} already probed');
-        continue;
-      }
-      probed.add(c.est);
-      final r = await run(c.label, c.est, c.lo, c.hi, c.rate, 2);
-      if (r != null) return remember(r);
-    }
-    debugPrint('[FindAudio] no candidate matched');
-    return null;
-  }
-
-  /// Where the sync points say [offset] in section [si] should be in the
-  /// audio. Same-section points first; failing that the last point of the
-  /// previous section or the first of the next, paced through the text in
-  /// between. Null when nothing recorded is close enough to help.
-  Future<({String label, double est, double lo, double hi, double rate})?>
-      _syncPointCandidate({
-    required int si,
-    required double offset,
-    required double total,
-    required double fallbackRate,
-    required double top,
-  }) async {
-    final pts = SyncPointStore.instance.cached(widget.itemId);
-    if (pts.isEmpty) return null;
-    final same = pts.where((p) => p.si == si).toList();
-    var e = SyncPointEstimator.inSection(same, offset, fallbackRate);
-    var label = 'sync points';
-    if (e == null) {
-      SyncPoint? prev, next;
-      for (final p in pts) {
-        if (p.si == si - 1 && (prev == null || p.off > prev.off)) prev = p;
-        if (p.si == si + 1 && (next == null || p.off < next.off)) next = p;
-      }
-      if (prev != null) {
-        final counts = await _sectionCharCounts(si - 1, si - 1);
-        if (counts.length == 1 && counts.first > 0) {
-          final chars = (counts.first - prev.off) + offset;
-          if (chars * fallbackRate <= 1800) {
-            e = SyncPointEstimator.fromPoint(prev, chars, fallbackRate);
-            label = 'sync point in the previous section';
-          }
-        }
-      }
-      if (e == null && next != null) {
-        final chars = (total - offset) + next.off;
-        if (chars * fallbackRate <= 1800) {
-          e = SyncPointEstimator.fromPoint(next, -chars, fallbackRate);
-          label = 'sync point in the next section';
-        }
-      }
-    }
-    if (e == null) return null;
-    debugPrint('[FindAudio] $label (${e.how}) from ${pts.length} points: '
-        'est=${e.est.toStringAsFixed(1)} rate=${e.rate.toStringAsFixed(4)}');
-    return (
-      label: '$label (${e.how})',
-      est: e.est.clamp(0.0, top),
-      lo: e.lo.clamp(0.0, top),
-      hi: e.hi.clamp(0.0, top),
-      rate: e.rate,
-    );
-  }
-
-  /// Initial search window and seconds-per-character pacing from an audio
-  /// chapter anchor.
-  ({double lo, double hi, double rate, double est}) _chapterAnchorEstimate(
-      Map<String, dynamic> ch, double offset, double total, double bookEnd) {
-    final chStart = (ch['start'] as num?)?.toDouble() ?? 0;
-    final chEnd = (ch['end'] as num?)?.toDouble() ?? bookEnd;
-    final chRate = (chEnd - chStart) / total;
-    if (chRate >= 0.03 && chRate <= 0.2) {
-      return (
-        lo: chStart,
-        hi: chEnd,
-        rate: chRate,
-        est: chStart + offset * chRate,
-      );
-    }
-    // Mis-tagged audio chapters (a 3-second "chapter" was seen in the wild)
-    // give an absurd rate. Trust the chapter START as an anchor, pace the
-    // estimate at normal narration speed, leave the end open.
-    return (
-      lo: chStart,
-      hi: bookEnd,
-      rate: _fallbackSecPerChar,
-      est: chStart + offset * _fallbackSecPerChar,
-    );
-  }
-
-  /// Probe-transcribes around [estimate], correcting toward the selection at
-  /// [offset] each round. Returns the resolved global time, or null when
-  /// [maxProbes] rounds never matched the section text.
-  Future<double?> _probeForTarget({
-    required int si,
-    required double offset,
-    required double estimate,
-    required double lo,
-    required double hi,
-    required double rate,
-    required double duration,
-    required int maxProbes,
-    required double scanStepSeconds,
-  }) async {
-    var est = estimate;
-    final baseEst = est;
-    var scanStep = 0;
-    for (var attempt = 0; attempt < maxProbes; attempt++) {
-      final maxStart =
-          (hi - _probeWindowSeconds) > lo ? hi - _probeWindowSeconds : lo;
-      var probeStart = (est - _probeWindowSeconds / 2).clamp(lo, maxStart);
-      // A chapter start is usually a file start too. A window centred on it
-      // begins in the previous file and gets cut at the boundary, so it only
-      // ever hears the end of the last chapter. Start at the boundary instead
-      // so the estimate is inside what gets transcribed.
-      final boundary = TranscriptionService.instance
-          .trackBoundaryBetween(widget.itemId, probeStart, est);
-      if (boundary != null) {
-        debugPrint('[FindAudio] probe#$attempt window start '
-            '${probeStart.toStringAsFixed(1)} -> file boundary '
-            '${boundary.toStringAsFixed(1)}');
-        probeStart = boundary.clamp(lo, maxStart > boundary ? maxStart : boundary);
-      }
-
-      List<({double start, double end, String text})> segs;
-      try {
-        segs = await TranscriptionService.instance.transcribeWindowSegments(
-          itemId: widget.itemId,
-          startSeconds: probeStart,
-          windowSeconds: _probeWindowSeconds,
-          preferAccuracy: false,
-        );
-      } on TranscriptionException catch (e) {
-        // A silent or music-only window transcribes to nothing, and a probe
-        // landing at the tail of a track file gets truncated to nearly zero
-        // (windows don't span file boundaries) - scan on rather than giving
-        // up. Setup problems can't be scanned away.
-        if (e.kind != TranscriptionError.empty &&
-            e.kind != TranscriptionError.extractFailed) {
-          rethrow;
-        }
-        segs = const [];
-      }
-      final probeText = segs.map((s) => s.text).join(' ').trim();
-      final match =
-          probeText.isEmpty ? null : await _locateTranscriptInSection(si, probeText);
-      final fine = match == null ? 0.0 : (match['fine'] as num).toDouble();
-
-      if (match == null || fine < 0.5) {
-        // Bad probe (music, silence, or the estimate is off enough that the
-        // audio here isn't in this section): scan around the original
-        // estimate instead of declining on the first miss.
-        scanStep = scanStep >= 0 ? -(scanStep + 1) : -scanStep;
-        est = (baseEst + scanStep * scanStepSeconds).clamp(lo, hi);
-        debugPrint('[FindAudio] probe#$attempt start=${probeStart.toStringAsFixed(1)} '
-            'no usable match (fine=${fine.toStringAsFixed(3)}) - '
-            'scanning to ${est.toStringAsFixed(1)}');
-        continue;
-      }
-
-      final mOff = (match['s'] as num).toDouble();
-      final mEnd = (match['e'] as num).toDouble();
-      debugPrint('[FindAudio] probe#$attempt start=${probeStart.toStringAsFixed(1)} '
-          'match=${mOff.toInt()}-${mEnd.toInt()} '
-          'fine=${fine.toStringAsFixed(3)} target=${offset.toInt()}');
-
-      if (offset >= mOff && offset <= mEnd) {
-        // Target is inside the probed audio: walk the segments to the one
-        // covering the target's share of the matched text.
-        final frac = (mEnd - mOff) > 0 ? (offset - mOff) / (mEnd - mOff) : 0.0;
-        final lens = segs.map((s) => s.text.length + 1).toList();
-        final totalLen = lens.fold<int>(0, (a, b) => a + b);
-        final targetChar = frac * totalLen;
-        var t = probeStart + segs.last.start;
-        var acc = 0.0;
-        for (var i = 0; i < segs.length; i++) {
-          if (targetChar <= acc + lens[i] || i == segs.length - 1) {
-            final inFrac = lens[i] > 0
-                ? ((targetChar - acc) / lens[i]).clamp(0.0, 1.0)
-                : 0.0;
-            t = probeStart + segs[i].start + inFrac * (segs[i].end - segs[i].start);
-            break;
-          }
-          acc += lens[i];
-        }
-        debugPrint('[FindAudio] resolved t=${t.toStringAsFixed(1)}s');
-        return duration > 0 ? t.clamp(0.0, duration) : t;
-      }
-
-      // Probe landed off-target: correct by the miss distance and retry. A
-      // correction too small to move the next probe means the rate is off -
-      // step most of a window toward the target instead.
-      var correction = (offset - (mOff + mEnd) / 2) * rate;
-      if (correction.abs() < 2.0) {
-        correction = correction.isNegative
-            ? -_probeWindowSeconds * 0.75
-            : _probeWindowSeconds * 0.75;
-      }
-      est = (est + correction).clamp(lo, hi);
-    }
-    debugPrint('[FindAudio] gave up after $maxProbes probes');
-    return null;
+    return _audioLocator.locate(info, api);
   }
 
   /// Spine hrefs by spine index, for mapping neighboring sections to TOC and
@@ -3890,10 +3653,351 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// pipeline for lines, so the cache is shared with the player overlay. A
   /// book that isn't playing yet gets loaded and started - nobody presses
   /// read along on a book they don't want to hear.
+  Future<void> _loadNarration(ApiService api, File epub) async {
+    try {
+      final n = await NarrationService.instance.overlayFor(api, widget.itemId, epub: epub);
+      if (n == null || !mounted) return;
+      _narrationApi = api;
+      _narrationLib = context.read<LibraryProvider>();
+      setState(() {
+        _narration = n.overlay;
+        _narrationFromServer = n.fromServer;
+      });
+      unawaited(_narrationOpenAtAudio());
+      debugPrint('[ReadAlong] ${widget.itemId} is narrated (${n.fromServer ? 'server' : 'EPUB'}): '
+          '${n.overlay.clips.length} sentences');
+    } catch (e) {
+      debugPrint('[ReadAlong] narration check failed: $e');
+    }
+  }
+
+  /// The narrated sentence named by a script answer of {href, ids}: the
+  /// first id in it that the narration reads.
+  OverlayClip? _narrationClipIn(Object? raw) {
+    final n = _narration;
+    if (n == null || raw is! String || raw.isEmpty) return null;
+    final page = jsonDecode(raw) as Map<String, dynamic>;
+    final href = page['href'] as String? ?? '';
+    final byId = <String, OverlayClip>{};
+    for (final c in n.clips) {
+      final f = c.fragment;
+      if (f != null && MediaOverlay.sameDoc(c.textHref, href)) byId.putIfAbsent(f, () => c);
+    }
+    for (final id in (page['ids'] as List<dynamic>? ?? const []).whereType<String>()) {
+      final c = byId[id];
+      if (c != null) return c;
+    }
+    return n.clipFor(href, null);
+  }
+
+  /// The first narrated sentence on the page in view.
+  Future<OverlayClip?> _narrationClipOnPage() async {
+    final wc = _epubController?.webViewController;
+    if (_narration == null || wc == null) return null;
+    try {
+      await wc.evaluateJavascript(source: _narrationBootstrapSource());
+      return _narrationClipIn(await wc.evaluateJavascript(
+          source: 'window.__absorbMO ? __absorbMO.onPage() : ""'));
+    } catch (e) {
+      debugPrint('[ReadAlong] narration page lookup failed: $e');
+      return null;
+    }
+  }
+
+  /// The book time of the first narrated sentence on the page in view.
+  Future<double?> _narrationTimeOnPage() async {
+    final clip = await _narrationClipOnPage();
+    final n = _narration;
+    return clip == null || n == null ? null : n.startOf(clip);
+  }
+
+  /// Plays the narration from the sentence [from]: a seek when this book is
+  /// already in the player, otherwise a start there. An Audiobookshelf book
+  /// gets its narration onto the phone first, with how far along that is.
+  /// Null when the download question took over and nothing more needs saying.
+  Future<bool?> _playNarrationFrom(OverlayClip? from) async {
+    final player = AudioPlayerService();
+    final n = _narration;
+    if (player.currentItemId == widget.itemId && player.currentEpisodeId == null) {
+      if (from != null && n != null) {
+        await player.seekTo(Duration(milliseconds: (n.startOf(from) * 1000).round()));
+      }
+      if (!player.isPlaying) await player.play(fromUi: true);
+      return true;
+    }
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return false;
+    final cover = context.read<LibraryProvider>().getCoverUrl(widget.itemId);
+    if (!api.isBookOrbit && !NarrationService.instance.hasLocalAudio(widget.itemId)) {
+      await showNarrationDownloadDialog(context,
+          itemId: widget.itemId,
+          title: widget.title,
+          coverUrl: cover,
+          libraryId: context.read<LibraryProvider>().selectedLibraryId);
+      return null;
+    }
+    final item = await api.getLibraryItem(widget.itemId);
+    if (item == null || !mounted) return false;
+    var ok = false;
+    try {
+      ok = await NarrationService.instance.play(api, item, from: from, coverUrl: cover);
+    } catch (e) {
+      debugPrint('[ReadAlong] starting the narration failed: $e');
+    }
+    return ok;
+  }
+
+  /// "Play from here" on a narrated book: the selected sentence's own timing,
+  /// then read along from it.
+  Future<void> _playNarrationFromCfi(String cfi) async {
+    final l = AppLocalizations.of(context)!;
+    final n = _narration;
+    final wc = _epubController?.webViewController;
+    if (n == null || wc == null) return;
+    OverlayClip? clip;
+    try {
+      await wc.evaluateJavascript(source: _narrationBootstrapSource());
+      clip = _narrationClipIn(await wc.evaluateJavascript(
+          source: 'window.__absorbMO ? __absorbMO.idsAt(${jsonEncode(cfi)}) : ""'));
+    } catch (e) {
+      debugPrint('[ReadAlong] selection lookup failed: $e');
+    }
+    if (!mounted) return;
+    if (clip == null) {
+      showOverlayToast(context, l.findInAudiobookNotFound, icon: Icons.search_off_rounded);
+      return;
+    }
+    debugPrint('[ReadAlong] play from the selection: ${clip.textHref}#${clip.fragment} '
+        'at ${n.startOf(clip).toStringAsFixed(1)}s');
+    final ok = await _playNarrationFrom(clip);
+    if (ok == null || !mounted) return;
+    if (!ok) {
+      showOverlayToast(context, l.narrationNone, icon: Icons.headphones_rounded);
+      return;
+    }
+    if (!_readAlongOn) await _startNarrationReadAlong();
+  }
+
+  bool _narrationOpenedAtAudio = false;
+
+  /// Opening the reader on a narrated book: go to the sentence the audio is
+  /// on. Reading ahead moved the audio along when the reader closed, so this
+  /// is where both left off; Read stands in for Find in ebook on these.
+  Future<void> _narrationOpenAtAudio() async {
+    final n = _narration;
+    if (_narrationOpenedAtAudio || n == null || !_useNarration || !_didLoadRescue) return;
+    if (widget.openAtCfi != null || widget.findText != null || widget.startReadAlong) return;
+    _narrationOpenedAtAudio = true;
+    final player = AudioPlayerService();
+    // Find in ebook names the spot, whether or not it is ahead of the page.
+    double? at = widget.openAtAudioSeconds;
+    if (at == null && player.currentItemId == widget.itemId && player.currentEpisodeId == null) {
+      at = player.position.inMilliseconds / 1000.0;
+    } else if (at == null) {
+      final local = await ProgressSyncService().getLocal(widget.itemId);
+      final saved = _narrationLib?.getProgressData(widget.itemId);
+      final localAt = (local?['timestamp'] as num?)?.toInt() ?? 0;
+      final savedAt = (saved?['lastUpdate'] as num?)?.toInt() ?? 0;
+      final newer = local == null
+          ? saved
+          : saved == null
+              ? local
+              : (localAt >= savedAt ? local : saved);
+      final heard = (newer?['currentTime'] as num?)?.toDouble() ?? 0;
+      if (heard <= 0) return;
+      // Already on the sentence the audio stopped at: nothing moves.
+      final readAt = await _narrationTimeOnPage();
+      if (readAt != null && (heard - readAt).abs() <= 1) return;
+      at = heard;
+    }
+    if (!mounted) return;
+    final clip = n.clipAt(at);
+    final id = clip?.fragment;
+    final wc = _epubController?.webViewController;
+    if (clip == null || id == null || wc == null) return;
+    debugPrint('[ReadAlong] opened while the narration is at ${clip.textHref}#$id - going there');
+    _rememberSpot(EbookSpotReason.beforeSync);
+    await wc.evaluateJavascript(source: _narrationBootstrapSource());
+    await wc.evaluateJavascript(
+        source: 'window.__absorbMO && __absorbMO.go(${jsonEncode(clip.textHref)}, ${jsonEncode(id)})');
+  }
+
+  // Where reading has got to in narration time, noted as pages turn, so
+  // leaving by any route can hand it to the narration without the page.
+  double? _narrationReadAt;
+  Timer? _narrationSpotTimer;
+  ApiService? _narrationApi;
+  LibraryProvider? _narrationLib;
+
+  void _noteNarrationSpot() {
+    _narrationSpotTimer?.cancel();
+    _narrationSpotTimer = Timer(const Duration(milliseconds: 1200), () async {
+      if (!mounted || _readAlongOn) return;
+      final t = await _narrationTimeOnPage();
+      if (t != null) _narrationReadAt = t;
+    });
+  }
+
+  /// Reading ahead of the narration, then leaving the reader: the narration
+  /// moves to the page you reached, so play picks up where you were reading.
+  /// Uses nothing from the page or the widget tree, so it can run on dispose.
+  Future<void> _narrationCarryReadingSpot() async {
+    final n = _narration;
+    final t = _narrationReadAt;
+    if (n == null || t == null || !_useNarration || _readAlongOn) return;
+    _narrationReadAt = null;
+    final player = AudioPlayerService();
+    final inPlayer = player.currentItemId == widget.itemId && player.currentEpisodeId == null;
+    if (inPlayer && player.isPlaying) return;
+    final local = await ProgressSyncService().getLocal(widget.itemId);
+    final heard = inPlayer
+        ? player.position.inMilliseconds / 1000.0
+        : (local?['currentTime'] as num?)?.toDouble() ??
+            (_narrationLib?.getProgressData(widget.itemId)?['currentTime'] as num?)?.toDouble() ??
+            0;
+    if (t <= heard + 20) return;
+    debugPrint('[ReadAlong] read ahead of the narration '
+        '(${heard.toStringAsFixed(0)}s -> ${t.toStringAsFixed(0)}s) - moving it to the page');
+    if (inPlayer) {
+      await player.seekTo(Duration(milliseconds: (t * 1000).round()));
+      return;
+    }
+    final duration = n.duration;
+    await ProgressSyncService().saveLocal(
+      itemId: widget.itemId,
+      currentTime: t,
+      duration: duration,
+      speed: (local?['speed'] as num?)?.toDouble() ?? 1.0,
+    );
+    try {
+      await _narrationApi?.updateProgress(widget.itemId, currentTime: t, duration: duration);
+    } catch (e) {
+      debugPrint('[ReadAlong] narration spot not sent: $e');
+    }
+  }
+
+  String _narrationBootstrapSource() =>
+      narrationBootstrap(LyricsService.instance.readAlongColor, eink: PlayerSettings.einkMode);
+
+  /// Read along from the narration's own timings. A book that isn't playing
+  /// starts at the first sentence on the page in view.
+  Future<void> _startNarrationReadAlong({bool fromResume = false}) async {
+    final l = AppLocalizations.of(context)!;
+    final player = AudioPlayerService();
+    final playingThis =
+        player.currentItemId == widget.itemId && player.currentEpisodeId == null;
+    if (!playingThis) {
+      if (fromResume) return;
+      final ok = await _playNarrationFrom(await _narrationClipOnPage());
+      if (ok == null || !mounted) return;
+      if (!ok) {
+        showOverlayToast(context, l.readAlongNeedsPlaying, icon: Icons.headphones_rounded);
+        return;
+      }
+    }
+    if (_autoScroll) {
+      await _epubController?.autoScrollStop();
+      if (mounted) {
+        setState(() {
+          _autoScroll = false;
+          _autoScrollPaused = false;
+        });
+      }
+    }
+    await _epubController?.webViewController
+        ?.evaluateJavascript(source: _narrationBootstrapSource());
+    _narrationWentTo = null;
+    _readAlongColor = LyricsService.instance.readAlongColor;
+    if (mounted) {
+      setState(() {
+        _readAlongOn = true;
+        _narrationReadAlong = true;
+        _readAlongBrowsing = false;
+      });
+    }
+    ScreenWake.hold('reader', true);
+    _readAlongTimer?.cancel();
+    _readAlongTimer = Timer.periodic(
+        const Duration(milliseconds: 150), (_) => _narrationTick());
+    debugPrint('[ReadAlong] following the narration for ${widget.itemId}');
+  }
+
+  Future<void> _narrationTick({bool force = false}) async {
+    final n = _narration;
+    if (!mounted || !_readAlongOn || !_narrationReadAlong || n == null) return;
+    if (_narrationTickBusy) return;
+    final player = AudioPlayerService();
+    if (player.currentItemId != widget.itemId) {
+      _stopReadAlong();
+      return;
+    }
+    final clip = n.clipAt(player.position.inMilliseconds / 1000.0);
+    final id = clip?.fragment;
+    if (clip == null || id == null) return;
+    final wc = _epubController?.webViewController;
+    if (wc == null) return;
+    _narrationTickBusy = true;
+    try {
+      if (LyricsService.instance.readAlongColor != _readAlongColor) {
+        _readAlongColor = LyricsService.instance.readAlongColor;
+        await wc.evaluateJavascript(
+            source: 'window.__absorbMO && __absorbMO.setColor("${cssHex(_readAlongColor)}")');
+      }
+      var where = await wc.evaluateJavascript(
+          source: 'window.__absorbMO ? __absorbMO.show(${jsonEncode(clip.textHref)}, ${jsonEncode(id)}) : ""');
+      if (where == '' || where == null) {
+        // A layout change remounts the page and its script goes with it.
+        await wc.evaluateJavascript(source: _narrationBootstrapSource());
+        where = await wc.evaluateJavascript(
+            source: 'window.__absorbMO ? __absorbMO.show(${jsonEncode(clip.textHref)}, ${jsonEncode(id)}) : ""');
+      }
+      if (where is String && where != _narrationWhere && mounted) {
+        setState(() => _narrationWhere = where as String);
+      }
+      if (_readAlongBrowsing) {
+        // The narration reached the page being browsed: follow it again.
+        if (_narrationOnScreen && DateTime.now().difference(_readAlongBrowseAt) > const Duration(seconds: 2)) {
+          if (mounted) setState(() => _readAlongBrowsing = false);
+        }
+        return;
+      }
+      final now = DateTime.now();
+      if (!force && now.difference(_narrationTurnAt) < const Duration(milliseconds: 700)) return;
+      if (_scroll && (where == 'after' || where == 'before' || where == 'low')) {
+        _narrationTurnAt = now;
+        await wc.evaluateJavascript(
+            source: 'window.__absorbMO && __absorbMO.reveal(${jsonEncode(clip.textHref)}, ${jsonEncode(id)})');
+      } else if (where == 'after' || where == 'before') {
+        _narrationTurnAt = now;
+        _readAlongTurnPending = now;
+        if (where == 'after') {
+          _epubController?.next();
+        } else {
+          _epubController?.prev();
+        }
+      } else if (where == 'missing' && !identical(_narrationWentTo, clip)) {
+        _narrationWentTo = clip;
+        _narrationTurnAt = now;
+        _readAlongTurnPending = now;
+        debugPrint('[ReadAlong] narration moved to ${clip.textHref}#$id');
+        await wc.evaluateJavascript(
+            source: 'window.__absorbMO && __absorbMO.go(${jsonEncode(clip.textHref)}, ${jsonEncode(id)})');
+      }
+    } catch (e) {
+      debugPrint('[ReadAlong] narration tick failed: $e');
+    } finally {
+      _narrationTickBusy = false;
+    }
+  }
+
   Future<void> _toggleReadAlong() async {
     final l = AppLocalizations.of(context)!;
     if (_readAlongOn) {
       _stopReadAlong();
+      return;
+    }
+    if (_useNarration) {
+      await _startNarrationReadAlong();
       return;
     }
     final player = AudioPlayerService();
@@ -3936,6 +4040,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         player.currentItemId == widget.itemId &&
         player.currentEpisodeId == null;
     if (!stillWanted()) return;
+    if (_useNarration) {
+      debugPrint('[ReadAlong] back in the foreground - following the narration again');
+      await _startNarrationReadAlong(fromResume: true);
+      return;
+    }
     if (!await PlayerSettings.getTranscriptionEnabled()) return;
     if (!stillWanted() ||
         !TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
@@ -3994,6 +4103,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _readAlongAllowBack = true;
     _readAlongLastMatch = DateTime.now();
     _readAlongLost = false;
+    _readAlongBrowsing = false;
     _readAlongSeekAt = null;
     ScreenWake.hold('reader', true);
     _readAlongTimer?.cancel();
@@ -4190,6 +4300,19 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// The same transcript sync adjuster the player overlay has, for tuning
   /// read along against Bluetooth latency without leaving the reader. Lives
   /// in the bottom chrome, so it is there whenever the controls are.
+  Widget _backToNarrationButton(Color accent) {
+    return FilledButton.tonalIcon(
+      onPressed: _backToNarration,
+      icon: const Icon(Icons.my_location_rounded, size: 16),
+      label: Text(AppLocalizations.of(context)!.readAlongBackToNarration),
+      style: FilledButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        backgroundColor: accent.withValues(alpha: 0.18),
+        foregroundColor: accent,
+      ),
+    );
+  }
+
   Widget _readAlongSyncPill(Color fg) {
     final svc = LyricsService.instance;
     // The start-up card already says what the pill would, in the middle of
@@ -4317,6 +4440,15 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _readAlongTimer?.cancel();
     _readAlongTimer = null;
     _flushEbookPush();
+    if (_narrationReadAlong) {
+      _narrationReadAlong = false;
+      _narrationWentTo = null;
+      try {
+        _epubController?.webViewController
+            ?.evaluateJavascript(source: 'window.__absorbMO && __absorbMO.clear()')
+            .catchError((_) => null);
+      } catch (_) {}
+    }
     // Runs from dispose() too, when the WebView may already be on its way out.
     try {
       _epubController?.webViewController
@@ -4332,6 +4464,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _readAlongSeekAt = null;
     _readAlongLastMatch = null;
     _readAlongLost = false;
+    _readAlongBrowsing = false;
     _readAlongGateArmed = false;
     _readAlongGateWaiting = false;
     if (_readAlongPrep != null) {
@@ -4452,6 +4585,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     // locating carries on, and the next hit clears the message.
     final lastMatch = _readAlongLastMatch;
     if (!_readAlongLost &&
+        !_readAlongBrowsing &&
         lastMatch != null &&
         player.isPlaying &&
         DateTime.now().difference(lastMatch) > const Duration(seconds: 45)) {
@@ -4579,7 +4713,92 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
             'x=${d['x']} of ${d['w']}');
       }
       _readAlongTurn(d['cfi'], d['dir'], why: 'word $wordIndex is off the page');
+    } else if (d['seen'] == true) {
+      _readAlongCaughtUp();
     }
+  }
+
+  /// A page turn, jump or scroll the reader asked for. From here on the
+  /// place is the reader's own and gets saved.
+  void _userMoved(String how) {
+    _readingActiveAt = DateTime.now();
+    if (const {'chapter', 'highlight', 'bookmark', 'history'}.contains(how)) {
+      _rememberSpot(EbookSpotReason.beforeJump);
+    }
+    if (_holdOpenSpot) {
+      _holdOpenSpot = false;
+      debugPrint('[EbookReader] moved ($how) - saving the place from here item=${widget.itemId}');
+    }
+    _readAlongUserMoved(how);
+  }
+
+  void _readAlongUserMoved(String how) {
+    if (!_readAlongOn) return;
+    _readAlongBrowseAt = DateTime.now();
+    _readAlongSeenSince = null;
+    if (_readAlongBrowsing) return;
+    debugPrint('[ReadAlong] browsing ($how) - not following the narration');
+    if (mounted) setState(() => _readAlongBrowsing = true);
+  }
+
+  /// Following picks back up once the narration has stayed on screen for a
+  /// moment with the page at rest. Judged straight after a tap, the old page
+  /// is still showing and the turn would be pulled back.
+  void _readAlongCaughtUp() {
+    if (!_readAlongBrowsing) return;
+    final now = DateTime.now();
+    final seen = _readAlongSeenSince ??= now;
+    if (now.difference(_readAlongBrowseAt) < const Duration(seconds: 2) ||
+        now.difference(seen) < const Duration(seconds: 1)) {
+      return;
+    }
+    debugPrint('[ReadAlong] the narration is on this page - following again');
+    if (mounted) setState(() => _readAlongBrowsing = false);
+  }
+
+  /// Back from browsing: show the sentence being read now. Straight there
+  /// when it is still lit in a loaded section; otherwise the same way a seek
+  /// finds it again.
+  Future<void> _backToNarration() async {
+    if (!_readAlongOn) return;
+    setState(() {
+      _readAlongBrowsing = false;
+      _showControls = false;
+    });
+    if (_narrationReadAlong) {
+      _narrationWentTo = null;
+      await _narrationTick(force: true);
+      return;
+    }
+    _readAlongAllowBack = true;
+    _readAlongTurnPending = null;
+    _readAlongStepped = false;
+    _readAlongMissSince = null;
+    _readAlongLastMatch = DateTime.now();
+    final wc = _epubController?.webViewController;
+    final raw = await wc?.evaluateJavascript(
+        source: 'window.__absorbRA ? __absorbRA.curCfi() : ""');
+    if (!mounted || !_readAlongOn) return;
+    if (raw is String && raw.startsWith('epubcfi(')) {
+      debugPrint('[ReadAlong] back to narration: showing the lit sentence');
+      _readAlongLastTurn = DateTime.now();
+      _epubController?.display(cfi: raw);
+      return;
+    }
+    debugPrint('[ReadAlong] back to narration: finding the sentence again');
+    await wc?.evaluateJavascript(source: 'window.__absorbRA && __absorbRA.clear()');
+    _readAlongAt = -1;
+    _readAlongLineStart = null;
+    _readAlongPageWords = 0;
+    _readAlongLastScan = DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  /// Whether the section the narration was last found in ends on the page on
+  /// screen, so the next page starts the next section.
+  Future<bool> _readAlongSectionEndsHere() async {
+    final raw = await _epubController?.webViewController?.evaluateJavascript(
+        source: 'window.__absorbRA ? __absorbRA.atSectionEnd() : true');
+    return raw != false;
   }
 
   /// Every read-along page turn goes through here. Narration only moves
@@ -4588,6 +4807,17 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// a word on the next page take turns dragging the spread back and forth.
   void _readAlongTurn(Object? cfi, Object? dir, {required String why}) {
     if (dir is! num || dir == 0) return;
+    if (_readAlongBrowsing) {
+      _readAlongSeenSince = null;
+      return;
+    }
+    // A finger on a scrolling page is moving it; it is yours until you let go.
+    final down = _touchDownAt;
+    if (_scroll &&
+        down != null &&
+        DateTime.now().difference(down) < const Duration(seconds: 10)) {
+      return;
+    }
     final back = dir < 0;
     if (back && !_readAlongAllowBack) {
       debugPrint('[ReadAlong] not turning back: $why');
@@ -4682,6 +4912,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       }
       if (d['visible'] == false) {
         _readAlongTurn(d['cfi'], d['dir'], why: 'sentence is off the page');
+      } else if (d['seen'] == true) {
+        _readAlongCaughtUp();
       }
       return;
     }
@@ -4690,6 +4922,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     // Not in the rendered pages: an exact line can be found globally (chapter
     // crossings land here); a whisper line just waits for the next one.
     if (!exact) return;
+    // While you read elsewhere the narration moving into a section that isn't
+    // loaded is expected, and the step or scan below would move your page.
+    if (_readAlongBrowsing) return;
     // That scan loads every section of the book, which takes seconds and
     // stalls the page while it runs, and it lands on the section start, not
     // the sentence. One miss is usually a sentence sitting off the current
@@ -4704,10 +4939,17 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     // Narration runs forward, and the next sentence not being in the rendered
     // pages usually means it starts the next section - which is simply the
     // next page. Step once and look again before paying for a scan.
+    // Only when the section really ends on this page, though: mid-section
+    // the miss is a sentence that didn't match the page text, and stepping
+    // turned the page away and straight back again on the next sentence.
     if (!unanchored && !_readAlongStepped) {
       _readAlongStepped = true;
-      _readAlongTurn(null, 1, why: 'sentence is not on this page, trying the next');
-      return;
+      if (await _readAlongSectionEndsHere()) {
+        if (!mounted || !_readAlongOn) return;
+        _readAlongTurn(null, 1, why: 'sentence is not on this page, trying the next');
+        return;
+      }
+      debugPrint('[ReadAlong] not turning: the section goes on past this page');
     }
     final missing = now.difference(_readAlongMissSince!);
     final sinceTurn = now.difference(_readAlongLastTurn);
@@ -4730,6 +4972,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         window.__absorbSearchBook = sb;
       }
       var q = needle.toLowerCase().replace(/\s+/g,' ').trim();
+      var sq = q.replace(/ /g, '');
       var items = (sb.spine && sb.spine.spineItems) ? sb.spine.spineItems : [];
       var found = '';
       for (var i = 0; i < items.length; i++) {
@@ -4742,7 +4985,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         finally { try { item.unload(); } catch(e2){} }
         await new Promise(function(r) { setTimeout(r, 0); });
         if (!text) continue;
-        if (text.toLowerCase().replace(/\s+/g,' ').indexOf(q) !== -1) { found = item.href || ''; break; }
+        var low = text.toLowerCase();
+        if (low.replace(/\s+/g,' ').indexOf(q) !== -1 ||
+            (sq.length >= 8 && low.replace(/\s+/g,'').indexOf(sq) !== -1)) { found = item.href || ''; break; }
       }
       return JSON.stringify({href: found});
     ''', arguments: {'needle': needle});
@@ -4893,6 +5138,149 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     }
   }
 
+  void _rememberSpot(EbookSpotReason reason) {
+    final cfi = _currentCfi;
+    if (cfi == null || cfi.isEmpty) return;
+    unawaited(EbookHistory.instance.record(widget.itemId,
+        cfi: cfi, reason: reason, progress: _progress, chapter: _currentChapterTitle));
+  }
+
+  Widget _historyTab(BuildContext ctx, ScrollController scrollController) {
+    final l = AppLocalizations.of(ctx)!;
+    final cs = Theme.of(ctx).colorScheme;
+    return FutureBuilder<List<EbookSpot>>(
+      future: EbookHistory.instance.spots(widget.itemId),
+      builder: (ctx, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+        final spots = snap.data ?? const <EbookSpot>[];
+        if (spots.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(l.readerHistoryEmpty,
+                  textAlign: TextAlign.center, style: TextStyle(color: cs.onSurfaceVariant)),
+            ),
+          );
+        }
+        return ListView.builder(
+          controller: scrollController,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: spots.length,
+          itemBuilder: (ctx, i) {
+            final s = spots[i];
+            final pct = s.progress == null ? null : '${(s.progress! * 100).round()}%';
+            final why = switch (s.reason) {
+              EbookSpotReason.closed => l.readerHistoryClosed,
+              EbookSpotReason.beforeJump => l.readerHistoryBeforeJump,
+              EbookSpotReason.beforeSync => l.readerHistoryBeforeSync,
+            };
+            return ListTile(
+              dense: true,
+              leading: Icon(
+                switch (s.reason) {
+                  EbookSpotReason.closed => Icons.menu_book_rounded,
+                  EbookSpotReason.beforeJump => Icons.undo_rounded,
+                  EbookSpotReason.beforeSync => Icons.headphones_rounded,
+                },
+                color: cs.onSurfaceVariant,
+              ),
+              title: Text(s.chapter ?? pct ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text('$why · ${dateLabel(s.at, l)} ${timeOfDay(s.at, l)}',
+                  style: TextStyle(color: cs.onSurfaceVariant)),
+              trailing: s.chapter != null && pct != null
+                  ? Text(pct, style: TextStyle(color: cs.onSurfaceVariant))
+                  : null,
+              onTap: () {
+                Navigator.pop(ctx);
+                _userMoved('history');
+                _epubController?.display(cfi: s.cfi);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _setLogReading(bool on) async {
+    debugPrint('[ReadingTime] ${widget.itemId}: counting reading time ${on ? 'on' : 'off'}');
+    setState(() => _logReading = on);
+    await ScopedPrefs.setBool(_kLogReading, on);
+    if (on) {
+      _readingActiveAt = DateTime.now();
+      _startReadingClock();
+    } else {
+      _readingTimer?.cancel();
+      _readingTimer = null;
+      await _sendReadingTime(closing: true);
+    }
+  }
+
+  void _startReadingClock() {
+    _readingTimer ??= Timer.periodic(const Duration(seconds: 15), (_) => _readingTick());
+  }
+
+  void _readingTick() {
+    if (!_logReading || !_readerActive) return;
+    // This book's audio playing at either end of the tick means the time
+    // is listening (read along included), counted by that session alone.
+    final player = AudioPlayerService();
+    final listening = player.isPlaying && player.currentItemId == widget.itemId;
+    final listened = _readingAudioWasOn;
+    _readingAudioWasOn = listening;
+    if (listening || listened) return;
+    if (!_autoScroll && DateTime.now().difference(_readingActiveAt) > const Duration(minutes: 5)) return;
+    _readingSessionId ??= LocalSessionService().newSessionId();
+    _readingStartedAt ??= DateTime.now().subtract(const Duration(seconds: 15));
+    _readingStartPct ??= _progress;
+    _readingSeconds += 15;
+    if (_readingSeconds - _readingSent >= 60) unawaited(_sendReadingTime());
+  }
+
+  /// Sends the reading time so far. A new day starts a new session, as
+  /// listening does.
+  Future<void> _sendReadingTime({bool closing = false}) async {
+    final id = _readingSessionId, started = _readingStartedAt, api = _readingApi;
+    if (id == null || started == null || api == null) return;
+    final seconds = _readingSeconds;
+    if (seconds <= _readingSent && !closing) return;
+    final local = await ProgressSyncService().getLocal(widget.itemId);
+    final audioAt = (local?['currentTime'] as num?)?.toDouble() ?? 0;
+    var ok = false;
+    if (seconds >= 10) {
+      ok = await api.logReadingTime(widget.itemId,
+          sessionId: id,
+          startedAt: started,
+          seconds: seconds,
+          audioAt: audioAt,
+          audioDuration: _audioTotal,
+          title: widget.title,
+          ebookStart: _readingStartPct,
+          ebookEnd: _progress);
+      if (ok) _readingSent = seconds;
+      debugPrint('[ReadingTime] ${widget.itemId}: ${seconds}s ${ok ? 'logged' : 'not sent'}');
+      if (!ok && closing && !api.isBookOrbit) {
+        await LocalSessionService().queue(ApiService.readingSession(widget.itemId,
+            sessionId: id,
+            startedAt: started,
+            seconds: seconds,
+            audioAt: audioAt,
+            audioDuration: _audioTotal,
+            title: widget.title));
+      }
+    }
+    if (closing || DateUtils.dateOnly(started) != DateUtils.dateOnly(DateTime.now())) {
+      debugPrint('[ReadingTime] ${widget.itemId}: session $id ended at ${seconds}s');
+      _readingSessionId = null;
+      _readingStartedAt = null;
+      _readingStartPct = null;
+      _readingSeconds = 0;
+      _readingSent = 0;
+    }
+  }
+
   void _showAnnotationsSheet() {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
@@ -4912,7 +5300,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         maxChildSize: 0.9,
         minChildSize: 0.3,
         builder: (ctx, scrollController) => DefaultTabController(
-          length: 2,
+          length: 3,
           child: Column(
             children: [
               Padding(
@@ -4932,6 +5320,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 tabs: [
                   Tab(text: AppLocalizations.of(ctx)!.readerHighlights(highlights.length)),
                   Tab(text: AppLocalizations.of(ctx)!.readerBookmarks(bookmarks.length)),
+                  Tab(text: AppLocalizations.of(ctx)!.readerHistory),
                 ],
                 labelColor: cs.primary,
                 unselectedLabelColor: cs.onSurfaceVariant,
@@ -4990,6 +5379,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                   dense: true,
                                   onTap: () {
                                     Navigator.pop(ctx);
+                                    _userMoved('highlight');
                                     _epubController?.display(cfi: pointCfi(h.cfi));
                                   },
                                   onLongPress: () => _addNoteToAnnotation(h),
@@ -5038,6 +5428,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                   dense: true,
                                   onTap: () {
                                     Navigator.pop(ctx);
+                                    _userMoved('bookmark');
                                     _epubController?.display(cfi: pointCfi(bm.cfi));
                                   },
                                   onLongPress: () => _addNoteToAnnotation(bm),
@@ -5045,6 +5436,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                               );
                             },
                           ),
+                    _historyTab(ctx, scrollController),
                   ],
                 ),
               ),
@@ -5080,6 +5472,24 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   Size? _viewerPaddingSize;
 
   Widget _buildTopBarContent(Color fg, Color fgDim, Color accent) {
+    final bookProgress = _progress.clamp(0.0, 1.0);
+    final chapterProgress = _chapterPageTotal > 0
+        ? (_chapterPage / _chapterPageTotal).clamp(0.0, 1.0)
+        : 0.0;
+    final both = _topBarProgress == 'both';
+    final chapterOnly = _topBarProgress == 'chapter';
+    Widget bar(double value, double height) => ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: value,
+            minHeight: height,
+            backgroundColor: fg.withValues(alpha: 0.1),
+            valueColor: AlwaysStoppedAnimation(accent),
+          ),
+        );
+    final percent = chapterOnly
+        ? (_chapterPageTotal > 0 ? '${(chapterProgress * 100).round()}%' : '')
+        : '${(bookProgress * 100).toStringAsFixed(1)}%';
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
       child: Column(
@@ -5096,16 +5506,15 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               fontSize: 16,
             ),
           ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: LinearProgressIndicator(
-              value: _progress.clamp(0.0, 1.0),
-              minHeight: 3,
-              backgroundColor: fg.withValues(alpha: 0.1),
-              valueColor: AlwaysStoppedAnimation(accent),
-            ),
-          ),
+          // Both bars fit in the height one bar takes, so a pinned page
+          // doesn't change size and re-paginate when this is switched.
+          SizedBox(height: both ? 4 : 8),
+          if (both) ...[
+            bar(chapterProgress, 3),
+            const SizedBox(height: 2),
+            bar(bookProgress, 2),
+          ] else
+            bar(chapterOnly ? chapterProgress : bookProgress, 3),
           const SizedBox(height: 4),
           Row(
             children: [
@@ -5127,7 +5536,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 ),
               ),
               Text(
-                '${(_progress * 100).toStringAsFixed(1)}%',
+                percent,
                 style: TextStyle(color: fgDim, fontSize: 11),
               ),
             ],
@@ -5218,6 +5627,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   void _handleClose() {
+    unawaited(_narrationCarryReadingSpot());
     Navigator.pop(context);
   }
 
@@ -5936,8 +6346,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 if (file != null) saveCachedLocations(file, json);
               },
               displaySettings: EpubDisplaySettings(
-                flow: EpubFlow.paginated,
-                spread: _spread,
+                flow: _scroll ? EpubFlow.scrolled : EpubFlow.paginated,
+                spread: _scroll ? EpubSpread.none : _spread,
                 // Swipe-to-turn via epub.js's snap manager is janky inside the
                 // WebView and never fires on iOS, so it's off. Page turns come
                 // from edge taps; horizontal drags are swallowed below.
@@ -5962,6 +6372,19 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 // so its refresh got page/chapter but percentage=0 - and no
                 // relocated fires until a page turn. Recompute now it can.
                 if (_didStartFind) _refreshLocationAfterJump();
+                // Index built after the first paint: make the percent jump now.
+                // A cached index lands before the first paint, and the load
+                // rescue below makes the jump instead, so its start re-display
+                // can't undo it.
+                final jump = _pendingPercentJump;
+                if (jump != null && _didLoadRescue) {
+                  _pendingPercentJump = null;
+                  _epubController?.toProgressPercentage(jump);
+                }
+              },
+              onLoadError: (message) {
+                if (!mounted) return;
+                setState(() => _error = AppLocalizations.of(context)!.readerCouldNotOpen);
               },
               suppressNativeContextMenu: true,
               onSelection: _onSelection,
@@ -5979,7 +6402,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 if (!_didLoadRescue) {
                   _didLoadRescue = true;
                   final once = _initialCfi;
+                  var rescue = 'start';
                   if (once != null && once.isNotEmpty) {
+                    rescue = 'cfi';
                     _initialCfi = null;
                     _epubController?.display(cfi: once);
                     // Safe to re-display: _didLoadRescue is already set, so the
@@ -5991,6 +6416,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                         if (mounted) _epubController?.display(cfi: settle);
                       });
                     }
+                  } else if (_pendingPercentJump != null && _locationsReady) {
+                    rescue = 'percent';
+                    _epubController?.toProgressPercentage(_pendingPercentJump!);
+                    _pendingPercentJump = null;
                   } else {
                     // First open (no saved position) - the same blank-first-paint
                     // can happen here, but display(cfi:) needs a target, so force
@@ -5998,8 +6427,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                     _epubController?.webViewController?.evaluateJavascript(
                         source: 'try{rendition.display();}catch(e){}');
                   }
-                  debugPrint('[EbookReader] onEpubLoaded item=${widget.itemId} '
-                      'rescue=${once != null && once.isNotEmpty ? "cfi" : "start"}');
+                  debugPrint('[EbookReader] onEpubLoaded item=${widget.itemId} rescue=$rescue');
                 }
                 if (!_didInitViewer) {
                   _didInitViewer = true;
@@ -6016,6 +6444,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                     if (mounted && !_readAlongOn) _toggleReadAlong();
                   });
                 }
+                unawaited(_narrationOpenAtAudio());
                 if (!_didScheduleCatchUp) {
                   _didScheduleCatchUp = true;
                   // Past the load rescue and settle re-displays.
@@ -6044,8 +6473,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   return;
                 }
                 _currentCfi = value.startCfi;
+                _firstShownCfi ??= value.startCfi;
                 _updateBookmarkState();
                 _repaintHighlightMarks();
+                // The start page shown while waiting to jump to another app's
+                // saved percentage isn't the reader's spot - don't save it.
+                // Turning off it (or a find / read along move) drops the jump.
+                if (_pendingPercentJump != null) {
+                  if (value.startCfi == _firstShownCfi) return;
+                  _pendingPercentJump = null;
+                }
                 if (_locationsReady) {
                   // Trust the percentage only once epub.js has built its
                   // location index. Before that it reports a bogus spine
@@ -6063,6 +6500,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               onTouchDown: (x, y) {
                 _touchDownX = x;
                 _touchDownY = y;
+                _touchDownAt = DateTime.now();
               },
               onTouchUp: (x, y) {
                 // onTouchDown doesn't fire reliably on iOS; if we never got a
@@ -6072,7 +6510,19 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 final dy = _touchDownY != null ? (y - _touchDownY!).abs() : 0.0;
                 _touchDownX = null;
                 _touchDownY = null;
-                if (dx > 0.05 || dy > 0.05) return;
+                _touchDownAt = null;
+                if (dx > 0.05 || dy > 0.05) {
+                  // A swipe turns the page on Android, and a drag scrolls it
+                  // in scroll mode.
+                  if (_scroll ? dy > 0.05 : dx > dy) {
+                    _userMoved(_scroll ? 'scroll' : 'swipe');
+                    // The page can relocate before the finger lifts, while
+                    // the place was still held, so save where it came to.
+                    final cfi = _currentCfi;
+                    if (cfi != null) _syncProgress(cfi, _progress);
+                  }
+                  return;
+                }
                 _readerTapAt(x, 'touch');
               },
           ))),
@@ -6138,7 +6588,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                           if (_readAlongOn)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 6),
-                              child: Center(child: _readAlongSyncPill(fg)),
+                              child: Center(
+                                // Browsing with the lit sentence still in
+                                // view leaves nothing to go back to.
+                                child: _readAlongBrowsing && !(_narrationReadAlong && _narrationOnScreen)
+                                    ? _backToNarrationButton(accent)
+                                    : _narrationReadAlong
+                                        // The book's own timings need no sync tuning.
+                                        ? const SizedBox.shrink()
+                                        : _readAlongSyncPill(fg),
+                              ),
                             ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -6172,7 +6631,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                   onPressed: _openSearchScreen,
                                 ),
                               ),
-                              if (_transcriptionOn)
+                              if (_transcriptionOn || _useNarration)
                                 Expanded(
                                   child: IconButton(
                                     icon: Icon(Icons.graphic_eq_rounded,
@@ -6272,11 +6731,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                           tooltip: AppLocalizations.of(context)!.readerTooltipDefine,
                           visualDensity: VisualDensity.compact,
                         ),
-                        if (_transcriptionOn)
+                        if (_transcriptionOn || _useNarration)
                           IconButton(
-                            icon: Icon(Icons.headphones_rounded, size: 20, color: cs.onSurfaceVariant),
+                            icon: Icon(
+                                _useNarration ? Icons.play_arrow_rounded : Icons.headphones_rounded,
+                                size: 20,
+                                color: cs.onSurfaceVariant),
                             onPressed: _findInAudiobookFromSelection,
-                            tooltip: AppLocalizations.of(context)!.findInAudiobook,
+                            tooltip: _useNarration
+                                ? AppLocalizations.of(context)!.narrationPlayFromHere
+                                : AppLocalizations.of(context)!.findInAudiobook,
                             visualDensity: VisualDensity.compact,
                           ),
                         _divider(cs),
@@ -6546,4 +7010,24 @@ class _HighlightColorButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The reader's open pages as Find in audiobook's view of the book.
+class _ReaderBookText implements BookTextSource {
+  _ReaderBookText(this._reader);
+
+  final EbookReaderViewState _reader;
+
+  @override
+  Future<List<String>> spineHrefs() => _reader._spineHrefs();
+
+  @override
+  String? chapterForHref(String href) => _reader._chapterForHref(href);
+
+  @override
+  Future<List<double>> sectionCharCounts(int from, int to) => _reader._sectionCharCounts(from, to);
+
+  @override
+  Future<Map<String, dynamic>?> locateTranscriptInSection(int si, String transcript) =>
+      _reader._locateTranscriptInSection(si, transcript);
 }

@@ -9,6 +9,8 @@ import '../services/audio_player_service.dart';
 import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/upcoming_releases_service.dart';
+import '../utils/series_number_match.dart';
+
 import '../widgets/absorb_page_header.dart';
 import '../widgets/audible_series_sheet.dart';
 import '../widgets/overlay_toast.dart';
@@ -1868,6 +1870,7 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
     setState(() => _busySeriesId = null);
     final ownedTitles = <String>{};
     final ownedAsins = <String>{};
+    final ownedNumbers = SeriesNumberOwnership();
     for (final b in books) {
       if (b is! Map<String, dynamic>) continue;
       final media = b['media'] as Map<String, dynamic>? ?? {};
@@ -1876,6 +1879,7 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
       final asin = metadata['asin'] as String? ?? '';
       if (title.isNotEmpty) ownedTitles.add(title);
       if (asin.isNotEmpty) ownedAsins.add(asin);
+      ownedNumbers.add(librarySeriesNumber(metadata, s.seriesId), title, asin);
     }
     if (!mounted) return;
     showAudibleSeriesSheet(context,
@@ -1883,6 +1887,7 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
       seriesAsin: s.audibleAsin,
       ownedTitles: ownedTitles,
       ownedAsins: ownedAsins,
+      ownedNumbers: ownedNumbers,
     );
   }
 

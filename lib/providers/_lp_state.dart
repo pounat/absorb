@@ -48,6 +48,7 @@ mixin _StateMixin on ChangeNotifier {
   Timer? _progressRefreshDebounce;
   static const _progressDrivenShelfIds = <String>[
     'continue-listening',
+    'continue-reading',
     'continue-series',
     'listen-again',
   ];

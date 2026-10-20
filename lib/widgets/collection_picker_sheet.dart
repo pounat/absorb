@@ -76,11 +76,13 @@ class _CollectionPickerSheetState extends State<CollectionPickerSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final lib = context.watch<LibraryProvider>();
-    // A BookOrbit collection only takes books from its owner.
+    // A BookOrbit collection only takes books from its owner, and a Smart
+    // Scope takes none: its rules pick its books.
     final collections = context.read<AuthProvider>().isBookOrbit
-        ? lib.collections
-            .where((c) => ((c as Map)['bookOrbit'] as Map?)?['isOwner'] == true)
-            .toList()
+        ? lib.collections.where((c) {
+            final bo = (c as Map)['bookOrbit'] as Map?;
+            return bo?['isOwner'] == true && bo?['smartScope'] != true;
+          }).toList()
         : lib.collections;
     final l = AppLocalizations.of(context)!;
 

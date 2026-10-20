@@ -10,6 +10,8 @@ import 'book_dock.dart';
 import 'book_requests.dart';
 import 'bookorbit_match.dart';
 import 'bookorbit_mapper.dart';
+import 'media_overlay.dart';
+import 'narrated_books.dart';
 import 'bookorbit_media_proxy_stub.dart'
     if (dart.library.io) 'bookorbit_media_proxy.dart';
 import 'player_settings.dart';
@@ -365,6 +367,10 @@ class ApiService {
   String buildEbookUrl(String itemId, String ino) =>
       '$_cleanBaseUrl/api/items/$itemId/file/$ino?token=$token';
 
+  /// The ebook the reader caches, which may leave out what reading doesn't
+  /// need (BookOrbit's narrated EPUBs come without their audio).
+  String buildReaderEbookUrl(String itemId, String ino) => buildEbookUrl(itemId, ino);
+
   /// How many pages a comic file has, when the server hands them out one at
   /// a time (BookOrbit, which opens CBR and CB7 too). Null means the archive
   /// has to be opened on the phone.
@@ -372,6 +378,23 @@ class ApiService {
 
   /// Image of comic page [index] (from 0), when [comicPageCount] answered.
   String? comicPageUrl(String fileId, int index) => null;
+
+  /// The server's ebook bookmarks for an item, as {id, cfi, title, note},
+  /// or null when the server keeps none (Audiobookshelf) or can't be reached.
+  Future<List<Map<String, dynamic>>?> ebookBookmarks(String itemId) async => null;
+
+  /// One page of a collection's books, for a server whose collection listing
+  /// holds only the first ones. Audiobookshelf sends every book up front.
+  Future<List<Map<String, dynamic>>?> collectionBooksPage(String collectionId,
+          {required int page, int size = 100}) async =>
+      null;
+
+  /// Saves an ebook bookmark at [cfi] on the server. Returns its server id,
+  /// or null when the server keeps none or the save failed.
+  Future<String?> addEbookBookmark(String itemId, {required String cfi, required String title}) async => null;
+
+  /// Removes a server ebook bookmark. True when it's gone (or never existed).
+  Future<bool> deleteEbookBookmark(String itemId, String bookmarkId) async => false;
 
   /// The cover slots a book uses on BookOrbit ('audio', 'ebook'). Empty on
   /// Audiobookshelf, which has one cover per item.
@@ -403,6 +426,10 @@ class ApiService {
 
   /// Called once before a book's files are queued for download.
   Future<void> prepareDownload(String itemId) async {}
+
+  /// Where a download fetches a narrated EPUB's audio file from, for track
+  /// [contentUrl]; null when this server has no such tracks.
+  String? buildNarrationDownloadUrl(String itemId, String contentUrl) => null;
 
   /// Show a collection to everyone on the server or only its owner. Only
   /// BookOrbit has this; Audiobookshelf collections are always shared.
@@ -2076,6 +2103,18 @@ class ApiService {
         'model': deviceModel,
       };
 
+  /// Time spent reading shows up on the server as its own client: "Absorb
+  /// (ebook)" with its own device id, since the server keeps one name per
+  /// device id and would otherwise rename this phone's listening too.
+  Map<String, dynamic> get _readingDeviceInfo => {
+        ..._deviceInfo,
+        'clientName': 'Absorb (ebook)',
+        'deviceId': '$deviceId-ebook',
+      };
+
+  /// The media player a reading session is marked with.
+  static const readingMediaPlayer = 'ebook-reader';
+
   /// Start a playback session for a library item.
   /// POST /api/items/:id/play
   /// Returns the full session object including audioTracks with contentUrl.
@@ -2265,11 +2304,15 @@ class ApiService {
   /// [session] is a fully-built session map; deviceInfo/mediaPlayer/playMethod
   /// are stamped here so they can't be omitted.
   Future<LocalSessionResult> syncLocalSession(Map<String, dynamic> session) async {
+    final reading = session['keepProgress'] == true;
+    final kept = await _besideProgress(session);
+    if (kept == null) return const LocalSessionResult(ok: false, serverTooOld: false);
+    session = kept;
     try {
       final body = {
         ...session,
-        'deviceInfo': _deviceInfo,
-        'mediaPlayer': 'exo-player',
+        'deviceInfo': reading ? _readingDeviceInfo : _deviceInfo,
+        'mediaPlayer': reading ? readingMediaPlayer : 'exo-player',
         'playMethod': 3, // LOCAL
       };
       final resp = await _authPost(
@@ -2289,7 +2332,18 @@ class ApiService {
   /// POST /api/session/local-all
   Future<LocalSessionResult> syncLocalSessionsAll(
       List<Map<String, dynamic>> sessions) async {
-    if (sessions.isEmpty) return const LocalSessionResult(ok: true, serverTooOld: false);
+    // Reading time goes one at a time: the batch carries a single device.
+    var readingOk = true;
+    for (final s in sessions.where((s) => s['keepProgress'] == true)) {
+      if (!(await syncLocalSession(s)).ok) readingOk = false;
+    }
+    final kept = <Map<String, dynamic>>[];
+    for (final s in sessions.where((s) => s['keepProgress'] != true)) {
+      final k = await _besideProgress(s);
+      if (k != null) kept.add(k);
+    }
+    sessions = kept;
+    if (sessions.isEmpty) return LocalSessionResult(ok: readingOk, serverTooOld: false);
     try {
       final body = {
         'sessions': sessions
@@ -2302,12 +2356,109 @@ class ApiService {
         body: jsonEncode(body),
         timeout: const Duration(seconds: 20));
       return LocalSessionResult(
-        ok: resp.statusCode == 200,
+        ok: resp.statusCode == 200 && readingOk,
         serverTooOld: resp.statusCode == 404 || resp.statusCode == 501,
       );
     } catch (_) {
       return const LocalSessionResult(ok: false, serverTooOld: false);
     }
+  }
+
+  /// A phone-made session whose numbers aren't the book's listening position:
+  /// an EPUB's narration (the server sizes a new session by the item's own
+  /// length, zero for an ebook) or time spent reading (`keepProgress`). The
+  /// server copies a session's position onto the progress row unless the
+  /// row is newer, so the session is dated just before the row's last save:
+  /// the time is logged and the progress is left as it is. Null when there
+  /// is no row to keep yet for a reading session.
+  Future<Map<String, dynamic>?> _besideProgress(Map<String, dynamic> session) async {
+    final reading = session['keepProgress'] == true;
+    final out = Map<String, dynamic>.from(session)..remove('keepProgress');
+    final id = session['libraryItemId'];
+    final narration = id is String ? NarratedBooks.duration(id) : null;
+    if (isBookOrbit || id is! String || (!reading && narration == null)) return out;
+    var row = await getItemProgress(id);
+    if (row == null && reading) debugPrint('[Session] $id: no progress row yet - reading time waits');
+    if (row == null && narration != null) {
+      try {
+        await updateProgress(id,
+            currentTime: (session['currentTime'] as num?)?.toDouble() ?? 0, duration: narration);
+      } catch (_) {}
+      row = await getItemProgress(id);
+    }
+    final rowAt = (row?['lastUpdate'] as num?)?.toInt();
+    if (rowAt == null) return reading ? null : out;
+    if (narration != null) out['duration'] = narration;
+    final at = (session['updatedAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch;
+    if (at >= rowAt) out['updatedAt'] = rowAt - 1000;
+    if (_besideLogged.add('${session['id']}')) {
+      debugPrint('[Session] $id: ${reading ? 'reading time' : 'narration'} session ${session['id']} '
+          'logged beside the progress row (${at >= rowAt ? 'dated before it' : 'already older'})');
+    }
+    return out;
+  }
+
+  static final Set<String> _besideLogged = {};
+
+  static const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  /// Time spent reading, as the local listening session Audiobookshelf takes
+  /// it in: at the audiobook's current spot ([audioAt], 0 for an ebook with
+  /// no audio) and marked to leave the progress as it is.
+  static Map<String, dynamic> readingSession(
+    String itemId, {
+    required String sessionId,
+    required DateTime startedAt,
+    required int seconds,
+    required double audioAt,
+    required double audioDuration,
+    String? title,
+  }) {
+    String day(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    return {
+      'id': sessionId,
+      'libraryItemId': itemId,
+      'episodeId': null,
+      'mediaType': 'book',
+      'displayTitle': title,
+      'duration': audioDuration,
+      'startTime': audioAt,
+      'currentTime': audioAt,
+      'timeListening': seconds,
+      'startedAt': startedAt.millisecondsSinceEpoch,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      'date': day(startedAt),
+      'dayOfWeek': _weekdays[startedAt.weekday - 1],
+      'keepProgress': true,
+    };
+  }
+
+  /// Time spent reading [itemId]'s ebook, kept as a session [sessionId] so it
+  /// counts in stats (sent again as it grows, the same id each time).
+  /// Audiobookshelf has no reading sessions, so it goes in as a listening
+  /// session that leaves the listening progress as it is.
+  Future<bool> logReadingTime(
+    String itemId, {
+    required String sessionId,
+    required DateTime startedAt,
+    required int seconds,
+    required double audioAt,
+    required double audioDuration,
+    String? title,
+    double? ebookStart,
+    double? ebookEnd,
+  }) async {
+    final r = await syncLocalSession(readingSession(
+      itemId,
+      sessionId: sessionId,
+      startedAt: startedAt,
+      seconds: seconds,
+      audioAt: audioAt,
+      audioDuration: audioDuration,
+      title: title,
+    ));
+    return r.ok;
   }
 
   /// Edit an existing listening session by re-POSTing it through the local
@@ -2358,6 +2509,12 @@ class ApiService {
     } catch (_) {}
     return null;
   }
+
+  /// The server's place in an item's ebook, for opening the reader there:
+  /// ebookLocation, ebookProgress and, when the server keeps one apart from
+  /// listening, ebookUpdatedAt (ms).
+  Future<Map<String, dynamic>?> getEbookPosition(String itemId) =>
+      getItemProgress(itemId);
 
   Map<String, dynamic>? _progressRecreationBody(
     Map<String, dynamic> progress, {
@@ -2512,11 +2669,16 @@ class ApiService {
   /// Update ebook reading progress on the server. Returns whether the PATCH
   /// landed, so the caller can queue the position for a later retry.
   /// PATCH /api/me/progress/:id
+  /// HTTP status of the last [updateEbookProgress], null when it never got an
+  /// answer. A 404 means the server has no such book, so retrying is pointless.
+  int? lastEbookProgressStatus;
+
   Future<bool> updateEbookProgress(
     String itemId, {
     required String ebookLocation,
     required double ebookProgress,
   }) async {
+    lastEbookProgressStatus = null;
     try {
       final body = jsonEncode({
         'ebookLocation': ebookLocation,
@@ -2537,6 +2699,7 @@ class ApiService {
         body: body,
       ).timeout(const Duration(seconds: 10));
       debugPrint('[API] updateEbookProgress response: ${resp.statusCode} ${resp.body}');
+      lastEbookProgressStatus = resp.statusCode;
       return resp.statusCode >= 200 && resp.statusCode < 300;
     } catch (e) {
       debugPrint('[API] updateEbookProgress error: $e');
@@ -2581,8 +2744,11 @@ class ApiService {
 
       if (progressId != null) await deleteMediaProgress(progressId);
 
-      // Start session at 0 and close — forces server to update position
-      final sessionData = await startPlaybackSession(apiItemId, episodeId: episodeId);
+      // Start session at 0 and close — forces server to update position. An
+      // EPUB's narration has no server audio to open a session on.
+      final sessionData = NarratedBooks.contains(apiItemId) && episodeId == null
+          ? null
+          : await startPlaybackSession(apiItemId, episodeId: episodeId);
       if (sessionData != null) {
         final sessionId = sessionData['id'] as String?;
         if (sessionId != null) {

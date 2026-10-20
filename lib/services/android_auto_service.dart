@@ -384,6 +384,9 @@ class AndroidAutoService {
   /// AndroidAuto uses notifyChildrenChanged below independently.
   static void Function()? onServerDataChanged;
 
+  /// Further listeners for the same moment (Siri's list of books).
+  static final List<void Function()> serverDataListeners = [];
+
   Future<void> refresh({bool force = false}) async {
     // Always populate downloads immediately — no server needed.
     // This ensures Android Auto / CarPlay can show the Downloads tab even
@@ -454,6 +457,13 @@ class AndroidAutoService {
         onServerDataChanged?.call();
       } catch (e) {
         debugPrint('[AutoBrowse] onServerDataChanged listener threw: $e');
+      }
+      for (final listener in serverDataListeners) {
+        try {
+          listener();
+        } catch (e) {
+          debugPrint('[AutoBrowse] server data listener threw: $e');
+        }
       }
     }
   }

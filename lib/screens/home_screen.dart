@@ -11,6 +11,12 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/ebook_cache.dart';
+import '../services/narrated_books.dart';
+import '../services/narration_service.dart';
+import '../widgets/ebook_router.dart';
+import '../widgets/overlay_toast.dart';
+import '../widgets/narration_download_dialog.dart';
 import '../widgets/desktop_batch_actions.dart';
 import '../widgets/home_section.dart';
 import '../widgets/absorb_page_header.dart';
@@ -43,6 +49,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
   bool _hideEbookOnly = false;
   bool _rectangleCovers = false;
   bool _showSubtitles = false;
+  bool _cardsOpenDetails = false;
 
   // ── Batch selection ──
   bool _selectionMode = false;
@@ -212,11 +219,13 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
       PlayerSettings.getHideEbookOnly(),
       PlayerSettings.getRectangleCoversFor(libId),
       PlayerSettings.getShowSubtitlesFor(libId),
+      PlayerSettings.getHomeCardsOpenDetails(),
     ]);
     if (mounted) setState(() {
       _hideEbookOnly = results[0];
       _rectangleCovers = results[1];
       _showSubtitles = results[2];
+      _cardsOpenDetails = results[3];
     });
   }
 
@@ -326,8 +335,99 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
     }
   }
 
+  /// A heading that opens the whole shelf, over a row of big cover cards.
+  /// Reading cards open the reader instead of playing.
+  List<Widget> _heroShelf({
+    required LibraryProvider lib,
+    required String title,
+    required IconData icon,
+    required List<dynamic> items,
+    required bool reading,
+    required bool selectionAvailable,
+  }) {
+    if (items.isEmpty) return const <Widget>[];
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+    return <Widget>[
+      SliverToBoxAdapter(
+        child: GestureDetector(
+          onTap: () => SectionDetailSheet.show(
+            context,
+            title: title,
+            icon: icon,
+            entities: items,
+            coverAspectRatio: _rectangleCovers ? 2 / 3 : 1.0,
+          ),
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+            child: Row(children: [
+              Icon(icon, size: 16, color: cs.primary.withValues(alpha: 0.7)),
+              const SizedBox(width: 8),
+              Text(title,
+                  style: tt.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: cs.onSurface.withValues(alpha: 0.8),
+                    letterSpacing: 0.3,
+                  )),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right_rounded, size: 16,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+              const SizedBox(width: 12),
+              Expanded(child: Container(height: 0.5,
+                  color: cs.outlineVariant.withValues(alpha: 0.2))),
+            ]),
+          ),
+        ),
+      ),
+      if (!reading && !_cardsOpenDetails)
+        SliverToBoxAdapter(
+          child: FeatureHint(
+            prefKey: 'hint_continue_listening_gestures',
+            message: l.homeResumeGestureHint,
+          ),
+        ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: SizedBox(
+            // Taller row when 2:3 covers are on; the card's
+            // cover alone is ~225 with rectangle covers.
+            height: _rectangleCovers ? 320 : 250,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              physics: const BouncingScrollPhysics(),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, i) {
+                final item = items[i] as Map<String, dynamic>;
+                return RepaintBoundary(child: _ContinueListeningCard(
+                  item: item, lib: lib, player: _player,
+                  rectangleCovers: _rectangleCovers,
+                  reading: reading,
+                  tapOpensDetails: _cardsOpenDetails,
+                  selectionMode: selectionAvailable && _selectionMode,
+                  selected: _selectedItemIds
+                      .contains(item['id'] as String?),
+                  onSelectionToggle: selectionAvailable &&
+                          item['recentEpisode'] == null &&
+                          item['id'] is String
+                      ? () => _toggleSelection(item)
+                      : null,
+                ));
+              },
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
   static const _sectionIcons = {
     'continue-listening': Icons.play_circle_outline_rounded,
+    'continue-reading': Icons.menu_book_rounded,
     'continue-series': Icons.auto_stories_rounded,
     'recently-added': Icons.new_releases_outlined,
     'listen-again': Icons.replay_rounded,
@@ -649,82 +749,29 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                     // Playlists/collections are server-only; hide when offline
                     if ((isPlaylist || isCollection) && lib.isOffline) return <Widget>[];
 
-                    // Continue Listening gets its own compact card layout
+                    // Continue Listening and Continue Reading get the big
+                    // cover cards.
                     if (id == 'continue-listening') {
-                      final clItems = _cachedClItems ?? [];
-                      if (clItems.isEmpty) return <Widget>[];
-                      return <Widget>[
-                        SliverToBoxAdapter(
-                          child: GestureDetector(
-                            onTap: () => SectionDetailSheet.show(
-                              context,
-                              title: l.continueListening,
-                              icon: Icons.play_circle_outline_rounded,
-                              entities: clItems,
-                              coverAspectRatio: _rectangleCovers ? 2 / 3 : 1.0,
-                            ),
-                            behavior: HitTestBehavior.opaque,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                              child: Row(children: [
-                                Icon(Icons.play_circle_outline_rounded,
-                                    size: 16, color: cs.primary.withValues(alpha: 0.7)),
-                                const SizedBox(width: 8),
-                                Text(l.continueListening,
-                                    style: tt.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      color: cs.onSurface.withValues(alpha: 0.8),
-                                      letterSpacing: 0.3,
-                                    )),
-                                const SizedBox(width: 4),
-                                Icon(Icons.chevron_right_rounded, size: 16,
-                                    color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
-                                const SizedBox(width: 12),
-                                Expanded(child: Container(height: 0.5,
-                                    color: cs.outlineVariant.withValues(alpha: 0.2))),
-                              ]),
-                            ),
-                          ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: FeatureHint(
-                            prefKey: 'hint_continue_listening_gestures',
-                            message: l.homeResumeGestureHint,
-                          ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: SizedBox(
-                              // Taller row when 2:3 covers are on; the card's
-                              // cover alone is ~225 with rectangle covers.
-                              height: _rectangleCovers ? 320 : 250,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                physics: const BouncingScrollPhysics(),
-                                itemCount: clItems.length,
-                                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                                itemBuilder: (context, i) {
-                                  final item = clItems[i] as Map<String, dynamic>;
-                                  return RepaintBoundary(child: _ContinueListeningCard(
-                                    item: item, lib: lib, player: _player,
-                                    rectangleCovers: _rectangleCovers,
-                                    selectionMode: selectionAvailable && _selectionMode,
-                                    selected: _selectedItemIds
-                                        .contains(item['id'] as String?),
-                                    onSelectionToggle: selectionAvailable &&
-                                            item['recentEpisode'] == null &&
-                                            item['id'] is String
-                                        ? () => _toggleSelection(item)
-                                        : null,
-                                  ));
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                      ];
+                      return _heroShelf(
+                        lib: lib,
+                        title: l.continueListening,
+                        icon: Icons.play_circle_outline_rounded,
+                        items: _cachedClItems ?? const [],
+                        reading: false,
+                        selectionAvailable: selectionAvailable,
+                      );
+                    }
+                    if (id == 'continue-reading') {
+                      return _heroShelf(
+                        lib: lib,
+                        title: sectionLabel(id, section['label'] as String?, l),
+                        icon: Icons.menu_book_rounded,
+                        items: _filterEbookOnly(
+                            (section['entities'] as List<dynamic>?) ?? [],
+                            sectionType: section['type'] as String?),
+                        reading: true,
+                        selectionAvailable: selectionAvailable,
+                      );
                     }
 
                     final label = sectionLabel(id, section['label'] as String?, l);
@@ -818,6 +865,9 @@ class _ContinueListeningCard extends StatefulWidget {
   final LibraryProvider lib;
   final AudioPlayerService player;
   final bool rectangleCovers;
+  // A Continue Reading card: reading progress, and opens the reader.
+  final bool reading;
+  final bool tapOpensDetails;
   final bool selectionMode;
   final bool selected;
   final VoidCallback? onSelectionToggle;
@@ -827,6 +877,8 @@ class _ContinueListeningCard extends StatefulWidget {
     required this.lib,
     required this.player,
     required this.rectangleCovers,
+    this.reading = false,
+    this.tapOpensDetails = false,
     this.selectionMode = false,
     this.selected = false,
     this.onSelectionToggle,
@@ -853,7 +905,8 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
   Widget _buildCoverImage(String? coverUrl, ColorScheme cs, Map<String, String> headers) {
     final fallback = Container(
       color: cs.surfaceContainerHighest,
-      child: Icon(Icons.headphones_rounded, size: 32, color: cs.onSurfaceVariant),
+      child: Icon(widget.reading ? Icons.menu_book_rounded : Icons.headphones_rounded,
+          size: 32, color: cs.onSurfaceVariant),
     );
     if (coverUrl == null) return fallback;
 
@@ -957,7 +1010,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
     final progressData = episodeId != null
         ? lib.getEpisodeProgressData(itemId, episodeId)
         : lib.getProgressData(itemId);
-    final isCurrentItem = player.currentItemId == itemId;
+    final isCurrentItem = !widget.reading && player.currentItemId == itemId;
     final serverCurrentTime = (progressData?['currentTime'] as num?)?.toDouble() ?? 0;
 
     double currentTime;
@@ -1003,12 +1056,21 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
                 HSLColor.fromColor(accent).saturation.clamp(0.35, 1.0))
             .toColor()
         : accent;
-    final progressValue =
-        (totalDuration > 0 ? currentTime / totalDuration : progress).clamp(0.0, 1.0);
-    final remaining = totalDuration > 0 ? totalDuration - currentTime : 0.0;
+    // BookOrbit carries an ebook-only book's reading percent as its plain
+    // progress, with no ebook field.
+    final readSaved = widget.reading ? lib.getEbookProgress(itemId) : 0.0;
+    final progressValue = widget.reading
+        ? (readSaved > 0 ? readSaved : (PlayerSettings.isEbookOnly(item) ? progress : 0.0)).clamp(0.0, 1.0)
+        : (totalDuration > 0 ? currentTime / totalDuration : progress).clamp(0.0, 1.0);
+    final remaining = !widget.reading && totalDuration > 0 ? totalDuration - currentTime : 0.0;
 
     void resume() {
       if (_isLoading) return;
+      // Nothing to play: an ebook-only book continues in the reader.
+      if (recentEpisode == null && (widget.reading || PlayerSettings.isEbookOnly(item))) {
+        _openEbook(context, itemId, title);
+        return;
+      }
       if (isCurrentItem) {
         if (player.isPlaying) {
           player.pause();
@@ -1064,7 +1126,11 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
           ),
         ),
         child: InkWell(
-          onTap: widget.selectionMode ? widget.onSelectionToggle : resume,
+          onTap: widget.selectionMode
+              ? widget.onSelectionToggle
+              : widget.tapOpensDetails
+                  ? openDetails
+                  : resume,
           onLongPress: widget.selectionMode ? null : openQuickActions,
           borderRadius: BorderRadius.circular(14),
           child: SizedBox(
@@ -1233,6 +1299,27 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
     );
   }
 
+  Future<void> _openEbook(BuildContext context, String itemId, String title) async {
+    final l = AppLocalizations.of(context)!;
+    setState(() => _isLoading = true);
+    var ebookFile = resolveEbookFile(widget.item) ?? await cachedEbookFileFor(itemId);
+    if (ebookFile == null && context.mounted) {
+      final api = context.read<AuthProvider>().apiService;
+      if (api != null) {
+        try {
+          ebookFile = resolveEbookFile(await api.getLibraryItem(itemId));
+        } catch (_) {}
+      }
+    }
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    if (ebookFile == null) {
+      showOverlayToast(context, l.noEbookFileFound, icon: Icons.menu_book_outlined);
+      return;
+    }
+    await openEbookReader(context, itemId: itemId, title: title, ebookFile: ebookFile);
+  }
+
   Future<void> _startBook(BuildContext context, String itemId) async {
     setState(() => _isLoading = true);
     final auth = context.read<AuthProvider>();
@@ -1273,6 +1360,30 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
         if (error != null) showErrorToast(context, error);
         setState(() => _isLoading = false);
       }
+      return;
+    }
+
+    // An Audiobookshelf EPUB that reads itself aloud plays from the phone, so
+    // its narration is downloaded first.
+    if (!auth.isBookOrbit &&
+        NarratedBooks.contains(itemId) &&
+        !NarrationService.instance.hasLocalAudio(itemId)) {
+      setState(() => _isLoading = false);
+      if (DownloadService().isDownloading(itemId)) {
+        showOverlayToast(context, AppLocalizations.of(context)!.narrationDownloadStarted,
+            icon: Icons.download_rounded);
+        return;
+      }
+      final media = widget.item['media'] as Map<String, dynamic>? ?? {};
+      final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
+      await showNarrationDownloadDialog(
+        context,
+        itemId: itemId,
+        title: metadata['title'] as String? ?? '',
+        author: metadata['authorName'] as String?,
+        coverUrl: widget.lib.getCoverUrl(itemId),
+        libraryId: widget.item['libraryId'] as String?,
+      );
       return;
     }
 

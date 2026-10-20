@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -12,11 +14,15 @@ import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/api_service.dart';
+import '../services/download_service.dart';
 import '../services/ebook_cache.dart';
+import '../services/image_epub.dart';
 import '../services/progress_sync_service.dart';
 import '../services/scoped_prefs.dart';
+import '../services/ebook_annotation_service.dart';
 import '../services/volume_key_service.dart';
 import 'ebook_router.dart' show ebookExt;
+import 'overlay_toast.dart';
 
 const _imageExts = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'};
 
@@ -106,11 +112,17 @@ class ComicReaderView extends StatefulWidget {
   final String title;
   final Map<String, dynamic> ebookFile;
 
+  /// An EPUB made of page pictures, read here instead of the EPUB reader.
+  /// Its position is saved as an EPUB location, so the book still opens at
+  /// the same page wherever it's read as an EPUB.
+  final File? imageEpub;
+
   const ComicReaderView({
     super.key,
     required this.itemId,
     required this.title,
     required this.ebookFile,
+    this.imageEpub,
   });
 
   @override
@@ -119,8 +131,20 @@ class ComicReaderView extends StatefulWidget {
 
 class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingObserver {
   ApiService? _api;
+  // A download made on another account reads from the phone, and neither its
+  // place nor its bookmarks go to the server signed in now.
+  bool _otherAccount = false;
+  ({String location, double progress})? _otherSpot;
+  ApiService? get _syncApi => _otherAccount ? null : _api;
   LibraryProvider? _lib;
   _ComicPages? _pages;
+  // Image EPUB only: each page's EPUB position.
+  List<String>? _cfis;
+
+  // Bookmarks live on the phone for every comic. A picture EPUB on BookOrbit
+  // also keeps them on the server, at each page's EPUB position.
+  final _annotationService = EbookAnnotationService();
+  List<EbookAnnotation> _bookmarks = [];
   PageController? _controller;
   String? _error;
   bool _loading = true;
@@ -142,6 +166,7 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
     WidgetsBinding.instance.addObserver(this);
     _setFullscreen(true);
     _api = context.read<AuthProvider>().apiService;
+    _otherAccount = DownloadService().isFromOtherAccount(widget.itemId);
     _lib = context.read<LibraryProvider>();
     _lib?.setReaderQuiet(true);
     ScopedPrefs.getBool(_directionKey).then((v) {
@@ -183,7 +208,15 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
   /// The saved page: the location when it is a page number, otherwise the
   /// progress fraction (a CBZ last read in the old reader saved neither).
   int _savedPage(int count) {
-    final data = _lib?.getProgressData(widget.itemId);
+    final spot = _otherSpot;
+    final data = _otherAccount
+        ? (spot == null ? null : {'ebookLocation': spot.location, 'ebookProgress': spot.progress})
+        : _lib?.getProgressData(widget.itemId);
+    final cfis = _cfis;
+    if (cfis != null) {
+      final index = pageIndexForCfi(cfis, data?['ebookLocation'] as String?);
+      if (index != null) return (index + 1).clamp(1, count);
+    }
     final loc = int.tryParse((data?['ebookLocation'] as String?)?.trim() ?? '');
     if (loc != null && loc >= 1) return loc.clamp(1, count);
     final frac = (data?['ebookProgress'] as num?)?.toDouble() ?? 0;
@@ -198,11 +231,14 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
     final offline = _lib?.isOffline ?? true;
     try {
       _ComicPages? pages;
-      if (ext == 'cbz' && await isEbookCached(widget.itemId, widget.ebookFile)) {
+      final imageEpub = widget.imageEpub;
+      if (imageEpub != null) {
+        pages = await _unpack(imageEpub, epub: true);
+      } else if (ext == 'cbz' && await isEbookCached(widget.itemId, widget.ebookFile)) {
         pages = await _unpack(await ebookCacheFileFor(widget.itemId, widget.ebookFile));
       }
       final fileId = widget.ebookFile['ino'] as String?;
-      if (pages == null && api != null && fileId != null && !offline) {
+      if (pages == null && imageEpub == null && api != null && fileId != null && !offline) {
         final count = await api.comicPageCount(fileId);
         if (count != null && count > 0) pages = _ServerPages(api, fileId, count);
       }
@@ -224,6 +260,12 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
         });
         return;
       }
+      if (_otherAccount) {
+        _otherSpot = await DownloadService().otherAccountReadingSpot(widget.itemId);
+      } else {
+        await _pullServerPosition();
+      }
+      if (!mounted) return;
       final start = _savedPage(pages.count);
       setState(() {
         _pages = pages;
@@ -232,6 +274,7 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
         _loading = false;
       });
       _precacheAround(start - 1);
+      unawaited(_loadBookmarks());
     } catch (e) {
       debugPrint('[Comic] open failed: $e');
       if (mounted) setState(() { _error = '$e'; _loading = false; });
@@ -240,9 +283,9 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
 
   /// Unpacks a CBZ into a scratch folder once per file version, keeping the
   /// three most recent comics so the cache doesn't grow without end.
-  Future<_ComicPages> _unpack(File archive) async {
+  Future<_ComicPages> _unpack(File archive, {bool epub = false}) async {
     final root = Directory('${(await getTemporaryDirectory()).path}/comic_pages');
-    final dest = Directory('${root.path}/${widget.itemId}_${await archive.length()}');
+    final dest = Directory('${root.path}/${widget.itemId}_${await archive.length()}${epub ? '_epub$imageEpubScanVersion' : ''}');
     final done = File('${dest.path}/.done');
     List<String> paths;
     if (done.existsSync()) {
@@ -250,12 +293,18 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
           .listSync()
           .whereType<File>()
           .map((f) => f.path)
-          .where((p) => !p.endsWith('.done'))
+          .where((p) => !p.endsWith('.done') && !p.endsWith('.cfis'))
           .toList()
         ..sort();
     } else {
       if (dest.existsSync()) dest.deleteSync(recursive: true);
-      paths = await compute(extractComicPages, [archive.path, dest.path]);
+      paths = await compute(epub ? extractImageEpubPages : extractComicPages, [archive.path, dest.path]);
+    }
+    if (epub) {
+      final cfiFile = File('${dest.path}/.cfis');
+      final raw = cfiFile.existsSync() ? cfiFile.readAsStringSync().trim() : '';
+      final cfis = raw.isEmpty ? <String>[] : const LineSplitter().convert(raw);
+      _cfis = cfis.length == paths.length ? cfis : null;
     }
     try {
       done.setLastModifiedSync(DateTime.now());
@@ -270,6 +319,212 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
       }
     } catch (_) {}
     return _FilePages(paths);
+  }
+
+  /// Takes the server's page when it differs from the phone's (read on the
+  /// web or another device; a BookOrbit library refresh carries no page). A
+  /// page this phone hasn't sent yet wins, and a slow server keeps the phone's.
+  Future<void> _pullServerPosition() async {
+    final api = _syncApi;
+    final lib = _lib;
+    if (api == null || lib == null || lib.isOffline) return;
+    try {
+      final pending = await ProgressSyncService().getPendingEbookProgress();
+      if (pending.containsKey(widget.itemId)) return;
+      final server = await api
+          .getItemProgress(widget.itemId)
+          .timeout(const Duration(seconds: 3), onTimeout: () => null);
+      final loc = server?['ebookLocation'] as String?;
+      if (loc == null || loc.isEmpty) return;
+      final local = lib.getProgressData(widget.itemId);
+      if (local?['ebookLocation'] == loc) return;
+      final progress = (server!['ebookProgress'] as num?)?.toDouble() ??
+          (local?['ebookProgress'] as num?)?.toDouble() ??
+          0;
+      debugPrint('[Comic] taking the server position item=${widget.itemId}');
+      lib.applyLocalEbookProgress(widget.itemId, location: loc, progress: progress);
+    } catch (e) {
+      debugPrint('[Comic] server position check failed: $e');
+    }
+  }
+
+  bool get _serverBookmarks => _cfis != null && (_syncApi?.isBookOrbit ?? false);
+
+  /// What a bookmark on [page] is saved as: the page's EPUB position for a
+  /// picture EPUB, otherwise the page number.
+  String _pageKey(int page) {
+    final cfis = _cfis;
+    return cfis != null && page <= cfis.length ? cfis[page - 1] : 'page:$page';
+  }
+
+  /// The page a bookmark is on. A picture EPUB's bookmarks can come from any
+  /// EPUB reader, so they're matched by position, not by exact text.
+  int? _pageOf(EbookAnnotation b) {
+    if (b.cfi.startsWith('page:')) return int.tryParse(b.cfi.substring(5));
+    final cfis = _cfis;
+    if (cfis == null) return null;
+    final index = pageIndexForCfi(cfis, b.cfi);
+    return index == null ? null : index + 1;
+  }
+
+  List<EbookAnnotation> _bookmarksOn(int page) => _bookmarks.where((b) => _pageOf(b) == page).toList();
+
+  Future<void> _loadBookmarks() async {
+    final local = await _annotationService.getBookmarks(widget.itemId);
+    if (mounted) setState(() => _bookmarks = local);
+    if (_serverBookmarks && !(_lib?.isOffline ?? true)) await _syncBookmarks();
+  }
+
+  /// Squares the phone's bookmarks with BookOrbit's: ones deleted elsewhere
+  /// go, ones made here offline are sent, ones made elsewhere arrive.
+  Future<void> _syncBookmarks() async {
+    final api = _syncApi;
+    if (api == null) return;
+    final server = await api.ebookBookmarks(widget.itemId);
+    if (server == null) return;
+    final serverIds = {for (final s in server) s['id'] as String};
+    var local = await _annotationService.getBookmarks(widget.itemId);
+    for (final b in local) {
+      final sid = b.serverId;
+      if (sid != null && !serverIds.contains(sid)) {
+        await _annotationService.delete(itemId: widget.itemId, annotationId: b.id);
+      } else if (sid == null && b.cfi.startsWith('epubcfi(')) {
+        final page = _pageOf(b);
+        final id = await api.addEbookBookmark(widget.itemId,
+            cfi: b.cfi, title: _bookmarkTitle(page ?? 1));
+        if (id != null) {
+          await _annotationService.setServerId(itemId: widget.itemId, annotationId: b.id, serverId: id);
+        }
+      }
+    }
+    local = await _annotationService.getBookmarks(widget.itemId);
+    final known = {for (final b in local) b.serverId};
+    for (final s in server) {
+      if (known.contains(s['id'])) continue;
+      await _annotationService.addBookmark(
+        itemId: widget.itemId,
+        cfi: s['cfi'] as String,
+        note: s['note'] as String?,
+        chapter: s['title'] as String?,
+        serverId: s['id'] as String,
+      );
+    }
+    final fresh = await _annotationService.getBookmarks(widget.itemId);
+    if (mounted) setState(() => _bookmarks = fresh);
+  }
+
+  String _bookmarkTitle(int page) => AppLocalizations.of(context)!.comicPageNumber(page);
+
+  /// Removes [b] here and, when the server keeps it, there first: a bookmark
+  /// only removed here would come back with the next sync.
+  Future<bool> _removeBookmark(EbookAnnotation b) async {
+    final sid = b.serverId;
+    final api = _api;
+    if (sid != null && api != null && _serverBookmarks) {
+      if (!await api.deleteEbookBookmark(widget.itemId, sid)) {
+        if (mounted) {
+          showOverlayToast(context, AppLocalizations.of(context)!.comicBookmarkRemoveFailed,
+              icon: Icons.cloud_off_rounded);
+        }
+        return false;
+      }
+    }
+    await _annotationService.delete(itemId: widget.itemId, annotationId: b.id);
+    _bookmarks.removeWhere((x) => x.id == b.id);
+    return true;
+  }
+
+  Future<void> _toggleBookmark() async {
+    final l = AppLocalizations.of(context)!;
+    final page = _page;
+    final here = _bookmarksOn(page);
+    if (here.isNotEmpty) {
+      for (final b in here) {
+        await _removeBookmark(b);
+      }
+    } else {
+      final key = _pageKey(page);
+      final api = _api;
+      final serverId = _serverBookmarks && api != null
+          ? await api.addEbookBookmark(widget.itemId, cfi: key, title: _bookmarkTitle(page))
+          : null;
+      final added = await _annotationService.addBookmark(itemId: widget.itemId, cfi: key, serverId: serverId);
+      _bookmarks.insert(0, added);
+      if (mounted) showOverlayToast(context, l.bookmarkAdded, icon: Icons.bookmark_rounded);
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _showBookmarks() {
+    final l = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) {
+        final cs = Theme.of(ctx).colorScheme;
+        final tt = Theme.of(ctx).textTheme;
+        final marks = [
+          for (final b in _bookmarks)
+            if (_pageOf(b) != null) (bookmark: b, page: _pageOf(b)!),
+        ]..sort((a, b) => a.page.compareTo(b.page));
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: Text(l.readerBookmarks(marks.length),
+                    style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+              if (marks.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                  child: Text(l.readerNoBookmarks, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                )
+              else
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final m in marks)
+                        Dismissible(
+                          key: ValueKey(m.bookmark.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 16),
+                            color: cs.error,
+                            child: Icon(Icons.delete_rounded, color: cs.onError),
+                          ),
+                          confirmDismiss: (_) => _removeBookmark(m.bookmark),
+                          onDismissed: (_) {
+                            setSheet(() {});
+                            if (mounted) setState(() {});
+                          },
+                          child: ListTile(
+                            leading: Icon(Icons.bookmark_rounded, color: cs.primary),
+                            title: Text(m.bookmark.note ?? _bookmarkTitle(m.page),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: m.bookmark.note != null
+                                ? Text(_bookmarkTitle(m.page),
+                                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))
+                                : null,
+                            dense: true,
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _controller?.jumpToPage(m.page - 1);
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            ]),
+          ),
+        );
+      }),
+    );
   }
 
   void _precacheAround(int index) {
@@ -291,12 +546,19 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
 
   void _flushProgress() {
     final page = _pendingPage;
-    final api = _api;
+    final api = _syncApi;
     final count = _pages?.count ?? 0;
-    if (page == null || api == null || count <= 0 || page == _lastSyncedPage) return;
+    if (page == null || count <= 0 || page == _lastSyncedPage) return;
+    if (api == null && !_otherAccount) return;
     final frac = (page / count).clamp(0.0, 1.0);
-    ProgressSyncService().pushEbookProgress(api, widget.itemId, location: '$page', progress: frac);
-    _lib?.applyLocalEbookProgress(widget.itemId, location: '$page', progress: frac);
+    final cfis = _cfis;
+    final location = cfis != null && page <= cfis.length ? cfis[page - 1] : '$page';
+    if (api == null) {
+      unawaited(DownloadService().saveOtherAccountReadingSpot(widget.itemId, location, frac));
+    } else {
+      ProgressSyncService().pushEbookProgress(api, widget.itemId, location: location, progress: frac);
+      _lib?.applyLocalEbookProgress(widget.itemId, location: location, progress: frac);
+    }
     _lastSync = DateTime.now();
     _lastSyncedPage = page;
     _pendingPage = null;
@@ -403,6 +665,19 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
               Expanded(
                 child: Text(widget.title,
                     maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.titleSmall?.copyWith(color: Colors.white)),
+              ),
+              IconButton(
+                tooltip: l.addBookmark,
+                icon: Icon(
+                  _bookmarksOn(_page).isNotEmpty ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                  color: Colors.white,
+                ),
+                onPressed: _toggleBookmark,
+              ),
+              IconButton(
+                tooltip: l.bookmarks,
+                icon: const Icon(Icons.bookmarks_outlined, color: Colors.white),
+                onPressed: _showBookmarks,
               ),
               IconButton(
                 tooltip: l.comicReadingDirection,

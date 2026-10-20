@@ -23,12 +23,15 @@ import '../services/socket_service.dart';
 import '../services/book_search_index.dart';
 import '../services/home_widget_service.dart';
 import '../services/queue_download_policy.dart';
+import '../services/siri_service.dart';
 import '../utils/absorbing_inclusion.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../widgets/overlay_toast.dart';
 import '../services/ebook_cache.dart';
 import '../services/screen_wake.dart';
+import '../services/up_next_narration.dart';
+import '../services/narrated_books.dart';
 
 part '_lp_state.dart';
 part '_lp_core.dart';
@@ -48,12 +51,27 @@ class LibraryProvider extends ChangeNotifier
     if (completer != null && !completer.isCompleted) completer.complete();
   }
 
+  Iterable<Map<String, dynamic>> _itemsForSiri() sync* {
+    yield* _absorbingItemCache.values;
+    for (final sections in _sectionsByLibrary.values) {
+      for (final section in sections) {
+        if (section is! Map) continue;
+        for (final e in (section['entities'] as List<dynamic>? ?? const [])) {
+          if (e is Map<String, dynamic>) yield e;
+        }
+      }
+    }
+    yield* BookSearchIndex().indexedItems;
+  }
+
   LibraryProvider() {
+    SiriService.libraryItems = _itemsForSiri;
     // Registered once at provider construction so the audio service can
     // notify this provider on completion/playback events even when the
     // Flutter UI wasn't foregrounded yet (e.g. Android Auto cold-start,
     // where updateAuth may not run until much later).
     AudioPlayerService.setOnBookFinishedCallback(markFinishedLocally);
+    AudioPlayerService.onAppPlay = (itemId) => unawaited(UpNextNarration.instance.checkOnPlay(this, itemId));
     AudioPlayerService.setOnAutoQueueAdvancedCallback((oldItemId) {
       // Pre-buffer auto-advance already loaded and started the next item.
       // Mark the old one finished WITHOUT triggering normal auto-advance

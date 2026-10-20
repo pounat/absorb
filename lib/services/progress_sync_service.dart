@@ -261,7 +261,14 @@ class ProgressSyncService {
       final pendingList = List<String>.from(
           await ScopedPrefs.getStringList('pending_syncs'));
 
-      if (pendingList.isEmpty) return;
+      if (pendingList.isEmpty) {
+        // Nothing to listen-sync, but reading and offline listening time
+        // still wait on this flush; returning here left them queued and the
+        // retry below rescheduling for nothing.
+        await _flushOfflineListeningTimeInternal(api: api);
+        await _flushPendingEbookProgress(api);
+        return;
+      }
       pendingAtStart = pendingList.length;
 
       final batch = pendingList.take(maxItems).toList();
@@ -472,6 +479,11 @@ class ProgressSyncService {
       await _removePendingEbook(itemId);
       return;
     }
+    if (_isOnline && api.lastEbookProgressStatus == 404) {
+      debugPrint('[Sync] Not queueing the ebook position for $itemId: the server has no such book');
+      await _removePendingEbook(itemId);
+      return;
+    }
     final pending = await getPendingEbookProgress();
     pending[itemId] = {
       'loc': location,
@@ -495,6 +507,10 @@ class ProgressSyncService {
     }
   }
 
+  /// Forget a queued position the server has since moved past, so the retry
+  /// can't put the older place back.
+  Future<void> dropPendingEbookProgress(String itemId) => _removePendingEbook(itemId);
+
   Future<void> _removePendingEbook(String itemId) async {
     final pending = await getPendingEbookProgress();
     if (pending.remove(itemId) == null) return;
@@ -517,6 +533,11 @@ class ProgressSyncService {
       if (ok) {
         await _removePendingEbook(entry.key);
         _consecutiveFailures = 0;
+      } else if (api.lastEbookProgressStatus == 404) {
+        // Another server's download read here, or a book since deleted: this
+        // server will never take it, and retrying held up the rest.
+        debugPrint('[Sync] Dropping the queued ebook position for ${entry.key}: the server has no such book');
+        await _removePendingEbook(entry.key);
       } else {
         // Server unreachable - let the existing backoff schedule the retry.
         _consecutiveFailures++;

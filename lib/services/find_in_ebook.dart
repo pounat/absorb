@@ -2,12 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/chapter_lookup.dart';
 import '../services/download_service.dart';
+import '../services/narration_service.dart';
 import '../services/progress_sync_service.dart';
 import '../services/transcription_service.dart';
 import '../widgets/ebook_router.dart';
@@ -69,6 +72,27 @@ Future<void> launchFindInEbook(
   }
   if (ebookExt(ebookFile) != 'epub') {
     showOverlayToast(context, l.findInEbookNeedsEpub, icon: Icons.menu_book_outlined);
+    return;
+  }
+
+  // A book whose audio is its EPUB's narration knows the sentence at every
+  // moment: the reader opens on it, with nothing transcribed.
+  final narration = await NarrationService.instance
+      .audioNarration(context.read<AuthProvider>().apiService, itemId);
+  if (!context.mounted) return;
+  if (narration != null) {
+    final player = AudioPlayerService();
+    final double at;
+    if (player.currentItemId == itemId && player.currentEpisodeId == null) {
+      if (player.isPlaying) player.pause();
+      at = player.position.inMilliseconds / 1000.0;
+    } else {
+      at = await ProgressSyncService().getSavedPosition(itemId);
+      if (!context.mounted) return;
+    }
+    debugPrint('[FindEbook] $itemId is narrated - opening at ${at.toStringAsFixed(1)}s, nothing transcribed');
+    await openEbookReader(context,
+        itemId: itemId, title: title, ebookFile: ebookFile, openAtAudioSeconds: at);
     return;
   }
   if (!await PlayerSettings.getTranscriptionEnabled()) {

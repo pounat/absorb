@@ -26,6 +26,7 @@ class Wording {
   String get absorb => classic ? 'Play' : _l.absorb;
   String get absorbing => classic ? 'Playing...' : _l.absorbing;
   String get absorbAgain => classic ? 'Play Again' : _l.absorbAgain;
+  String get downloadToAbsorb => classic ? 'Download to Play' : _l.downloadToAbsorb;
   String get fullyAbsorbed => classic ? 'Finished' : _l.fullyAbsorbed;
   String get fullyAbsorbAction => classic ? 'Mark Finished' : _l.fullyAbsorbAction;
 

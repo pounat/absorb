@@ -14,6 +14,8 @@ import '../services/bookmark_preview_player.dart';
 import '../services/chapter_lookup.dart';
 import '../services/download_service.dart';
 import '../services/ebook_cache.dart';
+import '../services/media_overlay.dart';
+import '../services/narration_service.dart';
 import '../services/transcription_service.dart';
 import '../utils/episode_key.dart';
 import '../utils/passage_match.dart';
@@ -64,6 +66,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
   bool _transcriptionOn = false;
   // Non-null when the book has an EPUB to cross-reference transcripts against.
   Map<String, dynamic>? _epubForCrossRef;
+  // The EPUB's own narration when it is this book's audio: the words then
+  // come straight from the book, with nothing transcribed.
+  MediaOverlay? _narration;
   // Display-only speed division (speed-adjusted-time setting). _seconds stays
   // raw book time throughout - preview, clip export, jump and save all use it.
   double _displaySpeed = 1.0;
@@ -89,7 +94,14 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       if (mounted && on) setState(() => _transcriptionOn = true);
     });
     _resolveEpubForCrossRef();
+    if (widget.episodeId == null) {
+      NarrationService.instance.audioNarration(widget.api, widget.itemId).then((n) {
+        if (mounted && n != null) setState(() => _narration = n);
+      });
+    }
   }
+
+  bool get _fromNarration => _narration != null && _epubForCrossRef != null;
 
   /// Whether this book has an EPUB the transcript can be corrected against -
   /// the cached copy first, then the item's metadata (fetched lazily at
@@ -251,20 +263,27 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
   /// the passage confidently matched. Null keeps the raw transcript - a
   /// failed fetch or an unconfident match must never block the transcription.
   Future<String?> _ebookExactText(String transcript) async {
-    final ebookFile = _epubForCrossRef;
-    if (ebookFile == null) return null;
     try {
-      var f = await ebookCacheFileFor(widget.itemId, ebookFile);
-      if (!f.existsSync() || await f.length() <= 0) {
-        final api = widget.api;
-        if (api == null) return null;
-        f = await fetchEbookToCache(api, widget.itemId, ebookFile, '');
-      }
-      return await compute(correctFromEpub, (epubPath: f.path, transcript: transcript));
+      final path = await _epubPath();
+      if (path == null) return null;
+      return await compute(correctFromEpub, (epubPath: path, transcript: transcript));
     } catch (e) {
       debugPrint('[Transcribe] ebook cross-reference failed: $e');
       return null;
     }
+  }
+
+  /// This book's EPUB on the phone, fetched when it isn't cached yet.
+  Future<String?> _epubPath() async {
+    final ebookFile = _epubForCrossRef;
+    if (ebookFile == null) return null;
+    var f = await ebookCacheFileFor(widget.itemId, ebookFile);
+    if (!f.existsSync() || await f.length() <= 0) {
+      final api = widget.api;
+      if (api == null) return null;
+      f = await NarrationService.instance.readerFile(api, widget.itemId, ebookFile, '');
+    }
+    return f.path;
   }
 
   String _mapTranscriptionError(AppLocalizations l, TranscriptionError kind) {
@@ -294,6 +313,11 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     final l = AppLocalizations.of(context)!;
     await _preview.stop();
     if (!mounted) return;
+    final narration = _narration;
+    if (narration != null && _epubForCrossRef != null) {
+      await _textFromNarration(narration);
+      return;
+    }
     if (!TranscriptionService.instance.canTranscribeBook(widget._key)) {
       showOverlayToast(context, l.transcriptionNotDownloadedBook,
           icon: Icons.download_rounded);
@@ -303,50 +327,8 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
     // Set expectations before burning CPU (it takes a while, the text needs a
     // once-over, the result lands in the note) and let the user pick how much
     // audio to transcribe. The choice is remembered for next time.
-    var window = await PlayerSettings.getTranscriptionWindowSeconds();
-    if (!mounted) return;
-    final go = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          icon: const Icon(Icons.record_voice_over_rounded),
-          title: Text(l.transcribe),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l.transcriptionIntroBody),
-              const SizedBox(height: 16),
-              SegmentedButton<int>(
-                segments: [
-                  for (final s in const [15, 30, 60, 120])
-                    ButtonSegment(
-                        value: s,
-                        label: Text(s < 60 ? '${s}s' : '${s ~/ 60} min')),
-                ],
-                selected: {window},
-                showSelectedIcon: false,
-                onSelectionChanged: (sel) =>
-                    setDialogState(() => window = sel.first),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l.transcribe),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (go != true || !mounted) return;
-    await PlayerSettings.setTranscriptionWindowSeconds(window);
-    if (!mounted) return;
+    final window = await _pickWindow(l.transcriptionIntroBody);
+    if (window == null || !mounted) return;
 
     showProgressDialog(context, l.transcribing);
 
@@ -386,10 +368,95 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
       return;
     }
 
-    // Save straight into the note - a Share-then-back must never lose the
-    // text. Fixing mistakes and sharing both happen right here in the sheet.
     final trimmed = (text ?? '').trim();
     if (trimmed.isEmpty) return;
+    await _saveToNote(trimmed);
+  }
+
+  /// A book whose audio is its EPUB's narration knows the words at every
+  /// moment: the sentences read from just before the bookmark come straight
+  /// from the book and go into the note, with nothing transcribed.
+  Future<void> _textFromNarration(MediaOverlay narration) async {
+    final l = AppLocalizations.of(context)!;
+    final window = await _pickWindow(l.narrationTextBody);
+    if (window == null || !mounted) return;
+    showProgressDialog(context, l.narrationTextLoading);
+    var text = '';
+    try {
+      final path = await _epubPath();
+      if (path != null) {
+        final from = (_seconds - 3).clamp(0.0, double.infinity);
+        text = await compute(
+            narratedTextIn, (epubPath: path, overlay: narration, from: from, to: from + window));
+      }
+    } catch (e) {
+      debugPrint('[Transcribe] reading the narrated words failed: $e');
+    }
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss the progress dialog
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      showOverlayToast(context, l.transcriptionEmptyMsg, icon: Icons.error_outline_rounded);
+      return;
+    }
+    debugPrint('[Transcribe] ${widget._key}: ${trimmed.length} characters from the narration, nothing transcribed');
+    await _saveToNote(trimmed);
+  }
+
+  /// How many seconds from the bookmark to put in the note, with [body]
+  /// saying what happens. Remembered for next time; null when cancelled.
+  Future<int?> _pickWindow(String body) async {
+    final l = AppLocalizations.of(context)!;
+    var window = await PlayerSettings.getTranscriptionWindowSeconds();
+    if (!mounted) return null;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          icon: const Icon(Icons.record_voice_over_rounded),
+          title: Text(l.transcribe),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(body),
+              const SizedBox(height: 16),
+              SegmentedButton<int>(
+                segments: [
+                  for (final s in const [15, 30, 60, 120])
+                    ButtonSegment(
+                        value: s,
+                        label: Text(s < 60 ? '${s}s' : '${s ~/ 60} min')),
+                ],
+                selected: {window},
+                showSelectedIcon: false,
+                onSelectionChanged: (sel) =>
+                    setDialogState(() => window = sel.first),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.transcribe),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (go != true) return null;
+    await PlayerSettings.setTranscriptionWindowSeconds(window);
+    return window;
+  }
+
+  /// Save straight into the note - a Share-then-back must never lose the
+  /// text. Fixing mistakes and sharing both happen right here in the sheet.
+  Future<void> _saveToNote(String trimmed) async {
+    final l = AppLocalizations.of(context)!;
     setState(() {
       _noteC.text =
           _noteC.text.trim().isEmpty ? trimmed : '${_noteC.text.trim()}\n\n$trimmed';
@@ -614,7 +681,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                 onPressed: _saving ? null : _openClipEditor,
               ),
             ),
-            if (_transcriptionOn) ...[
+            if (_transcriptionOn || _fromNarration) ...[
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,

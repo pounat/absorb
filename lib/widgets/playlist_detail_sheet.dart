@@ -620,6 +620,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         final progressKey = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
         final progress = lib.getProgress(progressKey);
         final isFinished = lib.getProgressData(progressKey)?['isFinished'] == true;
+        final isSkimmed = lib.getProgressData(progressKey)?['skimmed'] == true;
         final isDownloaded = DownloadService().isDownloaded(progressKey);
 
         String? episodeTitle;
@@ -685,7 +686,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                         if (isFinished || isDownloaded)
                           Positioned(
                             left: 0, right: 0, bottom: 0,
-                            child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                            child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                           ),
                       ]),
                     ),
@@ -745,6 +746,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         final progressKey = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
         final progress = lib.getProgress(progressKey);
         final isFinished = lib.getProgressData(progressKey)?['isFinished'] == true;
+        final isSkimmed = lib.getProgressData(progressKey)?['skimmed'] == true;
         final isDownloaded = DownloadService().isDownloaded(progressKey);
 
         String? episodeTitle;
@@ -800,7 +802,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                     if (isFinished || isDownloaded)
                       Positioned(
                         left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                       ),
                   ]),
                 ),

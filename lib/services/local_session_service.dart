@@ -106,6 +106,7 @@ class LocalSessionService {
         'updatedAt': s['updatedAt'],
         'date': s['date'],
         'dayOfWeek': s['dayOfWeek'],
+        if (s['keepProgress'] == true) 'keepProgress': true,
       };
 
   /// Swap the payload's duration for the item's server-side duration when it
@@ -299,6 +300,12 @@ class LocalSessionService {
   }
 
   DateTime? _lastPushLogAt;
+
+  String newSessionId() => _uuid();
+
+  /// A finished session that couldn't be sent (reading time logged while
+  /// offline), queued to go with the next replay.
+  Future<void> queue(Map<String, dynamic> session) => _enqueue(session);
 
   /// Clear the active session (stop / finish / item change). When [pushed] is
   /// false (offline, or the push failed) it's queued for replay; when true it's

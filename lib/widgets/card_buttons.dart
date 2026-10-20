@@ -17,6 +17,7 @@ import '../services/lyrics_service.dart';
 import '../services/transcription_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/playback_history_service.dart';
+import '../services/narrated_books.dart';
 import '../services/scoped_prefs.dart';
 import '../services/screen_wake.dart';
 import '../services/sleep_timer_service.dart';
@@ -1604,6 +1605,21 @@ class CardActionDelegate {
 
   Map<String, dynamic> get _media => item['media'] as Map<String, dynamic>? ?? {};
 
+  /// A book whose audio is its EPUB's narration: Read already opens on the
+  /// sentence being heard, so Find in ebook would be the same button twice.
+  bool get _narratedEbook {
+    if (episodeId != null) return false;
+    if (NarratedBooks.contains(itemId) || _media['narration'] != null) return true;
+    // A BookOrbit card's book can arrive without its files; the narration
+    // looked up when it played or opened says so either way.
+    final api = context.read<AuthProvider>().apiService;
+    return api is BookOrbitApiService && api.knownNarrated(itemId);
+  }
+
+  /// The saved button order, less what this book has no use for.
+  List<String> get _shownOrder =>
+      _narratedEbook ? buttonOrder.where((id) => id != 'findinebook').toList() : buttonOrder;
+
   /// Which episode the bookmark surfaces belong to. A card that knows its own
   /// episode wins; an active podcast card falls back to what is playing.
   String? get _bookmarkEpisodeId =>
@@ -1705,7 +1721,7 @@ class CardActionDelegate {
 
   List<Widget> buildButtonGrid(Color accent, TextTheme tt) {
     final count = visibleButtonCount;
-    final ids = buttonOrder.take(count).toList();
+    final ids = _shownOrder.take(count).toList();
     final n = ids.length;
     if (n == 0) return [];
 
@@ -2183,7 +2199,7 @@ class CardActionDelegate {
 
   void showMoreMenu(Color accent, TextTheme tt) {
     final count = visibleButtonCount;
-    final overflowIds = buttonOrder.skip(count).where((id) => id != '_more').toList();
+    final overflowIds = _shownOrder.skip(count).where((id) => id != '_more').toList();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,

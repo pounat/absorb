@@ -712,6 +712,10 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     mp['ebookProgress'] = progress.clamp(0.0, 1.0);
     if (finished) mp['isFinished'] = true;
     _progressMap[itemId] = mp;
+    // Reading again after a reset or "not finished" is new progress; while
+    // the item stayed marked reset, the reader couldn't see its own saved
+    // page and started over on every open.
+    _resetItems.remove(itemId);
     notifyListeners();
   }
 
@@ -1426,6 +1430,9 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       if (mp == null || player.isPlaying || player.currentItemId != itemId) return;
       final serverUpd = (mp['lastUpdate'] as num?)?.toInt() ?? 0;
       if (serverUpd <= await ProgressSyncService().getSavedTimestamp(itemId)) return;
+      // A chapter picked or a start still loading moved the player after the
+      // server's save, without saving yet.
+      if (serverUpd <= (player.lastSeekAt?.millisecondsSinceEpoch ?? 0)) return;
       debugPrint('[Sync] BookOrbit has a newer position for the paused book');
       _onRemoteProgressUpdated(mp);
     } catch (e) {
@@ -1760,6 +1767,13 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
                   'than what this phone saved ($savedAt)');
               return;
             }
+            final movedAt = player.lastSeekAt?.millisecondsSinceEpoch ?? 0;
+            if (newUpd <= movedAt) {
+              debugPrint('[Sync] Ignoring remote position for paused player: '
+                  'server ${serverTime.toStringAsFixed(1)}s ($newUpd) is older '
+                  'than the last move here ($movedAt)');
+              return;
+            }
             if (player.isPlaying) return;
             final posS = player.position.inMilliseconds / 1000.0;
             if ((serverTime - posS).abs() > 5.0) {
@@ -1945,6 +1959,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           }
         }
       }
+      _narratedToContinueListening();
       await (this as _AbsorbingMixin)._updateAbsorbingCache();
 
       _injectDownloadedSection();
@@ -1952,6 +1967,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       // Snapshot after injection so a tab flip restores the full shelf set.
       _sectionsByLibrary[_selectedLibraryId!] = _personalizedSections;
       _sectionsFetchedAt[_selectedLibraryId!] = DateTime.now();
+      SiriService().scheduleCatalogUpdate();
 
       if (isPodcastLibrary) {
         _hydrateRssFeedFieldsDeferred();
@@ -2075,6 +2091,68 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     }
 
     _personalizedSections = merged;
+    _narratedToContinueListening();
+  }
+
+  /// Audiobookshelf sees only an ebook in an EPUB that reads itself aloud, so
+  /// one being listened to comes back under Continue Reading. Absorb plays it
+  /// as an audiobook, so while it has listening progress it moves to Continue
+  /// Listening. One only being read stays where it is.
+  void _narratedToContinueListening() {
+    final api = _api;
+    if (api == null || api.isBookOrbit || isPodcastLibrary) return;
+    final sections = _personalizedSections;
+    final ri = sections.indexWhere((s) => s is Map<String, dynamic> && s['id'] == 'continue-reading');
+    if (ri < 0) return;
+    final reading = sections[ri] as Map<String, dynamic>;
+    final keep = <dynamic>[];
+    final moved = <Map<String, dynamic>>[];
+    for (final e in (reading['entities'] as List<dynamic>? ?? const [])) {
+      final id = e is Map<String, dynamic> ? e['id'] as String? : null;
+      final listened = id != null &&
+          NarratedBooks.contains(id) &&
+          _progressMap[id]?['isFinished'] != true &&
+          (((_progressMap[id]?['currentTime'] as num?) ?? 0) > 0 ||
+              (_localProgressOverrides[id] ?? 0) > 0);
+      if (listened) {
+        moved.add(e as Map<String, dynamic>);
+      } else {
+        keep.add(e);
+      }
+    }
+    if (moved.isEmpty) return;
+
+    final li = sections.indexWhere((s) => s is Map<String, dynamic> && s['id'] == 'continue-listening');
+    final listening = li < 0 ? null : sections[li] as Map<String, dynamic>;
+    final entities = List<dynamic>.from(listening?['entities'] as List<dynamic>? ?? const []);
+    int at(dynamic e) {
+      if (e is! Map<String, dynamic>) return 0;
+      final v = e['progressLastUpdate'] ?? _progressMap[e['id']]?['lastUpdate'];
+      return v is num ? v.toInt() : 0;
+    }
+    for (final m in moved) {
+      if (entities.any((e) => e is Map<String, dynamic> && e['id'] == m['id'])) continue;
+      final when = at(m);
+      final i = entities.indexWhere((e) => at(e) < when);
+      entities.insert(i < 0 ? entities.length : i, m);
+    }
+
+    final next = List<dynamic>.from(sections);
+    next[ri] = {...reading, 'entities': keep};
+    final shelf = <String, dynamic>{
+      ...?listening,
+      'id': 'continue-listening',
+      'label': listening?['label'] ?? 'Continue Listening',
+      'type': listening?['type'] ?? 'book',
+      'entities': entities,
+    };
+    if (li < 0) {
+      next.insert(0, shelf);
+    } else {
+      next[li] = shelf;
+    }
+    _personalizedSections = next;
+    debugPrint('[Narration] ${moved.length} narrated book(s) moved from Continue Reading to Continue Listening');
   }
 
   void _hydrateRssFeedFieldsDeferred() {
@@ -2257,6 +2335,47 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     _isLoadingCollections = false;
     notifyListeners();
     unawaited(_catchUpQueueAutoDownloads());
+  }
+
+  /// A BookOrbit collection or Smart Scope that holds more books than the
+  /// Lists tab loaded.
+  bool collectionHasMore(String collectionId) {
+    final c = _collections
+        .whereType<Map<String, dynamic>>()
+        .where((c) => c['id'] == collectionId)
+        .firstOrNull;
+    if (c == null) return false;
+    final total = ((c['bookOrbit'] as Map?)?['total'] as num?)?.toInt();
+    return total != null && ((c['books'] as List<dynamic>?)?.length ?? 0) < total;
+  }
+
+  /// Loads the next page of such a collection's books. False when the page
+  /// could not be fetched.
+  Future<bool> loadMoreCollectionBooks(String collectionId) async {
+    final api = _api;
+    if (api == null || !collectionHasMore(collectionId)) return true;
+    final before = _collections
+        .whereType<Map<String, dynamic>>()
+        .firstWhere((c) => c['id'] == collectionId);
+    final have = (before['books'] as List<dynamic>?)?.length ?? 0;
+    final page = await api.collectionBooksPage(collectionId, page: have ~/ 100);
+    if (page == null) return false;
+    final at = _collections.indexWhere((c) => c is Map && c['id'] == collectionId);
+    if (at < 0) return true;
+    final current = _collections[at] as Map<String, dynamic>;
+    final books = [...(current['books'] as List<dynamic>? ?? const [])];
+    final seen = books.map((b) => (b as Map)['id']).toSet();
+    for (final b in page) {
+      if (seen.add(b['id'])) books.add(b);
+    }
+    final bo = Map<String, dynamic>.from(current['bookOrbit'] as Map? ?? const {});
+    // Rules can match fewer books than when the list loaded; stop at the end.
+    if (books.length == (current['books'] as List<dynamic>? ?? const []).length) {
+      bo['total'] = books.length;
+    }
+    _collections = [..._collections]..[at] = {...current, 'books': books, 'bookOrbit': bo};
+    notifyListeners();
+    return true;
   }
 
   Future<Map<String, dynamic>?> createCollection(String name, {List<String> books = const []}) async {
@@ -2491,7 +2610,14 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         result.add(allSections.remove(id)!);
       }
     }
+    // An order saved before Continue Reading existed (BookOrbit had none)
+    // gets it next to Continue Listening rather than at the bottom.
+    final reading = allSections.remove('continue-reading');
     result.addAll(allSections.values);
+    if (reading != null) {
+      final listening = result.indexWhere((s) => s['id'] == 'continue-listening');
+      result.insert(listening + 1, reading);
+    }
     return result;
   }
 

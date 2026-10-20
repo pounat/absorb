@@ -32,15 +32,16 @@ class AddBooksSearchSheet extends StatefulWidget {
     required this.onRemove,
   });
 
-  static void show(
+  /// Completes when the sheet is closed.
+  static Future<void> show(
     BuildContext context, {
     required String title,
     required String libraryId,
     required Set<String> initialMemberIds,
     required Future<bool> Function(String libraryItemId) onAdd,
     required Future<bool> Function(String libraryItemId) onRemove,
-  }) {
-    showStackableSheet(
+  }) async {
+    await showStackableSheet<void>(
       context: context,
       showHandle: true,
       useSafeArea: true,

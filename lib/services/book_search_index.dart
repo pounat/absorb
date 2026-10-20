@@ -187,6 +187,10 @@ class BookSearchIndex {
     );
   }
 
+  /// Every item indexed so far this session, across libraries.
+  Iterable<Map<String, dynamic>> get indexedItems =>
+      _cache.values.expand((list) => list.map((e) => e.item));
+
   List<BookSearchHit> search(String libraryId, String query, {int limit = 40}) {
     final idx = _cache[libraryId];
     if (idx == null) return const [];

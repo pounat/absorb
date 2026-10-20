@@ -47,6 +47,7 @@ class BackupService {
       'sleepChime': await PlayerSettings.getSleepChime(),
       'sleepChimeVolume': await PlayerSettings.getSleepChimeVolume(),
       'hideEbookOnly': await PlayerSettings.getHideEbookOnly(),
+      'homeCardsOpenDetails': await PlayerSettings.getHomeCardsOpenDetails(),
       'collapseSeries': await PlayerSettings.getCollapseSeries(),
       'librarySort': await PlayerSettings.getLibrarySort(),
       'librarySortAsc': await PlayerSettings.getLibrarySortAsc(),
@@ -559,6 +560,7 @@ class BackupService {
     if (s['sleepChime'] != null) PlayerSettings.setSleepChime(s['sleepChime'] as bool);
     if (s['sleepChimeVolume'] != null) PlayerSettings.setSleepChimeVolume((s['sleepChimeVolume'] as num).toDouble());
     if (s['hideEbookOnly'] != null) PlayerSettings.setHideEbookOnly(s['hideEbookOnly'] as bool);
+    if (s['homeCardsOpenDetails'] != null) PlayerSettings.setHomeCardsOpenDetails(s['homeCardsOpenDetails'] as bool);
     if (s['collapseSeries'] != null) PlayerSettings.setCollapseSeries(s['collapseSeries'] as bool);
     if (s['librarySort'] != null) PlayerSettings.setLibrarySort(s['librarySort'] as String);
     if (s['librarySortAsc'] != null) PlayerSettings.setLibrarySortAsc(s['librarySortAsc'] as bool);

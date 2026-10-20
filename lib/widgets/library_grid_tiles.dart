@@ -82,6 +82,7 @@ class _GridBookTileState extends State<GridBookTile> {
     final isDownloaded = _dl.isDownloaded(itemId);
     final hasEbook = PlayerSettings.showEbookBadge && hasEbookFile(widget.item);
     final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
+    final isSkimmed = lib.getProgressData(itemId)?['skimmed'] == true;
     final isSubscribed = lib.isPodcastLibrary && lib.isPodcastSubscribed(itemId);
     final unfinishedCount =
         lib.isPodcastLibrary ? lib.getUnfinishedEpisodeCount(widget.item) : 0;
@@ -224,6 +225,7 @@ class _GridBookTileState extends State<GridBookTile> {
                       child: CoverStateBadges(
                         isDownloaded: isDownloaded,
                         isFinished: isFinished,
+                        isSkimmed: isSkimmed,
                       ),
                     ),
 
@@ -743,6 +745,8 @@ class GridListTile extends StatelessWidget {
   final List<String> bookIds;
   final int count;
   final bool isPlaylist;
+  /// A BookOrbit Smart Scope: its books come from saved rules, not picks.
+  final bool isSmartScope;
   final double coverAspectRatio;
   final VoidCallback onTap;
 
@@ -753,6 +757,7 @@ class GridListTile extends StatelessWidget {
     required this.count,
     required this.isPlaylist,
     required this.onTap,
+    this.isSmartScope = false,
     this.coverAspectRatio = 1.0,
   });
 
@@ -784,22 +789,40 @@ class GridListTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StackedCovers(
-            coverUrls: coverUrls.isEmpty ? const [null] : coverUrls,
-            numBooks: count,
-            mediaHeaders: lib.mediaHeaders,
-            cs: cs,
-            seriesProgress: progress,
-            booksFinished: finished,
-            coverAspectRatio: coverAspectRatio,
-          ),
+          Stack(children: [
+            _StackedCovers(
+              coverUrls: coverUrls.isEmpty ? const [null] : coverUrls,
+              numBooks: count,
+              mediaHeaders: lib.mediaHeaders,
+              cs: cs,
+              seriesProgress: progress,
+              booksFinished: finished,
+              coverAspectRatio: coverAspectRatio,
+            ),
+            if (isSmartScope)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.filter_alt_rounded,
+                      size: 14 * coverGridTextScale(context), color: cs.onPrimaryContainer),
+                ),
+              ),
+          ]),
           const SizedBox(height: 5),
           Row(
             children: [
               Icon(
                   isPlaylist
                       ? Icons.playlist_play_rounded
-                      : Icons.collections_bookmark_rounded,
+                      : isSmartScope
+                          ? Icons.filter_alt_rounded
+                          : Icons.collections_bookmark_rounded,
                   size: 12 * coverGridTextScale(context),
                   color: cs.onSurfaceVariant),
               const SizedBox(width: 3),
@@ -820,7 +843,9 @@ class GridListTile extends StatelessWidget {
           Text(
             isPlaylist
                 ? l.playlistDetailItemCount(count)
-                : l.collectionDetailBookCount(count),
+                : isSmartScope
+                    ? l.smartScopeBookCount(count)
+                    : l.collectionDetailBookCount(count),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: tt.labelSmall?.copyWith(

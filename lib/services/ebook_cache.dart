@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -225,7 +226,7 @@ Future<File> fetchEbookToCache(
   // reverse proxies strip the header - the same reason audio file downloads
   // use the token form (see ApiService.buildFileUrl).
   final url = api.isBookOrbit
-      ? api.buildEbookUrl(itemId, ino)
+      ? api.buildReaderEbookUrl(itemId, ino)
       : '$cleanBase/api/items/$itemId/file/$ino?token=${api.token}';
 
   debugPrint('[EbookCache] downloading item=$itemId path=/api/items/$itemId/file/$ino');
@@ -253,9 +254,24 @@ Future<File> fetchEbookToCache(
     }
     final ct = response.headers['content-type'] ?? '';
     if (ct.contains('text/html')) throw Exception('Server returned an error page');
+    final total = response.contentLength ?? -1;
+    debugPrint('[EbookCache] receiving item=$itemId bytes=${total < 0 ? 'unknown' : total}');
     final sink = partFile.openWrite();
+    var received = 0;
+    var logged = 0;
     try {
-      await response.stream.pipe(sink);
+      // A stalled transfer used to sit forever with the reader spinning.
+      await sink.addStream(response.stream.timeout(const Duration(seconds: 60)).map((chunk) {
+        received += chunk.length;
+        if (received - logged >= 50 * 1024 * 1024) {
+          logged = received;
+          debugPrint('[EbookCache] item=$itemId received $received of ${total < 0 ? '?' : total} bytes');
+        }
+        return chunk;
+      }));
+    } on TimeoutException {
+      debugPrint('[EbookCache] item=$itemId stalled after $received bytes');
+      throw Exception('The ebook download stopped responding');
     } finally {
       await sink.close();
     }

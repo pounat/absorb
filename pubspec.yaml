@@ -1,7 +1,7 @@
 name: absorb
 description: An Audiobookshelf Client
 publish_to: 'none'
-version: 1.11.1+294
+version: 1.12.1+300
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -43,6 +43,8 @@ dependencies:
 
   # Reading EPUB text without a WebView (transcript ebook cross-reference).
   archive: ^4.0.9
+  html: ^0.15.4
+  xml: ^6.5.0
 
   # CarPlay - vendored copy of 1.2.11 with a patched image loader (downsampled +
   # cached list thumbnails) so large browse lists don't run CarPlay out of memory.

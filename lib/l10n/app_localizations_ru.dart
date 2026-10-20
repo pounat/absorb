@@ -39,6 +39,17 @@ class AppLocalizationsRu extends AppLocalizations {
       'Absorb couldn\'t reach your server for collections and playlists.';
 
   @override
+  String get listsNoneBookOrbit => 'No collections or Smart Scopes';
+
+  @override
+  String get listsNoneHintBookOrbit =>
+      'Collections and Smart Scopes are made on your BookOrbit server, and show up here.';
+
+  @override
+  String get listsLoadFailedHintBookOrbit =>
+      'Absorb couldn\'t reach your server for collections and Smart Scopes.';
+
+  @override
   String get cancel => 'Отменить';
 
   @override
@@ -120,6 +131,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get continueListening => 'Continue Listening';
+
+  @override
+  String get continueReading => 'Continue Reading';
 
   @override
   String get continueSeries => 'Continue Series';
@@ -3124,6 +3138,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get hideEbookOnlyOffSubtitle => 'Off - all library items shown';
 
   @override
+  String get homeCardsOpenDetails => 'Open details from Home';
+
+  @override
+  String get homeCardsOpenDetailsOnSubtitle =>
+      'Tapping a Continue Listening or Continue Reading card opens its details';
+
+  @override
+  String get homeCardsOpenDetailsOffSubtitle =>
+      'Tapping a Continue Listening or Continue Reading card picks up where you left off';
+
+  @override
   String get showGoodreadsButton => 'Show Goodreads button';
 
   @override
@@ -4708,6 +4733,33 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get collectionNameHint => 'Collection name';
+
+  @override
+  String get listsNewCollectionSubtitle => 'Group books into a list you keep';
+
+  @override
+  String get listsNewCollectionNeedsBookSubtitle =>
+      'Start it with at least one book';
+
+  @override
+  String get listsNewPlaylistSubtitle => 'Line up books to listen to in order';
+
+  @override
+  String get listsAddBooksNow => 'Add books now';
+
+  @override
+  String get listsPickBooksNext =>
+      'You\'ll pick books next. A collection on this server needs at least one.';
+
+  @override
+  String get listsCreate => 'Create';
+
+  @override
+  String get listsCollectionNeedsBook =>
+      'A collection needs at least one book, so nothing was created.';
+
+  @override
+  String get listsCreateFailed => 'Couldn\'t create it';
 
   @override
   String get castToDevice => 'Cast to Device';
@@ -7117,6 +7169,354 @@ class AppLocalizationsRu extends AppLocalizations {
   String get collectionDetailDefaultName => 'Collection';
 
   @override
+  String smartScopeBookCount(int count) {
+    return 'Smart Scope · $count books';
+  }
+
+  @override
+  String get smartScopeNew => 'New Smart Scope';
+
+  @override
+  String get smartScopeNewSubtitle =>
+      'Save a set of filters as a list that keeps itself up to date';
+
+  @override
+  String get smartScopeEditTitle => 'Edit Smart Scope';
+
+  @override
+  String get smartScopeIcon => 'Icon';
+
+  @override
+  String get smartScopePublic => 'Visible to all users';
+
+  @override
+  String get smartScopeKobo => 'Sync to Kobo';
+
+  @override
+  String get smartScopeRules => 'Rules';
+
+  @override
+  String get smartScopeMatchAll => 'Match all';
+
+  @override
+  String get smartScopeMatchAny => 'Match any';
+
+  @override
+  String get smartScopeAddRule => 'Add rule';
+
+  @override
+  String get smartScopeAddGroup => 'Add group';
+
+  @override
+  String get smartScopeGroup => 'Group';
+
+  @override
+  String get smartScopeStartFrom => 'Start from';
+
+  @override
+  String get smartScopeFromScratch => 'Build from scratch';
+
+  @override
+  String get smartScopeTplHasSeries => 'Has a series';
+
+  @override
+  String get smartScopeTplRecent => 'Added recently';
+
+  @override
+  String get smartScopeTplPdf => 'PDF only';
+
+  @override
+  String get smartScopeTplNoGenres => 'No genres';
+
+  @override
+  String get smartScopeTplEpub => 'EPUB only';
+
+  @override
+  String get smartScopeCounting => 'Counting...';
+
+  @override
+  String get smartScopeSort => 'Default sort';
+
+  @override
+  String get smartScopeAddSort => 'Add sort level';
+
+  @override
+  String get smartScopeSortNone => 'No sort set, so books sort by title.';
+
+  @override
+  String get smartScopeAscending => 'Ascending';
+
+  @override
+  String get smartScopeDescending => 'Descending';
+
+  @override
+  String get smartScopeDelete => 'Delete Smart Scope';
+
+  @override
+  String get smartScopeSaveFailed => 'Couldn\'t save the Smart Scope';
+
+  @override
+  String get smartScopeDeleteFailed => 'Couldn\'t delete the Smart Scope';
+
+  @override
+  String get smartScopeLoadFailed => 'Couldn\'t load the Smart Scope';
+
+  @override
+  String get smartScopeUnsupportedRule =>
+      'This rule can only be changed on the BookOrbit web. It\'s kept as it is.';
+
+  @override
+  String get smartScopeAnd => 'and';
+
+  @override
+  String get smartScopeDays => 'days';
+
+  @override
+  String get smartScopeWeeks => 'weeks';
+
+  @override
+  String get smartScopeMonths => 'months';
+
+  @override
+  String get smartScopePickDate => 'Pick a date';
+
+  @override
+  String get smartScopeAddValue => 'Add a value';
+
+  @override
+  String get smartScopeValue => 'Value';
+
+  @override
+  String get smartScopeCustomFields => 'Custom fields';
+
+  @override
+  String get smartScopeAnyProvider => 'Any provider';
+
+  @override
+  String get smartScopeScoreOutstanding => 'Outstanding';
+
+  @override
+  String get smartScopeScoreGood => 'Good';
+
+  @override
+  String get smartScopeScoreFair => 'Fair';
+
+  @override
+  String get smartScopeScorePoor => 'Poor';
+
+  @override
+  String get smartScopeMb => 'MB';
+
+  @override
+  String get smartScopeMaxValues => 'Up to 20 values';
+
+  @override
+  String get scopeFieldTitle => 'Title';
+
+  @override
+  String get scopeFieldAuthor => 'Author';
+
+  @override
+  String get scopeFieldSeries => 'Series';
+
+  @override
+  String get scopeFieldSeriesIndex => 'Series number';
+
+  @override
+  String get scopeFieldGenre => 'Genre';
+
+  @override
+  String get scopeFieldTag => 'Tag';
+
+  @override
+  String get scopeFieldReadStatus => 'Read status';
+
+  @override
+  String get scopeFieldReadProgress => 'Reading progress';
+
+  @override
+  String get scopeFieldRating => 'Your rating';
+
+  @override
+  String get scopeFieldFormat => 'Format';
+
+  @override
+  String get scopeFieldLibrary => 'Library';
+
+  @override
+  String get scopeFieldCollection => 'Collection';
+
+  @override
+  String get scopeFieldPublisher => 'Publisher';
+
+  @override
+  String get scopeFieldLanguage => 'Language';
+
+  @override
+  String get scopeFieldPublishedDate => 'Published date';
+
+  @override
+  String get scopeFieldPublishedYear => 'Published year';
+
+  @override
+  String get scopeFieldAddedAt => 'Date added';
+
+  @override
+  String get scopeFieldStartedAt => 'Date started';
+
+  @override
+  String get scopeFieldFinishedAt => 'Date finished';
+
+  @override
+  String get scopeFieldPageCount => 'Page count';
+
+  @override
+  String get scopeFieldFileSize => 'File size';
+
+  @override
+  String get scopeFieldCommunityRating => 'Community rating';
+
+  @override
+  String get scopeFieldCommunityRatingCount => 'Community review count';
+
+  @override
+  String get scopeFieldMetadataScore => 'Metadata score';
+
+  @override
+  String get scopeFieldIsbn => 'ISBN';
+
+  @override
+  String get scopeFieldDescription => 'Description';
+
+  @override
+  String get scopeFieldCover => 'Cover';
+
+  @override
+  String get scopeFieldAudioCover => 'Audiobook cover';
+
+  @override
+  String get scopeFieldFileAvailability => 'File availability';
+
+  @override
+  String get scopeFieldLockStatus => 'Lock status';
+
+  @override
+  String get scopeFieldSeriesStatus => 'Series status';
+
+  @override
+  String get scopeSortUpdatedAt => 'Date updated';
+
+  @override
+  String get scopeSortLastReadAt => 'Last read';
+
+  @override
+  String get scopeSortRandom => 'Random';
+
+  @override
+  String get scopeOpContains => 'contains';
+
+  @override
+  String get scopeOpNotContains => 'does not contain';
+
+  @override
+  String get scopeOpStartsWith => 'starts with';
+
+  @override
+  String get scopeOpEndsWith => 'ends with';
+
+  @override
+  String get scopeOpEq => 'is';
+
+  @override
+  String get scopeOpNotEq => 'is not';
+
+  @override
+  String get scopeOpIsEmpty => 'is empty';
+
+  @override
+  String get scopeOpIsNotEmpty => 'is not empty';
+
+  @override
+  String get scopeOpGt => 'greater than';
+
+  @override
+  String get scopeOpGte => 'at least';
+
+  @override
+  String get scopeOpLt => 'less than';
+
+  @override
+  String get scopeOpLte => 'at most';
+
+  @override
+  String get scopeOpBetween => 'between';
+
+  @override
+  String get scopeOpIncludesAny => 'includes any of';
+
+  @override
+  String get scopeOpIncludesAll => 'includes all of';
+
+  @override
+  String get scopeOpExcludesAll => 'excludes all of';
+
+  @override
+  String get scopeOpBefore => 'before';
+
+  @override
+  String get scopeOpAfter => 'after';
+
+  @override
+  String get scopeOpWithinLast => 'within the last';
+
+  @override
+  String get scopeOpIsMissing => 'is missing';
+
+  @override
+  String get scopeOpIsPresent => 'is present';
+
+  @override
+  String get scopeOpIsUnread => 'is unread';
+
+  @override
+  String get scopeOpIsInProgress => 'is in progress';
+
+  @override
+  String get scopeOpIsFinished => 'is finished';
+
+  @override
+  String get scopeOpIsLocked => 'is locked';
+
+  @override
+  String get scopeOpIsUnlocked => 'is unlocked';
+
+  @override
+  String get scopeOpIsUpNext => 'is up next';
+
+  @override
+  String get scopeOpIsTrue => 'is yes';
+
+  @override
+  String get scopeOpIsFalse => 'is no';
+
+  @override
+  String smartScopeMatchCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count books match',
+      one: '1 book matches',
+      zero: 'No books match',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String smartScopeDeleteConfirm(String name) {
+    return 'Delete \"$name\"? This can\'t be undone.';
+  }
+
+  @override
   String collectionDetailBookCount(int count) {
     return '$count books';
   }
@@ -8076,6 +8476,41 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get sectionCarIos => 'CarPlay';
+
+  @override
+  String get sectionSiri => 'Siri';
+
+  @override
+  String get siriUseWithSiri => 'Use with Siri';
+
+  @override
+  String get siriStatusOn =>
+      'On. Siri can find and play your books and podcasts by name.';
+
+  @override
+  String get siriStatusAsk =>
+      'Let Siri find and play your books and podcasts by name.';
+
+  @override
+  String get siriStatusOff =>
+      'Siri is turned off for Absorb. Turn it on in iOS Settings.';
+
+  @override
+  String get siriAllow => 'Allow';
+
+  @override
+  String get siriOpenSettings => 'Open Settings';
+
+  @override
+  String get siriThingsToSay => 'Things to say';
+
+  @override
+  String get siriExamples =>
+      '\"Play [book title] on Absorb\"\n\"Play [series name] on Absorb\"\n\"Play something by [author] on Absorb\"\n\"Play the latest episode of [podcast] on Absorb\"\n\"Resume Absorb\"\n\"Skip back in Absorb\"\n\"Next chapter in Absorb\"\n\"Set a sleep timer in Absorb\"\n\"Add a bookmark in Absorb\"\n\"What am I listening to in Absorb\"';
+
+  @override
+  String get siriShortcutsNote =>
+      'Resume, pause, skips, chapters, the sleep timer, bookmarks and what\'s playing work even without this permission. They are also in the Shortcuts app for automations and the Action button.';
 
   @override
   String get carBookOrder => 'Book order in the car';
@@ -9432,6 +9867,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'This ebook format can\'t be opened in the reader yet';
 
   @override
+  String get readerCouldNotOpen =>
+      'This ebook couldn\'t be opened. The file may be damaged.';
+
+  @override
   String get moreActions => 'More';
 
   @override
@@ -9470,6 +9909,25 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get readerPinTopBarHint =>
       'Pins them above the page instead of showing them on tap. The page gets a little shorter so no text is covered.';
+
+  @override
+  String get readerTopBarProgress => 'Top bar progress';
+
+  @override
+  String get readerTopBarProgressBook => 'Book';
+
+  @override
+  String get readerTopBarProgressChapter => 'Chapter';
+
+  @override
+  String get readerTopBarProgressBoth => 'Both';
+
+  @override
+  String get readerScrollMode => 'Scroll mode';
+
+  @override
+  String get readerScrollModeHint =>
+      'Scroll down through the book instead of turning pages. Applies to every book.';
 
   @override
   String get readerKeepAwake => 'Keep the screen on';
@@ -9657,6 +10115,32 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get readerNoHighlights => 'No highlights yet';
+
+  @override
+  String get readerHistory => 'History';
+
+  @override
+  String get sessionReading => 'Reading';
+
+  @override
+  String get readerHistoryEmpty =>
+      'Pages you leave are listed here, so you can always get back to them.';
+
+  @override
+  String get readerHistoryClosed => 'Closed the book';
+
+  @override
+  String get readerHistoryBeforeJump => 'Before a jump';
+
+  @override
+  String get readerHistoryBeforeSync => 'Before matching the audio';
+
+  @override
+  String get readerLogReading => 'Count reading time in stats';
+
+  @override
+  String get readerLogReadingHint =>
+      'Logs your time in the reader as a session so it shows in your stats. On Audiobookshelf it counts as listening time.';
 
   @override
   String get readerNoBookmarks => 'No bookmarks yet';
@@ -10215,6 +10699,52 @@ class AppLocalizationsRu extends AppLocalizations {
   String get readAlongNeedsPlaying => 'Play this book\'s audiobook first';
 
   @override
+  String get narrationListen => 'Listen';
+
+  @override
+  String get narrationPlayFromHere => 'Play from here';
+
+  @override
+  String get narrationPreparing => 'Getting the narration ready';
+
+  @override
+  String get narrationNone => 'This ebook has no narration to play';
+
+  @override
+  String get narrationDownloadTitle => 'Download to listen';
+
+  @override
+  String get narrationDownloadBody =>
+      'This book is an EPUB3 that reads itself aloud. Audiobookshelf can\'t stream its narration, so the audio needs to be downloaded before it plays.';
+
+  @override
+  String get narrationDownloadStarted =>
+      'Downloading the narration. Tap Absorb when it finishes.';
+
+  @override
+  String get narrationTextBody =>
+      'This book\'s EPUB has its own words for every moment of the audio, so the text is copied straight from the book. Pick how much to add to the bookmark\'s note.';
+
+  @override
+  String get narrationTextLoading => 'Getting the words from the book';
+
+  @override
+  String get downloadToAbsorb => 'Download to Absorb';
+
+  @override
+  String get narrationUpNextTitle => 'Download what\'s up next';
+
+  @override
+  String narrationUpNextBody(String title) {
+    return '$title is next in your queue. It\'s an EPUB3 that reads itself aloud, so it needs to be downloaded before it can play.';
+  }
+
+  @override
+  String narrationQueueStopped(String title) {
+    return 'Stopped before $title. Download it to keep going.';
+  }
+
+  @override
   String get transcriptionNeedsDownload =>
       'This needs the audio on your phone. Download it now?';
 
@@ -10224,6 +10754,37 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get readAlongFollow => 'Read along follows';
+
+  @override
+  String get syncReadingListening => 'Keep reading and listening in sync';
+
+  @override
+  String get syncReadingListeningHint =>
+      'For books with an audiobook and an ebook. When you stop listening, the ebook moves to where you stopped. When you leave the reader, the audiobook moves to your page. Only moves forward.';
+
+  @override
+  String get syncEbookMoved => 'Ebook moved to where you stopped listening';
+
+  @override
+  String get syncAudioMoved => 'Audiobook moved to where you stopped reading';
+
+  @override
+  String get syncAudioOffer => 'Tap to jump to where you stopped reading';
+
+  @override
+  String get syncFindingAudio => 'Finding your page in the audiobook';
+
+  @override
+  String get syncFindingEbook => 'Finding your spot in the ebook';
+
+  @override
+  String get syncFailed => 'Couldn\'t sync your place';
+
+  @override
+  String get syncAlreadyTogether => 'Already in sync';
+
+  @override
+  String get syncPosition => 'Sync position';
 
   @override
   String get readAlongFollowHint =>
@@ -10240,6 +10801,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get readAlongLost => 'Can\'t find the narration on the page';
+
+  @override
+  String get readAlongBackToNarration => 'Back to narration';
 
   @override
   String get findInEbook => 'Find in ebook';
@@ -10475,6 +11039,15 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get comicReadingDirection => 'Reading direction';
+
+  @override
+  String comicPageNumber(int page) {
+    return 'Page $page';
+  }
+
+  @override
+  String get comicBookmarkRemoveFailed =>
+      'Couldn\'t remove the bookmark from the server. Try again when you\'re online.';
 
   @override
   String get comicLeftToRight => 'Left to right';

@@ -158,6 +158,8 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
         final isFinished = episodeId != null
             ? (lib.getEpisodeProgressData(itemId, episodeId)?['isFinished'] == true)
             : (lib.getProgressData(itemId)?['isFinished'] == true);
+        final isSkimmed =
+            episodeId == null && lib.getProgressData(itemId)?['skimmed'] == true;
         final isDownloaded = DownloadService()
             .isDownloaded(episodeId != null ? '$itemId-$episodeId' : itemId);
         final isOnAbsorbing = lib.isOnAbsorbingList(itemId);
@@ -185,7 +187,7 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
                       if (isFinished || isDownloaded)
                         Positioned(
                           left: 0, right: 0, bottom: 0,
-                          child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                          child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                         ),
                     ]),
                   ),
@@ -275,6 +277,8 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
         final isFinished = episodeId != null
             ? (lib.getEpisodeProgressData(itemId, episodeId)?['isFinished'] == true)
             : (lib.getProgressData(itemId)?['isFinished'] == true);
+        final isSkimmed =
+            episodeId == null && lib.getProgressData(itemId)?['skimmed'] == true;
         final isDownloaded = DownloadService()
             .isDownloaded(episodeId != null ? '$itemId-$episodeId' : itemId);
 
@@ -295,7 +299,7 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
                     if (isFinished || isDownloaded)
                       Positioned(
                         left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                       ),
                   ]),
                 ),

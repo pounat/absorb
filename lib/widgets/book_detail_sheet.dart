@@ -9,6 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'overlay_toast.dart';
+import 'narration_download_dialog.dart';
+import '../services/media_overlay.dart';
+import '../services/narration_service.dart';
+import '../services/read_listen_sync.dart';
 import '../services/book_dock.dart';
 import '../services/bookorbit_mapper.dart';
 import 'absorb_placement.dart';
@@ -23,6 +27,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/read_status.dart';
 import 'book_stats_sheet.dart';
 import '../services/book_stats_service.dart';
 import '../services/wording.dart';
@@ -34,6 +39,8 @@ import '../services/api_service.dart';
 import '../services/bookmark_preview_player.dart';
 import '../services/bookmark_service.dart';
 import '../services/download_service.dart';
+import '../services/narrated_books.dart';
+import '../services/transcription_service.dart';
 import '../services/ebook_cache.dart';
 import '../services/progress_sync_service.dart';
 import '../services/metadata_override_service.dart';
@@ -239,6 +246,109 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     return _rawCoverScheme;
   }
 
+  // An Audiobookshelf ebook-only book whose EPUB reads itself aloud: the
+  // sheet shows it as an audiobook, the way BookOrbit's arrive.
+  MediaOverlay? _localNarration;
+  // An EPUB this phone hasn't looked into yet is being looked at: the main
+  // button waits for the answer rather than showing Read and then switching
+  // to Absorb.
+  bool _lookingForNarration = false;
+  // Whether the automatic reading and listening sync is on; with it off, an
+  // audiobook with an EPUB gets a Sync position button.
+  bool _autoSync = true;
+  // Transcription on with a model downloaded, which Sync position needs.
+  bool _transcriptionReady = false;
+
+  /// Looks into an Audiobookshelf ebook-only EPUB on the server (its index
+  /// and timings only) to see whether it reads itself aloud.
+  Future<void> _probeNarration() async {
+    final item = _item;
+    final auth = context.read<AuthProvider>();
+    final api = auth.apiService;
+    if (item == null || api == null || auth.isBookOrbit || _localNarration != null) return;
+    if (!PlayerSettings.isEbookOnly(item, countNarration: false)) return;
+    final ebookFile = resolveEbookFile(item);
+    final unknown = ebookFile != null &&
+        ebookExtFromFile(ebookFile) == '.epub' &&
+        !NarratedBooks.checked(widget.itemId);
+    if (unknown) {
+      setState(() => _lookingForNarration = true);
+      // A slow server doesn't hold the buttons back for long.
+      Timer(const Duration(seconds: 8), () {
+        if (mounted && _lookingForNarration) {
+          debugPrint('[Narration] ${widget.itemId}: still looking after 8s, showing the ebook buttons');
+          setState(() => _lookingForNarration = false);
+        }
+      });
+    }
+    MediaOverlay? o;
+    // A look that fails (rather than finding no narration) gets one more go,
+    // so a hiccup doesn't leave a narrated EPUB showing as a plain ebook.
+    for (var attempt = 1; attempt <= 2 && mounted; attempt++) {
+      try {
+        o = await NarrationService.instance.probe(api, item, onNarrated: (duration) {
+          // The package says it reads itself aloud: that settles the buttons
+          // while the timings are still coming.
+          if (duration == null || duration <= 0 || !mounted) return;
+          debugPrint('[Narration] ${widget.itemId}: narrated by its package - showing it as an audiobook now');
+          unawaited(NarratedBooks.set(widget.itemId, duration).then((_) {
+            if (mounted && _lookingForNarration) setState(() => _lookingForNarration = false);
+          }));
+        });
+        if (o != null) await NarrationService.instance.markAudiobook(widget.itemId, o);
+        final known = await NarrationService.instance.knownNarrated(widget.itemId);
+        // Looked at before the list kept plain EPUBs too.
+        if (o == null && known == false && !NarratedBooks.checked(widget.itemId)) {
+          await NarratedBooks.set(widget.itemId, null);
+        }
+        if (o != null || known != null) break;
+        debugPrint('[Narration] ${widget.itemId}: the EPUB on the server could not be looked into '
+            '(try $attempt of 2)');
+      } catch (e) {
+        debugPrint('[Narration] ${widget.itemId}: looking for narration failed (try $attempt of 2): $e');
+      }
+      if (attempt == 1) await Future.delayed(const Duration(seconds: 2));
+    }
+    if (!mounted) return;
+    setState(() {
+      _localNarration = o;
+      _lookingForNarration = false;
+    });
+  }
+
+  Future<void> _checkTranscriptionReady() async {
+    if (!await PlayerSettings.getTranscriptionEnabled()) return;
+    for (final size in TranscriptionModelSize.values) {
+      if (await TranscriptionService.instance.isModelDownloaded(size)) {
+        if (mounted) setState(() => _transcriptionReady = true);
+        return;
+      }
+    }
+  }
+
+  /// An Audiobookshelf EPUB that reads itself aloud plays from the phone, so
+  /// until its narration is downloaded the Absorb button offers that instead.
+  bool _needsNarrationDownload(AuthProvider auth) =>
+      !auth.isBookOrbit &&
+      (NarratedBooks.contains(widget.itemId) ||
+          ((_item?['media'] as Map?)?['narration'] as Map?)?['local'] == true) &&
+      !NarrationService.instance.hasLocalAudio(widget.itemId);
+
+  Widget _lookingButton(Color accent, Color onAccent, {double height = 52, double radius = 16}) => SizedBox(
+        height: height,
+        child: Material(
+          color: accent.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(radius),
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: onAccent),
+            ),
+          ),
+        ),
+      );
+
   @override void initState() {
     super.initState();
     // Quick-actions sheet seeds from the tile's item map so it paints instantly
@@ -253,8 +363,12 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     _loadItem();
     _loadBookmarks();
     _warmStats();
+    PlayerSettings.getSyncReadingListening().then((on) {
+      if (mounted && on != _autoSync) setState(() => _autoSync = on);
+    });
+    _checkTranscriptionReady();
     SocketService().addItemUpdatedListener(_onSocketItemUpdated);
-    PlayerSettings.getRectangleCovers().then((v) { if (mounted) setState(() => _squareCovers = !v); });
+    _loadCoverShape();
     PlayerSettings.getShowGoodreadsButton().then((v) { if (mounted) setState(() => _showGoodreads = v); });
     PlayerSettings.getSpeedAdjustedTime().then((v) { if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v); });
     PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
@@ -428,7 +542,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final start = (s['startTime'] as num?)?.toDouble() ?? 0;
     final end = (s['currentTime'] as num?)?.toDouble() ?? start;
     final device = s['deviceInfo'] as Map<String, dynamic>?;
-    final where = (device?['deviceName'] as String?) ?? (device?['clientName'] as String?) ?? '';
+    final place = (device?['deviceName'] as String?) ?? (device?['clientName'] as String?) ?? '';
+    final where = s['mediaPlayer'] == ApiService.readingMediaPlayer
+        ? [place, AppLocalizations.of(context)!.sessionReading].where((p) => p.isNotEmpty).join(' · ')
+        : place;
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       child: Row(children: [
@@ -456,6 +573,16 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     if (mounted) setState(() => _bookmarks = bm);
   }
 
+  /// The cover shape set for the book's own library (or the one being
+  /// browsed until the book has loaded), the same lookup the cards use.
+  void _loadCoverShape() {
+    final libraryId = _item?['libraryId'] as String? ??
+        context.read<LibraryProvider>().selectedLibraryId;
+    PlayerSettings.getRectangleCoversFor(libraryId).then((rect) {
+      if (mounted && _squareCovers == rect) setState(() => _squareCovers = !rect);
+    });
+  }
+
   Future<void> _loadItem() async {
     debugPrint('[BookDetail] _loadItem start item=${widget.itemId}');
     final loadStart = DateTime.now();
@@ -481,6 +608,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           }
 
           setState(() { _item = finalItem; _isLoading = false; });
+          unawaited(_probeNarration());
+          _loadCoverShape();
           if (BookDockInfo.of(finalItem)?.isWorking ?? false) {
             _dockPoll?.cancel();
             _dockPoll = Timer(const Duration(seconds: 3), () {
@@ -551,6 +680,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         final localItem = session['libraryItem'] as Map<String, dynamic>?;
         if (localItem != null && mounted) {
           setState(() { _item = localItem; _isLoading = false; });
+          _loadCoverShape();
           _deriveCoverScheme();
           return;
         }
@@ -717,6 +847,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   Widget _buildContent(BuildContext context, ColorScheme cs, TextTheme tt, AppLocalizations l) {
     final accent =
         (PlayerSettings.einkMode ? null : _coverScheme?.primary) ?? cs.primary;
+    // A reload brings the server's ebook-only shape back; the narration found
+    // on this phone makes it an audiobook again.
+    final narration = _localNarration;
+    if (narration != null) _item = NarrationService.instance.withNarration(_item!, narration);
     final media = _item!['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final chapters = media['chapters'] as List<dynamic>? ?? [];
@@ -889,14 +1023,60 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       else
         const SizedBox(height: 20),
       const SizedBox(height: 12),
-      if (isEbookOnly && ebookFile != null && canReadEbook(ebookFile))
-        SizedBox(height: 52, child: FilledButton.icon(
-          onPressed: () => _openEbookReader(context, auth, ebookFile, title),
-          icon: const Icon(Icons.menu_book_rounded, size: 24),
-          label: Text(l.readEbook,
-            style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onPrimary)),
-          style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-        ))
+      if (_lookingForNarration)
+        _lookingButton(accent, _coverScheme?.onPrimary ?? cs.onPrimary)
+      else if (isEbookOnly && ebookFile != null && canReadEbook(ebookFile))
+        // Reading progress fills the button the same way listening progress
+        // fills Absorb.
+        Builder(builder: (context) {
+          final onAccent = _coverScheme?.onPrimary ?? cs.onPrimary;
+          // A library refresh on BookOrbit carries an ebook-only book's
+          // reading percent as its plain progress, with no ebook field.
+          final saved = lib.getEbookProgress(widget.itemId);
+          final ebookProgress = saved > 0 ? saved : progress;
+          final showFill = ebookProgress > 0 && ebookProgress < 1 && !isFinished;
+          return SizedBox(
+            height: 52,
+            child: Material(
+              color: accent,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _openEbookReader(context, auth, ebookFile, title),
+                child: Stack(children: [
+                  if (showFill)
+                    FractionallySizedBox(
+                      widthFactor: ebookProgress.clamp(0.0, 1.0),
+                      child: Container(color: onAccent.withValues(alpha: 0.22)),
+                    ),
+                  Center(
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.menu_book_rounded, size: 24, color: onAccent),
+                      const SizedBox(width: 8),
+                      Text(l.readEbook,
+                          style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: onAccent)),
+                    ]),
+                  ),
+                  if (showFill)
+                    Positioned(
+                      right: 14,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Text(
+                          '${(ebookProgress * 100).toStringAsFixed(0)}%',
+                          style: tt.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: onAccent.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ),
+                    ),
+                ]),
+              ),
+            ),
+          );
+        })
       else if (isEbookOnly && ebookFile != null)
         // Ebook-only but not readable in-app (CBR) - can't open it, so the
         // primary action exports the file to the device instead.
@@ -919,16 +1099,20 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       SizedBox(
         height: 52,
         child: ListenableBuilder(
-          listenable: AudioPlayerService(),
+          listenable: Listenable.merge([AudioPlayerService(), DownloadService()]),
           builder: (_, __) {
             final player = AudioPlayerService();
             final isCurrentPlaying =
                 player.currentItemId == widget.itemId && player.isPlaying;
             final showAbsorbingState = _isAbsorbing || isCurrentPlaying;
             final onAccent = _coverScheme?.onPrimary ?? cs.onPrimary;
+            final needsDownload = !showAbsorbingState && _needsNarrationDownload(auth);
+            final fetching = needsDownload && DownloadService().isDownloading(widget.itemId);
             // How far into the book you are fills the button from the left,
-            // the way the download button fills while it fetches.
-            final showFill = progress > 0 && !isFinished;
+            // the way the download button fills while it fetches. A narration
+            // on its way down fills with the download instead.
+            final fill = fetching ? DownloadService().downloadProgress(widget.itemId) : progress;
+            final showFill = fetching || (!needsDownload && progress > 0 && !isFinished);
             // Offline with nothing to play: only the ebook may be on the
             // phone, and the Read button below still works.
             if (lib.isOffline &&
@@ -988,7 +1172,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 child: Stack(children: [
                   if (showFill)
                     FractionallySizedBox(
-                      widthFactor: progress.clamp(0.0, 1.0),
+                      widthFactor: fill.clamp(0.0, 1.0),
                       child: Container(color: onAccent.withValues(alpha: 0.22)),
                     ),
                   Center(
@@ -999,16 +1183,22 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                               height: 24,
                               child: AbsorbingWave(color: onAccent),
                             )
-                          : isFinished
-                              ? AbsorbReplayIcon(size: 24, color: onAccent)
-                              : Icon(Icons.waves_rounded, size: 24, color: onAccent),
+                          : needsDownload
+                              ? Icon(Icons.download_rounded, size: 24, color: onAccent)
+                              : isFinished
+                                  ? AbsorbReplayIcon(size: 24, color: onAccent)
+                                  : Icon(Icons.waves_rounded, size: 24, color: onAccent),
                       const SizedBox(width: 8),
                       Text(
                         showAbsorbingState
                             ? Wording.of(context).absorbing
-                            : isFinished
-                                ? Wording.of(context).absorbAgain
-                                : Wording.of(context).absorb,
+                            : fetching
+                                ? l.downloadsDownloading
+                                : needsDownload
+                                    ? Wording.of(context).downloadToAbsorb
+                                    : isFinished
+                                        ? Wording.of(context).absorbAgain
+                                        : Wording.of(context).absorb,
                         style: tt.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w600, color: onAccent),
                       ),
@@ -1021,7 +1211,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                       bottom: 0,
                       child: Center(
                         child: Text(
-                          '${(progress * 100).toStringAsFixed(0)}%',
+                          '${(fill * 100).toStringAsFixed(0)}%',
                           style: tt.labelMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: onAccent.withValues(alpha: 0.85),
@@ -1034,6 +1224,61 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             );
           },
         ),
+      ),
+      ListenableBuilder(
+        listenable: Listenable.merge([ReadListenSync.instance.syncing, ReadListenSync.instance.failed]),
+        builder: (context, _) {
+          final to = ReadListenSync.instance.syncing.value[widget.itemId];
+          final failed = to == null && ReadListenSync.instance.failed.value.containsKey(widget.itemId);
+          return AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            child: to == null && !failed
+                ? const SizedBox(width: double.infinity)
+                : failed
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => ReadListenSync.instance.syncNow(widget.itemId),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.sync_problem_rounded, size: 16, color: cs.error),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              l.syncFailed,
+                              style: tt.labelMedium?.copyWith(color: cs.error),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(l.retry,
+                              style: tt.labelMedium?.copyWith(fontWeight: FontWeight.w600, color: accent)),
+                        ]),
+                      ),
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: accent),
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          to == SyncTarget.audio ? l.syncFindingAudio : l.syncFindingEbook,
+                          style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ]),
+                  ),
+          );
+        },
       ),
       // A companion ebook gets its own, smaller button under Absorb with the
       // reading progress filled in the same way. Ebook-only books already
@@ -1086,6 +1331,46 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           );
         }),
       ],
+      // With the automatic sync off, an audiobook and its separate EPUB come
+      // together by hand: whichever is behind moves up to the other.
+      if (!_autoSync &&
+          _transcriptionReady &&
+          !isEbookOnly &&
+          ebookFile != null &&
+          ebookExtFromFile(ebookFile) == '.epub' &&
+          media['narration'] == null &&
+          !NarratedBooks.contains(widget.itemId)) ...[
+        const SizedBox(height: 8),
+        ValueListenableBuilder<Map<String, SyncTarget>>(
+          valueListenable: ReadListenSync.instance.syncing,
+          builder: (context, syncing, _) {
+            final busy = syncing.containsKey(widget.itemId);
+            return SizedBox(
+              height: 36,
+              child: Material(
+                color: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: accent.withValues(alpha: 0.3)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: busy ? null : () => ReadListenSync.instance.syncNow(widget.itemId),
+                  child: Center(
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.sync_rounded, size: 16, color: accent.withValues(alpha: busy ? 0.4 : 1)),
+                      const SizedBox(width: 8),
+                      Text(l.syncPosition,
+                          style: tt.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600, color: accent.withValues(alpha: busy ? 0.4 : 1))),
+                    ]),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
       // Primary action row: Download | Fully Absorb | ebook download (ebook-only)
       const SizedBox(height: 12),
       Row(children: [
@@ -1121,7 +1406,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             ]),
           ),
         )),
-        if (isEbookOnly && ebookFile != null && canReadEbook(ebookFile)) ...[
+        if (isEbookOnly && !_lookingForNarration && ebookFile != null && canReadEbook(ebookFile)) ...[
           const SizedBox(width: 8),
           // For ebook-only books the big button above is already "Read", so this
           // slot is the offline download (matching the audiobook download
@@ -1429,16 +1714,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     return s;
   }
 
-  static String _readStatusLabel(AppLocalizations l, String s) => switch (s) {
-        'want_to_read' => l.readStatusWantToRead,
-        'reading' => l.readStatusReading,
-        'on_hold' => l.readStatusOnHold,
-        'rereading' => l.readStatusRereading,
-        'read' => l.readStatusRead,
-        'skimmed' => l.readStatusSkimmed,
-        'abandoned' => l.readStatusAbandoned,
-        _ => l.readStatusUnread,
-      };
+  static String _readStatusLabel(AppLocalizations l, String s) => readStatusLabel(l, s);
 
   static IconData _readStatusIcon(String s) => switch (s) {
         'want_to_read' => Icons.bookmark_add_outlined,
@@ -1730,7 +2006,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         ]),
         const SizedBox(height: 18),
         // Primary actions: Absorb | Download side by side
-        if (!isEbookOnly)
+        if (_lookingForNarration)
+          _lookingButton(accent, onAccent, height: 36, radius: 14)
+        else if (!isEbookOnly)
           Row(children: [
             Expanded(child: _quickAbsorbButton(context, cs, tt, auth, accent, onAccent, title, authorName, duration, chapters, isFinished, progress)),
             const SizedBox(width: 10),
@@ -1901,11 +2179,15 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       Color accent, Color onAccent, String title, String author, double duration, List<dynamic> chapters, bool isFinished,
       double progress) {
     return ListenableBuilder(
-      listenable: AudioPlayerService(),
+      listenable: Listenable.merge([AudioPlayerService(), DownloadService()]),
       builder: (_, __) {
         final player = AudioPlayerService();
         final isCurrentPlaying = player.currentItemId == widget.itemId && player.isPlaying;
         final showAbsorbingState = _isAbsorbing || isCurrentPlaying;
+        final needsDownload = !showAbsorbingState && _needsNarrationDownload(auth);
+        final fetching = needsDownload && DownloadService().isDownloading(widget.itemId);
+        final fill = fetching ? DownloadService().downloadProgress(widget.itemId) : progress;
+        final showFill = fetching || (!needsDownload && progress > 0 && !isFinished);
         return GestureDetector(
           onTap: showAbsorbingState
               ? () async {
@@ -1928,24 +2210,30 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(14)),
             child: Stack(children: [
-              if (progress > 0 && !isFinished)
+              if (showFill)
                 FractionallySizedBox(
-                  widthFactor: progress.clamp(0.0, 1.0),
+                  widthFactor: fill.clamp(0.0, 1.0),
                   child: Container(color: onAccent.withValues(alpha: 0.22)),
                 ),
               Positioned.fill(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 showAbsorbingState
                     ? SizedBox(width: 16, height: 16, child: AbsorbingWave(color: onAccent))
-                    : isFinished
-                        ? AbsorbReplayIcon(size: 16, color: onAccent)
-                        : Icon(Icons.waves_rounded, size: 16, color: onAccent),
+                    : needsDownload
+                        ? Icon(Icons.download_rounded, size: 16, color: onAccent)
+                        : isFinished
+                            ? AbsorbReplayIcon(size: 16, color: onAccent)
+                            : Icon(Icons.waves_rounded, size: 16, color: onAccent),
                 const SizedBox(width: 8),
                 Flexible(child: Text(
                   showAbsorbingState
                       ? Wording.of(context).absorbing
-                      : isFinished
-                          ? Wording.of(context).absorbAgain
-                          : Wording.of(context).absorb,
+                      : fetching
+                          ? AppLocalizations.of(context)!.downloadsDownloading
+                          : needsDownload
+                              ? Wording.of(context).downloadToAbsorb
+                              : isFinished
+                                  ? Wording.of(context).absorbAgain
+                                  : Wording.of(context).absorb,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: onAccent),
                 )),
@@ -3001,7 +3289,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     if (api == null) return;
     setState(() => _ebookOfflineDownloading = true);
     try {
-      await fetchEbookToCache(api, widget.itemId, ebookFile, title);
+      await NarrationService.instance.readerFile(api, widget.itemId, ebookFile, title);
       await DownloadService().registerEbookDownload(
         api: api,
         itemId: widget.itemId,
@@ -3362,6 +3650,33 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
   /// [startTime] plays from there instead of the saved position (a chapter
   /// tapped in the list); on the live session it is a seek.
   Future<void> _startAbsorb(BuildContext context, {required AuthProvider auth, required String title, required String author, required String? coverUrl, required double duration, required List<dynamic> chapters, double? startTime}) async {
+    // An Audiobookshelf narrated EPUB plays once its narration is downloaded:
+    // asked first, with the reason.
+    if (_needsNarrationDownload(auth)) {
+      if (mounted) setState(() => _isAbsorbing = false);
+      if (DownloadService().isDownloading(widget.itemId)) {
+        showOverlayToast(context, AppLocalizations.of(context)!.narrationDownloadStarted, icon: Icons.download_rounded);
+        return;
+      }
+      await showNarrationDownloadDialog(
+        context,
+        itemId: widget.itemId,
+        title: title,
+        author: author,
+        coverUrl: coverUrl,
+        libraryId: _item?['libraryId'] as String?,
+      );
+      return;
+    }
+    // Leaving the reader may still be finding this book's spot in the audio:
+    // wait for it, so playback starts at the page rather than moving later.
+    final finding = ReadListenSync.instance.audioSpotBeingFound(widget.itemId);
+    if (startTime == null && finding != null) {
+      debugPrint('[SyncSpot] ${widget.itemId}: waiting for the reading spot before playing');
+      final t = await finding.timeout(const Duration(seconds: 20), onTimeout: () => null);
+      if (!context.mounted) return;
+      if (t != null) startTime = t;
+    }
     // Discard, not stop: we're about to start playback ourselves, so briefly
     // resuming the previous book would just be an audible blip.
     await _preview?.discard();

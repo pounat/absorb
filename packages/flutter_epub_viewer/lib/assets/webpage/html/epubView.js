@@ -11,6 +11,13 @@ var cachedLocations = null;
 function setCachedLocations(json) {
   cachedLocations = json;
 }
+function reportLoadError(e) {
+  try {
+    window.flutter_inappwebview.callHandler('loadError', String((e && e.message) || e));
+  } catch (err) {
+    console.error('Error reporting load failure:', err);
+  }
+}
 function handBackLocations() {
   try {
     window.flutter_inappwebview.callHandler('locationsGenerated', book.locations.save());
@@ -133,7 +140,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   if (bookUrl) {
     var url = bookUrl;
     bookUrl = null;
-    book.open(url);
+    book.open(url).catch(reportLoadError);
   } else {
     var uint8Array;
     if (data) {
@@ -149,7 +156,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
       bookParts = [];
       bookPartsLen = 0;
     }
-    book.open(uint8Array,)
+    book.open(uint8Array,).catch(reportLoadError)
   }
   lastRenderOpts = {
     manager: manager,
@@ -168,6 +175,20 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   lastTheme.fontSize = fontSize;
   rendition = book.renderTo("viewer", lastRenderOpts);
 
+  // Absorb patch: scroll mode only moves up and down, down to each chapter's
+  // own page, so a drag that drifts sideways can't nudge the text aside.
+  var scrolledNow = String(flow || "").indexOf("scrolled") === 0;
+  document.body.classList.toggle("absorb-scrolled", scrolledNow);
+  if (scrolledNow) {
+    rendition.hooks.content.register(function (contents) {
+      try {
+        var st = contents.document.createElement("style");
+        st.textContent = "html, body { overflow-x: hidden !important; touch-action: pan-y; }";
+        contents.document.head.appendChild(st);
+      } catch (e) {}
+    });
+  }
+
   // Apply initial theme
   updateTheme(backgroundColor, foregroundColor, customCss);
 
@@ -185,7 +206,12 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
     } catch (e) {
       console.error('Error calling initialPositionLoading callback:', e);
     }
-    displayed = rendition.display(cfi)
+    // A saved spot this file doesn't have (another edition of the book)
+    // rejects with no "displayed" event; open at the start instead of a blank page.
+    displayed = rendition.display(cfi).catch(function (e) {
+      console.error('Initial cfi not found, showing the start:', e);
+      return rendition.display();
+    })
   } else {
     displayed = rendition.display()
   }
@@ -997,6 +1023,13 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
     }
 
     var percent = location.start.percentage;
+    // Absorb patch: a book with no text (all page pictures) gets an empty
+    // location index, and epub.js then works -1 / -1 out to 100% on every
+    // page, which marked such a book finished the moment it opened. Use how
+    // far through the spine the page is instead.
+    if (!(book.locations.length() > 0)) {
+      percent = spinePercent(location.start);
+    }
 
     // Convert CFIs to XPath
     Promise.all([
@@ -1027,7 +1060,13 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   });
 
   rendition.on('displayError', function (e) {
-    window.flutter_inappwebview.callHandler('displayError');
+    window.flutter_inappwebview.callHandler('displayError', String((e && e.message) || e));
+    // The first page never painting is the blank-reader case: fall back to
+    // the start once rather than leaving nothing on screen.
+    if (initialPositionLoading) {
+      initialPositionLoading = false;
+      rendition.display();
+    }
   })
 
   rendition.on('markClicked', function (cfiRange) {
@@ -2265,7 +2304,22 @@ function clearSelection() {
 // Explicitly attach to window for global access
 window.clearSelection = clearSelection;
 
+function spinePercent(at) {
+  var count = book.spine.spineItems.length;
+  if (!at || !(count > 0) || !(at.index >= 0)) return 0;
+  var shown = at.displayed || {};
+  var within = shown.total > 0 ? (shown.page || 1) / shown.total : 1;
+  return Math.min(1, (at.index + within) / count);
+}
+
 function toProgress(progress) {
+  // Absorb patch: no location index (a book with no text) - go by spine item.
+  if (!(book.locations.length() > 0)) {
+    var count = book.spine.spineItems.length;
+    var item = count > 0 ? book.spine.get(Math.min(count - 1, Math.floor(progress * count))) : null;
+    if (item) rendition.display(item.href);
+    return;
+  }
   var cfi = book.locations.cfiFromPercentage(progress);
   rendition.display(cfi);
 }
@@ -2318,6 +2372,11 @@ var blindLastTs = 0;
 var blindSwapping = false;
 var blindPaused = false;   // the reader asked for it, survives touches
 var blindTouchHold = false; // finger is down, transient
+// Absorb patch: in scroll mode auto scroll glides the page itself instead of
+// running the blind. Speed, pause, the touch pad and stopping are shared.
+var glideActive = false;
+var glideCarry = 0;      // sub-pixel distance owed to the next frame
+var glideStuckFor = 0;   // seconds the page has refused to move
 
 function blindHeight() {
   var host = document.getElementById("viewerNext");
@@ -2404,6 +2463,7 @@ function blindLineColor(paused) {
 }
 
 function blindApply() {
+  if (glideActive) return;
   var host = document.getElementById("viewerNext");
   if (!host) return;
   var h = blindHeight();
@@ -2741,6 +2801,28 @@ function readerPageInfo() {
   try {
     var m = rendition.manager;
     var c = m.container.getBoundingClientRect();
+    // Absorb patch: scroll mode has no pages, so count screenfuls down the
+    // chapter under the top of the screen.
+    if (scrolledFlow()) {
+      var probeY = c.top + 1;
+      var screen = c.height || 1;
+      var all = m.views.all();
+      for (var j = 0; j < all.length; j++) {
+        var sv = all[j];
+        if (!sv || !sv.element || !sv.section) continue;
+        var sb = sv.element.getBoundingClientRect();
+        if (sb.top <= probeY && sb.bottom > probeY) {
+          var screens = Math.max(1, Math.ceil(sb.height / screen));
+          return {
+            page: Math.min(screens, Math.floor((probeY - sb.top) / screen) + 1),
+            total: screens,
+            href: sv.section.href || '',
+            index: sv.section.index
+          };
+        }
+      }
+      return null;
+    }
     var rtl = m.settings && m.settings.direction === "rtl";
     var probe = rtl ? c.right - 1 : c.left + 1;
     var views = m.views.all();
@@ -2823,9 +2905,60 @@ function blindLiveAtEnd() {
 
 // Returns whether the blind started. It can't before the book is displayed,
 // and Flutter must not flag auto scroll on for a blind that never appeared.
+function scrolledFlow() {
+  try {
+    return String((lastRenderOpts && lastRenderOpts.flow) || "").indexOf("scrolled") === 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+function glideTick(ts) {
+  if (!glideActive) return;
+  if (!blindLastTs) blindLastTs = ts;
+  var dt = (ts - blindLastTs) / 1000;
+  blindLastTs = ts;
+  // rAF stops while the app is away; the first frame back carries the whole gap
+  if (dt > 0.25) dt = 0;
+  if (!blindPaused && !blindTouchHold) {
+    var c = rendition.manager.container;
+    glideCarry += blindSpeed * dt;
+    var step = Math.floor(glideCarry);
+    if (step >= 1) {
+      glideCarry -= step;
+      var before = c.scrollTop;
+      c.scrollTop = before + step;
+      // The next chapter loads as the end comes near, so a short stall is
+      // normal. A long one at the end of the book is the end.
+      if (c.scrollTop <= before) {
+        glideStuckFor += dt;
+        if (glideStuckFor > 3) {
+          autoScrollStop("end");
+          return;
+        }
+      } else {
+        glideStuckFor = 0;
+      }
+    }
+  }
+  blindRaf = requestAnimationFrame(glideTick);
+}
+
 function autoScrollStart(speed) {
-  if (!rendition || blindRendition) return false;
+  if (!rendition || blindRendition || glideActive) return false;
   if (typeof speed === "number" && speed > 0) blindSpeed = speed;
+  if (scrolledFlow()) {
+    try { clearSelection(); } catch (e) {}
+    glideActive = true;
+    glideCarry = 0;
+    glideStuckFor = 0;
+    blindPaused = false;
+    blindLastTs = 0;
+    blindTouchAttach();
+    blindLog("start glide");
+    blindRaf = requestAnimationFrame(glideTick);
+    return true;
+  }
   var host = document.getElementById("viewerNext");
   if (!host) return false;
   host.style.display = "block";
@@ -2949,7 +3082,8 @@ function autoScrollResync() {
 }
 
 function autoScrollStop(reason) {
-  var wasRunning = blindRendition !== null;
+  var wasRunning = blindRendition !== null || glideActive;
+  glideActive = false;
   blindTouchHold = false;
   if (blindRaf) cancelAnimationFrame(blindRaf);
   blindRaf = null;
@@ -2980,7 +3114,7 @@ function autoScrollStop(reason) {
 }
 
 function autoScrollActive() {
-  return blindRendition !== null;
+  return blindRendition !== null || glideActive;
 }
 
 function setFontSize(fontSize) {

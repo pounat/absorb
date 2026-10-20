@@ -87,6 +87,12 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Car', Platform.isIOS ? l.sectionCarIos : l.sectionCar, l.carPodcastOrder, [l.title, l.dateAdded]),
     SettingSearchEntry('Car', Platform.isIOS ? l.sectionCarIos : l.sectionCar, l.carEpisodesOldestFirst, [l.carEpisodesOldestFirstSubtitle]),
 
+    // ── Siri ──
+    if (Platform.isIOS) ...[
+      SettingSearchEntry('Siri', l.sectionSiri, l.siriUseWithSiri, [l.siriStatusAsk, 'Shortcuts', 'voice']),
+      SettingSearchEntry('Siri', l.sectionSiri, l.siriThingsToSay, [l.siriExamples]),
+    ],
+
     // ── Sleep Timer ──
     SettingSearchEntry('Sleep Timer', l.sectionSleepTimer, l.shakeDuringSleepTimer, [l.shakeOff, l.shakeAddTime, l.shakeReset]),
     SettingSearchEntry('Sleep Timer', l.sectionSleepTimer, l.shakeSensitivity, [l.shakeSensitivityVeryLow, l.shakeSensitivityLow, l.shakeSensitivityMedium, l.shakeSensitivityHigh, l.shakeSensitivityVeryHigh]),
@@ -154,6 +160,6 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     if (const bool.fromEnvironment('GITHUB_BUILD'))
       SettingSearchEntry('Advanced', l.sectionAdvanced, l.includePreReleases, [l.includePreReleasesOnSubtitle, l.includePreReleasesOffSubtitle]),
     SettingSearchEntry('Advanced', l.sectionAdvanced, l.adminRmab, [l.adminRmabConnected, l.adminRmabAskAdmin]),
-    SettingSearchEntry('Advanced', l.sectionAdvanced, l.transcriptionTitle, [l.transcriptionAdvancedSubtitle]),
+    SettingSearchEntry('Advanced', l.sectionAdvanced, l.transcriptionTitle, [l.transcriptionAdvancedSubtitle, l.syncReadingListening]),
   ];
 }

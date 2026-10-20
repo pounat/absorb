@@ -31,6 +31,9 @@ class EbookAnnotation {
   /// reopening the book.
   final String? chapter;
   final DateTime createdAt;
+  /// The bookmark's id on the server, for the readers that also keep it
+  /// there (a picture EPUB on BookOrbit). Null when it lives only here.
+  String? serverId;
 
   EbookAnnotation({
     required this.id,
@@ -40,6 +43,7 @@ class EbookAnnotation {
     this.color,
     this.note,
     this.chapter,
+    this.serverId,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -51,6 +55,7 @@ class EbookAnnotation {
         if (color != null) 'color': color!.name,
         if (note != null && note!.isNotEmpty) 'note': note,
         if (chapter != null && chapter!.isNotEmpty) 'ch': chapter,
+        if (serverId != null) 'sid': serverId,
         'ts': createdAt.millisecondsSinceEpoch,
       };
 
@@ -65,6 +70,7 @@ class EbookAnnotation {
           : null,
       note: json['note'] as String?,
       chapter: json['ch'] as String?,
+      serverId: json['sid'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['ts'] as int),
     );
   }
@@ -189,6 +195,7 @@ class EbookAnnotationService {
     required String cfi,
     String? note,
     String? chapter,
+    String? serverId,
   }) async {
     final annotation = EbookAnnotation(
       id: _newId(),
@@ -196,6 +203,7 @@ class EbookAnnotationService {
       cfi: cfi,
       note: note,
       chapter: chapter,
+      serverId: serverId,
     );
     final annotations = await getAnnotations(itemId);
     annotations.insert(0, annotation);
@@ -226,6 +234,18 @@ class EbookAnnotationService {
     final idx = annotations.indexWhere((a) => a.id == annotationId);
     if (idx == -1) return;
     annotations[idx].note = note;
+    await _save(itemId, annotations);
+  }
+
+  Future<void> setServerId({
+    required String itemId,
+    required String annotationId,
+    required String serverId,
+  }) async {
+    final annotations = await getAnnotations(itemId);
+    final idx = annotations.indexWhere((a) => a.id == annotationId);
+    if (idx == -1) return;
+    annotations[idx].serverId = serverId;
     await _save(itemId, annotations);
   }
 

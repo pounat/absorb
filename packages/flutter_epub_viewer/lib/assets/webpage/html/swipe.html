@@ -30,6 +30,22 @@
         background: white;
       }
 
+      /* Absorb patch: in scroll mode epub.js shifts the scroll itself when it
+         adds the chapter above (manager counter()). Chrome's scroll anchoring
+         made the same shift on top, so scrolling up across a chapter jumped
+         the page down by that chapter's height. */
+      .epub-container {
+        overflow-anchor: none;
+      }
+
+      /* Absorb patch: scroll mode only moves up and down. A drag that drifted
+         sideways nudged the text to the side. */
+      body.absorb-scrolled,
+      body.absorb-scrolled .epub-container {
+        overflow-x: hidden !important;
+        touch-action: pan-y;
+      }
+
       #viewerNext {
         display: none;
         position: fixed;
