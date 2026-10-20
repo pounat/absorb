@@ -1949,12 +1949,107 @@
       }
     }
   },
+  "chimeBeforeSleepOnSubtitle": "Проигрывает мягкое оповещение перед окончанием таймера",
+  "chimeBeforeSleepOffSubtitle": "Без звукового оповещения перед сном",
+  "fadeVolumeOnSubtitleDynamic": "Постепенно снижать громкость последние {seconds}с",
+  "@fadeVolumeOnSubtitleDynamic": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "autoSleepTimerEnabledSubtitle": "{start} – {end} · {duration}",
+  "@autoSleepTimerEnabledSubtitle": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "endOfChapterShort": "Конец главы",
+  "endOfChapterOnSubtitle": "Остановка в конце текущей главы",
+  "endOfChapterOffSubtitle": "Использовать таймер сна",
+  "showExplicitBadge": "Показать явный значок",
+  "showExplicitBadgeOnSubtitle": "Чрезмерные элементы показывают значок \"E\"",
+  "showExplicitBadgeOffSubtitle": "Выкл - явный значок скрыт",
+  "showEbookBadge": "Показать значок ebook",
+  "showEbookBadgeOnSubtitle": "Книги с ebook отображают значок книги на обложке",
+  "showEbookBadgeOffSubtitle": "Выкл - значок скрыт",
   "libraryFallback": "Библиотека",
+  "preReleaseUpdatesInfoTitle": "Пред-релизные обновления",
+  "preReleaseUpdatesInfoContent": "Когда включено, проверка обновлений также уведомит вас о альфа-релизных сборках с GitHub. Они могут быть менее стабильными, но включают в себя последние функции и исправления.",
+  "includePreReleases": "Включить предрелизы",
+  "includePreReleasesOnSubtitle": "Вкл - проверка на альфа и предварительные релизы",
+  "includePreReleasesOffSubtitle": "Выкл - только стабильные версии",
+  "setTooltip": "Задать",
+  "saveAbsorbBackup": "Сохранить резервную копию Absorb",
   "checkForUpdate": "Проверить наличие обновлений",
+  "onLatestVersion": "Установлена последняя версия",
+  "updateAvailable": "Доступно обновление",
+  "preReleaseAvailable": "Доступен предварительный релиз",
+  "updateDialogContent": "Доступен новый {kind} от Absorb: {latest}\n\nВы используете {current}.",
+  "@updateDialogContent": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "updateKindPreRelease": "предварительный релиз",
+  "updateKindVersion": "версия",
   "downloadButton": "Скачать",
+  "updateDownloading": "Загрузка обновления...",
+  "updateInstallPermissionDenied": "Доступ запрещен. Включите \"Установить из неизвестных источников\" для Absorb в настройках системы.",
+  "updateOpeningInBrowser": "Не удалось обновить приложение, открытие браузера",
+  "sendToEreader": "Отправить в E-Reader",
+  "sendingToEreader": "Отправка на {device}...",
+  "@sendingToEreader": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "sendToEreaderSuccess": "Отправлено на {device}",
+  "@sendToEreaderSuccess": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "sendToEreaderFailed": "Не удалось отправить на eBook",
+  "pickEreaderDevice": "Выбрать устройство",
   "adminEmail": "Почта",
+  "adminEmailSubtitle": "Устройства SMTP и e-reader",
+  "smtpSection": "SMTP",
+  "smtpSetupGuide": "Инструкция по настройке",
+  "smtpHost": "Хост",
+  "smtpPort": "Порт",
+  "smtpSecure": "Безопасность",
+  "smtpRejectUnauthorized": "Отклонить несанкционированный TLS",
   "smtpUser": "Логин",
   "smtpPass": "Пароль",
+  "smtpFromAddress": "С адреса",
+  "smtpTestAddress": "Адрес теста",
+  "smtpSendTest": "Отправить тест",
+  "smtpSaveSettings": "Сохранить",
+  "smtpSaved": "Настройки Email сохранены",
+  "smtpSaveFailed": "Не удалось сохранить настройки email",
+  "smtpTestSent": "Тестовый email отправлен",
   "speed": "Скорость",
   "details": "Подробности",
   "bookDetailsLabel": "Детали книги",
@@ -1982,7 +2077,97 @@
   "adminLibraryFolders": "папки",
   "adminLibrarySize": "размер",
   "adminLibraryDuration": "длительность",
+  "adminMissingBadge": "Отсутствует",
+  "adminInvalidBadge": "Недопустимый",
+  "adminMissingDeleteTitle": "Удалить запись",
+  "adminMissingDeleteOneContent": "Удалить \"{title}\" из Audiobookshelf?",
+  "@adminMissingDeleteOneContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingDeleteManyContent": "Удалить \"{count}\" из Audiobookshelf?",
+  "@adminMissingDeleteManyContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminMissingDeleteCount": "Удалено \"{count}",
+  "@adminMissingDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminMissingRemovedOne": "Удалено {title}",
+  "@adminMissingRemovedOne": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingDeleteFailed": "Не удалось удалить запись",
+  "adminMatchAction": "Совпадение",
+  "adminMatchingStarted": "Начато сопоставление для {name}",
+  "@adminMatchingStarted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMatchFailed": "Ошибка",
+  "adminScanFailed": "Ошибка сканирования {name}",
+  "@adminScanFailed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPurgeCacheFailed": "Ошибка",
   "adminUsersRootBadge": "root",
+  "adminUsersAdminBadge": "admin",
+  "adminUsersDisabledBadge": "отключено",
+  "adminUsersEditUserTooltip": "Редактировать пользователя",
+  "adminUsersOnlineNow": "Сейчас онлайн",
+  "adminUsersLastSeen": "Последний онлайн {time}",
+  "@adminUsersLastSeen": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUsersNever": "Никогда",
+  "adminUsersTotal": "Всего",
+  "adminUsersNoReadingActivity": "Нет активности чтения",
+  "adminUsersLoadingDots": "Загрузка...",
+  "adminUsersLoadMoreSessions": "Загрузить больше сессий",
+  "adminUsersNoRecentSessions": "Недавние сессии",
+  "adminUsersLibraryProgress": "Прогресс библиотеки",
+  "adminUsersLoadMoreRemaining": "Загрузить больше ({count} осталось)",
+  "@adminUsersLoadMoreRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUsersMonthsAgo": "{count}mo назад",
+  "@adminUsersMonthsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminUsersNewUser": "Новый пользователь",
   "adminUsersEditUser": "Редактировать пользователя",
   "adminUsersUsername": "Логин",
@@ -1990,18 +2175,32 @@
   "adminUsersPassword": "Пароль",
   "adminUsersNewPassword": "Новый пароль",
   "adminUsersEnterPassword": "Введи пароль",
+  "adminUsersLeaveBlankToKeep": "Оставьте пустым, чтобы сохранить текущий",
   "adminUsersAccountType": "Тип Аккаунта",
   "adminUsersTypeGuest": "Гость",
   "adminUsersTypeUser": "Пользователь",
   "adminUsersTypeAdmin": "Админ",
   "adminUsersStatus": "Статус",
   "adminUsersAccountActive": "Аккаунт активен",
+  "adminUsersAccountActiveSub": "Отключенные аккаунты не могут войти",
+  "adminUsersLocked": "Заблокировано",
+  "adminUsersLockedSub": "Запрещает изменение пароля",
   "adminUsersPermissions": "Разрешения",
   "adminUsersPermDownload": "Скачать",
   "adminUsersPermUpdate": "Обновить",
   "adminUsersPermUpdateSub": "Редактировать метаданные и элементы библиотеки",
   "adminUsersPermDelete": "Удалить",
   "adminUsersPermUpload": "Загрузить",
+  "adminUsersPermExplicit": "Явное содержимое",
+  "adminUsersLibraryAccess": "Доступ к библиотеке",
+  "adminUsersCreateUser": "Создать пользователя",
+  "adminUsersSaveChanges": "Сохранить изменения",
+  "adminUsersUsernameRequired": "Требуется имя пользователя",
+  "adminUsersPasswordRequired": "Требуется пароль",
+  "adminUsersUserCreated": "Пользователь создан",
+  "adminUsersUserUpdated": "Пользователь обновлён",
+  "adminUsersFailedCreate": "Не удалось создать пользователя",
+  "adminUsersFailedUpdate": "Не удалось обновить пользователя",
   "adminUsersThisUser": "этот пользователь",
   "adminUsersDeleteUserTitle": "Удалить пользователя?",
   "adminUsersDeleteUserContent": "Окончательно удалить {name}?",
@@ -2016,6 +2215,27 @@
   "@adminUsersUserDeleted": {
     "placeholders": {
       "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUsersFailedDelete": "Не удалось удалить пользователя",
+  "adminUsersUnlinkOpenId": "Отвязать OpenID",
+  "adminUsersUnlinkOpenIdTitle": "Отвязать OpenID?",
+  "adminUsersUnlinkOpenIdContent": "Удалить OpenID соединение для {name}? Они должны войти с OpenID снова для повторной ссылки.",
+  "@adminUsersUnlinkOpenIdContent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUsersOpenIdUnlinked": "OpenID отвязан",
+  "adminUsersFailedUnlinkOpenId": "Не удалось отвязать OpenID",
+  "adminUsersByAuthor": "автор: {author}",
+  "@adminUsersByAuthor": {
+    "placeholders": {
+      "author": {
         "type": "String"
       }
     }
