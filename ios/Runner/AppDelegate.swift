@@ -50,10 +50,11 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     // IOSQueueAdvancer) activate it themselves when audio actually starts.
     // Same category, mode and route policy Dart's audio_session configure
     // applies once it is up, so nothing flips the policy between launch and
-    // the first play.
-    let session = AVAudioSession.sharedInstance()
+    // the first play. AbsorbAudioMix decides both, so with mixing on they
+    // agree on the mixable category instead.
+    AbsorbAudioMix.ownAudioIsPlaying = { AbsorbAudioEngine.shared.isPlaying }
     do {
-      try session.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
+      try AbsorbAudioMix.apply()
     } catch {
       print("[AppDelegate] Audio session setup failed: \(error)")
     }
@@ -99,6 +100,9 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       self?.logToFlutter(line)
     }
     AbsorbAudioBridge.logSink = { [weak self] line in
+      self?.logToFlutter(line)
+    }
+    BookLiveActivityController.logSink = { [weak self] line in
       self?.logToFlutter(line)
     }
     AudioWindowExtractor.logSink = { [weak self] line in
@@ -516,6 +520,47 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       result(true)
     }
 
+    // Mixing with other apps' audio (see AbsorbAudioMix). Dart pushes the
+    // setting here and asks for the decision before configuring the session.
+    let audioMixChannel = FlutterMethodChannel(name: "com.absorb.audio_mix",
+                                               binaryMessenger: messenger)
+    audioMixChannel.setMethodCallHandler { [weak self] (call, result) in
+      switch call.method {
+      case "setAudioMix":
+        let args = call.arguments as? [String: Any]
+        let mode = AbsorbAudioMix.Mode(rawValue: args?["mode"] as? String ?? "") ?? .off
+        AbsorbAudioMix.store(mode: mode, duckOthers: args?["duck"] as? Bool ?? false)
+        AbsorbAudioEngine.shared.setMixLevel(db: args?["bookLevelDb"] as? Double ?? 0)
+        // Starting to mix is always safe. Stopping under a playing book waits
+        // for its next start: an exclusive category taken mid-play can cut
+        // the other app off.
+        if !AbsorbAudioEngine.shared.isPlaying || AbsorbAudioMix.shouldMix() {
+          do {
+            try AbsorbAudioMix.apply()
+          } catch {
+            self?.logToFlutter("[AudioMix] apply failed: \(error.localizedDescription)")
+          }
+        }
+        BookLiveActivityController.refresh(reason: "mix setting")
+        result(true)
+      case "audioMixDecision":
+        result(["mix": AbsorbAudioMix.shouldMix(), "duck": AbsorbAudioMix.duckOthers])
+      case "setBookLevel":
+        let args = call.arguments as? [String: Any]
+        AbsorbAudioEngine.shared.setMixLevel(db: args?["db"] as? Double ?? 0)
+        result(true)
+      case "applyAudioMix":
+        do {
+          result(try AbsorbAudioMix.apply())
+        } catch {
+          self?.logToFlutter("[AudioMix] apply failed: \(error.localizedDescription)")
+          result(false)
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     // On-device bookmark transcription: decode a window of a downloaded audio
     // file into 16kHz mono WAV for Whisper. AVAssetReader does the resample +
     // downmix for us; no ffmpeg ships in the app.
@@ -568,6 +613,11 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
           NSLog("[WidgetDebug] getGroupContainerPath: containerURL returned nil - app group entitlement missing or misconfigured")
           result(nil)
         }
+      case "refreshLiveActivity":
+        // Dart just refreshed the home screen widgets' data; the book's lock
+        // screen card reads the same keys.
+        BookLiveActivityController.refresh(reason: "widget data")
+        result(true)
       case "excludeFromBackup":
         // Stops iCloud from backing up downloaded audio files. Audiobooks
         // are large and re-downloadable, no point eating user's iCloud

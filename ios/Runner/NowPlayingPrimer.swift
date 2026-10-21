@@ -1,3 +1,4 @@
+import AbsorbPlayerCore
 import AVFoundation
 
 /// Takes the iOS Now Playing slot back for Absorb mid-session, so headset
@@ -130,10 +131,13 @@ enum NowPlayingPrimer {
     }
 
     do {
-      // Re-setting a category that already matches makes iOS emit a route
+      // A mixing session never holds the slot, and with ducking on the blip
+      // would leave it active, turning the next app down. apply() leaves a
+      // matching category alone; re-setting one makes iOS emit a route
       // change, which is log noise on every foreground reassert.
-      if session.category != .playback {
-        try session.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
+      if try AbsorbAudioMix.apply(session) {
+        logSink?("[NowPlayingPrimer] \(reason): skipped, mixing with other audio")
+        return false
       }
       try session.setActive(true)
     } catch {

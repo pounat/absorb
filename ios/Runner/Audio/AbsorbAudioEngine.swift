@@ -1,3 +1,4 @@
+import AbsorbPlayerCore
 import AVFoundation
 import Foundation
 import UIKit
@@ -62,6 +63,15 @@ final class AbsorbAudioEngine: NSObject {
   private var speed: Float = 1.0
   private var volume: Float = 1.0
   private var eqEnabled: Bool = false
+  // Book level against another app's audio while mixing. Below unity it
+  // scales the player volume on top of `volume`, so the sleep timer's fade
+  // keeps working; above unity the tap boosts it behind a limiter.
+  private var mixVolume: Float = 1.0
+  private var mixBoostActive = false
+  private var needsTap: Bool { eqEnabled || mixBoostActive }
+  // A slider drag calls in many times before the reload that installs the
+  // tap lands; one reload is enough.
+  private var tapReloadInFlight = false
   // Whether the current item physically has the processing tap installed.
   // Lets us avoid rebuilding the item to re-apply effects when a tap is
   // already present (it reads the live DSP params on its own).
@@ -129,7 +139,7 @@ final class AbsorbAudioEngine: NSObject {
       self.speed = speed
       self.volume = volume
       self.eqEnabled = eqEnabled
-      self.player.volume = volume
+      self.player.volume = volume * self.mixVolume
 
       // Flutter loads with an explicit track and a track-local start, the
       // same shape as seek(), because it hands over no offsets: deriving the
@@ -166,6 +176,7 @@ final class AbsorbAudioEngine: NSObject {
       guard let self = self else { return }
       self.player.pause()
       self.emitState()
+      AbsorbAudioMix.releaseDuck()
     }
   }
 
@@ -222,7 +233,20 @@ final class AbsorbAudioEngine: NSObject {
     queue.async { [weak self] in
       guard let self = self else { return }
       self.volume = newVolume
-      self.player.volume = newVolume
+      self.player.volume = newVolume * self.mixVolume
+    }
+  }
+
+  /// Book level in dB relative to normal, for balancing it against another
+  /// app's audio: cuts go through the player volume, boosts through the tap.
+  func setMixLevel(db: Double) {
+    queue.async { [weak self] in
+      guard let self = self else { return }
+      self.mixVolume = db < 0 ? Float(pow(10, db / 20)) : 1
+      self.player.volume = self.volume * self.mixVolume
+      AbsorbAudioEQProcessor.shared.setMixBoost(db > 0 ? Int32((db * 100).rounded()) : 0)
+      self.mixBoostActive = db > 0
+      if self.mixBoostActive { self.installTapIfNeeded() }
     }
   }
 
@@ -289,19 +313,26 @@ final class AbsorbAudioEngine: NSObject {
     queue.async { [weak self] in
       guard let self = self else { return }
       self.eqEnabled = true
-      if self.tapAttached { return }
-      guard let item = self.currentItem else { return }
-      if self.player.rate > 0 {
-        self.loadTrack(atIndex: self.trackIndex,
-                       localStart: self.getPositionS(),
-                       autoPlay: true) { _ in }
-      } else {
-        AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
-        self.tapAttached = true
-        if !self.queuedTracks.isEmpty { self.queuedTracks[0].tapped = true }
-        // Queued files were built without the tap.
-        self.requeueAhead()
+      self.installTapIfNeeded()
+    }
+  }
+
+  private func installTapIfNeeded() {
+    if tapAttached || tapReloadInFlight { return }
+    guard let item = currentItem else { return }
+    if player.rate > 0 {
+      tapReloadInFlight = true
+      loadTrack(atIndex: trackIndex,
+                localStart: getPositionS(),
+                autoPlay: true) { [weak self] _ in
+        self?.tapReloadInFlight = false
       }
+    } else {
+      AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
+      tapAttached = true
+      if !queuedTracks.isEmpty { queuedTracks[0].tapped = true }
+      // Queued files were built without the tap.
+      requeueAhead()
     }
   }
 
@@ -468,7 +499,7 @@ final class AbsorbAudioEngine: NSObject {
     guard index < trackUrls.count else { completion(nil); return }
     let url = trackUrls[index]
     let headers = trackHeaders
-    let eqEnabled = self.eqEnabled
+    let tapNeeded = self.needsTap
 
     let item = makePlayerItem(url: url, headers: headers)
     currentEpoch &+= 1
@@ -505,7 +536,7 @@ final class AbsorbAudioEngine: NSObject {
         self.detachCurrentItem()
         self.currentItem = item
         self.observeNewCurrentItem(item)
-        if eqEnabled {
+        if tapNeeded {
           // audioMix must be set before playback starts or the tap is ignored.
           AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
           self.tapAttached = true
@@ -525,7 +556,7 @@ final class AbsorbAudioEngine: NSObject {
             self.settlePendingSeek(serial: startSerial)
             self.emit("[AudioEngine] loadTrack idx=\(index) localStart=\(localStart) autoPlay=\(autoPlay)")
             if self.currentEpoch == myEpoch {
-              self.queuedTracks = [(item: item, index: index, tapped: eqEnabled)]
+              self.queuedTracks = [(item: item, index: index, tapped: tapNeeded)]
               self.enqueueAhead()
             }
             completion(decodedDurationS.isFinite && decodedDurationS > 0 ? decodedDurationS : nil)
@@ -554,7 +585,7 @@ final class AbsorbAudioEngine: NSObject {
   }
 
   private func detachCurrentItem() {
-    if let item = currentItem, eqEnabled {
+    if let item = currentItem, needsTap {
       AbsorbAudioEQProcessor.shared.detach(from: item)
     }
     if let prev = itemEndObserver {
@@ -709,7 +740,7 @@ final class AbsorbAudioEngine: NSObject {
     guard index < trackUrls.count, index <= playing.index + Self.tracksQueuedAhead else { return }
     aheadInFlight = true
     let generation = aheadGeneration
-    let tap = eqEnabled
+    let tap = needsTap
     let item = makePlayerItem(url: trackUrls[index], headers: trackHeaders)
     let asset = item.asset
     asset.loadValuesAsynchronously(forKeys: ["tracks", "duration"]) { [weak self] in
@@ -781,7 +812,7 @@ final class AbsorbAudioEngine: NSObject {
     currentItem = item
     currentEpoch &+= 1
     resetQueuedTracks()
-    queuedTracks = [(item: item, index: 0, tapped: eqEnabled)]
+    queuedTracks = [(item: item, index: 0, tapped: needsTap)]
     lastQueuedIndex = 0
     let itemEndAction = endAction(forTrack: 0)
 
@@ -800,7 +831,7 @@ final class AbsorbAudioEngine: NSObject {
 
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
-      if self.eqEnabled {
+      if self.needsTap {
         // audioMix must be set before playback starts or the tap is ignored.
         AbsorbAudioEQProcessor.shared.attachTapSync(to: item)
         self.tapAttached = true
@@ -840,9 +871,7 @@ final class AbsorbAudioEngine: NSObject {
   private func activateSession() {
     let session = AVAudioSession.sharedInstance()
     do {
-      if session.category != .playback {
-        try session.setCategory(.playback, mode: .spokenAudio, policy: .longFormAudio)
-      }
+      try AbsorbAudioMix.apply(session)
       try session.setActive(true)
     } catch {
       emit("[AudioEngine] session activate failed: \(error.localizedDescription)")

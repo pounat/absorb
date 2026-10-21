@@ -49,6 +49,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // any background process (e.g. one a widget play intent launched) to stop,
     // so two streams can't overlap (#285).
     (UIApplication.shared.delegate as? AppDelegate)?.claimAudioOwnershipAndNotifyOthers()
+
+    // A book already mixing with another app gets its lock screen card now:
+    // iOS starts Live Activities only for an app in the foreground.
+    BookLiveActivityController.refresh(reason: "foreground")
   }
 
   // Warm-launch via shortcut. iOS 13+ scene-based apps get the shortcut here

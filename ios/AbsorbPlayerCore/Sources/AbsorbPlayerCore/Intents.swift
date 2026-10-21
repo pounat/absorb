@@ -95,7 +95,7 @@ public func absorbClaimOwnershipIfOwnerDead() {
 public func activateAbsorbAudioSession() {
   let session = AVAudioSession.sharedInstance()
   do {
-    try session.setCategory(.playback, mode: .spokenAudio, options: [])
+    try AbsorbAudioMix.apply(session)
     try session.setActive(true)
     NSLog("[WidgetDebug] AVAudioSession activated in widget perform()")
   } catch {

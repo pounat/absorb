@@ -358,7 +358,7 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
   private func activateAudioSession() {
     let session = AVAudioSession.sharedInstance()
     do {
-      try session.setCategory(.playback, mode: .spokenAudio, options: [])
+      try AbsorbAudioMix.apply(session)
       try session.setActive(true)
     } catch {
       emit("[NativeCore] AVAudioSession activate failed: \(error.localizedDescription)")
@@ -389,6 +389,7 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
     }
     WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
     WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingArtWidget")
+    BookLiveActivityController.refresh(reason: "native core")
   }
 
   // MARK: - Server sync

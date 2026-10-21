@@ -24,6 +24,7 @@ import '../screens/app_shell.dart';
 import '../build_info.dart';
 import '../services/update_checker_service.dart';
 import '../services/audiobookshelf_update_service.dart';
+import '../widgets/audio_mix_sheet.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/nav_hold_options.dart';
 import '../widgets/now_playing_text_sheet.dart';
@@ -98,6 +99,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifChapterProgress = false;
   bool _notifSpeedBookmark = false;
   bool _duckBriefInterruptions = false;
+  String _iosAudioMixMode = 'off';
+  bool _iosAudioMixDuck = false;
   bool _autoplayOnCarConnect = false;
   bool _keepScreenOnPlayer = false;
   bool _keepScreenOnCarMode = false;
@@ -1098,6 +1101,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final podcastTabLibraryId = await PlayerSettings.getPodcastTabLibraryId();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
+    final iosAudioMixMode = await PlayerSettings.getIosAudioMixMode();
+    final iosAudioMixDuck = await PlayerSettings.getIosAudioMixDuck();
     final autoplayOnCarConnect = await PlayerSettings.getAutoplayOnCarConnect();
     final keepScreenOnPlayer = await PlayerSettings.getKeepScreenOnInPlayer();
     final keepScreenOnCarMode = await PlayerSettings.getKeepScreenOnInCarMode();
@@ -1124,6 +1129,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _notifChapterProgress = notifChapter;
       _notifSpeedBookmark = notifSpeedBookmark;
       _duckBriefInterruptions = duckBriefInterruptions;
+      _iosAudioMixMode = iosAudioMixMode;
+      _iosAudioMixDuck = iosAudioMixDuck;
       _autoplayOnCarConnect = autoplayOnCarConnect;
       _keepScreenOnPlayer = keepScreenOnPlayer;
       _keepScreenOnCarMode = keepScreenOnCarMode;
@@ -3135,6 +3142,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         PlayerSettings.setLockSeekBar(v);
                       } : null,
                     ),
+                    // iOS only: play alongside other apps' audio instead of
+                    // pausing it. iOS gives the lock screen controls only to an
+                    // app that doesn't mix, so they stay with the other app.
+                    if (Platform.isIOS) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Mix with other audio', style: tt.bodyLarge),
+                            const SizedBox(height: 2),
+                            Text(
+                              iosAudioMixModeDescription(_iosAudioMixMode),
+                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<String>(
+                            showSelectedIcon: false,
+                            segments: const [
+                              ButtonSegment(value: 'off', label: Text('Off')),
+                              ButtonSegment(value: 'auto', label: Text('Auto')),
+                              ButtonSegment(value: 'always', label: Text('Always')),
+                            ],
+                            selected: {_iosAudioMixMode},
+                            onSelectionChanged: _loaded ? (v) {
+                              setState(() => _iosAudioMixMode = v.first);
+                              PlayerSettings.setIosAudioMixMode(v.first);
+                            } : null,
+                          ),
+                        ),
+                      ),
+                      if (_iosAudioMixMode != 'off')
+                        SwitchListTile(
+                          title: const Text('Lower other audio'),
+                          subtitle: Text(
+                            _iosAudioMixDuck
+                                ? 'The other app is turned down while the book plays'
+                                : 'The other app keeps its volume',
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          value: _iosAudioMixDuck,
+                          onChanged: _loaded ? (v) {
+                            setState(() => _iosAudioMixDuck = v);
+                            PlayerSettings.setIosAudioMixDuck(v);
+                          } : null,
+                        ),
+                    ],
                     // Android only: chooses which pair fills the phone media
                     // player's two extra slots. iOS uses CarPlay's own buttons.
                     if (Platform.isAndroid) ...[

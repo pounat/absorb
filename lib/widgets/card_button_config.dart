@@ -31,6 +31,8 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
       return l.castToDevice;
     case 'airplay':
       return 'AirPlay';
+    case 'mix':
+      return 'Mix';
     case 'history':
       return l.playbackHistory;
     case 'remove':
@@ -62,6 +64,8 @@ final Set<String> _hiddenButtons = {
   if (!ChromecastService.castSupported) 'cast',
   // AirPlay is iOS-only (Chromecast covers Android).
   if (!Platform.isIOS) 'airplay',
+  // Mixing with other apps' audio is an iOS audio-session setting.
+  if (!Platform.isIOS) 'mix',
 };
 
 const _allCardButtons = [
@@ -73,6 +77,7 @@ const _allCardButtons = [
   CardButtonDef('equalizer', 'Equalizer', Icons.equalizer_rounded),
   CardButtonDef('cast', 'Cast to Device', Icons.cast_rounded),
   CardButtonDef('airplay', 'AirPlay', Icons.airplay_rounded),
+  CardButtonDef('mix', 'Mix', Icons.tune_rounded),
   CardButtonDef('history', 'Playback History', Icons.history_rounded),
   CardButtonDef('remove', 'Remove from Absorbing', Icons.remove_circle_outline_rounded),
   CardButtonDef('car', 'Car Mode', Icons.directions_car_rounded),
