@@ -1498,6 +1498,24 @@ abstract class AppLocalizations {
   /// **'Completed'**
   String get downloadsCompleted;
 
+  /// Action on an iOS completed download that opens the share sheet for AirDrop or Save to Files.
+  ///
+  /// In en, this message translates to:
+  /// **'Export audio files'**
+  String get downloadsExportAudio;
+
+  /// No description provided for @downloadsExportUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Some audio files are missing or unreadable. Download it again before exporting.'**
+  String get downloadsExportUnavailable;
+
+  /// No description provided for @downloadsExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t export the audio files. Please try again.'**
+  String get downloadsExportFailed;
+
   /// No description provided for @downloadsEbooks.
   ///
   /// In en, this message translates to:
