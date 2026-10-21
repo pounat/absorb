@@ -3325,7 +3325,7 @@ class LibraryScreenState extends State<LibraryScreen>
       l.libraryTabSeries,
       l.libraryTabAuthors,
       l.libraryTabNarrators,
-      'Lists',
+      l.libraryTabLists,
     ];
     return Center(
       child: Padding(
@@ -3475,8 +3475,10 @@ class LibraryScreenState extends State<LibraryScreen>
       case 4:
         final cCount = _collections.length, pCount = _playlists.length;
         countText = cCount > 0 && pCount > 0
-            ? '$cCount collections, $pCount playlists'
-            : (pCount > 0 ? '$pCount playlists' : '$cCount collections');
+            ? l.libraryListsMixedCount(cCount, pCount)
+            : (pCount > 0
+                ? l.libraryListsPlaylistsCount(pCount)
+                : l.libraryListsCollectionsCount(cCount));
         break;
       default:
         final lib = context.read<LibraryProvider>();

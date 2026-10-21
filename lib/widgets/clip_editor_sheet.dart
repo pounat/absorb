@@ -254,7 +254,7 @@ class _ClipEditorSheetState extends State<ClipEditorSheet> {
       Center(
         child: TextButton.icon(
           icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
-          label: const Text('Preview ending'),
+          label: Text(l.clipPreviewEnding),
           onPressed: busy ? null : () => _c.previewEnd(),
         ),
       ),
