@@ -80,6 +80,7 @@ class LibraryBooksTab extends StatelessWidget {
     Widget body;
     if (items.isEmpty && isLoadingPage) {
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -94,6 +95,7 @@ class LibraryBooksTab extends StatelessWidget {
       // The first page never arrived. Say so rather than "no books", which is
       // what an empty grid otherwise claims.
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -152,6 +154,7 @@ class LibraryBooksTab extends StatelessWidget {
         LibraryFilter.none => l.libraryNoBooks,
       };
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -206,6 +209,7 @@ class LibraryBooksTab extends StatelessWidget {
       }
 
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -258,6 +262,7 @@ class LibraryBooksTab extends StatelessWidget {
                   }
                   final itemId = item['id'] as String?;
                   return GridBookTile(
+                    key: ValueKey(itemId),
                     item: item,
                     coverAspectRatio: coverAspectRatio,
                     showSubtitle: showSubtitles,

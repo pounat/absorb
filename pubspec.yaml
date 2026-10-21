@@ -25,6 +25,8 @@ dependencies:
   
   # Image caching
   cached_network_image: ^3.3.0
+  file: ^7.0.1
+  flutter_cache_manager: ^3.4.1
 
   # Audio playback
   just_audio:

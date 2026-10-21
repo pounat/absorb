@@ -48,6 +48,7 @@ class LibraryAuthorsTab extends StatelessWidget {
     Widget body;
     if (isLoadingAuthors && authors.isEmpty) {
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -60,6 +61,7 @@ class LibraryAuthorsTab extends StatelessWidget {
       );
     } else if (authors.isEmpty && authorsLoaded) {
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -99,6 +101,7 @@ class LibraryAuthorsTab extends StatelessWidget {
       }
 
       body = CustomScrollView(
+        cacheExtent: MediaQuery.sizeOf(context).height,
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [

@@ -10,6 +10,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/api_service.dart';
+import '../services/local_book_catalog.dart';
+import '../widgets/library_cached_cover.dart';
 import '../services/book_search_index.dart';
 import '../services/socket_service.dart';
 import '../services/download_service.dart';
@@ -683,8 +685,10 @@ class LibraryScreenState extends State<LibraryScreen>
     // on account scope + libraryId inside _loadLists, so this is a no-op when
     // nothing relevant changed.
     _loadLists();
-    if (lib.selectedLibraryId != _lastLibraryId &&
+    final scope = UserAccountService().activeScopeKey;
+    if ((lib.selectedLibraryId != _lastLibraryId || scope != _lastLocalScope) &&
         lib.selectedLibraryId != null) {
+      _lastLocalScope = scope;
       _lastLibraryId = lib.selectedLibraryId;
       _loadGeneration++;
       _loadBookRequests();
@@ -1122,6 +1126,7 @@ class LibraryScreenState extends State<LibraryScreen>
 
   @override
   void dispose() {
+    _localSyncDismissTimer?.cancel();
     SocketService().removeAuthorsChangedListener(_onAuthorsChanged);
     SocketService().removeItemRemovedListener(_onItemRemoved);
     _authorsRefreshDebounce?.cancel();
@@ -1152,6 +1157,335 @@ class LibraryScreenState extends State<LibraryScreen>
   // ══════════════════════════════════════════════════════════════
   // LIBRARY TAB - Load a page of items
   // ══════════════════════════════════════════════════════════════
+  List<Map<String, dynamic>>? _localBooks;
+  String? _localIdentity;
+  String? _lastLocalScope;
+  bool _syncingLocalBooks = false;
+  String? _localSyncStatus;
+  bool _localSyncComplete = false;
+  Timer? _localSyncDismissTimer;
+  double? _localSyncFraction;
+  int _coverPreparationGeneration = 0;
+  String? _preparedCoverSet;
+
+  LocalBookCatalog _catalog(LibraryProvider lib, ApiService api) =>
+      LocalBookCatalog(UserAccountService().activeScopeKey,
+          api.baseUrl, lib.selectedLibraryId!);
+
+  Future<void> _loadLocalBooks(LibraryProvider lib, ApiService api,
+      int generation, {bool refresh = false}) async {
+    _localSyncDismissTimer?.cancel();
+    final libraryId = lib.selectedLibraryId!;
+    final catalog = _catalog(lib, api);
+    bool current() => mounted && lib.selectedLibraryId == libraryId && generation == _loadGeneration &&
+        _catalog(lib, api).identity == catalog.identity;
+    try {
+      if (_localIdentity != catalog.identity) {
+        _coverPreparationGeneration++;
+        _localBooks = null;
+        _localSyncStatus = null;
+        _syncingLocalBooks = false;
+        _localIdentity = catalog.identity;
+      }
+      var books = _localBooks ?? await catalog.read();
+      if (!current()) return;
+      if (refresh || books == null || (catalog.needsUpgrade && !lib.isOffline)) {
+        if (lib.isOffline) throw StateError('Connect once to save this library.');
+        setState(() { _syncingLocalBooks = true; _localSyncComplete = false;
+          _localSyncFraction = null; _localSyncStatus = 'Syncing library'; });
+        books = await catalog.sync(api, libraryId, (loaded, total) {
+          if (current()) setState(() {
+            _localSyncStatus = 'Saving metadata · $loaded / $total';
+            _localSyncFraction = total > 0 ? (loaded / total).clamp(0.0, 1.0).toDouble() : null;
+          });
+        });
+      }
+      if (!current()) return;
+      _localBooks = books;
+      _localFilterOptions(books);
+      for (final item in books) {
+        final id = item['id'] as String;
+        final revision = item['updatedAt'] as num?;
+        if (revision != null) lib.registerUpdatedAt(id, revision.toInt());
+        final path = (item['media'] as Map?)?['coverPath'];
+        lib.registerHasCover(id, path is String && path.isNotEmpty);
+      }
+      final visible = _queryLocalBooks(books, lib);
+      if (_items.isEmpty) {
+        setState(() => _localSyncStatus = 'Preparing the first covers…');
+        // Prepare a small first screen before revealing it; the rest is
+        // prepared in a bounded background queue with visible progress.
+        final preparation = Stopwatch()..start();
+        for (final item in visible.take(12)) {
+          if (!current()) return;
+          if (preparation.elapsedMilliseconds >= 3000) break;
+          final media = item['media'] as Map?;
+          if (media?['coverPath'] == null) continue;
+          final url = api.getCoverUrl(item['id'] as String, width: null,
+              updatedAt: (item['updatedAt'] as num?)?.toInt());
+          try {
+            await LibraryCoverCache.prepare(url, lib.mediaHeaders)
+                .timeout(Duration(milliseconds: 3000 - preparation.elapsedMilliseconds));
+          } catch (_) { /* Individual failures do not hide the library. */ }
+        }
+      }
+      if (!current()) return;
+      setState(() {
+        _items..clear()..addAll(visible);
+        _totalItems = visible.length;
+        _hasMore = false;
+        _isLoadingPage = false;
+        _loadFailed = false;
+        _syncingLocalBooks = false;
+      });
+      // Separate from metadata publication: failed artwork can be retried
+      // without losing a usable catalog or blocking the list indefinitely.
+      unawaited(_prepareLocalCovers(books, lib, api, catalog.identity));
+    } catch (error) {
+      if (!current()) return;
+      setState(() {
+        _syncingLocalBooks = false;
+        _isLoadingPage = false;
+        _loadFailed = _items.isEmpty;
+        _localSyncComplete = false;
+        _localSyncFraction = 0;
+        _localSyncStatus = 'Sync incomplete · pull down to retry';
+      });
+    }
+  }
+
+  void _showLocalSyncComplete() {
+    _localSyncDismissTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _localSyncComplete = true;
+      _localSyncFraction = 1;
+      _localSyncStatus = 'Sync complete';
+    });
+    _localSyncDismissTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _localSyncStatus = null);
+    });
+  }
+
+  Future<void> _prepareLocalCovers(List<Map<String, dynamic>> books,
+      LibraryProvider lib, ApiService api, String identity) async {
+    final coverSet = '$identity:${books.map((b) => '${b['id']}:${b['updatedAt']}').join('|')}';
+    if (_preparedCoverSet == coverSet) {
+      _showLocalSyncComplete();
+      return;
+    }
+    _localSyncDismissTimer?.cancel();
+    final generation = ++_coverPreparationGeneration;
+    if (mounted) setState(() { _localSyncComplete = false; _localSyncFraction = null; });
+    bool current() => mounted && generation == _coverPreparationGeneration &&
+        _localIdentity == identity && lib.selectedLibraryId != null && _catalog(lib, api).identity == identity;
+    var finished = 0;
+    var failed = 0;
+    var index = 0;
+    final covers = books.where((item) {
+      final path = (item['media'] as Map?)?['coverPath'];
+      return path is String && path.isNotEmpty;
+    }).toList();
+    Future<void> worker() async {
+      while (current() && index < covers.length) {
+        final item = covers[index++];
+        final url = api.getCoverUrl(item['id'] as String, width: null,
+            updatedAt: (item['updatedAt'] as num?)?.toInt());
+        try {
+          await LibraryCoverCache.prepare(url, lib.mediaHeaders);
+        } catch (_) { failed++; }
+        finished++;
+        if (current() && (finished % 10 == 0 || finished == covers.length)) {
+          setState(() {
+            _localSyncStatus = 'Preparing covers · $finished / ${covers.length}';
+            _localSyncFraction = covers.isEmpty ? 1 : finished / covers.length;
+          });
+        }
+      }
+    }
+    await Future.wait([worker(), worker()]);
+    if (!current()) return;
+    if (failed == 0) {
+      _preparedCoverSet = coverSet;
+      _showLocalSyncComplete();
+    } else {
+      setState(() {
+        _localSyncComplete = false;
+        _localSyncFraction = 1;
+        _localSyncStatus = '$failed covers unavailable · pull down to retry';
+      });
+    }
+  }
+
+  void _localFilterOptions(List<Map<String, dynamic>> books) {
+    final metadata = books.map((b) => (b['media'] as Map?)?['metadata'] as Map? ?? {}).toList();
+    List<String> names(Iterable<dynamic> values) => values
+        .where((v) => v != null && '$v'.isNotEmpty).map((v) => '$v').toSet().toList()..sort();
+    Iterable<dynamic> entries(String field) => metadata.expand((m) => m[field] is List ? m[field] as List : []);
+    List<Map<String, String>> people(String field) {
+      final byId = <String, Map<String, String>>{};
+      for (final entry in entries(field).whereType<Map>()) {
+        if (entry['id'] != null && entry['name'] != null) {
+          byId['${entry['id']}'] = {'id': '${entry['id']}', 'name': '${entry['name']}'};
+        }
+      }
+      return byId.values.toList()..sort((a,b) => a['name']!.compareTo(b['name']!));
+    }
+    _availableGenres = names(entries('genres'));
+    _availableTags = names(books.expand((b) => (b['media'] as Map?)?['tags'] as List? ?? []));
+    _availableSeriesFilters = people('series');
+    _availableAuthorFilters = people('authors');
+    _availableNarrators = names(entries('narrators'));
+    _availableLanguages = names(metadata.map((m) => m['language']));
+    _availablePublishers = names(metadata.map((m) => m['publisher']));
+    _availablePublishedDecades = names(metadata.map((m) {
+      final year = int.tryParse('${m['publishedYear']}');
+      return year == null ? null : '${year ~/ 10 * 10}s';
+    }));
+  }
+
+  List<Map<String, dynamic>> _queryLocalBooks(
+      List<Map<String, dynamic>> books, LibraryProvider lib) {
+    Map metadata(Map item) => (item['media'] as Map?)?['metadata'] as Map? ?? {};
+    List values(dynamic v) => v is List ? v : const [];
+    bool empty(dynamic v) => v == null || v == '' || (v is List && v.isEmpty);
+    bool contains(dynamic list, String? value) => values(list).any((e) =>
+        (e is Map ? e['id'] : e)?.toString() == value);
+    final result = books.where((item) {
+      final id = item['id'] as String;
+      final media = item['media'] as Map? ?? {};
+      final m = metadata(item);
+      final progress = lib.getProgressData(id) ?? {};
+      final finished = progress['isFinished'] == true;
+      final started = (progress['progress'] as num? ?? 0) > 0 || finished;
+      final tracks = (media['numTracks'] as num?)?.toInt() ?? values(media['audioFiles']).length;
+      final ebook = media['ebookFile'] != null;
+      final supplementary = values(item['libraryFiles']).any((f) =>
+          f is Map && f['isSupplementary'] == true &&
+          ['epub', 'pdf', 'mobi', 'azw3', 'cbz', 'cbr'].contains(
+              (f['metadata'] as Map?)?['ext']));
+      if (_hideEbookOnly && PlayerSettings.isEbookOnly(item)) return false;
+      switch (_filter) {
+        case LibraryFilter.none: return true;
+        case LibraryFilter.notFinished: return !finished;
+        case LibraryFilter.finished: return finished;
+        case LibraryFilter.inProgress: return started && !finished;
+        case LibraryFilter.notStarted: return !started;
+        case LibraryFilter.downloaded: return DownloadService().isDownloaded(id);
+        case LibraryFilter.subscribed: return false;
+        case LibraryFilter.inASeries: return values(m['series']).isNotEmpty;
+        case LibraryFilter.series: return _filterValue == 'no-series'
+            ? empty(m['series']) : contains(m['series'], _filterValue);
+        case LibraryFilter.author: return contains(m['authors'], _filterValue);
+        case LibraryFilter.narrator: return contains(m['narrators'], _filterValue);
+        case LibraryFilter.genre: return contains(m['genres'], _genreFilter);
+        case LibraryFilter.tag: return contains(media['tags'], _tagFilter);
+        case LibraryFilter.language: return m['language'] == _filterValue;
+        case LibraryFilter.publisher: return m['publisher'] == _filterValue;
+        case LibraryFilter.publishedDecade:
+          final year = int.tryParse('${m['publishedYear']}');
+          final decade = int.tryParse((_filterValue ?? '').replaceAll(RegExp(r'[^0-9]'), ''));
+          return year != null && decade != null && year ~/ 10 == decade ~/ 10;
+        case LibraryFilter.hasEbook: return ebook;
+        case LibraryFilter.noEbook: return !ebook;
+        case LibraryFilter.hasSupplementaryEbook: return supplementary;
+        case LibraryFilter.noSupplementaryEbook: return !supplementary;
+        case LibraryFilter.noTracks: return tracks == 0;
+        case LibraryFilter.singleTrack: return tracks == 1;
+        case LibraryFilter.multipleTracks: return tracks > 1;
+        case LibraryFilter.abridged: return m['abridged'] == true;
+        case LibraryFilter.explicit: return m['explicit'] == true;
+        case LibraryFilter.issues: return item['isMissing'] == true || item['isInvalid'] == true;
+        case LibraryFilter.feedOpen: return item['rssFeed'] != null;
+        case LibraryFilter.missingMetadata:
+          final field = _missingMetadataFilter?.filterValue;
+          if (field == 'cover') return empty(media['coverPath']);
+          if (field == 'tags' || field == 'chapters') return empty(media[field]);
+          return field != null && empty(m[field]);
+      }
+    }).toList();
+    dynamic value(Map item) {
+      final m = metadata(item);
+      final media = item['media'] as Map? ?? {};
+      final p = lib.getProgressData(item['id'] as String) ?? {};
+      switch (_sort) {
+        case LibrarySort.alphabetical: return m['titleIgnorePrefix'] ?? m['title'] ?? '';
+        case LibrarySort.authorName: return m['authorNameLF'] ?? '';
+        case LibrarySort.authorFirstLast: return m['authorName'] ?? '';
+        case LibrarySort.publishedYear: return num.tryParse('${m['publishedYear']}') ?? 0;
+        case LibrarySort.duration:
+        case LibrarySort.totalDuration: return media['duration'] ?? 0;
+        case LibrarySort.fileSize: return item['size'] ?? 0;
+        case LibrarySort.lastUpdated: return item['updatedAt'] ?? 0;
+        case LibrarySort.fileCreated: return item['birthtimeMs'] ?? 0;
+        case LibrarySort.lastModified: return item['mtimeMs'] ?? 0;
+        case LibrarySort.progress: return p['isFinished'] == true ? 1 : p['progress'] ?? 0;
+        case LibrarySort.dateStarted: return p['startedAt'] ?? 0;
+        case LibrarySort.dateFinished: return p['finishedAt'] ?? 0;
+        case LibrarySort.episodeCount: return media['numTracks'] ?? 0;
+        case LibrarySort.sequence:
+          final entries = values(m['series']).whereType<Map>();
+          final series = entries.where((s) => s['id'] == _filterValue).firstOrNull;
+          return num.tryParse('${series?['sequence']}') ?? 0;
+        case LibrarySort.recentlyAdded:
+        case LibrarySort.random: return item['addedAt'] ?? 0;
+      }
+    }
+    result.sort((a, b) {
+      final va = value(a), vb = value(b);
+      var comparison = va is num && vb is num
+          ? va.compareTo(vb) : '$va'.toLowerCase().compareTo('$vb'.toLowerCase());
+      if (!_sortAsc) comparison = -comparison;
+      return comparison != 0 ? comparison : (a['id'] as String).compareTo(b['id'] as String);
+    });
+    if (_sort == LibrarySort.random) result.shuffle(Random(_randomSeed));
+    if (!_collapseSeries || _filter == LibraryFilter.series) return result;
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final item in result) {
+      final series = values(metadata(item)['series']).whereType<Map>().firstOrNull;
+      if (series?['id'] is String) grouped.putIfAbsent(series!['id'] as String, () => []).add(item);
+    }
+    // Order the books inside each collapsed series by its own sequence.
+    for (final entry in grouped.entries) {
+      double sequenceOf(Map<String, dynamic> item) {
+        final series = values(metadata(item)['series']).whereType<Map>()
+            .where((s) => s['id'] == entry.key).firstOrNull;
+        final raw = '${series?['sequence'] ?? ''}'.trim();
+        final number = RegExp(r'^\d+(?:\.\d+)?').firstMatch(raw)?.group(0);
+        return double.tryParse(number ?? '') ?? double.infinity;
+      }
+      entry.value.sort((a, b) {
+        final comparison = sequenceOf(a).compareTo(sequenceOf(b));
+        if (comparison != 0) return comparison;
+        return (a['id'] as String).compareTo(b['id'] as String);
+      });
+    }
+    final emitted = <String>{};
+    final collapsed = result.expand<Map<String, dynamic>>((item) {
+      final series = values(metadata(item)['series']).whereType<Map>().firstOrNull;
+      final id = series?['id'] as String?;
+      final group = grouped[id];
+      if (id == null || group == null || group.length < 2) return [item];
+      if (!emitted.add(id)) return [];
+      return [{...item, 'collapsedSeries': {
+        'id': id, 'name': series?['name'], 'numBooks': group.length,
+        'libraryItemIds': group.map((i) => i['id']).toList(),
+      }}];
+    }).toList();
+    if (_sort == LibrarySort.alphabetical) {
+      String displayTitle(Map<String, dynamic> item) {
+        final series = item['collapsedSeries'] as Map?;
+        return '${series?['name'] ?? value(item)}'.toLowerCase();
+      }
+      collapsed.sort((a, b) {
+        final comparison = displayTitle(a).compareTo(displayTitle(b));
+        if (comparison != 0) return _sortAsc ? comparison : -comparison;
+        return (a['id'] as String).compareTo(b['id'] as String);
+      });
+    }
+    return collapsed;
+  }
+
   Future<void> _loadPage() async {
     if (_isLoadingPage || !_hasMore) return;
     setState(() {
@@ -1165,6 +1499,11 @@ class LibraryScreenState extends State<LibraryScreen>
     final api = auth.apiService;
     if (lib.selectedLibraryId == null) {
       setState(() => _isLoadingPage = false);
+      return;
+    }
+
+    if (!lib.isPodcastLibrary && api != null) {
+      await _loadLocalBooks(lib, api, gen);
       return;
     }
 
@@ -3641,6 +3980,13 @@ class LibraryScreenState extends State<LibraryScreen>
   // ── Pull-to-refresh ──
   Future<void> _refreshAll() async {
     final lib = context.read<LibraryProvider>();
+    final api = context.read<AuthProvider>().apiService;
+    if (!lib.isPodcastLibrary && api != null && lib.selectedLibraryId != null) {
+      if (_syncingLocalBooks) return;
+      await _loadLocalBooks(lib, api, ++_loadGeneration, refresh: true);
+      if (mounted && !lib.isOffline) await lib.refresh();
+      return;
+    }
     await lib.refresh();
     setState(() {
       _items.clear();
@@ -3673,7 +4019,7 @@ class LibraryScreenState extends State<LibraryScreen>
   // ═══════════════════════════════════════════════════════════════
   Widget _buildGrid(Widget headerSliver) {
     final lib = context.watch<LibraryProvider>();
-    return LibraryBooksTab(
+    final grid = LibraryBooksTab(
       items: _visibleLibraryItems(lib),
       isLoadingPage: _isLoadingPage,
       hasMore: _hasMore,
@@ -3694,6 +4040,37 @@ class LibraryScreenState extends State<LibraryScreen>
       selectedItemIds: _selectedItemIds,
       onSelectionToggle: _toggleSelection,
     );
+    if (lib.isPodcastLibrary) return grid;
+    return Column(children: [
+      AnimatedSize(
+        duration: const Duration(milliseconds: 220),
+        alignment: Alignment.topCenter,
+        child: _localSyncStatus == null ? const SizedBox(width: double.infinity) : Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: _localSyncComplete ? 4 : 8),
+          decoration: BoxDecoration(
+            color: _localSyncComplete ? Colors.transparent : Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Icon(_localSyncComplete ? Icons.check_circle_outline : Icons.sync,
+                  size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Expanded(child: Text(_localSyncStatus!, maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall)),
+            ]),
+            if (!_localSyncComplete) ...[
+              const SizedBox(height: 6),
+              ClipRRect(borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(value: _localSyncFraction, minHeight: 2)),
+            ],
+          ]),
+        ),
+      ),
+      Expanded(child: grid),
+    ]);
   }
 
   // ═══════════════════════════════════════════════════════════════

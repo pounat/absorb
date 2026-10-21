@@ -36,6 +36,10 @@ import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import 'card_buttons.dart';
 import '../services/api_service.dart';
+import '../services/local_book_catalog.dart';
+import '../services/user_account_service.dart';
+import 'library_cached_cover.dart';
+import 'stable_cached_network_image.dart' show stableCoverCacheKey;
 import '../services/bookmark_preview_player.dart';
 import '../services/bookmark_service.dart';
 import '../services/download_service.dart';
@@ -592,7 +596,28 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final lib = context.read<LibraryProvider>();
     final api = auth.apiService;
 
-    // Try server first
+    // Show saved full metadata immediately, including for books whose audio
+    // has never been downloaded. Online refresh can fill in live progress.
+    if (api != null && lib.selectedLibraryId != null && !lib.isPodcastLibrary) {
+      final scope = UserAccountService().activeScopeKey;
+      final saved = await LocalBookCatalog(scope, api.baseUrl, lib.selectedLibraryId!).read();
+      final item = saved?.where((i) => i['id'] == widget.itemId).firstOrNull;
+      if (!mounted || scope != UserAccountService().activeScopeKey) return;
+      if (item != null) {
+        final overrides = MetadataOverrideService();
+        final override = await overrides.get(widget.itemId);
+        if (!mounted) return;
+        setState(() {
+          _item = override == null ? item : overrides.applyOverrides(item, override);
+          _hasLocalOverride = override != null;
+          _isLoading = false;
+        });
+        _deriveCoverScheme();
+        if (lib.isOffline) return;
+      }
+    }
+
+    // Refresh live detail without hiding the saved metadata.
     if (api != null && !lib.isOffline) {
       try {
         final item = await api.getLibraryItem(widget.itemId);
@@ -669,6 +694,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       }
     }
 
+    if (_item != null) return;
+
     // Offline fallback: build item from local download data
     final dl = DownloadService().getInfo(widget.itemId);
     final sessionData =
@@ -744,7 +771,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       provider = FileImage(File(url));
     } else {
       final lib = context.read<LibraryProvider>();
-      provider = CachedNetworkImageProvider(url, headers: lib.mediaHeaders);
+      final original = originalLibraryCoverUrl(url);
+      provider = CachedNetworkImageProvider(original, headers: lib.mediaHeaders,
+          cacheKey: stableCoverCacheKey(original), cacheManager: LibraryCoverCache.instance,
+          maxWidth: 128);
     }
     final t0 = DateTime.now();
     debugPrint('[BookDetail] _deriveCoverScheme start url=$url');
@@ -923,19 +953,19 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                             errorBuilder: (_, __, ___) => const SizedBox()),
                       )
                     : BlurPaddedCover(
-                        blurChild: CachedNetworkImage(
+                        blurChild: LibraryCachedCover(
                           imageUrl: _coverUrl!, fit: BoxFit.cover,
                           httpHeaders: lib.mediaHeaders,
                           errorWidget: (_, __, ___) => const SizedBox.shrink(),
                         ),
-                        child: CachedNetworkImage(
+                        child: LibraryCachedCover(
                           imageUrl: _coverUrl!, fit: BoxFit.contain,
                           httpHeaders: lib.mediaHeaders,
                           placeholder: (_, __) => const SizedBox(),
                           errorWidget: (_, __, ___) => const SizedBox(),
                         ),
                       ))
-                : CachedNetworkImage(
+                : LibraryCachedCover(
                     imageUrl: _coverUrl!, fit: BoxFit.contain,
                     httpHeaders: lib.mediaHeaders,
                     placeholder: (_, __) => const SizedBox(),
@@ -2167,7 +2197,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       img = Image.file(File(url), fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Container(color: cs.surfaceContainerHighest));
     } else {
-      img = CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, httpHeaders: headers,
+      img = LibraryCachedCover(imageUrl: url, fit: BoxFit.cover, httpHeaders: headers,
         placeholder: (_, __) => Container(color: cs.surfaceContainerHighest),
         errorWidget: (_, __, ___) => Container(color: cs.surfaceContainerHighest));
     }
@@ -4156,7 +4186,7 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
                   }
                 },
                 child: Center(
-                  child: CachedNetworkImage(
+                  child: LibraryCachedCover(
                     imageUrl: widget.url,
                     httpHeaders: widget.headers,
                     fit: BoxFit.contain,
