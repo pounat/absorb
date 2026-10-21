@@ -1712,9 +1712,53 @@ class AudioPlayerService extends ChangeNotifier {
         await _configureAudioSession();
       });
     }
+    if (Platform.isIOS) unawaited(_pushIosAudioMix());
   }
 
   static const _playerCoreChannel = MethodChannel('com.absorb.player_core');
+  static const _audioMixChannel = MethodChannel('com.absorb.audio_mix');
+
+  /// Hand the mix-with-other-audio settings to the native side, which owns the
+  /// decision (AbsorbAudioMix) and applies it at every session activation,
+  /// including the ones Flutter never sees: widget intents and the native core.
+  static Future<void> _pushIosAudioMix() async {
+    if (!Platform.isIOS) return;
+    try {
+      await _audioMixChannel.invokeMethod('setAudioMix', {
+        'mode': await PlayerSettings.getIosAudioMixMode(),
+        'duck': await PlayerSettings.getIosAudioMixDuck(),
+        'bookLevelDb': await PlayerSettings.getIosAudioMixBookLevelDb(),
+      });
+    } catch (e) {
+      debugPrint('[AudioSession] setAudioMix failed: $e');
+    }
+  }
+
+  /// Apply a book level without saving it, so a slider can be heard while it
+  /// is dragged. Saving the setting applies it for good.
+  static Future<void> previewIosBookLevel(double db) async {
+    if (!Platform.isIOS) return;
+    try {
+      await _audioMixChannel.invokeMethod('setBookLevel', {'db': db});
+    } catch (e) {
+      debugPrint('[AudioSession] setBookLevel failed: $e');
+    }
+  }
+
+  /// Activate the audio session for playback. On iOS whether to mix depends
+  /// on what else is playing at this moment, so native settles the category
+  /// first: resuming with the exclusive category left from an earlier solo
+  /// play would stop the app the book was meant to mix with.
+  static Future<bool> _activateAudioSession() async {
+    if (Platform.isIOS) {
+      try {
+        await _audioMixChannel.invokeMethod('applyAudioMix');
+      } catch (e) {
+        debugPrint('[AudioSession] applyAudioMix failed: $e');
+      }
+    }
+    return (await AudioSession.instance).setActive(true);
+  }
   static const _audioServiceClientChannel = MethodChannel(
     'com.ryanheise.audio_service.client.methods',
   );
@@ -2303,7 +2347,7 @@ class AudioPlayerService extends ChangeNotifier {
   Future<void> _iosAutoAdvanceKick() async {
     final speed = _player?.speed ?? 1.0;
     try {
-      await (await AudioSession.instance).setActive(true);
+      await _activateAudioSession();
     } catch (e) {
       debugPrint('[QueueAdvance] setActive failed: $e');
     }
@@ -3041,6 +3085,9 @@ class AudioPlayerService extends ChangeNotifier {
           NowPlayingLayout.fromJson(_instance._nowPlayingLayoutJson);
       _instance._speedAdjustedTime = await PlayerSettings.getSpeedAdjustedTime();
       PlayerSettings.settingsChanged.addListener(_instance._onSettingsChanged);
+      // The settings can differ per account, so native hears them before the
+      // configure below asks it for the mix decision.
+      await _pushIosAudioMix();
       // Configure audio session for audiobook playback
       await _configureAudioSession();
     } catch (e, st) {
@@ -3134,16 +3181,40 @@ class AudioPlayerService extends ChangeNotifier {
     _duckBriefInterruptions =
         Platform.isAndroid && await PlayerSettings.getDuckBriefInterruptions();
 
+    // iOS: native owns the mix-with-other-audio decision. Every caller
+    // activates the session right after this configure, so an exclusive
+    // category here would interrupt the app the book was meant to mix with.
+    var iosMix = false;
+    var iosDuck = false;
+    if (Platform.isIOS) {
+      try {
+        final decision = await _audioMixChannel
+            .invokeMapMethod<String, dynamic>('audioMixDecision');
+        iosMix = decision?['mix'] == true;
+        iosDuck = decision?['duck'] == true;
+      } catch (e) {
+        debugPrint('[AudioSession] audioMixDecision failed: $e');
+      }
+    }
+
     await session.configure(
       AudioSessionConfiguration(
         // iOS: playback category — no duckOthers so iOS properly recognises this
         // app as the Now Playing app and shows lock screen / Control Center controls.
+        // Mixing gives that up on purpose, and Apple allows no category options
+        // under the long-form route policy, so it uses the default policy.
         avAudioSessionCategory: AVAudioSessionCategory.playback,
         avAudioSessionMode: AVAudioSessionMode.spokenAudio,
-        avAudioSessionRouteSharingPolicy:
-            AVAudioSessionRouteSharingPolicy.longFormAudio,
+        avAudioSessionRouteSharingPolicy: iosMix
+            ? AVAudioSessionRouteSharingPolicy.defaultPolicy
+            : AVAudioSessionRouteSharingPolicy.longFormAudio,
         avAudioSessionCategoryOptions: Platform.isIOS
-            ? AVAudioSessionCategoryOptions.none
+            ? (!iosMix
+                ? AVAudioSessionCategoryOptions.none
+                : iosDuck
+                    ? AVAudioSessionCategoryOptions.mixWithOthers |
+                        AVAudioSessionCategoryOptions.duckOthers
+                    : AVAudioSessionCategoryOptions.mixWithOthers)
             : AVAudioSessionCategoryOptions.duckOthers,
         // Android: speech content type enables OS voice-intelligibility
         // processing so audiobooks play at normal listening levels. Matches the
@@ -3593,7 +3664,7 @@ class AudioPlayerService extends ChangeNotifier {
     // require it, and play()/startLocalPlayback reacquire focus themselves.
     if (service.isPlaying) {
       try {
-        (await AudioSession.instance).setActive(true);
+        _activateAudioSession();
       } catch (_) {}
     } else if (Platform.isIOS && service.hasBook) {
       // Paused with a book loaded: an interruption while iOS had this app
@@ -4456,7 +4527,7 @@ class AudioPlayerService extends ChangeNotifier {
 
       await _configureAudioSession();
       try {
-        final activated = await (await AudioSession.instance).setActive(true);
+        final activated = await _activateAudioSession();
         debugPrint('[Player] Pre-source setActive(true)=$activated (local)');
       } catch (e) {
         debugPrint('[Player] Pre-source setActive failed (local): $e');
@@ -4561,7 +4632,7 @@ class AudioPlayerService extends ChangeNotifier {
       _handler?.refreshPlaybackState();
       await Future.delayed(const Duration(milliseconds: 200));
       try {
-        (await AudioSession.instance).setActive(true);
+        _activateAudioSession();
       } catch (_) {}
       if (_startSuperseded(gen)) {
         return _abandonStart(null, null, 'local, before play');
@@ -4730,7 +4801,7 @@ class AudioPlayerService extends ChangeNotifier {
 
       await _configureAudioSession();
       try {
-        final activated = await (await AudioSession.instance).setActive(true);
+        final activated = await _activateAudioSession();
         debugPrint(
           '[Player] Pre-source setActive(true)=$activated (cached-session)',
         );
@@ -4787,7 +4858,7 @@ class AudioPlayerService extends ChangeNotifier {
       _handler?.refreshPlaybackState();
       await Future.delayed(const Duration(milliseconds: 200));
       try {
-        (await AudioSession.instance).setActive(true);
+        _activateAudioSession();
       } catch (_) {}
       if (_startSuperseded(playbackGeneration)) {
         dropPendingSession();
@@ -5197,7 +5268,7 @@ class AudioPlayerService extends ChangeNotifier {
 
       await _configureAudioSession();
       try {
-        final activated = await (await AudioSession.instance).setActive(true);
+        final activated = await _activateAudioSession();
         debugPrint('[Player] Pre-source setActive(true)=$activated (stream)');
       } catch (e) {
         debugPrint('[Player] Pre-source setActive failed (stream): $e');
@@ -5251,7 +5322,7 @@ class AudioPlayerService extends ChangeNotifier {
       _handler?.refreshPlaybackState();
       await Future.delayed(const Duration(milliseconds: 200));
       try {
-        (await AudioSession.instance).setActive(true);
+        _activateAudioSession();
       } catch (_) {}
       if (_startSuperseded(gen)) {
         return _abandonStart(api, ownSessionId, 'before play');
@@ -5474,7 +5545,7 @@ class AudioPlayerService extends ChangeNotifier {
       await EqualizerService().switchItem(itemId);
       debugPrint('[Player] Transcoded playback starting at ${speed}x');
       try {
-        (await AudioSession.instance).setActive(true);
+        _activateAudioSession();
       } catch (_) {}
       if (_startSuperseded(gen)) {
         _abandonStart(api, ownSessionId, 'transcode retry, before play');
@@ -6638,7 +6709,7 @@ class AudioPlayerService extends ChangeNotifier {
       // silent even once it has let go.
       await _seekAbsolute(currentPos > 0 ? currentPos : posAtPlay);
       try {
-        await (await AudioSession.instance).setActive(true);
+        await _activateAudioSession();
       } catch (e) {
         debugPrint('[Player] Play verify: session activate failed: $e');
       }
@@ -7490,7 +7561,7 @@ class AudioPlayerService extends ChangeNotifier {
     // is the audio focus request: a refusal here on a resume from the
     // background is a lead when the book then plays without sound.
     try {
-      final activated = await (await AudioSession.instance).setActive(true);
+      final activated = await _activateAudioSession();
       debugPrint('[Player] Resume setActive(true)=$activated '
           '(paused ${pausedFor?.inSeconds ?? '?'}s)');
     } catch (e) {

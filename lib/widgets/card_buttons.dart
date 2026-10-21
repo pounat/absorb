@@ -31,6 +31,7 @@ import 'card_chapters_sheet.dart';
 import 'chromecast_button.dart';
 import 'episode_detail_sheet.dart';
 import 'episode_list_sheet.dart';
+import 'audio_mix_sheet.dart';
 import 'equalizer_sheet.dart';
 import 'feature_hint.dart';
 import 'listening_session_card.dart';
@@ -1896,6 +1897,13 @@ class CardActionDelegate {
             );
           },
         );
+      case 'mix':
+        return CardWideButton(
+          icon: Icons.tune_rounded, label: 'Mix',
+          accent: accent, isActive: true, alwaysEnabled: true,
+          large: large, compact: compact, iconsOnly: iconsOnly,
+          onTap: () => showAudioMixSheet(context, accent),
+        );
       case 'airplay':
         return CardWideButton(
           icon: Icons.airplay_rounded, label: 'AirPlay',
@@ -2063,6 +2071,11 @@ class CardActionDelegate {
               onTap: () { Navigator.pop(ctx); handleCastTap(context, accent); },
             );
           },
+        );
+      case 'mix':
+        return MoreMenuItem(
+          icon: Icons.tune_rounded, label: 'Mix', accent: accent,
+          onTap: () { Navigator.pop(ctx); showAudioMixSheet(context, accent); },
         );
       case 'airplay':
         return MoreMenuItem(

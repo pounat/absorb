@@ -36,6 +36,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// Set loudness gain in millibels (added on top of output).
 - (void)setLoudnessGain:(int)gainMb;
 
+/// Boost the book above unity, in millibels, behind a peak limiter. Used to
+/// raise it over another app's audio while mixing; 0 passes through.
+- (void)setMixBoost:(int)gainMb;
+
 /// Enable mono downmix.
 - (void)setMonoEnabled:(BOOL)enabled;
 

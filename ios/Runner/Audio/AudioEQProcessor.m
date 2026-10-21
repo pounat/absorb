@@ -23,6 +23,7 @@ typedef struct {
     _Atomic(int)  enabled;
     _Atomic(int)  mono;
     _Atomic(int)  loudnessGainMb;
+    _Atomic(int)  mixBoostMb;
     _Atomic(int)  bassBoostStrength;
     _Atomic(int)  bandLevels[EQ_NUM_BANDS];
     _Atomic(int)  coeffVersion;
@@ -36,7 +37,24 @@ typedef struct {
     float sampleRate;
     int numChannels;
     int lastCoeffVersion;
+    float limiterEnv[MAX_CHANNELS];
+    float limiterRelease;
 } TapContext;
+
+// -1 dBFS: headroom for the output's own resampling.
+static const float kLimiterCeiling = 0.89f;
+
+// Peak limiter for the mix boost, which lifts the book above unity to sit over
+// another app's audio. The instant attack keeps every sample under the
+// ceiling; the slow release keeps speech from pumping. Without it a +12 dB
+// boost clips on every plosive.
+static inline float limitBoost(TapContext *ctx, int ch, float sample) {
+    float level = fabsf(sample);
+    float env = ctx->limiterEnv[ch];
+    env = level > env ? level : env * ctx->limiterRelease;
+    ctx->limiterEnv[ch] = env;
+    return env > kLimiterCeiling ? sample * (kLimiterCeiling / env) : sample;
+}
 
 static EQParams sParams;
 
@@ -150,6 +168,9 @@ static void tapPrepare(MTAudioProcessingTapRef tap,
 
     memset(ctx->delays, 0, sizeof(ctx->delays));
     memset(ctx->bassDelay, 0, sizeof(ctx->bassDelay));
+    memset(ctx->limiterEnv, 0, sizeof(ctx->limiterEnv));
+    // 80 ms release.
+    ctx->limiterRelease = ctx->sampleRate > 0 ? expf(-1.0f / (0.08f * ctx->sampleRate)) : 0.0f;
 
     rebuildCoefficients(ctx);
 
@@ -206,11 +227,12 @@ static void tapProcess(MTAudioProcessingTapRef tap,
     int bandsOn = atomic_load_explicit(&sParams.enabled, memory_order_relaxed);
     int mono = atomic_load_explicit(&sParams.mono, memory_order_relaxed);
     int loudnessMb = atomic_load_explicit(&sParams.loudnessGainMb, memory_order_relaxed);
+    int boostMb = atomic_load_explicit(&sParams.mixBoostMb, memory_order_relaxed);
     int hasBass = atomic_load_explicit(&sParams.bassBoostStrength, memory_order_relaxed) > 0;
 
     // Bass / loudness / mono apply independently of the band-EQ master switch,
     // so process whenever any of them is active - not only when bands are on.
-    if (!bandsOn && !mono && loudnessMb <= 0 && !hasBass) return;
+    if (!bandsOn && !mono && loudnessMb <= 0 && boostMb <= 0 && !hasBass) return;
 
     TapContext *ctx = (TapContext *)MTAudioProcessingTapGetStorage(tap);
     if (!ctx) return;
@@ -221,6 +243,7 @@ static void tapProcess(MTAudioProcessingTapRef tap,
     }
 
     float loudnessGain = (loudnessMb > 0) ? powf(10.0f, (float)loudnessMb / 2000.0f) : 1.0f;
+    float boostGain = (boostMb > 0) ? powf(10.0f, (float)boostMb / 2000.0f) : 1.0f;
 
     UInt32 numBuffers = bufferListInOut->mNumberBuffers;
     CMItemCount frames = *numberFramesOut;
@@ -250,6 +273,10 @@ static void tapProcess(MTAudioProcessingTapRef tap,
 
                 if (loudnessMb > 0) {
                     sample *= loudnessGain;
+                }
+
+                if (boostMb > 0) {
+                    sample = limitBoost(ctx, ch, sample * boostGain);
                 }
 
                 data[f] = sample;
@@ -293,6 +320,10 @@ static void tapProcess(MTAudioProcessingTapRef tap,
                         sample *= loudnessGain;
                     }
 
+                    if (boostMb > 0) {
+                        sample = limitBoost(ctx, ch, sample * boostGain);
+                    }
+
                     data[f * chansInBuf + ch] = sample;
                 }
 
@@ -327,6 +358,7 @@ static void tapProcess(MTAudioProcessingTapRef tap,
         atomic_store(&sParams.enabled, 0);
         atomic_store(&sParams.mono, 0);
         atomic_store(&sParams.loudnessGainMb, 0);
+        atomic_store(&sParams.mixBoostMb, 0);
         atomic_store(&sParams.bassBoostStrength, 0);
         atomic_store(&sParams.coeffVersion, 0);
         for (int i = 0; i < EQ_NUM_BANDS; i++) {
@@ -464,6 +496,10 @@ static void tapProcess(MTAudioProcessingTapRef tap,
 
 - (void)setLoudnessGain:(int)gainMb {
     atomic_store_explicit(&sParams.loudnessGainMb, gainMb, memory_order_relaxed);
+}
+
+- (void)setMixBoost:(int)gainMb {
+    atomic_store_explicit(&sParams.mixBoostMb, gainMb, memory_order_relaxed);
 }
 
 - (void)setMonoEnabled:(BOOL)enabled {

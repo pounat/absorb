@@ -862,6 +862,29 @@ class PlayerSettings {
   static Future<void> setDuckBriefInterruptions(bool value) =>
       _set('duckBriefInterruptions', value, notify: true);
 
+  // iOS only: play alongside other apps' audio instead of pausing it. 'off',
+  // 'auto' (only when another app is already playing as the book starts) or
+  // 'always'. While mixing, the lock screen controls stay with the other app.
+  static Future<String> getIosAudioMixMode() => _get('iosAudioMixMode', 'off');
+  static Future<void> setIosAudioMixMode(String value) =>
+      _set('iosAudioMixMode', value, notify: true);
+
+  // iOS only, while mixing: turn the other app down while the book plays.
+  static Future<bool> getIosAudioMixDuck() => _get('iosAudioMixDuck', false);
+  static Future<void> setIosAudioMixDuck(bool value) =>
+      _set('iosAudioMixDuck', value, notify: true);
+
+  // iOS only: the book's level against the other app's audio, in dB from
+  // normal. iOS has one volume for everything, so the balance can only be
+  // set from the book's side: below 0 turns it down, above 0 boosts it
+  // behind a limiter.
+  static const iosAudioMixBookLevelMinDb = -30.0;
+  static const iosAudioMixBookLevelMaxDb = 12.0;
+  static Future<double> getIosAudioMixBookLevelDb() =>
+      _get('iosAudioMixBookLevelDb', 0.0);
+  static Future<void> setIosAudioMixBookLevelDb(double value) =>
+      _set('iosAudioMixBookLevelDb', value, notify: true);
+
   // GH #371: start the last played book when the car (Android Auto or
   // CarPlay) connects and nothing is loaded yet. The warm case (session
   // alive but paused) belongs to the car system's own resume behavior; this
@@ -1247,7 +1270,7 @@ class PlayerSettings {
 
   // ── Card button order ──
 
-  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'lyrics', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'wake', 'download'];
+  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'lyrics', 'equalizer', 'mix', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'wake', 'download'];
 
   static Future<List<String>> getCardButtonOrder() async {
     final stored = await ScopedPrefs.getStringList('card_button_order');
