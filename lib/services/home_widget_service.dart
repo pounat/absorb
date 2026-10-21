@@ -964,6 +964,13 @@ class HomeWidgetService {
       await HomeWidget.updateWidget(iOSName: _iOSWidgetName);
       await HomeWidget.updateWidget(iOSName: _iOSArtWidgetName);
       await HomeWidget.updateWidget(iOSName: _iOSStatsWidgetName);
+      // The book's lock screen card, shown while it mixes with another app,
+      // reads the same data.
+      try {
+        await _widgetChannel.invokeMethod('refreshLiveActivity');
+      } catch (e) {
+        debugPrint('[WidgetDebug] refreshLiveActivity failed: $e');
+      }
     }
   }
 

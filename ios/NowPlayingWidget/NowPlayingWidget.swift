@@ -1,4 +1,5 @@
 import AbsorbPlayerCore
+import ActivityKit
 import AppIntents
 import WidgetKit
 import SwiftUI
@@ -925,6 +926,202 @@ struct StatsWidget: Widget {
     }
 }
 
+// MARK: - Book Live Activity
+
+/// The book's lock screen and Dynamic Island card while it mixes with another
+/// app's audio, which then holds the system media controls. The app starts,
+/// updates and ends it (BookLiveActivityController); this only draws it.
+struct BookLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: AbsorbBookActivityAttributes.self) { context in
+            BookActivityLockScreenView(state: context.state)
+                .padding(14)
+                .activityBackgroundTint(Color.black.opacity(0.6))
+                .activitySystemActionForegroundColor(.white)
+        } dynamicIsland: { context in
+            let state = context.state
+            return DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    BookActivityCover(path: state.coverPath, size: 52)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    BookActivityTitles(state: state)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    VStack(spacing: 10) {
+                        BookActivityProgress(state: state)
+                        BookActivityControls(state: state)
+                    }
+                }
+            } compactLeading: {
+                BookActivityCover(path: state.coverPath, size: 22)
+            } compactTrailing: {
+                Image(systemName: state.isPlaying ? "waveform" : "pause.fill")
+            } minimal: {
+                Image(systemName: "book.fill")
+            }
+        }
+    }
+}
+
+private struct BookActivityLockScreenView: View {
+    let state: AbsorbBookActivityAttributes.ContentState
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            BookActivityCover(path: state.coverPath, size: 58)
+            VStack(spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    BookActivityTitles(state: state)
+                    Spacer(minLength: 4)
+                    BookActivityRemaining(state: state)
+                }
+                BookActivityProgress(state: state)
+                BookActivityControls(state: state)
+            }
+        }
+        .foregroundStyle(.white)
+    }
+}
+
+private struct BookActivityTitles: View {
+    let state: AbsorbBookActivityAttributes.ContentState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(state.title.isEmpty ? "Absorb" : state.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            if !state.subtitle.isEmpty {
+                Text(state.subtitle)
+                    .font(.caption)
+                    .opacity(0.7)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct BookActivityCover: View {
+    let path: String
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if !path.isEmpty, let image = loadCover(path: path, maxDimension: size * 3) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Image(systemName: "book.closed.fill")
+                    .font(.system(size: size * 0.45))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.white.opacity(0.15))
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.18))
+    }
+}
+
+/// Runs on its own while playing: the wall-clock span from the state's
+/// position to the segment end at the current speed.
+private struct BookActivityProgress: View {
+    let state: AbsorbBookActivityAttributes.ContentState
+
+    var body: some View {
+        let span = state.segmentWallClock
+        Group {
+            if state.isPlaying, span.lowerBound < span.upperBound {
+                ProgressView(timerInterval: span, countsDown: false) {
+                    EmptyView()
+                } currentValueLabel: {
+                    EmptyView()
+                }
+            } else {
+                let len = state.segEndS - state.segStartS
+                ProgressView(value: len > 0 ? min(1, max(0, (state.positionS - state.segStartS) / len)) : 0)
+            }
+        }
+        .progressViewStyle(.linear)
+        .tint(.white)
+    }
+}
+
+/// Time left in the segment at the current speed.
+private struct BookActivityRemaining: View {
+    let state: AbsorbBookActivityAttributes.ContentState
+
+    var body: some View {
+        let end = state.segmentWallClock.upperBound
+        Group {
+            if state.isPlaying, end > .now {
+                Text(timerInterval: Date.now...end, countsDown: true)
+            } else {
+                Text("-" + formatClock((state.segEndS - state.positionS) / max(state.speed, 0.1)))
+            }
+        }
+        .font(.caption.monospacedDigit())
+        .opacity(0.7)
+        .multilineTextAlignment(.trailing)
+        .frame(maxWidth: 64, alignment: .trailing)
+    }
+}
+
+private struct BookActivityControls: View {
+    let state: AbsorbBookActivityAttributes.ContentState
+
+    var body: some View {
+        HStack(spacing: 34) {
+            Button(intent: AbsorbSkipBackIntent()) {
+                ArtSkipIcon(forward: false, seconds: state.skipBack, size: 19)
+            }
+            Button(intent: AbsorbPlayPauseIntent()) {
+                Image(systemName: state.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 24, weight: .semibold))
+            }
+            Button(intent: AbsorbSkipForwardIntent()) {
+                ArtSkipIcon(forward: true, seconds: state.skipForward, size: 19)
+            }
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Control Center
+
+/// Play/pause for the book from Control Center or a lock screen button,
+/// for when another app holds the system media controls.
+@available(iOS 18.0, *)
+struct AbsorbPlayPauseControl: ControlWidget {
+    static let kind = "AbsorbPlayPauseControl"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind, provider: AbsorbPlayStateProvider()) { isPlaying in
+            ControlWidgetButton(action: AbsorbPlayPauseIntent()) {
+                Label(isPlaying ? "Pause Book" : "Play Book",
+                      systemImage: isPlaying ? "pause.fill" : "play.fill")
+            }
+        }
+        .displayName("Play/Pause Book")
+        .description("Plays or pauses the book, even while another app holds the media controls.")
+    }
+}
+
+@available(iOS 18.0, *)
+struct AbsorbPlayStateProvider: ControlValueProvider {
+    var previewValue: Bool { false }
+
+    func currentValue() async throws -> Bool {
+        // Same liveness rule as the home screen widget's play state.
+        let stored = UserDefaults(suiteName: appGroup)?.bool(forKey: "widget_is_playing") ?? false
+        return stored && (absorbFlutterAlive(pid: absorbAudioOwnerPid()) || absorbAudioActivityFresh())
+    }
+}
+
 // MARK: - Bundle
 
 @main
@@ -933,5 +1130,9 @@ struct AbsorbWidgetBundle: WidgetBundle {
         AbsorbWidget()
         ArtNowPlayingWidget()
         StatsWidget()
+        BookLiveActivity()
+        if #available(iOS 18.0, *) {
+            AbsorbPlayPauseControl()
+        }
     }
 }

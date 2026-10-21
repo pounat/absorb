@@ -389,6 +389,7 @@ final class AbsorbPlayerCore: NSObject, AbsorbPlayerCoreProtocol, @unchecked Sen
     }
     WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
     WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingArtWidget")
+    BookLiveActivityController.refresh(reason: "native core")
   }
 
   // MARK: - Server sync

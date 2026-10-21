@@ -84,6 +84,8 @@
 			<string>audio</string>
 			<string>fetch</string>
 		</array>
+		<key>NSSupportsLiveActivities</key>
+		<true/>
 		<key>NSSiriUsageDescription</key>
 		<string>Siri can play, pause and find your audiobooks and podcasts in Absorb.</string>
 		<key>INIntentsSupported</key>

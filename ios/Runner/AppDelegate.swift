@@ -102,6 +102,9 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     AbsorbAudioBridge.logSink = { [weak self] line in
       self?.logToFlutter(line)
     }
+    BookLiveActivityController.logSink = { [weak self] line in
+      self?.logToFlutter(line)
+    }
     AudioWindowExtractor.logSink = { [weak self] line in
       self?.logToFlutter(line)
     }
@@ -538,6 +541,7 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
             self?.logToFlutter("[AudioMix] apply failed: \(error.localizedDescription)")
           }
         }
+        BookLiveActivityController.refresh(reason: "mix setting")
         result(true)
       case "audioMixDecision":
         result(["mix": AbsorbAudioMix.shouldMix(), "duck": AbsorbAudioMix.duckOthers])
@@ -609,6 +613,11 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
           NSLog("[WidgetDebug] getGroupContainerPath: containerURL returned nil - app group entitlement missing or misconfigured")
           result(nil)
         }
+      case "refreshLiveActivity":
+        // Dart just refreshed the home screen widgets' data; the book's lock
+        // screen card reads the same keys.
+        BookLiveActivityController.refresh(reason: "widget data")
+        result(true)
       case "excludeFromBackup":
         // Stops iCloud from backing up downloaded audio files. Audiobooks
         // are large and re-downloadable, no point eating user's iCloud
