@@ -1364,7 +1364,40 @@
       }
     }
   },
+  "rewindNoRewind": "без перемотки",
+  "rewindSeconds": "{seconds}s перемотки",
+  "@rewindSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
   "sectionSleepTimer": "Таймер сна",
+  "sleep": "Спящий режим",
+  "sleepTimer": "Таймер сна",
+  "shakeDuringSleepTimer": "Встряхнуть во время таймера сна",
+  "shakeOff": "Выключить",
+  "shakeAddTime": "Добавить время",
+  "shakeReset": "Сброс",
+  "shakeAdds": "Добавляет встряхивание",
+  "sleepAddAmount": "Добавить время",
+  "shakeAddsValue": "{minutes} мин",
+  "@shakeAddsValue": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "shakeSensitivity": "Чувствительность встряхивания",
+  "shakeSensitivityVeryLow": "Очень низкая",
+  "shakeSensitivityLow": "Низкая",
+  "shakeSensitivityMedium": "Средняя",
+  "shakeSensitivityHigh": "Высокая",
+  "shakeSensitivityVeryHigh": "Очень высокая",
+  "buttonDuringSleepTimer": "Кнопка наушников во время завершения работы",
+  "buttonDuringSleepTimerHint": "В заключительных моментах завершения работы одно нажатие сбрасывает таймер вместо паузы. Двойное нажатие по-прежнему пропускает.",
   "resetTimerOnPause": "Сброс таймера при паузе",
   "resetTimerOnPauseOnSubtitle": "Таймер перезапустится с полной продолжительностью при возобновлении",
   "resetTimerOnPauseOffSubtitle": "Таймер продолжится с предыдущего места",
@@ -1439,6 +1472,8 @@
   "keepNext": "Продолжить далее",
   "keepNextInfoTitle": "Продолжить Далее",
   "keepNextInfoContent": "Количество загружаемых элементов, включая тот, который вы сейчас слушаете. Например, «Сохранить следующие 3» означает текущую книгу плюс следующие 2 в этой серии, подкаст, плейлист или коллекция останутся загруженными. Это применимо к каждой автоматической загрузке, которую вы включаете.",
+  "deleteAbsorbedDownloads": "Удалить поглощенные загрузки",
+  "deleteAbsorbedDownloadsInfoTitle": "Удалить поглощенные загрузки",
   "deleteAbsorbedDownloadsInfoContent": "Когда включено, загруженные книги или эпизоды автоматически удаляются с этого устройства после их завершения в Absorb. Завершение установки в Интернете или на другом устройстве не приведет к удалению загрузки здесь.",
   "deleteAbsorbedOnSubtitle": "Скачанное удаляется после прослушивание",
   "deleteAbsorbedOffSubtitle": "Выкл. - скачанное после прослушивание не удаляется",
@@ -1448,6 +1483,17 @@
   "@storageUsedByDownloads": {
     "placeholders": {
       "size": {
+        "type": "String"
+      }
+    }
+  },
+  "storageFreeOfTotal": "{free} из {total}",
+  "@storageFreeOfTotal": {
+    "placeholders": {
+      "free": {
+        "type": "String"
+      },
+      "total": {
         "type": "String"
       }
     }
@@ -1472,9 +1518,12 @@
   "hideEbookOnlyTitles": "Скрыть заголовки только для eBooks",
   "hideEbookOnlyOnSubtitle": "Книги без аудио файлов скрыты",
   "hideEbookOnlyOffSubtitle": "Выкл - все элементы библиотеки показаны",
+  "homeCardsOpenDetails": "Открыть детали из Главной",
   "homeCardsOpenDetailsOnSubtitle": "Нажатие кнопки Продолжить Слушать или Продолжить Чтение раскрывает детали",
+  "homeCardsOpenDetailsOffSubtitle": "Нажатие кнопки Продолжить Слушать или Продолжить Чтение раскрывает детали",
   "showGoodreadsButton": "Показать кнопку 'Goodreads'",
   "showGoodreadsOnSubtitle": "Подробная информация о книге показывает ссылку на Goodreads",
+  "showGoodreadsOffSubtitle": "Выкл. - кнопка с Goodreads скрыта",
   "sectionPermissions": "Разрешения",
   "notifications": "Уведомления",
   "notificationsSubtitle": "Для загрузки прогресса и управления воспроизведением",
@@ -1529,6 +1578,13 @@
   "trustAllCertificates": "Доверять всем сертификатам",
   "trustAllCertificatesInfoTitle": "Самоподписанные сертификаты",
   "mp3IndexSeeking": "Поиск по индексу MP3",
+  "mp3IndexSeekingInfoTitle": "Поиск по индексу MP3",
+  "mp3IndexSeekingInfoContent": "Включите эту опцию, только если у вас есть MP3-файлы, которые не стремятся к правильной позиции. Неточный поиск обычно происходит от переменного битрейта (VBR) MP3. Индексировать для построения точной временной карты по мере чтения файла, так что прыгая рядом с концом большого MP3 может занять минуту - особенно при стриминге, так как файл должен быть прочитан до этой точки. Вступает в силу следующего запуска эпизода книги или подкаста.",
+  "mp3IndexSeekingOnSubtitle": "Включен - точный поиск VBR MP3 файлов",
+  "mp3IndexSeekingOffSubtitle": "Выкл - обычный поиск",
+  "trustAllCertificatesInfoContent": "Включите, если ваш сервер Audiobookshelf использует самоподписанный сертификат или кастомный корневой. Если включено, Absorb пропустит проверку сертификата TLS для всех подключений. Включите это только если вы доверяете сети.",
+  "trustAllCertificatesOnSubtitle": "Вкл - принимать все сертификаты",
+  "trustAllCertificatesOffSubtitle": "Выкл - только доверенные сертификаты",
   "supportTheDev": "Поддержать разработчика",
   "buyMeACoffee": "Поддержать проект",
   "appVersionFormat": "Absorb v{version}",
@@ -1560,9 +1616,11 @@
     }
   },
   "backupAndRestore": "Бэкап и Восстановление",
+  "backupAndRestoreSubtitle": "Сохранить или восстановить все ваши настройки из файла",
   "backUp": "Бэкап",
   "restore": "Восстановить",
   "allBookmarks": "Все закладки",
+  "allBookmarksSubtitle": "Показать закладки во всех книгах",
   "switchAccount": "Сменить аккаунт",
   "addAccount": "Добавить аккаунт",
   "logOut": "Выйти",
