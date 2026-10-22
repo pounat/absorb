@@ -1181,6 +1181,30 @@
   "breqFactDecidedBy": "Утверждено",
   "breqFactNote": "Заметка инициатора",
   "breqLibraryCta": "Запросить книгу",
+  "breqDownloadingPercent": "Загружено: {percent}%",
+  "@breqDownloadingPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "breqAddedTo": "Добавлено в \"{library}",
+  "@breqAddedTo": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "breqRejectedWithNote": "Отклонено: {note}",
+  "@breqRejectedWithNote": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "breqFailedWithReason": "Ошибка: {reason}",
   "@breqFailedWithReason": {
     "placeholders": {
@@ -1235,6 +1259,16 @@
   "breqCheckingRelease": "Проверка файлов...",
   "breqSearchAgain": "Повторный поиск",
   "breqSearchTerms": "Условия поиска",
+  "breqIsbnHint": "Оставьте пустым для поиска по названию и автору",
+  "breqSearchingIndexers": "Поиск по индексаторам. Это может занять до минуты.",
+  "breqReleasesFailed": "Не удалось найти релизы.",
+  "breqNoSourceCarries": "Ни один из ваших поисковых источников не содержит такой книги.",
+  "breqNoReleases": "Релизы не найдены. Попробуйте другие условия поиска.",
+  "breqFromCache": "из недавнего поиска",
+  "breqIndexerUnauthorized": "ошибка входа",
+  "breqIndexerThrottled": "занято",
+  "breqIndexerTimeout": "время ожидания истекло",
+  "breqIndexerUnreachable": "недоступно",
   "breqIndexerError": "ошибка",
   "breqSortBest": "Лучшее совпадение",
   "breqSortSeeders": "Сидеры",
@@ -1360,6 +1394,20 @@
         "type": "String"
       },
       "max": {
+        "type": "String"
+      }
+    }
+  },
+  "autoRewindOffSubtitle": "Выкл",
+  "rewindRange": "Диапазон перемотки",
+  "rewindAfterPausedFor": "Перемотка после паузы на",
+  "rewindAnyPause": "Любая пауза",
+  "rewindAlwaysLabel": "Всегда",
+  "rewindInstant": "Немедленно",
+  "rewindPause": "Пауза {duration}",
+  "@rewindPause": {
+    "placeholders": {
+      "duration": {
         "type": "String"
       }
     }
@@ -1624,8 +1672,22 @@
   "switchAccount": "Сменить аккаунт",
   "addAccount": "Добавить аккаунт",
   "logOut": "Выйти",
+  "includeLoginInfoTitle": "Включить данные для входа?",
+  "includeLoginInfoContent": "Вы хотите включить учетные данные для всех сохраненных учетных записей в резервную копию?\n\nЭто упрощает восстановление на новом устройстве, но файл будет содержать ваши токены авторизации.",
   "noSettingsOnly": "Нет, только настройки",
   "yesIncludeAccounts": "Да, включить аккаунты",
+  "backupSavedWithAccounts": "Резервная копия сохранена (с учетными записями)",
+  "backupSavedSettingsOnly": "Резервная копия сохранена (только настройки)",
+  "backupFailed": "Не удалось создать резервную копию: {error}",
+  "@backupFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "restoreBackupTitle": "Восстановить резервную копию?",
+  "restoreBackupContent": "Это заменит все ваши текущие настройки на значения из резервной копии.",
   "fromAbsorbVersion": "Absorb v{version}",
   "@fromAbsorbVersion": {
     "placeholders": {
@@ -1662,20 +1724,36 @@
     }
   },
   "logOutTitle": "Выйти?",
+  "logOutContent": "Вы выйдете из системы. Ваши загрузки будут сохранены на этом устройстве.",
   "signOut": "Выйти",
   "changePasswordTitle": "Сменить пароль",
+  "changePasswordSubtitle": "Безопасно обновить пароль Audiobookshelf",
   "currentPassword": "Текущий пароль",
   "newPassword": "Новый пароль",
   "confirmNewPassword": "Подтверди новый пароль",
+  "passwordChangeEffect": "Смена пароля завершает все текущие сеансы Audiobookshelf. Данное устройство останется в состоянии авторизации.",
   "passwordFieldsRequired": "Заполни все поля пароля",
   "passwordsDoNotMatch": "Новые пароли не совпадают",
+  "passwordChanged": "Пароль изменен. Все другие устройства, на которых был авторизован пользователь, были отключены.",
   "passwordInvalid": "Текущий пароль неверный",
+  "passwordChangeUnsupported": "Эта версия сервера не поддерживает безопасное изменение пароля в Absorb",
   "passwordChangeFailed": "Не удалось сменить пароль",
+  "otherUserPasswordResetWarning": "Смена этого пароля приведет к выходу из учетной записи на всех устройствах.",
   "manageSessionsTitle": "Подключенные устройства",
+  "manageSessionsSubtitle": "Просмотр и удаление сеансов Audiobookshelf",
   "sessionsCurrent": "Это устройство",
   "sessionsUnknownDevice": "Неизвестное устройство",
+  "sessionsLastActive": "Последняя активность: {date}",
+  "@sessionsLastActive": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "sessionsNone": "Нет активных сеансов",
   "sessionsLoadMore": "Загрузить ещё",
+  "sessionsUnsupported": "Управление сессиями требует Audiobookshelf 2.36 или новее.",
   "sessionsRemove": "Выход из устройства",
   "sessionsRemoveTitle": "Выйти из устройства?",
   "sessionsRemoveContent": "Это удаляет сеанс обновления. Текущий доступ может продолжать работать, пока этот короткий токен не истечет.",
@@ -1925,6 +2003,11 @@
   "removeFromContinueListening": "Удалить из Продолжить слушать",
   "removedFromContinueListening": "Удалить из Продолжить слушать",
   "removeSeriesFromContinueSeries": "Удалить из Продолжить серию",
+  "addToPlaylist": "Добавить в плейлист",
+  "addToCollection": "Добавить в коллекцию",
+  "downloadEbook": "Скачать eBook",
+  "downloadEbookAgain": "Скачать eBook снова",
+  "resetProgress": "Сбросить прогресс",
   "clearLocalMetadata": "Очистить локальные метаданные",
   "mono": "Моно",
   "stereo": "Стерео",
@@ -2218,6 +2301,13 @@
   "welcomeTagline": "Клиент Audiobookshelf.",
   "welcomeAbsorbingTitle": "Поглощение",
   "welcomeFullyAbsorbBullet": "Полное Поглощение - отметить как прослушано",
+  "getStarted": "Приступить к работе",
+  "showMore": "Показать еще",
+  "showLess": "Показать меньше",
+  "readMore": "Подробнее",
+  "removeDownloadQuestion": "Удалить загрузки?",
+  "removeDownloadContent": "Это будет удалено с вашего устройства.",
+  "downloadRemoved": "Загрузка удалена",
   "finished": "Прослушано",
   "saved": "Скачано",
   "selectLibrary": "Выбери библиотеку",
@@ -2225,8 +2315,18 @@
   "refreshTooltip": "Обновить",
   "noBooksFound": "Книги не найдены",
   "userFallback": "Пользователь",
+  "rootAdmin": "Корневой админ",
   "admin": "Админ",
   "serverAdmin": "Админ сервера",
+  "serverAdminSubtitle": "Управление пользователями, библиотеками и настройками сервера",
+  "serverUpdateAvailable": "Доступно обновление сервера {version}",
+  "@serverUpdateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "justNow": "Только что",
   "minutesAgo": "{count}м назад",
   "@minutesAgo": {
@@ -2254,10 +2354,58 @@
   },
   "audible": "Audible",
   "iTunes": "iTunes",
+  "openLibrary": "Open Library",
+  "root": "Root",
+  "coverPlayPause": "Обложка воспроизведение/пауза",
+  "coverPlayPauseOnSubtitle": "Вкл - нажмите на обложку для воспроизведения/паузы",
+  "coverPlayPauseOffSubtitle": "Выкл - выделенная кнопка воспроизведения/паузы в панели управления",
   "cardBackground": "Фон карточки",
   "cardBackgroundBlurred": "Размытый",
   "cardBackgroundGradient": "Градиент",
+  "queueModeMergedSubtitle": "Воспроизведение останавливается, очередь вручную или автоматическое воспроизведение следующего элемента",
+  "queueModeSeriesLabel": "Серии",
+  "queueModeShowLabel": "Показать",
+  "queueModeInfoSeries": "Серии",
+  "queueModeInfoSeriesDesc": "Автоматически проигрывает следующую книгу в серии или в следующем эпизоде в подкасте.",
+  "resetButtonGridQuestion": "Сбросить сетку кнопок?",
+  "resetButtonGridContent": "Это восстановит стандартную раскладку кнопок, порядок и настройки переключателей.",
   "reset": "Сбросить",
+  "buttonGridReset": "Сброс сетки кнопок",
+  "resetButtonGrid": "Сбросить сетку кнопок",
+  "chapterBarrierOnRewind": "Барьер на перемотке",
+  "chapterBarrierInfoTitle": "Барьер глав",
+  "chapterBarrierInfoContent": "При переходе назад, воспроизведение будет переходить к началу текущей главы, а не к предыдущей.\n\nЧтобы обойти барьер, нажмите на кнопку \"назад\" дважды в течение 2 секунд.",
+  "chapterBarrierOnRewindOnSubtitle": "Вкл - перемотать назад в начало главы",
+  "chapterBarrierOnRewindOffSubtitle": "Выкл - перемотка пересекает границы глав",
+  "autoRewindOnSubtitleFormat": "Вкл - {min}с до {max}в зависимости от длины паузы",
+  "@autoRewindOnSubtitleFormat": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "rewindOnSessionStart": "Перемотка при запуске сессии",
+  "rewindOnSessionStartInfoContent": "Обычная автоматическая перемотка назад запускается при возобновлении воспроизведения после паузы в рамках активного сеанса. Этот параметр добавляет перемотку назад при запуске совершенно нового сеанса — например, после закрытия приложения, остановки воспроизведения или повторного открытия приложения. \n\n Если эта функция включена, при каждом новом сеансе воспроизведения происходит полная перемотка назад на максимальное количество секунд, чтобы вы могли продолжить с того места, на котором остановились.",
+  "rewindOnSessionStartOnSubtitle": "Включен - перемотка {seconds}с при запуске новой сессии",
+  "@rewindOnSessionStartOnSubtitle": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "rewindActivationDelayValue": "{seconds}s+",
+  "@rewindActivationDelayValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
   "rewindRangeValue": "{min}с – {max}с",
   "@rewindRangeValue": {
     "placeholders": {
@@ -2269,8 +2417,67 @@
       }
     }
   },
+  "rewindSecondsPause": "Приостановить {seconds}",
+  "@rewindSecondsPause": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "rewindMinPause": "{minutes} мин. пауза",
+  "@rewindMinPause": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "rewindHrPause": "Приостановить {hours}",
+  "@rewindHrPause": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "rewindOneHrPause": "1 час паузы",
+  "speedValue": "{speed}x",
+  "@speedValue": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "secondsValue": "{seconds}s",
+  "@secondsValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "minutesValue": "{minutes} мин",
+  "@minutesValue": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "chimeBeforeSleep": "Колокольчик перед сном",
   "chimeBeforeSleepOnSubtitle": "Проигрывает мягкое оповещение перед окончанием таймера",
   "chimeBeforeSleepOffSubtitle": "Без звукового оповещения перед сном",
+  "windDownDuration": "Длительность затухания",
+  "windDownDurationSubtitle": "Нарастание и звон начинаются за {seconds} до сна",
+  "@windDownDurationSubtitle": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "fadeVolumeOnSubtitleDynamic": "Постепенно снижать громкость последние {seconds}с",
   "@fadeVolumeOnSubtitleDynamic": {
     "placeholders": {
@@ -2370,12 +2577,132 @@
   "smtpSaved": "Настройки Email сохранены",
   "smtpSaveFailed": "Не удалось сохранить настройки email",
   "smtpTestSent": "Тестовый email отправлен",
+  "smtpTestFailed": "Тестовый email не удался",
+  "ereaderDevicesTitle": "Устройства E-Reader",
+  "ereaderDevicesEmpty": "Нет устройств. Добавьте ниже.",
+  "addEreaderDevice": "Добавить устройство",
+  "editEreaderDevice": "Редактировать устройство",
+  "deleteEreaderDevice": "Удалить",
+  "ereaderDeviceName": "Название",
+  "ereaderDeviceEmail": "Адрес электронной почты",
+  "ereaderAvailability": "Кто может использовать данное устройство",
+  "ereaderAvailAdminOrUp": "Только администраторы",
+  "ereaderAvailUserOrUp": "Все пользователи",
+  "ereaderAvailGuestOrUp": "Кто угодно",
+  "ereaderAvailSpecificUsers": "Определенные пользователи",
+  "ereaderSpecificUsersN": "Определенных пользователей ({count})",
+  "@ereaderSpecificUsersN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ereaderDevicesSaved": "Устройства сохранены",
+  "ereaderDevicesSaveFailed": "Не удалось сохранить устройства",
+  "libraryCountOne": "Библиотеки {count}",
+  "@libraryCountOne": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryCountOther": "Библиотеки {count}",
+  "@libraryCountOther": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "serverVersionLabel": "Сервер {version}",
+  "@serverVersionLabel": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appVersionServerSuffix": "  ·  Сервер {version}",
+  "@appVersionServerSuffix": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "backupDateFormat": "{day}/{month}/{year}",
+  "@backupDateFormat": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      },
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "backupDetailsSeparator": " · ",
+  "bookmarksSortedByPositionReversed": "Сортировка по позиции (обратный)",
+  "bookmarksJumpShortContent": "\"{title}\" на {position}",
+  "@bookmarksJumpShortContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteBookmarkQuestion": "Удалить закладку?",
+  "cardIconsOnlyChip": "Только иконки",
+  "cardMoreInGridChip": "\"Еще\" в сетке",
+  "cardLayoutHidden": "Скрыто",
   "speed": "Скорость",
   "details": "Подробности",
+  "episodeDetailsLabel": "Подробности эпизода",
   "bookDetailsLabel": "Детали книги",
   "equalizerShort": "EQ",
   "equalizerLabel": "Эквалайзер",
+  "cast": "Актеры",
+  "castingToDevice": "Занесение в {device}",
+  "@castingToDevice": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "castToDeviceNamed": "Отправлено на {device}",
+  "@castToDeviceNamed": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
   "historyShort": "История",
+  "atPosition": "на {position}",
+  "@atPosition": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+  "chaptersChip": "Главы {count}",
+  "@chaptersChip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chapterNumber": "Глава {number}",
   "@chapterNumber": {
     "placeholders": {
@@ -2392,11 +2719,58 @@
       }
     }
   },
+  "resetMayNotHaveSynced": "Возможно не синхронизировано - проверьте ваш сервер",
+  "failedToDownloadEbook": "Не удалось загрузить ebook ({code})",
+  "@failedToDownloadEbook": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "serverReturnedErrorPage": "Сервер вернул страницу ошибки вместо файла ebook",
+  "ebookSaved": "Сохранено: {filename}",
+  "@ebookSaved": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "errorSavingEbook": "Ошибка при сохранении ebook: {error}",
+  "@errorSavingEbook": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSaveError": "Ошибка сохранения: {error}",
+  "@failedToSaveError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "adminBackupsLabel": "Резервные копии",
+  "adminListeningNow": "Сейчас играет",
   "adminLibraries": "Библиотеки",
   "adminLibraryBooks": "книги",
   "adminLibraryFolders": "папки",
   "adminLibrarySize": "размер",
   "adminLibraryDuration": "длительность",
+  "adminLibraryReview": "Обзор",
+  "adminMissingTitle": "Отсутствующие элементы",
+  "adminMissingSubtitle": "Записи в {library}, чьи файлы отсутствуют или не читаются",
+  "@adminMissingSubtitle": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMissingNone": "Нет отсутствующих или недопустимых элементов",
   "adminMissingBadge": "Отсутствует",
   "adminInvalidBadge": "Недопустимый",
   "adminMissingDeleteTitle": "Удалить запись",
@@ -2513,6 +2887,7 @@
   "adminUsersPermUpload": "Загрузить",
   "adminUsersPermExplicit": "Явное содержимое",
   "adminUsersLibraryAccess": "Доступ к библиотеке",
+  "adminUsersAccessAllLibraries": "Доступ ко всем библиотекам",
   "adminUsersCreateUser": "Создать пользователя",
   "adminUsersSaveChanges": "Сохранить изменения",
   "adminUsersUsernameRequired": "Требуется имя пользователя",
@@ -2588,8 +2963,88 @@
   "adminPodcastsEpisodeFallback": "Выпуск",
   "adminPodcastsAdding": "Добавляем…",
   "adminPodcastsTabDownloaded": "Скачано",
+  "adminPodcastsFailedDownload": "Не удалось загрузить",
+  "adminPodcastsDeleteEpisodeTitle": "Удалить эпизод?",
+  "adminPodcastsDeleteEpisodeContent": "Удалить \"{title}\"?",
+  "@adminPodcastsDeleteEpisodeContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "adminPodcastsDeleted": "Удалено",
+  "adminPodcastsFailed": "Ошибка",
+  "adminPodcastsDeleteEpisodesTitle": "Удалить эпизоды?",
+  "adminPodcastsDeleteEpisodesContent": "Удалить {count} эпизод(ов) с сервера?",
+  "@adminPodcastsDeleteEpisodesContent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsDeletedEpisodes": "Удалено {count} эпизод(ов)",
+  "@adminPodcastsDeletedEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminPodcastsDownloadingDots": "Скачивание...",
+  "adminPodcastsDeleteEpisodesCount": "Удалить {count} эпизод(ов)",
+  "@adminPodcastsDeleteEpisodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsDownloadingCount": "Загружается {count} эпизода(ов)",
+  "@adminPodcastsDownloadingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsDownloadEpisodesCount": "Загрузка {count} эпизода(ов)",
+  "@adminPodcastsDownloadEpisodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsLookForEpisodesAfter": "Искать эпизоды после",
+  "adminPodcastsSelectDate": "Выберите дату",
+  "adminPodcastsMaxEpisodes": "Максимум эпизодов для загрузки",
+  "adminPodcastsNoNewEpisodesAfter": "Не найдено новых эпизодов после {date}",
+  "@adminPodcastsNoNewEpisodesAfter": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPodcastsFoundNewEpisodes": "Найдено {count} новых эпизодов(ов) - загрузка",
+  "@adminPodcastsFoundNewEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPodcastsFailedToCheckNew": "Не удалось проверить наличие новых эпизодов",
+  "adminPodcastsCheckAndDownload": "Проверить и загрузить",
+  "adminPodcastsMatchPodcastSubtitle": "Поиск в iTunes для обновления обложки и метаданных",
+  "adminPodcastsAutoDownloadNewEpisodes": "Автозагрузка новых эпизодов",
+  "adminPodcastsAutoDownloadOnSubtitle": "Сервер автоматически загружает новые эпизоды",
+  "adminPodcastsAutoDownloadOffSubtitle": "Новые эпизоды не загружаюся автоматически",
+  "adminPodcastsFailedAutoDownloadUpdate": "Не удалось обновить настройки автозагрузки",
+  "adminPodcastsMaxEpisodesToKeep": "Максимальное количество эпизодов для сохранения",
+  "adminPodcastsMaxEpisodesToKeepHelp": "0 сохраняет каждый эпизод. После автозагрузки нового эпизода, Audiobookshelf удаляет самый старый эпизод, когда шоу превысит этот лимит.",
   "adminPodcastsFrequency": "Частота",
   "adminPodcastsFreqHourly": "Ежечасно",
   "adminPodcastsFreqDaily": "Ежедневно",
@@ -2621,7 +3076,7 @@
       }
     }
   },
-  "episodeListShowFinishedEpisodes": "Показивать прослушанные выпуски",
+  "episodeListShowFinishedEpisodes": "Показать завершенные эпизоды",
   "episodeListHideFinishedEpisodes": "Прятать прослушанные выпуски",
   "episodeListEpisodeCount": "{count, plural, =1{{count} выпуск} one{{count} выпуск} few{{count} выпуска} many{{count} выпусков} other{{count} выпуска}}",
   "@episodeListEpisodeCount": {
