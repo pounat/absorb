@@ -1181,6 +1181,22 @@
   "breqFactDecidedBy": "Утверждено",
   "breqFactNote": "Заметка инициатора",
   "breqLibraryCta": "Запросить книгу",
+  "breqLibraryDefault": "По умолчанию ({library})",
+  "@breqLibraryDefault": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "breqFailedReason": "Не удалось отправить запрос: {reason}",
+  "@breqFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "breqDownloadingPercent": "Загружено: {percent}%",
   "@breqDownloadingPercent": {
     "placeholders": {
@@ -1831,16 +1847,36 @@
   "chooseDownloadFolder": "Выбрать папку для скачивания",
   "storagePermissionDenied": "Разрешение на доступ к памяти отклонено - включите его в настройках приложения",
   "openSettings": "Открыть настройки",
+  "cannotWriteToFolder": "Запись в эту папку невозможна - выберите другое место или предоставьте доступ к файлам в настройках системы",
   "resetToDefault": "Сбросить по умолчанию",
+  "resetToDefaultStorage": "Сбросить к хранилищу по умолчанию",
   "redownload": "Скачать снова",
+  "redownloadStarted": "Скачать снова",
   "dismiss": "Отменить",
   "tipsAndHiddenFeatures": "Советы и скрытые возможности",
   "tipsSubtitle": "Получите максимум от Absorb",
   "adminTitle": "Админ сервера",
+  "adminTasksTitle": "Активность сервера",
   "adminTasksRunning": "{count, plural, =1{{count} задача выполняется} one{{count} задача выполняется} few{{count} задачи выполняются} many{{count} задач выполняются} other{{count} задачи выполняются}}",
   "@adminTasksRunning": {
     "placeholders": {
       "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTasksRecent": "Недавняя активность сервера",
+  "adminTasksEmpty": "Нет запущенных задач сервера",
+  "adminTaskScanSummary": "{added} добавлено - {updated} обновлено - {missing} отсутствует",
+  "@adminTaskScanSummary": {
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "missing": {
         "type": "int"
       }
     }
@@ -1864,8 +1900,12 @@
     }
   },
   "adminPodcasts": "Подкасты",
+  "adminPodcastsSubtitle": "Поиск, добавление и управление шоу",
   "adminScan": "Сканировать",
   "adminScanning": "Сканирование...",
+  "adminMatchAll": "Полное совпадение",
+  "adminMatching": "Поиск совпадений...",
+  "adminMatchAllTitle": "Совпадение со всеми элементами?",
   "adminScanStarted": "Сканирование началось для {name}",
   "@adminScanStarted": {
     "placeholders": {
@@ -1874,6 +1914,8 @@
       }
     }
   },
+  "adminBackupCreated": "Резервная копия создана",
+  "adminBackupFailed": "Не удалось создать резервную копию",
   "adminCachePurged": "Кэш очищен",
   "adminRmab": "ReadMeABook",
   "adminRmabSubtitle": "Открыть в приложении",
@@ -2958,11 +3000,11 @@
   "adminPodcastsGenreSocietyCulture": "Общество и Культура",
   "adminPodcastsGenreHealthFitness": "Здоровье и Фитнес",
   "adminPodcastsGenreHistory": "История",
-  "adminPodcastsGenreKidsFamily": "Дети & Семя",
+  "adminPodcastsGenreKidsFamily": "Дети & Семья",
   "adminPodcastsPodcastFallback": "Подкаст",
-  "adminPodcastsEpisodeFallback": "Выпуск",
+  "adminPodcastsEpisodeFallback": "Эпизод",
   "adminPodcastsAdding": "Добавляем…",
-  "adminPodcastsTabDownloaded": "Скачано",
+  "adminPodcastsTabDownloaded": "Загружено",
   "adminPodcastsFailedDownload": "Не удалось загрузить",
   "adminPodcastsDeleteEpisodeTitle": "Удалить эпизод?",
   "adminPodcastsDeleteEpisodeContent": "Удалить \"{title}\"?",
@@ -3077,7 +3119,7 @@
     }
   },
   "episodeListShowFinishedEpisodes": "Показать завершенные эпизоды",
-  "episodeListHideFinishedEpisodes": "Прятать прослушанные выпуски",
+  "episodeListHideFinishedEpisodes": "Скрыть завершенные эпизоды",
   "episodeListEpisodeCount": "{count, plural, =1{{count} выпуск} one{{count} выпуск} few{{count} выпуска} many{{count} выпусков} other{{count} выпуска}}",
   "@episodeListEpisodeCount": {
     "placeholders": {
@@ -3136,7 +3178,7 @@
     }
   },
   "seriesBooksDone": "Готово",
-  "expandedCardStreaming": "Стриминг",
+  "expandedCardStreaming": "Трансляция",
   "expandedCardDeviceFallback": "Устройство",
   "bookmarksScreenClose": "Закрыть",
   "statsScreenStreakDays": "{count}д",
@@ -3208,7 +3250,7 @@
     }
   },
   "statsScreenCouldNotLoadItem": "Не удалось загрузить элемент",
-  "statsScreenCouldNotFindEpisode": "Не удалось найти выпуск",
+  "statsScreenCouldNotFindEpisode": "Не удалось найти эпизод",
   "statsScreenByAuthor": "от {author}",
   "@statsScreenByAuthor": {
     "placeholders": {
