@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../screens/app_shell.dart';
 import '../services/audio_player_service.dart';
+import '../services/chapter_lookup.dart';
 import '../services/chromecast_service.dart';
 import 'absorbing_shared.dart';
 
@@ -23,15 +24,11 @@ void showChaptersSheet({
 }) {
   if (chapters.isEmpty) return;
 
-  int currentIdx = -1;
-  for (int i = 0; i < chapters.length; i++) {
-    final ch = chapters[i] as Map<String, dynamic>;
-    final start = (ch['start'] as num?)?.toDouble() ?? 0;
-    final end = (ch['end'] as num?)?.toDouble() ?? 0;
-    if (currentPosition >= start && currentPosition < end) { currentIdx = i; break; }
-  }
+  final currentIdx =
+      ChapterLookup.indexAtWithGrace(chapters, currentPosition, totalDuration) ?? -1;
 
   final cast = ChromecastService();
+  var didInitialScroll = false;
 
   showModalBottomSheet(
     context: context, isScrollControlled: true, useSafeArea: true,
@@ -39,10 +36,13 @@ void showChaptersSheet({
     builder: (ctx) => DraggableScrollableSheet(
       expand: false, initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9,
       builder: (_, sc) {
-        if (currentIdx > 0) {
+        final rowExtent = (MediaQuery.textScalerOf(ctx).scale(20.0) + 16.0).clamp(48.0, double.infinity);
+        if (currentIdx > 0 && !didInitialScroll) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            final target = currentIdx * 48.0 - 48;
-            if (sc.hasClients) sc.jumpTo(target.clamp(0, sc.position.maxScrollExtent));
+            if (!sc.hasClients || didInitialScroll) return;
+            didInitialScroll = true;
+            final target = (currentIdx - 1) * rowExtent;
+            sc.jumpTo(target.clamp(0.0, sc.position.maxScrollExtent));
           });
         }
         final l = AppLocalizations.of(ctx)!;
@@ -58,27 +58,35 @@ void showChaptersSheet({
           Text(l.chaptersCount(chapters.length), style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Expanded(child: ListView.builder(
-            controller: sc, itemCount: chapters.length,
+            controller: sc, itemCount: chapters.length, itemExtent: rowExtent,
             itemBuilder: (_, i) {
               final ch = chapters[i] as Map<String, dynamic>;
               final chTitle = ch['title'] as String? ?? l.chapterNumber(i + 1);
               final start = (ch['start'] as num?)?.toDouble() ?? 0;
               final end = (ch['end'] as num?)?.toDouble() ?? 0;
               final pos = isCastingThis
-                  ? cast.castPosition.inMilliseconds / 1000.0
-                  : (player.currentItemId != null ? player.position.inMilliseconds / 1000.0 : 0.0);
-              final isCurrent = isPlaybackActive && pos >= start && pos < end;
-              final isFinished = isPlaybackActive && pos >= end;
+                  ? (cast.castPosition.inMilliseconds > 0
+                      ? cast.castPosition.inMilliseconds / 1000.0
+                      : currentPosition)
+                  : (isPlaybackActive && player.currentItemId != null
+                      ? player.position.inMilliseconds / 1000.0
+                      : currentPosition);
+              final hasProgress = isPlaybackActive || currentPosition > 0;
+              final isLastGrace = i == chapters.length - 1 &&
+                  pos >= end &&
+                  pos <= end + ChapterLookup.graceSeconds;
+              final isCurrent = hasProgress && pos >= start && (pos < end || isLastGrace);
+              final isFinished = hasProgress && pos >= end && !isLastGrace;
               final pct = totalDuration > 0 ? (end / totalDuration * 100).round() : 0;
               final cs = Theme.of(context).colorScheme;
               return ListTile(
-                dense: true, selected: isCurrent,
+                dense: true, minTileHeight: rowExtent, selected: isCurrent,
                 selectedTileColor: accent.withValues(alpha: 0.1),
-                leading: SizedBox(width: 28, child: isFinished
+                leading: ConstrainedBox(constraints: const BoxConstraints(minWidth: 28), child: isFinished
                   ? Icon(Icons.check_rounded, size: 16, color: cs.onSurfaceVariant.withValues(alpha: 0.4))
-                  : Text('${i + 1}', textAlign: TextAlign.center,
+                  : Text('${i + 1}', maxLines: 1, softWrap: false, textAlign: TextAlign.center,
                       style: tt.labelMedium?.copyWith(fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w400, color: isCurrent ? accent : cs.onSurfaceVariant))),
-                title: Text(chTitle,
+                title: Text(chTitle, maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: tt.bodyMedium?.copyWith(fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
                     color: isCurrent ? cs.onSurface : isFinished ? cs.onSurface.withValues(alpha: 0.4) : cs.onSurface.withValues(alpha: 0.7))),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
