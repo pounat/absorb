@@ -106,8 +106,13 @@ class ChromecastService extends ChangeNotifier {
   Timer? _disconnectDebounceTimer;
   final _progressSync = ProgressSyncService();
   bool _initialized = false;
+  bool _isBackgrounded = false;
+  bool _discoveryActive = false;
   bool _isCompletingBook = false;
   bool _foregroundServiceActive = false;
+
+  bool get _hasActiveOrPendingSession =>
+      _connectionState != CastConnectionState.disconnected || _reconnecting;
 
   /// Method channel to the native Android CastForegroundService. The Cast SDK
   /// notification lives in Google Play Services' process, so Absorb's process
@@ -162,12 +167,36 @@ class ChromecastService extends ChangeNotifier {
     }
     _listenToSessionChanges();
 
-    try {
-      await GoogleCastDiscoveryManager.instance.startDiscovery();
-      debugPrint('[Cast] Discovery started');
-    } catch (e) {
-      debugPrint('[Cast] Discovery start error: $e');
+    if (!_isBackgrounded) {
+      await _setDiscovery(true);
     }
+  }
+
+  Future<void> _setDiscovery(bool active) async {
+    if (!_initialized || active == _discoveryActive) return;
+    _discoveryActive = active;
+    try {
+      if (active) {
+        await GoogleCastDiscoveryManager.instance.startDiscovery();
+        debugPrint('[Cast] Discovery started');
+      } else {
+        await GoogleCastDiscoveryManager.instance.stopDiscovery();
+        debugPrint('[Cast] Discovery stopped');
+      }
+    } catch (e) {
+      _discoveryActive = !active;
+      debugPrint('[Cast] Discovery ${active ? 'start' : 'stop'} error: $e');
+    }
+  }
+
+  Future<void> onAppBackgrounded() async {
+    _isBackgrounded = true;
+    if (!_hasActiveOrPendingSession) await _setDiscovery(false);
+  }
+
+  Future<void> onAppForegrounded() async {
+    _isBackgrounded = false;
+    await _setDiscovery(true);
   }
 
   // ── Session ──
@@ -213,6 +242,10 @@ class ChromecastService extends ChangeNotifier {
             unawaited(pause());
           }
         } else if (state == GoogleCastConnectState.disconnected) {
+          if (_connectionState == CastConnectionState.disconnected &&
+              !_reconnecting) {
+            return;
+          }
           debugPrint('[Cast] ✗ DISCONNECTED (scheduling grace ${_disconnectGrace.inSeconds}s before deciding to reconnect or wipe)');
           // Debounce: transient wifi/session blips can emit disconnected then
           // reconnect shortly after. Only act if it sticks.
@@ -342,6 +375,7 @@ class ChromecastService extends ChangeNotifier {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _pendingSleepPause = false;
+    if (_isBackgrounded) unawaited(_setDiscovery(false));
 
     _onPlaybackStateChangedCallback?.call(false);
     notifyListeners();
@@ -559,6 +593,7 @@ class ChromecastService extends ChangeNotifier {
     } catch (e, st) {
       debugPrint('[Cast] Connect error: $e\n$st');
       _connectionState = CastConnectionState.disconnected;
+      if (_isBackgrounded) unawaited(_setDiscovery(false));
       notifyListeners();
     }
   }

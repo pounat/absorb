@@ -720,6 +720,7 @@ class _AppShellState extends State<AppShell>
     HomeWidgetService().onAppForegrounded();
     ReviewService.onAppForegrounded();
     unawaited(SettingsSyncService().onAppForegrounded());
+    unawaited(ChromecastService().onAppForegrounded());
     _refreshDataForTab(_currentIndex);
     // Check auto sleep in case we resumed into the window
     SleepTimerService().checkAutoSleep();
@@ -734,6 +735,7 @@ class _AppShellState extends State<AppShell>
     AudioPlayerService.onAppBackgrounded();
     HomeWidgetService().onAppBackgrounded();
     unawaited(SettingsSyncService().onAppBackgrounded());
+    unawaited(ChromecastService().onAppBackgrounded());
   }
 
   @override
