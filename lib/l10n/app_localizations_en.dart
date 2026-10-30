@@ -4324,8 +4324,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetProgressQuestion => 'Reset Progress?';
 
   @override
-  String get resetProgressContent =>
-      'This will erase all progress for this book and set it back to the beginning. This can\'t be undone.';
+  String get resetProgressListeningAndReading =>
+      'Your listening and reading progress will both go back to 0%.';
+
+  @override
+  String get resetProgressListening =>
+      'Your listening progress will go back to 0%.';
+
+  @override
+  String get resetProgressReading =>
+      'Your reading progress will go back to 0%.';
+
+  @override
+  String get resetProgressMarksUnread =>
+      'The book will also be marked as unread.';
+
+  @override
+  String get resetProgressCantUndo => 'This can\'t be undone.';
 
   @override
   String get progressResetFreshStart => 'Progress reset - fresh start!';
@@ -11443,7 +11458,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readStatusHint =>
-      'BookOrbit keeps a status you pick here until you change it.';
+      'Listening to or reading the book can change this again.';
 
   @override
   String get readStatusUnread => 'Unread';

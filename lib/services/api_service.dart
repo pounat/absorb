@@ -2908,6 +2908,8 @@ class ApiService {
         body: jsonEncode({
           'currentTime': 0,
           'progress': 0,
+          'ebookLocation': null,
+          'ebookProgress': 0,
           'isFinished': false,
           'hideFromContinueListening': true,
           'lastUpdate': DateTime.now().millisecondsSinceEpoch,

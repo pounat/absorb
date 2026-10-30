@@ -4259,7 +4259,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resetProgressQuestion => '重置进度？';
 
   @override
-  String get resetProgressContent => '这将清除这本书的所有进度并将其重置到开头。此操作无法撤销。';
+  String get resetProgressListeningAndReading =>
+      'Your listening and reading progress will both go back to 0%.';
+
+  @override
+  String get resetProgressListening =>
+      'Your listening progress will go back to 0%.';
+
+  @override
+  String get resetProgressReading =>
+      'Your reading progress will go back to 0%.';
+
+  @override
+  String get resetProgressMarksUnread =>
+      'The book will also be marked as unread.';
+
+  @override
+  String get resetProgressCantUndo => 'This can\'t be undone.';
 
   @override
   String get progressResetFreshStart => '进度已重置 - 全新开始！';
@@ -11351,7 +11367,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get readStatusHint =>
-      'BookOrbit keeps a status you pick here until you change it.';
+      'Listening to or reading the book can change this again.';
 
   @override
   String get readStatusUnread => 'Unread';

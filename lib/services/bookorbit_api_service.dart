@@ -3348,9 +3348,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   Future<bool> setReadStatus(String itemId, String status) async {
     try {
       await _boPatch('/books/$itemId/status', {'status': status});
-      _details.remove(_key(itemId));
-      _detailAt.remove(_key(itemId));
-      _recent.removeWhere((key, _) => key == 'progress' || key.startsWith('personalized:'));
+      _forgetProgress(itemId);
       return true;
     } catch (e) {
       debugPrint('[BookOrbit] setReadStatus error: $e');
@@ -4262,6 +4260,10 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     await _boPatch('/books/$bookId/status', body);
     // The refresh right after reads progress: a cached list from before the
     // change showed a just-finished book as still being read.
+    _forgetProgress(bookId);
+  }
+
+  void _forgetProgress(String bookId) {
     _details.remove(_key(bookId));
     _detailAt.remove(_key(bookId));
     _recent.removeWhere((key, _) => key == 'progress' || key.startsWith('personalized:'));
@@ -4350,10 +4352,28 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     }
   }
 
+  /// A reset leaves the book as never started, like Audiobookshelf's: no
+  /// audio spot, no place in any of its files, and unread, so it leaves
+  /// BookOrbit's Currently Reading and Continue shelves. Listening sessions
+  /// and finished reads stay; BookOrbit closes a read still open as abandoned.
   Future<void> _deleteProgress(String progressId) async {
     final bookId = progressId.startsWith('bo-') ? progressId.substring(3) : progressId;
     await _clearPosition(bookId);
-    await _unfinish(bookId);
+    final rows = await _boGet('/books/$bookId/progress') as List<dynamic>;
+    for (final row in rows.whereType<Map>()) {
+      final fileId = row['fileId'];
+      if (fileId == null) continue;
+      try {
+        await _boDelete('/books/files/$fileId/progress');
+      } on _BoHttpError catch (e) {
+        if (e.status != 404) rethrow;
+      }
+    }
+    final status = ((await _detail(bookId, fresh: true))['readStatus'] as Map?)?['status'];
+    if (status != null && status != 'unread' && status != 'want_to_read') {
+      await _setStatus(bookId, {'status': 'unread'});
+    }
+    _forgetProgress(bookId);
   }
 
   /// Only the ebook file's progress: the full item progress also reads the

@@ -1600,9 +1600,8 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
   static IconData _readStatusIcon(String s) => readStatusIcon(s);
 
-  // Unread and Read stay with the finish button: a hand-set Unread would
-  // keep BookOrbit from ever moving the book back to Reading.
-  static const _pickableReadStatuses = ['want_to_read', 'reading', 'rereading', 'on_hold', 'skimmed', 'abandoned'];
+  // Read stays with the finish button, which also moves the spot to the end.
+  static const _pickableReadStatuses = ['unread', 'want_to_read', 'reading', 'rereading', 'on_hold', 'skimmed', 'abandoned'];
 
   Future<void> _pickReadStatus(AuthProvider auth, LibraryProvider lib, String current) async {
     final l = AppLocalizations.of(context)!;
@@ -1978,8 +1977,11 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         if (serverEbookFile != null && auth.ereaderDevices.isNotEmpty) {
           add(Icons.send_to_mobile_rounded, l.sendToEreader, () => _sendToEreader(context, auth));
         }
-        if (progress > 0 || isFinished) {
-          add(Icons.restart_alt_rounded, l.resetProgress, () => _resetProgress(context, auth, duration));
+        final listened = !isEbookOnly && (progress > 0 || isFinished);
+        final read = lib.getEbookProgress(widget.itemId) > 0 || (isEbookOnly && (progress > 0 || isFinished));
+        if (listened || read) {
+          add(Icons.restart_alt_rounded, l.resetProgress,
+            () => _resetProgress(context, auth, duration, listened: listened, read: read));
         }
         if (continueShelf != null && !lib.isOffline) {
           final reading = continueShelf == 'continue-reading';
@@ -3755,13 +3757,23 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
   }
 
-  Future<void> _resetProgress(BuildContext context, AuthProvider auth, double duration) async {
+  Future<void> _resetProgress(BuildContext context, AuthProvider auth, double duration,
+      {required bool listened, required bool read}) async {
     final l = AppLocalizations.of(context)!;
+    final content = [
+      listened && read
+          ? l.resetProgressListeningAndReading
+          : read
+              ? l.resetProgressReading
+              : l.resetProgressListening,
+      if (auth.isBookOrbit) l.resetProgressMarksUnread,
+      l.resetProgressCantUndo,
+    ].join(' ');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.resetProgressQuestion),
-        content: Text(l.resetProgressContent),
+        content: Text(content),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
           FilledButton(onPressed: () => Navigator.pop(ctx, true),
@@ -3782,7 +3794,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     
     // Clear local progress
     await ProgressSyncService().deleteLocal(widget.itemId);
-    
+    // A page saved while offline would put the old place back on the next sync.
+    await ProgressSyncService().dropPendingEbookProgress(widget.itemId);
+
     // Reset server progress (PATCH to zero + hide from continue listening)
     String? progressId;
     if (context.mounted) {
