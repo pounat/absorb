@@ -38,7 +38,10 @@
   "whatsNewKeepShowing": "Nach jedem Update anzeigen",
   "whatsNewKeepShowingHint": "Du kannst es in den Einstellungen wieder einschalten",
   "settingsWhatsNew": "Zeige Neuigkeiten nach Updates",
+  "settingsWhatsNewSubtitle": "Nach Absorb Updates verlinkt ein Pop-up auf die Release Notes",
   "gotIt": "Verstanden",
+  "betaLoggingTitle": "Protokolle sind aktiviert",
+  "betaLoggingContent": "Da dies eine Beta ist, erstellt Absorb Protokolle zur Aufspürung von Problemen. Diese bleiben auf deinem Gerät, es sei denn du teilst sie.\n\nDu kannst die Protokollierung in den Einstellungen unter Fragen & Support ausschalten. Diese bleiben auch nach zukünftigen Updates deaktiviert.",
   "preview": "Vorschau",
   "or": "oder",
   "file": "Datei",
@@ -49,6 +52,7 @@
   "stay": "Bleiben",
   "homeTitle": "Start",
   "continueListening": "Weiterhören",
+  "continueReading": "Weiter lesen",
   "continueSeries": "Serie fortsetzen",
   "recentlyAdded": "Kürzlich hinzugefügt",
   "listenAgain": "Nochmal hören",
@@ -1005,6 +1009,14 @@
   },
   "bookDockChangedFields": "{count, plural, one {}=1{1 Feld} other{{count} Felder}}",
   "@bookDockChangedFields": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockFilesInEntry": "{count, plural, =1{Datei in diesem Eintrag} other{{count} Dateien in diesem Eintrag}}",
+  "@bookDockFilesInEntry": {
     "placeholders": {
       "count": {
         "type": "int"
