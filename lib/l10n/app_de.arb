@@ -9,6 +9,9 @@
   "listsNoneHint": "Sammlungen und Wiedergabelisten werden auf Ihrem Audiobookshelf-Server erstellt und hier angezeigt.",
   "listsLoadFailed": "Listen konnten nicht geladen werden",
   "listsLoadFailedHint": "Absorb konnte deinen Server für Sammlungen und Wiedergabelisten nicht erreichen.",
+  "listsNoneBookOrbit": "Keine Sammlungen oder Smart Scopes",
+  "listsNoneHintBookOrbit": "Sammlungen und Smart Scopes werden auf deinem BookOrbit-Server erstellt und hier angezeigt.",
+  "listsLoadFailedHintBookOrbit": "Absorb konnte deinen Server für Sammlungen und Smart Scopes nicht erreichen.",
   "cancel": "Abbrechen",
   "delete": "Löschen",
   "remove": "Entfernen",
@@ -32,6 +35,9 @@
     }
   },
   "whatsNewButton": "Was gibt's neues",
+  "whatsNewKeepShowing": "Nach jedem Update anzeigen",
+  "whatsNewKeepShowingHint": "Du kannst es in den Einstellungen wieder einschalten",
+  "settingsWhatsNew": "Zeige Neuigkeiten nach Updates",
   "gotIt": "Verstanden",
   "preview": "Vorschau",
   "or": "oder",
@@ -954,6 +960,73 @@
   "bookDockNeedsReview": "Prüfung erforderlich",
   "bookDockNoMatch": "Keine Übereinstimmung",
   "bookDockApplied": "Angewandt",
+  "bookDockNoAuthor": "Noch kein Autor",
+  "bookDockLookUpAgain": "Erneut nachschlagen",
+  "bookDockLookingUp": "Details werden erneut nachgeschlagen",
+  "bookDockLookUpFailed": "Details konnten nicht gefunden werden",
+  "bookDockProposedChanges": "Vorgeschlagene Änderungen",
+  "bookDockNoChanges": "Noch keine Details online gefunden",
+  "bookDockStillReading": "Der Server liest diese Datei immer noch aus",
+  "bookDockRoleBook": "Buch",
+  "bookDockRoleCover": "Cover",
+  "bookDockRoleMetadata": "Metadaten",
+  "bookDockRoleExtra": "Extra",
+  "bookDockFieldTitle": "Titel",
+  "bookDockFieldSubtitle": "Untertitel",
+  "bookDockFieldAuthors": "Autoren",
+  "bookDockFieldSeries": "Serien",
+  "bookDockFieldPublisher": "Verlag",
+  "bookDockFieldYear": "Jahr",
+  "bookDockFieldLanguage": "Sprache",
+  "bookDockFieldIsbn": "ISBN",
+  "bookDockMatch": "{percent} % Übereinstimmung",
+  "@bookDockMatch": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockFileCount": "{count, plural, one {}=1{1 Datei} other{{count} Dateien}}",
+  "@bookDockFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockGoesTo": "Gehe zu {library}",
+  "@bookDockGoesTo": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockChangedFields": "{count, plural, one {}=1{1 Feld} other{{count} Felder}}",
+  "@bookDockChangedFields": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockAdded": "Hinzugefügt {date}",
+  "@bookDockAdded": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockAddToLibrary": "Zur Bibliothek hinzufügen",
+  "bookDockUseFound": "Gefundene Details verwenden",
+  "bookDockRemoveTitle": "Vom Buch-Dock entfernen?",
+  "bookDockRemoveFailed": "Diese Datei konnte nicht entfernt werden",
+  "bookDockPickLibrary": "Zu welcher Bibliothek hinzufügen?",
+  "bookDockNoLibraries": "Dein Konto kann keine Bücher zu einer Bibliothek hinzufügen",
+  "bookDockFileFailed": "Diese Datei konnte nicht zur Bibliothek hinzugefügt werden",
+  "bookDockDuplicateBody": "Eine Datei mit diesem Namen ist bereits in dieser Bibliothek vorhanden. Aus dem Buch-Dock entfernen?",
   "bomatchNoResults": "Keine Treffer gefunden",
   "bomatchStrong": "Starke Treffer",
   "bomatchPossible": "Mögliche Treffer",
@@ -968,11 +1041,72 @@
   "bomatchKindNew": "Neu",
   "bomatchKindChange": "Ändern",
   "bomatchKindSmall": "Kleine Änderung",
+  "bomatchFrom": "Von {source}",
+  "@bomatchFrom": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "breqTitle": "Buchanfragen",
+  "breqTabRequest": "Buch anfragen",
+  "breqTabMine": "Meine Anfragen",
+  "breqTabAll": "Alle Anfragen",
+  "breqNoAccess": "Ihr Konto kann keine Bücher auf diesem Server anfordern.",
+  "breqTitleHint": "Buchtitel",
+  "breqAuthorHint": "Autor",
   "breqKindAudiobook": "Hörbuch",
   "breqKindEbook": "E-Book",
   "breqKindComic": "Comic",
+  "breqSearch": "Suche",
+  "breqSearching": "Sucht...",
+  "breqSearchFailed": "Suche nicht möglich. Überprüfe deine Verbindung und versuche es erneut.",
+  "breqSearchPrompt": "Suche nach einem Buch, das noch nicht in der Bibliothek vorhanden ist, um dieses anzufordern.",
   "breqInLibrary": "In deiner Bibliothek",
   "breqYouAsked": "Du hast dies angefordert",
+  "breqRequest": "Anfragen",
+  "breqRequested": "Angefordert",
+  "breqAddMeToo": "Auch mich hinzufügen",
+  "breqLibrary": "Bibliothek",
+  "breqLibraryApprover": "Den Genehmiger entscheiden lassen",
+  "breqLibraryChoose": "Eine Bibliothek auswählen",
+  "breqNote": "Hinweis an den Genehmiger",
+  "breqNoteHint": "Alles Wissenswerte zu dieser Anfrage",
+  "breqAutoApproved": "Deine Anfragen werden sofort bearbeitet.",
+  "breqSubmitted": "Anfrage übermittelt",
+  "breqJoined": "Du wurdest zur bestehenden Anfrage hinzugefügt",
+  "breqFailed": "Anfrage konnte nicht gesendet werden",
+  "breqStatusPending": "Ausstehend",
+  "breqStatusApproved": "Bestätigt",
+  "breqStatusRejected": "Abgelehnt",
+  "breqStatusCancelled": "Abgebrochen",
+  "breqStatusSearching": "Sucht",
+  "breqStatusGrabbed": "Release gefunden",
+  "breqStatusDownloading": "Wird heruntergeladen",
+  "breqStatusImporting": "Importieren",
+  "breqStatusNeedsReview": "Prüfung erforderlich",
+  "breqStatusAvailable": "Verfügbar",
+  "breqStatusFailed": "Fehlgeschlagen",
+  "breqWaitingApproval": "Wartet auf Freigabe",
+  "breqWaitingRelease": "Wartet auf die Auswahl eines Releases",
+  "breqAddingToLibrary": "Zur Bibliothek hinzufügen",
+  "breqWaitingCheck": "Warten auf eine manuelle Überprüfung",
+  "breqHidden": "Ausgeblendet",
+  "breqMineEmpty": "Du hast bisher keine Bücher angefragt.",
+  "breqAllEmpty": "Noch keine Anfragen.",
+  "breqLoadFailed": "Anfragen konnten nicht geladen werden.",
+  "breqLoadMore": "Mehr laden",
+  "breqApprove": "Genehmigen",
+  "breqReject": "Ablehnen",
+  "breqCancel": "Anfrage stornieren",
+  "breqHide": "Aus meiner Liste ausblenden",
+  "breqUnhide": "In meiner Liste anzeigen",
+  "breqDelete": "Anfrage löschen",
+  "breqOpenBook": "Buch öffnen",
+  "breqCancelConfirm": "Diese Anfrage abbrechen? Ein Download wird ebenfalls beendet.",
+  "breqDeleteConfirm": "Diese Anfrage löschen? Der Vorgang kann nicht rückgängig gemacht werden.",
+  "breqRejectTitle": "Anfrage ablehnen",
   "speedBookmarkInControls": "Geschwindigkeit & Lesezeichen in Mediensteuerung",
   "speedBookmarkOnSubtitle": "An - Benachrichtigung zeigt Geschwindigkeit & Lesezeichen; Kapitel Überspringen bleibt in Android Auto",
   "speedBookmarkOffSubtitle": "Aus - Benachrichtigung zeigt Kapitel-Überspringen; Geschwindigkeit & Lesezeichen bleiben in Android Auto",
