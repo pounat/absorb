@@ -6,16 +6,43 @@ import 'package:flutter/services.dart';
 import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
 import 'api_service.dart';
 import 'audio_player_service.dart';
+import 'cast_playback_policy.dart';
 import 'chapter_lookup.dart';
 import 'progress_sync_service.dart';
 
 enum CastConnectionState { disconnected, connecting, connected }
-enum CastPlaybackState { idle, loading, playing, paused, buffering }
-
 class ChromecastService extends ChangeNotifier {
   static final ChromecastService _instance = ChromecastService._();
   factory ChromecastService() => _instance;
-  ChromecastService._();
+  ChromecastService._()
+    : _pauseCommand = null,
+      _playCommand = null,
+      _testMediaStatusStream = null,
+      _testPositionStream = null,
+      _now = DateTime.now;
+
+  /// Narrow command/stream seam for deterministic Cast-control regression tests.
+  /// Production construction continues to use the Cast plugin singleton.
+  @visibleForTesting
+  ChromecastService.forTesting({
+    Future<void> Function()? pauseCommand,
+    Future<void> Function()? playCommand,
+    Stream<CastPlaybackState>? mediaStatusStream,
+    Stream<Duration>? positionStream,
+    DateTime Function()? now,
+  }) : _pauseCommand = pauseCommand,
+       _playCommand = playCommand,
+       _testMediaStatusStream = mediaStatusStream,
+       _testPositionStream = positionStream,
+       _now = now ?? DateTime.now {
+    _listenToTestStreams();
+  }
+
+  final Future<void> Function()? _pauseCommand;
+  final Future<void> Function()? _playCommand;
+  final Stream<CastPlaybackState>? _testMediaStatusStream;
+  final Stream<Duration>? _testPositionStream;
+  final DateTime Function() _now;
 
   /// Whether Chromecast is available in this build. True here; the GMS-free
   /// F-Droid stub sets it false so the UI hides all cast entry points.
@@ -28,7 +55,19 @@ class ChromecastService extends ChangeNotifier {
   CastPlaybackState get playbackState => _playbackState;
   bool get isConnected => _connectionState == CastConnectionState.connected;
   bool get isCasting => isConnected && _playbackState != CastPlaybackState.idle;
+  /// Active receiver playback used by the controls and sleep timer.
+  ///
+  /// Keep [isPlaying] strict so buffering time is not counted as listening
+  /// statistics; a receiver can still be audibly playing while reporting it.
+  bool get isReceiverActive => isCastReceiverActive(
+    _playbackState,
+    lastPositionAdvance: _lastCastPositionAdvanceAt,
+    now: _now(),
+    isPauseRequested: _castPlaybackIntent.isPauseRequested,
+  ) || _castPlaybackIntent.isPlayRequested;
   bool get isPlaying => _playbackState == CastPlaybackState.playing;
+  bool get shouldPauseOnToggle => _castPlaybackIntent.isPlayRequested ||
+      shouldPauseCastOnToggle(_playbackState, receiverActive: isReceiverActive);
 
   /// True while a backstop reconnect is being attempted after the sender lost
   /// its connection but the receiver was actively playing (see [_tryReconnect]).
@@ -45,6 +84,11 @@ class ChromecastService extends ChangeNotifier {
   List<dynamic> _castingChapters = [];
   ApiService? _api;
   Duration _castPosition = Duration.zero;
+  DateTime? _lastCastPositionAdvanceAt;
+  final CastPlaybackIntent _castPlaybackIntent = CastPlaybackIntent();
+  CastPlaybackState? _playbackStateBeforePause;
+  Timer? _resumeIntentTimer;
+  Timer? _bufferingLivenessTimer;
   String? _connectedDeviceName;
   String? _playbackSessionId;
   int? _castPlayMethod;
@@ -108,6 +152,67 @@ class ChromecastService extends ChangeNotifier {
   bool _initialized = false;
   bool _isCompletingBook = false;
   bool _foregroundServiceActive = false;
+
+  void _clearPlaybackIntent() {
+    _resumeIntentTimer?.cancel();
+    _resumeIntentTimer = null;
+    _castPlaybackIntent.clear();
+    _playbackStateBeforePause = null;
+  }
+
+  void _requestPlayIntent() {
+    _clearPlaybackIntent();
+    _castPlaybackIntent.requestPlay();
+    _resumeIntentTimer = Timer(castResumeIntentGrace, () {
+      _resumeIntentTimer = null;
+      if (!_castPlaybackIntent.isPlayRequested) return;
+      _castPlaybackIntent.clear();
+      _scheduleBufferingLivenessNotification();
+      notifyListeners();
+    });
+  }
+
+  void _requestPauseIntent() {
+    _clearPlaybackIntent();
+    _castPlaybackIntent.requestPause();
+  }
+
+  void _reconcilePlaybackIntentForStatus(CastPlaybackState target) {
+    final pauseContradicted = _castPlaybackIntent.isPauseRequested &&
+        shouldClearCastPauseIntent(target);
+    final playConfirmedOrStopped = _castPlaybackIntent.isPlayRequested &&
+        (target == CastPlaybackState.playing || target == CastPlaybackState.idle);
+    if (pauseContradicted || playConfirmedOrStopped) _clearPlaybackIntent();
+  }
+
+  /// Rebuild the controls when buffering liveness expires even if the receiver
+  /// stops emitting position events. Without this, the getter becomes false
+  /// after the grace period but no listener is told to re-read it.
+  void _scheduleBufferingLivenessNotification() {
+    _bufferingLivenessTimer?.cancel();
+    if (_playbackState != CastPlaybackState.buffering ||
+        _castPlaybackIntent.isPauseRequested ||
+        _lastCastPositionAdvanceAt == null) {
+      _bufferingLivenessTimer = null;
+      return;
+    }
+    final deadline = castBufferingLivenessDeadline(
+      _playbackState,
+      lastPositionAdvance: _lastCastPositionAdvanceAt,
+      isPauseRequested: _castPlaybackIntent.isPauseRequested,
+    )!;
+    final delay = deadline.difference(_now());
+    _bufferingLivenessTimer = Timer(
+      delay.isNegative ? Duration.zero : delay + const Duration(milliseconds: 1),
+      () {
+        _bufferingLivenessTimer = null;
+        if (_playbackState == CastPlaybackState.buffering &&
+            !isReceiverActive) {
+          notifyListeners();
+        }
+      },
+    );
+  }
 
   /// Method channel to the native Android CastForegroundService. The Cast SDK
   /// notification lives in Google Play Services' process, so Absorb's process
@@ -331,6 +436,10 @@ class ChromecastService extends ChangeNotifier {
     _castingDuration = 0;
     _castingChapters = [];
     _castPosition = Duration.zero;
+    _lastCastPositionAdvanceAt = null;
+    _clearPlaybackIntent();
+    _bufferingLivenessTimer?.cancel();
+    _bufferingLivenessTimer = null;
     _fallbackTracks = null; _fallbackOffsets = null; _fallbackTrackIdx = -1;
     _queueOffsets = null; _queueTrackIdx = 0;
     _mediaStatusSub?.cancel();
@@ -428,6 +537,8 @@ class ChromecastService extends ChangeNotifier {
         _idleDebounceTimer = null;
       }
 
+      _reconcilePlaybackIntentForStatus(target);
+
       // If the cast reports idle while we still have an active item that isn't
       // near the end, treat it as a transient blip and wait before actually
       // flipping to idle. This prevents the UI card from vanishing on brief
@@ -463,6 +574,7 @@ class ChromecastService extends ChangeNotifier {
       } else {
         _playbackState = target;
       }
+      _scheduleBufferingLivenessNotification();
 
       // Notify listeners & manage wake lock on playback state transitions
       final wasPlaying = prev == CastPlaybackState.playing || prev == CastPlaybackState.buffering;
@@ -496,22 +608,9 @@ class ChromecastService extends ChangeNotifier {
 
   void _listenToPosition() {
     _positionSub?.cancel();
-    // ignore: invalid_null_aware_operator
-    _positionSub = GoogleCastRemoteMediaClient.instance.playerPositionStream?.listen((pos) {
+    _positionSub = GoogleCastRemoteMediaClient.instance.playerPositionStream.listen((pos) {
       // ignore: unnecessary_null_comparison
-      if (pos != null) {
-        // Queue and fallback modes report track-local positions; translate
-        // to absolute book position.
-        if (_queueOffsets != null && _queueTrackIdx >= 0 && _queueTrackIdx < _queueOffsets!.length - 1) {
-          final offsetMs = (_queueOffsets![_queueTrackIdx] * 1000).round();
-          _castPosition = Duration(milliseconds: offsetMs + pos.inMilliseconds);
-        } else if (_fallbackOffsets != null && _fallbackTrackIdx >= 0 && _fallbackTrackIdx < _fallbackOffsets!.length) {
-          final offsetMs = (_fallbackOffsets![_fallbackTrackIdx] * 1000).round();
-          _castPosition = Duration(milliseconds: offsetMs + pos.inMilliseconds);
-        } else {
-          _castPosition = pos;
-        }
-      }
+      if (pos != null) _handlePosition(pos);
     }, onError: (e) {
       debugPrint('[Cast] positionStream error - re-subscribing: $e');
       _listenToPosition();
@@ -539,8 +638,101 @@ class ChromecastService extends ChangeNotifier {
     });
   }
 
+  /// A typed mirror of the receiver subscriptions, used only by deterministic
+  /// service tests so delayed Cast events can be exercised without the plugin.
+  void _listenToTestStreams() {
+    final mediaStatusStream = _testMediaStatusStream;
+    if (mediaStatusStream != null) {
+      _mediaStatusSub = mediaStatusStream.listen(_handleTestMediaStatus);
+    }
+    final positionStream = _testPositionStream;
+    if (positionStream != null) {
+      _positionSub = positionStream.listen(_handlePosition);
+    }
+  }
+
+  void _handleTestMediaStatus(CastPlaybackState target) {
+    final previous = _playbackState;
+    _reconcilePlaybackIntentForStatus(target);
+    _playbackState = target;
+    _scheduleBufferingLivenessNotification();
+    final wasActive = previous == CastPlaybackState.playing ||
+        previous == CastPlaybackState.buffering;
+    final isActive = target == CastPlaybackState.playing ||
+        target == CastPlaybackState.buffering;
+    if (wasActive != isActive) _onPlaybackStateChangedCallback?.call(isActive);
+    notifyListeners();
+  }
+
   Stream<Duration>? get castPositionStream =>
       GoogleCastRemoteMediaClient.instance.playerPositionStream;
+
+  void _handlePosition(Duration pos) {
+    final previousPosition = _castPosition;
+    if (_queueOffsets != null && _queueTrackIdx >= 0 && _queueTrackIdx < _queueOffsets!.length - 1) {
+      final offsetMs = (_queueOffsets![_queueTrackIdx] * 1000).round();
+      _castPosition = Duration(milliseconds: offsetMs + pos.inMilliseconds);
+    } else if (_fallbackOffsets != null && _fallbackTrackIdx >= 0 && _fallbackTrackIdx < _fallbackOffsets!.length) {
+      final offsetMs = (_fallbackOffsets![_fallbackTrackIdx] * 1000).round();
+      _castPosition = Duration(milliseconds: offsetMs + pos.inMilliseconds);
+    } else {
+      _castPosition = pos;
+    }
+    var positionEvidence = CastPositionEvidence.none;
+    if (_castPosition != previousPosition) {
+      _lastCastPositionAdvanceAt = _now();
+      positionEvidence = _castPlaybackIntent.recordPositionAdvance();
+      if (positionEvidence == CastPositionEvidence.pauseIgnored) {
+        _playbackState = _playbackStateBeforePause ?? _playbackState;
+        _playbackStateBeforePause = null;
+      } else if (positionEvidence == CastPositionEvidence.playConfirmed) {
+        _resumeIntentTimer?.cancel();
+        _resumeIntentTimer = null;
+        _playbackStateBeforePause = null;
+        if (_playbackState == CastPlaybackState.paused ||
+            _playbackState == CastPlaybackState.idle) {
+          _playbackState = CastPlaybackState.buffering;
+        }
+      }
+      _scheduleBufferingLivenessNotification();
+    }
+    if (_playbackState == CastPlaybackState.buffering ||
+        positionEvidence != CastPositionEvidence.none) notifyListeners();
+  }
+
+  @visibleForTesting
+  void handleTestPosition(Duration position) => _handlePosition(position);
+
+  @visibleForTesting
+  void setTestReceiverState(CastPlaybackState state, {bool connected = true}) {
+    _connectionState = connected ? CastConnectionState.connected : CastConnectionState.disconnected;
+    _playbackState = state;
+  }
+
+  @visibleForTesting
+  void setTestReconnecting(bool reconnecting) {
+    _connectionState = CastConnectionState.disconnected;
+    _reconnecting = reconnecting;
+  }
+
+  @visibleForTesting
+  Future<void> completeTestReconnect() async {
+    _connectionState = CastConnectionState.connected;
+    _reconnecting = false;
+    if (_pendingSleepPause) {
+      _pendingSleepPause = false;
+      await pause();
+    }
+  }
+
+  int _consumeTimeListened(DateTime now) {
+    final elapsed = now.difference(_lastSyncTime).inSeconds.clamp(0, 300);
+    _lastSyncTime = now;
+    return isPlaying ? elapsed : 0;
+  }
+
+  @visibleForTesting
+  int consumeTestTimeListened(DateTime now) => _consumeTimeListened(now);
 
   // ── Discovery / Connection ──
 
@@ -616,6 +808,8 @@ class ChromecastService extends ChangeNotifier {
     _castingCoverUrl = coverUrl;
     _castingDuration = totalDuration;
     _castingChapters = chapters;
+    _lastCastPositionAdvanceAt = null;
+    _clearPlaybackIntent();
     _playbackState = CastPlaybackState.loading;
     notifyListeners();
 
@@ -934,7 +1128,17 @@ class ChromecastService extends ChangeNotifier {
 
   Future<void> play() async {
     if (!isConnected) return;
-    try { await GoogleCastRemoteMediaClient.instance.play(); } catch (_) {}
+    try {
+      final playCommand = _playCommand;
+      if (playCommand != null) await playCommand();
+      else await GoogleCastRemoteMediaClient.instance.play();
+      _requestPlayIntent();
+      _scheduleBufferingLivenessNotification();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[Cast] play error: $e');
+      return;
+    }
     // Reset the sync clock so the first tick after resume only counts the
     // seconds actually played since now, not the wall-clock elapsed since
     // the last sync (which would include the entire pause).
@@ -942,11 +1146,24 @@ class ChromecastService extends ChangeNotifier {
   }
   Future<void> pause() async {
     if (!isConnected) return;
-    try { await GoogleCastRemoteMediaClient.instance.pause(); } catch (_) {}
+    try {
+      final pauseCommand = _pauseCommand;
+      if (pauseCommand != null) await pauseCommand();
+      else await GoogleCastRemoteMediaClient.instance.pause();
+      final playbackStateBeforePause = _playbackState;
+      _requestPauseIntent();
+      _playbackStateBeforePause = playbackStateBeforePause;
+      _playbackState = CastPlaybackState.paused;
+      _scheduleBufferingLivenessNotification();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[Cast] pause error: $e');
+      return;
+    }
     await _saveProgressLocal();
     await _syncProgressToServer();
   }
-  Future<void> togglePlayPause() async { isPlaying ? await pause() : await play(); }
+  Future<void> togglePlayPause() async { shouldPauseOnToggle ? await pause() : await play(); }
 
   Future<void> seekTo(Duration position) async {
     if (!isConnected) return;
@@ -1057,6 +1274,7 @@ class ChromecastService extends ChangeNotifier {
     }
 
     await _setForegroundService(false);
+    _clearPlaybackIntent();
     _playbackState = CastPlaybackState.idle;
     _castingItemId = _castingEpisodeId = _castingTitle = _castingAuthor = _castingCoverUrl = null;
     _castingDuration = 0; _castingChapters = [];
@@ -1147,8 +1365,7 @@ class ChromecastService extends ChangeNotifier {
     if (ct <= 0) return;
     try {
       final now = DateTime.now();
-      final elapsed = now.difference(_lastSyncTime).inSeconds.clamp(0, 300);
-      _lastSyncTime = now;
+      final elapsed = _consumeTimeListened(now);
 
       if (_playbackSessionId != null) {
         debugPrint('[CastSync] ct=${ct.toStringAsFixed(1)}s timeListened=${elapsed}s sid=${_playbackSessionId!.substring(0, 8)}...');
@@ -1223,6 +1440,8 @@ class ChromecastService extends ChangeNotifier {
     _idleDebounceTimer?.cancel();
     _disconnectDebounceTimer?.cancel();
     _reconnectTimer?.cancel();
+    _resumeIntentTimer?.cancel();
+    _bufferingLivenessTimer?.cancel();
     super.dispose();
   }
 }
