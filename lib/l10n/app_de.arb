@@ -936,6 +936,7 @@
   "nowPlayingPieceTitle": "Buchtitel",
   "nowPlayingPieceNarrator": "Erzähler",
   "nowPlayingPieceSeries": "Serien",
+  "nowPlayingPiecePercent": "Buch-Prozentsatz",
   "nowPlayingPieceChapterNumber": "Kapitelnummer",
   "nowPlayingPieceTimeLeft": "Restzeit",
   "nowPlayingChapterNumber": "K. {number}/{total}",
@@ -964,6 +965,8 @@
   "bookDockNeedsReview": "Prüfung erforderlich",
   "bookDockNoMatch": "Keine Übereinstimmung",
   "bookDockApplied": "Angewandt",
+  "bookDockNotApplied": "Gefunden Details nicht verwendet",
+  "bookDockNoDestination": "Kein Ziel gesetzt",
   "bookDockNoAuthor": "Noch kein Autor",
   "bookDockLookUpAgain": "Erneut nachschlagen",
   "bookDockLookingUp": "Details werden erneut nachgeschlagen",
@@ -1039,9 +1042,21 @@
   "bookDockNoLibraries": "Dein Konto kann keine Bücher zu einer Bibliothek hinzufügen",
   "bookDockFileFailed": "Diese Datei konnte nicht zur Bibliothek hinzugefügt werden",
   "bookDockDuplicateBody": "Eine Datei mit diesem Namen ist bereits in dieser Bibliothek vorhanden. Aus dem Buch-Dock entfernen?",
+  "bookDockDetailsUpdated": "Details aktualisiert",
+  "bookDockDuplicateTitle": "Bereits in {library}",
+  "@bookDockDuplicateTitle": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bomatchSearching": "Suche läuft...",
+  "bomatchSearchFailed": "Suche nicht möglich. Überprüfe deine Verbindung und versuche es erneut.",
   "bomatchNoResults": "Keine Treffer gefunden",
   "bomatchStrong": "Starke Treffer",
   "bomatchPossible": "Mögliche Treffer",
+  "bomatchSourceTimeout": "Zeitüberschreitung",
   "bomatchSourceBusy": "beschäftigt",
   "bomatchSourceFailed": "fehlgeschlagen",
   "bomatchLinked": "verknüpft",
@@ -1053,6 +1068,34 @@
   "bomatchKindNew": "Neu",
   "bomatchKindChange": "Ändern",
   "bomatchKindSmall": "Kleine Änderung",
+  "bomatchUse": "Verwenden",
+  "bomatchMerge": "Zusammenführen",
+  "bomatchReplace": "Ersetzen",
+  "bomatchUseThis": "Dies verwenden",
+  "bomatchOther": "{count, plural, =1{1 anderes Buch} other{{count} andere Bücher}}",
+  "@bomatchOther": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchChanged": "{count, plural, =1{1 Änderung} other{{count} Änderungen}}",
+  "@bomatchChanged": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchNew": "{count, plural, one {{count} neu} =1{1 neu} other{{count} neue}}",
+  "@bomatchNew": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "bomatchFrom": "Von {source}",
   "@bomatchFrom": {
     "placeholders": {
@@ -1102,8 +1145,11 @@
   "breqStatusFailed": "Fehlgeschlagen",
   "breqWaitingApproval": "Wartet auf Freigabe",
   "breqWaitingRelease": "Wartet auf die Auswahl eines Releases",
+  "breqLookingForRelease": "Auf der Suche nach einer Veröffentlichung",
+  "breqStartingDownload": "Download wird gestartet",
   "breqAddingToLibrary": "Zur Bibliothek hinzufügen",
   "breqWaitingCheck": "Warten auf eine manuelle Überprüfung",
+  "breqReady": "Bereit in deiner Bibliothek",
   "breqHidden": "Ausgeblendet",
   "breqMineEmpty": "Du hast bisher keine Bücher angefragt.",
   "breqAllEmpty": "Noch keine Anfragen.",
@@ -5023,5 +5069,143 @@
   "transcriptionWhisperLearnMore": "Mehr über Whisper erfahren",
   "findInAudiobookStay": "Weiterlesen",
   "findInAudiobookGoPlayer": "Im Player öffnen",
-  "findInAudiobookPlaying": "Diese Passage im Hörbuch abspielen"
+  "findInAudiobookPlaying": "Diese Passage im Hörbuch abspielen",
+  "achievementsLoadFailed": "Erfolge konnten nicht geladen werden",
+  "achievementsNoneMatch": "Keine Erfolge entsprechen diesem Filter",
+  "achievementsSecretName": "Geheimer Erfolg",
+  "achievementsSecretHint": "Lese weiter, um diesen aufzudecken.",
+  "achievementsEarnedOn": "Verdient am: {date}",
+  "@achievementsEarnedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsWhileReading": "Beim Lesen von „{title}“",
+  "@achievementsWhileReading": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsTierOf": "Stufe {earned} von {total}",
+  "@achievementsTierOf": {
+    "placeholders": {
+      "earned": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsTiers": "Stufen",
+  "achievementsAllTiers": "Jede verdiente Stufe",
+  "achievementsProgress": "{current} / {threshold}",
+  "@achievementsProgress": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressBooks": "{current}/{threshold} Bücher",
+  "@achievementsProgressBooks": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressPages": "{current} / {threshold} Seiten",
+  "@achievementsProgressPages": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressHours": "{current} / {threshold} Stunden",
+  "@achievementsProgressHours": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressAnnotations": "{current} / {threshold} Highlights und Notizen",
+  "@achievementsProgressAnnotations": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressRatings": "{current} / {threshold} Bewertungen",
+  "@achievementsProgressRatings": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressGenres": "{current} / {threshold} Genres",
+  "@achievementsProgressGenres": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressLanguages": "{current} / {threshold} Sprachen",
+  "@achievementsProgressLanguages": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressDays": "{current} / {threshold} Tage",
+  "@achievementsProgressDays": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHowToGetIt": "Wie bekomme ich es?",
+  "achievementsSwitch": "Erfolge",
+  "achievementsSwitchSubtitle": "Erfolge in BookOrbit tracken. Wenn du dies deaktivierst, werden sie hier und im Web ausgeblendet.",
+  "achievementsTurnedOn": "Erfolge eingeschaltet",
+  "achievementsTurnedOff": "Erfolge ausgeschaltet",
+  "achievementsSwitchFailed": "Konnte die Erfolge auf BookOrbit nicht ändern"
 }
