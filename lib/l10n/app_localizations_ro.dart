@@ -781,6 +781,17 @@ class AppLocalizationsRo extends AppLocalizations {
   String get downloadsCompleted => 'Completed';
 
   @override
+  String get downloadsExportAudio => 'Export audio files';
+
+  @override
+  String get downloadsExportUnavailable =>
+      'Some audio files are missing or unreadable. Download it again before exporting.';
+
+  @override
+  String get downloadsExportFailed =>
+      'Couldn\'t export the audio files. Please try again.';
+
+  @override
   String get downloadsEbooks => 'Ebooks';
 
   @override

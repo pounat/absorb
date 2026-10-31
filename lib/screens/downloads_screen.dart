@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/download_export_service.dart';
 import '../services/ebook_cache.dart';
 import '../widgets/ebook_router.dart';
 import '../services/wording.dart';
@@ -15,6 +16,7 @@ import '../widgets/card_buttons.dart' show showErrorToast;
 import 'app_shell.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/share_origin.dart';
 
 class DownloadsScreen extends StatefulWidget {
   const DownloadsScreen({super.key});
@@ -29,6 +31,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   bool _selecting = false;
   final Set<String> _selected = {};
   bool _mergeLibraries = false;
+  bool _exporting = false;
 
   @override
   void initState() {
@@ -167,6 +170,28 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     if (mounted) {
       showOverlayToast(context, l.downloadsRemovedTitle(info.title ?? ''),
           icon: Icons.delete_outline_rounded);
+    }
+  }
+
+  Future<void> _exportAudio(DownloadInfo info, BuildContext buttonContext) async {
+    if (_exporting) return;
+    final l = AppLocalizations.of(context)!;
+    // Capture the button's rect before awaiting file checks. iPad requires a
+    // popover anchor, and the download card may disappear while sharing.
+    final origin = shareOriginFor(buttonContext);
+    setState(() => _exporting = true);
+    try {
+      await DownloadExportService().shareAudioFiles(
+        info.localPaths,
+        sharePositionOrigin: origin,
+      );
+    } on DownloadExportUnavailable {
+      if (mounted) showErrorToast(context, l.downloadsExportUnavailable);
+    } catch (e) {
+      debugPrint('[Downloads] Export failed: $e');
+      if (mounted) showErrorToast(context, l.downloadsExportFailed);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
     }
   }
 
@@ -445,6 +470,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                   onPlay: () => _play(info),
                                   onLongPress: () => _enterSelection(info.itemId),
                                   onDelete: () => _deleteSingle(info),
+                                  onExport: Platform.isIOS
+                                      ? (buttonContext) =>
+                                          _exportAudio(info, buttonContext)
+                                      : null,
+                                  exportBusy: _exporting,
                                   formatBytes: _formatBytes,
                                   mediaHeaders: context.read<LibraryProvider>().mediaHeaders,
                                 ),
@@ -525,6 +555,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   }
 }
 
+enum _DownloadAction { export, delete }
+
 class _DownloadCard extends StatelessWidget {
   final DownloadInfo info;
   final int fileSize;
@@ -536,6 +568,8 @@ class _DownloadCard extends StatelessWidget {
   final VoidCallback onPlay;
   final VoidCallback onLongPress;
   final VoidCallback onDelete;
+  final ValueChanged<BuildContext>? onExport;
+  final bool exportBusy;
   final String Function(int) formatBytes;
   final Map<String, String> mediaHeaders;
   final IconData playIcon;
@@ -552,6 +586,8 @@ class _DownloadCard extends StatelessWidget {
     required this.onPlay,
     required this.onLongPress,
     required this.onDelete,
+    this.onExport,
+    this.exportBusy = false,
     required this.formatBytes,
     required this.mediaHeaders,
     this.playIcon = Icons.play_circle_outline_rounded,
@@ -643,12 +679,46 @@ class _DownloadCard extends StatelessWidget {
                     onPressed: onPlay,
                   ),
                 if (!selecting)
-                  IconButton(
-                    icon: Icon(Icons.delete_outline_rounded,
-                        color: cs.error, size: 22),
-                    tooltip: l.delete,
-                    onPressed: onDelete,
-                  ),
+                  if (onExport != null)
+                    Builder(
+                      builder: (buttonContext) => PopupMenuButton<_DownloadAction>(
+                        tooltip: l.more,
+                        onSelected: (action) {
+                          if (action == _DownloadAction.export) {
+                            onExport!(buttonContext);
+                          } else {
+                            onDelete();
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          PopupMenuItem(
+                            value: _DownloadAction.export,
+                            enabled: !exportBusy,
+                            child: ListTile(
+                              leading: const Icon(Icons.ios_share_rounded),
+                              title: Text(l.downloadsExportAudio),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: _DownloadAction.delete,
+                            child: ListTile(
+                              leading: Icon(Icons.delete_outline_rounded,
+                                  color: cs.error),
+                              title: Text(l.delete),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    IconButton(
+                      icon: Icon(Icons.delete_outline_rounded,
+                          color: cs.error, size: 22),
+                      tooltip: l.delete,
+                      onPressed: onDelete,
+                    ),
               ],
             ),
           ),
