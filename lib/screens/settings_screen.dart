@@ -63,6 +63,7 @@ import '../widgets/server_connection_editor.dart';
 import '../widgets/server_admin_status_badges.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/sign_in_again.dart';
+import '../widgets/headphone_output_tile.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -1832,6 +1833,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 8),
+
+                if (Platform.isAndroid) const HeadphoneOutputTile(),
 
                 // ── Tips & Tricks ──
                 Padding(

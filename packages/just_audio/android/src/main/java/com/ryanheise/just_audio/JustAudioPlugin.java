@@ -16,6 +16,7 @@ import io.flutter.plugin.common.MethodChannel.Result;
  */
 public class JustAudioPlugin implements FlutterPlugin {
     private MethodChannel channel;
+    private MethodChannel headphoneChannel;
     private MainMethodCallHandler methodCallHandler;
 
     @Override
@@ -26,6 +27,8 @@ public class JustAudioPlugin implements FlutterPlugin {
 
         channel = new MethodChannel(messenger, "com.ryanheise.just_audio.methods");
         channel.setMethodCallHandler(methodCallHandler);
+        headphoneChannel = new MethodChannel(messenger, "com.absorb.headphones");
+        headphoneChannel.setMethodCallHandler(HeadphoneRouting.get(applicationContext));
         @SuppressWarnings("deprecation")
         FlutterEngine engine = binding.getFlutterEngine();
         engine.addEngineLifecycleListener(new EngineLifecycleListener() {
@@ -46,5 +49,6 @@ public class JustAudioPlugin implements FlutterPlugin {
         methodCallHandler = null;
 
         channel.setMethodCallHandler(null);
+        headphoneChannel.setMethodCallHandler(null);
     }
 }
