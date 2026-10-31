@@ -150,6 +150,10 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
     private IcyHeaders icyHeaders;
     private int errorCount;
     private AudioAttributes pendingAudioAttributes;
+    private AudioAttributes baseAudioAttributes;
+    private HeadphoneRouting headphoneRouting;
+    // Output headphone mode last requested, 0 for none. Other output requests leave it alone.
+    private int headphoneDeviceId;
     private LoadControl loadControl;
     private boolean offloadSchedulingEnabled;
     private LivePlaybackSpeedControl livePlaybackSpeedControl;
@@ -574,19 +578,19 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
                 result.success(new HashMap<String, Object>());
                 break;
             case "setPreferredAudioDevice":
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && player != null) {
+                if (headphoneRouting != null && headphoneRouting.isEnabled()) {
+                    Log.i("AbsorbHeadphones", "Ignoring preferred output request while headphone mode is enabled");
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && player != null) {
                     Integer deviceId = call.argument("deviceId");
-                    if (deviceId == null || deviceId == 0) {
-                        player.setPreferredAudioDevice(null);
-                    } else {
+                    AudioDeviceInfo target = null;
+                    if (deviceId != null && deviceId != 0) {
                         AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
                         AudioDeviceInfo[] devices = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
-                        AudioDeviceInfo target = null;
                         for (AudioDeviceInfo d : devices) {
                             if (d.getId() == deviceId) { target = d; break; }
                         }
-                        player.setPreferredAudioDevice(target);
                     }
+                    player.setPreferredAudioDevice(target);
                 }
                 result.success(new HashMap<String, Object>());
                 break;
@@ -974,9 +978,16 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
                 builder.setLivePlaybackSpeedControl(livePlaybackSpeedControl);
             }
             player = builder.build();
+            baseAudioAttributes = player.getAudioAttributes();
+            // A new ExoPlayer has no preferred device yet.
+            headphoneDeviceId = 0;
+            headphoneRouting = HeadphoneRouting.get(context);
+            headphoneRouting.register(this);
             final ExoPlayer p = player;
             OutputDeviceController.register(device -> {
-                if (p != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (headphoneRouting != null && headphoneRouting.isEnabled()) {
+                    Log.i("AbsorbHeadphones", "Ignoring preferred output request while headphone mode is enabled");
+                } else if (p != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     p.setPreferredAudioDevice(device);
                 }
             });
@@ -1003,14 +1014,46 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
         builder.setFlags(flags);
         builder.setUsage(usage);
         //builder.setAllowedCapturePolicy((Integer)json.get("allowedCapturePolicy"));
-        AudioAttributes audioAttributes = builder.build();
+        baseAudioAttributes = builder.build();
+        applyHeadphoneRouting();
+    }
+
+    void applyHeadphoneRouting() {
+        if (player == null || headphoneRouting == null) return;
+        boolean enabled = headphoneRouting.isEnabled();
+        AudioDeviceInfo device = headphoneRouting.selectedDevice();
+        if (enabled && device == null && player.getPlayWhenReady()) pauseForMissingHeadphones();
+        // Android Auto's media mix can intercept USAGE_MEDIA before preferred-device
+        // selection. USAGE_GAME tests the normal device-routing path instead.
+        AudioAttributes audioAttributes = enabled
+            ? new AudioAttributes.Builder()
+                .setContentType(baseAudioAttributes.contentType)
+                .setFlags(baseAudioAttributes.flags)
+                .setAllowedCapturePolicy(baseAudioAttributes.allowedCapturePolicy)
+                .setUsage(C.USAGE_GAME).build()
+            : baseAudioAttributes;
         if (processingState == ProcessingState.loading) {
             // audio attributes should be set either before or after loading to
             // avoid an ExoPlayer glitch.
             pendingAudioAttributes = audioAttributes;
-        } else {
+        } else if (!audioAttributes.equals(player.getAudioAttributes())) {
             player.setAudioAttributes(audioAttributes, false);
         }
+        int targetId = device == null ? 0 : device.getId();
+        if (Build.VERSION.SDK_INT >= 23 && targetId != headphoneDeviceId) {
+            player.setPreferredAudioDevice(device);
+            headphoneDeviceId = targetId;
+            Log.i("AbsorbHeadphones", "Requested output=" + targetId + " headphoneMode=" + enabled);
+        }
+    }
+
+    // The app keeps playing through some route drops while Android Auto is
+    // connected, so Dart may not pause by itself. Tell it the player stopped.
+    private void pauseForMissingHeadphones() {
+        pause();
+        Map<String, Object> data = new HashMap<>();
+        data.put("playing", false);
+        dataEventChannel.success(data);
     }
 
     private void audioEffectSetEnabled(String type, boolean enabled) {
@@ -1166,6 +1209,13 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
     }
 
     public void play(Result result) {
+        applyHeadphoneRouting();
+        if (headphoneRouting != null && headphoneRouting.isEnabled() && headphoneRouting.selectedDevice() == null) {
+            // Stay paused rather than play through the car or phone speaker.
+            pauseForMissingHeadphones();
+            result.success(new HashMap<String, Object>());
+            return;
+        }
         if (player.getPlayWhenReady()) {
             result.success(new HashMap<String, Object>());
             return;
@@ -1270,6 +1320,7 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
         mediaSource = null;
         clearAudioEffects();
         if (player != null) {
+            if (headphoneRouting != null) headphoneRouting.unregister(this);
             player.release();
             player = null;
             processingState = ProcessingState.none;
