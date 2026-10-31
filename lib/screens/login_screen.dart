@@ -1482,6 +1482,13 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildCredentialFields(ColorScheme cs, TextTheme tt) {
     final l = AppLocalizations.of(context)!;
     final usingApiKey = _apiKeyController.text.trim().isNotEmpty;
+    // The server only allows SSO, so a password would be refused. An API key
+    // still signs in with the Sign In button.
+    final ssoOnly = _serverValid &&
+        _oidcConfig != null &&
+        _oidcConfig!.enabled &&
+        !_oidcConfig!.hasLocalAuth;
+    final showSignIn = usingApiKey || !ssoOnly;
     return AutofillGroup(
       child: Column(
       children: [
@@ -1514,7 +1521,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
 
-        if (!usingApiKey) ...[
+        if (!usingApiKey && !ssoOnly) ...[
           // Username
           _buildInputField(
             controller: _usernameController,
@@ -1560,45 +1567,47 @@ class _LoginScreenState extends State<LoginScreen>
             // No validator — ABS allows passwordless accounts
           ),
         ],
-        const SizedBox(height: 24),
+        if (showSignIn) ...[
+          const SizedBox(height: 24),
 
-        // Sign In button
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: FilledButton(
-            onPressed: _isConnecting || _isOidcLoading ? null : _handleLogin,
-            style: FilledButton.styleFrom(
-              backgroundColor: cs.primary,
-              foregroundColor: cs.onPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+          // Sign In button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              onPressed: _isConnecting || _isOidcLoading ? null : _handleLogin,
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.primary,
+                foregroundColor: cs.onPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
               ),
-              elevation: 0,
-            ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: _isConnecting
-                  ? SizedBox(
-                      key: const ValueKey('loading'),
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: cs.onPrimary,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _isConnecting
+                    ? SizedBox(
+                        key: const ValueKey('loading'),
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: cs.onPrimary,
+                        ),
+                      )
+                    : Text(
+                        l.loginSignIn,
+                        key: const ValueKey('text'),
+                        style: tt.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: cs.onPrimary,
+                        ),
                       ),
-                    )
-                  : Text(
-                      l.loginSignIn,
-                      key: const ValueKey('text'),
-                      style: tt.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: cs.onPrimary,
-                      ),
-                    ),
+              ),
             ),
           ),
-        ),
+        ],
         AnimatedSize(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOutCubic,
