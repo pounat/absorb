@@ -2124,7 +2124,6 @@
   "unmark": "Снять метку",
   "markedAsNotFinishedBackAtIt": "Помечено как не прослушано - Ещё разок!",
   "resetProgressQuestion": "Сбросить прогресс?",
-  "resetProgressContent": "Это очистит весь прогресс для этой книги и вернет его в начало. Это действие невозможно отменить.",
   "progressResetFreshStart": "Прогресс сброшен - свежий старт!",
   "clearLocalMetadataQuestion": "Очистить локальные метаданные?",
   "clearLocalMetadataContent": "Это удалит локально сохраненные метаданные и вернется к данным от сервера.",
