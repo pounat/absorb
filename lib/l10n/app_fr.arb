@@ -1619,7 +1619,6 @@
   "markAsFullyAbsorbedContent": "Cela définira votre progression à 100% et arrêtera la lecture si ce livre est en cours de lecture.",
   "unmark": "Désélectionner",
   "resetProgressQuestion": "Réinitialiser la progression ?",
-  "resetProgressContent": "Ceci effacera toute la progression de ce livre et le réinitialisera au début. Cela ne peut pas être annulé.",
   "clearLocalMetadataQuestion": "Effacer les métadonnées locales ?",
   "clearLocalMetadataContent": "Cela supprimera les métadonnées stockées localement et réutilisera ce que le serveur possède.",
   "localMetadataCleared": "Métadonnées locales effacées",
