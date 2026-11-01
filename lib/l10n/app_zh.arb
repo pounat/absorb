@@ -1086,7 +1086,6 @@
   "unmark": "取消标记",
   "markedAsNotFinishedBackAtIt": "已标记为未完成 - 继续加油！",
   "resetProgressQuestion": "重置进度？",
-  "resetProgressContent": "这将清除这本书的所有进度并将其重置到开头。此操作无法撤销。",
   "progressResetFreshStart": "进度已重置 - 全新开始！",
   "clearLocalMetadataQuestion": "清除本地元数据？",
   "clearLocalMetadataContent": "这将删除本地存储的元数据并恢复为服务器上的内容。",
