@@ -2985,12 +2985,16 @@ class DownloadService extends ChangeNotifier {
   void debugPutDownload(DownloadInfo info) => _downloads[info.itemId] = info;
 
   @visibleForTesting
+  void debugPutKeptEbook(DownloadInfo info) => _keptEbooks[info.itemId] = info;
+
+  @visibleForTesting
   Future<void> debugReset() async {
     _reconcileTimer?.cancel();
     _reconcileTimer = null;
     await _updatesSub?.cancel();
     _updatesSub = null;
     _downloads.clear();
+    _keptEbooks.clear();
     _activeDownloadIds.clear();
     _cancelledIds.clear();
     _pending.clear();

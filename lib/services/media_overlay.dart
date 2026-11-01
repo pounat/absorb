@@ -335,6 +335,30 @@ class MediaOverlay {
     return MediaOverlay._(laid, clips, secs);
   }
 
+  /// This narration stretched evenly to last [total] seconds: a read along
+  /// EPUB laid on its audiobook's own timeline, the way BookOrbit maps one
+  /// onto the other.
+  MediaOverlay scaledTo(double total) {
+    final d = duration;
+    if (d <= 0 || total <= 0) return this;
+    final f = total / d;
+    return MediaOverlay._(
+      [for (final t in tracks) OverlayTrack(t.href, t.mediaType, t.duration * f, t.start * f)],
+      [
+        for (final c in clips)
+          OverlayClip(
+            section: c.section,
+            textHref: c.textHref,
+            fragment: c.fragment,
+            track: c.track,
+            begin: c.begin * f,
+            end: c.end * f,
+          ),
+      ],
+      [for (final s in sections) OverlaySection(s.index, s.href, s.label, s.start * f)],
+    );
+  }
+
   /// The clip in this narration reading the same sentence as [other], which
   /// may come from an earlier layout of it.
   OverlayClip? sameClip(OverlayClip other) {

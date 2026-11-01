@@ -182,6 +182,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
     lastRenderOpts.offset = Math.round((window.innerHeight || 800) * 2);
   }
   rendition = book.renderTo("viewer", lastRenderOpts);
+  holdSpotThroughResize(rendition);
   var turnsFor = rendition;
   rendition.started.then(function () {
     setupTurns(turnsFor);
@@ -2089,6 +2090,36 @@ function setupRenditionBlocking() {
       return originalDisplay(cfi);
     };
   }
+}
+
+// Absorb patch: epub.js answers a resize by showing the page that holds the
+// first word of the page before it, and in the new size that page usually
+// starts a little earlier. Turning the phone fires several resizes, so the
+// book slid back a page or more each time, down to the start of the chapter.
+// Every resize now goes back to where the reader last was, and the pages the
+// resizes land on never replace that spot. Set before the rendition starts,
+// which is when epub.js binds its resize handler.
+function holdSpotThroughResize(r) {
+  var spot = null;
+  var resizing = 0;
+  var quietUntil = 0;
+  r.onResized = function (size, epubcfi) {
+    this.emit("resized", { width: size.width, height: size.height }, epubcfi);
+    if (!this.location || !this.location.start) return;
+    var cfi = epubcfi || spot || this.location.start.cfi;
+    resizing++;
+    // The relocated event for this display comes a couple of frames after it
+    // resolves.
+    var settle = function () {
+      resizing--;
+      quietUntil = Date.now() + 500;
+    };
+    Promise.resolve(this.display(cfi)).then(settle, settle);
+  };
+  r.on("relocated", function (location) {
+    if (resizing > 0 || Date.now() < quietUntil) return;
+    if (location && location.start && location.start.cfi) spot = location.start.cfi;
+  });
 }
 
 //move to next page

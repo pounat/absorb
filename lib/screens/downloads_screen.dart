@@ -78,16 +78,19 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     });
   }
 
-  /// The completed downloads currently visible, honoring the same library
-  /// filter as the list - select-all must never grab hidden items or a bulk
-  /// delete would remove downloads the user can't see.
+  /// The completed downloads and kept ebooks currently visible, honoring the
+  /// same library filter as the list - select-all must never grab hidden
+  /// items or a bulk delete would remove downloads the user can't see.
   List<DownloadInfo> _visibleCompleted() {
     final lib = context.read<LibraryProvider>();
     final activeLibId = lib.selectedLibraryId;
     final shouldFilter = !lib.isOffline && !_mergeLibraries && activeLibId != null;
-    final completed = DownloadService().downloadedItems;
-    if (!shouldFilter) return completed;
-    return completed
+    final ds = DownloadService();
+    final completed = ds.downloadedItems;
+    final downloadedIds = completed.map((d) => d.itemId).toSet();
+    final all = [...completed, ...ds.keptEbooks.where((e) => !downloadedIds.contains(e.itemId))];
+    if (!shouldFilter) return all;
+    return all
         .where((d) => d.libraryId == null || d.libraryId == activeLibId)
         .toList();
   }
@@ -128,8 +131,14 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
     if (confirmed != true || !mounted) return;
 
+    final ds = DownloadService();
+    final downloadedIds = ds.downloadedItems.map((d) => d.itemId).toSet();
     for (final itemId in _selected.toList()) {
-      await DownloadService().deleteDownload(itemId, byUser: true);
+      if (downloadedIds.contains(itemId)) {
+        await ds.deleteDownload(itemId, byUser: true);
+      } else {
+        await ds.deleteKeptEbook(itemId);
+      }
     }
 
     _exitSelection();
@@ -320,7 +329,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                           onPressed: _exitSelection,
                         ),
                       ] else ...[
-                        if (_items.isNotEmpty)
+                        if (_items.isNotEmpty || _visibleCompleted().isNotEmpty)
                           IconButton(
                             icon: Icon(Icons.checklist_rounded,
                                 color: cs.onSurfaceVariant),
@@ -464,11 +473,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                   fileSize: cachedEbookBytesSync(info.itemId),
                                   cs: cs,
                                   tt: tt,
-                                  selecting: false,
-                                  isSelected: false,
-                                  onToggle: () {},
+                                  selecting: _selecting,
+                                  isSelected: _selected.contains(info.itemId),
+                                  onToggle: () => _toggleSelect(info.itemId),
                                   onPlay: () => _openEbook(info),
-                                  onLongPress: () {},
+                                  onLongPress: () => _enterSelection(info.itemId),
                                   onDelete: () => _deleteEbook(info),
                                   formatBytes: _formatBytes,
                                   mediaHeaders: context.read<LibraryProvider>().mediaHeaders,

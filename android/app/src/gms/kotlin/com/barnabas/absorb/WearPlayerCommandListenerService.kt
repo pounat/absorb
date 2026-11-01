@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.net.Uri
 import android.util.Log
 import android.view.KeyEvent
+import androidx.wear.remote.interactions.RemoteActivityHelper
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
@@ -27,6 +28,7 @@ import org.json.JSONObject
  *    can route. Flutter's HomeWidgetService picks it up and calls
  *    AudioPlayerService.playItem unconditionally (replacing any current
  *    session).
+ *  - open-watch: opens the watch app on the asking watch.
  */
 class WearPlayerCommandListenerService : WearableListenerService() {
 
@@ -46,6 +48,7 @@ class WearPlayerCommandListenerService : WearableListenerService() {
             "/absorb/player/cmd/sleep" -> command("sleep", jsonArgs(event.data))
             "/absorb/player/cmd/seek" -> command("seek", jsonArgs(event.data))
             "/absorb/player/cmd/speed" -> command("speed", jsonArgs(event.data))
+            "/absorb/player/cmd/open-watch" -> openWatchApp(event.sourceNodeId)
             else -> super.onMessageReceived(event)
         }
     }
@@ -72,6 +75,29 @@ class WearPlayerCommandListenerService : WearableListenerService() {
             .appendPath(name)
         for ((k, v) in args) if (v != null) builder.appendQueryParameter(k, v.toString())
         launch(builder.build())
+    }
+
+    // The watch saw this phone start playing and has "Open when phone plays"
+    // on. It may not open its own screen from the background, but Wear OS
+    // will open it for us.
+    private fun openWatchApp(nodeId: String) {
+        val target = Intent(Intent.ACTION_VIEW)
+            .addCategory(Intent.CATEGORY_BROWSABLE)
+            .setData(Uri.parse("absorbwear://${applicationContext.packageName}/phone"))
+        Log.i(TAG, "Watch -> open the watch app on $nodeId")
+        try {
+            val sent = RemoteActivityHelper(applicationContext).startRemoteActivity(target, nodeId)
+            sent.addListener({
+                try {
+                    sent.get()
+                    Log.i(TAG, "watch app open sent to $nodeId")
+                } catch (e: Exception) {
+                    Log.w(TAG, "opening the watch app on $nodeId failed", e)
+                }
+            }, { it.run() })
+        } catch (e: Exception) {
+            Log.w(TAG, "opening the watch app on $nodeId failed", e)
+        }
     }
 
     private fun dispatchMediaButton(keyCode: Int) {
@@ -118,6 +144,8 @@ class WearPlayerCommandListenerService : WearableListenerService() {
             Log.w(TAG, "play-item missing itemId"); return
         }
         val episodeId = payload.optString("episodeId").ifBlank { null }
+        // Where the watch was, so the phone carries on from there.
+        val position = payload.optDouble("position").takeIf { it.isFinite() && it > 0.0 }
 
         // Build a URI the home_widget plugin already knows how to route
         // — it captures intents whose action is HOME_WIDGET_CLICK and
@@ -129,6 +157,7 @@ class WearPlayerCommandListenerService : WearableListenerService() {
             .appendPath("play_item")
             .appendQueryParameter("itemId", itemId)
         if (episodeId != null) builder.appendQueryParameter("episodeId", episodeId)
+        if (position != null) builder.appendQueryParameter("position", position.toString())
         launch(builder.build())
     }
 

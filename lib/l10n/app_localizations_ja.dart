@@ -2459,6 +2459,17 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String breqBookCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count books',
+      one: '1 book',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String breqDownloadingPercent(int percent) {
     return 'Downloading, $percent%';
   }
@@ -12718,4 +12729,1210 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get achievementsSwitchFailed =>
       'Couldn\'t change achievements on BookOrbit';
+
+  @override
+  String get boNotifyReadAlong => 'Read alongs';
+
+  @override
+  String get boNotifyReadAlongDesc =>
+      'When a read along you started is ready, needs a look, or fails.';
+
+  @override
+  String get readAlongCreate => 'Create read along';
+
+  @override
+  String get readAlongLoadFailed =>
+      'Couldn\'t check whether a read along can be made for this book.';
+
+  @override
+  String get readAlongCheckAgain => 'Check again';
+
+  @override
+  String get readAlongWhyWorkerOffline =>
+      'BookOrbit\'s read along worker is offline right now.';
+
+  @override
+  String get readAlongWhyWorkerOutdated =>
+      'BookOrbit\'s read along worker needs an update to work with this server.';
+
+  @override
+  String get readAlongWhyFilesMissing =>
+      'Restore this book\'s missing files to make a read along.';
+
+  @override
+  String get readAlongWhyNoEpub =>
+      'Add a plain EPUB to this book to make a read along.';
+
+  @override
+  String get readAlongWhyNoEpubHasOne =>
+      'This book already has a read along and no plain EPUB to make another from.';
+
+  @override
+  String get readAlongWhyTooManyTracks =>
+      'This audiobook has more files than a read along can be made from.';
+
+  @override
+  String get readAlongWhyEpubNotAllowed =>
+      'This library doesn\'t take EPUB files, so a read along can\'t be added.';
+
+  @override
+  String get readAlongWhyNotMounted =>
+      'BookOrbit\'s read along worker can\'t reach this library\'s folder.';
+
+  @override
+  String get readAlongWhyRunning =>
+      'A read along is already being made for this book.';
+
+  @override
+  String get readAlongWhyUnknown =>
+      'A read along can\'t be made for this book right now.';
+
+  @override
+  String get readAlongSheetTitle => 'Create a read along';
+
+  @override
+  String get readAlongSheetIntro =>
+      'BookOrbit matches the narration to the ebook text and adds an EPUB that highlights along with the audio.';
+
+  @override
+  String get readAlongEbook => 'Ebook';
+
+  @override
+  String get readAlongEbookHint =>
+      'Pick the plain EPUB that matches the narration.';
+
+  @override
+  String get readAlongAudio => 'Audiobook';
+
+  @override
+  String readAlongTracks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tracks',
+      one: '1 track',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String readAlongExistingTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'This book already has $count read alongs',
+      one: 'This book already has a read along',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String readAlongReplace(String name) {
+    return 'Replace $name';
+  }
+
+  @override
+  String readAlongKeepBoth(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Keep all of them',
+      one: 'Keep both',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readAlongKeepHint =>
+      'The new read along is added as another file.';
+
+  @override
+  String get readAlongReplaceHint =>
+      'The old file is only replaced once the new one passes its checks, and reading spots carry over.';
+
+  @override
+  String get readAlongReplaceNotAllowed =>
+      'Replacing a read along needs permission to delete books, so the new one is added as another file.';
+
+  @override
+  String get readAlongMadeByBookOrbit => 'Made by BookOrbit';
+
+  @override
+  String get readAlongImported => 'Imported';
+
+  @override
+  String get readAlongLanguage => 'Narration language';
+
+  @override
+  String get readAlongPickLanguage => 'Choose a language';
+
+  @override
+  String readAlongLanguageUnsupported(String language) {
+    return 'The speech model doesn\'t know this book\'s language ($language).';
+  }
+
+  @override
+  String get readAlongLanguageFromBook => 'From this book\'s details.';
+
+  @override
+  String get readAlongLanguageIsDefault => 'Your default language.';
+
+  @override
+  String get readAlongLanguageSaved => 'Saved as your default language.';
+
+  @override
+  String get readAlongSetDefault => 'Set as default';
+
+  @override
+  String get readAlongDefaultFailed => 'Couldn\'t save your default language.';
+
+  @override
+  String get readAlongHighlighting => 'Highlighting';
+
+  @override
+  String get readAlongSentence => 'Sentence';
+
+  @override
+  String get readAlongSentenceHint =>
+      'Highlights one sentence at a time. Recommended.';
+
+  @override
+  String get readAlongWord => 'Word';
+
+  @override
+  String get readAlongWordHint =>
+      'Highlights each word. Takes longer and makes a bigger file. Still experimental.';
+
+  @override
+  String readAlongEstimatedSize(String size) {
+    return 'Estimated size: $size';
+  }
+
+  @override
+  String get readAlongBackgroundNote =>
+      'Runs on the server, so you can close this. Long audiobooks can take hours, and the first run for a language downloads its speech model.';
+
+  @override
+  String readAlongLowDisk(String needed, String free) {
+    return 'Low disk space: this needs about $needed of working space on the worker, which has $free free.';
+  }
+
+  @override
+  String get readAlongStart => 'Start';
+
+  @override
+  String get readAlongStartFailed =>
+      'The read along couldn\'t be started. Try again.';
+
+  @override
+  String get readAlongStartInvalid =>
+      'Some of the picked files are no longer on this book. Check them and try again.';
+
+  @override
+  String get readAlongStartOffline =>
+      'BookOrbit\'s read along worker is offline. Try again later.';
+
+  @override
+  String get readAlongNotAllowed => 'You don\'t have permission to do that.';
+
+  @override
+  String get readAlongGone => 'This read along job is gone.';
+
+  @override
+  String get readAlongMovedOn =>
+      'This job had already moved on. It now shows where it is.';
+
+  @override
+  String get readAlongActionFailed => 'That didn\'t go through. Try again.';
+
+  @override
+  String readAlongStartedBy(String name) {
+    return 'Started by $name';
+  }
+
+  @override
+  String get readAlongStartedByOther => 'Started by another user';
+
+  @override
+  String get readAlongWaiting => 'Waiting to start';
+
+  @override
+  String get readAlongNextInLine => 'Next in line';
+
+  @override
+  String readAlongJobsAhead(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count jobs ahead',
+      one: '1 job ahead',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readAlongStopping => 'Stopping';
+
+  @override
+  String get readAlongStoppingHint =>
+      'Finishing the current step, then it stops. Nothing will be added to this book.';
+
+  @override
+  String get readAlongStagePreparingAudio => 'Preparing the audio';
+
+  @override
+  String get readAlongStageDownloadingModel => 'Downloading the speech model';
+
+  @override
+  String get readAlongStageListening => 'Listening to the narration';
+
+  @override
+  String get readAlongStageMarkingUp => 'Marking up the ebook text';
+
+  @override
+  String get readAlongStageAligning => 'Matching the text to the narration';
+
+  @override
+  String get readAlongStageChecking => 'Checking the result';
+
+  @override
+  String get readAlongStagePublishing => 'Adding the read along to this book';
+
+  @override
+  String get readAlongStageWorking => 'Working';
+
+  @override
+  String readAlongFileOf(int current, int total) {
+    return 'File $current of $total';
+  }
+
+  @override
+  String readAlongTrackOf(int current, int total) {
+    return 'Track $current of $total';
+  }
+
+  @override
+  String readAlongChapterOf(int current, int total) {
+    return 'Chapter $current of $total';
+  }
+
+  @override
+  String readAlongStepOf(int current, int total) {
+    return 'Step $current of $total';
+  }
+
+  @override
+  String get readAlongFirstRun => 'First run for this language';
+
+  @override
+  String get readAlongJustStarted => 'Just started';
+
+  @override
+  String readAlongRunningFor(String duration) {
+    return 'Running for $duration';
+  }
+
+  @override
+  String get readAlongStepAudio => 'Audio';
+
+  @override
+  String get readAlongStepSpeech => 'Speech';
+
+  @override
+  String get readAlongStepText => 'Text';
+
+  @override
+  String get readAlongStepAlign => 'Align';
+
+  @override
+  String get readAlongStepCheck => 'Check';
+
+  @override
+  String get readAlongStepAdd => 'Add';
+
+  @override
+  String get readAlongReviewTitle => 'Ready for review';
+
+  @override
+  String readAlongReviewMatched(String percent) {
+    return '$percent of the text matched the narration. Check it before adding it to the book.';
+  }
+
+  @override
+  String get readAlongReviewPlain => 'Check it before adding it to the book.';
+
+  @override
+  String get readAlongReviewWeb =>
+      'To leave chapters out and match again, open this book in BookOrbit on the web.';
+
+  @override
+  String readAlongReviewExpires(String date) {
+    return 'Thrown away on its own on $date unless you review it.';
+  }
+
+  @override
+  String get readAlongAddAnyway => 'Add it anyway';
+
+  @override
+  String get readAlongDiscard => 'Discard';
+
+  @override
+  String get readAlongDiscardPrompt => 'Discard this read along?';
+
+  @override
+  String get readAlongKeepIt => 'Keep it';
+
+  @override
+  String get readAlongReady => 'Read along ready';
+
+  @override
+  String get readAlongReadyWarnings => 'Read along ready, with warnings';
+
+  @override
+  String get readAlongAdded => 'Added to this book as a new EPUB.';
+
+  @override
+  String get readAlongReplaced =>
+      'Replaced the old read along. Reading spots carry over.';
+
+  @override
+  String readAlongMatchedSentences(String matched, String total) {
+    return '$matched of $total sentences matched the narration';
+  }
+
+  @override
+  String readAlongAudioUsed(String percent) {
+    return '$percent of the audio used';
+  }
+
+  @override
+  String readAlongOutside(String chapters) {
+    return 'Not in the narration, so left without audio: $chapters.';
+  }
+
+  @override
+  String readAlongOutsideMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more chapters',
+      one: '1 more chapter',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get readAlongWarnUnaligned =>
+      'One or more audio tracks couldn\'t be matched.';
+
+  @override
+  String get readAlongWarnUnmatched =>
+      'A noticeable amount of the ebook text wasn\'t matched to the narration.';
+
+  @override
+  String get readAlongWarnInterpolated =>
+      'Some text timing was estimated between confident matches.';
+
+  @override
+  String get readAlongWarnDropped =>
+      'Some ebook text was left out of the highlighting.';
+
+  @override
+  String get readAlongFailed => 'Read along failed';
+
+  @override
+  String get readAlongCancelled => 'Read along cancelled';
+
+  @override
+  String get readAlongDiscarded => 'Read along thrown away';
+
+  @override
+  String get readAlongNothingAdded => 'Nothing was added to this book.';
+
+  @override
+  String get readAlongExpired =>
+      'It wasn\'t reviewed within 14 days, so nothing was added to this book.';
+
+  @override
+  String readAlongRetryUntil(String date) {
+    return 'Retry picks up from the last finished step until $date.';
+  }
+
+  @override
+  String get readAlongStartOver => 'Start over';
+
+  @override
+  String get readAlongCancel => 'Cancel read along';
+
+  @override
+  String get readAlongCancelPrompt => 'Cancel this read along?';
+
+  @override
+  String get readAlongKeepRunning => 'Keep running';
+
+  @override
+  String get readAlongErrorWorkerOffline =>
+      'BookOrbit couldn\'t reach its read along worker.';
+
+  @override
+  String get readAlongErrorWorkerCrashed =>
+      'The read along worker stopped unexpectedly.';
+
+  @override
+  String get readAlongErrorSourceMissing => 'A picked file is no longer there.';
+
+  @override
+  String get readAlongErrorSourceChanged =>
+      'A picked file changed after the job started.';
+
+  @override
+  String get readAlongErrorInvalidSource =>
+      'The EPUB or audiobook couldn\'t be read.';
+
+  @override
+  String get readAlongErrorLanguage =>
+      'The speech model doesn\'t know the picked language.';
+
+  @override
+  String get readAlongErrorStorage =>
+      'There isn\'t enough free disk space on the worker to finish.';
+
+  @override
+  String get readAlongErrorAudio => 'The audiobook couldn\'t be prepared.';
+
+  @override
+  String get readAlongErrorModel => 'The speech model couldn\'t be downloaded.';
+
+  @override
+  String get readAlongErrorListening =>
+      'Speech recognition failed while listening to the narration.';
+
+  @override
+  String get readAlongErrorMarkup =>
+      'The ebook text couldn\'t be prepared for matching.';
+
+  @override
+  String get readAlongErrorAlignment =>
+      'The text couldn\'t be matched to the narration.';
+
+  @override
+  String get readAlongErrorOutput => 'The new EPUB failed its checks.';
+
+  @override
+  String get readAlongErrorPublish =>
+      'The new EPUB couldn\'t be added to this book.';
+
+  @override
+  String get readAlongErrorDiscarded => 'It was thrown away at review.';
+
+  @override
+  String get readAlongErrorCancelled => 'It was cancelled.';
+
+  @override
+  String get readAlongErrorUnknown =>
+      'Something went wrong while making the read along.';
+
+  @override
+  String get fileInfoNoAudiobook => 'No audiobook yet';
+
+  @override
+  String get fileInfoNoEbook => 'No e-book yet';
+
+  @override
+  String get fileInfoRequestedBySomeone => 'Requested by someone else';
+
+  @override
+  String get fileInfoOwnedSeparately => 'In your library as a separate book';
+
+  @override
+  String get fileInfoCopyPath => 'Copy path';
+
+  @override
+  String get fileInfoDeleteTitle => 'Delete file?';
+
+  @override
+  String fileInfoDeletePrompt(String name) {
+    return '\"$name\" will be deleted from the server. This can\'t be undone.';
+  }
+
+  @override
+  String get fileInfoDeleteLast =>
+      'It\'s the book\'s last audio or e-book file, so the book will show as missing.';
+
+  @override
+  String get fileInfoDeleteNotAllowed =>
+      'You don\'t have permission to delete files';
+
+  @override
+  String get chapterSourceEmbedded => 'Read from the audio files';
+
+  @override
+  String get chapterSourceTracks => 'One chapter per audio file, not saved';
+
+  @override
+  String get chapterSourceProvider => 'From fetched metadata';
+
+  @override
+  String get chapterSourceMigration => 'Imported from Audiobookshelf';
+
+  @override
+  String get chapterSourceManual => 'Edited in BookOrbit';
+
+  @override
+  String chapterSourceManualBy(String name) {
+    return 'Edited by $name';
+  }
+
+  @override
+  String get chapterSourceNone => 'No chapters yet';
+
+  @override
+  String get chapterProtected => 'Protected from rescans';
+
+  @override
+  String get chapterNotProtected => 'A rescan can replace these';
+
+  @override
+  String get chapterProtectOnSave => 'Protect from rescans';
+
+  @override
+  String get chapterGetFrom => 'Get Chapters From';
+
+  @override
+  String get chapterFromFiles => 'The audio files';
+
+  @override
+  String get chapterFromEbookToc => 'The e-book\'s contents';
+
+  @override
+  String get chapterFromReadAlong => 'The read along';
+
+  @override
+  String get chapterFromHistory => 'Earlier versions';
+
+  @override
+  String get chapterHistoryTitle => 'Earlier versions';
+
+  @override
+  String get chapterHistoryEmpty => 'Saved versions show up here.';
+
+  @override
+  String chapterHistoryBy(String source, String name) {
+    return '$source by $name';
+  }
+
+  @override
+  String get chapterReadingFiles => 'Reading the audio files...';
+
+  @override
+  String get chapterRevertToFiles => 'Revert to Files';
+
+  @override
+  String get chapterRevertTitle => 'Go back to the chapters in the files?';
+
+  @override
+  String get chapterRevertMessage =>
+      'BookOrbit reads the chapters in the audio files again and stops protecting them from rescans. Unsaved edits are lost. The current list stays in the earlier versions.';
+
+  @override
+  String get chapterReverted => 'Chapters set back to the audio files';
+
+  @override
+  String get chapterWriteFiles => 'Write to Files';
+
+  @override
+  String get chapterWriteTitle => 'Write the chapters into the audio files?';
+
+  @override
+  String chapterWriteMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'This rewrites the book\'s $count audio files with these chapters.',
+      one: 'This rewrites the book\'s audio file with these chapters.',
+    );
+    return '$_temp0 The audio itself is copied unchanged. Phones that already downloaded the book keep their copy until it\'s downloaded again.';
+  }
+
+  @override
+  String get chapterWriteConfirm => 'Write';
+
+  @override
+  String get chapterWriting => 'Writing the chapters into the audio files...';
+
+  @override
+  String chapterWritten(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Chapters written into all $count audio files',
+      one: 'Chapters written into the audio file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String chapterWrittenPartly(int written, int total) {
+    return 'Chapters written into $written of $total files. The rest were left as they were.';
+  }
+
+  @override
+  String get chapterStaleTitle => 'These chapters changed';
+
+  @override
+  String get chapterStaleMessage =>
+      'Someone else saved these chapters after you opened them. Reload to see their version. Your edits stay until you do.';
+
+  @override
+  String get chapterReload => 'Reload';
+
+  @override
+  String get chapterKeepEditing => 'Keep editing';
+
+  @override
+  String get matchExplicitYes => 'Marked explicit';
+
+  @override
+  String get matchExplicitNo => 'Not explicit';
+
+  @override
+  String get matchAbridgedYes => 'Abridged';
+
+  @override
+  String get matchAbridgedNo => 'Unabridged';
+
+  @override
+  String boQuickMatchBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'these $count books',
+      one: 'this book',
+    );
+    return 'BookOrbit looks up $_temp0 and fills in what it finds, following its metadata settings.';
+  }
+
+  @override
+  String get boQuickMatchIgnoreCache => 'Ask every source again';
+
+  @override
+  String get boQuickMatchIgnoreCacheHint =>
+      'Skips saved answers. Slower, and uses more of each source\'s request limit.';
+
+  @override
+  String boAdminServerCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mail servers',
+      one: '1 mail server',
+      zero: 'None yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get boEmailTitle => 'Send by email';
+
+  @override
+  String get boEmailSubtitle =>
+      'Devices, mail servers and templates for sending books';
+
+  @override
+  String get boEmailTabDevices => 'Devices';
+
+  @override
+  String get boEmailTabServers => 'Mail servers';
+
+  @override
+  String get boEmailTabTemplates => 'Templates';
+
+  @override
+  String get boEmailTabHistory => 'History';
+
+  @override
+  String get boEmailName => 'Name';
+
+  @override
+  String boEmailDeleteTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get boEmailMakeDefault => 'Make default';
+
+  @override
+  String get boEmailBadgeDefault => 'Default';
+
+  @override
+  String get boEmailBadgeShared => 'Shared';
+
+  @override
+  String get boEmailBadgeSystem => 'Password resets';
+
+  @override
+  String get boEmailBadgeBuiltIn => 'Built in';
+
+  @override
+  String get boEmailDevicesEmpty =>
+      'No devices yet. Add your e-reader\'s email address to send it books.';
+
+  @override
+  String get boEmailAddDevice => 'Add device';
+
+  @override
+  String get boEmailNewDevice => 'New device';
+
+  @override
+  String get boEmailDeviceNameHint => 'My Kindle';
+
+  @override
+  String get boEmailDeviceAddress => 'Email address';
+
+  @override
+  String get boEmailDeviceType => 'Device';
+
+  @override
+  String get boEmailDeviceNone => 'Person or inbox';
+
+  @override
+  String get boEmailDeviceKindle => 'Kindle';
+
+  @override
+  String get boEmailDeviceKobo => 'Kobo';
+
+  @override
+  String get boEmailDeviceOther => 'Other e-reader';
+
+  @override
+  String get boEmailKindleHint =>
+      'Kindle gets the subject \"convert\" and only takes EPUB and PDF by email.';
+
+  @override
+  String boEmailKindleApprove(String address) {
+    return 'Kindle drops mail from addresses it doesn\'t know. In Amazon\'s Personal Document Settings, add $address to the approved list.';
+  }
+
+  @override
+  String get boEmailKindleApproveNoServer =>
+      'Add a mail server first to see the address Kindle needs to approve.';
+
+  @override
+  String get boEmailFormat => 'Format';
+
+  @override
+  String get boEmailFormatPrimary => 'Book\'s main file';
+
+  @override
+  String get boEmailFormatHint =>
+      'A book without this format gets its main file.';
+
+  @override
+  String get boEmailReadAlong => 'Read along books';
+
+  @override
+  String get boEmailReadAlongAuto => 'Automatic';
+
+  @override
+  String get boEmailReadAlongAutoHint =>
+      'Text only when a copy can be made, otherwise the original.';
+
+  @override
+  String get boEmailReadAlongText => 'Text only';
+
+  @override
+  String get boEmailReadAlongTextHint =>
+      'Narration removed. Small enough for email.';
+
+  @override
+  String get boEmailReadAlongOriginal => 'With narration';
+
+  @override
+  String get boEmailReadAlongOriginalHint =>
+      'Keeps the narration. Often 100 MB or more, over most mail servers\' limits.';
+
+  @override
+  String get boEmailTemplate => 'Template';
+
+  @override
+  String get boEmailTemplateYourDefault => 'Your default';
+
+  @override
+  String get boEmailTemplateKindleHint =>
+      'Kindle never shows the message, so it skips the template.';
+
+  @override
+  String get boEmailDefaultDevice => 'Default device';
+
+  @override
+  String get boEmailDefaultDeviceHint => 'Picked first when you send a book.';
+
+  @override
+  String get boEmailSendTest => 'Send a test email';
+
+  @override
+  String get boEmailTestSubject => 'Test email from Absorb';
+
+  @override
+  String boEmailTestBody(String name) {
+    return 'This is a test from Absorb. If you can read it, books sent to $name will arrive here too.';
+  }
+
+  @override
+  String boEmailTestSent(String name) {
+    return 'Test email sent to $name';
+  }
+
+  @override
+  String boEmailTestFailed(String error) {
+    return 'The test email didn\'t go out: $error';
+  }
+
+  @override
+  String get boEmailDeleteDevice => 'Delete device';
+
+  @override
+  String get boEmailDeleteDeviceBody => 'Its send history stays.';
+
+  @override
+  String get boEmailDeviceRequired => 'Enter a name and an email address';
+
+  @override
+  String get boEmailLastSendFailed => 'Last send failed';
+
+  @override
+  String get boEmailGroups => 'Groups';
+
+  @override
+  String get boEmailGroupsHint => 'Send to several devices at once.';
+
+  @override
+  String get boEmailNewGroup => 'New group';
+
+  @override
+  String get boEmailGroupNameHint => 'Book club';
+
+  @override
+  String get boEmailGroupMembers => 'Devices in this group';
+
+  @override
+  String get boEmailGroupMembersEmpty => 'Add a device first.';
+
+  @override
+  String boEmailGroupMemberCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count devices',
+      one: '1 device',
+      zero: 'No devices',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get boEmailDeleteGroup => 'Delete group';
+
+  @override
+  String get boEmailDeleteGroupBody => 'The devices in it stay.';
+
+  @override
+  String get boEmailGroupRequired => 'Enter a group name';
+
+  @override
+  String get boEmailServersEmptyManage =>
+      'No mail servers yet. Add one to start sending books.';
+
+  @override
+  String get boEmailServersEmpty =>
+      'No mail servers yet. Ask an admin to add one.';
+
+  @override
+  String get boEmailAddServer => 'Add mail server';
+
+  @override
+  String get boEmailNewServer => 'New mail server';
+
+  @override
+  String get boEmailServerPresetOther => 'Other';
+
+  @override
+  String get boEmailServerPresetHint =>
+      'A preset fills in the host, port and security. You can still change them.';
+
+  @override
+  String get boEmailServerHost => 'Host';
+
+  @override
+  String get boEmailServerPort => 'Port';
+
+  @override
+  String get boEmailServerSecurity => 'Security';
+
+  @override
+  String get boEmailServerSecurityNone => 'None';
+
+  @override
+  String get boEmailServerSecurityHint =>
+      'STARTTLS on port 587, SSL/TLS on 465.';
+
+  @override
+  String get boEmailServerNeedsPassword => 'Signs in with a password';
+
+  @override
+  String get boEmailServerUsername => 'Username';
+
+  @override
+  String get boEmailServerPassword => 'Password';
+
+  @override
+  String get boEmailServerAppPassword => 'App password';
+
+  @override
+  String get boEmailServerPasswordKeep => 'Saved. Type to replace it';
+
+  @override
+  String get boEmailServerAppPasswordHint =>
+      'Gmail and iCloud need an app password, not your account password.';
+
+  @override
+  String get boEmailServerFromName => 'From name';
+
+  @override
+  String get boEmailServerFromAddress => 'From address';
+
+  @override
+  String get boEmailServerFromAddressHint =>
+      'Kindle owners need to approve this address.';
+
+  @override
+  String get boEmailServerShare => 'Share with everyone';
+
+  @override
+  String get boEmailServerShareHint =>
+      'Other people can send books through this server without seeing the password.';
+
+  @override
+  String get boEmailServerSystem => 'Send password resets and sign-in links';
+
+  @override
+  String get boEmailServerSystemHint =>
+      'The server BookOrbit uses for its own mail.';
+
+  @override
+  String get boEmailServerVerifyTls => 'Check the server\'s certificate';
+
+  @override
+  String get boEmailServerVerifyTlsHint =>
+      'Turn this off only for a server on your own network with a self-signed certificate.';
+
+  @override
+  String get boEmailServerTest => 'Test connection';
+
+  @override
+  String get boEmailServerTestSaveFirst => 'Save first, then test';
+
+  @override
+  String get boEmailServerTestOk => 'Connected';
+
+  @override
+  String boEmailServerTestFailed(String error) {
+    return 'Can\'t connect: $error';
+  }
+
+  @override
+  String get boEmailServerDelete => 'Delete mail server';
+
+  @override
+  String get boEmailServerDeleteBody => 'Everyone it\'s shared with loses it.';
+
+  @override
+  String get boEmailServerSystemFirst =>
+      'Turn off password resets on this server before deleting it.';
+
+  @override
+  String get boEmailServerRequired => 'Enter a name and a host';
+
+  @override
+  String get boEmailServerNotYours =>
+      'Someone else added this server. Only they can change it.';
+
+  @override
+  String get boEmailTemplatesEmpty => 'No templates yet.';
+
+  @override
+  String get boEmailNewTemplate => 'New template';
+
+  @override
+  String get boEmailTemplateSubject => 'Subject';
+
+  @override
+  String get boEmailTemplateMessage => 'Message';
+
+  @override
+  String get boEmailTemplateInsert => 'Insert';
+
+  @override
+  String get boEmailTemplateInsertHint =>
+      'Goes in where the cursor is. Details a book doesn\'t have print nothing.';
+
+  @override
+  String get boEmailVarBook => 'Book';
+
+  @override
+  String get boEmailVarFile => 'File';
+
+  @override
+  String get boEmailVarOther => 'Other';
+
+  @override
+  String get boEmailTemplatePreview => 'Preview';
+
+  @override
+  String get boEmailTemplatePreviewNone =>
+      'Send a book once to preview a template with it.';
+
+  @override
+  String boEmailTemplateAttached(String name) {
+    return 'Attached: $name';
+  }
+
+  @override
+  String get boEmailTemplateBuiltIn => 'Built in. Only an admin can change it.';
+
+  @override
+  String get boEmailTemplateKindleNote =>
+      'Kindle never shows a template. It always gets the subject \"convert\".';
+
+  @override
+  String get boEmailTemplateDelete => 'Delete template';
+
+  @override
+  String get boEmailTemplateDeleteBody =>
+      'Devices that use it go back to your default template.';
+
+  @override
+  String get boEmailTemplateRequired => 'Enter a name and a subject';
+
+  @override
+  String get boEmailHistoryEmpty => 'Nothing sent yet.';
+
+  @override
+  String get boEmailHistoryAll => 'All';
+
+  @override
+  String get boEmailHistoryEveryone => 'Everyone';
+
+  @override
+  String get boEmailStatusSent => 'Sent';
+
+  @override
+  String get boEmailStatusSending => 'Sending';
+
+  @override
+  String boEmailStatusRetrying(int attempt) {
+    return 'Trying again ($attempt)';
+  }
+
+  @override
+  String get boEmailStatusFailed => 'Failed';
+
+  @override
+  String boEmailTo(String name) {
+    return 'To $name';
+  }
+
+  @override
+  String get boEmailResend => 'Send again';
+
+  @override
+  String get boEmailResent => 'Sending again';
+
+  @override
+  String get boEmailForget => 'Remove from history';
+
+  @override
+  String get boEmailLoadMore => 'Load more';
+
+  @override
+  String get boEmailUnknownBook => 'Deleted book';
+
+  @override
+  String get boEmailSendNoServer =>
+      'No mail server is set up on this server yet.';
+
+  @override
+  String get boEmailSendAskAdmin => 'Ask an admin to add one.';
+
+  @override
+  String get boEmailSendNoDevices => 'Add a device to send this book to.';
+
+  @override
+  String get boEmailSendOptions => 'Options';
+
+  @override
+  String get boEmailSendFormatEach => 'Each device\'s own';
+
+  @override
+  String get boEmailSendServer => 'Mail server';
+
+  @override
+  String get boEmailSendButton => 'Send';
+
+  @override
+  String boEmailSendGets(String format, String size) {
+    return 'Gets $format · $size';
+  }
+
+  @override
+  String boEmailSendMissing(String format, String got) {
+    return 'No $format, gets the $got';
+  }
+
+  @override
+  String boEmailSendKindleRejects(String format) {
+    return 'Kindle doesn\'t take $format by email';
+  }
+
+  @override
+  String boEmailSendOverKindle(String size) {
+    return '$size, over Kindle\'s 50 MB limit';
+  }
+
+  @override
+  String boEmailSendOverGmail(String size) {
+    return '$size, over Gmail\'s 25 MB limit';
+  }
+
+  @override
+  String boEmailSendNarrated(String size) {
+    return 'Gets the narrated copy · $size';
+  }
+
+  @override
+  String boEmailSendHanding(String server) {
+    return 'Sending through $server';
+  }
+
+  @override
+  String boEmailSendAccepted(String server) {
+    return 'Sent through $server';
+  }
+
+  @override
+  String boEmailSendFailedLine(String error) {
+    return 'Didn\'t send: $error';
+  }
+
+  @override
+  String get boEmailSendStillGoing =>
+      'Still sending. You\'ll get a notification when it\'s done.';
+
+  @override
+  String get boEmailKindleOriginal =>
+      'A Kindle can\'t take the narrated copy. Set it to text only.';
+
+  @override
+  String get boEmailNoCopy => 'Couldn\'t make a copy without the narration.';
 }

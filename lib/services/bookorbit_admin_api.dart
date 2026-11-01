@@ -7,7 +7,7 @@ extension BookOrbitAdminApi on BookOrbitApiService {
     try {
       return await call();
     } on _BoHttpError catch (e) {
-      throw BookOrbitAdminError(e.status, e.serverMessage);
+      throw BookOrbitAdminError(e.status, e.serverMessage, e.serverCode);
     } on TimeoutException {
       throw const BookOrbitAdminError(0);
     } on http.ClientException {

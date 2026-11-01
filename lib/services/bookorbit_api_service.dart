@@ -19,6 +19,15 @@ class _BoHttpError implements Exception {
     } catch (_) {}
     return null;
   }
+
+  /// The machine-readable reason some refusals carry ("KINDLE_ORIGINAL_UNAVAILABLE").
+  String? get serverCode {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map && decoded['code'] is String) return decoded['code'] as String;
+    } catch (_) {}
+    return null;
+  }
 }
 
 class _BoListenSession {
@@ -165,6 +174,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     _serverFeatures.clear();
     _narrations.clear();
     _narrationLoads.clear();
+    _readAlongTimings.clear();
     _placedSpots.clear();
   }
 
@@ -1006,7 +1016,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
           case 'books':
             return _json(await _searchBooks(q));
           case 'chapters':
-            return _json(await _searchChapters(q['asin'] ?? '', q['region'] ?? 'us'));
+            return _json(await _searchChapters(q['asin'] ?? '', q['region'] ?? 'us', bookId: q['id']));
         }
         return null;
       case 'items':
@@ -1034,6 +1044,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
           return _json({'success': true});
         }
         if (n == 4 && at(3) == 'match' && method == 'POST') return _json(await _quickMatch(at(2)));
+        if (n == 5 && at(3) == 'file' && method == 'DELETE') return _deleteFile(at(2), at(4));
         if (n == 4 && at(3) == 'chapters' && method == 'POST') {
           final chapters = BookOrbitMapper.chapters(body['chapters'] as List<dynamic>? ?? const []);
           await _boPatch('/books/${at(2)}/metadata', {
@@ -1280,13 +1291,17 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       return _details[k]!;
     }
     final d = await _boGet('/books/$bookId') as Map<String, dynamic>;
+    _keepDetail(k, d);
+    return d;
+  }
+
+  void _keepDetail(String k, Map<String, dynamic> d) {
     _details[k] = d;
     _detailAt[k] = DateTime.now();
     final cv = d['coverVersion'] as String?;
     if (cv != null) _coverVersions[k] = cv;
     final lib = d['libraryId'];
     if (lib != null) _bookLibrary[k] = '$lib';
-    return d;
   }
 
   static bool _detailHasAudio(Map<String, dynamic> detail) =>
@@ -3156,6 +3171,72 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     return {'updated': before != after, 'libraryItem': item};
   }
 
+  /// [_quickMatch] for many books in one request. BookOrbit streams one event
+  /// per book as it goes; [onProgress] hears how many are done. With
+  /// [ignoreCache] every provider is asked again instead of reusing saved
+  /// answers.
+  Future<({int matched, int failed})> quickMatchBooks(
+    List<String> itemIds, {
+    bool ignoreCache = false,
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final ids = itemIds.map(int.tryParse).whereType<int>().toList();
+    if (ids.isEmpty) return (matched: 0, failed: itemIds.length);
+    await _ensureFreshAccessToken();
+    final request = http.Request('POST', _boUri('/books/bulk-refresh-metadata'))
+      ..headers.addAll({..._headers, 'Accept': 'text/event-stream'})
+      ..body = jsonEncode({'bookIds': ids, if (ignoreCache) 'ignoreCache': true});
+    final client = _httpClient ?? http.Client();
+    var done = 0;
+    var matched = 0;
+    try {
+      final response = await client.send(request).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        final e = _BoHttpError(response.statusCode, await response.stream.bytesToString());
+        throw BookOrbitAdminError(e.status, e.serverMessage, e.serverCode);
+      }
+      // A stream that goes quiet this long has stalled; what finished is kept.
+      final lines = response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .timeout(const Duration(minutes: 3));
+      await for (final line in lines) {
+        if (!line.startsWith('data:')) continue;
+        final Object? event;
+        try {
+          event = jsonDecode(line.substring(5).trim());
+        } catch (_) {
+          continue;
+        }
+        if (event is! Map) continue;
+        if (event['done'] == true) {
+          matched = (event['processed'] as num?)?.toInt() ?? matched;
+          break;
+        }
+        final bookId = event['bookId'];
+        if (bookId == null) continue;
+        done++;
+        final detail = event['detail'];
+        if (event['success'] != false && detail is Map<String, dynamic>) {
+          matched++;
+          final k = _key('$bookId');
+          _keepDetail(k, detail);
+          _manifests.remove(k);
+          _manifestAt.remove(k);
+          SocketService().emitLocalItemUpdated(BookOrbitMapper.item(detail: detail));
+        }
+        onProgress?.call(done, ids.length);
+      }
+    } on TimeoutException {
+      debugPrint('[BookOrbit] Quick match stream stalled after $done of ${ids.length}');
+    } finally {
+      if (_httpClient == null) client.close();
+    }
+    _recent.removeWhere((key, _) => key.startsWith('personalized:'));
+    // Books the server never reported on count as not matched.
+    return (matched: matched, failed: itemIds.length - matched);
+  }
+
   Future<http.Response> _deleteBooks(List<String> ids, {required bool hard}) async {
     // BookOrbit has no way to drop a book and keep its files.
     if (!hard) return _status(400, 'BookOrbit always deletes the files');
@@ -3171,6 +3252,23 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       SocketService().emitLocalItemRemoved({'id': id});
     }
     _recent.removeWhere((key, _) => key.startsWith('personalized:'));
+    return _json({'success': true});
+  }
+
+  Future<http.Response> _deleteFile(String bookId, String fileId) async {
+    final id = int.tryParse(fileId);
+    if (id == null) return _status(404, 'File not found');
+    await _boDelete('/books/files/$id');
+    debugPrint('[BookOrbit] Deleted file $id of $bookId');
+    if (_narrations[_key(bookId)]?.fileId == id) _narrations.remove(_key(bookId));
+    if (_readAlongTimings[_key(bookId)]?.fileId == id) _readAlongTimings.remove(_key(bookId));
+    // The file is gone either way; a book that couldn't be read back after
+    // still shows its old files until the next refresh.
+    try {
+      await _afterEdit(bookId, chaptersChanged: true);
+    } catch (e) {
+      debugPrint('[BookOrbit] $bookId not refreshed after deleting file $id: $e');
+    }
     return _json({'success': true});
   }
 
@@ -3476,6 +3574,91 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     }
   }
 
+  /// The format [bookId] is missing and could be asked for from the book,
+  /// as BookOrbit's book page offers it. Null when this account can't make
+  /// requests or hid them, the server can't file a request into a book
+  /// (before 3.4), or the book has both formats or reads itself aloud.
+  Future<MissingFormatRequest?> missingFormatRequest(String bookId) async {
+    final access = await bookRequestAccess();
+    if (!access.canRequest || !access.pairs) return null;
+    final Map<String, dynamic> detail;
+    try {
+      detail = await _detail(bookId);
+    } catch (e) {
+      debugPrint('[BookOrbit] missing format for $bookId: $e');
+      return null;
+    }
+    final kind = missingRequestFormat([
+      for (final f in (detail['files'] as List<dynamic>? ?? const []).whereType<Map>()) Map<String, dynamic>.from(f),
+    ]);
+    if (kind == null) return null;
+    final work = _requestWork(detail);
+    final title = work['title'] as String?;
+    if (title == null) return null;
+    try {
+      final authors = work['authors'] as List<String>;
+      final res = await _boPost('/book-requests/availability', {
+        'items': [
+          {
+            'title': title,
+            'mediaKind': kind,
+            if (authors.isNotEmpty) 'author': authors.first,
+            'isbn13': ?work['isbn13'],
+          },
+        ],
+      }) as List<dynamic>;
+      return MissingFormatRequest(kind, res.isEmpty ? null : BookRequestAvailability.fromJson(res.first));
+    } catch (e) {
+      // The request can still be made; the answer only says who asked first.
+      debugPrint('[BookOrbit] missing $kind availability for $bookId: $e');
+      return MissingFormatRequest(kind);
+    }
+  }
+
+  /// Asks for [mediaKind] of [bookId], aimed at the book so the new format
+  /// lands beside the one there instead of as a second book.
+  Future<BookRequestSubmitResult> requestMissingFormat(String bookId, String mediaKind) async {
+    final id = int.tryParse(bookId);
+    if (id == null) return const BookRequestSubmitResult();
+    final Map<String, dynamic> detail;
+    try {
+      detail = await _detail(bookId);
+    } catch (e) {
+      debugPrint('[BookOrbit] missing format request for $bookId: $e');
+      return const BookRequestSubmitResult();
+    }
+    final work = _requestWork(detail);
+    if (work['title'] == null) return const BookRequestSubmitResult();
+    debugPrint('[BookOrbit] Requesting the $mediaKind for book $bookId');
+    return submitBookRequest({...work, 'mediaKind': mediaKind, 'targetBookId': id});
+  }
+
+  /// What BookOrbit's book page sends about a book when asking for its other
+  /// format. Its form refuses unknown fields and caps each length.
+  static Map<String, dynamic> _requestWork(Map<String, dynamic> detail) {
+    String? clip(Object? v, int max) {
+      final s = v is String ? v.trim() : '';
+      if (s.isEmpty) return null;
+      return s.length > max ? s.substring(0, max) : s;
+    }
+
+    final files = (detail['files'] as List<dynamic>? ?? const []).whereType<Map>();
+    final year = (detail['publishedYear'] as num?)?.toInt();
+    return {
+      'title': clip(detail['title'], 500) ?? clip(files.firstOrNull?['filename'], 500),
+      'authors': <String>[
+        for (final a in (detail['authors'] as List<dynamic>? ?? const []).whereType<Map>().take(50))
+          ?clip(a['name'], 255),
+      ],
+      'isbn13': ?clip(detail['isbn13'], 20),
+      'isbn10': ?clip(detail['isbn10'], 20),
+      'seriesName': ?clip(detail['seriesName'], 500),
+      if (year != null && year >= 0 && year <= 9999) 'publishedYear': year,
+      // The other format should be in the language of the one on the shelf.
+      'language': ?clip(detail['language'], 20),
+    };
+  }
+
   @override
   Future<BookRequestPairResult> submitBookRequestPair(Map<String, dynamic> body) async {
     try {
@@ -3759,10 +3942,17 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// Chapter lookup by ASIN. BookOrbit only fetches chapters for an ASIN a
   /// book already has stored, so this asks Audnexus directly, the same
   /// source Audiobookshelf's lookup reads.
-  Future<Map<String, dynamic>> _searchChapters(String asin, String region) async {
+  Future<Map<String, dynamic>> _searchChapters(String asin, String region, {String? bookId}) async {
     const notFound = {'error': 'Chapters not found', 'stringKey': 'MessageChaptersNotFound'};
     final id = asin.trim();
     if (!RegExp(r'^[A-Za-z0-9]{10}$').hasMatch(id)) return notFound;
+    // BookOrbit asks Audible first and Audnexus after; a server without its
+    // chapter editor, or with neither reachable, leaves it to the phone.
+    if (bookId != null && int.tryParse(bookId) != null) {
+      final res = await lookupChapters(bookId, id, region);
+      if (res.value != null) return res.value!;
+      if (res.failure == BoChapterFailure.notFound && res.message != null) return notFound;
+    }
     final uri = Uri.https('api.audnex.us', '/books/$id/chapters', {'region': region.toLowerCase()});
     try {
       final r = await http.get(uri).timeout(const Duration(seconds: 20));
@@ -3773,6 +3963,168 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       debugPrint('[BookOrbit] chapter lookup failed: $e');
       return notFound;
     }
+  }
+
+  static String? _errorCode(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return decoded is Map ? decoded['errorCode'] as String? : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<({T? value, BoChapterFailure? failure, String? message})> _chapterCall<T>(
+    String what,
+    Future<dynamic> Function() call,
+    T? Function(Object?) parse,
+  ) async {
+    try {
+      final value = parse(await call());
+      if (value == null) return (value: null, failure: BoChapterFailure.failed, message: null);
+      return (value: value, failure: null, message: null);
+    } on _BoHttpError catch (e) {
+      debugPrint('[BookOrbit] chapters: $what failed: $e');
+      final code = _errorCode(e.body);
+      return (
+        value: null,
+        failure: boChapterFailureFor(e.status, code),
+        message: code == null ? null : e.serverMessage,
+      );
+    } catch (e) {
+      debugPrint('[BookOrbit] chapters: $what failed: $e');
+      return (value: null, failure: BoChapterFailure.failed, message: null);
+    }
+  }
+
+  /// The chapter editor's view of [bookId]: the stored list, its revision and
+  /// where else chapters can come from. Null on a server before 3.6.0, which
+  /// keeps none of that, or when it couldn't be asked.
+  Future<BoChapterState?> chapterState(String bookId) async {
+    final res = await _chapterCall('state of $bookId', () => _boGet('/books/$bookId/chapters'), BoChapterState.fromJson);
+    return res.value;
+  }
+
+  /// Saves the list over [baseRevision], kept in the history. [lock] keeps
+  /// rescans and metadata refreshes from replacing it.
+  Future<({BoChapterState? value, BoChapterFailure? failure, String? message})> saveChapters(
+    String bookId,
+    List<BoChapter> chapters, {
+    required String baseRevision,
+    bool lock = true,
+  }) async {
+    final res = await _chapterCall(
+      'save for $bookId',
+      () => _boPut('/books/$bookId/chapters', {
+        'chapters': [for (final c in chapters) c.toJson()],
+        'baseRevision': baseRevision,
+        'lock': lock,
+      }),
+      BoChapterState.fromJson,
+    );
+    if (res.value != null) {
+      debugPrint('[BookOrbit] chapters for $bookId saved: ${chapters.length}, ${lock ? 'protected' : 'not protected'}');
+      await _chaptersChanged(bookId);
+    }
+    return res;
+  }
+
+  Future<void> _chaptersChanged(String bookId) async {
+    try {
+      await _afterEdit(bookId, chaptersChanged: true);
+    } catch (e) {
+      debugPrint('[BookOrbit] $bookId not refreshed after a chapter change: $e');
+    }
+  }
+
+  Future<({Map<String, dynamic>? value, BoChapterFailure? failure, String? message})> lookupChapters(
+    String bookId,
+    String asin,
+    String region,
+  ) =>
+      _chapterCall(
+        'lookup $asin for $bookId',
+        () => _boGet('/books/$bookId/chapters/lookup', {'asin': asin, 'region': region.toLowerCase()}),
+        (raw) => raw is Map<String, dynamic> ? boLookupAsAudnexus(raw) : null,
+      );
+
+  /// Chapters named by the book's EPUB: `toc` gives titles only, `read_along`
+  /// times on the read along's own narration.
+  Future<({BoEbookChapters? value, BoChapterFailure? failure, String? message})> ebookChapters(
+    String bookId,
+    String source,
+  ) =>
+      _chapterCall(
+        '$source chapters for $bookId',
+        () => _boGet('/books/$bookId/chapters/ebook', {'source': source}),
+        (raw) => raw is Map
+            ? BoEbookChapters(
+                BoChapter.listFrom(raw['chapters']),
+                titlesOnly: raw['titlesOnly'] == true,
+                runtimeMs: (raw['runtimeMs'] as num?)?.round(),
+              )
+            : null,
+      );
+
+  Future<({List<BoChapterVersion>? value, BoChapterFailure? failure, String? message})> chapterVersions(
+    String bookId,
+  ) =>
+      _chapterCall(
+        'history of $bookId',
+        () => _boGet('/books/$bookId/chapters/versions'),
+        (raw) => raw is List ? [for (final v in raw) ?BoChapterVersion.fromJson(v)] : null,
+      );
+
+  Future<({BoChapterVersion? value, BoChapterFailure? failure, String? message})> chapterVersion(
+    String bookId,
+    int versionId,
+  ) =>
+      _chapterCall(
+        'version $versionId of $bookId',
+        () => _boGet('/books/$bookId/chapters/versions/$versionId'),
+        BoChapterVersion.fromJson,
+      );
+
+  /// Runs `write` (the saved list into the audio files), `revert` (back to
+  /// the files' own chapters) or `read` (the files' chapters, nothing saved)
+  /// in BookOrbit's background queue and waits for it. [onProgress] hears
+  /// files done of files to do.
+  Future<({BoChapterJob? value, BoChapterFailure? failure, String? message})> runChapterJob(
+    String bookId,
+    String kind, {
+    required String baseRevision,
+    void Function(int done, int total)? onProgress,
+    bool Function()? stillWanted,
+    Duration pollEvery = const Duration(seconds: 2),
+    Duration giveUpAfter = const Duration(minutes: 20),
+  }) async {
+    var res = await _chapterCall(
+      '$kind for $bookId',
+      () => _boPost('/books/$bookId/chapters/jobs/$kind', {'baseRevision': baseRevision}),
+      BoChapterJob.fromJson,
+    );
+    final until = DateTime.now().add(giveUpAfter);
+    while (res.value != null && !res.value!.finished) {
+      if (DateTime.now().isAfter(until)) {
+        debugPrint('[BookOrbit] chapters: $kind for $bookId still running after ${giveUpAfter.inMinutes} minutes');
+        return (value: res.value, failure: BoChapterFailure.failed, message: null);
+      }
+      onProgress?.call(res.value!.filesWritten, res.value!.filesTotal);
+      await Future.delayed(pollEvery);
+      // BookOrbit carries on without anyone watching.
+      if (stillWanted != null && !stillWanted()) return res;
+      final id = res.value!.id;
+      res = await _chapterCall('$kind $id for $bookId', () => _boGet('/books/$bookId/chapters/jobs/$id'), BoChapterJob.fromJson);
+    }
+    final job = res.value;
+    if (job == null) return res;
+    if (!job.succeeded) {
+      debugPrint('[BookOrbit] chapters: $kind for $bookId failed: ${job.errorCode}');
+      return (value: job, failure: boChapterFailureFor(409, job.errorCode), message: null);
+    }
+    debugPrint('[BookOrbit] chapters: $kind for $bookId done (${job.filesWritten}/${job.filesTotal} files)');
+    if (kind != 'read') await _chaptersChanged(bookId);
+    return res;
   }
 
   /// Audiobookshelf-shaped content URLs (`/api/items/<book>/file/<file>`)
@@ -3832,7 +4184,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final detail = _details[_key(itemId)];
     if (detail != null) {
       final media = BookOrbitMapper.item(detail: detail)['media'] as Map<String, dynamic>;
-      if ('${(media['narration'] as Map?)?['fileId']}' == ino) {
+      if ('${(media['narration'] as Map?)?['fileId']}' == ino || '${(media['readAlongEpub'] as Map?)?['fileId']}' == ino) {
         return BookOrbitMediaProxy.instance.urlFor('/api/v1/books/files/$ino/audioless-epub/download');
       }
     }
@@ -3976,6 +4328,31 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         final cfi = p['cfi'] as String? ?? (p['pageNumber'] != null ? '${p['pageNumber']}' : null);
         if ((pct == null || pct == 0) && cfi == null) break;
         return (cfi: cfi, percent: pct, updated: BookOrbitMapper.ms(p['updatedAt']), fileId: fileId);
+      }
+    }
+    // A read along EPUB added after reading began has no place of its own
+    // until BookOrbit next syncs one. The other copy's percent stands in; its
+    // page can't be opened in this copy.
+    if ((item['media'] as Map)['readAlongEpub'] != null) {
+      final epubs = {
+        for (final f in (detail['files'] as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>())
+          if ('${f['format']}'.toLowerCase() == 'epub') (f['id'] as num?)?.toInt(),
+      };
+      Map<String, dynamic>? newest;
+      for (final p in fileProgress.whereType<Map<String, dynamic>>()) {
+        final pct = (p['percentage'] as num?)?.toDouble() ?? 0;
+        if (pct <= 0 || p['fileId'] == fileId || !epubs.contains((p['fileId'] as num?)?.toInt())) continue;
+        if (newest == null || (BookOrbitMapper.ms(p['updatedAt']) ?? 0) > (BookOrbitMapper.ms(newest['updatedAt']) ?? 0)) {
+          newest = p;
+        }
+      }
+      if (newest != null) {
+        return (
+          cfi: null,
+          percent: (newest['percentage'] as num).toDouble(),
+          updated: BookOrbitMapper.ms(newest['updatedAt']),
+          fileId: fileId,
+        );
       }
     }
     return (cfi: null, percent: null, updated: null, fileId: fileId);
@@ -4633,19 +5010,69 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     // The same narrated file as last time has the same timings: reading
     // them again took seconds on a long book, and held up every start.
     if (cached != null && cached.fileId == fileId) return cached;
+    final overlay = await _overlayOf(bookId, fileId);
+    if (overlay == null) return null;
+    return _narrations[k] = (overlay: overlay, fileId: fileId);
+  }
+
+  Future<MediaOverlay?> _overlayOf(String bookId, int fileId) async {
     final playlist = await _boGet('/epub/$bookId/media-overlay', {'fileId': '$fileId'}) as Map<String, dynamic>;
     final parsed = MediaOverlay.fromBookOrbit(playlist);
     if (parsed == null || parsed.isEmpty) return null;
-    var overlay = parsed;
     // The playlist names each narrated file only when the contents point
     // straight at it; the whole contents name the rest.
     try {
       final info = await _boGet('/epub/$bookId/info', {'fileId': '$fileId'}) as Map<String, dynamic>;
-      overlay = overlay.withBookOrbitContents(info);
+      return parsed.withBookOrbitContents(info);
     } catch (e) {
       debugPrint('[BookOrbit] contents for $bookId not read: $e');
+      return parsed;
     }
-    return _narrations[k] = (overlay: overlay, fileId: fileId);
+  }
+
+  static final Map<String, ({MediaOverlay overlay, int fileId, double audio})> _readAlongTimings = {};
+
+  /// The copy of [bookId] to read when it has a read along EPUB matching its
+  /// audiobook, so read along can follow that EPUB's timings. Null for any
+  /// other book, which keeps the copy it was opened with.
+  Future<Map<String, dynamic>?> readAlongReaderFile(String bookId) async {
+    Map<String, dynamic>? detail;
+    try {
+      detail = await _detail(bookId).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      detail = _details[_key(bookId)];
+      debugPrint('[BookOrbit] reader copy for $bookId from ${detail == null ? 'nothing' : 'the last details'}: $e');
+    }
+    if (detail == null) return null;
+    final media = BookOrbitMapper.item(detail: detail)['media'] as Map<String, dynamic>;
+    if (media['readAlongEpub'] == null) return null;
+    return (media['ebookFile'] as Map?)?.cast<String, dynamic>();
+  }
+
+  /// The timings of a read along EPUB that sits beside its audiobook, laid on
+  /// the audiobook's timeline so they follow the audiobook as it plays. Null
+  /// for a book without one, or when BookOrbit doesn't keep the two in step.
+  Future<MediaOverlay?> readAlongTimingsFor(String bookId) async {
+    try {
+      final media = BookOrbitMapper.item(detail: await _detail(bookId))['media'] as Map<String, dynamic>;
+      final readAlong = media['readAlongEpub'] as Map?;
+      final fileId = int.tryParse('${readAlong?['fileId']}');
+      final audio = (readAlong?['audioDuration'] as num?)?.toDouble() ?? 0;
+      if (fileId == null || audio <= 0) return null;
+      final k = _key(bookId);
+      final cached = _readAlongTimings[k];
+      if (cached != null && cached.fileId == fileId && cached.audio == audio) return cached.overlay;
+      final overlay = await _overlayOf(bookId, fileId);
+      if (overlay == null) return null;
+      final laid = overlay.scaledTo(audio);
+      debugPrint('[BookOrbit] read along timings for $bookId from file $fileId: '
+          '${overlay.clips.length} sentences, ${overlay.duration.toStringAsFixed(0)}s laid on ${audio.toStringAsFixed(0)}s');
+      _readAlongTimings[k] = (overlay: laid, fileId: fileId, audio: audio);
+      return laid;
+    } catch (e) {
+      debugPrint('[BookOrbit] read along timings for $bookId failed: $e');
+      return null;
+    }
   }
 
   /// Public for the reader's read along: the same narration the player is
@@ -4661,6 +5088,112 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     } catch (e) {
       debugPrint('[BookOrbit] narration for $bookId failed: $e');
       return null;
+    }
+  }
+
+  // BookOrbit checks this marker on its own, never through superuser.
+  bool get _demoRestricted => _permissions?.contains('demo_restricted') ?? false;
+
+  /// Whether this account may make read alongs. BookOrbit turns demo
+  /// accounts away from every read along route.
+  Future<bool> canMakeReadAlongs() async => await _can('library_generate_read_aloud') && !_demoRestricted;
+
+  /// Replacing a read along deletes the old file, so BookOrbit only takes it
+  /// from someone who may delete books.
+  bool get canReplaceReadAlongs => _hasPermission('library_delete_books');
+
+  /// What [bookId] has to make a read along from, with its latest job. Null
+  /// when this account can't make them or the server is older than 3.6.0;
+  /// throws when the server couldn't be asked.
+  Future<ReadAlongCapability?> readAlongCapability(String bookId) async {
+    if (!await canMakeReadAlongs()) return null;
+    try {
+      return ReadAlongCapability.fromJson(await _boGet('/books/$bookId/read-aloud') as Map<String, dynamic>);
+    } on _BoHttpError catch (e) {
+      if (e.status == 400 || e.status == 403 || e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// Every track goes in, in the book's order, which is what BookOrbit uses
+  /// when none are named.
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> startReadAlong(
+    String bookId, {
+    required int epubFileId,
+    required String language,
+    String granularity = 'sentence',
+    int? replaceFileId,
+  }) async {
+    debugPrint('[BookOrbit] Read along for $bookId: epub $epubFileId, $language, $granularity'
+        '${replaceFileId != null ? ', replacing $replaceFileId' : ''}');
+    return _readAlongCall('start for $bookId', () => _boPost('/books/$bookId/read-aloud-jobs', {
+          'epubFileId': epubFileId,
+          'language': language,
+          'granularity': granularity,
+          'replaceFileId': ?replaceFileId,
+        }));
+  }
+
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> readAlongJob(String jobId) =>
+      _readAlongCall('job $jobId', () => _boGet('/read-aloud-jobs/$jobId'), quiet: true);
+
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> cancelReadAlong(String jobId) =>
+      _readAlongCall('cancel $jobId', () => _boDelete('/read-aloud-jobs/$jobId'));
+
+  /// Adds output waiting for review to the book as it is.
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> publishReadAlong(String jobId) =>
+      _readAlongCall('publish $jobId', () => _boPost('/read-aloud-jobs/$jobId/publish', const <String, dynamic>{}));
+
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> retryReadAlong(String jobId) =>
+      _readAlongCall('retry $jobId', () => _boPost('/read-aloud-jobs/$jobId/retry', const <String, dynamic>{}));
+
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> dismissReadAlong(String jobId) =>
+      _readAlongCall('dismiss $jobId', () => _boPost('/read-aloud-jobs/$jobId/dismiss', const <String, dynamic>{}));
+
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> _readAlongCall(
+    String what,
+    Future<dynamic> Function() send, {
+    bool quiet = false,
+  }) async {
+    try {
+      final job = ReadAlongJob.fromJson(await send());
+      if (job == null) {
+        debugPrint('[BookOrbit] Read along $what: unreadable answer');
+        return (job: null, failure: ReadAlongFailure.failed);
+      }
+      if (!quiet) debugPrint('[BookOrbit] Read along $what: ${job.status} at ${job.stage}');
+      return (job: job, failure: null);
+    } on _BoHttpError catch (e) {
+      debugPrint('[BookOrbit] Read along $what: ${e.status} ${e.message}');
+      return (job: null, failure: readAlongFailureFor(e.status));
+    } catch (e) {
+      debugPrint('[BookOrbit] Read along $what: $e');
+      return (job: null, failure: ReadAlongFailure.failed);
+    }
+  }
+
+  /// The narration language picked first when a book names none the speech
+  /// model knows.
+  Future<String?> readAlongDefaultLanguage() async {
+    try {
+      final res = await _boGet('/user-preferences/read-aloud') as Map<String, dynamic>;
+      final code = (res['settings'] as Map?)?['defaultLanguage'];
+      return code is String && code.isNotEmpty ? code : null;
+    } catch (e) {
+      debugPrint('[BookOrbit] Read along default language not read: $e');
+      return null;
+    }
+  }
+
+  Future<bool> setReadAlongDefaultLanguage(String code) async {
+    try {
+      await _boPut('/user-preferences/read-aloud', {
+        'settings': {'defaultLanguage': code},
+      });
+      return true;
+    } catch (e) {
+      debugPrint('[BookOrbit] Read along default language not saved: $e');
+      return false;
     }
   }
 
@@ -5476,7 +6009,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
 
   @override
   Future<bool> hasServerNotifications() async =>
-      await _can('notification_access') && !_hasPermission('demo_restricted');
+      await _can('notification_access') && !_demoRestricted;
 
   @override
   Future<({List<ServerNotification> items, int total})?> serverNotifications({int limit = 20, int offset = 0}) async {

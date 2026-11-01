@@ -14,6 +14,7 @@ import '../services/media_overlay.dart';
 import '../services/narration_service.dart';
 import '../services/read_listen_sync.dart';
 import '../services/book_dock.dart';
+import '../services/bookorbit_email.dart';
 import '../services/bookorbit_mapper.dart';
 import 'absorb_placement.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -43,6 +44,7 @@ import '../services/bookmark_service.dart';
 import '../services/download_service.dart';
 import '../services/narrated_books.dart';
 import 'book_files_sheet.dart';
+import 'bookorbit_send_sheet.dart';
 import '../services/transcription_service.dart';
 import '../services/ebook_cache.dart';
 import '../services/progress_sync_service.dart';
@@ -434,6 +436,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       bookOrbit: bookOrbit,
       accent: accent,
       me: auth.username,
+      meId: auth.userId,
       onOpen: () => bookOrbit
           ? Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
               builder: (_) => ReadingLogScreen(itemId: widget.itemId, title: title, item: _item, accent: accent)))
@@ -463,6 +466,12 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     PlayerSettings.getRectangleCoversFor(libraryId).then((rect) {
       if (mounted && _squareCovers == rect) setState(() => _squareCovers = !rect);
     });
+  }
+
+  /// A read along made from File info is a new file on the book, and it
+  /// changes the buttons.
+  void _filesChanged() {
+    if (mounted) _loadItem();
   }
 
   Future<void> _loadItem() async {
@@ -1972,10 +1981,17 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         final serverEbookFile = resolveEbookFile(_item);
         if (serverEbookFile != null) {
           add(_ebookSaved ? Icons.download_done_rounded : Icons.save_alt_rounded,
-            l.ebookSaveToDevice, () => _saveEbook(context, auth, serverEbookFile, title));
+            l.ebookSaveToDevice, () => _saveEbook(context, auth, exportEbookFile(_item) ?? serverEbookFile, title));
         }
         if (serverEbookFile != null && auth.ereaderDevices.isNotEmpty) {
           add(Icons.send_to_mobile_rounded, l.sendToEreader, () => _sendToEreader(context, auth));
+        }
+        if (auth.bookOrbitAdmin?.emailSend == true &&
+            !lib.isOffline &&
+            !ApiService.isBookDockItem(widget.itemId) &&
+            boSendableFiles(_item).isNotEmpty) {
+          add(Icons.send_to_mobile_rounded, l.sendToEreader,
+              () => showBookOrbitSendSheet(context, item: _item!, title: title));
         }
         final listened = !isEbookOnly && (progress > 0 || isFinished);
         final read = lib.getEbookProgress(widget.itemId) > 0 || (isEbookOnly && (progress > 0 || isFinished));
@@ -2006,7 +2022,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         }
         final item = _item;
         if (item != null) {
-          add(Icons.info_outline_rounded, l.fileInfoTitle, () => showBookFilesSheet(context, item));
+          add(Icons.info_outline_rounded, l.fileInfoTitle, () => showBookFilesSheet(context, item, onFilesChanged: _filesChanged));
         }
         if (auth.canDelete && !lib.isOffline) {
           add(Icons.delete_outline_rounded, l.deleteFromServerAction,
@@ -2762,7 +2778,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
     final l = AppLocalizations.of(context)!;
     final item = _item;
-    final showFiles = item == null ? null : () => showBookFilesSheet(context, item);
+    final showFiles = item == null ? null : () => showBookFilesSheet(context, item, onFilesChanged: _filesChanged);
     return [
       if (codec != null && codec.isNotEmpty) _chip(Icons.audio_file_rounded, codec, onTap: showFiles),
       if (bitRate != null && bitRate > 0) _chip(Icons.speed_rounded, l.kbpsValue((bitRate / 1000).round()), onTap: showFiles),

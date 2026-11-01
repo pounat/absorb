@@ -327,6 +327,7 @@ IconData notificationCategoryIcon(String? category) => switch (category) {
       'email' => Icons.mail_outline_rounded,
       'achievements' => Icons.emoji_events_rounded,
       'podcasts' => Icons.podcasts_rounded,
+      'readAloud' => Icons.record_voice_over_rounded,
       _ => Icons.notifications_rounded,
     };
 
@@ -433,6 +434,7 @@ class NotificationSettingsSheet extends StatefulWidget {
 class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
   Map<String, String>? _levels;
   bool _requests = false;
+  bool _readAlongs = false;
   bool _failed = false;
 
   @override
@@ -444,11 +446,16 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
   Future<void> _load() async {
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
-    final (levels, access) = await (api.notificationLevels(), api.bookRequestAccess()).wait;
+    final (levels, access, readAlongs) = await (
+      api.notificationLevels(),
+      api.bookRequestAccess(),
+      api is BookOrbitApiService ? api.canMakeReadAlongs() : Future.value(false),
+    ).wait;
     if (!mounted) return;
     setState(() {
       _levels = levels;
       _requests = access.canRequest;
+      _readAlongs = readAlongs;
       _failed = levels == null;
     });
   }
@@ -485,6 +492,7 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
         'bookRequests' => (l.boNotifyBookRequests, l.boNotifyBookRequestsDesc),
         'email' => (l.boNotifyEmail, l.boNotifyEmailDesc),
         'achievements' => (l.boNotifyAchievements, l.boNotifyAchievementsDesc),
+        'readAloud' => (l.boNotifyReadAlong, l.boNotifyReadAlongDesc),
         _ => (category, ''),
       };
 
@@ -532,7 +540,7 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
                   style: tt.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant.withValues(alpha: 0.6), fontWeight: FontWeight.w600, letterSpacing: 0.5)),
               for (final category in categories)
-                if (category != 'bookRequests' || _requests)
+                if ((category != 'bookRequests' || _requests) && (category != 'readAloud' || _readAlongs))
                   _categoryRow(cs, tt, l, category, levels[category] ?? notificationLevelAll),
             ],
         ],

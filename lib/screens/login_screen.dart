@@ -1051,7 +1051,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           TextButton.icon(
             onPressed: () => launchUrl(
-              Uri.parse('https://discord.gg/bwH6hdvzZ4'),
+              Uri.parse('https://discord.gg/vkEg8w7RUd'),
               mode: LaunchMode.externalApplication,
             ),
             icon: const Icon(Icons.discord, size: 16),

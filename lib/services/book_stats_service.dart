@@ -165,10 +165,20 @@ class BookUserStat {
   /// their sessions haven't changed.
   final int lastUpdate;
   double seconds = 0;
+
+  /// Missing on totals cached before it was stored.
+  final String? userId;
   BookUserStat(this.username, this.progress, this.finished, this.finishedAt,
-      this.lastUpdate);
+      this.lastUpdate, {this.userId});
+
+  /// A progress row with nothing on it isn't listening.
+  bool get listened => finished || progress > 0 || seconds > 0;
+
+  bool isMe({String? id, String? username}) =>
+      id != null && userId != null ? userId == id : this.username == username;
 
   Map<String, dynamic> toJson() => {
+        'id': userId,
         'u': username,
         'p': progress,
         'f': finished,
@@ -183,6 +193,7 @@ class BookUserStat {
         j['f'] == true,
         (j['fa'] as num?)?.toInt(),
         (j['lu'] as num?)?.toInt() ?? 0,
+        userId: j['id'] as String?,
       )..seconds = (j['s'] as num?)?.toDouble() ?? 0;
 }
 
@@ -223,9 +234,11 @@ class BookStats extends ChangeNotifier {
       ? 'bookStats_${itemId}_$episodeId'
       : 'bookStats_$itemId';
 
-  /// Everyone from the scan except [me].
-  int othersCount(String? me) =>
-      users.where((u) => u.username != me).length;
+  List<BookUserStat> get listeners => users.where((u) => u.listened).toList();
+
+  /// Everyone who listened except the signed-in account.
+  int othersCount({String? id, String? username}) =>
+      listeners.where((u) => !u.isMe(id: id, username: username)).length;
 
   /// The service mutates the fields above and calls this after each step.
   void bump() => notifyListeners();
@@ -410,6 +423,7 @@ class BookStatsService {
             p['isFinished'] == true,
             (p['finishedAt'] as num?)?.toInt(),
             (p['lastUpdate'] as num?)?.toInt() ?? 0,
+            userId: id,
           );
           break;
         }

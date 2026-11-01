@@ -37,12 +37,37 @@ class BookRequestsScreen extends StatefulWidget {
   State<BookRequestsScreen> createState() => _BookRequestsScreenState();
 }
 
-typedef _Library = ({int id, String name});
+typedef BookRequestLibrary = ({int id, String name});
+
+/// What a request sheet needs: who may ask, the libraries a request can land
+/// in, and the server's default library for each kind.
+typedef BookRequestSetup = ({
+  BookRequestAccess access,
+  List<BookRequestLibrary> libraries,
+  Map<String, int> defaults,
+});
+
+Future<BookRequestSetup> loadBookRequestSetup(ApiService api) async {
+  final results = await Future.wait([
+    api.bookRequestAccess(),
+    api.getLibraries(),
+    api.bookRequestDefaultLibraries(),
+  ]);
+  return (
+    access: results[0] as BookRequestAccess,
+    libraries: [
+      for (final lib in (results[1] as List<dynamic>).whereType<Map>())
+        if (int.tryParse('${lib['id']}') != null)
+          (id: int.parse('${lib['id']}'), name: '${lib['name'] ?? ''}'),
+    ],
+    defaults: results[2] as Map<String, int>,
+  );
+}
 
 class _BookRequestsScreenState extends State<BookRequestsScreen> with TickerProviderStateMixin {
   BookRequestAccess? _access;
   TabController? _tabs;
-  List<_Library> _libraries = const [];
+  List<BookRequestLibrary> _libraries = const [];
   Map<String, int> _defaults = const {};
   final _mine = GlobalKey<_RequestListState>();
   final _all = GlobalKey<_RequestListState>();
@@ -61,21 +86,13 @@ class _BookRequestsScreenState extends State<BookRequestsScreen> with TickerProv
       setState(() => _access = BookRequestAccess.none);
       return;
     }
-    final results = await Future.wait([
-      api.bookRequestAccess(),
-      api.getLibraries(),
-      api.bookRequestDefaultLibraries(),
-    ]);
+    final setup = await loadBookRequestSetup(api);
     if (!mounted) return;
-    final access = results[0] as BookRequestAccess;
+    final access = setup.access;
     setState(() {
       _access = access;
-      _libraries = [
-        for (final lib in (results[1] as List<dynamic>).whereType<Map>())
-          if (int.tryParse('${lib['id']}') != null)
-            (id: int.parse('${lib['id']}'), name: '${lib['name'] ?? ''}'),
-      ];
-      _defaults = results[2] as Map<String, int>;
+      _libraries = setup.libraries;
+      _defaults = setup.defaults;
       if (access.canRequest) {
         _tabs = TabController(
           length: access.canManage ? 3 : 2,
@@ -231,7 +248,7 @@ String _kindLabel(AppLocalizations l, String kind) => switch (kind) {
 Widget _libraryPicker({
   required BuildContext context,
   String? label,
-  required List<_Library> libraries,
+  required List<BookRequestLibrary> libraries,
   required int? defaultId,
   required int? value,
   required bool allowNone,
@@ -263,10 +280,107 @@ Widget _libraryPicker({
   );
 }
 
+/// Confirms a request for one or more [kinds]: the library each lands in when
+/// that's up to the user, and a note for whoever approves it. Null when
+/// dismissed.
+Future<({Map<String, int?> libraries, String note})?> showBookRequestSheet(
+  BuildContext context, {
+  required String title,
+  List<String> authors = const [],
+  String? coverUrl,
+  required List<String> kinds,
+  required BookRequestSetup setup,
+}) {
+  final l = AppLocalizations.of(context)!;
+  final access = setup.access;
+  // An approved request needs a library, so with nobody to approve and no
+  // default the user picks one.
+  bool mustPick(String kind, int? picked) => access.autoApprove && setup.defaults[kind] == null && picked == null;
+  final showLibrary = access.autoApprove || setup.libraries.length > 1;
+  final noteCtrl = TextEditingController();
+  final libraries = <String, int?>{for (final k in kinds) k: null};
+  final pair = kinds.length > 1;
+  return showModalBottomSheet<({Map<String, int?> libraries, String note})>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSheet) {
+        final cs = Theme.of(ctx).colorScheme;
+        final tt = Theme.of(ctx).textTheme;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _cover(ctx, coverUrl, width: 56),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  if (authors.isNotEmpty)
+                    Text(authors.join(', '), style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                  const SizedBox(height: 6),
+                  _tag(_kindLabel(l, pair ? 'both' : kinds.single), cs.primary),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 18),
+            if (showLibrary)
+              for (final k in kinds) ...[
+                _libraryPicker(
+                  context: ctx,
+                  label: !pair
+                      ? null
+                      : k == 'ebook'
+                          ? l.breqEbookLibrary
+                          : l.breqAudiobookLibrary,
+                  libraries: setup.libraries,
+                  defaultId: setup.defaults[k],
+                  value: libraries[k],
+                  allowNone: !access.autoApprove,
+                  onChanged: (v) => setSheet(() => libraries[k] = v),
+                ),
+                const SizedBox(height: 12),
+              ],
+            if (access.autoApprove)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(l.breqAutoApproved, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              )
+            else ...[
+              TextField(
+                controller: noteCtrl,
+                maxLength: 2000,
+                minLines: 1,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: l.breqNote,
+                  hintText: l.breqNoteHint,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: kinds.any((k) => mustPick(k, libraries[k]))
+                    ? null
+                    : () => Navigator.pop(ctx, (libraries: Map.of(libraries), note: noteCtrl.text)),
+                child: Text(pair ? l.breqRequestBoth : l.breqRequest),
+              ),
+            ),
+          ]),
+        );
+      },
+    ),
+  ).whenComplete(() => WidgetsBinding.instance.addPostFrameCallback((_) => noteCtrl.dispose()));
+}
+
 class _RequestSearch extends StatefulWidget {
   final ApiService api;
   final BookRequestAccess access;
-  final List<_Library> libraries;
+  final List<BookRequestLibrary> libraries;
   final Map<String, int> defaults;
   final String initialQuery;
   final VoidCallback onRequested;
@@ -510,92 +624,15 @@ class _RequestSearchState extends State<_RequestSearch> with AutomaticKeepAliveC
     }
   }
 
-  Future<({Map<String, int?> libraries, String note})?> _confirm(BookRequestWork work, List<String> kinds) {
-    final l = AppLocalizations.of(context)!;
-    final access = widget.access;
-    // An approved request needs a library, so with nobody to approve and no
-    // default the user picks one.
-    bool mustPick(String kind, int? picked) => access.autoApprove && widget.defaults[kind] == null && picked == null;
-    final showLibrary = access.autoApprove || widget.libraries.length > 1;
-    final noteCtrl = TextEditingController();
-    final libraries = <String, int?>{for (final k in kinds) k: null};
-    final pair = kinds.length > 1;
-    return showModalBottomSheet<({Map<String, int?> libraries, String note})>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) {
-          final cs = Theme.of(ctx).colorScheme;
-          final tt = Theme.of(ctx).textTheme;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + MediaQuery.of(ctx).viewInsets.bottom),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _cover(ctx, work.coverUrl, width: 56),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(work.title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                    if (work.authors.isNotEmpty)
-                      Text(work.authors.join(', '), style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                    const SizedBox(height: 6),
-                    _tag(_kindLabel(l, pair ? 'both' : kinds.single), cs.primary),
-                  ]),
-                ),
-              ]),
-              const SizedBox(height: 18),
-              if (showLibrary)
-                for (final k in kinds) ...[
-                  _libraryPicker(
-                    context: ctx,
-                    label: !pair
-                        ? null
-                        : k == 'ebook'
-                            ? l.breqEbookLibrary
-                            : l.breqAudiobookLibrary,
-                    libraries: widget.libraries,
-                    defaultId: widget.defaults[k],
-                    value: libraries[k],
-                    allowNone: !access.autoApprove,
-                    onChanged: (v) => setSheet(() => libraries[k] = v),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              if (access.autoApprove)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(l.breqAutoApproved, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                )
-              else ...[
-                TextField(
-                  controller: noteCtrl,
-                  maxLength: 2000,
-                  minLines: 1,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: l.breqNote,
-                    hintText: l.breqNoteHint,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 4),
-              ],
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: kinds.any((k) => mustPick(k, libraries[k]))
-                      ? null
-                      : () => Navigator.pop(ctx, (libraries: Map.of(libraries), note: noteCtrl.text)),
-                  child: Text(pair ? l.breqRequestBoth : l.breqRequest),
-                ),
-              ),
-            ]),
-          );
-        },
-      ),
-    ).whenComplete(() => WidgetsBinding.instance.addPostFrameCallback((_) => noteCtrl.dispose()));
-  }
+  Future<({Map<String, int?> libraries, String note})?> _confirm(BookRequestWork work, List<String> kinds) =>
+      showBookRequestSheet(
+        context,
+        title: work.title,
+        authors: work.authors,
+        coverUrl: work.coverUrl,
+        kinds: kinds,
+        setup: (access: widget.access, libraries: widget.libraries, defaults: widget.defaults),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -802,7 +839,7 @@ class _RequestList extends StatefulWidget {
   final ApiService api;
   final BookRequestAccess access;
   final bool all;
-  final List<_Library> libraries;
+  final List<BookRequestLibrary> libraries;
   final Map<String, int> defaults;
   final VoidCallback onChanged;
 

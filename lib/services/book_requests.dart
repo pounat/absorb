@@ -12,6 +12,50 @@ const bookRequestMediaKinds = ['audiobook', 'ebook', 'comic'];
 /// e-books there, and 'both' asks for the e-book and the audiobook together.
 const bookRequestPairMediaKinds = ['audiobook', 'ebook', 'both'];
 
+// What BookOrbit counts as each format a request brings (packages/types/src/book.ts).
+const _requestEbookFormats = {'epub', 'kepub', 'mobi', 'azw3', 'azw', 'fb2', 'pdf', 'djvu', 'cbz', 'cbr', 'cb7', 'cbx'};
+const _requestAudioFormats = {'m4b', 'mp3', 'm4a', 'opus', 'ogg', 'flac'};
+
+/// The format a BookOrbit book could be asked for from the book itself, from
+/// its detail's files: 'audiobook' when it only has something to read,
+/// 'ebook' when it only has audio. Null when it has both, or when its EPUB
+/// reads itself aloud, which is both already.
+String? missingRequestFormat(List<Map<String, dynamic>> files) {
+  var readable = false;
+  var audio = false;
+  for (final f in files) {
+    final role = f['role'];
+    if (role != 'primary' && role != 'content') continue;
+    final format = '${f['format'] ?? ''}'.toLowerCase();
+    if (format == 'epub' && (f['mediaOverlay'] as Map?)?['available'] == true) return null;
+    if (_requestEbookFormats.contains(format)) readable = true;
+    if (_requestAudioFormats.contains(format)) audio = true;
+  }
+  if (readable && !audio) return 'audiobook';
+  if (audio && !readable) return 'ebook';
+  return null;
+}
+
+/// A book's missing format and where asking for it stands.
+class MissingFormatRequest {
+  /// 'audiobook' or 'ebook'.
+  final String mediaKind;
+  final BookRequestAvailability? availability;
+
+  const MissingFormatRequest(this.mediaKind, [this.availability]);
+
+  /// The other format is in the library already, as a book of its own.
+  int? get ownedBookId => availability?.ownedBookId;
+
+  /// This account asked for it already.
+  bool get following => ownedBookId == null && availability?.existingRequestId != null && availability!.alreadySubscribed;
+
+  /// Someone else asked for it; this account can join.
+  bool get joinable => ownedBookId == null && availability?.existingRequestId != null && !availability!.alreadySubscribed;
+
+  bool get canAsk => ownedBookId == null && !following;
+}
+
 /// Statuses a request can still be cancelled from.
 bool canCancelBookRequest(String status) => !const {'rejected', 'cancelled', 'available'}.contains(status);
 
@@ -408,6 +452,57 @@ Map<String, dynamic> bookRequestPairPayload(
     ...body,
     'ebook': {'targetLibraryId': ?ebookLibraryId},
     'audiobook': {'targetLibraryId': ?audiobookLibraryId},
+  };
+}
+
+/// An Audible book's authors: a comma-joined string from the series lookups,
+/// or a list from other sources.
+List<String> audibleBookAuthors(Map<String, dynamic> book) {
+  final raw = book['authors'];
+  final names = raw is List
+      ? [for (final a in raw) a is Map ? '${a['name'] ?? ''}' : '$a']
+      : '${raw ?? ''}'.split(',');
+  return [
+    for (final n in names)
+      if (n.trim().isNotEmpty) n.trim(),
+  ];
+}
+
+/// The body of `POST /book-requests` for an audiobook found on Audible, as
+/// the series scan and Find Missing Books list them. Null without a title.
+Map<String, dynamic>? audibleBookRequestPayload(
+  Map<String, dynamic> book, {
+  String? seriesName,
+  String? note,
+  int? libraryId,
+}) {
+  final title = _clip('${book['title'] ?? ''}', 500);
+  if (title == null) return null;
+  final asin = _clip('${book['asin'] ?? ''}', 255);
+  final authors = audibleBookAuthors(book);
+  final index = double.tryParse('${book['sequence'] ?? ''}'.trim());
+  final year = DateTime.tryParse('${book['releaseDate'] ?? ''}')?.year;
+  final cover = _clip('${book['coverUrl'] ?? ''}', 2048);
+  return {
+    'title': title,
+    'mediaKind': 'audiobook',
+    'subtitle': ?_clip('${book['subtitle'] ?? ''}', 500),
+    'authors': [
+      for (final a in authors.take(50)) ?_clip(a, 255),
+    ],
+    'seriesName': ?_clip(seriesName, 500),
+    if (index != null && index >= 0) 'seriesIndex': index.truncate(),
+    if (year != null && year >= 0 && year <= 9999) 'publishedYear': year,
+    if (cover != null && cover.startsWith('http')) 'coverUrl': cover,
+    if (asin != null) ...{
+      'providerKey': 'audible',
+      'providerId': asin,
+      'metadataSources': [
+        {'providerKey': 'audible', 'providerId': asin, 'providerLabel': 'Audible'},
+      ],
+    },
+    'note': ?_clip(note, 2000),
+    'targetLibraryId': ?libraryId,
   };
 }
 

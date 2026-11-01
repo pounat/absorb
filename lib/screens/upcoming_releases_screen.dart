@@ -12,6 +12,7 @@ import '../services/upcoming_releases_service.dart';
 import '../utils/series_number_match.dart';
 
 import '../widgets/absorb_page_header.dart';
+import '../widgets/audible_book_request.dart';
 import '../widgets/audible_series_sheet.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/rmab_book_detail_sheet.dart';
@@ -36,6 +37,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
   String _region = 'us';
   bool _sortByDate = false;
   bool _rmabConfigured = false;
+  bool _serverRequests = false;
   int _finishedAfterYears = 3;
   int _viewFilter = 0; // 0 = upcoming, 1 = missing
   final Set<String> _selectedAsins = {};
@@ -48,6 +50,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
     _service.addListener(_onServiceChanged);
     _initAndStart();
     _loadRmabConfigured();
+    _loadServerRequests();
     if (widget.openScanChooser) {
       // After the first frame so the sheet has a laid-out screen behind it,
       // and not while a scan the screen kicked off itself is already running.
@@ -68,6 +71,13 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
       setState(() => _rmabConfigured = next);
     }
   }
+
+  Future<void> _loadServerRequests() async {
+    final ok = await canRequestAudibleBooks(context.read<AuthProvider>().apiService);
+    if (mounted && ok) setState(() => _serverRequests = true);
+  }
+
+  bool get _canRequest => _serverRequests || _rmabConfigured;
 
   Future<void> _initAndStart() async {
     final saved = await PlayerSettings.getAudibleRegion();
@@ -536,9 +546,9 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
     final cs = Theme.of(context).colorScheme;
     final isOwned = book['_owned'] == true;
     final seriesContext = _seriesContextFor(book['asin'] as String? ?? '');
-    // Show the RMAB request entry only for books that have been released but
-    // aren't in the library yet, and only when the user has RMAB configured.
-    final showRequest = _rmabConfigured && !isOwned && !isUpcoming;
+    // Request only books that are out but not in the library, from BookOrbit
+    // when this account can ask it, otherwise from ReadMeABook.
+    final showRequest = _canRequest && !isOwned && !isUpcoming;
     showAudibleBookMenu(context,
       book: book,
       seriesName: seriesName,
@@ -575,13 +585,18 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
         if (showRequest)
           ListTile(
             leading: Icon(Icons.menu_book_rounded, color: cs.primary, size: 22),
-            title: Text(l.rmabRequestCta,
+            title: Text(_serverRequests ? l.breqRequest : l.rmabRequestCta,
                 style: const TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w500)),
             dense: true,
             visualDensity: VisualDensity.compact,
             onTap: () {
               Navigator.pop(context);
+              final api = context.read<AuthProvider>().apiService;
+              if (_serverRequests && api != null) {
+                requestAudibleBooks(context, api, [(book: book, seriesName: seriesName)]);
+                return;
+              }
               final asin = book['asin'] as String? ?? '';
               final title = book['title'] as String? ?? '';
               debugPrint(
@@ -659,22 +674,22 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
   }
 
   /// All books currently on the page, keyed by ASIN, for multi-select.
-  Map<String, ({Map<String, dynamic> book, bool isUpcoming})> _selectableBooks() {
-    final map = <String, ({Map<String, dynamic> book, bool isUpcoming})>{};
+  Map<String, ({Map<String, dynamic> book, bool isUpcoming, String seriesName})> _selectableBooks() {
+    final map = <String, ({Map<String, dynamic> book, bool isUpcoming, String seriesName})>{};
     for (final r in _service.results) {
       for (final b in r.upcomingBooks) {
         final a = b['asin'] as String? ?? '';
-        if (a.isNotEmpty) map[a] = (book: b, isUpcoming: true);
+        if (a.isNotEmpty) map[a] = (book: b, isUpcoming: true, seriesName: r.seriesName);
       }
       for (final b in r.recentBooks) {
         final a = b['asin'] as String? ?? '';
-        if (a.isNotEmpty) map[a] = (book: b, isUpcoming: false);
+        if (a.isNotEmpty) map[a] = (book: b, isUpcoming: false, seriesName: r.seriesName);
       }
     }
     for (final r in _service.missingResults) {
       for (final b in r.missingBooks) {
         final a = b['asin'] as String? ?? '';
-        if (a.isNotEmpty) map.putIfAbsent(a, () => (book: b, isUpcoming: false));
+        if (a.isNotEmpty) map.putIfAbsent(a, () => (book: b, isUpcoming: false, seriesName: r.seriesName));
       }
     }
     return map;
@@ -708,12 +723,26 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
   Future<void> _bulkRequest() async {
     final l = AppLocalizations.of(context)!;
     final books = _selectableBooks();
-    final targets = <Map<String, dynamic>>[
+    final picked = [
       for (final a in _selectedAsins)
         if (books[a] != null && !books[a]!.isUpcoming && books[a]!.book['_owned'] != true)
-          books[a]!.book,
+          books[a]!,
     ];
-    if (targets.isEmpty) return;
+    if (picked.isEmpty) return;
+    final api = context.read<AuthProvider>().apiService;
+    if (_serverRequests && api != null) {
+      setState(() => _bulkBusy = true);
+      final sent = await requestAudibleBooks(context, api, [
+        for (final p in picked) (book: p.book, seriesName: p.seriesName),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _bulkBusy = false;
+        if (sent) _selectedAsins.clear();
+      });
+      return;
+    }
+    final targets = [for (final p in picked) p.book];
     final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final token = await ScopedPrefs.getString(kRmabApiTokenKey);
     final headers = await loadRmabCustomHeaders();
@@ -1029,7 +1058,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
 
   Widget _buildSelectionBar(ColorScheme cs, TextTheme tt, AppLocalizations l) {
     final books = _selectableBooks();
-    final requestable = _rmabConfigured
+    final requestable = _canRequest
         ? _selectedAsins.where((a) {
             final e = books[a];
             return e != null && !e.isUpcoming && e.book['_owned'] != true;
@@ -1054,7 +1083,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2)),
               )
             else ...[
-              if (_rmabConfigured)
+              if (_canRequest)
                 TextButton.icon(
                   onPressed: requestable == 0 ? null : _bulkRequest,
                   icon: const Icon(Icons.menu_book_rounded, size: 18),

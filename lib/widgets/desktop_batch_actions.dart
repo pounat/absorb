@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
+import '../services/bookorbit_admin.dart';
 import '../services/download_service.dart';
 import 'delete_confirm_dialog.dart';
 import 'overlay_toast.dart';
@@ -141,15 +143,20 @@ class DesktopBatchActions {
     return true;
   }
 
+  /// [onProgress] hears how many books are done, on servers that report it.
   static Future<bool?> quickMatch(
     BuildContext context,
-    List<String> itemIds,
-  ) async {
+    List<String> itemIds, {
+    void Function(int done, int total)? onProgress,
+  }) async {
     if (itemIds.isEmpty) return null;
     final auth = context.read<AuthProvider>();
     final lib = context.read<LibraryProvider>();
     final api = auth.apiService;
     if (api == null) return false;
+    if (api is BookOrbitApiService) {
+      return _bookOrbitQuickMatch(context, api, itemIds, onProgress);
+    }
 
     final libraryProvider =
         lib.selectedLibrary?['provider']?.toString().trim() ?? '';
@@ -183,6 +190,93 @@ class DesktopBatchActions {
           : Icons.error_outline_rounded,
     );
     return success;
+  }
+
+  /// BookOrbit fills each book by its own metadata rules, so there is no
+  /// provider or replace choice, only whether to ask the providers afresh.
+  static Future<bool?> _bookOrbitQuickMatch(
+    BuildContext context,
+    BookOrbitApiService api,
+    List<String> itemIds,
+    void Function(int done, int total)? onProgress,
+  ) async {
+    final l = AppLocalizations.of(context)!;
+    var ignoreCache = false;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: Text(l.quickMatch),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.boQuickMatchBody(itemIds.length)),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l.boQuickMatchIgnoreCache),
+                  subtitle: Text(l.boQuickMatchIgnoreCacheHint),
+                  value: ignoreCache,
+                  onChanged: (value) =>
+                      setLocalState(() => ignoreCache = value ?? false),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(l.quickMatch),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (go != true || !context.mounted) return null;
+
+    showOverlayToast(
+      context,
+      l.adminMatchingStarted(l.selectedCount(itemIds.length)),
+      icon: Icons.auto_fix_high_rounded,
+    );
+    final ({int matched, int failed}) result;
+    try {
+      result = await api.quickMatchBooks(
+        itemIds,
+        ignoreCache: ignoreCache,
+        onProgress: onProgress,
+      );
+    } catch (e) {
+      debugPrint('[QuickMatch] BookOrbit bulk match failed: $e');
+      if (context.mounted) {
+        showOverlayToast(
+          context,
+          (e is BookOrbitAdminError ? e.message : null) ?? l.failedToUpdateMetadata,
+          icon: Icons.error_outline_rounded,
+        );
+      }
+      return false;
+    }
+    if (!context.mounted) return result.failed == 0;
+    final summary = <String>[
+      if (result.matched > 0) '${l.metadataUpdated} (${result.matched})',
+      if (result.failed > 0) '${l.failedToUpdateMetadata} (${result.failed})',
+    ];
+    showOverlayToast(
+      context,
+      summary.join(' - '),
+      icon: result.failed > 0
+          ? Icons.error_outline_rounded
+          : Icons.check_circle_outline_rounded,
+    );
+    return result.failed == 0;
   }
 
   static Future<bool> setFinished(

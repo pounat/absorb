@@ -1,14 +1,17 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/player_settings.dart';
 import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/upcoming_releases_service.dart';
 import '../utils/series_number_match.dart';
+import 'audible_book_request.dart';
 import 'overlay_toast.dart';
 import 'rmab_book_detail_sheet.dart';
 import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey;
@@ -68,6 +71,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
   int _filter = 0; // 0 = missing, 1 = upcoming, 2 = all
   late String _region;
   bool _rmabConfigured = false;
+  bool _serverRequests = false;
 
   @override
   void initState() {
@@ -75,6 +79,12 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
     _region = ApiService.debugRegion;
     _loadRegionAndFetch();
     _loadRmabConfigured();
+    _loadServerRequests();
+  }
+
+  Future<void> _loadServerRequests() async {
+    final ok = await canRequestAudibleBooks(context.read<AuthProvider>().apiService);
+    if (mounted && ok) setState(() => _serverRequests = true);
   }
 
   Future<void> _loadRmabConfigured() async {
@@ -170,9 +180,9 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
   }) {
     final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    // Surface the RMAB Request action only for missing-but-released books,
-    // and only when the user has RMAB configured.
-    final showRequest = _rmabConfigured && !owned && !upcoming;
+    // Request only missing-but-released books, from BookOrbit when this
+    // account can ask it, otherwise from ReadMeABook when that's set up.
+    final showRequest = (_serverRequests || _rmabConfigured) && !owned && !upcoming;
     // Let upcoming or recently-released books be pushed onto the upcoming page
     // without rescanning the whole library.
     final canAddToUpcoming = upcoming || _isRecent(book);
@@ -200,13 +210,18 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
           ListTile(
             leading: Icon(Icons.menu_book_rounded,
                 color: cs.primary, size: 22),
-            title: Text(l.rmabRequestCta,
+            title: Text(_serverRequests ? l.breqRequest : l.rmabRequestCta,
                 style: const TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w500)),
             dense: true,
             visualDensity: VisualDensity.compact,
             onTap: () {
               Navigator.pop(context);
+              final api = context.read<AuthProvider>().apiService;
+              if (_serverRequests && api != null) {
+                requestAudibleBooks(context, api, [(book: book, seriesName: widget.seriesName)]);
+                return;
+              }
               final asin = book['asin'] as String? ?? '';
               final title = book['title'] as String? ?? '';
               debugPrint(

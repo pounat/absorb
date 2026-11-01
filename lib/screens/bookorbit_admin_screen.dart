@@ -7,10 +7,11 @@ import '../services/api_service.dart';
 import '../services/bookorbit_admin.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/overlay_toast.dart';
+import 'bookorbit_email_screen.dart';
 import 'bookorbit_libraries_screen.dart';
 import 'bookorbit_users_screen.dart';
 
-/// BookOrbit server administration: users and libraries.
+/// BookOrbit server administration: users, libraries and mail servers.
 class BookOrbitAdminScreen extends StatefulWidget {
   const BookOrbitAdminScreen({super.key});
 
@@ -21,6 +22,7 @@ class BookOrbitAdminScreen extends StatefulWidget {
 class _BookOrbitAdminScreenState extends State<BookOrbitAdminScreen> {
   int? _users;
   int? _libraries;
+  int? _servers;
 
   @override
   void initState() {
@@ -41,6 +43,10 @@ class _BookOrbitAdminScreenState extends State<BookOrbitAdminScreen> {
       if (access.manageLibraries) {
         final libs = await api.adminLibraries();
         if (mounted) setState(() => _libraries = libs.length);
+      }
+      if (access.manageEmail) {
+        final servers = await api.emailServers();
+        if (mounted) setState(() => _servers = servers.length);
       }
     } on BookOrbitAdminError {
       // The counts are only a nicety on the tiles.
@@ -85,6 +91,13 @@ class _BookOrbitAdminScreenState extends State<BookOrbitAdminScreen> {
                 title: l.boAdminLibraries,
                 subtitle: _libraries == null ? null : l.boAdminLibraryCount(_libraries!),
                 onTap: () => _open(const BookOrbitLibrariesScreen()),
+              ),
+            if (access?.manageEmail == true)
+              _HubTile(
+                icon: Icons.forward_to_inbox_rounded,
+                title: l.boEmailTabServers,
+                subtitle: _servers == null ? null : l.boAdminServerCount(_servers!),
+                onTap: () => _open(const BookOrbitEmailScreen(initialTab: BoEmailTab.servers)),
               ),
           ],
         ),

@@ -39,6 +39,10 @@ const Map<String, (String, NotificationSeverity)> _typeMeta = {
   'bulk_rename_completed': ('bulkRename', _s),
   'bulk_rename_failed': ('bulkRename', _w),
   'achievement_unlocked': ('achievements', _s),
+  'read_aloud_ready': ('readAloud', _s),
+  'read_aloud_needs_review': ('readAloud', _w),
+  'read_aloud_failed': ('readAloud', _e),
+  'read_aloud_review_expiring': ('readAloud', _w),
   'podcast_episode_published': ('podcasts', _s),
   'podcast_feed_unhealthy': ('podcasts', _w),
   'podcast_download_failed': ('podcasts', _e),
@@ -48,7 +52,7 @@ const Map<String, (String, NotificationSeverity)> _typeMeta = {
 /// left out the way BookOrbit leaves them out while its podcasts are off.
 const notificationCategoryGroups = <String, List<String>>{
   'library': ['scanning', 'metadata', 'authorEnrichment'],
-  'files': ['fileWriteBack', 'fileRename', 'bulkRename', 'migration'],
+  'files': ['fileWriteBack', 'fileRename', 'bulkRename', 'readAloud', 'migration'],
   'integrations': ['bookDock', 'bookRequests', 'email'],
   'personal': ['achievements'],
 };

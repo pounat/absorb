@@ -300,10 +300,20 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   /// Read along can follow the narration when the book's audio is that
   /// narration: BookOrbit plays it as the audio, and an Audiobookshelf
-  /// ebook-only book has it fetched out of the EPUB. A book with its own
-  /// audiobook keeps transcription.
+  /// ebook-only book has it fetched out of the EPUB. On BookOrbit it also
+  /// follows a read along EPUB laid on the audiobook beside it. Any other
+  /// book with its own audiobook keeps transcription.
   bool get _useNarration =>
       _narration != null && (_narrationFromServer || !_hasAudio || _audioIsNarration);
+
+  /// Whether the page and the audio may move each other. A book with its own
+  /// audiobook beside a read along EPUB does that only with Sync reading and
+  /// listening on, as any book with both does.
+  Future<bool> _narrationMovesSpots() async {
+    await _audioMetaLookup;
+    if (!_hasAudio || _audioIsNarration) return true;
+    return PlayerSettings.getSyncReadingListening();
+  }
 
   // The narration and audio lookups started on open: read along waits for
   // them, since which kind it is depends on their answers.
@@ -4560,6 +4570,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final player = AudioPlayerService();
     // Find in ebook names the spot, whether or not it is ahead of the page.
     double? at = widget.openAtAudioSeconds;
+    if (at == null && !await _narrationMovesSpots()) return;
     if (at == null && player.currentItemId == widget.itemId && player.currentEpisodeId == null) {
       at = player.position.inMilliseconds / 1000.0;
     } else if (at == null) {
@@ -4628,6 +4639,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final t = _narrationReadAt;
     if (n == null || t == null || !_useNarration || _readAlongOn) return;
     _narrationReadAt = null;
+    if (!await _narrationMovesSpots()) return;
     final player = AudioPlayerService();
     final inPlayer = player.currentItemId == widget.itemId && player.currentEpisodeId == null;
     if (inPlayer && player.isPlaying) return;

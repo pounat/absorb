@@ -29,6 +29,7 @@ import '../widgets/nav_hold_options.dart';
 import '../widgets/now_playing_text_sheet.dart';
 import '../screens/admin_screen.dart';
 import '../screens/bookorbit_admin_screen.dart';
+import '../screens/bookorbit_email_screen.dart';
 import '../screens/book_requests_screen.dart';
 import '../screens/achievements_screen.dart';
 import '../screens/server_notifications_screen.dart';
@@ -624,13 +625,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _showNavHoldDialog() async {
     final l = AppLocalizations.of(context)!;
-    final isAdmin = context.read<AuthProvider>().isAdmin;
+    final auth = context.read<AuthProvider>();
     final libraries = context.read<LibraryProvider>().libraries;
     final ids = navHoldAllIds(
-      isAdmin: isAdmin,
+      admin: NavHoldAdmin.forAccount(isAdmin: auth.isAdmin, bookOrbit: auth.bookOrbitAdmin),
       libraryIds: [
         for (final lib in libraries)
-          if ((lib['id'] as String?)?.isNotEmpty == true) lib['id'] as String,
+          if ((lib['id'] as String?)?.isNotEmpty == true && lib['id'] != ApiService.bookDockLibraryId)
+            lib['id'] as String,
       ],
       bookRequests: context.read<AuthProvider>().apiService?.isBookOrbit == true,
     );
@@ -4470,7 +4472,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       trailing: Icon(Icons.open_in_new_rounded,
                           size: 18, color: cs.onSurfaceVariant),
                       onTap: () => launchUrl(
-                          Uri.parse('https://discord.gg/bwH6hdvzZ4'),
+                          Uri.parse('https://discord.gg/vkEg8w7RUd'),
                           mode: LaunchMode.externalApplication),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -5350,6 +5352,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
+          ],
+          if (auth.bookOrbitAdmin?.email == true) ...[
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const BookOrbitEmailScreen(),
+                ));
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(children: [
+                  Icon(Icons.forward_to_inbox_rounded, size: 20, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(l.boEmailTitle, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(l.boEmailSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                  ])),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant),
+                ]),
+              ),
+            ),
+            Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
           ],
           if (auth.isBookOrbit && (_boAchievementsOn != null || _boNotificationsOn)) ...[
             if (_boNotificationsOn)

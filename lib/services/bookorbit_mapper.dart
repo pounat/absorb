@@ -311,7 +311,10 @@ class BookOrbitMapper {
     final narrated = audioFiles.isEmpty ? narratedEpub(contentFiles) : null;
     final narrationSeconds =
         ((narrated?['mediaOverlay'] as Map?)?['durationSeconds'] as num?)?.toDouble() ?? 0;
-    final ebook = narrated ?? _primaryEbook(contentFiles);
+    // A read along EPUB beside the audiobook it matches: the copy to read, so
+    // read along follows its timings while the audiobook plays.
+    final readAlong = audioFiles.isEmpty ? null : matchingReadAlong(detail, contentFiles);
+    final ebook = narrated ?? readAlong?.file ?? _primaryEbook(contentFiles);
     final ebookFormat = ebook == null ? null : _format(ebook);
     final duration = narrated != null
         ? narrationSeconds
@@ -332,21 +335,17 @@ class BookOrbitMapper {
       'duration': duration,
       'size': size,
       'tracks': tracks,
-      'ebookFile': ebook == null
-          ? null
-          : {
-              'ino': _str(ebook['id']),
-              'ebookFormat': ebookFormat,
-              if ((ebook['fileHash'] ?? ebook['contentVersion']) != null)
-                'version': '${ebook['fileHash'] ?? ebook['contentVersion']}',
-              'metadata': {
-                'filename': ebook['filename'] ?? 'book.$ebookFormat',
-                'ext': '.$ebookFormat',
-                'size': ebook['sizeBytes'] ?? 0,
-              },
-            },
+      'ebookFile': ebook == null ? null : _ebookFileEntry(ebook),
       'ebookFormat': ebookFormat,
       if (narrated != null) 'narration': {'fileId': _str(narrated['id']), 'duration': narrationSeconds},
+      if (readAlong != null)
+        'readAlongEpub': {
+          'fileId': _str(readAlong.file['id']),
+          'duration': readAlong.narration,
+          'audioDuration': readAlong.audio,
+          if (_primaryEbook(contentFiles) case final plain? when plain != readAlong.file)
+            'plainEbookFile': _ebookFileEntry(plain),
+        },
       'numTracks': audioFiles.length,
       'numAudioFiles': audioFiles.length,
       'numChapters': chapters.length,
@@ -670,6 +669,40 @@ class BookOrbitMapper {
       if (_format(f) != 'epub') continue;
       final overlay = f['mediaOverlay'] as Map?;
       if (overlay?['available'] == true && ((overlay?['durationSeconds'] as num?) ?? 0) > 0) return f;
+    }
+    return null;
+  }
+
+  static Map<String, dynamic> _ebookFileEntry(Map<String, dynamic> f) {
+    final format = _format(f);
+    return {
+      'ino': _str(f['id']),
+      'ebookFormat': format,
+      if ((f['fileHash'] ?? f['contentVersion']) != null) 'version': '${f['fileHash'] ?? f['contentVersion']}',
+      'metadata': {
+        'filename': f['filename'] ?? 'book.$format',
+        'ext': '.$format',
+        'size': f['sizeBytes'] ?? 0,
+      },
+    };
+  }
+
+  /// The read along EPUB BookOrbit keeps in step with the audiobook: its
+  /// Read-aloud progress sync is on and the two lengths agree. Only a book's
+  /// full details say so.
+  static ({Map<String, dynamic> file, double narration, double audio})? matchingReadAlong(
+    Map<String, dynamic>? detail,
+    List<Map<String, dynamic>> contentFiles,
+  ) {
+    final sync = detail?['readAloudSync'];
+    if (sync is! Map || sync['state'] != 'enabled') return null;
+    final narration = (sync['overlayDurationSeconds'] as num?)?.toDouble() ?? 0;
+    final audio = (sync['audioDurationSeconds'] as num?)?.toDouble() ?? 0;
+    if (narration <= 0 || audio <= 0) return null;
+    for (final f in contentFiles) {
+      if (_str(f['id']) != _str(sync['overlayFileId']) || _format(f) != 'epub') continue;
+      if ((f['mediaOverlay'] as Map?)?['available'] != true) return null;
+      return (file: f, narration: narration, audio: audio);
     }
     return null;
   }

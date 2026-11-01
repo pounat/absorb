@@ -29,6 +29,14 @@ const comicEbookFormats = {'cbz', 'cbr', 'cb7'};
 const readableEbookFormats = {'epub', 'pdf', 'cbz', ...foliateEbookFormats};
 const allEbookFormats = {...readableEbookFormats, 'cbr', 'cb7'};
 
+/// The ebook to save to the device: the plain EPUB when a read along copy,
+/// which carries the whole audiobook inside it, is the one opened for reading.
+Map<String, dynamic>? exportEbookFile(Map<String, dynamic>? item) {
+  final media = item?['media'] as Map<String, dynamic>?;
+  final plain = (media?['readAlongEpub'] as Map?)?['plainEbookFile'];
+  return plain is Map<String, dynamic> ? plain : resolveEbookFile(item);
+}
+
 /// The ebook to use for a library item: the server's primary (media.ebookFile)
 /// when set, otherwise the best supplementary ebook from libraryFiles - epub
 /// first (mirroring the server's own primary pick), then the first readable

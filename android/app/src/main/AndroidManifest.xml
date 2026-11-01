@@ -262,5 +262,10 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- The Wear OS companion app carries "open on the watch" requests
+             (RemoteActivityHelper), so it has to be visible to us. -->
+        <intent>
+            <action android:name="com.google.android.wearable.intent.action.REMOTE_INTENT"/>
+        </intent>
     </queries>
 </manifest>

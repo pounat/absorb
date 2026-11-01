@@ -162,7 +162,7 @@ class _BookStatsSheetState extends State<_BookStatsSheet> {
                       ),
                     ]),
                   )
-                else if (s.users.isEmpty)
+                else if (s.listeners.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(l.bookStatsNobody,
@@ -170,16 +170,16 @@ class _BookStatsSheetState extends State<_BookStatsSheet> {
                             tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
                   )
                 else ...[
-                  _row(l.bookStatsListeners, '${s.users.length}', cs, tt),
+                  _row(l.bookStatsListeners, '${s.listeners.length}', cs, tt),
                   _row(l.bookStatsFinishedCount,
-                      '${s.users.where((u) => u.finished).length}', cs, tt),
+                      '${s.listeners.where((u) => u.finished).length}', cs, tt),
                   _row(
                       l.bookStatsTotalTime,
-                      _dur(s.users.fold(0.0, (a, u) => a + u.seconds), l),
+                      _dur(s.listeners.fold(0.0, (a, u) => a + u.seconds), l),
                       cs,
                       tt),
                   const SizedBox(height: 12),
-                  for (final u in s.users)
+                  for (final u in s.listeners)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(children: [

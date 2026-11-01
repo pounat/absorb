@@ -212,7 +212,7 @@ class NarrationService {
     File? epub,
   }) async {
     if (api is BookOrbitApiService) {
-      final o = await api.narrationFor(itemId);
+      final o = await api.narrationFor(itemId) ?? await api.readAlongTimingsFor(itemId);
       if (o != null) {
         _overlays[itemId] = o;
         unawaited(_save(itemId, o));
@@ -517,6 +517,11 @@ class NarrationService {
     if (!NarratedBooks.contains(itemId)) return null;
     return localOverlay(itemId);
   }
+
+  /// Timings that say which sentence the book's audio is on: its narration,
+  /// or on BookOrbit a read along EPUB laid on the audiobook beside it.
+  Future<MediaOverlay?> sentenceTimings(ApiService? api, String itemId) async =>
+      await audioNarration(api, itemId) ?? (api is BookOrbitApiService ? await api.readAlongTimingsFor(itemId) : null);
 
   List<String> _trackNames(List<Map<String, dynamic>> tracks) => [
         for (final t in tracks)

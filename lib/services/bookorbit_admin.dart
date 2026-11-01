@@ -7,8 +7,9 @@ library;
 class BookOrbitAdminError implements Exception {
   final int status;
   final String? message;
+  final String? code;
 
-  const BookOrbitAdminError(this.status, [this.message]);
+  const BookOrbitAdminError(this.status, [this.message, this.code]);
 
   @override
   String toString() => 'BookOrbit admin $status: ${message ?? ''}';
@@ -19,16 +20,23 @@ class BookOrbitAdminAccess {
   final bool isSuperuser;
   final bool manageUsers;
   final bool manageLibraries;
+  final bool emailSend;
+  final bool manageEmail;
   final String userId;
 
   const BookOrbitAdminAccess({
     required this.isSuperuser,
     required this.manageUsers,
     required this.manageLibraries,
+    this.emailSend = false,
+    this.manageEmail = false,
     required this.userId,
   });
 
-  bool get any => isSuperuser || manageUsers || manageLibraries;
+  bool get any => isSuperuser || manageUsers || manageLibraries || manageEmail;
+
+  /// Whether the email settings have anything for this user.
+  bool get email => emailSend || manageEmail;
 
   static BookOrbitAdminAccess? fromUser(Map<String, dynamic>? user) {
     final bo = user?['bookOrbit'];
@@ -39,6 +47,8 @@ class BookOrbitAdminAccess {
       isSuperuser: superuser,
       manageUsers: superuser || perms.contains('manage_users'),
       manageLibraries: superuser || perms.contains('manage_libraries'),
+      emailSend: superuser || perms.contains('email_send'),
+      manageEmail: superuser || perms.contains('manage_email'),
       userId: '${user?['id'] ?? ''}',
     );
   }

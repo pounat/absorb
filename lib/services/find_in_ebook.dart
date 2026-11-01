@@ -75,10 +75,11 @@ Future<void> launchFindInEbook(
     return;
   }
 
-  // A book whose audio is its EPUB's narration knows the sentence at every
-  // moment: the reader opens on it, with nothing transcribed.
+  // A book whose audio is its EPUB's narration, or that has a read along
+  // EPUB matching its audiobook, knows the sentence at every moment: the
+  // reader opens on it, with nothing transcribed.
   final narration = await NarrationService.instance
-      .audioNarration(context.read<AuthProvider>().apiService, itemId);
+      .sentenceTimings(context.read<AuthProvider>().apiService, itemId);
   if (!context.mounted) return;
   if (narration != null) {
     final player = AudioPlayerService();

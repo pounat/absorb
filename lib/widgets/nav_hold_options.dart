@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/bookorbit_admin.dart';
 import '../services/wording.dart';
 
 /// One choice for what holding a nav tab does. The shell maps ids to the
@@ -56,6 +57,32 @@ const navHoldAdminPages = [
   'logs',
   'stats',
 ];
+
+/// The admin pages and server scans a hold can reach on this account. An
+/// Audiobookshelf admin gets every Admin page. BookOrbit has its own Server
+/// admin, with Users, Libraries (and scans) and mail servers for those its
+/// permissions let manage them.
+class NavHoldAdmin {
+  final List<String> pages;
+  final bool scans;
+  const NavHoldAdmin({this.pages = const [], this.scans = false});
+
+  static const none = NavHoldAdmin();
+
+  factory NavHoldAdmin.forAccount({required bool isAdmin, BookOrbitAdminAccess? bookOrbit}) {
+    if (isAdmin) return const NavHoldAdmin(pages: navHoldAdminPages, scans: true);
+    if (bookOrbit == null || !bookOrbit.any) return none;
+    return NavHoldAdmin(
+      pages: [
+        'home',
+        if (bookOrbit.manageUsers) 'users',
+        if (bookOrbit.manageLibraries) 'libraries',
+        if (bookOrbit.manageEmail) 'email',
+      ],
+      scans: bookOrbit.manageLibraries,
+    );
+  }
+}
 
 IconData navHoldAdminIcon(String page) => switch (page) {
       'home' => Icons.admin_panel_settings_rounded,
@@ -131,10 +158,10 @@ String navHoldLabel(
 }
 
 /// Every id a saved choice may hold, in the order the settings dropdown shows
-/// them. Admin entries and server scans are only offered to admins, and the
-/// ReadMeABook ones only once it is set up.
+/// them. Admin entries and server scans only show for what [admin] allows,
+/// and the ReadMeABook ones only once it is set up.
 List<String> navHoldAllIds({
-  required bool isAdmin,
+  required NavHoldAdmin admin,
   required List<String> libraryIds,
   bool rmabConfigured = true,
   bool rmabWeb = true,
@@ -143,10 +170,10 @@ List<String> navHoldAllIds({
     [
       for (final o in navHoldOptions)
         if (!o.isFolder && navHoldIdAvailable(o.id,
-            isAdmin: isAdmin, rmabConfigured: rmabConfigured, rmabWeb: rmabWeb, bookRequests: bookRequests))
+            admin: admin, rmabConfigured: rmabConfigured, rmabWeb: rmabWeb, bookRequests: bookRequests))
           o.id,
-      if (isAdmin) ...[
-        for (final p in navHoldAdminPages) 'admin:$p',
+      for (final p in admin.pages) 'admin:$p',
+      if (admin.scans) ...[
         'scan:all',
         for (final id in libraryIds) 'scan:$id',
       ],
@@ -157,12 +184,14 @@ List<String> navHoldAllIds({
 /// is hidden rather than offered as a dead end.
 bool navHoldIdAvailable(
   String id, {
-  required bool isAdmin,
+  required NavHoldAdmin admin,
   required bool rmabConfigured,
   required bool rmabWeb,
   bool bookRequests = false,
 }) {
-  if (id.startsWith('admin') || id.startsWith('scan:')) return isAdmin;
+  if (id == 'admin') return admin.pages.isNotEmpty;
+  if (id.startsWith('admin:')) return admin.pages.contains(id.substring(6));
+  if (id == 'scan' || id.startsWith('scan:')) return admin.scans;
   if (id == 'bookRequests') return bookRequests;
   if (id == 'rmabWeb') return rmabWeb;
   if (id.startsWith('rmab')) return rmabConfigured;
@@ -173,7 +202,7 @@ bool navHoldIdAvailable(
 /// simple action available to them, folders included so admin pages and
 /// scans are still reachable.
 List<String> navHoldDefaultMenu({
-  required bool isAdmin,
+  required NavHoldAdmin admin,
   required bool rmabConfigured,
   required bool rmabWeb,
   bool bookRequests = false,
@@ -183,7 +212,7 @@ List<String> navHoldDefaultMenu({
         if (o.id != 'menu' &&
             o.id != 'none' &&
             navHoldIdAvailable(o.id,
-                isAdmin: isAdmin,
+                admin: admin,
                 rmabConfigured: rmabConfigured,
                 rmabWeb: rmabWeb,
                 bookRequests: bookRequests))

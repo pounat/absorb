@@ -328,8 +328,13 @@ class HomeWidgetService {
           final episodeId = (rawEpisode == null || rawEpisode.isEmpty)
               ? null
               : rawEpisode;
+          final position = double.tryParse(uri.queryParameters['position'] ?? '');
           if (itemId != null && itemId.isNotEmpty) {
-            _handlePlayItem(itemId, episodeId);
+            _handlePlayItem(
+              itemId,
+              episodeId,
+              position: position != null && position.isFinite && position > 0 ? position : null,
+            );
           }
           break;
         case '/next_chapter':
@@ -375,10 +380,12 @@ class HomeWidgetService {
   /// Start playback of a specific item. Used by the watch's Continue
   /// Listening tap → WearPlayerCommandListenerService → /play_item URI.
   /// Always plays (no toggle path) — the watch already chose which book
-  /// it wants and the user expects an immediate switch.
-  Future<void> _handlePlayItem(String itemId, String? episodeId) async {
+  /// it wants and the user expects an immediate switch. A [position] is
+  /// where the watch was in it, so the phone carries on from there instead
+  /// of from its own or the server's older spot.
+  Future<void> _handlePlayItem(String itemId, String? episodeId, {double? position}) async {
     debugPrint(
-      '[HomeWidget] _handlePlayItem itemId=$itemId episodeId=$episodeId',
+      '[HomeWidget] _handlePlayItem itemId=$itemId episodeId=$episodeId position=$position',
     );
     final player = AudioPlayerService();
 
@@ -454,6 +461,8 @@ class HomeWidgetService {
           coverUrl: coverUrl,
           totalDuration: epDuration,
           chapters: const [],
+          startTime: position ?? 0,
+          forceStartTime: position != null,
           episodeId: episodeId,
           episodeTitle: epTitle,
           libraryId: fullItem['libraryId'] as String?,
@@ -467,6 +476,8 @@ class HomeWidgetService {
           coverUrl: coverUrl,
           totalDuration: duration,
           chapters: chapters,
+          startTime: position ?? 0,
+          forceStartTime: position != null,
           libraryId: fullItem['libraryId'] as String?,
         );
       }

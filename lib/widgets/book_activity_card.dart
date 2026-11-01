@@ -48,6 +48,7 @@ class BookActivityCard extends StatelessWidget {
   /// The everyone view, for admins.
   final VoidCallback? onOthers;
   final String? me;
+  final String? meId;
 
   const BookActivityCard({
     super.key,
@@ -58,6 +59,7 @@ class BookActivityCard extends StatelessWidget {
     this.onAllSessions,
     this.onOthers,
     this.me,
+    this.meId,
   });
 
   static const int _shown = 3;
@@ -163,7 +165,7 @@ class BookActivityCard extends StatelessWidget {
                       TextButton.icon(
                         onPressed: onOthers,
                         icon: Icon(Icons.group_outlined, size: 16, color: cs.onSurfaceVariant),
-                        label: Text(l.detailOtherListeners(s.othersCount(me)),
+                        label: Text(l.detailOtherListeners(s.othersCount(id: meId, username: me)),
                             style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant)),
                       ),
                     const Spacer(),
