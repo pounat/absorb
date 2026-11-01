@@ -549,6 +549,8 @@ class _MetadataEditViewState extends State<MetadataEditView>
     add('asin', book['asin']);
     add('isbn', book['isbn']);
     add('language', book['language']);
+    if (selected.contains('explicit') && book['explicit'] is bool) update['explicit'] = book['explicit'];
+    if (selected.contains('abridged') && book['abridged'] is bool) update['abridged'] = book['abridged'];
 
     // Authors/narrators are arrays in ABS
     if (selected.contains('author')) {
@@ -655,6 +657,13 @@ class _MetadataEditViewState extends State<MetadataEditView>
         ? _safeString(book['cover'])
         : _safeString(book['image']);
     if (cover.isNotEmpty) fields['cover'] = cover;
+    // Audible results carry both since Audiobookshelf 2.37.
+    if (book['explicit'] is bool) {
+      fields['explicit'] = book['explicit'] == true ? l.matchExplicitYes : l.matchExplicitNo;
+    }
+    if (book['abridged'] is bool) {
+      fields['abridged'] = book['abridged'] == true ? l.matchAbridgedYes : l.matchAbridgedNo;
+    }
 
     if (fields.isEmpty) return;
 
@@ -673,6 +682,8 @@ class _MetadataEditViewState extends State<MetadataEditView>
       'genres': l.genresLabel,
       'series': l.seriesLabel,
       'cover': l.metadataLookupCover,
+      'explicit': l.explicitContent,
+      'abridged': l.abridged,
     };
 
     showDialog(

@@ -1190,6 +1190,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
       _seriesBooks = null;
       _seriesId = null;
       _seriesName = null;
+      _seriesLibraryId = null;
       _showEpisodes = null;
       _showItem = null;
       _showName = null;
@@ -1296,6 +1297,8 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
   List<Map<String, dynamic>>? _seriesBooks;
   String? _seriesId;
   String? _seriesName;
+  // The series' own library: with libraries merged it can be another one.
+  String? _seriesLibraryId;
   List<Map<String, dynamic>>? _playlistItems;
   String? _playlistId;
   String? _playlistName;
@@ -1402,6 +1405,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
       _seriesBooks = books;
       _seriesId = sid;
       _seriesName = seriesName;
+      _seriesLibraryId = libraryId;
     });
     _scrollToCurrent(
       [for (final b in books) b['id'] as String? ?? ''],
@@ -1693,7 +1697,7 @@ class _ReorderAbsorbingSheetState extends State<_ReorderAbsorbingSheet> {
                 books: const [],
                 serverUrl: auth.serverUrl,
                 token: auth.token,
-                libraryId: widget.lib.selectedLibraryId,
+                libraryId: _seriesLibraryId ?? widget.lib.selectedLibraryId,
               );
             },
           ),

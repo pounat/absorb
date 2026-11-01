@@ -796,6 +796,14 @@ class ApiService {
     }();
   }
 
+  /// Gets a new access token now, whatever this phone makes of the old one's
+  /// age: the server said it has run out. True once a new one is in hand.
+  Future<bool> refreshAccessTokenNow() async {
+    final outcome = await _refreshAccessToken();
+    if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    return outcome == _RefreshOutcome.refreshed;
+  }
+
   /// Attempt to refresh the access token using the refresh token. A rejected
   /// refresh is kept distinct from a temporary network/server failure so only
   /// an explicit 401/403 can expire the local session.
