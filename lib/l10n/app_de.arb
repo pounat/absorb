@@ -5,6 +5,13 @@
   "offline": "Offline",
   "stillOffline": "Immer noch offline. Tippe, um es erneut zu versuchen.",
   "retry": "Erneut versuchen",
+  "listsNone": "Keine Sammlungen oder Wiedergabelisten vorhanden",
+  "listsNoneHint": "Sammlungen und Wiedergabelisten werden auf Ihrem Audiobookshelf-Server erstellt und hier angezeigt.",
+  "listsLoadFailed": "Listen konnten nicht geladen werden",
+  "listsLoadFailedHint": "Absorb konnte deinen Server für Sammlungen und Wiedergabelisten nicht erreichen.",
+  "listsNoneBookOrbit": "Keine Sammlungen oder Smart Scopes",
+  "listsNoneHintBookOrbit": "Sammlungen und Smart Scopes werden auf deinem BookOrbit-Server erstellt und hier angezeigt.",
+  "listsLoadFailedHintBookOrbit": "Absorb konnte deinen Server für Sammlungen und Smart Scopes nicht erreichen.",
   "cancel": "Abbrechen",
   "delete": "Löschen",
   "remove": "Entfernen",
@@ -18,7 +25,23 @@
   "off": "Aus",
   "disabled": "Deaktiviert",
   "later": "Später",
+  "whatsNewTitle": "Absorb wurde aktualisiert",
+  "whatsNewContent": "Du bist jetzt auf {version}.",
+  "@whatsNewContent": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNewButton": "Was gibt's neues",
+  "whatsNewKeepShowing": "Nach jedem Update anzeigen",
+  "whatsNewKeepShowingHint": "Du kannst es in den Einstellungen wieder einschalten",
+  "settingsWhatsNew": "Zeige Neuigkeiten nach Updates",
+  "settingsWhatsNewSubtitle": "Nach Absorb Updates verlinkt ein Pop-up auf die Release Notes",
   "gotIt": "Verstanden",
+  "betaLoggingTitle": "Protokolle sind aktiviert",
+  "betaLoggingContent": "Da dies eine Beta ist, erstellt Absorb Protokolle zur Aufspürung von Problemen. Diese bleiben auf deinem Gerät, es sei denn du teilst sie.\n\nDu kannst die Protokollierung in den Einstellungen unter Fragen & Support ausschalten. Diese bleiben auch nach zukünftigen Updates deaktiviert.",
   "preview": "Vorschau",
   "or": "oder",
   "file": "Datei",
@@ -29,6 +52,7 @@
   "stay": "Bleiben",
   "homeTitle": "Start",
   "continueListening": "Weiterhören",
+  "continueReading": "Weiter lesen",
   "continueSeries": "Serie fortsetzen",
   "recentlyAdded": "Kürzlich hinzugefügt",
   "listenAgain": "Nochmal hören",
@@ -57,7 +81,7 @@
   "loginApiKey": "API-Schlüssel",
   "loginApiKeyDescription": "Verwende einen vom Admin generierten API-Schlüssel statt Benutzername/Passwort. Praktisch, wenn die Token-Erneuerung für dein Konto fehlschlägt.",
   "loginWaitingForSso": "Warte auf SSO...",
-  "loginRedirectUri": "Redirect-URI: audiobookshelf://oauth",
+  "loginRedirectUri": "Redirect URI: absorb://oauth",
   "loginOrSignInManually": "oder manuell anmelden",
   "loginUsername": "Benutzername",
   "loginUsernameRequired": "Bitte gib deinen Benutzernamen ein",
@@ -112,7 +136,7 @@
     }
   },
   "setupLinkShareTitle": "Anmeldung teilen",
-  "setupLinkShareDescription": "Versende diesen privaten Link oder lasse den QR Code scannen, um eine Anmeldung als {username} zu ermöglichen.",
+  "setupLinkShareDescription": "Versende diesen privaten Link oder lasse den QR-Code scannen, um eine Anmeldung als {username} zu ermöglichen.",
   "@setupLinkShareDescription": {
     "placeholders": {
       "username": {
@@ -155,6 +179,15 @@
   },
   "setupLinkInvalid": "Dieser Anmelde-Link ist ungültig oder unvollständig",
   "setupLinkSigningIn": "Anmelde-Link wird überprüft...",
+  "loginPlayDownloads": "Deine Downloads abspielen",
+  "signedOutDownloadsNote": "Du bist abgemeldet. Alles was du hier hörst wird zu {username} synchronisiert wenn du dich wieder einloggst.",
+  "@signedOutDownloadsNote": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "loginPasteLink": "Anmelde-Link einfügen",
   "loginPasteLinkHelp": "Füge den vollständigen Anmelde-Link ein, den du erhalten hast. Behandle ihn wie ein Passwort.",
   "loginFailed": "Anmeldung fehlgeschlagen",
@@ -279,6 +312,9 @@
   "author": "Autor",
   "dateAdded": "Hinzugefügt am",
   "numberOfBooks": "Anzahl Bücher",
+  "sortTotalDuration": "Total Dauer",
+  "sortLastBookAdded": "Zuletzt hinzugefügtes Buch",
+  "sortLastBookUpdated": "Zuletzt aktualisiertes Buch",
   "publishedYear": "Erscheinungsjahr",
   "duration": "Dauer",
   "random": "Zufällig",
@@ -289,9 +325,9 @@
   "notStarted": "Nicht begonnen",
   "downloaded": "Heruntergeladen",
   "hasEbook": "Mit eBook",
-  "noEbook": "Kein eBook",
-  "hasSupplementaryEbook": "Hat ergänzendes eBook",
-  "noSupplementaryEbook": "Kein ergänzendes eBook",
+  "noEbook": "Kein E-Book",
+  "hasSupplementaryEbook": "Hat ergänzendes E-Book",
+  "noSupplementaryEbook": "Kein ergänzendes E-Book",
   "noSeries": "Keine Reihe",
   "publishedDecade": "Veröffentlichtes Jahrzehnt",
   "tracks": "Titel",
@@ -346,6 +382,7 @@
   "downloadsDownloading": "Wird heruntergeladen",
   "downloadsQueued": "In Warteschlange",
   "downloadsCompleted": "Abgeschlossen",
+  "downloadsEbooks": "E-Books",
   "downloadsWaiting": "Warten...",
   "downloadsCancel": "Abbrechen",
   "downloadsDelete": "Löschen",
@@ -383,6 +420,38 @@
       }
     }
   },
+  "downloadFailedMissingFile": "Konnte \"{title}\" nicht herunterladen - eine der Dateien ist nicht auf dem Server. Ein Bibliothek-Scan könnte das beheben.",
+  "@downloadFailedMissingFile": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedNoSpace": "Konnte \"{title}\" nicht herunterladen - nicht genügend Speicherplatz",
+  "@downloadFailedNoSpace": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedPermission": "Konnte \"{title}\" nicht herunterladen - überprüfe den Download-Speicherort in den Einstellungen",
+  "@downloadFailedPermission": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedGeneric": "Konnte \"{title} \" nicht herunterladen",
+  "@downloadFailedGeneric": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "downloadsSelectedCount": "{count} ausgewählt",
   "@downloadsSelectedCount": {
     "placeholders": {
@@ -393,18 +462,67 @@
   },
   "bookmarksTitle": "Alle Lesezeichen",
   "bookmarksTabBookmarks": "Lesezeichen",
+  "bookmarksTabHighlights": "Highlights",
   "highlightOpenInBook": "In Buch öffnen",
+  "highlightDeleteAction": "Highlight löschen",
+  "highlightDeleted": "Highlight gelöscht",
+  "highlightsDeleteCount": "{count} Highlight(s) löschen?",
+  "@highlightsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "highlightsDeletedCount": "{count} Highlight(s) gelöscht",
+  "@highlightsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "quoteShareTitle": "Zitat teilen",
   "quoteShareAction": "Teilen",
+  "quoteShareFailed": "Konnte das Zitatbild nicht erstellen",
   "quoteShapePortrait": "Portrait",
   "quoteShapeSquare": "Quadrat",
   "quoteShapeStory": "Geschichte",
+  "quoteStyleBlur": "Verschwommen",
+  "quoteStyleDim": "Abgedunkelt",
+  "quoteStyleNone": "Einfaches Cover",
+  "quoteTextLight": "Heller Text",
+  "quoteTextDark": "Dunkler Text",
   "quoteFieldTitle": "Titel",
   "quoteFieldDetail": "Details",
+  "quoteFieldDetailHint": "Autor, Kapitel, Seite, Wer hat es gesagt",
+  "highlightsMeta": "{chapter} · {date}",
+  "@highlightsMeta": {
+    "placeholders": {
+      "chapter": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "bookmarksCancelSelection": "Auswahl aufheben",
   "bookmarksSortedByNewest": "Sortiert nach neuesten",
   "bookmarksSortedByPosition": "Sortiert nach Position",
   "bookmarksSelect": "Auswählen",
   "bookmarksNoBookmarks": "Noch keine Lesezeichen",
+  "bookmarksSearchHint": "Lesezeichen durchsuchen",
+  "bookmarksNoMatches": "Keine Lesezeichen entsprechen deiner Suche",
+  "batchDownloadQueued": "{count, plural, =1{1 Buch wird heruntergeladen} other{{count} Bücher werden heruntergeladen}}",
+  "@batchDownloadQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batchDownloadNothingNew": "Bereits heruntergeladen",
   "bookmarksDeleteCount": "{count} Lesezeichen löschen?",
   "@bookmarksDeleteCount": {
     "placeholders": {
@@ -617,6 +735,7 @@
   "settingsPodcastTabLibrary": "Podcasts Registerkarte",
   "settingsMergeImpliedByPodcastTab": "Immer eingeschaltet, während der Podcasts-Tab aktiviert ist",
   "settingsEpisodeNotifs": "Benachrichtigungseinstellungen",
+  "settingsEpisodeNotifsDesc": "Neue Podcast-Episoden und bevorstehende Buchveröffentlichungen, im Hintergrund geprüft",
   "notifIntervalOff": "Aus",
   "notifIntervalMinutes": "Alle {n} Minuten",
   "@notifIntervalMinutes": {
@@ -662,6 +781,8 @@
   "flatBackgroundLabel": "Flacher Hintergrund",
   "flatBackgroundSubtitle": "Hintergrundverlauf entfernen. Schwarz im Dunkelmodus für OLED-Bildschirme.",
   "einkModeLabel": "E-Ink Modus",
+  "einkModeSubtitle": "Hoher Kontrast Schwarz und Weiß ohne Animationen, entwickelt für E-Ink-Bildschirme",
+  "einkModeIntroBody": "Entwickelt für E-Ink-Displays. Die App wechselt zu einem flachen Schwarzweiß-Look mit hohem Kontrast. Animationen werden ausgeschaltet, die Abspiel-Karte verliert ihren Hintergrund und die Verbindung zum Server wird minimiert, um Batterie zu sparen. Wiedergabe und Fortschritt werden weiterhin normal synchronisiert. Deine Einstellungen zur Darstellung bleiben erhalten und werden wiederhergestellt, sobald du diese Einstellung deaktivierst.",
   "einkModeIntroConfirm": "Einschalten",
   "backgroundIntensityLabel": "Hintergrundintensität",
   "startScreenLabel": "Startbildschirm",
@@ -696,6 +817,7 @@
   "cardScrubbersChapterSubtitle": "Nur die Kapitelleiste kann suchen",
   "cardScrubbersLockedSubtitle": "Fortschritt wird angezeigt, ohne zu suchen",
   "speedAdjustedTime": "Geschwindigkeitsangepasste Zeit",
+  "speedAdjustedTimeOnSubtitle": "An - Alle Zeiten spiegeln deine Wiedergabegeschwindigkeit wider",
   "speedAdjustedTimeOffSubtitle": "Aus - zeigt die reine Audiodauer",
   "buttonLayout": "Button-Anordnung",
   "buttonLayoutSubtitle": "Wie die Aktions-Buttons auf der Karte angeordnet sind",
@@ -781,6 +903,13 @@
   "coverShapeSquare": "Quadratisch",
   "coverShapeRectangle": "Rechteck",
   "coverShapeLabel": "Cover Format",
+  "showSubtitles": "Untertitel anzeigen",
+  "showSubtitlesOnSubtitle": "Untertitel wird unter dem Buchtitel in der Bibliothek und auf dem Start-Bildschirm angezeigt",
+  "showSubtitlesOffSubtitle": "Aus - Untertitel nur bei den Buchdetails",
+  "subtitleVisibilityLabel": "Untertitel",
+  "subtitleVisibilityDefault": "Standard",
+  "subtitleVisibilityShow": "Anzeigen",
+  "subtitleVisibilityHide": "Ausblenden",
   "currentLibrarySettingsTitle": "Aktuelle Bibliothek: {name}",
   "@currentLibrarySettingsTitle": {
     "placeholders": {
@@ -799,6 +928,328 @@
   "chapterProgressOffSubtitle": "Aus - Gesamtfortschritt des Buches wird angezeigt",
   "chapterProgressInNotificationIos": "Kapitel Fortschritt auf Sperrbildschirm & CarPlay",
   "chapterProgressOnSubtitleIos": "An - Sperrbildschirm & CarPlay zeigen Kapitel Fortschritt",
+  "nowPlayingTopLine": "Obere Zeile",
+  "nowPlayingSecondLine": "Zweite Zeile",
+  "nowPlayingNotShown": "Nicht angezeigt",
+  "nowPlayingTopLineRequired": "Die obere Zeile benötigt mindestens ein Element",
+  "nowPlayingPieceChapter": "Kapitel",
+  "nowPlayingPieceTitle": "Buchtitel",
+  "nowPlayingPieceNarrator": "Erzähler",
+  "nowPlayingPieceSeries": "Serien",
+  "nowPlayingPiecePercent": "Buch-Prozentsatz",
+  "nowPlayingPieceChapterNumber": "Kapitelnummer",
+  "nowPlayingPieceTimeLeft": "Restzeit",
+  "nowPlayingChapterNumber": "K. {number}/{total}",
+  "@nowPlayingChapterNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "nowPlayingTimeLeft": "{time} übrig",
+  "@nowPlayingTimeLeft": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockBadgePending": "Ausstehend",
+  "bookDockBadgeExtracting": "Lese Datei",
+  "bookDockBadgeFetching": "Wird gesucht",
+  "bookDockBadgeError": "Fehler",
+  "bookDockNeedsReview": "Prüfung erforderlich",
+  "bookDockNoMatch": "Keine Übereinstimmung",
+  "bookDockApplied": "Angewandt",
+  "bookDockNotApplied": "Gefunden Details nicht verwendet",
+  "bookDockNoDestination": "Kein Ziel gesetzt",
+  "bookDockNoAuthor": "Noch kein Autor",
+  "bookDockLookUpAgain": "Erneut nachschlagen",
+  "bookDockLookingUp": "Details werden erneut nachgeschlagen",
+  "bookDockLookUpFailed": "Details konnten nicht gefunden werden",
+  "bookDockProposedChanges": "Vorgeschlagene Änderungen",
+  "bookDockNoChanges": "Noch keine Details online gefunden",
+  "bookDockStillReading": "Der Server liest diese Datei immer noch aus",
+  "bookDockRoleBook": "Buch",
+  "bookDockRoleCover": "Cover",
+  "bookDockRoleMetadata": "Metadaten",
+  "bookDockRoleExtra": "Extra",
+  "bookDockFieldTitle": "Titel",
+  "bookDockFieldSubtitle": "Untertitel",
+  "bookDockFieldAuthors": "Autoren",
+  "bookDockFieldSeries": "Serien",
+  "bookDockFieldPublisher": "Verlag",
+  "bookDockFieldYear": "Jahr",
+  "bookDockFieldLanguage": "Sprache",
+  "bookDockFieldIsbn": "ISBN",
+  "bookDockMatch": "{percent} % Übereinstimmung",
+  "@bookDockMatch": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockFileCount": "{count, plural, one {}=1{1 Datei} other{{count} Dateien}}",
+  "@bookDockFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockGoesTo": "Gehe zu {library}",
+  "@bookDockGoesTo": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockChangedFields": "{count, plural, one {}=1{1 Feld} other{{count} Felder}}",
+  "@bookDockChangedFields": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockFilesInEntry": "{count, plural, =1{Datei in diesem Eintrag} other{{count} Dateien in diesem Eintrag}}",
+  "@bookDockFilesInEntry": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockAdded": "Hinzugefügt {date}",
+  "@bookDockAdded": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockAddToLibrary": "Zur Bibliothek hinzufügen",
+  "bookDockUseFound": "Gefundene Details verwenden",
+  "bookDockRemoveTitle": "Vom Buch-Dock entfernen?",
+  "bookDockRemoveFailed": "Diese Datei konnte nicht entfernt werden",
+  "bookDockPickLibrary": "Zu welcher Bibliothek hinzufügen?",
+  "bookDockNoLibraries": "Dein Konto kann keine Bücher zu einer Bibliothek hinzufügen",
+  "bookDockFileFailed": "Diese Datei konnte nicht zur Bibliothek hinzugefügt werden",
+  "bookDockDuplicateBody": "Eine Datei mit diesem Namen ist bereits in dieser Bibliothek vorhanden. Aus dem Buch-Dock entfernen?",
+  "bookDockDetailsUpdated": "Details aktualisiert",
+  "bookDockDuplicateTitle": "Bereits in {library}",
+  "@bookDockDuplicateTitle": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bomatchSearchAll": "Alle Quellen durchsuchen",
+  "bomatchSearching": "Suche läuft...",
+  "bomatchSearchFailed": "Suche nicht möglich. Überprüfe deine Verbindung und versuche es erneut.",
+  "bomatchNoResults": "Keine Treffer gefunden",
+  "bomatchStrong": "Starke Treffer",
+  "bomatchPossible": "Mögliche Treffer",
+  "bomatchSourceTimeout": "Zeitüberschreitung",
+  "bomatchSourceBusy": "beschäftigt",
+  "bomatchSourceFailed": "fehlgeschlagen",
+  "bomatchLinked": "verknüpft",
+  "bomatchSameIsbn": "Gleiche ISBN",
+  "bomatchFewDetails": "Wenig Details",
+  "bomatchBack": "Alle Ergebnisse",
+  "bomatchOnlyDifferences": "Nur Unterschiede",
+  "bomatchNow": "Jetzt",
+  "bomatchEmpty": "Leer",
+  "bomatchKindNew": "Neu",
+  "bomatchKindChange": "Ändern",
+  "bomatchKindSmall": "Kleine Änderung",
+  "bomatchKeep": "Behalten",
+  "bomatchUse": "Verwenden",
+  "bomatchMerge": "Zusammenführen",
+  "bomatchReplace": "Ersetzen",
+  "bomatchUseThis": "Dies verwenden",
+  "bomatchOther": "{count, plural, =1{1 anderes Buch} other{{count} andere Bücher}}",
+  "@bomatchOther": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchChanged": "{count, plural, =1{1 Änderung} other{{count} Änderungen}}",
+  "@bomatchChanged": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchNew": "{count, plural, one {{count} neu} =1{1 neu} other{{count} neue}}",
+  "@bomatchNew": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchFrom": "Von {source}",
+  "@bomatchFrom": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "breqTitle": "Buchanfragen",
+  "breqTabRequest": "Buch anfragen",
+  "breqTabMine": "Meine Anfragen",
+  "breqTabAll": "Alle Anfragen",
+  "breqNoAccess": "Ihr Konto kann keine Bücher auf diesem Server anfordern.",
+  "breqTitleHint": "Buchtitel",
+  "breqAuthorHint": "Autor",
+  "breqKindAudiobook": "Hörbuch",
+  "breqKindEbook": "E-Book",
+  "breqKindComic": "Comic",
+  "breqSearch": "Suche",
+  "breqSearching": "Sucht...",
+  "breqSearchFailed": "Suche nicht möglich. Überprüfe deine Verbindung und versuche es erneut.",
+  "breqSearchPrompt": "Suche nach einem Buch, das noch nicht in der Bibliothek vorhanden ist, um dieses anzufordern.",
+  "breqNoResults": "Keine passenden Bücher gefunden",
+  "breqInLibrary": "In deiner Bibliothek",
+  "breqYouAsked": "Du hast dies angefordert",
+  "breqView": "Anzeigen",
+  "breqRequest": "Anfragen",
+  "breqRequested": "Angefordert",
+  "breqAddMeToo": "Auch mich hinzufügen",
+  "breqLibrary": "Bibliothek",
+  "breqLibraryApprover": "Den Genehmiger entscheiden lassen",
+  "breqLibraryChoose": "Eine Bibliothek auswählen",
+  "breqNote": "Hinweis an den Genehmiger",
+  "breqNoteHint": "Alles Wissenswerte zu dieser Anfrage",
+  "breqAutoApproved": "Deine Anfragen werden sofort bearbeitet.",
+  "breqSubmitted": "Anfrage übermittelt",
+  "breqJoined": "Du wurdest zur bestehenden Anfrage hinzugefügt",
+  "breqFailed": "Anfrage konnte nicht gesendet werden",
+  "breqStatusPending": "Ausstehend",
+  "breqStatusApproved": "Bestätigt",
+  "breqStatusRejected": "Abgelehnt",
+  "breqStatusCancelled": "Abgebrochen",
+  "breqStatusSearching": "Sucht",
+  "breqStatusGrabbed": "Release gefunden",
+  "breqStatusDownloading": "Wird heruntergeladen",
+  "breqStatusImporting": "Importieren",
+  "breqStatusNeedsReview": "Prüfung erforderlich",
+  "breqStatusAvailable": "Verfügbar",
+  "breqStatusFailed": "Fehlgeschlagen",
+  "breqWaitingApproval": "Wartet auf Freigabe",
+  "breqWaitingRelease": "Wartet auf die Auswahl eines Releases",
+  "breqLookingForRelease": "Auf der Suche nach einer Veröffentlichung",
+  "breqStartingDownload": "Download wird gestartet",
+  "breqAddingToLibrary": "Zur Bibliothek hinzufügen",
+  "breqWaitingCheck": "Warten auf eine manuelle Überprüfung",
+  "breqReady": "Bereit in deiner Bibliothek",
+  "breqSomethingWrong": "Ein Fehler ist aufgetreten",
+  "breqShowHidden": "Ausgeblendete anzeigen",
+  "breqHidden": "Ausgeblendet",
+  "breqMineEmpty": "Du hast bisher keine Bücher angefragt.",
+  "breqAllEmpty": "Noch keine Anfragen.",
+  "breqLoadFailed": "Anfragen konnten nicht geladen werden.",
+  "breqLoadMore": "Mehr laden",
+  "breqApprove": "Genehmigen",
+  "breqReject": "Ablehnen",
+  "breqCancel": "Anfrage stornieren",
+  "breqHide": "Aus meiner Liste ausblenden",
+  "breqUnhide": "In meiner Liste anzeigen",
+  "breqLeave": "Anfrage einreichen",
+  "breqDelete": "Anfrage löschen",
+  "breqOpenBook": "Buch öffnen",
+  "breqCancelConfirm": "Diese Anfrage abbrechen? Ein Download wird ebenfalls beendet.",
+  "breqDeleteConfirm": "Diese Anfrage löschen? Der Vorgang kann nicht rückgängig gemacht werden.",
+  "breqRejectTitle": "Anfrage ablehnen",
+  "breqRejectReason": "Grund (optional)",
+  "breqApproveTitle": "Anfrage genehmigen",
+  "breqApproveLibraryNeeded": "Wähle die Bibliothek, in die dieses Buch geht.",
+  "breqApprovedToast": "Anfrage genehmigt",
+  "breqRejectedToast": "Anfrage abgelehnt",
+  "breqCancelledToast": "Anfrage storniert",
+  "breqDeletedToast": "Anfrage gelöscht",
+  "breqLeftToast": "Du hast diese Anfrage eingereicht",
+  "breqActionFailed": "Anfrage konnte nicht aktualisiert werden",
+  "breqFactRequestedBy": "Angefragt von",
+  "breqFactRequestedOn": "Angefragt am",
+  "breqFactLibrary": "Bibliothek",
+  "breqFactDecidedBy": "Entschieden von",
+  "breqFactAlsoWanted": "Auch gewünscht von",
+  "breqLibraryCta": "Buch anfragen",
+  "breqSettingsSubtitle": "Bücher anfragen, die noch nicht in der Bibliothek sind",
+  "navHoldBookRequests": "Buchanfragen",
+  "breqLibraryDefault": "Standard ({library})",
+  "@breqLibraryDefault": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "breqFailedReason": "Anfrage konnte nicht gesendet werden: {reason}",
+  "@breqFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqDownloadingPercent": "Wird heruntergeladen: {percent}%",
+  "@breqDownloadingPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "breqAddedTo": "Zu \"{library}\" hinzugefügt",
+  "@breqAddedTo": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "breqRejectedWithNote": "Abgelehnt: {note}",
+  "@breqRejectedWithNote": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "breqStopDownload": "Download anhalten",
+  "breqDiscardImport": "Download verwerfen",
+  "breqFileAnyway": "Zur Bibliothek hinzufügen",
+  "breqStoppedToast": "Download unterbrochen",
+  "breqGrabTitle": "Diese Version herunterladen?",
+  "breqGrab": "Herunterladen",
+  "breqSortSize": "Größe",
+  "breqReasonIsbn": "ISBN",
+  "breqReasonTitle": "Titel",
+  "breqReasonFormat": "{format}",
+  "@breqReasonFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "breqEbookLibrary": "E-Book-Bibliothek",
+  "breqAudiobookLibrary": "Hörbuch-Bibliothek",
+  "breqRequestEbook": "E-Book anfragen",
   "speedBookmarkInControls": "Geschwindigkeit & Lesezeichen in Mediensteuerung",
   "speedBookmarkOnSubtitle": "An - Benachrichtigung zeigt Geschwindigkeit & Lesezeichen; Kapitel Überspringen bleibt in Android Auto",
   "speedBookmarkOffSubtitle": "Aus - Benachrichtigung zeigt Kapitel-Überspringen; Geschwindigkeit & Lesezeichen bleiben in Android Auto",
@@ -1026,6 +1477,7 @@
   },
   "clearLogs": "Logs löschen",
   "logsCleared": "Logs gelöscht",
+  "clearLogsQuestion": "Logs löschen?",
   "sectionAdvanced": "Erweitert",
   "localServer": "Lokaler Server",
   "localServerInfoTitle": "Lokaler Server",
@@ -1061,6 +1513,15 @@
     "placeholders": {
       "version": {
         "type": "String"
+      }
+    }
+  },
+  "betaLabel": "Beta {number}",
+  "@betaLabel": {
+    "description": "Shown after the version on beta builds, e.g. 1.9.3+240 (Beta 6)",
+    "placeholders": {
+      "number": {
+        "type": "int"
       }
     }
   },
@@ -1453,14 +1914,18 @@
   "absorbAgain": "Nochmal Absorb",
   "absorb": "Absorb",
   "ebookOnlyNoAudio": "Nur eBook - kein Audio",
+  "absorbAudioNotDownloaded": "Audio nicht heruntergeladen",
   "fullyAbsorbed": "Vollständig Absorbed",
   "fullyAbsorbAction": "Vollständig Absorb",
   "removeFromAbsorbing": "Aus Absorbing entfernen",
   "addToAbsorbing": "Zu Absorbing hinzufügen",
+  "absorbNext": "Nächstes absorbieren",
+  "absorbLastHint": "Am Ende der Liste",
   "removedFromAbsorbing": "Aus Absorbing entfernt",
   "addedToAbsorbing": "Zu Absorbing hinzugefügt",
   "removeFromContinueListening": "Aus \"Weiterhören\" entfernen",
   "removedFromContinueListening": "Aus \"Weiterhören\" entfernt",
+  "sessionStartLabel": "Begonnen am",
   "removeSeriesFromContinueSeries": "Aus \"Serie fortsetzen\" entfernen",
   "removedSeriesFromContinueSeries": "Aus \"Serie fortsetzen\" entfernt",
   "couldNotUpdate": "Konnte nicht aktualisieren werden, versuche es erneut",
@@ -1561,11 +2026,9 @@
   "markedAsFinishedNiceWork": "Als beendet markiert - gut gemacht!",
   "failedToUpdateCheckConnection": "Aktualisieren fehlgeschlagen - prüfe deine Verbindung",
   "markAsNotFinishedQuestion": "Als nicht beendet markieren?",
-  "markAsNotFinishedContent": "Dadurch wird der Beendet-Status entfernt, deine aktuelle Position bleibt aber erhalten.",
   "unmark": "Markierung entfernen",
   "markedAsNotFinishedBackAtIt": "Als nicht beendet markiert - weiter geht's!",
   "resetProgressQuestion": "Fortschritt zurücksetzen?",
-  "resetProgressContent": "Dadurch wird der gesamte Fortschritt für dieses Buch gelöscht und es auf den Anfang zurückgesetzt. Das kann nicht rückgängig gemacht werden.",
   "progressResetFreshStart": "Fortschritt zurückgesetzt - frischer Start!",
   "clearLocalMetadataQuestion": "Lokale Metadaten löschen?",
   "clearLocalMetadataContent": "Dadurch werden die lokal gespeicherten Metadaten entfernt und auf das zurückgesetzt, was der Server hat.",
@@ -2198,6 +2661,8 @@
       }
     }
   },
+  "fileInfoEbook": "E-Book",
+  "fileInfoMetadata": "Metadaten",
   "resetMayNotHaveSynced": "Zurücksetzen wurde möglicherweise nicht synchronisiert - prüfe deinen Server",
   "failedToDownloadEbook": "E-Book konnte nicht heruntergeladen werden ({code})",
   "@failedToDownloadEbook": {
@@ -3044,14 +3509,8 @@
   "statsScreenOs": "Betriebssystem",
   "statsScreenPlayMethod": "Wiedergabemethode",
   "statsScreenLoading": "Lädt...",
-  "statsScreenJumpToSessionStart": "Zum Sitzungsstart springen ({position})",
-  "@statsScreenJumpToSessionStart": {
-    "placeholders": {
-      "position": {
-        "type": "String"
-      }
-    }
-  },
+  "statsScreenJumpToStart": "Springe zum Anfang",
+  "statsScreenJumpToEnd": "Springe zum Ende",
   "statsScreenPlayMethodDirect": "Direktwiedergabe",
   "statsScreenPlayMethodDirectStream": "Direkt-Stream",
   "statsScreenPlayMethodTranscode": "Transcodieren",
@@ -3207,6 +3666,7 @@
   "upcomingReleasesBadgeAdded": "HINZUGEFÜGT",
   "upcomingReleasesBadgeMissing": "FEHLT",
   "upcomingReleasesScanSettingsTitle": "Scan Einstellungen",
+  "upcomingReleasesFinishedAfterDesc": "Serien, deren letztes Buch älter als das ist, werden während der Scans übersprungen und nur jeden oder jeden zweiten Monat erneut überprüft.",
   "upcomingReleasesFinishedAfterNever": "Niemals",
   "upcomingReleasesSkippedTitle": "Übersprungene Serien",
   "upcomingReleasesSkippedNone": "Noch nichts übersprungen",
@@ -3269,17 +3729,51 @@
       }
     }
   },
+  "upcomingReleasesReportFailed": "Fehler beim Überprüfen: {count}",
+  "@upcomingReleasesReportFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportMore": "+{count} mehr",
+  "@upcomingReleasesReportMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesBadgeNew": "NEU",
   "upcomingReleasesOpenLibrarySeries": "Serie in Bibliothek öffnen",
   "upcomingReleasesAsinCopied": "Serien ASIN kopiert",
   "upcomingReleasesSetSeriesAsin": "Serien ASIN setzen",
+  "upcomingReleasesSetAsinHint": "B0… oder audible.com Link",
   "upcomingReleasesSetAsinSave": "Speichern",
+  "upcomingReleasesSetAsinInvalid": "Keine ASIN in diesem Text gefunden",
+  "upcomingReleasesSetAsinSaved": "Serie verknüpft - Scan läuft",
+  "upcomingReleasesRemoveThisScan": "Aus diesem Scan entfernen",
+  "upcomingReleasesRemoveThisScanDesc": "Kann bei einem zukünftigen Scan wieder kommen",
+  "upcomingReleasesRemoveForever": "Von diesem und zukünftigen Scans entfernen",
+  "upcomingReleasesRemovedForeverToast": "Entfernt - wird bei zukünftigen Scans nicht angezeigt",
+  "upcomingReleasesRemovedBooksTitle": "Entfernte Bücher",
+  "upcomingReleasesRemovedNone": "Keine Bücher entfernt",
   "upcomingReleasesRestore": "Wiederherstellen",
   "upcomingReleasesRestoredToast": "Wiederhergestellt",
   "upcomingReleasesRestoredNextScan": "Wiederhergestellt - wird nach dem nächsten Scan angezeigt",
+  "upcomingReleasesBulkRequest": "Anfragen",
   "upcomingReleasesBulkRemove": "Entfernen",
   "upcomingReleasesBulkRequestSkipped": "{count} Übersprungen",
   "@upcomingReleasesBulkRequestSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkScanFound": "{count} mit neuen Büchern",
+  "@upcomingReleasesBulkScanFound": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -3333,6 +3827,15 @@
     }
   },
   "collectionDetailDefaultName": "Sammlung",
+  "smartScopeTplPdf": "Nur PDF",
+  "smartScopeTplNoGenres": "Keine Genres",
+  "smartScopeTplEpub": "Nur EPUB",
+  "smartScopeAscending": "Aufsteigend",
+  "smartScopeDescending": "Absteigend",
+  "smartScopeAnd": "und",
+  "smartScopeDays": "Tage",
+  "smartScopeWeeks": "Wochen",
+  "smartScopeMonths": "Monate",
   "collectionDetailBookCount": "{count} Bücher",
   "@collectionDetailBookCount": {
     "placeholders": {
@@ -3694,8 +4197,10 @@
   "tipsSheetAudibleSeriesDesc": "Öffne eine Serie und tippe auf das Drei-Punkte-Symbol, um die komplette Serienliste von Audible zu laden, inklusive fehlender Einträge und noch nicht gestarteter Bücher.",
   "tipsSheetTranscribeBookmarkTitle": "Lesezeichen transkribieren",
   "tipsSheetFindBetweenFormatsTitle": "Wechsel zwischen Hörbuch und eBook",
+  "tipsSheetShareQuoteTitle": "Zitate teilen",
   "tipsSheetClipExportTitle": "Audio-Clips exportieren",
   "tipsSheetClipExportDesc": "Öffne ein Lesezeichen und tippe Clip exportieren um einen kurzen Audioschnipsel des Buches, inklusive Coverart zu erstellen - Super um deine Lieblings Szenen zu teilen.",
+  "tipsSheetAllHighlightsTitle": "Alle Highlights an einem Ort",
   "bookCardUnknownTitle": "Unbekannter Titel",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Fertig",
@@ -3957,9 +4462,14 @@
   "androidAutoTabContinue": "Weiterhören",
   "androidAutoTabLibrary": "Bibliothek",
   "androidAutoTabDownloads": "Downloads",
+  "settingsSearchHint": "Einstellungen suchen...",
+  "sectionCar": "Android Auto",
+  "sectionCarIos": "CarPlay",
   "androidAutoCatBooks": "Bücher",
   "androidAutoCatSeries": "Serien",
   "androidAutoCatAuthors": "Autoren",
+  "androidAutoCatCollections": "Sammlungen",
+  "androidAutoCatPlaylists": "Playlisten",
   "showTipsAgain": "Tipps wieder anzeigen",
   "showTipsAgainSubtitle": "Bringe ausgeblendete Funktions-Tipps zurück",
   "tipsRestored": "Tipps wiederhergestellt",
@@ -4055,14 +4565,19 @@
   "chapterFromTracks": "Aus Titel",
   "chapterLookup": "Suchen",
   "chapterShowSeconds": "Sekunden anzeigen",
+  "chapterWindowMinutes": "{minutes} min",
+  "@chapterWindowMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "chapterShiftBySeconds": "Verschieben um (Sekunden)",
   "chapterShiftHint": "Verschiebt jedes entsperrte Kapitel. Verwende einen negativen Wert, um sie früher zu verschieben.",
-  "chapterBack1Second": "1 Sekunde zurück",
-  "chapterForward1Second": "1 Sekunde vorwärts",
   "chapterTitleHint": "Kapitelname",
   "chapterStopPreview": "Vorschau stoppen",
   "chapterPreviewFromHere": "Vorschau ab hier",
-  "chapterScrubHint": "Spule an die exakte Stelle, lege dann fest",
   "chapterStartAt": "Beginne bei {time}",
   "@chapterStartAt": {
     "placeholders": {
@@ -4071,8 +4586,6 @@
       }
     }
   },
-  "chapterSetStartHere": "Beginn auf hier festlegen",
-  "chapterMore": "Mehr",
   "chapterUnlock": "Entsperren",
   "chapterLock": "Sperren",
   "chapterInsertBelow": "Unten einfügen",
@@ -4453,9 +4966,16 @@
   "readerSettings": "Reader-Einstellungen",
   "readerFontSize": "Schriftgröße",
   "readerLineSpacing": "Zeilenabstand",
+  "readerAlignLeft": "Links",
   "readerSideMargins": "Seitenrand",
   "readerTopBottom": "Oben & Unten",
   "readerPageLayout": "Seitenlayout",
+  "readerTopBarProgressBook": "Buch",
+  "readerTopBarProgressChapter": "Kapitel",
+  "readerSectionText": "Text",
+  "readerSectionPage": "Seite",
+  "readerTapNext": "Nächste Seite",
+  "readerKeepAwake": "Bildschirm ein lassen",
   "readerLayoutAuto": "Automatisch",
   "readerLayoutSingle": "Eine Seite",
   "readerLayoutTwoPage": "Zwei Seiten",
@@ -4465,7 +4985,39 @@
   "readerVolumeNavOff": "Aus",
   "readerVolumeNavNormal": "Normal",
   "readerVolumeNavMirrored": "Gespiegelt",
+  "readerAutoScrollSleepMinutes": "{minutes} min",
+  "@readerAutoScrollSleepMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "readerAutoScrollSleepLeft": "{minutes} min übrig",
+  "@readerAutoScrollSleepLeft": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "readerDownloadStarted": "Download gestartet",
+  "seriesStatsFinished": "Beendet",
+  "seriesStatsListened": "Gehört",
+  "seriesStatsLeft": "Übrig",
+  "seriesFinishedOf": "{done} von {total}",
+  "@seriesFinishedOf": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "readerVolumeNavWhilePlaying": "Selbst während Audio abgespielt wird",
+  "readerTranslateApple": "In iOS integriert",
   "readerMoreFonts": "Weitere Schriftarten herunterladen",
   "readerFontRemove": "Download entfernen",
   "readerFontDownloadFailed": "{font} konnte nicht heruntergeladen werden",
@@ -4494,14 +5046,24 @@
     }
   },
   "readerNoHighlights": "Noch keine Hervorhebungen",
+  "readerHistory": "Verlauf",
   "readerNoBookmarks": "Noch keine Lesezeichen",
   "readerBookmarkDefault": "Lesezeichen",
   "readerNoteTitle": "Notiz",
   "readerNoteHint": "Notiz hinzufügen...",
+  "backupAndSync": "Sicherung und Synchronisierung",
   "syncSettingsExperimental": "Experimentell",
   "syncSettingsConnection": "Verbindung",
   "syncSettingsConnectionNotSet": "Nicht eingerichtet",
+  "syncSettingsStatusProblem": "Server nicht erreichbar",
+  "syncSettings": "Einstellungen zwischen Geräten synchronisieren",
   "syncSettingsIncludeRmab": "ReadMeABook Einstellungen",
+  "syncSettingsUsername": "Benutzername",
+  "syncSettingsPassword": "Passwort",
+  "syncSettingsTest": "Verbindung testen",
+  "syncSettingsHoldToUpload": "Halten, um jetzt hochzuladen",
+  "syncSettingsUploadNow": "Jetzt hochladen",
+  "syncSettingsDownloadNow": "Jetzt herunterladen",
   "syncSettingsOk": "Verbunden",
   "syncSettingsNoRemote": "Verbunden - noch nichts Synchronisiert",
   "syncSettingsAuthFailed": "Falscher Benutzername oder Passwort",
@@ -4520,6 +5082,8 @@
     }
   },
   "syncSettingsNever": "Noch nicht synchronisiert",
+  "navHoldPickBody": "Wähle aus, was ein langes Drücken auf diesem Tab bewirkt. Du kannst das Verhalten jederzeit in den Einstellungen ändern.",
+  "navHoldSettingTitle": "Tab hält Verknüpfungen",
   "navHoldAskNextTime": "Erneut fragen",
   "navHoldNothing": "Nichts",
   "navHoldPlayPause": "Play / Pause",
@@ -4528,6 +5092,7 @@
   "navHoldOfflineOff": "Offline Modus aus",
   "navHoldMenu": "Menü immer anzeigen",
   "navHoldStop": "Wiedergabe stoppen",
+  "navHoldAdd": "Hinzufügen",
   "bookStatsAction": "Hörstatistik",
   "bookStatsYou": "Du",
   "bookStatsEveryone": "Jeder",
@@ -4539,6 +5104,43 @@
   "bookStatsFinishedCount": "Nutzer die es beendet haben",
   "bookStatsTotalTime": "Gehörte Zeit aller Nutzer",
   "bookStatsNobody": "Noch niemand hat es gehört",
+  "bookStatsLastChecked": "Überprüft {when}",
+  "@bookStatsLastChecked": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "activityProgress": "Fortschritt",
+  "readingLogLongestStreak": "Längste Serie",
+  "readingLogStreakDays": "{count, plural, =1{1 Tag} other{{count} Tage}}",
+  "@readingLogStreakDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogJumpedBackTimes": "{count, plural, =1{1 Mal} other{{count} Mal}}",
+  "@readingLogJumpedBackTimes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogAttempts": "Versuche",
+  "readingLogOutcomeCompleted": "Abgeschlossen",
+  "readingLogLast30": "Letzten 30 Tage",
+  "readingLogLast90": "Letzten 90 Tage",
+  "readingLogThisYear": "Dieses Jahr",
+  "readingLogAllFormats": "Alle Formate",
+  "readingLogSortBy": "Sortieren nach",
+  "readingLogSortDay": "Tag",
+  "readingLogSortLength": "Länge",
+  "readingLogDeleteTitle": "Diese Sitzung löschen?",
+  "navHoldServerScan": "Server Scan",
   "navHoldScanAll": "Alle Bibliotheken scannen",
   "navHoldScanLibrary": "Scanne {name}",
   "@navHoldScanLibrary": {
@@ -4559,7 +5161,9 @@
       }
     }
   },
+  "navHoldNothingPlaying": "Noch nichts zum Abspielen",
   "navHoldReadBook": "Aktuelles Buch lesen",
+  "navHoldBookDetails": "Aktuelle Buchdetails",
   "readerCopied": "In Zwischenablage kopiert",
   "readerTooltipCopy": "Kopieren",
   "readerTooltipSearch": "Suchen",
@@ -4585,6 +5189,13 @@
       }
     }
   },
+  "transcriptionEmptyMsg": "An dieser Stelle wurde keine Rede gefunden.",
+  "transcriptionFailedMsg": "Diese Stelle konnte nicht transkribiert werden. Bitte versuche es erneut.",
+  "transcriptionPlaySnippet": "Anhören",
+  "transcriptionPauseSnippet": "Pausieren",
+  "findInEbook": "Im eBook suchen",
+  "findInEbookSearching": "Suche nach dieser Stelle im eBook...",
+  "findInEbookNotFound": "Konnte diese Stelle im eBook nicht finden.",
   "findInEbookNoEbook": "Dieses Buch hat kein eBook.",
   "findInAudiobook": "Im Hörbuch finden",
   "findInAudiobookSearching": "Suche nach dieser Stelle im Hörbuch...",
@@ -4593,10 +5204,172 @@
   "transcriptionWhisperLearnMore": "Mehr über Whisper erfahren",
   "findInAudiobookStay": "Weiterlesen",
   "findInAudiobookGoPlayer": "Im Player öffnen",
-  "settingsEpisodeNotifsDesc": "Abonnierte Podcasts im Hintergrund prüfen",
-  "speedAdjustedTimeOnSubtitle": "An - verbleibende Zeit berücksichtigt die Wiedergabegeschwindigkeit",
-  "librarySortFilterUpcomingReleasesSubtitle": "Audible nach neuen Veröffentlichungen in deinen Serien durchsuchen",
-  "tipsSheetSpeedAdjustedTimeDesc": "Restzeit und Kapitelzeiten passen sich automatisch deiner Wiedergabegeschwindigkeit an. Hörst du mit 1,5x? Die angezeigte Zeit zeigt, wie lange es tatsächlich dauert.",
-  "keepNextInfoContent": "Die Anzahl der Elemente, die heruntergeladen bleiben sollen, einschließlich des Elements, das du gerade hörst. Beispiel: \"Nächste 3 behalten\" bedeutet, das aktuelle Buch plus die nächsten 2 in der Serie oder im Podcast bleiben heruntergeladen.",
-  "deleteAbsorbedDownloadsInfoContent": "Wenn aktiviert, werden heruntergeladene Bücher oder Episoden automatisch von diesem Gerät gelöscht, nachdem du sie in Absorb zu Ende gehört hast. Wenn du einen Titel im Web oder auf einem anderen Gerät beendest, bleibt der Download hier erhalten."
+  "findInAudiobookPlaying": "Diese Passage im Hörbuch abspielen",
+  "boNotificationsClearAll": "Alle löschen",
+  "boNotificationsClearTitle": "Alle Benachrichtigungen löschen?",
+  "boNotificationsOccurrences": "{count} mal passiert",
+  "@boNotificationsOccurrences": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "boNotificationsSettings": "Benachrichtigungseinstellungen",
+  "boNotificationsSettingsIntro": "Wähle aus, welche Benachrichtigungen BookOrbit für dich behält.",
+  "boNotificationLevelOff": "Aus",
+  "boNotificationLevelProblems": "Probleme",
+  "boNotificationGroupLibrary": "Bibliothek",
+  "boNotificationGroupFiles": "Dateien",
+  "boNotificationGroupIntegrations": "Integrationen",
+  "boNotifyScanning": "Scannen der Bibliothek",
+  "boNotifyScanningDesc": "Wenn ein Bibliotheksscan abgeschlossen ist, fehlschlägt oder fehlende Bücher findet.",
+  "boNotifyMetadata": "Abrufen von Metadaten",
+  "boNotifyMetadataDesc": "Wenn die Metadatensuche für deine Bücher abgeschlossen ist oder fehlschlägt.",
+  "boNotifyAuthorEnrichment": "Autorendetails",
+  "boNotifyFileWriteBack": "In Dateien speichern",
+  "achievementsCategoryLibrary": "Bibliothek",
+  "achievementsCategoryDevices": "Geräte",
+  "achievementsRarityRare": "Selten",
+  "achievementsRarityEpic": "Episch",
+  "achievementsRarityLegendary": "Legendär",
+  "achievementsLoadFailed": "Erfolge konnten nicht geladen werden",
+  "achievementsNoneMatch": "Keine Erfolge entsprechen diesem Filter",
+  "achievementsSecretName": "Geheimer Erfolg",
+  "achievementsSecretHint": "Lese weiter, um diesen aufzudecken.",
+  "achievementsEarnedOn": "Verdient am: {date}",
+  "@achievementsEarnedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsWhileReading": "Beim Lesen von „{title}“",
+  "@achievementsWhileReading": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsTierOf": "Stufe {earned} von {total}",
+  "@achievementsTierOf": {
+    "placeholders": {
+      "earned": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsTiers": "Stufen",
+  "achievementsAllTiers": "Jede verdiente Stufe",
+  "achievementsProgress": "{current} / {threshold}",
+  "@achievementsProgress": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressBooks": "{current}/{threshold} Bücher",
+  "@achievementsProgressBooks": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressPages": "{current} / {threshold} Seiten",
+  "@achievementsProgressPages": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressHours": "{current} / {threshold} Stunden",
+  "@achievementsProgressHours": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressAnnotations": "{current} / {threshold} Highlights und Notizen",
+  "@achievementsProgressAnnotations": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressRatings": "{current} / {threshold} Bewertungen",
+  "@achievementsProgressRatings": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressGenres": "{current} / {threshold} Genres",
+  "@achievementsProgressGenres": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressLanguages": "{current} / {threshold} Sprachen",
+  "@achievementsProgressLanguages": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressDays": "{current} / {threshold} Tage",
+  "@achievementsProgressDays": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHowToGetIt": "Wie bekomme ich es?",
+  "achievementsHintUntitledBook": "Ein Buch in Bearbeitung",
+  "achievementsSwitch": "Erfolge",
+  "achievementsSwitchSubtitle": "Erfolge in BookOrbit tracken. Wenn du dies deaktivierst, werden sie hier und im Web ausgeblendet.",
+  "achievementsTurnedOn": "Erfolge eingeschaltet",
+  "achievementsTurnedOff": "Erfolge ausgeschaltet",
+  "achievementsSwitchFailed": "Konnte die Erfolge auf BookOrbit nicht ändern"
 }
