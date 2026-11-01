@@ -6,6 +6,7 @@ import 'dart:math';
 
 import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart';
+import 'package:html/parser.dart' as html_parser;
 import 'package:path_provider/path_provider.dart';
 
 import 'api_service.dart';
@@ -19,7 +20,9 @@ import 'narrated_books.dart';
 import 'progress_sync_service.dart';
 import 'remote_zip.dart';
 import 'scoped_prefs.dart';
+import 'transcript_line_store.dart';
 import '../utils/percent_escapes.dart';
+import '../utils/transcript_align.dart';
 
 Future<MediaOverlay?> _parseEpub(String path) async {
   final input = InputFileStream(path);
@@ -518,6 +521,86 @@ class NarrationService {
     return localOverlay(itemId);
   }
 
+  final Map<String, Future<bool>> _readAlongLoads = {};
+  // Read-alongs that failed to load here, tried again only a while later.
+  final Map<String, ({String source, DateTime at})> _readAlongFailed = {};
+
+  /// Whether [itemId]'s transcript is its read-along's: the narrated EPUB
+  /// BookOrbit has matched to the book's audiobook, whose sentences are that
+  /// audiobook's words timed exactly, so nothing needs transcribing. Fetched
+  /// once (the text, not the audio) and kept with the transcripts; a newer
+  /// read-along replaces it in the background. Waits only the first time
+  /// for a book known to have one: any other book goes on at once and is
+  /// looked at in the background.
+  Future<bool> ensureReadAlongTranscript(ApiService? api, String itemId) async {
+    final store = TranscriptLineStore.instance;
+    await store.hydrate(itemId);
+    final has = store.readAlongOf(itemId) != null;
+    if (api is! BookOrbitApiService) return has;
+    final known = api.knownReadAlong(itemId);
+    if (!has && known == false) return false;
+    final load = _readAlongLoads[itemId] ??=
+        _loadReadAlong(api, itemId).whenComplete(() => _readAlongLoads.remove(itemId));
+    if (!has && known == true) return load;
+    unawaited(load);
+    return has;
+  }
+
+  static const _textExts = {'.xhtml', '.html', '.htm', '.opf', '.ncx', '.xml'};
+
+  Future<bool> _loadReadAlong(BookOrbitApiService api, String itemId) async {
+    final store = TranscriptLineStore.instance;
+    File? epub;
+    try {
+      final file = await api.readAlongFile(itemId);
+      if (file == null) {
+        if (store.readAlongOf(itemId) != null) await store.dropReadAlong(itemId);
+        return false;
+      }
+      // Everything the lines are made from: a change to any of it makes them again.
+      final source = [file.fileId, file.version, file.audioSeconds, ...file.chapterStarts].join(':');
+      if (store.readAlongOf(itemId) == source) return true;
+      final failed = _readAlongFailed[itemId];
+      if (failed != null && failed.source == source && DateTime.now().difference(failed.at).inMinutes < 10) {
+        return store.readAlongOf(itemId) != null;
+      }
+      _readAlongFailed[itemId] = (source: source, at: DateTime.now());
+      final started = DateTime.now();
+      epub = File('${(await getTemporaryDirectory()).path}/readalong_$itemId.epub');
+      final zip = await RemoteZip.open(Uri.parse(api.buildEbookUrl(itemId, file.fileId)));
+      try {
+        final playlist = await api.readAlongPlaylist(itemId, file.fileId);
+        await zip.writeCopy(epub, (e) => _textExts.contains(_ext(e.name)));
+        final lines = await compute(_readAlongLines, (
+          playlist: playlist,
+          epubPath: epub.path,
+          audioSeconds: file.audioSeconds,
+          chapterStarts: file.chapterStarts,
+        ));
+        if (lines.isEmpty) return store.readAlongOf(itemId) != null;
+        await store.setReadAlong(itemId, source, lines);
+        _readAlongFailed.remove(itemId);
+        debugPrint('[Narration] $itemId has a read-along: ${lines.length} sentences in '
+            '${DateTime.now().difference(started).inMilliseconds}ms');
+        return true;
+      } finally {
+        zip.close();
+      }
+    } catch (e) {
+      debugPrint('[Narration] read-along for $itemId not loaded: $e');
+      return store.readAlongOf(itemId) != null;
+    } finally {
+      if (epub != null) {
+        // A copy that failed half way is left as .part.
+        for (final f in [epub, File('${epub.path}.part')]) {
+          try {
+            if (f.existsSync()) f.deleteSync();
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
   List<String> _trackNames(List<Map<String, dynamic>> tracks) => [
         for (final t in tracks)
           ((t['metadata'] as Map)['filename'] as String).replaceAll(RegExp(r'[\\/:*?"<>|]'), '_'),
@@ -812,5 +895,83 @@ String narratedTextIn(({String epubPath, MediaOverlay overlay, double from, doub
     return out.join(' ');
   } finally {
     book.close();
+  }
+}
+
+/// A read-along's sentences as transcript lines: each one's words from the
+/// text-only EPUB at [epubPath], at its time in the audiobook, and its words
+/// timed inside it as transcribed lines' are.
+///
+/// BookOrbit's [playlist] times each sentence inside one of the read-along's
+/// audio files, and laid end to end those run long: each file's timings end
+/// a little past its audio, seconds over a long book. BookOrbit cuts the
+/// audiobook into those files at its chapters, splitting only chapters over
+/// two hours, so when the files match the [chapterStarts] one for one, each
+/// starts where its chapter does. Otherwise the timings are stretched to the
+/// audiobook's [audioSeconds].
+List<TranscriptLine> _readAlongLines(
+    ({String playlist, String epubPath, double audioSeconds, List<double> chapterStarts}) a) {
+  final overlay = MediaOverlay.fromBookOrbit(jsonDecode(a.playlist) as Map<String, dynamic>);
+  if (overlay == null || overlay.duration <= 0) return const [];
+  final tracks = overlay.tracks;
+  final chapters = a.chapterStarts;
+  double chapterLength(int i) => (i + 1 < chapters.length ? chapters[i + 1] : a.audioSeconds) - chapters[i];
+  final byChapter = a.audioSeconds > 0 &&
+      chapters.length == tracks.length &&
+      Iterable<int>.generate(tracks.length).every((i) => (chapterLength(i) - tracks[i].duration).abs() < 1);
+  final scale = a.audioSeconds > 0 ? a.audioSeconds / overlay.duration : 1.0;
+  double at(OverlayClip c, double t) => byChapter ? chapters[c.track] + t : (tracks[c.track].start + t) * scale;
+  final wanted = <String, Set<String>>{};
+  for (final c in overlay.clips) {
+    if (c.fragment != null) (wanted[c.textHref] ??= {}).add(c.fragment!);
+  }
+  final input = InputFileStream(a.epubPath);
+  try {
+    final archive = ZipDecoder().decodeStream(input);
+    // One page's sentences at a time: the clips run through the book in order.
+    String? page;
+    var texts = const <String, String>{};
+    final spaces = RegExp(r'\s+');
+    Map<String, String> textsOf(String href) {
+      final entry = _entryFor(archive, href);
+      if (entry == null) return const {};
+      final doc = html_parser.parse(utf8.decode(entry.content as List<int>, allowMalformed: true));
+      final want = wanted[href]!;
+      return {
+        for (final el in doc.querySelectorAll('[id]'))
+          if (want.contains(el.id)) el.id: el.text.replaceAll(spaces, ' ').trim(),
+      };
+    }
+
+    double ms(double t) => (t * 1000).roundToDouble() / 1000;
+    final timed = <({double start, double end, String text})>[];
+    String? last;
+    for (final c in overlay.clips) {
+      final id = c.fragment;
+      if (id == null) continue;
+      final start = ms(at(c, c.begin));
+      final end = ms(at(c, c.end));
+      // A sentence read across two audio files comes as two clips.
+      if (c.textSrc == last) {
+        final prev = timed.removeLast();
+        timed.add((start: prev.start, end: end, text: prev.text));
+        continue;
+      }
+      if (c.textHref != page) {
+        page = c.textHref;
+        texts = textsOf(c.textHref);
+      }
+      final text = texts[id];
+      if (text == null || text.isEmpty) continue;
+      last = c.textSrc;
+      timed.add((start: start, end: end, text: text));
+    }
+    return [
+      for (final t in timed)
+        TranscriptLine(t.start, t.end, t.text,
+            exact: true, wordStarts: [for (final w in wordsFromSegments([t])) w.start]),
+    ];
+  } finally {
+    input.closeSync();
   }
 }

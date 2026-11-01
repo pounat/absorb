@@ -309,6 +309,10 @@ class BookOrbitMapper {
     // narration is the book's audio, and the narrated copy is the one to read
     // so read along can follow it.
     final narrated = audioFiles.isEmpty ? narratedEpub(contentFiles) : null;
+    // A book that keeps its own audiobook can have a read-along EPUB that
+    // BookOrbit has matched to it: its sentences, timed, are that
+    // audiobook's words.
+    final readAlong = narrated == null ? matchedReadAlong(detail, contentFiles) : null;
     final narrationSeconds =
         ((narrated?['mediaOverlay'] as Map?)?['durationSeconds'] as num?)?.toDouble() ?? 0;
     final ebook = narrated ?? _primaryEbook(contentFiles);
@@ -347,6 +351,12 @@ class BookOrbitMapper {
             },
       'ebookFormat': ebookFormat,
       if (narrated != null) 'narration': {'fileId': _str(narrated['id']), 'duration': narrationSeconds},
+      if (readAlong != null)
+        'readAloudSync': {
+          'fileId': _str(readAlong['id']),
+          if ((readAlong['fileHash'] ?? readAlong['contentVersion']) != null)
+            'version': '${readAlong['fileHash'] ?? readAlong['contentVersion']}',
+        },
       'numTracks': audioFiles.length,
       'numAudioFiles': audioFiles.length,
       'numChapters': chapters.length,
@@ -670,6 +680,20 @@ class BookOrbitMapper {
       if (_format(f) != 'epub') continue;
       final overlay = f['mediaOverlay'] as Map?;
       if (overlay?['available'] == true && ((overlay?['durationSeconds'] as num?) ?? 0) > 0) return f;
+    }
+    return null;
+  }
+
+  /// The read-along EPUB BookOrbit has matched to the book's audiobook, or
+  /// null. Only the book detail says: BookOrbit turns its read-aloud sync on
+  /// for a narrated EPUB whose length agrees with the audiobook's.
+  static Map<String, dynamic>? matchedReadAlong(
+      Map<String, dynamic>? detail, List<Map<String, dynamic>> contentFiles) {
+    final sync = detail?['readAloudSync'] as Map?;
+    if (sync?['state'] != 'enabled') return null;
+    final id = _str(sync!['overlayFileId']);
+    for (final f in contentFiles) {
+      if (_str(f['id']) == id) return f;
     }
     return null;
   }

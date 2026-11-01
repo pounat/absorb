@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import 'audio_player_service.dart';
 import 'ebook_cache.dart';
+import 'narration_service.dart';
 import 'transcript_chunker.dart';
 import 'transcript_line_store.dart';
 import 'transcription_service.dart';
@@ -216,6 +217,11 @@ class LyricsService extends ChangeNotifier {
     }
     await _refreshRoute();
     await reloadDisplayPrefs();
+    // A book's read-along is its whole transcript: nothing is transcribed.
+    if (_epubItemId != null) {
+      await NarrationService.instance.ensureReadAlongTranscript(AudioPlayerService().currentApi, key);
+      if (!_on || _key != key) return;
+    }
     await TranscriptLineStore.instance.hydrate(key);
     _tick?.cancel();
     _tick = Timer.periodic(const Duration(milliseconds: 200), (_) => _onTick());
@@ -244,6 +250,7 @@ class LyricsService extends ChangeNotifier {
   Future<void> _autoCacheEpub() async {
     final itemId = _epubItemId;
     if (itemId == null || _epubFetching) return;
+    if (TranscriptLineStore.instance.readAlongOf(itemId) != null) return;
     _epubFetching = true;
     try {
       final cached = await cachedEbookFileFor(itemId);

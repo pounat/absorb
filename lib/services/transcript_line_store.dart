@@ -82,6 +82,9 @@ class TranscriptLineStore {
 
   final Map<String, List<TranscriptLine>> _cache = {};
   final Set<String> _dirty = {};
+  // Keys whose lines are a read-along's, and which read-along file made them.
+  final Map<String, String> _readAlongs = {};
+  final Map<String, Future<void>> _writes = {};
   bool _flushScheduled = false;
 
   Future<Directory> _dir() async {
@@ -105,6 +108,8 @@ class TranscriptLineStore {
         lines = (j['lines'] as List<dynamic>? ?? const [])
             .map((e) => TranscriptLine.fromJson(e as Map<String, dynamic>))
             .toList();
+        final readAlong = j['readAlong'] as String?;
+        if (readAlong != null) _readAlongs[key] = readAlong;
       }
     } catch (e) {
       debugPrint('[Lyrics] store load failed for $key: $e');
@@ -116,6 +121,86 @@ class TranscriptLineStore {
 
   /// Warm the in-memory cache; call before the sync lookups below.
   Future<void> hydrate(String key) => _load(key);
+
+  /// The read-along file [key]'s lines were made from, or null when they
+  /// were transcribed.
+  String? readAlongOf(String key) => _readAlongs[key];
+
+  /// Replaces [key]'s lines, transcribed or not, with the sentences of the
+  /// read-along named by [source]: the book's own words, all of them, timed
+  /// exactly, so nothing is transcribed while they last. Written at once, so
+  /// they are there offline.
+  Future<void> setReadAlong(String key, String source, List<TranscriptLine> lines) async {
+    await _load(key);
+    _cache[key] = [...lines]..sort((a, b) => a.start.compareTo(b.start));
+    _readAlongs[key] = source;
+    _dirty.remove(key);
+    await _write(key);
+  }
+
+  /// Forgets [key]'s read-along lines, so the book is transcribed again.
+  Future<void> dropReadAlong(String key) async {
+    if (_readAlongs.remove(key) == null) return;
+    _cache[key] = [];
+    _dirty.remove(key);
+    await (_writes[key] ?? Future.value());
+    try {
+      final f = await _fileFor(key);
+      if (f.existsSync()) await f.delete();
+    } catch (e) {
+      debugPrint('[Lyrics] store delete failed for $key: $e');
+    }
+  }
+
+  static final _apostrophes = RegExp(r"['’]");
+  static final _nonWord = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+  static List<String> _words(String s) =>
+      s.toLowerCase().replaceAll(_apostrophes, '').split(_nonWord).where((w) => w.isNotEmpty).toList();
+
+  /// When the word [after] begins with is spoken, [before] being the words
+  /// just ahead of it, for finding a spot of the book in a read-along's
+  /// lines; the hit nearest [near] when the words occur more than once. Null
+  /// when they aren't in the lines, or occur more than once with no [near].
+  double? timeOfText(String key, String before, String after, {double? near}) {
+    final lines = _cache[key];
+    if (lines == null || lines.isEmpty) return null;
+    // The book's words in a row, and for each its line and its place among
+    // that line's words (the ones word timing counts).
+    final words = <String>[];
+    final at = <(TranscriptLine, int)>[];
+    for (final l in lines) {
+      final tokens = l.words;
+      for (var i = 0; i < tokens.length; i++) {
+        for (final w in _words(tokens[i])) {
+          words.add(w);
+          at.add((l, i));
+        }
+      }
+    }
+    final ahead = _words(before), from = _words(after);
+    if (from.length < 2) return null;
+    // The most words around the spot first; fewer when they run into text
+    // the narration skips, like a heading it doesn't read.
+    for (final (b, a) in const [(4, 8), (0, 8), (0, 4)]) {
+      final lead = ahead.length > b ? ahead.sublist(ahead.length - b) : ahead;
+      final needle = [...lead, ...from.take(a)];
+      final hits = <double>[];
+      for (var i = 0; i + needle.length <= words.length; i++) {
+        var j = 0;
+        while (j < needle.length && words[i + j] == needle[j]) {
+          j++;
+        }
+        if (j < needle.length) continue;
+        final (line, w) = at[i + lead.length];
+        hits.add(w < line.wordStarts.length ? line.wordStarts[w] : line.start);
+      }
+      if (hits.length == 1) return hits.single;
+      if (hits.isEmpty) continue;
+      if (near == null) return null;
+      return hits.reduce((x, y) => (x - near).abs() <= (y - near).abs() ? x : y);
+    }
+    return null;
+  }
 
   /// The line containing [t], or null when that moment isn't transcribed yet
   /// (or was silence/music). Binary search over the sorted cache.
@@ -211,6 +296,8 @@ class TranscriptLineStore {
   /// (Whisper trims silence between segments). Returns [from] when nothing
   /// covers it yet.
   double coveredUntil(String key, double from) {
+    // A read-along's lines are the whole book.
+    if (_readAlongs.containsKey(key)) return double.infinity;
     final lines = _cache[key];
     if (lines == null || lines.isEmpty) return from;
     const gapTolerance = 4.0;
@@ -233,6 +320,7 @@ class TranscriptLineStore {
   /// them, and they never displace anything real.
   Future<void> addLines(String key, List<TranscriptLine> fresh) async {
     final lines = await _load(key);
+    if (_readAlongs.containsKey(key)) return;
     var changed = false;
     for (final nl in fresh) {
       if (nl.text.trim().isEmpty) continue;
@@ -282,6 +370,7 @@ class TranscriptLineStore {
   Future<void> clearAll() async {
     _cache.clear();
     _dirty.clear();
+    _readAlongs.clear();
     try {
       final dir = await _dir();
       for (final f in dir.listSync()) {
@@ -303,18 +392,27 @@ class TranscriptLineStore {
       final keys = _dirty.toList();
       _dirty.clear();
       for (final key in keys) {
-        final lines = _cache[key];
-        if (lines == null) continue;
-        try {
-          final f = await _fileFor(key);
-          await f.writeAsString(jsonEncode({
-            'v': 1,
-            'lines': [for (final l in lines) l.toJson()],
-          }));
-        } catch (e) {
-          debugPrint('[Lyrics] store write failed for $key: $e');
-        }
+        await _write(key);
       }
     });
   }
+
+  /// One write per key at a time, each to a new file put in place whole, so
+  /// a book's lines are never half written.
+  Future<void> _write(String key) => _writes[key] = (_writes[key] ?? Future.value()).then((_) async {
+        final lines = _cache[key];
+        if (lines == null) return;
+        try {
+          final f = await _fileFor(key);
+          final tmp = File('${f.path}.tmp');
+          await tmp.writeAsString(jsonEncode({
+            'v': 1,
+            if (_readAlongs[key] != null) 'readAlong': _readAlongs[key],
+            'lines': [for (final l in lines) l.toJson()],
+          }));
+          await tmp.rename(f.path);
+        } catch (e) {
+          debugPrint('[Lyrics] store write failed for $key: $e');
+        }
+      });
 }
