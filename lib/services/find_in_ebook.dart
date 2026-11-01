@@ -12,6 +12,7 @@ import '../services/chapter_lookup.dart';
 import '../services/download_service.dart';
 import '../services/narration_service.dart';
 import '../services/progress_sync_service.dart';
+import '../services/transcript_line_store.dart';
 import '../services/transcription_service.dart';
 import '../widgets/ebook_router.dart';
 import '../widgets/overlay_toast.dart';
@@ -77,8 +78,8 @@ Future<void> launchFindInEbook(
 
   // A book whose audio is its EPUB's narration knows the sentence at every
   // moment: the reader opens on it, with nothing transcribed.
-  final narration = await NarrationService.instance
-      .audioNarration(context.read<AuthProvider>().apiService, itemId);
+  final api = context.read<AuthProvider>().apiService;
+  final narration = await NarrationService.instance.audioNarration(api, itemId);
   if (!context.mounted) return;
   if (narration != null) {
     final player = AudioPlayerService();
@@ -95,7 +96,19 @@ Future<void> launchFindInEbook(
         itemId: itemId, title: title, ebookFile: ebookFile, openAtAudioSeconds: at);
     return;
   }
-  if (!await PlayerSettings.getTranscriptionEnabled()) {
+  // A read-along matched to the audiobook holds the book's words at every
+  // moment: the reader looks for the ones at the pause point. The first time,
+  // a long book's takes a while to come down.
+  final loading = NarrationService.instance.ensureReadAlongTranscript(api, itemId);
+  var readAlong = await Future.any<bool?>([loading, Future.delayed(const Duration(milliseconds: 400))]);
+  if (!context.mounted) return;
+  if (readAlong == null) {
+    showProgressDialog(context, l.findInEbookSearching);
+    readAlong = await loading;
+    if (!context.mounted) return;
+    Navigator.pop(context);
+  }
+  if (!readAlong && !await PlayerSettings.getTranscriptionEnabled()) {
     if (context.mounted) {
       showOverlayToast(context, l.transcriptionDisabledHint,
           icon: Icons.record_voice_over_rounded);
@@ -103,7 +116,7 @@ Future<void> launchFindInEbook(
     return;
   }
   if (!context.mounted) return;
-  if (!TranscriptionService.instance.canTranscribeBook(itemId)) {
+  if (!readAlong && !TranscriptionService.instance.canTranscribeBook(itemId)) {
     showOverlayToast(context, l.transcriptionNotDownloadedBook,
         icon: Icons.download_rounded);
     return;
@@ -139,6 +152,35 @@ Future<void> launchFindInEbook(
   if (chIdx != null) {
     final t = ((chapters[chIdx] as Map<String, dynamic>)['title'] as String?)?.trim();
     if (t != null && t.isNotEmpty) chapterHint = t;
+  }
+
+  if (readAlong) {
+    final store = TranscriptLineStore.instance;
+    final line = store.lineNear(itemId, position, holdAfter: 4, preShow: 4) ??
+        store.nextExactLine(itemId, position);
+    if (line != null) {
+      final run = store.fromLine(itemId, line.start, 3);
+      final text = run.map((l) => l.text.trim()).join(' ');
+      debugPrint('[FindEbook] $itemId has a read-along - looking for "$text", nothing transcribed');
+      // The find takes the end of its words to be where the audio is, as
+      // with a transcript that ends at the pause point.
+      await openEbookReader(
+        context,
+        itemId: itemId,
+        title: title,
+        ebookFile: ebookFile,
+        findText: text,
+        findChapterHint: chapterHint,
+        findPositionSeconds: run.last.end,
+      );
+      return;
+    }
+    if (!await PlayerSettings.getTranscriptionEnabled()) {
+      if (context.mounted) {
+        showOverlayToast(context, l.findInEbookNotFound, icon: Icons.search_off_rounded);
+      }
+      return;
+    }
   }
 
   showProgressDialog(context, l.transcribing);

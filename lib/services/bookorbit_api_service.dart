@@ -4628,6 +4628,44 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     return _narrations[k] = (overlay: overlay, fileId: fileId);
   }
 
+  /// The read-along EPUB BookOrbit has matched to [bookId]'s audiobook, and
+  /// that audiobook's length and chapter starts, or null for any other book.
+  /// Throws when BookOrbit can't be reached.
+  Future<({String fileId, String version, double audioSeconds, List<double> chapterStarts})?> readAlongFile(
+      String bookId) async {
+    final detail = await _detail(bookId);
+    final media = BookOrbitMapper.item(detail: detail)['media'] as Map<String, dynamic>;
+    final sync = media['readAloudSync'] as Map<String, dynamic>?;
+    final fileId = sync?['fileId'] as String?;
+    if (fileId == null) return null;
+    final audio = ((detail['readAloudSync'] as Map?)?['audioDurationSeconds'] as num?) ?? media['duration'] as num?;
+    return (
+      fileId: fileId,
+      version: sync!['version'] as String? ?? '',
+      audioSeconds: audio?.toDouble() ?? 0,
+      chapterStarts: [for (final c in media['chapters'] as List) ((c as Map)['start'] as num).toDouble()],
+    );
+  }
+
+  /// Whether the book detail read last, however old, named a read-along for
+  /// [bookId], or null when none was read. No request.
+  bool? knownReadAlong(String bookId) {
+    final detail = _details[_key(bookId)];
+    if (detail == null) return null;
+    return (BookOrbitMapper.item(detail: detail)['media'] as Map)['readAloudSync'] != null;
+  }
+
+  /// The timings of read-along EPUB [fileId] as BookOrbit sends them: a long
+  /// book's run to megabytes, so they are decoded off the UI thread.
+  Future<String> readAlongPlaylist(String bookId, String fileId) async {
+    final r = await super._authGet(_boUri('/epub/$bookId/media-overlay', {'fileId': fileId}),
+        timeout: const Duration(minutes: 2));
+    if (r.statusCode < 200 || r.statusCode >= 300) {
+      throw _BoHttpError(r.statusCode, r.body.length > 300 ? r.body.substring(0, 300) : r.body, r.body);
+    }
+    return r.body;
+  }
+
   /// Public for the reader's read along: the same narration the player is
   /// streaming, so its timings line up exactly.
   /// Whether [bookId] is known here to be a book whose audio is its EPUB's

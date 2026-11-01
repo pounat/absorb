@@ -305,6 +305,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   bool get _useNarration =>
       _narration != null && (_narrationFromServer || !_hasAudio || _audioIsNarration);
 
+  // BookOrbit has matched a read-along EPUB to this book's audiobook: its
+  // sentences are the transcript, so read along and Find in audiobook need
+  // no transcription.
+  bool _readAlongTranscript = false;
+
   // The narration and audio lookups started on open: read along waits for
   // them, since which kind it is depends on their answers.
   Future<void>? _narrationLookup;
@@ -540,6 +545,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _audioCoverUrl = lib.getCoverUrl(widget.itemId);
     if (_otherAccount) return;
     final api = context.read<AuthProvider>().apiService;
+    if (lib.isOffline) {
+      // The server can't say: a read-along fetched before still counts.
+      final store = TranscriptLineStore.instance;
+      await store.hydrate(widget.itemId);
+      if (mounted && store.readAlongOf(widget.itemId) != null) setState(() => _readAlongTranscript = true);
+    }
     if (api == null) return;
     try {
       final item = await api.getLibraryItem(widget.itemId);
@@ -554,7 +565,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         _hasAudio = dur > 0;
         _audioTotal = dur;
         _audioIsNarration = media['narration'] != null;
+        _readAlongTranscript |= media['readAloudSync'] != null;
       });
+      // Fetched while the book is open, so read along is ready at a tap and
+      // there offline later.
+      if (_readAlongTranscript) unawaited(NarrationService.instance.ensureReadAlongTranscript(api, widget.itemId));
     } catch (_) {}
   }
 
@@ -840,7 +855,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   bool _barButtonShown(String id) => switch (id) {
-        'readalong' => _transcriptionOn || _useNarration,
+        'readalong' => _transcriptionOn || _useNarration || _readAlongTranscript,
         'chapters' => _chapters.isNotEmpty,
         _ => true,
       };
@@ -2796,7 +2811,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
                 // Read along, mirrored from the transcription settings so the
                 // reader can change them without leaving the book.
-                if (_transcriptionOn || _useNarration) ...[
+                if (_transcriptionOn || _useNarration || _readAlongTranscript) ...[
                   section(l.readAlong),
                   // E-ink always follows by sentence, and an EPUB's own
                   // narration is timed by the sentence, so the choice is hidden.
@@ -3984,7 +3999,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       await _playNarrationFromCfi(cfi);
       return;
     }
-    if (!TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
+    if (!_readAlongTranscript && !TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
       showOverlayToast(context, l.transcriptionNotDownloadedBook,
           icon: Icons.download_rounded);
       return;
@@ -4013,8 +4028,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l.findInAudiobookIntroBody),
-                const SizedBox(height: 16),
+                // A read-along finds the spot in its own words, nothing heard.
+                if (!_readAlongTranscript) ...[
+                  Text(l.findInAudiobookIntroBody),
+                  const SizedBox(height: 16),
+                ],
                 Text(l.findInAudiobookAfterLabel,
                     style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
                         color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
@@ -4087,10 +4105,19 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   Future<double?> _locateAudioForSelection(String cfi, String selText) async {
     final api = context.read<AuthProvider>().apiService;
-    final info = await _selectionSectionInfo(cfi, selText);
+    final info = await _selectionSectionInfo(cfi, selText, withText: _readAlongTranscript);
     if (info == null) {
       debugPrint('[FindAudio] selection offset not resolved');
       return null;
+    }
+    if (_readAlongTranscript && await NarrationService.instance.ensureReadAlongTranscript(api, widget.itemId)) {
+      // The read-along has the book's words: the spot is found among them.
+      final pct = (info['pct'] as num?)?.toDouble();
+      final t = TranscriptLineStore.instance.timeOfText(
+          widget.itemId, info['before'] as String? ?? '', info['after'] as String? ?? '',
+          near: pct == null || _audioDuration <= 0 ? null : pct * _audioDuration);
+      debugPrint('[FindAudio] read-along lines put the selection at ${t?.toStringAsFixed(1)}s');
+      return t;
     }
     return _audioLocator.locate(info, api);
   }
@@ -4159,7 +4186,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// total character count - resolved in the live DOM. Falls back to locating
   /// the selected text when the CFI-to-range resolution fails.
   Future<Map<String, dynamic>?> _selectionSectionInfo(
-      String cfi, String selText) async {
+      String cfi, String selText, {bool withText = false}) async {
     final wc = _epubController?.webViewController;
     if (wc == null) return null;
     final res = await wc.callAsyncJavaScript(functionBody: r'''
@@ -4205,12 +4232,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               if (nLoc) pct = book.locations.percentageFromCfi(cfi);
             } catch(e3){}
             out = { si: c.sectionIndex, offset: off, total: text.length, href: href, pct: pct };
+            if (withText) {
+              out.before = text.substring(Math.max(0, off - 120), off);
+              out.after = text.substring(off, off + 200);
+            }
             break;
           }
         }
       } catch(e){ out.err = String(e); }
       return JSON.stringify(out);
-    ''', arguments: {'cfi': cfi, 'selText': selText});
+    ''', arguments: {'cfi': cfi, 'selText': selText, 'withText': withText});
     final raw = res?.value;
     debugPrint('[FindAudio] selectionInfo $raw');
     if (raw is! String || raw.isEmpty) return null;
@@ -4797,7 +4828,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       await _startNarrationReadAlong();
       return;
     }
-    debugPrint('[ReadAlong] ${widget.itemId} is not narrated here - transcribing to follow along');
+    debugPrint('[ReadAlong] ${widget.itemId} is not narrated here - '
+        '${_readAlongTranscript ? 'following its read-along' : 'transcribing to follow along'}');
     final player = AudioPlayerService();
     if (player.currentItemId != widget.itemId ||
         player.currentEpisodeId != null) {
@@ -4810,14 +4842,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         return;
       }
     }
-    if (!await PlayerSettings.getTranscriptionEnabled()) {
+    if (!_readAlongTranscript && !await PlayerSettings.getTranscriptionEnabled()) {
       if (mounted) {
         showOverlayToast(context, l.transcriptionDisabledHint,
             icon: Icons.record_voice_over_rounded);
       }
       return;
     }
-    if (!TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
+    if (!_readAlongTranscript && !TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
       if (mounted) {
         await promptDownloadForTranscription(context,
             itemId: widget.itemId, title: widget.title);
@@ -4843,9 +4875,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       await _startNarrationReadAlong(fromResume: true);
       return;
     }
-    if (!await PlayerSettings.getTranscriptionEnabled()) return;
+    if (!_readAlongTranscript && !await PlayerSettings.getTranscriptionEnabled()) return;
     if (!stillWanted() ||
-        !TranscriptionService.instance.canTranscribeBook(widget.itemId)) {
+        (!_readAlongTranscript && !TranscriptionService.instance.canTranscribeBook(widget.itemId))) {
       return;
     }
     debugPrint('[ReadAlong] back in the foreground - picking up again');
@@ -4877,6 +4909,24 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         _readAlongOn = true;
         _readAlongPrep = 'finding';
       });
+    }
+    // The first time, the read-along comes down now.
+    if (_readAlongTranscript &&
+        !await NarrationService.instance
+            .ensureReadAlongTranscript(context.read<AuthProvider>().apiService, widget.itemId)) {
+      if (!mounted || !_readAlongOn) return;
+      setState(() => _readAlongTranscript = false);
+      final l = AppLocalizations.of(context)!;
+      final why = !await PlayerSettings.getTranscriptionEnabled()
+          ? l.transcriptionDisabledHint
+          : TranscriptionService.instance.canTranscribeBook(widget.itemId)
+              ? null
+              : l.transcriptionNotDownloadedBook;
+      if (why != null) {
+        _stopReadAlong();
+        if (mounted) showOverlayToast(context, why, icon: Icons.record_voice_over_rounded);
+        return;
+      }
     }
     // Go to where the audio is before anything else. Waiting for the first
     // sentence to arrive and then paging forward from the saved spot took a
@@ -4945,7 +4995,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final store = TranscriptLineStore.instance;
     String? text;
     var source = 'transcript';
-    final near = store.lineNear(widget.itemId, pos, holdAfter: 4, preShow: 4);
+    final near = store.lineNear(widget.itemId, pos, holdAfter: 4, preShow: 4) ??
+        (_readAlongTranscript ? store.nextExactLine(widget.itemId, pos) : null);
     if (near != null && near.exact && !near.approx) {
       final run = store
           .fromLine(widget.itemId, near.start, 3)
@@ -4965,7 +5016,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       // Whisper around the playhead: a short window first, a longer one if
       // the words were too ordinary to pin down.
       for (final window in const [12.0, 30.0]) {
-        if (decision != null || !mounted || !_readAlongOn) break;
+        if (decision != null || !mounted || !_readAlongOn || _readAlongTranscript) break;
         final r = await _transcribeForJump(pos, window);
         if (r == null) break;
         source = '${window.toStringAsFixed(0)}s window';
@@ -4986,10 +5037,15 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     debugPrint('[ReadAlong] placed the audio at ${pos.toStringAsFixed(1)}s '
         'via $source -> ${decision['href']} jumped=$jumped');
     // The window sat around the playhead, so its middle is where the audio
-    // was. The lines that follow pin it exactly.
+    // was. The lines that follow pin it exactly. A read-along's lines say
+    // when their first words are read.
     if (jumped && decision['s'] is num && decision['e'] is num) {
-      final mid = ((decision['s'] as num) + (decision['e'] as num)) / 2;
-      unawaited(_rememberEbookHit(decision, pos, mid, err));
+      if (_readAlongTranscript && near != null && source == 'cached lines') {
+        unawaited(_rememberEbookHit(decision, near.start, (decision['s'] as num).toDouble(), 1));
+      } else {
+        final mid = ((decision['s'] as num) + (decision['e'] as num)) / 2;
+        unawaited(_rememberEbookHit(decision, pos, mid, err));
+      }
     }
   }
 
@@ -7560,7 +7616,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                 onPressed: _translateSelection,
                                 tooltip: AppLocalizations.of(context)!.readerTooltipTranslate,
                               ),
-                              if (_transcriptionOn || _useNarration)
+                              if (_transcriptionOn || _useNarration || _readAlongTranscript)
                                 IconButton(
                                   icon: Icon(
                                       _useNarration ? Icons.play_arrow_rounded : Icons.headphones_rounded,

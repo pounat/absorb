@@ -2200,6 +2200,8 @@ class DownloadService extends ChangeNotifier {
           resolveEbookFile(sessionData['libraryItem'] as Map<String, dynamic>?);
       if (ebookFile != null) {
         unawaited(_cacheEbookForOffline(api, apiItemId, ebookFile, title));
+        // A read-along matched to the audiobook too, for read along offline.
+        unawaited(NarrationService.instance.ensureReadAlongTranscript(api, apiItemId));
       }
 
       // Per-book destination. Android downloads to internal storage first - for
