@@ -438,7 +438,8 @@ class OidcService {
     final authMethods = status['authMethods'] as List<dynamic>? ?? [];
     final hasOidc = authMethods.contains('openid');
     final authFormData = status['authFormData'] as Map<String, dynamic>? ?? {};
-    final buttonText = authFormData['openIDButtonText'] as String? ?? 'Login with OpenID';
+    final customButtonText = (authFormData['authOpenIDButtonText'] as String?)?.trim() ?? '';
+    final buttonText = customButtonText.isNotEmpty ? customButtonText : 'Login with OpenID';
 
     return OidcConfig(
       enabled: hasOidc,
