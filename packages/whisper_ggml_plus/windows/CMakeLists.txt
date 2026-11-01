@@ -17,6 +17,13 @@ set(GGML_ROOT_DIR "${WHISPER_ROOT_DIR}/ggml")
 set(JSON_ROOT_DIR "${PLATFORM_SHARED_ROOT}/json")
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build vendored libs static" FORCE)
+# Absorb patch: native builds for whatever CPU compiled them (AVX-512 on an
+# 11th gen Intel or a CI box), and crashed other PCs the moment whisper ran.
+# Off falls back to the AVX2 baseline, like the Android build.
+set(GGML_NATIVE OFF CACHE BOOL "Portable CPU build" FORCE)
+set(GGML_AVX ON CACHE BOOL "AVX baseline" FORCE)
+set(GGML_AVX2 ON CACHE BOOL "AVX2 baseline (implies FMA/F16C on MSVC)" FORCE)
+set(GGML_AVX512 OFF CACHE BOOL "Most PCs lack AVX-512" FORCE)
 set(GGML_METAL OFF CACHE BOOL "Disable Metal backend on Windows" FORCE)
 set(GGML_ACCELERATE OFF CACHE BOOL "Disable Accelerate on Windows" FORCE)
 set(GGML_BLAS OFF CACHE BOOL "Disable BLAS auto-linking on Windows" FORCE)

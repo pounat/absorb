@@ -33,6 +33,10 @@ dependencies:
   audio_service:
     path: packages/audio_service
 
+  # Windows has no just_audio engine of its own; this plays through libmpv.
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_windows_audio: ^1.0.9
+
   # On-device bookmark transcription (Whisper, opt-in). No ffmpeg companion:
   # we feed it 16kHz mono WAV produced by native decoders (MediaCodec / AVAssetReader).
   # Vendored from 1.5.2: the arm64 build was plain armv8-a with no dotprod/fp16
@@ -138,6 +142,10 @@ dev_dependencies:
 dependency_overrides:
   audio_service_web:
     path: packages/audio_service_web
+  # Vendored for a null-pointer fix in its JavaScript handler reply, which
+  # crashed the Windows app whenever the reader loaded a book.
+  flutter_inappwebview_windows:
+    path: packages/flutter_inappwebview_windows
 
 flutter:
   generate: true

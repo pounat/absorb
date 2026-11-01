@@ -14,7 +14,10 @@ class ServerLogExportService {
     required String content,
     Rect? sharePositionOrigin,
   }) async {
-    if (kIsWeb) {
+    if (kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux) {
       await downloadTextFile(fileName: fileName, content: content);
       return;
     }

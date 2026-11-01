@@ -142,7 +142,12 @@ static json transcribe(const json & json_body) {
     params.diarize = json_body["diarize"];
     params.speed_up = json_body["speed_up"];
     params.vad_mode = parse_vad_mode(json_body);
-    params.vad_model_path = json_body.value("vad_model_path", std::string(""));
+    // Absorb patch: Dart sends "vad_model_path": null when there is none, and
+    // value() throws on an explicit null (json type_error.302), which failed
+    // every Windows transcription. Read it the way the iOS side does.
+    if (json_body.contains("vad_model_path") && json_body["vad_model_path"].is_string()) {
+        params.vad_model_path = json_body["vad_model_path"].get<std::string>();
+    }
 
     json json_result;
     json_result["@type"] = "transcribe";

@@ -1358,9 +1358,10 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     final trackIndex = _tracks.indexOf(track);
     final offset = (track['startOffset'] as num?)?.toDouble() ?? 0;
     final trackDur = (track['duration'] as num?)?.toDouble() ?? 0;
-    // Android's decoder opens a stream URL itself. Apple's only reads local
-    // files, so on iOS a streamed book gets the window's bytes pulled down
-    // and rewrapped first.
+    // Android's decoder opens a stream URL itself. Apple's and Windows' read
+    // local files (Windows' could open a URL, but not with our auth header),
+    // so there a streamed book gets the window's bytes pulled down and
+    // rewrapped first.
     final String source;
     RemoteTrack? remote;
     if (downloaded && trackIndex >= 0 && trackIndex < localPaths.length) {
@@ -1369,7 +1370,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
       final contentUrl = track['contentUrl'] as String?;
       if (contentUrl == null) return;
       source = api.buildTrackUrl(contentUrl);
-      if (Platform.isIOS) {
+      if (Platform.isIOS || Platform.isWindows) {
         remote = RemoteTrack(
           url: source,
           headers: api.mediaHeaders,
@@ -1862,6 +1863,7 @@ class _FindStartSheetState extends State<_FindStartSheet> {
           },
         );
       } on TranscriptionException catch (e) {
+        debugPrint('[ChapterFind] ${e.kind.name}: ${e.detail}');
         if (!mounted) return;
         final l = AppLocalizations.of(context)!;
         setState(() {

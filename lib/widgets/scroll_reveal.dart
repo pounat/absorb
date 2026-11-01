@@ -59,7 +59,10 @@ class ScrollRevealDriver {
   void resetToShown() {
     _snapController.stop();
     notifier.value = 1.0;
-    _lastOffset = _attached?.offset ?? 0.0;
+    // Desktop disables the driver during the first build, before the list has
+    // attached to the controller; reading offset then threw.
+    final c = _attached;
+    _lastOffset = c != null && c.hasClients ? c.offset : 0.0;
     _lastDir = 0;
   }
 

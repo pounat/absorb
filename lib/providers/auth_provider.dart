@@ -562,7 +562,7 @@ class AuthProvider extends ChangeNotifier {
           );
         }
         _serverReachable = reachable;
-        if (AppPlatform.lacksPhonePlugins && !reachable) {
+        if (AppPlatform.isWeb && !reachable) {
           _accessToken = null;
           _refreshToken = null;
           _isLegacyToken = false;

@@ -356,6 +356,19 @@ class LogService {
       return;
     }
 
+    // Windows' share flyout has no "save to file", so desktop saves instead.
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      final logFile = _logFile;
+      final logs = logFile != null && await logFile.exists()
+          ? await logFile.readAsString()
+          : '';
+      final content = logs.isNotEmpty
+          ? '${_sanitizeUrls(logs)}\n=== Report Info ===\n$info'
+          : '=== Absorb Log Report ===\n$info\n(No log data found - is logging enabled?)\n';
+      await downloadTextFile(fileName: 'absorb_logs.txt', content: content);
+      return;
+    }
+
     final hasFile =
         _logFile != null &&
         await _logFile!.exists() &&

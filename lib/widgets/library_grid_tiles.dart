@@ -94,13 +94,16 @@ class _GridBookTileState extends State<GridBookTile> {
         !lib.isOffline &&
         isDesktopWorkspace(context) &&
         (context.watch<AuthProvider?>()?.canUpdateMetadata ?? false);
-    // Desktop hover actions only; selection is drawn by the tile itself.
+    // Desktop hover actions. Once select mode is on the tile draws its own
+    // check, so the hover circle is only the way in: clicking it starts
+    // select mode with this book picked, like the home rows.
     return HoverCoverActions(
       onMenu: (!widget.selectionMode && itemId.isNotEmpty && !lib.isPodcastLibrary)
           ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
           : null,
       editItemId: canEdit && !widget.selectionMode ? itemId : null,
       selectionMode: widget.selectionMode,
+      onSelectionToggle: widget.selectionMode ? null : widget.onSelectionToggle,
       child: GestureDetector(
       // opaque so taps on the blank space below the title (the tile's tall
       // aspect ratio leaves a gap when the Column children stop short)

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '_audio_player.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'download_service.dart';
@@ -44,8 +45,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     // platforms (ExoPlayer via setDefaultRequestProperties, AVPlayer via
     // AVURLAssetHTTPHeaderFieldsKey). The proxy doubles the packet count.
     useProxyForRequestHeaders: false,
-    audioLoadConfiguration: const AudioLoadConfiguration(
-      androidLoadControl: AndroidLoadControl(
+    audioLoadConfiguration: AudioLoadConfiguration(
+      androidLoadControl: const AndroidLoadControl(
         bufferForPlaybackDuration: Duration(seconds: 2),
         bufferForPlaybackAfterRebufferDuration: Duration(seconds: 5),
         targetBufferBytes: 5 * 1024 * 1024, // 5 MB buffer
@@ -56,8 +57,11 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       // resolves instantly; in background after a fresh asset load, iOS never
       // grants that guarantee, so the new track stays state=buffering at
       // pos=0.0 forever even with hundreds of seconds buffered (GH #244).
+      // Apple only: elsewhere leaving the default skips the call, which the
+      // Windows engine doesn't implement and failed every load on.
       darwinLoadControl: DarwinLoadControl(
-        automaticallyWaitsToMinimizeStalling: false,
+        automaticallyWaitsToMinimizeStalling:
+            !(AppPlatform.isIOS || AppPlatform.isMacOS),
       ),
     ),
   );
@@ -2816,27 +2820,35 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       final fwdSkip = await PlayerSettings.getForwardSkip();
       final backSkip = await PlayerSettings.getBackSkip();
-      _handler = await AudioService.init<AudioPlayerHandler>(
-        builder: () => AudioPlayerHandler(),
-        config: AudioServiceConfig(
-          androidNotificationChannelId: 'com.audiobookshelf.app.channel.audio',
-          androidNotificationChannelName: 'Absorb',
-          // Keep foreground service alive when paused — prevents Android from
-          // killing audio after notification interruptions on locked screen.
-          androidStopForegroundOnPause: false,
-          androidNotificationIcon: 'drawable/ic_notification',
-          fastForwardInterval: Duration(seconds: fwdSkip),
-          rewindInterval: Duration(seconds: backSkip),
-          androidBrowsableRootExtras: {
-            AndroidContentStyle.supportedKey: true,
-            AndroidContentStyle.browsableHintKey:
-                AndroidContentStyle.categoryListItemHintValue,
-            AndroidContentStyle.playableHintKey:
-                AndroidContentStyle.gridItemHintValue,
-            'android.media.browse.SEARCH_SUPPORTED': true,
-          },
-        ),
-      );
+      // Windows has no audio_service or just_audio implementation: without
+      // this AudioService.init threw, no player existed, and play spun
+      // forever. media_kit plays the audio; the handler runs standalone.
+      if (AppPlatform.isWindows) {
+        JustAudioMediaKit.ensureInitialized(windows: true, linux: false);
+        _handler = AudioPlayerHandler();
+      } else {
+        _handler = await AudioService.init<AudioPlayerHandler>(
+          builder: () => AudioPlayerHandler(),
+          config: AudioServiceConfig(
+            androidNotificationChannelId: 'com.audiobookshelf.app.channel.audio',
+            androidNotificationChannelName: 'Absorb',
+            // Keep foreground service alive when paused — prevents Android from
+            // killing audio after notification interruptions on locked screen.
+            androidStopForegroundOnPause: false,
+            androidNotificationIcon: 'drawable/ic_notification',
+            fastForwardInterval: Duration(seconds: fwdSkip),
+            rewindInterval: Duration(seconds: backSkip),
+            androidBrowsableRootExtras: {
+              AndroidContentStyle.supportedKey: true,
+              AndroidContentStyle.browsableHintKey:
+                  AndroidContentStyle.categoryListItemHintValue,
+              AndroidContentStyle.playableHintKey:
+                  AndroidContentStyle.gridItemHintValue,
+              'android.media.browse.SEARCH_SUPPORTED': true,
+            },
+          ),
+        );
+      }
       // Bind service so handler routes play/pause through service (for auto-rewind)
       _handler!.bindService(_instance);
       _instance._audioServiceErrorSub ??= AudioService.asyncError.listen(
@@ -3506,7 +3518,10 @@ class AudioPlayerService extends ChangeNotifier {
     _playFromUi = fromUi;
     if (_handler == null) {
       debugPrint('[Player] Handler not yet initialized, waiting…');
-      await _initCompleter.future;
+      // If startup never got as far as init, this would wait forever and the
+      // play button would spin with no error.
+      await _initCompleter.future
+          .timeout(const Duration(seconds: 15), onTimeout: () {});
     }
     if (_handler == null) {
       debugPrint('[Player] Handler init failed, cannot play');
