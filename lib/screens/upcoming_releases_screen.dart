@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -1249,7 +1251,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
                   child: Stack(children: [
                     Positioned.fill(
                       child: coverUrl.isNotEmpty
-                          ? CachedNetworkImage(
+                          ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                               imageUrl: coverUrl, fit: BoxFit.cover,
                               placeholder: (_, __) => _placeholder(cs),
                               errorWidget: (_, __, ___) => _placeholder(cs))
@@ -1464,7 +1466,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
                   child: Stack(children: [
                     Positioned.fill(
                       child: coverUrl.isNotEmpty
-                          ? CachedNetworkImage(
+                          ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                               imageUrl: coverUrl, fit: BoxFit.cover,
                               placeholder: (_, __) => _placeholder(cs),
                               errorWidget: (_, __, ___) => _placeholder(cs))
@@ -1688,7 +1690,7 @@ class _RemovedBooksSheetState extends State<_RemovedBooksSheet> {
                                 width: 44,
                                 height: 44,
                                 child: coverUrl.isNotEmpty
-                                    ? CachedNetworkImage(
+                                    ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                         imageUrl: coverUrl, fit: BoxFit.cover,
                                         errorWidget: (_, __, ___) => Container(color: cs.surfaceContainerHighest))
                                     : Container(color: cs.surfaceContainerHighest),

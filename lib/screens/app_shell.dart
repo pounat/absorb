@@ -13,10 +13,13 @@ import '../services/volume_key_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/home_widget_service.dart';
 import '../services/server_task_tracker.dart';
+import '../services/socket_service.dart';
 import '../services/sleep_timer_service.dart';
 import '../services/audiobookshelf_update_service.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../main.dart'
@@ -56,7 +59,6 @@ import '../widgets/desktop_collapsible_sidebar.dart';
 import '../widgets/desktop_now_playing_bar.dart';
 import '../widgets/admin_task_indicator.dart';
 import 'absorbing_screen.dart';
-import 'admin_screen.dart';
 import 'home_screen.dart';
 import 'library_screen.dart';
 import 'stats_screen.dart';
@@ -266,9 +268,22 @@ class _AppShellState extends State<AppShell>
     }
     unawaited(_refreshServerTasks());
     _serverTaskRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      unawaited(_refreshServerTasks());
+      // The socket already delivers task start, progress and finish. Polling
+      // every 3s regardless cost each open admin tab ~1200 requests an hour;
+      // only poll fast while something runs or the socket is down, and
+      // otherwise catch up once a minute.
+      final tracker = _serverTaskTracker;
+      final busy = tracker != null && tracker.runningCount > 0;
+      final last = _lastServerTaskRefresh;
+      final due = last == null ||
+          DateTime.now().difference(last) >= const Duration(minutes: 1);
+      if (busy || !SocketService().isConnected || due) {
+        unawaited(_refreshServerTasks());
+      }
     });
   }
+
+  DateTime? _lastServerTaskRefresh;
 
   void _syncServerTaskPolling({
     required bool isAdmin,
@@ -301,6 +316,7 @@ class _AppShellState extends State<AppShell>
     final api = context.read<AuthProvider>().apiService;
     if (tracker == null || api == null) return;
     _refreshingServerTasks = true;
+    _lastServerTaskRefresh = DateTime.now();
     try {
       await tracker.refresh(api);
     } finally {
@@ -323,8 +339,10 @@ class _AppShellState extends State<AppShell>
     final podcastsShown = _podcastsShown(lib);
     if (podcastsShown) _syncTabLibrary(1, true);
     _navigateToPrepared(1);
-    // Library tab may need a frame to mount its state before we can focus
-    // the search field. Retry up to a few frames to cover fade transitions.
+    // The Library tab can take a few hundred ms to mount after the switch.
+    // Retry on a timer, not on post-frame callbacks: those don't schedule a
+    // frame, so once the page went idle the chain stopped and Search never
+    // focused the box on a fresh load.
     int attempts = 0;
     void tryFocus() {
       if (!mounted) return;
@@ -333,8 +351,8 @@ class _AppShellState extends State<AppShell>
         state.focusSearch();
         return;
       }
-      if (++attempts < 10) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => tryFocus());
+      if (++attempts < 60) {
+        Future.delayed(const Duration(milliseconds: 50), tryFocus);
       }
     }
 
@@ -718,7 +736,7 @@ class _AppShellState extends State<AppShell>
     if (coverUrl.startsWith('/')) {
       provider = FileImage(File(coverUrl));
     } else {
-      provider = CachedNetworkImageProvider(
+      provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         coverUrl,
         headers: lib.mediaHeaders,
       );
@@ -1380,9 +1398,14 @@ class _AppShellState extends State<AppShell>
                         onPressed: openAdmin,
                         icon: const Icon(Icons.admin_panel_settings_outlined),
                         label: Text(l.serverAdmin),
+                        // Same height as the collapsed IconButton. The rail
+                        // expands on hover, and the footer is bottom-anchored,
+                        // so any height change here moved the rows away from
+                        // the icon the pointer was already on - a click on
+                        // the shield landed on empty space.
                         style: TextButton.styleFrom(
                           alignment: Alignment.centerLeft,
-                          minimumSize: const Size.fromHeight(42),
+                          minimumSize: const Size.fromHeight(48),
                         ),
                       )
                     : Tooltip(
@@ -1396,10 +1419,17 @@ class _AppShellState extends State<AppShell>
                       ),
               ),
             if (serverVersion != null && serverVersion.isNotEmpty)
-              _buildDesktopServerVersion(
-                context,
-                version: serverVersion,
-                extended: extended,
+              // One slot for both layouts (two-line collapsed, one-row
+              // expanded) so the rows above stay put when the rail expands.
+              SizedBox(
+                height: 58,
+                child: Center(
+                  child: _buildDesktopServerVersion(
+                    context,
+                    version: serverVersion,
+                    extended: extended,
+                  ),
+                ),
               ),
             Divider(
               height: 1,

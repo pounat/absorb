@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import '../utils/app_platform.dart';
 import 'package:flutter/widgets.dart';
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
@@ -30,7 +30,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Appearance', l.sectionAppearance, l.rectangleBookCovers, [l.rectangleBookCoversOnSubtitle, l.rectangleBookCoversOffSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.coverSize, [l.coverSizeSubtitle, l.coverSizeSmall, l.coverSizeMedium, l.coverSizeLarge]),
     SettingSearchEntry('Appearance', l.sectionAppearance, 'Classic wording', const ['Using "Play", "Now Playing", "Finished"', 'Using "Absorb", "Absorbing", "Fully Absorbed"']),
-    if (!(Platform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600))
+    if (!(AppPlatform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600))
       SettingSearchEntry('Appearance', l.sectionAppearance, 'Lock rotation', const ['Screen stays in portrait', 'Screen can rotate with the device']),
 
     // ── Customize Stats ──
@@ -72,9 +72,9 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry(
         'Media Controls',
         l.sectionMediaControls,
-        Platform.isIOS ? l.carConnectAutoplayIos : l.carConnectAutoplay,
+        AppPlatform.isIOS ? l.carConnectAutoplayIos : l.carConnectAutoplay,
         [l.carConnectAutoplayOnSubtitle, l.carConnectAutoplayOffSubtitle]),
-    if (Platform.isAndroid) ...[
+    if (AppPlatform.isAndroid) ...[
       SettingSearchEntry('Media Controls', l.sectionMediaControls, 'Duck brief interruptions', const ['Notifications and prompts lower the volume instead of pausing', 'Notifications and prompts pause playback']),
       SettingSearchEntry('Media Controls', l.sectionMediaControls, l.speedBookmarkInControls, [l.speedBookmarkOnSubtitle, l.speedBookmarkOffSubtitle]),
     ],
@@ -103,7 +103,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.autoDownload, [l.autoDownloadSubtitle]),
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.keepNext, const []),
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, w.deleteAbsorbedDownloads, [l.deleteAbsorbedOnSubtitle, l.deleteAbsorbedOffSubtitle]),
-    if (!Platform.isIOS)
+    if (!AppPlatform.isIOS)
       SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.downloadLocation, const []),
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.manageDownloads, const []),
     SettingSearchEntry('Downloads & Storage', l.sectionDownloadsAndStorage, l.streamingCache, [l.streamingCacheOffSubtitle, l.streamingCacheOff, l.clearCache]),
@@ -122,7 +122,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
 
     // ── Permissions ──
     SettingSearchEntry('Permissions', l.sectionPermissions, l.notifications, [l.notificationsSubtitle]),
-    if (Platform.isAndroid) ...[
+    if (AppPlatform.isAndroid) ...[
       SettingSearchEntry('Permissions', l.sectionPermissions, l.settingsEpisodeNotifs, [l.settingsEpisodeNotifsDesc]),
       SettingSearchEntry('Permissions', l.sectionPermissions, l.unrestrictedBattery, [l.unrestrictedBatterySubtitle]),
     ],
@@ -140,7 +140,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Advanced', l.sectionAdvanced, l.navHoldSettingTitle, [l.navHoldSettingSubtitle]),
     SettingSearchEntry('Advanced', l.sectionAdvanced, l.localServer, [l.localServerOnConnectedSubtitle, l.localServerOnRemoteSubtitle, l.localServerOffSubtitle, l.localServerUrlLabel]),
     SettingSearchEntry('Advanced', l.sectionAdvanced, l.trustAllCertificates, [l.trustAllCertificatesOnSubtitle, l.trustAllCertificatesOffSubtitle]),
-    if (Platform.isAndroid)
+    if (AppPlatform.isAndroid)
       SettingSearchEntry('Advanced', l.sectionAdvanced, l.mp3IndexSeeking, [l.mp3IndexSeekingOnSubtitle, l.mp3IndexSeekingOffSubtitle]),
     if (const bool.fromEnvironment('GITHUB_BUILD'))
       SettingSearchEntry('Advanced', l.sectionAdvanced, l.includePreReleases, [l.includePreReleasesOnSubtitle, l.includePreReleasesOffSubtitle]),

@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'overlay_toast.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../utils/app_platform.dart';
@@ -594,7 +596,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       provider = FileImage(File(url));
     } else {
       final lib = context.read<LibraryProvider>();
-      provider = CachedNetworkImageProvider(url, headers: lib.mediaHeaders);
+      provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: lib.mediaHeaders);
     }
     final t0 = DateTime.now();
     debugPrint('[BookDetail] _deriveCoverScheme start url=$url');
@@ -645,9 +647,17 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    // In a desktop dialog the dialog already rounds and frames it; a sheet's
+    // rounded top inside that read as a phone sheet stuck in a box.
+    final inDialog = ModalSurface.isDesktopOf(context);
     return Container(
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: inDialog
+            ? BorderRadius.zero
+            : const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       child: Stack(children: [
         // Cover-derived color gradient background - lighter than blurred image.
         Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
@@ -742,7 +752,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
 
     return ListView(controller: widget.scrollController, padding: EdgeInsets.fromLTRB(20, 8, 20, 32 + MediaQuery.of(context).viewPadding.bottom), children: [
-      Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+      if (!ModalSurface.isDesktopOf(context)) Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
       if (_coverUrl != null) ...[
         Center(child: GestureDetector(
@@ -764,19 +774,19 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                             errorBuilder: (_, __, ___) => const SizedBox()),
                       )
                     : BlurPaddedCover(
-                        blurChild: CachedNetworkImage(
+                        blurChild: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                           imageUrl: _coverUrl!, fit: BoxFit.cover,
                           httpHeaders: lib.mediaHeaders,
                           errorWidget: (_, __, ___) => const SizedBox.shrink(),
                         ),
-                        child: CachedNetworkImage(
+                        child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                           imageUrl: _coverUrl!, fit: BoxFit.contain,
                           httpHeaders: lib.mediaHeaders,
                           placeholder: (_, __) => const SizedBox(),
                           errorWidget: (_, __, ___) => const SizedBox(),
                         ),
                       ))
-                : CachedNetworkImage(
+                : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                     imageUrl: _coverUrl!, fit: BoxFit.contain,
                     httpHeaders: lib.mediaHeaders,
                     placeholder: (_, __) => const SizedBox(),
@@ -1412,7 +1422,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       controller: widget.scrollController,
       padding: EdgeInsets.fromLTRB(20, 8, 20, 24 + MediaQuery.of(context).viewPadding.bottom),
       children: [
-        Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+        if (!ModalSurface.isDesktopOf(context)) Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
         // Header: cover thumb + title/author
         Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
@@ -1597,7 +1607,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       img = Image.file(File(url), fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Container(color: cs.surfaceContainerHighest));
     } else {
-      img = CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, httpHeaders: headers,
+      img = CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: url, fit: BoxFit.cover, httpHeaders: headers,
         placeholder: (_, __) => Container(color: cs.surfaceContainerHighest),
         errorWidget: (_, __, ___) => Container(color: cs.surfaceContainerHighest));
     }
@@ -1752,7 +1762,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+              if (!ModalSurface.isDesktopOf(ctx)) Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
               Flexible(
                 child: SingleChildScrollView(
@@ -2519,7 +2529,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+              if (!ModalSurface.isDesktopOf(ctx)) Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -3116,7 +3126,7 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
                   }
                 },
                 child: Center(
-                  child: CachedNetworkImage(
+                  child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                     imageUrl: widget.url,
                     httpHeaders: widget.headers,
                     fit: BoxFit.contain,

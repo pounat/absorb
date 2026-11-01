@@ -231,19 +231,28 @@ class LibraryBooksTab extends StatelessWidget {
               libraryGridBottomPadding(context),
             ),
             sliver: SliverGrid(
-              gridDelegate: libraryGridDelegate(
-                context,
-                childAspectRatio: rectangleCovers ? 0.48 : 0.68,
-                desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
-                crossAxisCount: cols,
-                // Subtitles add a line under every title, and how much room
-                // that needs depends on the cover size, so size the cell from
-                // the tile itself rather than from a second fixed ratio.
-                mainAxisExtent: showSubtitles
-                    ? coverGridTileWidth(context) / (rectangleCovers ? 0.48 : 0.68)
-                        + coverGridSubtitleHeight(context)
-                    : null,
-              ),
+              gridDelegate: isDesktopWorkspace(context)
+                  ? CoverTileGridDelegate(
+                      maxCrossAxisExtent: desktopMaxCrossAxisExtent,
+                      coverAspectRatio: coverAspectRatio,
+                      labelHeight:
+                          coverTileLabelHeight(context, subtitle: showSubtitles),
+                    )
+                  : libraryGridDelegate(
+                      context,
+                      childAspectRatio: rectangleCovers ? 0.48 : 0.68,
+                      desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
+                      crossAxisCount: cols,
+                      // Subtitles add a line under every title, and how much
+                      // room that needs depends on the cover size, so size
+                      // the cell from the tile itself rather than from a
+                      // second fixed ratio.
+                      mainAxisExtent: showSubtitles
+                          ? coverGridTileWidth(context) /
+                                  (rectangleCovers ? 0.48 : 0.68) +
+                              coverGridSubtitleHeight(context)
+                          : null,
+                    ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   maybeLoadAhead(index);

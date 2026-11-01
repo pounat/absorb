@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -1306,7 +1308,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
               child: SizedBox(
                 width: 60, height: 60,
                 child: cover.isNotEmpty
-                    ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                    ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: cover, fit: BoxFit.cover,
                         placeholder: (_, __) => _placeholder(cs),
                         errorWidget: (_, __, ___) => _placeholder(cs))
                     : _placeholder(cs),
@@ -1585,7 +1587,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
                   height: 200,
-                  child: CachedNetworkImage(
+                  child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                     imageUrl: coverUrl,
                     httpHeaders: context.read<AuthProvider>().apiService?.mediaHeaders,
                     fit: BoxFit.contain,
@@ -1722,7 +1724,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
                           borderRadius: BorderRadius.circular(8),
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: CachedNetworkImage(
+                        child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                           imageUrl: url,
                           fit: BoxFit.contain,
                           placeholder: (_, __) => _placeholder(cs),
@@ -1816,7 +1818,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
   Future<void> _showCoverPreview(String url) async {
     Size? size;
     try {
-      final provider = CachedNetworkImageProvider(url);
+      final provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url);
       final completer = Completer<Size>();
       final stream = provider.resolve(ImageConfiguration.empty);
       late final ImageStreamListener listener;
@@ -1848,7 +1850,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: InteractiveViewer(
-                    child: CachedNetworkImage(
+                    child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                       imageUrl: url,
                       fit: BoxFit.contain,
                       placeholder: (_, __) => const SizedBox(

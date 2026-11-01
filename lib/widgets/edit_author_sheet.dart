@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -407,7 +409,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
               ClipOval(
                 child: SizedBox(
                   width: 60, height: 60,
-                  child: CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover,
+                  child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: imageUrl, fit: BoxFit.cover,
                     httpHeaders: headers,
                     placeholder: (_, __) => Container(color: cs.surfaceContainerHighest),
                     errorWidget: (_, __, ___) => Container(color: cs.surfaceContainerHighest,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
@@ -444,7 +446,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
                 child: Stack(children: [
                   Positioned.fill(
                     child: coverUrl.isNotEmpty
-                        ? CachedNetworkImage(
+                        ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                             imageUrl: coverUrl, fit: BoxFit.cover,
                             placeholder: (_, __) => _placeholder(cs),
                             errorWidget: (_, __, ___) => _placeholder(cs))

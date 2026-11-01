@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
 import '../providers/auth_provider.dart';
@@ -557,13 +559,13 @@ class _CoverImage extends StatelessWidget {
 
     return EinkCoverTone(child: BlurPaddedCover(
       enabled: isSquare,
-      blurChild: CachedNetworkImage(
+      blurChild: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         imageUrl: coverUrl!,
         fit: BoxFit.cover,
         httpHeaders: httpHeaders,
         errorWidget: (_, __, ___) => const SizedBox.shrink(),
       ),
-      child: CachedNetworkImage(
+      child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         imageUrl: coverUrl!,
         fit: effectiveFit,
         httpHeaders: httpHeaders,

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../utils/cover_accent.dart';
 import '../providers/auth_provider.dart';
@@ -528,7 +530,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     if (!AppPlatform.isWeb && url.startsWith('/')) {
       provider = FileImage(File(url));
     } else {
-      provider = CachedNetworkImageProvider(url, headers: context.read<LibraryProvider>().mediaHeaders);
+      provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: context.read<LibraryProvider>().mediaHeaders);
     }
     _onCoverLoaded(provider);
   }
@@ -561,7 +563,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
         provider = FileImage(File(url));
       } else {
         final lib = context.read<LibraryProvider>();
-        provider = CachedNetworkImageProvider(url, headers: lib.mediaHeaders);
+        provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: lib.mediaHeaders);
       }
 
       final completer = Completer<ui.Image>();
@@ -842,10 +844,10 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                                       errorBuilder: (_, __, ___) => const SizedBox.shrink()),
                                                       enabled: !_rectangleCovers, child: Image.file(File(_coverUrl!), fit: _rectangleCovers ? BoxFit.cover : BoxFit.contain,
                                                       errorBuilder: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
-                                                  : BlurPaddedCover(blurChild: CachedNetworkImage(imageUrl: _coverUrl!, fit: BoxFit.cover,
+                                                  : BlurPaddedCover(blurChild: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: _coverUrl!, fit: BoxFit.cover,
                                                         httpHeaders: mediaHeaders,
                                                         errorWidget: (_, __, ___) => const SizedBox.shrink()),
-                                                      enabled: !_rectangleCovers, child: CachedNetworkImage(imageUrl: _coverUrl!, fit: _rectangleCovers ? BoxFit.cover : BoxFit.contain,
+                                                      enabled: !_rectangleCovers, child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: _coverUrl!, fit: _rectangleCovers ? BoxFit.cover : BoxFit.contain,
                                                         httpHeaders: mediaHeaders,
                                                         placeholder: (_, __) => CoverPlaceholder(title: _title, author: _author),
                                                         errorWidget: (_, __, ___) => CoverPlaceholder(title: _title, author: _author)))
@@ -1138,7 +1140,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
                     errorBuilder: (_, __, ___) => Container(color: isDark ? Colors.black : Colors.white)),
                 );
               })
-            : CachedNetworkImage(
+            : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                 imageUrl: _coverUrl!,
                 fit: BoxFit.cover,
                 httpHeaders: mediaHeaders,

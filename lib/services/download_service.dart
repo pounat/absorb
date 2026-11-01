@@ -429,6 +429,10 @@ class DownloadService extends ChangeNotifier {
 
   /// Calculate total size of all downloaded files.
   Future<int> get totalDownloadSize async {
+    // No downloads in a browser, and no app directory to look in: asking for
+    // one threw, which failed the Settings load and left every control there
+    // disabled on the web.
+    if (AppPlatform.isWeb) return 0;
     await hydrateEbookCacheDir();
     int total = 0;
     for (final info in _downloads.values) {

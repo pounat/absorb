@@ -1,3 +1,4 @@
+import '../utils/app_platform.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -216,7 +217,7 @@ class _BackupSyncScreenState extends State<BackupSyncScreen> {
 
       if (result != null) {
         // Desktop platforms need manual file write; mobile writes via bytes param
-        if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        if (AppPlatform.isWindows || AppPlatform.isLinux || AppPlatform.isMacOS) {
           await File(result).writeAsString(jsonStr);
         }
         if (mounted) {

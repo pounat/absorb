@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1339,7 +1341,7 @@ class _AdminSessionDetailsSheet extends StatelessWidget {
                         height: 88,
                         color: cs.onSurface.withValues(alpha: 0.06),
                         child: coverUrl != null
-                            ? CachedNetworkImage(
+                            ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                 imageUrl: coverUrl,
                                 fit: BoxFit.cover,
                                 errorWidget: (_, __, ___) => Icon(

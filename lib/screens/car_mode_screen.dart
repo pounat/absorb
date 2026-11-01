@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart' hide PlaybackEvent;
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../main.dart' show applyOrientationLock;
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -357,7 +359,7 @@ class _CarModeScreenState extends State<CarModeScreen>
                                         ? (_isLocalCover
                                             ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                                 errorBuilder: (_, __, ___) => _placeholderCover(cs))
-                                            : CachedNetworkImage(
+                                            : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                                 imageUrl: coverUrl,
                                                 fit: BoxFit.cover,
                                                 httpHeaders: auth.apiService?.mediaHeaders ?? {},

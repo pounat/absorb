@@ -1,5 +1,5 @@
+import '../utils/app_platform.dart';
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
@@ -1369,7 +1369,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
       final contentUrl = track['contentUrl'] as String?;
       if (contentUrl == null) return;
       source = api.buildTrackUrl(contentUrl);
-      if (Platform.isIOS) {
+      if (AppPlatform.isIOS) {
         remote = RemoteTrack(
           url: source,
           headers: api.mediaHeaders,

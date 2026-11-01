@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../widgets/absorbing_shared.dart';
@@ -1053,7 +1055,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
           errorBuilder: (_, __, ___) => fallback,
         );
       }
-      return CachedNetworkImage(
+      return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         imageUrl: coverUrl,
         fit: fit,
         httpHeaders: headers,
@@ -1100,7 +1102,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
     if (coverUrl.startsWith('/')) {
       provider = FileImage(File(coverUrl));
     } else {
-      provider = CachedNetworkImageProvider(
+      provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         coverUrl,
         headers: widget.lib.mediaHeaders,
       );

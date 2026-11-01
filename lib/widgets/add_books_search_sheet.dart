@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -296,7 +298,7 @@ class _AddBooksSearchSheetState extends State<AddBooksSearchSheet> {
                   width: 44,
                   height: 44,
                   child: coverUrl != null && !coverUrl.startsWith('/')
-                      ? CachedNetworkImage(
+                      ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                           imageUrl: coverUrl,
                           fit: BoxFit.cover,
                           httpHeaders: lib.mediaHeaders,

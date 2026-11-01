@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -1111,7 +1113,7 @@ class _BookCover extends StatelessWidget {
       return _placeholder();
     }
 
-    return CachedNetworkImage(
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
       imageUrl: coverUrl!,
       fit: BoxFit.cover,
       httpHeaders: mediaHeaders,

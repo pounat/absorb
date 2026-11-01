@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -35,7 +36,7 @@ import 'admin_podcasts_screen.dart';
 import 'app_shell.dart';
 import 'upcoming_releases_screen.dart';
 import '../widgets/audible_series_sheet.dart' show showAudibleRegionPicker;
-import '../widgets/books_sheet_shared.dart' show coverGridCount;
+import '../widgets/books_sheet_shared.dart' show coverGridCount, coverGridTextScale;
 import '../widgets/offline_status_icon.dart';
 import '../widgets/rmab_config_sheet.dart'
     show kRmabBaseUrlKey, kRmabApiTokenKey;
@@ -89,6 +90,58 @@ SliverGridDelegate libraryGridDelegateForWidth(
     crossAxisSpacing: 10,
     mainAxisSpacing: 10,
   );
+}
+
+/// Desktop cover grid whose cells are exactly cover plus labels. A fixed
+/// aspect ratio only fits one tile size; the desktop zoom makes tiles as wide
+/// as 200+ px, where the ratio left a tall blank strip under every title.
+class CoverTileGridDelegate extends SliverGridDelegate {
+  const CoverTileGridDelegate({
+    required this.maxCrossAxisExtent,
+    required this.coverAspectRatio,
+    required this.labelHeight,
+    this.spacing = 10,
+  });
+
+  final double maxCrossAxisExtent;
+  final double coverAspectRatio;
+  final double labelHeight;
+  final double spacing;
+
+  @override
+  SliverGridLayout getLayout(SliverConstraints constraints) {
+    final width = constraints.crossAxisExtent;
+    // Same column rule as SliverGridDelegateWithMaxCrossAxisExtent.
+    final count = max(1, (width / (maxCrossAxisExtent + spacing)).ceil());
+    final tileWidth = max(0.0, (width - spacing * (count - 1)) / count);
+    final tileHeight = tileWidth / coverAspectRatio + labelHeight;
+    return SliverGridRegularTileLayout(
+      crossAxisCount: count,
+      mainAxisStride: tileHeight + spacing,
+      crossAxisStride: tileWidth + spacing,
+      childMainAxisExtent: tileHeight,
+      childCrossAxisExtent: tileWidth,
+      reverseCrossAxis: axisDirectionIsReversed(constraints.crossAxisDirection),
+    );
+  }
+
+  @override
+  bool shouldRelayout(CoverTileGridDelegate oldDelegate) =>
+      oldDelegate.maxCrossAxisExtent != maxCrossAxisExtent ||
+      oldDelegate.coverAspectRatio != coverAspectRatio ||
+      oldDelegate.labelHeight != labelHeight ||
+      oldDelegate.spacing != spacing;
+}
+
+/// Height of a book tile's labels under the cover: the gap, a title line and
+/// an author line, plus a subtitle line when shown. Line heights follow
+/// labelSmall's 1.45 at the tile's text scale.
+double coverTileLabelHeight(BuildContext context, {required bool subtitle}) {
+  final scale = coverGridTextScale(context);
+  final scaler = MediaQuery.textScalerOf(context);
+  final title = scaler.scale(11 * scale) * 1.45;
+  final line = scaler.scale(10 * scale) * 1.45;
+  return 5 + title + line + (subtitle ? line : 0) + 4;
 }
 
 SliverGridDelegate libraryGridDelegate(
@@ -369,7 +422,12 @@ class LibraryScreenState extends State<LibraryScreen>
       if (!_focusNode.hasFocus) {
         FocusScope.of(context).requestFocus(_focusNode);
       }
-      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      // Only phones need the keyboard nudged up. In a browser this made a
+      // second, unconnected input take the focus: typing after the rail's
+      // Search button went into it and never reached the search box.
+      if (!kIsWeb) {
+        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      }
     });
   }
 
@@ -3016,12 +3074,16 @@ class LibraryScreenState extends State<LibraryScreen>
       // (we already wrap the whole NestedScrollView in
       // SafeArea above).
       primary: false,
-      toolbarHeight: _isInSearchMode
-          ? 156
-          : ((_filter != LibraryFilter.none ||
-                    _seriesFilter != SeriesFilter.none)
-                ? 204
-                : 192),
+      // Desktop puts the title beside the header actions instead of under the
+      // ABSORB wordmark, a row shorter; the phone height left an empty band
+      // above the grid there.
+      toolbarHeight: (_isInSearchMode
+              ? 156
+              : ((_filter != LibraryFilter.none ||
+                        _seriesFilter != SeriesFilter.none)
+                    ? 204
+                    : 192)) -
+          (desktop ? 40 : 0),
       backgroundColor: scaffoldBg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
@@ -3188,7 +3250,11 @@ class LibraryScreenState extends State<LibraryScreen>
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                       child: Row(
                         children: [
+                          // Flex against the Spacer below: at an even split
+                          // the box only got half the room and cut off its
+                          // own placeholder.
                           Flexible(
+                            flex: 4,
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 560),
                               child: searchBar,

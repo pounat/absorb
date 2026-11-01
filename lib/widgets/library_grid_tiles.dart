@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
@@ -94,13 +96,16 @@ class _GridBookTileState extends State<GridBookTile> {
         !lib.isOffline &&
         isDesktopWorkspace(context) &&
         (context.watch<AuthProvider?>()?.canUpdateMetadata ?? false);
-    // Desktop hover actions only; selection is drawn by the tile itself.
+    // Desktop hover actions. Once select mode is on the tile draws its own
+    // check, so the hover circle is only the way in: clicking it starts
+    // select mode with this book picked, like the home rows.
     return HoverCoverActions(
       onMenu: (!widget.selectionMode && itemId.isNotEmpty && !lib.isPodcastLibrary)
           ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
           : null,
       editItemId: canEdit && !widget.selectionMode ? itemId : null,
       selectionMode: widget.selectionMode,
+      onSelectionToggle: widget.selectionMode ? null : widget.onSelectionToggle,
       child: GestureDetector(
       // opaque so taps on the blank space below the title (the tile's tall
       // aspect ratio leaves a gap when the Column children stop short)
@@ -338,7 +343,7 @@ class _GridBookTileState extends State<GridBookTile> {
             cacheWidth: decodeWidth,
             errorBuilder: (_, __, ___) => placeholder);
       }
-      return CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
+      return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: coverUrl, fit: BoxFit.cover,
           httpHeaders: headers, memCacheWidth: decodeWidth,
           placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder);
@@ -358,11 +363,11 @@ class _GridBookTileState extends State<GridBookTile> {
       ]);
     }
     return Stack(fit: StackFit.expand, children: [
-      CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
+      CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: coverUrl, fit: BoxFit.cover,
           httpHeaders: headers, memCacheWidth: 32,
           errorWidget: (_, __, ___) => const SizedBox.shrink()),
       Container(color: Colors.black.withValues(alpha: 0.15)),
-      CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.contain,
+      CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: coverUrl, fit: BoxFit.contain,
           httpHeaders: headers, memCacheWidth: decodeWidth,
           placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder),
@@ -510,7 +515,7 @@ class _StackedCovers extends StatelessWidget {
           cacheWidth: decodeWidth,
           errorBuilder: (_, __, ___) => _placeholder());
     }
-    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: url, fit: BoxFit.cover,
         httpHeaders: mediaHeaders, memCacheWidth: decodeWidth,
         placeholder: (_, __) => _placeholder(),
         errorWidget: (_, __, ___) => _placeholder());
@@ -941,7 +946,7 @@ class GridAuthorTile extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   child: imageUrl != null
                       ? ClipOval(
-                          child: CachedNetworkImage(
+                          child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
                             httpHeaders: headers,

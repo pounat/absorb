@@ -1,3 +1,4 @@
+import '../utils/app_platform.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -5246,7 +5247,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       ),
       // Cast is Android only; iPhones get the AirPlay route picker instead,
       // same split as the card.
-      if (Platform.isIOS)
+      if (AppPlatform.isIOS)
         MoreMenuItem(
           icon: Icons.airplay_rounded,
           label: 'AirPlay',

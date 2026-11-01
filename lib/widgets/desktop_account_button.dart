@@ -44,7 +44,8 @@ class DesktopAccountButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.all(8),
-              child: extended
+              // Fixed so the row is the same height in both rail states.
+              child: SizedBox(height: 40, child: extended
                   ? Row(
                       children: [
                         avatar,
@@ -79,7 +80,7 @@ class DesktopAccountButton extends StatelessWidget {
                         ),
                       ],
                     )
-                  : Center(child: avatar),
+                  : Center(child: avatar)),
             ),
           ),
         ),

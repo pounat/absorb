@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +21,7 @@ import '../screens/app_shell.dart';
 import '../build_info.dart';
 import '../services/update_checker_service.dart';
 import '../services/audiobookshelf_update_service.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/nav_hold_options.dart';
 import '../screens/admin_screen.dart';
@@ -34,6 +34,7 @@ import '../screens/auth_sessions_screen.dart';
 import '../screens/transcription_settings_screen.dart';
 import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
+import '../utils/app_platform.dart';
 import '../utils/share_origin.dart';
 import '../widgets/settings_search.dart';
 import 'settings_search_index.dart';
@@ -194,12 +195,14 @@ class SettingsScreenState extends State<SettingsScreen> {
   static const _isDevBuild = bool.fromEnvironment('DEV_BUILD');
   // Distribution label shown next to the version. The F-Droid build passes
   // no define, so it falls through here.
-  static String get _flavorLabel => _isDevBuild
-      ? 'Dev'
-      : _isGithubBuild ? 'GitHub' : _isPlayStoreBuild ? 'Play Store' : 'F-Droid';
+  static String get _flavorLabel => AppPlatform.isWeb
+      ? 'Web'
+      : _isDevBuild
+          ? 'Dev'
+          : _isGithubBuild ? 'GitHub' : _isPlayStoreBuild ? 'Play Store' : 'F-Droid';
 
   String _versionLine(AppLocalizations l) {
-    final base = Platform.isIOS
+    final base = AppPlatform.isIOS
         ? l.appVersionFormat(_appVersion)
         : '$_flavorLabel - $_appVersion';
     final beta = betaNumberFor(_appVersion);
@@ -2269,7 +2272,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ),
                     // iPadOS ignores orientation preferences for multitasking
                     // apps, so the lock can't work there - hide it on iPad.
-                    if (!(Platform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600)) ...[
+                    if (!(AppPlatform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600)) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       SwitchListTile(
                         title: const Text('Lock rotation'),
@@ -2885,7 +2888,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         PlayerSettings.setForwardSkip(v.round());
                       } : null,
                     ),
-                    if (Platform.isIOS)
+                    if (AppPlatform.isIOS)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                         child: Text(
@@ -3137,12 +3140,12 @@ class SettingsScreenState extends State<SettingsScreen> {
                   onExpansionChanged: (v) => _onSectionExpanded('Media Controls', v),
                   children: [
                     SwitchListTile(
-                      title: Text(Platform.isIOS
+                      title: Text(AppPlatform.isIOS
                           ? l.chapterProgressInNotificationIos
                           : l.chapterProgressInNotification),
                       subtitle: Text(
                         _notifChapterProgress
-                            ? (Platform.isIOS
+                            ? (AppPlatform.isIOS
                                 ? l.chapterProgressOnSubtitleIos
                                 : l.chapterProgressOnSubtitle)
                             : l.chapterProgressOffSubtitle,
@@ -3169,7 +3172,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     SwitchListTile(
-                      title: Text(Platform.isIOS
+                      title: Text(AppPlatform.isIOS
                           ? l.carConnectAutoplayIos
                           : l.carConnectAutoplay),
                       subtitle: Text(
@@ -3185,7 +3188,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ),
                     // Android only: chooses which pair fills the phone media
                     // player's two extra slots. iOS uses CarPlay's own buttons.
-                    if (Platform.isAndroid) ...[
+                    if (AppPlatform.isAndroid) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       SwitchListTile(
                         title: const Text('Duck brief interruptions'),
@@ -3228,6 +3231,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Sleep Timer',
                   onExpansionChanged: (v) => _onSectionExpanded('Sleep Timer', v),
                   children: [
+                    // A browser has no motion sensor to shake.
+                    if (!AppPlatform.isWeb) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                       child: Text(l.shakeDuringSleepTimer, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
@@ -3278,6 +3283,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 4),
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
+                    ],
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                       child: Text(l.buttonDuringSleepTimer, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
@@ -3309,7 +3315,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                     // Shared by shake and button add-time modes, so it shows
                     // whenever either trigger needs it
-                    if (_shakeMode == 'addTime' || _sleepButtonMode == 'addTime') ...[
+                    if ((!AppPlatform.isWeb && _shakeMode == 'addTime') || _sleepButtonMode == 'addTime') ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -3721,7 +3727,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    if (!Platform.isIOS && _canPickDownloadLocation)
+                    if (!AppPlatform.isIOS && _canPickDownloadLocation)
                     ListTile(
                       leading: Icon(Icons.folder_outlined, color: cs.primary),
                       title: Text(l.downloadLocation),
@@ -4052,7 +4058,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         }
                       },
                     ),
-                    if (Platform.isAndroid) ...[
+                    if (AppPlatform.isAndroid) ...[
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
                       leading: const Icon(Icons.notifications_active_outlined),
@@ -4241,6 +4247,9 @@ class SettingsScreenState extends State<SettingsScreen> {
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: _showNavHoldDialog,
                     ),
+                    // The page origin is the server and the browser owns TLS, so
+                    // neither a LAN switch nor a certificate override applies.
+                    if (!AppPlatform.isWeb) ...[
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     SwitchListTile(
                       title: Row(children: [
@@ -4313,7 +4322,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                         applyTrustAllCerts(v);
                       } : null,
                     ),
-                    if (Platform.isAndroid) ...[
+                    ],
+                    if (AppPlatform.isAndroid) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       SwitchListTile(
                         title: Row(children: [
@@ -4363,6 +4373,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                       trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                       onTap: _openRmabSheetFromSettings,
                     ),
+                    // Transcription runs on-device; the web build only has a stub.
+                    if (!AppPlatform.isWeb) ...[
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
                       leading: Icon(Icons.record_voice_over_rounded, color: cs.primary),
@@ -4373,6 +4385,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       onTap: () => Navigator.push(context, MaterialPageRoute(
                         builder: (_) => const TranscriptionSettingsScreen())),
                     ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -4897,7 +4910,8 @@ class SettingsScreenState extends State<SettingsScreen> {
     final userType = auth.isRoot ? l.rootAdmin : auth.isAdmin ? l.admin : l.userFallback;
     final libraryCount = lib.libraries.length;
 
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
+      desktopScrollWrap: false,
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -4908,7 +4922,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => SafeArea(
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Center(child: Container(margin: const EdgeInsets.only(top: 12), width: 36, height: 4,
+            if (!ModalSurface.isDesktopOf(ctx)) Center(child: Container(margin: const EdgeInsets.only(top: 12), width: 36, height: 4,
               decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 16),
           // Current user info

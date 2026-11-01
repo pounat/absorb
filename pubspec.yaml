@@ -25,6 +25,9 @@ dependencies:
   
   # Image caching
   cached_network_image: ^3.3.0
+  # For ImageRenderMethodForWeb: web covers decode through Flutter instead of
+  # borrowing <img> elements the browser can empty (they drew black).
+  cached_network_image_platform_interface: ^4.1.1
 
   # Audio playback
   just_audio:

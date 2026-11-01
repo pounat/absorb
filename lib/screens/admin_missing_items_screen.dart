@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../services/socket_service.dart';
@@ -301,7 +303,7 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
                 height: 40,
                 child: api == null
                     ? _coverPlaceholder(cs)
-                    : CachedNetworkImage(
+                    : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                         imageUrl: api.getCoverUrl(id, width: 120),
                         httpHeaders: api.mediaHeaders,
                         fit: BoxFit.cover,

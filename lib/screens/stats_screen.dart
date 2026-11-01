@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -921,7 +923,7 @@ class _StatsScreenState extends State<StatsScreen>
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) => ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: CachedNetworkImage(
+              child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                 imageUrl: api.getCoverUrl(coverIds[i], width: 120),
                 width: 64,
                 height: 64,
@@ -2425,7 +2427,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
                         height: 88,
                         color: cs.onSurface.withValues(alpha: 0.06),
                         child: coverUrl != null
-                            ? CachedNetworkImage(
+                            ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                 imageUrl: coverUrl,
                                 fit: BoxFit.cover,
                                 errorWidget: (_, __, ___) => Icon(

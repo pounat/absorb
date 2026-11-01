@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/library_provider.dart';
@@ -533,7 +535,7 @@ class _DownloadCard extends StatelessWidget {
         }
         return _coverPlaceholder();
       }
-      return CachedNetworkImage(
+      return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         imageUrl: info.coverUrl!,
         fit: BoxFit.cover,
         httpHeaders: mediaHeaders,
@@ -665,7 +667,7 @@ class _ActiveDownloadCard extends StatelessWidget {
         }
         return _coverPlaceholder();
       }
-      return CachedNetworkImage(
+      return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         imageUrl: info.coverUrl!,
         fit: BoxFit.cover,
         httpHeaders: mediaHeaders,

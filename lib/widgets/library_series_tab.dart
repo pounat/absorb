@@ -93,11 +93,18 @@ class LibrarySeriesTab extends StatelessWidget {
               libraryGridBottomPadding(context),
             ),
             sliver: SliverGrid(
-              gridDelegate: libraryGridDelegate(
-                context,
-                childAspectRatio: rectangleCovers ? 0.48 : 0.68,
-                desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
-              ),
+              gridDelegate: isDesktopWorkspace(context)
+                  ? CoverTileGridDelegate(
+                      maxCrossAxisExtent: desktopMaxCrossAxisExtent,
+                      coverAspectRatio: coverAspectRatio,
+                      labelHeight:
+                          coverTileLabelHeight(context, subtitle: false),
+                    )
+                  : libraryGridDelegate(
+                      context,
+                      childAspectRatio: rectangleCovers ? 0.48 : 0.68,
+                      desktopMaxCrossAxisExtent: desktopMaxCrossAxisExtent,
+                    ),
               delegate: SliverChildBuilderDelegate((context, index) {
                 if (index >= seriesItems.length) {
                   return const Center(

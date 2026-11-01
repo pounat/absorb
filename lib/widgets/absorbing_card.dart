@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../utils/cover_accent.dart';
 import '../providers/auth_provider.dart';
@@ -609,7 +611,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     if (coverUrl.startsWith('/')) {
       provider = FileImage(File(coverUrl));
     } else {
-      provider = CachedNetworkImageProvider(
+      provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         coverUrl,
         headers: headers,
         cacheKey: coverIdentity,

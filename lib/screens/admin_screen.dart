@@ -152,8 +152,16 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
 
   void _startTaskRefreshTimer() {
     _taskRefreshTimer?.cancel();
+    DateTime? last;
     _taskRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      unawaited(_refreshServerTasks());
+      // Socket events carry task changes; poll fast only while one runs or
+      // the socket is down, otherwise catch up once a minute.
+      final due = last == null ||
+          DateTime.now().difference(last!) >= const Duration(minutes: 1);
+      if (_taskTracker.runningCount > 0 || !SocketService().isConnected || due) {
+        last = DateTime.now();
+        unawaited(_refreshServerTasks());
+      }
     });
   }
 
