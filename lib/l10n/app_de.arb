@@ -2029,7 +2029,6 @@
   "unmark": "Markierung entfernen",
   "markedAsNotFinishedBackAtIt": "Als nicht beendet markiert - weiter geht's!",
   "resetProgressQuestion": "Fortschritt zurücksetzen?",
-  "resetProgressContent": "Dadurch wird der gesamte Fortschritt für dieses Buch gelöscht und es auf den Anfang zurückgesetzt. Das kann nicht rückgängig gemacht werden.",
   "progressResetFreshStart": "Fortschritt zurückgesetzt - frischer Start!",
   "clearLocalMetadataQuestion": "Lokale Metadaten löschen?",
   "clearLocalMetadataContent": "Dadurch werden die lokal gespeicherten Metadaten entfernt und auf das zurückgesetzt, was der Server hat.",
