@@ -84,6 +84,40 @@
 			<string>audio</string>
 			<string>fetch</string>
 		</array>
+		<key>BGTaskSchedulerPermittedIdentifiers</key>
+		<array>
+			<string>com.barnabas.absorb.episodeNotifCheck</string>
+		</array>
+		<key>NSSiriUsageDescription</key>
+		<string>Siri can play, pause and find your audiobooks and podcasts in Absorb.</string>
+		<key>INIntentsSupported</key>
+		<array>
+			<string>INPlayMediaIntent</string>
+		</array>
+		<key>INSupportedMediaCategories</key>
+		<array>
+			<string>INMediaCategoryAudiobooks</string>
+			<string>INMediaCategoryPodcasts</string>
+		</array>
+		<key>INAlternativeAppNames</key>
+		<array>
+			<dict>
+				<key>INAlternativeAppName</key>
+				<string>Absorb Audiobooks</string>
+				<key>INAlternativeAppNamePronunciationHint</key>
+				<string>ab sorb audio books</string>
+			</dict>
+			<dict>
+				<key>INAlternativeAppName</key>
+				<string>Absorb Player</string>
+				<key>INAlternativeAppNamePronunciationHint</key>
+				<string>ab sorb player</string>
+			</dict>
+		</array>
+		<key>NSUserActivityTypes</key>
+		<array>
+			<string>INPlayMediaIntent</string>
+		</array>
 		<key>NSAppTransportSecurity</key>
 		<dict>
 			<key>NSAllowsArbitraryLoads</key>
@@ -91,14 +125,6 @@
 		</dict>
 		<key>CFBundleURLTypes</key>
 		<array>
-			<dict>
-				<key>CFBundleTypeRole</key>
-				<string>Editor</string>
-				<key>CFBundleURLSchemes</key>
-				<array>
-					<string>audiobookshelf</string>
-				</array>
-			</dict>
 			<dict>
 				<key>CFBundleTypeRole</key>
 				<string>Viewer</string>

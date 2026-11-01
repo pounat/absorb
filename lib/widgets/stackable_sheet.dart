@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/desktop_workspace.dart';
 import 'adaptive_modal.dart';
+import 'books_sheet_shared.dart';
 
 const int maxSheetDepth = 3;
 final List<Route<dynamic>> _activeSheetRoutes = [];
@@ -39,7 +40,7 @@ Future<T?> showStackableSheet<T>({
   if (isDesktopWorkspace(context)) {
     return showDesktopSheetDialog<T>(
       context: context,
-      builder: builder,
+      builder: (ctx, sc) => CoverGridScope(child: builder(ctx, sc)),
       maxWidth: desktopWidth,
       backgroundColor: backgroundColor,
       onRouteCaptured: _activeSheetRoutes.add,
@@ -53,12 +54,16 @@ Future<T?> showStackableSheet<T>({
     enableDrag: true,
     useSafeArea: useSafeArea,
     backgroundColor: backgroundColor ?? (showHandle ? null : Colors.transparent),
-    builder: (_) => _StackableSheet(
-      initialChildSize: initialChildSize,
-      minChildSize: minChildSize,
-      maxChildSize: maxChildSize,
-      showHandle: showHandle,
-      builder: builder,
+    // Sheets are capped narrower than a landscape screen; cover grids inside
+    // size their columns from the sheet, not the screen.
+    builder: (_) => CoverGridScope(
+      child: _StackableSheet(
+        initialChildSize: initialChildSize,
+        minChildSize: minChildSize,
+        maxChildSize: maxChildSize,
+        showHandle: showHandle,
+        builder: builder,
+      ),
     ),
   );
 }

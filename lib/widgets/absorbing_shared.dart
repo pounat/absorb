@@ -307,14 +307,23 @@ class _DownloadWideButtonState extends State<DownloadWideButton> {
     if (api == null) return;
     final l = AppLocalizations.of(context)!;
     if (dl.isDownloaded(widget.itemId)) {
+      final onPhone = await dl.onPhone(widget.itemId);
+      if (!context.mounted) return;
+      if (onPhone.audio && onPhone.ebookBytes != null && !onPhone.fromEbook) {
+        await _pickWhatToRemove(context, dl, onPhone);
+        return;
+      }
       showDialog(context: context, builder: (ctx) => AlertDialog(
         title: Text(l.removeDownloadQuestion),
         content: Text(l.removeDownloadContent),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
-          TextButton(onPressed: () {
-            dl.deleteDownload(widget.itemId, byUser: true);
+          TextButton(onPressed: () async {
             Navigator.pop(ctx);
+            // A narrated EPUB's text and the audio taken out of it go together.
+            if (onPhone.fromEbook) await dl.deleteEbookCopy(widget.itemId);
+            await dl.deleteDownload(widget.itemId, byUser: true);
+            if (!context.mounted) return;
             showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
           },
             child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
@@ -328,6 +337,66 @@ class _DownloadWideButtonState extends State<DownloadWideButton> {
         showOverlayToast(context, error, icon: Icons.error_outline_rounded);
       }
     }
+  }
+
+  /// Both the audiobook and its ebook are on the phone: remove either or
+  /// both, everything picked to start with.
+  Future<void> _pickWhatToRemove(BuildContext context, DownloadService dl,
+      ({bool audio, int? audioBytes, int? ebookBytes, bool fromEbook}) onPhone) async {
+    final l = AppLocalizations.of(context)!;
+    String size(int? bytes) {
+      if (bytes == null) return '';
+      if (bytes < 1048576) return '${(bytes / 1024).ceil()} KB';
+      if (bytes < 1073741824) return '${(bytes / 1048576).toStringAsFixed(1)} MB';
+      return '${(bytes / 1073741824).toStringAsFixed(2)} GB';
+    }
+
+    var audio = true, ebook = true;
+    final remove = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text(l.removeDownloadQuestion),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(l.removeWhichDownload),
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: audio,
+              onChanged: (v) => setDialog(() => audio = v ?? false),
+              title: Text(l.fileInfoAudio),
+              subtitle: onPhone.audioBytes == null ? null : Text(size(onPhone.audioBytes)),
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: ebook,
+              onChanged: (v) => setDialog(() => ebook = v ?? false),
+              title: Text(l.fileInfoEbook),
+              subtitle: Text(size(onPhone.ebookBytes)),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
+            TextButton(
+              onPressed: audio || ebook ? () => Navigator.pop(ctx, true) : null,
+              child: Text(l.remove, style: TextStyle(color: audio || ebook ? Colors.redAccent : null)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (remove != true || !context.mounted) return;
+    if (audio && ebook) {
+      await dl.deleteEbookCopy(widget.itemId);
+      await dl.deleteDownload(widget.itemId, byUser: true);
+    } else if (audio) {
+      await dl.deleteAudioKeepEbook(widget.itemId);
+    } else {
+      await dl.deleteEbookCopy(widget.itemId);
+    }
+    if (!context.mounted) return;
+    showOverlayToast(context, audio ? l.downloadRemoved : l.ebookRemovedOffline,
+        icon: Icons.delete_outline_rounded);
   }
 }
 

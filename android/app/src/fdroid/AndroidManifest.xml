@@ -27,5 +27,6 @@
         <!-- Wear OS Data Layer (GMS) -->
         <service android:name=".WearAuthListenerService" tools:node="remove"/>
         <service android:name=".WearPlayerCommandListenerService" tools:node="remove"/>
+        <service android:name=".WearSessionListenerService" tools:node="remove"/>
     </application>
 </manifest>

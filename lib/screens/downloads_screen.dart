@@ -1,13 +1,20 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/ebook_cache.dart';
+import '../widgets/ebook_router.dart';
+import '../services/wording.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/card_buttons.dart' show showErrorToast;
+import 'app_shell.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 
@@ -73,16 +80,19 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     });
   }
 
-  /// The completed downloads currently visible, honoring the same library
-  /// filter as the list - select-all must never grab hidden items or a bulk
-  /// delete would remove downloads the user can't see.
+  /// The completed downloads and kept ebooks currently visible, honoring the
+  /// same library filter as the list - select-all must never grab hidden
+  /// items or a bulk delete would remove downloads the user can't see.
   List<DownloadInfo> _visibleCompleted() {
     final lib = context.read<LibraryProvider>();
     final activeLibId = lib.selectedLibraryId;
     final shouldFilter = !lib.isOffline && !_mergeLibraries && activeLibId != null;
-    final completed = DownloadService().downloadedItems;
-    if (!shouldFilter) return completed;
-    return completed
+    final ds = DownloadService();
+    final completed = ds.downloadedItems;
+    final downloadedIds = completed.map((d) => d.itemId).toSet();
+    final all = [...completed, ...ds.keptEbooks.where((e) => !downloadedIds.contains(e.itemId))];
+    if (!shouldFilter) return all;
+    return all
         .where((d) => d.libraryId == null || d.libraryId == activeLibId)
         .toList();
   }
@@ -123,8 +133,14 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
     if (confirmed != true || !mounted) return;
 
+    final ds = DownloadService();
+    final downloadedIds = ds.downloadedItems.map((d) => d.itemId).toSet();
     for (final itemId in _selected.toList()) {
-      await DownloadService().deleteDownload(itemId, byUser: true);
+      if (downloadedIds.contains(itemId)) {
+        await ds.deleteDownload(itemId, byUser: true);
+      } else {
+        await ds.deleteKeptEbook(itemId);
+      }
     }
 
     _exitSelection();
@@ -163,6 +179,98 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       showOverlayToast(context, l.downloadsRemovedTitle(info.title ?? ''),
           icon: Icons.delete_outline_rounded);
     }
+  }
+
+  Future<void> _openEbook(DownloadInfo info) async {
+    final l = AppLocalizations.of(context)!;
+    final ebookFile = await cachedEbookFileFor(info.itemId);
+    if (!mounted) return;
+    if (ebookFile == null) {
+      showOverlayToast(context, l.findInEbookNoEbook,
+          icon: Icons.menu_book_outlined);
+      return;
+    }
+    await openEbookReader(
+      context,
+      itemId: info.itemId,
+      title: info.title ?? '',
+      ebookFile: ebookFile,
+    );
+  }
+
+  Future<void> _deleteEbook(DownloadInfo info) async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.delete_outline_rounded),
+        title: Text(l.downloadsDeleteCount(1)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await DownloadService().deleteKeptEbook(info.itemId);
+    await _load();
+    if (mounted) {
+      showOverlayToast(context, l.downloadsRemovedTitle(info.title ?? ''),
+          icon: Icons.delete_outline_rounded);
+    }
+  }
+
+  /// Plays straight from the download record, so it works offline and from
+  /// any library - the one way to reach a downloaded podcast when the app
+  /// started offline stuck in a book library.
+  Future<void> _play(DownloadInfo info) async {
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null || info.localPaths.isEmpty) return;
+    debugPrint(
+        '[Downloads] Play ${info.itemId} from the downloads list (library=${info.libraryId})');
+    final isEpisode = info.itemId.length > 36;
+    final itemId = isEpisode ? info.itemId.substring(0, 36) : info.itemId;
+    final episodeId = isEpisode ? info.itemId.substring(37) : null;
+    double duration = 0;
+    List<dynamic> chapters = const [];
+    final sessionJson = info.sessionData;
+    if (sessionJson != null) {
+      try {
+        final session = jsonDecode(sessionJson) as Map<String, dynamic>;
+        duration = (session['duration'] as num?)?.toDouble() ?? 0;
+        chapters = session['chapters'] as List<dynamic>? ?? const [];
+      } catch (_) {}
+    }
+    final title = info.title ?? '';
+    // Episode downloads store the episode as the title and the show as the
+    // author, which is what playItem wants for an episode.
+    final error = await AudioPlayerService().playItem(
+      api: api,
+      itemId: itemId,
+      title: title,
+      author: info.author ?? '',
+      coverUrl: api.getCoverUrl(itemId),
+      totalDuration: duration,
+      chapters: isEpisode ? const [] : chapters,
+      episodeId: episodeId,
+      episodeTitle: isEpisode ? title : null,
+      libraryId: info.libraryId,
+      fromUi: true,
+    );
+    if (!mounted) return;
+    if (error != null) {
+      showErrorToast(context, error);
+      return;
+    }
+    context.read<LibraryProvider>().addToAbsorbing(info.itemId);
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    AppShell.goToAbsorbingGlobal();
   }
 
   static String _formatBytes(int bytes) {
@@ -223,7 +331,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                           onPressed: _exitSelection,
                         ),
                       ] else ...[
-                        if (_items.isNotEmpty)
+                        if (_items.isNotEmpty || _visibleCompleted().isNotEmpty)
                           IconButton(
                             icon: Icon(Icons.checklist_rounded,
                                 color: cs.onSurfaceVariant),
@@ -259,7 +367,14 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         final active = filterByLibrary(ds.activeDownloads);
                         final queued = filterByLibrary(ds.queuedDownloads);
                         final completed = filterByLibrary(ds.downloadedItems);
-                        final hasAny = active.isNotEmpty || queued.isNotEmpty || completed.isNotEmpty;
+                        final downloadedIds = completed.map((d) => d.itemId).toSet();
+                        final ebooks = filterByLibrary(ds.keptEbooks)
+                            .where((e) => !downloadedIds.contains(e.itemId))
+                            .toList();
+                        final hasAny = active.isNotEmpty ||
+                            queued.isNotEmpty ||
+                            completed.isNotEmpty ||
+                            ebooks.isNotEmpty;
 
                         if (!hasAny) {
                           return Center(
@@ -338,10 +453,38 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                   selecting: _selecting,
                                   isSelected: _selected.contains(info.itemId),
                                   onToggle: () => _toggleSelect(info.itemId),
+                                  onPlay: () => _play(info),
                                   onLongPress: () => _enterSelection(info.itemId),
                                   onDelete: () => _deleteSingle(info),
                                   formatBytes: _formatBytes,
                                   mediaHeaders: context.read<LibraryProvider>().mediaHeaders,
+                                ),
+                            ],
+                            // Ebooks kept from the reader, no audio on the phone
+                            if (ebooks.isNotEmpty) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4, top: 4, bottom: 8),
+                                child: Text(l.downloadsEbooks,
+                                    style: tt.labelMedium?.copyWith(
+                                        color: cs.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                              for (final info in ebooks)
+                                _DownloadCard(
+                                  info: info,
+                                  fileSize: cachedEbookBytesSync(info.itemId),
+                                  cs: cs,
+                                  tt: tt,
+                                  selecting: _selecting,
+                                  isSelected: _selected.contains(info.itemId),
+                                  onToggle: () => _toggleSelect(info.itemId),
+                                  onPlay: () => _openEbook(info),
+                                  onLongPress: () => _enterSelection(info.itemId),
+                                  onDelete: () => _deleteEbook(info),
+                                  formatBytes: _formatBytes,
+                                  mediaHeaders: context.read<LibraryProvider>().mediaHeaders,
+                                  playIcon: Icons.menu_book_rounded,
+                                  playTooltip: l.readEbook,
                                 ),
                             ],
                           ],
@@ -401,10 +544,13 @@ class _DownloadCard extends StatelessWidget {
   final bool selecting;
   final bool isSelected;
   final VoidCallback onToggle;
+  final VoidCallback onPlay;
   final VoidCallback onLongPress;
   final VoidCallback onDelete;
   final String Function(int) formatBytes;
   final Map<String, String> mediaHeaders;
+  final IconData playIcon;
+  final String? playTooltip;
 
   const _DownloadCard({
     required this.info,
@@ -414,10 +560,13 @@ class _DownloadCard extends StatelessWidget {
     required this.selecting,
     required this.isSelected,
     required this.onToggle,
+    required this.onPlay,
     required this.onLongPress,
     required this.onDelete,
     required this.formatBytes,
     required this.mediaHeaders,
+    this.playIcon = Icons.play_circle_outline_rounded,
+    this.playTooltip,
   });
 
   @override
@@ -427,7 +576,7 @@ class _DownloadCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: selecting ? onToggle : null,
+        onTap: selecting ? onToggle : onPlay,
         onLongPress: !selecting ? onLongPress : null,
         child: Card(
           elevation: 0,
@@ -498,6 +647,12 @@ class _DownloadCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (!selecting)
+                  IconButton(
+                    icon: Icon(playIcon, color: cs.primary, size: 26),
+                    tooltip: playTooltip ?? Wording.of(context).absorb,
+                    onPressed: onPlay,
+                  ),
                 if (!selecting)
                   IconButton(
                     icon: Icon(Icons.delete_outline_rounded,

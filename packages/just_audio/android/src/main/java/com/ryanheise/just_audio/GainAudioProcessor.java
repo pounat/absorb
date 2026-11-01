@@ -98,7 +98,7 @@ public final class GainAudioProcessor extends BaseAudioProcessor {
         output.flip();
     }
 
-    // The limiter runs 5 ms behind, so the end of the audio is still inside
+    // The limiter runs 20 ms behind, so the end of the audio is still inside
     // it when the input stops. Same shape as media3's TrimmingAudioProcessor.
     @Override
     public ByteBuffer getOutput() {

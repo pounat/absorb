@@ -8,7 +8,10 @@ class SetupLinkShareSheet extends StatelessWidget {
   final Uri setupLink;
   final Future<void> Function() onShare;
   final Future<void> Function() onCopy;
-  final Future<void> Function() onSaveFile;
+  final Future<void> Function()? onSaveFile;
+  final Future<void> Function()? onCopyWebLink;
+  final String? description;
+  final String? warning;
 
   const SetupLinkShareSheet({
     super.key,
@@ -16,7 +19,10 @@ class SetupLinkShareSheet extends StatelessWidget {
     required this.setupLink,
     required this.onShare,
     required this.onCopy,
-    required this.onSaveFile,
+    this.onSaveFile,
+    this.onCopyWebLink,
+    this.description,
+    this.warning,
   });
 
   @override
@@ -47,7 +53,7 @@ class SetupLinkShareSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              l.setupLinkShareDescription(username),
+              description ?? l.setupLinkShareDescription(username),
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
@@ -109,7 +115,7 @@ class SetupLinkShareSheet extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      l.setupLinkPrivateWarning(username),
+                      warning ?? l.setupLinkPrivateWarning(username),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: cs.onErrorContainer,
                       ),
@@ -138,13 +144,24 @@ class SetupLinkShareSheet extends StatelessWidget {
                 minimumSize: const Size.fromHeight(48),
               ),
             ),
-            const SizedBox(height: 6),
-            TextButton.icon(
-              key: const Key('setup-link-save-file'),
-              onPressed: onSaveFile,
-              icon: const Icon(Icons.download_rounded),
-              label: Text(l.setupLinkSaveFile),
-            ),
+            if (onCopyWebLink != null) ...[
+              const SizedBox(height: 6),
+              TextButton.icon(
+                key: const Key('setup-link-copy-web'),
+                onPressed: onCopyWebLink,
+                icon: const Icon(Icons.public_rounded),
+                label: Text(l.setupLinkCopyWebLink),
+              ),
+            ],
+            if (onSaveFile != null) ...[
+              const SizedBox(height: 6),
+              TextButton.icon(
+                key: const Key('setup-link-save-file'),
+                onPressed: onSaveFile,
+                icon: const Icon(Icons.download_rounded),
+                label: Text(l.setupLinkSaveFile),
+              ),
+            ],
           ],
         ),
       ),

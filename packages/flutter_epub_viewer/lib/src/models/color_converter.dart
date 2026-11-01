@@ -18,6 +18,6 @@ class ColorConverter implements JsonConverter<Color?, String?> {
     if (color == null) {
       return null;
     }
-    return color.value.toRadixString(16);
+    return color.toARGB32().toRadixString(16);
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/api_service.dart';
 import 'absorb_wave_icon.dart';
 
 class ListeningSessionCard extends StatelessWidget {
@@ -47,6 +48,8 @@ class ListeningSessionCard extends StatelessWidget {
         deviceInfo['deviceName'] as String? ??
         '';
     final isAbsorb = clientName.toLowerCase().contains('absorb');
+    final isWear = isAbsorb && clientName.toLowerCase().contains('wear');
+    final isReading = session['mediaPlayer'] == ApiService.readingMediaPlayer;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -73,7 +76,18 @@ class ListeningSessionCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(9),
                   ),
                   child: Center(
-                    child: isAbsorb
+                    child: isReading
+                        ? Icon(
+                            Icons.menu_book_rounded,
+                            size: 18,
+                            color: Colors.tealAccent.withValues(alpha: 0.9),
+                          )
+                        : isWear
+                        ? AbsorbWatchIcon(
+                            size: 20,
+                            color: Colors.tealAccent.withValues(alpha: 0.9),
+                          )
+                        : isAbsorb
                         ? AbsorbWaveIcon(
                             size: 18,
                             color: Colors.tealAccent.withValues(alpha: 0.9),

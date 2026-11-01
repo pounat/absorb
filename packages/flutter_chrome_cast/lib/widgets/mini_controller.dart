@@ -94,7 +94,7 @@ class _GoogleCastMiniControllerState extends State<GoogleCastMiniController> {
                 return ExpandedGoogleCastPlayerController(
                   toggleExpand: _toggleExpand,
                   theme: widget.theme ??
-                      GoogleCastPlayerTheme(
+                      const GoogleCastPlayerTheme(
                           titleTextStyle: TextStyle(color: Colors.white)),
                 );
               }

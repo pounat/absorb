@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'swipe_action.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -564,12 +564,9 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
                 icon: Icons.add_circle_outline_rounded,
                 color: cs.primary,
                 onTrigger: () async {
-                  await lib.addToAbsorbingQueue(bookId);
-                  lib.absorbingItemCache[bookId] = Map<String, dynamic>.from(book);
-                  HapticFeedback.mediumImpact();
-                  if (context.mounted) {
-                    showOverlayToast(context, Wording.of(context).sectionDetailAddedToAbsorbing(bookTitle), icon: Icons.add_circle_outline_rounded);
-                  }
+                  await addToAbsorbingWithPicker(context, bookId,
+                      item: book,
+                      addedToast: Wording.of(context).sectionDetailAddedToAbsorbing(bookTitle));
                 },
               ),
         child: BookResultTile(

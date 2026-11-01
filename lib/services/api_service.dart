@@ -1,12 +1,37 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'achievements.dart';
 import 'auth_tokens.dart';
+import 'book_dock.dart';
+import 'book_requests.dart';
+import 'bookorbit_admin.dart';
+import 'bookorbit_email.dart';
+import 'bookorbit_match.dart';
+import 'bookorbit_mapper.dart';
+import 'media_overlay.dart';
+import 'narrated_books.dart';
+import 'narration_stream.dart';
+import 'bookorbit_media_proxy_stub.dart'
+    if (dart.library.io) 'bookorbit_media_proxy.dart';
+import 'player_settings.dart';
+import 'bookorbit_chapters.dart';
+import 'read_along_jobs.dart';
+import 'scoped_prefs.dart';
+import 'server_notifications.dart';
+import 'server_backend.dart';
+import 'socket_service.dart';
 import '../models/auth_session.dart';
 import '../utils/server_url.dart';
+import '../utils/percent_escapes.dart';
+
+part 'bookorbit_api_service.dart';
+part 'bookorbit_admin_api.dart';
+part 'bookorbit_email_api.dart';
 
 /// Outcome of a local-session upsert. [serverTooOld] flags a 404/501 (the
 /// server predates /api/session/local) so the caller can fall back to the
@@ -298,6 +323,300 @@ class ApiService {
     _loadCachedServerVersion(baseUrl);
   }
 
+  /// The ApiService for a signed-in session: the plain Audiobookshelf client,
+  /// or the BookOrbit one that answers in Audiobookshelf shapes. [backend]
+  /// defaults to the active session's.
+  factory ApiService.forSession({
+    required String baseUrl,
+    required String token,
+    String? refreshToken,
+    bool isLegacyToken = false,
+    Map<String, String> customHeaders = const {},
+    FutureOr<bool> Function(String newAccessToken, String? newRefreshToken)?
+        onTokensRefreshed,
+    Future<AuthTokens?> Function()? loadPersistedTokens,
+    VoidCallback? onAuthExpired,
+    ServerBackend? backend,
+  }) {
+    if ((backend ?? ServerBackend.active).isBookOrbit) {
+      return BookOrbitApiService(
+        baseUrl: baseUrl,
+        token: token,
+        refreshToken: refreshToken,
+        isLegacyToken: isLegacyToken,
+        customHeaders: customHeaders,
+        onTokensRefreshed: onTokensRefreshed,
+        loadPersistedTokens: loadPersistedTokens,
+        onAuthExpired: onAuthExpired,
+      );
+    }
+    return ApiService(
+      baseUrl: baseUrl,
+      token: token,
+      refreshToken: refreshToken,
+      isLegacyToken: isLegacyToken,
+      customHeaders: customHeaders,
+      onTokensRefreshed: onTokensRefreshed,
+      loadPersistedTokens: loadPersistedTokens,
+      onAuthExpired: onAuthExpired,
+    );
+  }
+
+  ServerBackend get backend => ServerBackend.audiobookshelf;
+  bool get isBookOrbit => backend.isBookOrbit;
+
+  /// Await before handing media URLs to something that fetches them right
+  /// away. Only BookOrbit has anything to wait for (its media proxy).
+  Future<void> ensureMediaReady() async {}
+
+  Future<ApiService> withMediaReady() async {
+    await ensureMediaReady();
+    return this;
+  }
+
+  /// URL for downloading an ebook file for the reader.
+  String buildEbookUrl(String itemId, String ino) =>
+      '$_cleanBaseUrl/api/items/$itemId/file/$ino?token=$token';
+
+  /// The ebook the reader caches, which may leave out what reading doesn't
+  /// need (BookOrbit's narrated EPUBs come without their audio).
+  String buildReaderEbookUrl(String itemId, String ino) => buildEbookUrl(itemId, ino);
+
+  /// How many pages a comic file has, when the server hands them out one at
+  /// a time (BookOrbit, which opens CBR and CB7 too). Null means the archive
+  /// has to be opened on the phone.
+  Future<int?> comicPageCount(String fileId) async => null;
+
+  /// Image of comic page [index] (from 0), when [comicPageCount] answered.
+  String? comicPageUrl(String fileId, int index) => null;
+
+  /// The server's ebook bookmarks for an item, as {id, cfi, title, note},
+  /// or null when the server keeps none (Audiobookshelf) or can't be reached.
+  Future<List<Map<String, dynamic>>?> ebookBookmarks(String itemId) async => null;
+
+  /// One page of a collection's books, for a server whose collection listing
+  /// holds only the first ones. Audiobookshelf sends every book up front.
+  Future<List<Map<String, dynamic>>?> collectionBooksPage(String collectionId,
+          {required int page, int size = 100}) async =>
+      null;
+
+  /// Saves an ebook bookmark at [cfi] on the server. Returns its server id,
+  /// or null when the server keeps none or the save failed.
+  Future<String?> addEbookBookmark(String itemId, {required String cfi, required String title}) async => null;
+
+  /// Removes a server ebook bookmark. True when it's gone (or never existed).
+  Future<bool> deleteEbookBookmark(String itemId, String bookmarkId) async => false;
+
+  /// Whether the server keeps ebook highlights too, so they sync both ways.
+  bool get keepsEbookHighlights => false;
+
+  /// The server's highlights in a book, as {id, cfi, fileId, text, color,
+  /// note, chapter, at}, or null when it keeps none or can't be reached.
+  /// With [fileId], a server that can also places highlights made in other
+  /// copies of the book (a Kobo's or KOReader's) on that file.
+  Future<List<Map<String, dynamic>>?> ebookHighlights(String itemId, {String? fileId}) async => null;
+
+  /// Saves a highlight in the book file [fileId] on the server. Returns its
+  /// server id, or null when the server keeps none or the save failed.
+  Future<String?> addEbookHighlight(String itemId, String fileId,
+          {required String cfi, required String text, required String color, String? note, String? chapter}) async =>
+      null;
+
+  /// Sets a server highlight's color and note. True when saved, or when the
+  /// highlight is already gone there.
+  Future<bool> updateEbookHighlight(String itemId, String highlightId, {required String color, String? note}) async =>
+      false;
+
+  /// Removes a server highlight. True when it's gone (or never existed).
+  Future<bool> deleteEbookHighlight(String itemId, String highlightId) async => false;
+
+  /// The cover slots a book uses on BookOrbit ('audio', 'ebook'). Empty on
+  /// Audiobookshelf, which has one cover per item.
+  Future<List<String>> coverSlots(String itemId) async => const [];
+
+  /// The cover search source the user picked as default on the server.
+  Future<String?> defaultCoverSearchProvider() async => null;
+
+  /// Books the server thinks are like [itemId], as {id, title, authorName,
+  /// hasCover, isAudiobook, finished}. Only BookOrbit has this.
+  Future<List<Map<String, dynamic>>> getSimilarBooks(String itemId) async => const [];
+
+  /// BookOrbit's per-user reading status (want_to_read, on_hold, ...).
+  Future<bool> setReadStatus(String itemId, String status) async => false;
+
+  /// A private note on a book, or null to remove it. Only BookOrbit has this.
+  Future<bool> setPersonalNote(String itemId, String? note) async => false;
+
+  /// The metadata providers the server has turned on, as {key, label}, when
+  /// it can say. Null means the app's own list applies.
+  Future<List<Map<String, String>>?> bookMatchProviders() async => null;
+
+  /// URL a background download fetches [ino] from. Same as [buildFileUrl]
+  /// on Audiobookshelf.
+  String buildDownloadFileUrl(String itemId, String ino) => buildFileUrl(itemId, ino);
+
+  /// Headers for a download of [url] built by [buildDownloadFileUrl].
+  Map<String, String> downloadHeadersFor(String url) => mediaHeaders;
+
+  /// Sign-in headers for a download the server turned away because the ones
+  /// it started with ran out.
+  Future<Map<String, String>> renewedMediaHeaders() async {
+    await _ensureFreshAccessToken();
+    return mediaHeaders;
+  }
+
+  /// The access token, renewed first when it is about to run out, for a
+  /// connection that signs in with the token itself.
+  Future<String> freshAccessToken() async {
+    await _ensureFreshAccessToken();
+    return _accessToken;
+  }
+
+  /// Where a narrated EPUB downloads whole from, and the headers it needs,
+  /// for the download that takes its audio out on the phone.
+  Future<({String url, Map<String, String> headers})> narratedEpubDownload(String itemId, String ino) async {
+    final url = buildDownloadFileUrl(itemId, ino);
+    return (url: url, headers: downloadHeadersFor(url));
+  }
+
+  /// Called once before a book's files are queued for download.
+  Future<void> prepareDownload(String itemId) async {}
+
+  /// Where a download fetches a narrated EPUB's audio file from, for track
+  /// [contentUrl]; null when this server has no such tracks.
+  String? buildNarrationDownloadUrl(String itemId, String contentUrl) => null;
+
+  /// Show a collection to everyone on the server or only its owner. Only
+  /// BookOrbit has this; Audiobookshelf collections are always shared.
+  Future<bool> setCollectionPublic(String collectionId, bool isPublic) async => false;
+
+  /// BookOrbit's Book Dock (its import inbox) shows as a library with this
+  /// id for accounts allowed to use it. Its items are dock files, not books:
+  /// they can be edited, filed into a real library or removed, not played.
+  static const bookDockLibraryId = 'book-dock';
+  static bool isBookDockItem(String itemId) => itemId.startsWith('dock-');
+
+  /// The library folders a dock file can be filed into; empty when this
+  /// account may not add books to a library.
+  Future<List<BookDockDestination>> bookDockDestinations() async => const [];
+
+  /// File dock item [itemId] into [destination].
+  Future<BookDockFileResult> fileBookDockItem(
+          String itemId, BookDockDestination destination) async =>
+      const BookDockFileResult(success: false);
+
+  /// Remove a dock item and its file from the server.
+  Future<bool> removeBookDockItem(String itemId) async => false;
+
+  /// Copy the details the server found online over the dock item's own.
+  Future<bool> useFoundBookDockDetails(String itemId) async => false;
+
+  /// Ask the server to look the dock item's details up online again.
+  Future<bool> lookUpBookDockDetails(String itemId) async => false;
+
+  /// BookOrbit's metadata search over every source it has turned on, as
+  /// results arrive. Empty on Audiobookshelf.
+  Stream<MatchSearchEvent> searchMatches(
+    String itemId, {
+    String? title,
+    String? author,
+    String? isbn,
+    bool? isAudiobook,
+    String? mediaKind,
+    List<String>? mediaKinds,
+  }) =>
+      const Stream.empty();
+
+  /// What the account may do with BookOrbit book requests. Nothing on
+  /// Audiobookshelf.
+  Future<BookRequestAccess> bookRequestAccess() async => BookRequestAccess.none;
+
+  /// Whether the account has a notification list on the server. Only
+  /// BookOrbit keeps one.
+  Future<bool> hasServerNotifications() async => false;
+
+  /// A page of the account's notifications, newest first.
+  Future<({List<ServerNotification> items, int total})?> serverNotifications({int limit = 20, int offset = 0}) async =>
+      null;
+
+  Future<int?> unreadNotificationCount() async => null;
+  Future<bool> markNotificationRead(int id) async => false;
+  Future<bool> markAllNotificationsRead() async => false;
+  Future<bool> dismissNotification(int id) async => false;
+  Future<bool> clearNotifications() async => false;
+
+  /// The level each notification category is set to, by category.
+  Future<Map<String, String>?> notificationLevels() async => null;
+  Future<bool> setNotificationLevels(Map<String, String> levels) async => false;
+
+  /// Whether the account keeps achievements, null where there are none.
+  /// BookOrbit's own account switch, so it reads the same everywhere.
+  Future<bool?> achievementsEnabled() async => null;
+  Future<bool> setAchievementsEnabled(bool enabled) async => false;
+
+  /// The account's achievements. Only BookOrbit has them.
+  Future<AchievementCatalogue?> achievements({bool fresh = false}) async => null;
+  Future<List<AchievementHint>> achievementHints() async => const [];
+
+  /// One page of the account's own requests, or everyone's with [all].
+  Future<({List<BookRequest> items, int total})?> bookRequests({
+    bool all = false,
+    int page = 1,
+    int limit = 25,
+    bool includeDismissed = false,
+  }) async =>
+      null;
+
+  /// Whether each record is already in a library or asked for, in order.
+  Future<List<BookRequestAvailability?>> bookRequestAvailability(
+    List<MatchCandidate> records,
+    String mediaKind,
+  ) async =>
+      [for (final _ in records) null];
+
+  Future<BookRequestSubmitResult> submitBookRequest(Map<String, dynamic> body) async =>
+      const BookRequestSubmitResult();
+
+  /// Asks for the e-book and the audiobook together, on servers whose
+  /// [BookRequestAccess.pairs] is set.
+  Future<BookRequestPairResult> submitBookRequestPair(Map<String, dynamic> body) async =>
+      const BookRequestPairResult();
+
+  Future<({bool ok, BookRequest? request, String? error})> bookRequestAction(
+    int id,
+    BookRequestAction action, {
+    String? note,
+    int? libraryId,
+    int? downloadId,
+  }) async =>
+      (ok: false, request: null, error: null);
+
+  /// Releases the indexers offer for request [id]. [terms] searches with
+  /// other words than the request's own; a null ISBN searches by title and
+  /// author.
+  Future<({BookRequestReleases? releases, String? error})> bookRequestReleases(
+    int id, {
+    bool refresh = false,
+    ({String title, String author, String? isbn})? terms,
+  }) async =>
+      (releases: null, error: null);
+
+  /// What a release holds. 'no_supported_file' means nothing in it can be
+  /// filed into a library.
+  Future<({String? status, String? error})> inspectBookRequestRelease(int id, int indexerId, String guid) async =>
+      (status: null, error: null);
+
+  /// Sends the picked release to the download client.
+  Future<({BookRequest? request, String? error})> grabBookRequestRelease(int id, int indexerId, String guid) async =>
+      (request: null, error: null);
+
+  /// Why a downloaded request is waiting for a manual check.
+  Future<({BookRequestReview? review, String? error})> bookRequestReview(int id) async =>
+      (review: null, error: null);
+
+  /// The library each kind of request lands in when nobody picks one.
+  Future<Map<String, int>> bookRequestDefaultLibraries() async => const {};
+
   /// Current access token (for external use like cover URLs, socket auth).
   String get token => _accessToken;
 
@@ -412,18 +731,21 @@ class ApiService {
     if (!lock.isCompleted) lock.complete();
   }
 
-  Future<bool> _refreshTokenPairOnce() async {
-    final refreshToken = _refreshToken;
-    if (_isLegacyToken || refreshToken == null) return false;
-    try {
-      final response = await _post(
+  Future<http.Response> _sendRefresh(String refreshToken) => _post(
         Uri.parse('$_cleanBaseUrl/auth/refresh'),
         headers: {
           ...customHeaders,
           'x-refresh-token': refreshToken,
           if (!kIsWeb) 'User-Agent': userAgent,
         },
-      ).timeout(const Duration(seconds: 15));
+      );
+
+  Future<bool> _refreshTokenPairOnce() async {
+    final refreshToken = _refreshToken;
+    if (_isLegacyToken || refreshToken == null) return false;
+    try {
+      final response = await _sendRefresh(refreshToken)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         debugPrint(
           '[API] Proactive token refresh failed: ${response.statusCode} '
@@ -445,6 +767,41 @@ class ApiService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// An API key can't be refreshed, so a 401 on one may mean it was revoked.
+  /// Ask the server once whether it still knows the key before signing out,
+  /// so a stray 401 from something in between doesn't end the session.
+  static DateTime? _apiKeyCheckedAt;
+  static bool _apiKeyCheckRunning = false;
+
+  void _checkRevokedApiKey() {
+    if (isBookOrbit || _apiKeyCheckRunning) return;
+    final last = _apiKeyCheckedAt;
+    if (last != null && DateTime.now().difference(last) < const Duration(minutes: 1)) return;
+    _apiKeyCheckedAt = DateTime.now();
+    _apiKeyCheckRunning = true;
+    () async {
+      try {
+        final r = await _get(Uri.parse('$_cleanBaseUrl/api/me'), headers: _headers)
+            .timeout(const Duration(seconds: 15));
+        if (r.statusCode == 401) {
+          debugPrint('[API] The server no longer accepts this API key');
+          onAuthExpired?.call();
+        }
+      } catch (_) {
+      } finally {
+        _apiKeyCheckRunning = false;
+      }
+    }();
+  }
+
+  /// Gets a new access token now, whatever this phone makes of the old one's
+  /// age: the server said it has run out. True once a new one is in hand.
+  Future<bool> refreshAccessTokenNow() async {
+    final outcome = await _refreshAccessToken();
+    if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    return outcome == _RefreshOutcome.refreshed;
   }
 
   /// Attempt to refresh the access token using the refresh token. A rejected
@@ -482,14 +839,8 @@ class ApiService {
           // Timeout is load-bearing: this is awaited from tryRestoreSession via
           // the 401-retry path, and a stalled response here would otherwise hold
           // the splash screen forever.
-          final response = await _post(
-            Uri.parse('$_cleanBaseUrl/auth/refresh'),
-            headers: {
-              ...customHeaders,
-              'x-refresh-token': refreshTokenSent,
-              if (!kIsWeb) 'User-Agent': userAgent,
-            },
-          ).timeout(const Duration(seconds: 15));
+          final response = await _sendRefresh(refreshTokenSent)
+              .timeout(const Duration(seconds: 15));
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -578,7 +929,11 @@ class ApiService {
   /// Static state outlives a single test, so a test that trips the cooldown
   /// would otherwise silently disable the pre-flight for whatever runs next.
   @visibleForTesting
-  static void resetPreflightCooldown() => _preflightCooldownUntil = null;
+  static void resetPreflightCooldown() {
+    _preflightCooldownUntil = null;
+    _apiKeyCheckedAt = null;
+    _apiKeyCheckRunning = false;
+  }
 
   /// Refresh BEFORE spending a known-expired access token, rather than firing
   /// the request, taking a 401, and recovering afterwards.
@@ -646,6 +1001,8 @@ class ApiService {
         response = await _get(url, headers: refreshedHeaders).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    } else if (response.statusCode == 401) {
+      _checkRevokedApiKey();
     }
     return response;
   }
@@ -663,6 +1020,8 @@ class ApiService {
         response = await _post(url, headers: refreshedHeaders, body: body).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    } else if (response.statusCode == 401) {
+      _checkRevokedApiKey();
     }
     return response;
   }
@@ -680,6 +1039,8 @@ class ApiService {
         response = await _patch(url, headers: refreshedHeaders, body: body).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    } else if (response.statusCode == 401) {
+      _checkRevokedApiKey();
     }
     return response;
   }
@@ -697,6 +1058,8 @@ class ApiService {
         response = await _delete(url, headers: refreshedHeaders).timeout(timeout);
       }
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
+    } else if (response.statusCode == 401) {
+      _checkRevokedApiKey();
     }
     return response;
   }
@@ -707,7 +1070,16 @@ class ApiService {
     required String username,
     required String password,
     Map<String, String> customHeaders = const {},
+    ServerBackend backend = ServerBackend.audiobookshelf,
   }) async {
+    if (backend.isBookOrbit) {
+      return BookOrbitApiService.signIn(
+        serverUrl: serverUrl,
+        username: username,
+        password: password,
+        customHeaders: customHeaders,
+      );
+    }
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}login'
         : '$serverUrl/login';
@@ -722,12 +1094,17 @@ class ApiService {
           if (!kIsWeb) 'User-Agent': userAgent,
         },
         body: jsonEncode({'username': username, 'password': password}),
-      );
+      // A server that takes the connection and then never answers (a proxy
+      // up with the server behind it down) left the sign-in spinning forever.
+      ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         return (jsonDecode(response.body) as Map<String, dynamic>, 200);
       }
       return (null, response.statusCode);
+    } on TimeoutException {
+      debugPrint('[API] login to $url got no answer in 20s');
+      return (null, 0);
     } catch (e) {
       return (null, 0);
     }
@@ -741,7 +1118,9 @@ class ApiService {
     required String serverUrl,
     required String apiKey,
     Map<String, String> customHeaders = const {},
+    ServerBackend backend = ServerBackend.audiobookshelf,
   }) async {
+    if (backend.isBookOrbit) return (null, 0);
     final base = serverUrl.endsWith('/') ? serverUrl : '$serverUrl/';
     final url = '${base}api/me';
 
@@ -761,7 +1140,10 @@ class ApiService {
   }
 
   /// Ping the server to check connectivity.
-  static Future<bool> pingServer(String serverUrl, {Map<String, String> customHeaders = const {}}) async {
+  static Future<bool> pingServer(String serverUrl, {Map<String, String> customHeaders = const {}, ServerBackend? backend}) async {
+    if ((backend ?? ServerBackend.active).isBookOrbit) {
+      return (await BookOrbitApiService.probe(serverUrl, customHeaders: customHeaders)).ok;
+    }
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}ping'
         : '$serverUrl/ping';
@@ -783,7 +1165,15 @@ class ApiService {
   static Future<({bool ok, String? detail})> pingServerDetailed(
     String serverUrl, {
     Map<String, String> customHeaders = const {},
+    ServerBackend? backend,
   }) async {
+    if ((backend ?? ServerBackend.active).isBookOrbit) {
+      return BookOrbitApiService.probe(
+        serverUrl,
+        customHeaders: customHeaders,
+        timeout: const Duration(seconds: 15),
+      );
+    }
     final url = serverUrl.endsWith('/') ? '${serverUrl}ping' : '$serverUrl/ping';
     try {
       final response = await http
@@ -826,7 +1216,9 @@ class ApiService {
   }
 
   /// Get the server version via the /status endpoint (no auth needed).
-  static Future<String?> getServerVersion(String serverUrl, {Map<String, String> customHeaders = const {}}) async {
+  static Future<String?> getServerVersion(String serverUrl, {Map<String, String> customHeaders = const {}, ServerBackend? backend}) async {
+    // BookOrbit only tells a signed-in client its version.
+    if ((backend ?? ServerBackend.active).isBookOrbit) return null;
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}status'
         : '$serverUrl/status';
@@ -1039,7 +1431,9 @@ class ApiService {
   }
 
   /// Build a cover image URL for a library item.
-  String getCoverUrl(String itemId, {int? width = 400, int? updatedAt}) {
+  /// [coverSlot] picks BookOrbit's 'audio' (square) or 'ebook' (portrait)
+  /// cover and is ignored on Audiobookshelf, which has one.
+  String getCoverUrl(String itemId, {int? width = 400, int? updatedAt, String? coverSlot}) {
     var url = '$_cleanBaseUrl/api/items/$itemId/cover?token=$token';
     if (width != null) url += '&width=$width';
     if (updatedAt != null) url += '&ts=$updatedAt';
@@ -1304,6 +1698,14 @@ class ApiService {
     } catch (_) {}
     return null;
   }
+
+  /// One day's sessions, for a server that lists them by day. Null means
+  /// page through [getListeningSessions] instead.
+  Future<List<Map<String, dynamic>>?> getListeningSessionsForDay(DateTime day) async => null;
+
+  /// Sets the time zone the server splits this account's days in, for a
+  /// server that keeps one. False when it couldn't.
+  Future<bool> setAccountTimeZone(String zone) async => false;
 
   Future<List<Map<String, dynamic>>?> getItemListeningSessions(
     String libraryItemId, {
@@ -1804,6 +2206,18 @@ class ApiService {
         'model': deviceModel,
       };
 
+  /// Time spent reading shows up on the server as its own client: "Absorb
+  /// (ebook)" with its own device id, since the server keeps one name per
+  /// device id and would otherwise rename this phone's listening too.
+  Map<String, dynamic> get _readingDeviceInfo => {
+        ..._deviceInfo,
+        'clientName': 'Absorb (ebook)',
+        'deviceId': '$deviceId-ebook',
+      };
+
+  /// The media player a reading session is marked with.
+  static const readingMediaPlayer = 'ebook-reader';
+
   /// Start a playback session for a library item.
   /// POST /api/items/:id/play
   /// Returns the full session object including audioTracks with contentUrl.
@@ -1993,12 +2407,16 @@ class ApiService {
   /// [session] is a fully-built session map; deviceInfo/mediaPlayer/playMethod
   /// are stamped here so they can't be omitted.
   Future<LocalSessionResult> syncLocalSession(Map<String, dynamic> session) async {
+    final reading = session['keepProgress'] == true;
+    final kept = await _besideProgress(session);
+    if (kept == null) return const LocalSessionResult(ok: false, serverTooOld: false);
+    session = kept;
     try {
       final body = {
         ...session,
-        'deviceInfo': _deviceInfo,
-        'mediaPlayer': 'exo-player',
-        'playMethod': 3, // LOCAL
+        'deviceInfo': reading ? _readingDeviceInfo : _deviceInfo,
+        'mediaPlayer': reading ? readingMediaPlayer : 'exo-player',
+        'playMethod': session['playMethod'] ?? 3, // LOCAL unless streamed
       };
       final resp = await _authPost(
         Uri.parse('$_cleanBaseUrl/api/session/local'),
@@ -2017,11 +2435,22 @@ class ApiService {
   /// POST /api/session/local-all
   Future<LocalSessionResult> syncLocalSessionsAll(
       List<Map<String, dynamic>> sessions) async {
-    if (sessions.isEmpty) return const LocalSessionResult(ok: true, serverTooOld: false);
+    // Reading time goes one at a time: the batch carries a single device.
+    var readingOk = true;
+    for (final s in sessions.where((s) => s['keepProgress'] == true)) {
+      if (!(await syncLocalSession(s)).ok) readingOk = false;
+    }
+    final kept = <Map<String, dynamic>>[];
+    for (final s in sessions.where((s) => s['keepProgress'] != true)) {
+      final k = await _besideProgress(s);
+      if (k != null) kept.add(k);
+    }
+    sessions = kept;
+    if (sessions.isEmpty) return LocalSessionResult(ok: readingOk, serverTooOld: false);
     try {
       final body = {
         'sessions': sessions
-            .map((s) => {...s, 'mediaPlayer': 'exo-player', 'playMethod': 3})
+            .map((s) => {...s, 'mediaPlayer': 'exo-player', 'playMethod': s['playMethod'] ?? 3})
             .toList(),
         'deviceInfo': _deviceInfo,
       };
@@ -2030,12 +2459,109 @@ class ApiService {
         body: jsonEncode(body),
         timeout: const Duration(seconds: 20));
       return LocalSessionResult(
-        ok: resp.statusCode == 200,
+        ok: resp.statusCode == 200 && readingOk,
         serverTooOld: resp.statusCode == 404 || resp.statusCode == 501,
       );
     } catch (_) {
       return const LocalSessionResult(ok: false, serverTooOld: false);
     }
+  }
+
+  /// A phone-made session whose numbers aren't the book's listening position:
+  /// an EPUB's narration (the server sizes a new session by the item's own
+  /// length, zero for an ebook) or time spent reading (`keepProgress`). The
+  /// server copies a session's position onto the progress row unless the
+  /// row is newer, so the session is dated just before the row's last save:
+  /// the time is logged and the progress is left as it is. Null when there
+  /// is no row to keep yet for a reading session.
+  Future<Map<String, dynamic>?> _besideProgress(Map<String, dynamic> session) async {
+    final reading = session['keepProgress'] == true;
+    final out = Map<String, dynamic>.from(session)..remove('keepProgress');
+    final id = session['libraryItemId'];
+    final narration = id is String ? NarratedBooks.duration(id) : null;
+    if (isBookOrbit || id is! String || (!reading && narration == null)) return out;
+    var row = await getItemProgress(id);
+    if (row == null && reading) debugPrint('[Session] $id: no progress row yet - reading time waits');
+    if (row == null && narration != null) {
+      try {
+        await updateProgress(id,
+            currentTime: (session['currentTime'] as num?)?.toDouble() ?? 0, duration: narration);
+      } catch (_) {}
+      row = await getItemProgress(id);
+    }
+    final rowAt = (row?['lastUpdate'] as num?)?.toInt();
+    if (rowAt == null) return reading ? null : out;
+    if (narration != null) out['duration'] = narration;
+    final at = (session['updatedAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch;
+    if (at >= rowAt) out['updatedAt'] = rowAt - 1000;
+    if (_besideLogged.add('${session['id']}')) {
+      debugPrint('[Session] $id: ${reading ? 'reading time' : 'narration'} session ${session['id']} '
+          'logged beside the progress row (${at >= rowAt ? 'dated before it' : 'already older'})');
+    }
+    return out;
+  }
+
+  static final Set<String> _besideLogged = {};
+
+  static const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  /// Time spent reading, as the local listening session Audiobookshelf takes
+  /// it in: at the audiobook's current spot ([audioAt], 0 for an ebook with
+  /// no audio) and marked to leave the progress as it is.
+  static Map<String, dynamic> readingSession(
+    String itemId, {
+    required String sessionId,
+    required DateTime startedAt,
+    required int seconds,
+    required double audioAt,
+    required double audioDuration,
+    String? title,
+  }) {
+    String day(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    return {
+      'id': sessionId,
+      'libraryItemId': itemId,
+      'episodeId': null,
+      'mediaType': 'book',
+      'displayTitle': title,
+      'duration': audioDuration,
+      'startTime': audioAt,
+      'currentTime': audioAt,
+      'timeListening': seconds,
+      'startedAt': startedAt.millisecondsSinceEpoch,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      'date': day(startedAt),
+      'dayOfWeek': _weekdays[startedAt.weekday - 1],
+      'keepProgress': true,
+    };
+  }
+
+  /// Time spent reading [itemId]'s ebook, kept as a session [sessionId] so it
+  /// counts in stats (sent again as it grows, the same id each time).
+  /// Audiobookshelf has no reading sessions, so it goes in as a listening
+  /// session that leaves the listening progress as it is.
+  Future<bool> logReadingTime(
+    String itemId, {
+    required String sessionId,
+    required DateTime startedAt,
+    required int seconds,
+    required double audioAt,
+    required double audioDuration,
+    String? title,
+    double? ebookStart,
+    double? ebookEnd,
+  }) async {
+    final r = await syncLocalSession(readingSession(
+      itemId,
+      sessionId: sessionId,
+      startedAt: startedAt,
+      seconds: seconds,
+      audioAt: audioAt,
+      audioDuration: audioDuration,
+      title: title,
+    ));
+    return r.ok;
   }
 
   /// Edit an existing listening session by re-POSTing it through the local
@@ -2055,9 +2581,45 @@ class ApiService {
     }
   }
 
+  /// Logs a listen that happened away from the app, to catch up a book's
+  /// listening time. It ends at the book's saved spot so the book keeps its
+  /// place.
+  Future<bool> addListeningSession({
+    required String itemId,
+    required DateTime startedAt,
+    required int seconds,
+  }) async {
+    final item = await getLibraryItem(itemId);
+    final media = item?['media'] as Map<String, dynamic>?;
+    final meta = media?['metadata'] as Map<String, dynamic>?;
+    final progress = item?['userMediaProgress'] as Map<String, dynamic>?;
+    final at = (progress?['currentTime'] as num?)?.toDouble() ?? 0;
+    final ended = startedAt.add(Duration(seconds: seconds));
+    String two(int v) => v.toString().padLeft(2, '0');
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final result = await syncLocalSession({
+      'id': BookOrbitApiService._uuid(),
+      'libraryItemId': itemId,
+      'episodeId': null,
+      'mediaType': 'book',
+      'displayTitle': meta?['title'],
+      'displayAuthor': meta?['authorName'],
+      'duration': (media?['duration'] as num?)?.toDouble() ?? 0,
+      'startTime': math.max(0.0, at - seconds),
+      'currentTime': at,
+      'timeListening': seconds,
+      'startedAt': startedAt.millisecondsSinceEpoch,
+      'updatedAt': ended.millisecondsSinceEpoch,
+      'date': '${startedAt.year}-${two(startedAt.month)}-${two(startedAt.day)}',
+      'dayOfWeek': weekdays[startedAt.weekday - 1],
+    });
+    return result.ok;
+  }
+
   /// Delete a listening session. Needs the user's delete permission on the
-  /// server (403 otherwise). Returns true on success.
-  Future<bool> deleteListeningSession(String sessionId) async {
+  /// server (403 otherwise). Returns true on success. [itemId] is the book
+  /// the session belongs to, which BookOrbit needs.
+  Future<bool> deleteListeningSession(String sessionId, {String? itemId}) async {
     try {
       final resp = await _authDelete(
         Uri.parse('$_cleanBaseUrl/api/sessions/$sessionId'),
@@ -2081,11 +2643,35 @@ class ApiService {
         Uri.parse('$_cleanBaseUrl/api/me/progress/$progressPath'),
         timeout: const Duration(seconds: 10));
       if (resp.statusCode == 200) {
-        return jsonDecode(resp.body) as Map<String, dynamic>;
+        return await _withPageReadElsewhere(itemId, jsonDecode(resp.body) as Map<String, dynamic>);
       }
     } catch (_) {}
     return null;
   }
+
+  /// The narration time of the page a narrated book was read to on another
+  /// device, when that page is the newer place. Set by the app at start.
+  static Future<double?> Function(String itemId, Map<String, dynamic> progress)? pageReadElsewhere;
+
+  /// Audiobookshelf sees only the ebook in a narrated EPUB, so reading it in
+  /// its web reader moves the page and leaves the audio behind. A newer page
+  /// ahead of the audio is where listening picks up.
+  Future<Map<String, dynamic>> _withPageReadElsewhere(String itemId, Map<String, dynamic> progress) async {
+    final place = pageReadElsewhere;
+    if (place == null || isBookOrbit || !NarratedBooks.contains(itemId)) return progress;
+    try {
+      final at = await place(itemId, progress);
+      return at == null ? progress : {...progress, 'currentTime': at};
+    } catch (_) {
+      return progress;
+    }
+  }
+
+  /// The server's place in an item's ebook, for opening the reader there:
+  /// ebookLocation, ebookProgress and, when the server keeps one apart from
+  /// listening, ebookUpdatedAt (ms).
+  Future<Map<String, dynamic>?> getEbookPosition(String itemId) =>
+      getItemProgress(itemId);
 
   Map<String, dynamic>? _progressRecreationBody(
     Map<String, dynamic> progress, {
@@ -2198,7 +2784,9 @@ class ApiService {
   /// false only to deliberately un-finish: the server answers that by
   /// clearing the position to 0, same as the web UI's "mark as not finished",
   /// so [currentTime] is not sent in that case.
-  Future<void> updateProgress(
+  /// Returns false on a 5xx, where a retry could still land; network errors
+  /// still throw.
+  Future<bool> updateProgress(
     String itemId, {
     required double currentTime,
     required double duration,
@@ -2214,7 +2802,7 @@ class ApiService {
             body: jsonEncode({'isFinished': false}),
             timeout: const Duration(seconds: 10));
         debugPrint('[API] updateProgress unfinish $progressPath: ${unfinish.statusCode}');
-        return;
+        return unfinish.statusCode < 500;
       }
       final body = jsonEncode({
         'currentTime': currentTime,
@@ -2228,6 +2816,7 @@ class ApiService {
         body: body,
         timeout: const Duration(seconds: 10));
       debugPrint('[API] updateProgress response: ${resp.statusCode} ${resp.body}');
+      return resp.statusCode < 500;
     } catch (e) {
       debugPrint('[API] updateProgress error: $e');
       rethrow;
@@ -2237,11 +2826,16 @@ class ApiService {
   /// Update ebook reading progress on the server. Returns whether the PATCH
   /// landed, so the caller can queue the position for a later retry.
   /// PATCH /api/me/progress/:id
+  /// HTTP status of the last [updateEbookProgress], null when it never got an
+  /// answer. A 404 means the server has no such book, so retrying is pointless.
+  int? lastEbookProgressStatus;
+
   Future<bool> updateEbookProgress(
     String itemId, {
     required String ebookLocation,
     required double ebookProgress,
   }) async {
+    lastEbookProgressStatus = null;
     try {
       final body = jsonEncode({
         'ebookLocation': ebookLocation,
@@ -2262,6 +2856,7 @@ class ApiService {
         body: body,
       ).timeout(const Duration(seconds: 10));
       debugPrint('[API] updateEbookProgress response: ${resp.statusCode} ${resp.body}');
+      lastEbookProgressStatus = resp.statusCode;
       return resp.statusCode >= 200 && resp.statusCode < 300;
     } catch (e) {
       debugPrint('[API] updateEbookProgress error: $e');
@@ -2306,8 +2901,11 @@ class ApiService {
 
       if (progressId != null) await deleteMediaProgress(progressId);
 
-      // Start session at 0 and close — forces server to update position
-      final sessionData = await startPlaybackSession(apiItemId, episodeId: episodeId);
+      // Start session at 0 and close — forces server to update position. An
+      // EPUB's narration has no server audio to open a session on.
+      final sessionData = NarratedBooks.contains(apiItemId) && episodeId == null
+          ? null
+          : await startPlaybackSession(apiItemId, episodeId: episodeId);
       if (sessionData != null) {
         final sessionId = sessionData['id'] as String?;
         if (sessionId != null) {
@@ -2322,6 +2920,8 @@ class ApiService {
         body: jsonEncode({
           'currentTime': 0,
           'progress': 0,
+          'ebookLocation': null,
+          'ebookProgress': 0,
           'isFinished': false,
           'hideFromContinueListening': true,
           'lastUpdate': DateTime.now().millisecondsSinceEpoch,
@@ -2430,7 +3030,9 @@ class ApiService {
   /// Same [isFinished] contract as [updateProgress]: null leaves the flag out
   /// so the server writes the percent, true marks finished, false un-finishes
   /// and lets the server clear the position to 0.
-  Future<void> updateEpisodeProgress(
+  /// Returns false when it never reached the server (network error or 5xx),
+  /// so a queued save can stay queued.
+  Future<bool> updateEpisodeProgress(
     String itemId,
     String episodeId, {
     required double currentTime,
@@ -2444,7 +3046,7 @@ class ApiService {
             body: jsonEncode({'isFinished': false}),
             timeout: const Duration(seconds: 10));
         debugPrint('[API] updateEpisodeProgress unfinish $episodeId: ${unfinish.statusCode}');
-        return;
+        return unfinish.statusCode < 500;
       }
       final resp = await _authPatch(url,
         body: jsonEncode({
@@ -2457,8 +3059,10 @@ class ApiService {
       if (resp.statusCode != 200) {
         debugPrint('[API] updateEpisodeProgress $episodeId: HTTP ${resp.statusCode}');
       }
+      return resp.statusCode < 500;
     } catch (e) {
       debugPrint('[API] updateEpisodeProgress error: $e');
+      return false;
     }
   }
 
@@ -3649,6 +4253,45 @@ class ApiService {
     return null;
   }
 
+  /// GET /api/auth-settings - password and OpenID Connect settings (admin only).
+  Future<Map<String, dynamic>?> getAuthSettings() async {
+    try {
+      final r = await _authGet(Uri.parse('$_cleanBaseUrl/api/auth-settings'));
+      if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+      debugPrint('[API] getAuthSettings failed: ${r.statusCode}');
+    } catch (e) { debugPrint('[API] getAuthSettings error: $e'); }
+    return null;
+  }
+
+  /// PATCH /api/auth-settings (admin only). Returns { updated, serverSettings }.
+  Future<Map<String, dynamic>?> updateAuthSettings(Map<String, dynamic> patch) async {
+    try {
+      final r = await _authPatch(Uri.parse('$_cleanBaseUrl/api/auth-settings'),
+          body: jsonEncode(patch));
+      if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+      debugPrint('[API] updateAuthSettings failed: ${r.statusCode}');
+    } catch (e) { debugPrint('[API] updateAuthSettings error: $e'); }
+    return null;
+  }
+
+  /// GET /auth/openid/config?issuer= - the server fetches the issuer's
+  /// openid-configuration (admin only). On failure [error] holds the
+  /// server's message.
+  Future<({Map<String, dynamic>? config, String? error})> getOpenIdIssuerConfig(String issuer) async {
+    try {
+      final r = await _authGet(Uri.parse('$_cleanBaseUrl/auth/openid/config')
+          .replace(queryParameters: {'issuer': issuer}));
+      if (r.statusCode == 200) {
+        return (config: jsonDecode(r.body) as Map<String, dynamic>, error: null);
+      }
+      final body = r.body.trim();
+      return (config: null, error: body.isNotEmpty ? body : 'HTTP ${r.statusCode}');
+    } catch (e) {
+      debugPrint('[API] getOpenIdIssuerConfig error: $e');
+      return (config: null, error: e.toString());
+    }
+  }
+
   /// GET /api/stats/server — { books, podcasts, total } (admin only).
   Future<Map<String, dynamic>?> getServerStats() async {
     try {
@@ -3839,7 +4482,7 @@ class ApiService {
   }
 
   /// Upload a cover image URL for a library item (admin only)
-  Future<bool> updateItemCoverUrl(String itemId, String url) async {
+  Future<bool> updateItemCoverUrl(String itemId, String url, {String? coverSlot}) async {
     try {
       final r = await _authPost(
         Uri.parse('$_cleanBaseUrl/api/items/$itemId/cover'),
@@ -3853,7 +4496,7 @@ class ApiService {
 
   /// Remove a library item's cover, leaving it with none (admin only).
   /// DELETE /api/items/:id/cover
-  Future<bool> removeItemCover(String itemId) async {
+  Future<bool> removeItemCover(String itemId, {String? coverSlot}) async {
     try {
       final r = await _authDelete(
         Uri.parse('$_cleanBaseUrl/api/items/$itemId/cover'),
@@ -3865,7 +4508,7 @@ class ApiService {
   }
 
   /// Upload a cover image file for a library item (admin only)
-  Future<bool> uploadItemCover(String itemId, String filePath) async {
+  Future<bool> uploadItemCover(String itemId, String filePath, {String? coverSlot}) async {
     try {
       final req = http.MultipartRequest(
         'POST',
@@ -3882,7 +4525,7 @@ class ApiService {
   /// Search provider cover images for a book.
   /// GET /api/search/covers?title=&author=&provider=  ->  { results: [url, ...] }
   Future<List<String>> searchCovers(String title,
-      {String? author, String provider = 'google'}) async {
+      {String? author, String provider = 'google', String? coverSlot}) async {
     try {
       final uri = Uri.parse('$_cleanBaseUrl/api/search/covers').replace(queryParameters: {
         'title': title,
@@ -4126,6 +4769,8 @@ class ApiService {
       );
       if (r.statusCode != 200) {
         debugPrint('[API] updateChapters failed: ${r.statusCode}');
+      } else {
+        debugPrint('[API] updateChapters $itemId: ${chapters.length} chapters saved');
       }
       return r.statusCode == 200;
     } catch (e) {
@@ -4138,10 +4783,12 @@ class ApiService {
   /// GET /api/search/chapters?asin=&region=
   /// Returns the raw result map on 200 (chapters + runtime + brand-intro/outro
   /// durations, or {error, stringKey} when the lookup fails), else null.
-  Future<Map<String, dynamic>?> searchChapters(String asin, String region) async {
+  /// [itemId] lets BookOrbit look the chapters up itself; Audiobookshelf
+  /// ignores it.
+  Future<Map<String, dynamic>?> searchChapters(String asin, String region, {String? itemId}) async {
     try {
       final uri = Uri.parse('$_cleanBaseUrl/api/search/chapters')
-          .replace(queryParameters: {'asin': asin, 'region': region});
+          .replace(queryParameters: {'asin': asin, 'region': region, 'id': ?itemId});
       final r = await _authGet(uri, timeout: const Duration(seconds: 20));
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
@@ -4232,6 +4879,19 @@ class ApiService {
       );
       return r.statusCode;
     } catch (e) { debugPrint('deleteLibraryItem error: $e'); }
+    return 0;
+  }
+
+  /// Delete one of an item's files from the server's disk: an audio track,
+  /// the ebook or any other file in its folder. See [deletePodcastEpisode]
+  /// for status semantics.
+  Future<int> deleteLibraryFile(String itemId, String fileId) async {
+    try {
+      final r = await _authDelete(
+        Uri.parse('$_cleanBaseUrl/api/items/$itemId/file/${Uri.encodeComponent(fileId)}'),
+      );
+      return r.statusCode;
+    } catch (e) { debugPrint('deleteLibraryFile error: $e'); }
     return 0;
   }
 

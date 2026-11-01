@@ -10,6 +10,7 @@ import 'author_card.dart';
 import 'hover_cover_actions.dart';
 import 'series_card.dart';
 import 'episode_list_sheet.dart';
+import 'books_sheet_shared.dart' show coverSizeScale;
 import '../utils/desktop_workspace.dart';
 import '../utils/app_platform.dart';
 import '../utils/media_card_gesture_policy.dart';
@@ -65,27 +66,50 @@ class HomeSection extends StatelessWidget {
         ? null
         : _collectionNameFromTitle(title);
 
-    // Check if any entities have recentEpisode (podcast episode sections)
-    final hasEpisodeEntities =
-        !isEpisodeSection &&
-        entities.isNotEmpty &&
-        entities.first is Map<String, dynamic> &&
-        (entities.first as Map<String, dynamic>)['recentEpisode'] != null;
-    final effectiveEpisode = isEpisodeSection || hasEpisodeEntities;
+    // A shelf of nothing but episodes keeps the episode layout. The Downloads
+    // shelf can mix episodes with books, and then it is sized for the books
+    // so their covers follow the cover size and the author line fits.
+    final onlyEpisodeEntities = !isEpisodeSection && entities.isNotEmpty &&
+        entities.every((e) =>
+            e is Map<String, dynamic> && e['recentEpisode'] != null);
+    final effectiveEpisode = isEpisodeSection || onlyEpisodeEntities;
 
     final bool isRectCover = coverAspectRatio < 1.0;
     final desktop = isDesktopWorkspace(context);
     final scale = desktop ? desktopScale : 1.0;
-    final double cardWidth =
-        (isContinueListening ? 300 : (isAuthorSection ? 120 : 140)) * scale;
+    // Book and series covers follow the cover size setting like the library
+    // grid does; the wide continue card, authors and episodes keep their size.
+    final bool coverCard =
+        !isContinueListening && !effectiveEpisode && !isAuthorSection;
+    final double cardWidth = (isContinueListening
+            ? 300
+            : isAuthorSection
+                ? 120
+                : coverCard
+                    ? 140 * coverSizeScale()
+                    : 140) *
+        scale;
     // Book cards grow by a line when subtitles are on; author and episode
     // cards have no subtitle to show, so they stay as they are.
     final bool subtitleLine =
         showSubtitles && !isContinueListening && !effectiveEpisode && !isAuthorSection;
-    final double cardHeight =
-        ((isContinueListening ? 120 : effectiveEpisode ? 200 : (isAuthorSection ? 170 : (isRectCover ? 260 : 200)))
-                + (subtitleLine ? 18 : 0)) *
-            scale;
+    // The text under a cover card is measured from the theme and the system
+    // font size, so the author line is never cut off when the title wraps or
+    // a subtitle is shown.
+    final scaler = MediaQuery.textScalerOf(context);
+    double lineHeight(TextStyle? style) =>
+        scaler.scale((style?.fontSize ?? 12) * (style?.height ?? 1.4));
+    final double textBlock = 6 +
+        lineHeight(tt.labelMedium) * (isRectCover ? 1 : 2) +
+        lineHeight(tt.labelSmall) * (subtitleLine ? 2 : 1) +
+        6;
+    final double cardHeight = isContinueListening
+        ? 120 * scale
+        : effectiveEpisode
+            ? 200 * scale
+            : isAuthorSection
+                ? 170 * scale
+                : cardWidth / coverAspectRatio + textBlock;
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -244,8 +268,10 @@ class HomeSection extends StatelessWidget {
   }
 
   String _collectionNameFromTitle(String value) {
-    const prefix = 'Server Collection - ';
-    return value.startsWith(prefix) ? value.substring(prefix.length) : value;
+    for (final prefix in const ['Server Collection - ', 'Smart Scope - ', 'Collection - ']) {
+      if (value.startsWith(prefix)) return value.substring(prefix.length);
+    }
+    return value;
   }
 }
 

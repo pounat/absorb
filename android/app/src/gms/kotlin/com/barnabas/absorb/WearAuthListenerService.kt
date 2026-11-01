@@ -11,8 +11,9 @@ import org.json.JSONObject
  *
  * The watch sends two paths:
  *  - /absorb/auth/request — sent on watch cold start when no credentials
- *    are cached. We respond by republishing the current session from
- *    Flutter SharedPreferences.
+ *    are cached, and on BookOrbit whenever the watch's token is about to run
+ *    out. We respond by republishing the current session from Flutter
+ *    SharedPreferences, renewing a BookOrbit one first when it needs it.
  *  - /absorb/auth/signout — sent when the user signs out from the watch.
  *    We wipe the published DataItem so the watch stays signed-out even
  *    after Play Services resyncs.
@@ -26,7 +27,12 @@ class WearAuthListenerService : WearableListenerService() {
 
     override fun onMessageReceived(event: MessageEvent) {
         when (event.path) {
-            WearAuthBridge.AUTH_REQUEST_PATH -> republishFromStoredPrefs()
+            WearAuthBridge.AUTH_REQUEST_PATH -> {
+                BookOrbitSessionRenewer.renewIfExpiring(
+                    applicationContext.getSharedPreferences(FLUTTER_PREFS_FILE, Context.MODE_PRIVATE),
+                )
+                republishFromStoredPrefs()
+            }
             WearAuthBridge.AUTH_SIGN_OUT_PATH -> WearAuthBridge.clear(applicationContext)
             WearAuthBridge.AUTH_ROTATED_PATH -> adoptRotatedTokens(event.data)
             else -> super.onMessageReceived(event)
@@ -89,6 +95,9 @@ class WearAuthListenerService : WearableListenerService() {
         val refreshToken = prefs.getString("flutter.refresh_token", null)
         val username = prefs.getString("flutter.username", null) ?: ""
         val userId = prefs.getString("flutter.user_id", null)
+        // Which kind of server the session is on; the watch needs it to
+        // pick its routes. Stored by ServerBackend.saveActive on the Dart side.
+        val backend = prefs.getString("flutter.server_backend", null) ?: "abs"
         // AuthProvider treats absence of refresh_token as a legacy/API-key
         // session; mirror that heuristic here so the watch knows not to
         // try the refresh endpoint.
@@ -117,6 +126,7 @@ class WearAuthListenerService : WearableListenerService() {
             isLegacyToken = isLegacy,
             customHeaders = headers,
             supportsTokenReturn = true,
+            backend = backend,
         )
     }
 

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -14,7 +13,7 @@ import '../services/download_service.dart';
 import 'book_detail_sheet.dart';
 import 'books_sheet_shared.dart' show coverGridCount;
 import 'episode_detail_sheet.dart';
-import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'swipe_action.dart';
 import 'stackable_sheet.dart';
 
@@ -161,6 +160,8 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
         final isFinished = episodeId != null
             ? (lib.getEpisodeProgressData(itemId, episodeId)?['isFinished'] == true)
             : (lib.getProgressData(itemId)?['isFinished'] == true);
+        final isSkimmed =
+            episodeId == null && lib.getProgressData(itemId)?['skimmed'] == true;
         final isDownloaded = DownloadService()
             .isDownloaded(episodeId != null ? '$itemId-$episodeId' : itemId);
         final isOnAbsorbing = lib.isOnAbsorbingList(itemId);
@@ -188,7 +189,7 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
                       if (isFinished || isDownloaded)
                         Positioned(
                           left: 0, right: 0, bottom: 0,
-                          child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                          child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                         ),
                     ]),
                   ),
@@ -230,13 +231,9 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
                   icon: Icons.add_circle_outline_rounded,
                   color: cs.primary,
                   onTrigger: () async {
-                    await lib.addToAbsorbingQueue(itemId);
-                    lib.absorbingItemCache[itemId] = Map<String, dynamic>.from(item);
-                    HapticFeedback.mediumImpact();
-                    if (context.mounted) {
-                      showOverlayToast(context, Wording.of(context).sectionDetailAddedToAbsorbing(title),
-                          icon: Icons.add_circle_outline_rounded);
-                    }
+                    await addToAbsorbingWithPicker(context, itemId,
+                        item: item,
+                        addedToast: Wording.of(context).sectionDetailAddedToAbsorbing(title));
                   },
                 ),
           child: card,
@@ -256,8 +253,8 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
           .copyWith(bottom: 40),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: coverGridCount(context),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
         childAspectRatio: childAspectRatio,
       ),
       itemCount: widget.entities.length,
@@ -282,6 +279,8 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
         final isFinished = episodeId != null
             ? (lib.getEpisodeProgressData(itemId, episodeId)?['isFinished'] == true)
             : (lib.getProgressData(itemId)?['isFinished'] == true);
+        final isSkimmed =
+            episodeId == null && lib.getProgressData(itemId)?['skimmed'] == true;
         final isDownloaded = DownloadService()
             .isDownloaded(episodeId != null ? '$itemId-$episodeId' : itemId);
 
@@ -302,7 +301,7 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
                     if (isFinished || isDownloaded)
                       Positioned(
                         left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                       ),
                   ]),
                 ),

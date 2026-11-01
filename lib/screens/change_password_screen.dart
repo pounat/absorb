@@ -48,6 +48,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
       return;
     }
+    final bookOrbit = context.read<AuthProvider>().isBookOrbit;
+    if (bookOrbit && !BookOrbitApiService.passwordAcceptable(_newController.text)) {
+      showOverlayToast(
+        context,
+        l.boPasswordRules,
+        icon: Icons.error_outline_rounded,
+      );
+      return;
+    }
 
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
@@ -62,7 +71,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       case PasswordChangeStatus.success:
         showOverlayToast(
           context,
-          l.passwordChanged,
+          bookOrbit ? l.boPasswordChanged : l.passwordChanged,
           icon: Icons.check_circle_outline_rounded,
         );
         Navigator.pop(context, true);
@@ -84,7 +93,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       case PasswordChangeStatus.failed:
         showOverlayToast(
           context,
-          l.passwordChangeFailed,
+          bookOrbit ? result.message ?? l.passwordChangeFailed : l.passwordChangeFailed,
           icon: Icons.error_outline_rounded,
         );
         break;
@@ -94,6 +103,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final bookOrbit = context.watch<AuthProvider>().isBookOrbit;
     return Scaffold(
       appBar: AppBar(title: Text(l.changePasswordTitle)),
       body: DesktopPageBody(
@@ -102,7 +112,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            l.passwordChangeEffect,
+            bookOrbit ? l.boPasswordChangeEffect : l.passwordChangeEffect,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -121,7 +131,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             controller: _newController,
             obscureText: true,
             autofillHints: const [AutofillHints.newPassword],
-            decoration: InputDecoration(labelText: l.newPassword),
+            decoration: InputDecoration(
+              labelText: l.newPassword,
+              helperText: bookOrbit ? l.boPasswordRules : null,
+              helperMaxLines: 3,
+            ),
           ),
           const SizedBox(height: 16),
           TextField(

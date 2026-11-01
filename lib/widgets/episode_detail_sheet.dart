@@ -16,6 +16,7 @@ import '../providers/auth_provider.dart';
 import 'card_buttons.dart';
 import 'html_description.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'playlist_picker_sheet.dart';
 import 'action_pill.dart';
 import 'adaptive_modal.dart';
@@ -707,18 +708,12 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
               );
             }
           } else {
-            await lib.addToAbsorbingQueue(dlKey);
-            final cached = Map<String, dynamic>.from(widget.podcastItem);
-            cached['recentEpisode'] = Map<String, dynamic>.from(widget.episode);
-            cached['_absorbingKey'] = dlKey;
-            lib.absorbingItemCache[dlKey] = cached;
-            if (context.mounted) {
-              showOverlayToast(
-                context,
-                Wording.of(context).addedToAbsorbing,
-                icon: Icons.add_circle_outline_rounded,
-              );
-            }
+            await addToAbsorbingWithPicker(context, dlKey,
+                item: {
+                  ...widget.podcastItem,
+                  'recentEpisode': Map<String, dynamic>.from(widget.episode),
+                },
+                addedToast: Wording.of(context).addedToAbsorbing);
           }
         }),
       if (!lib.isOffline)

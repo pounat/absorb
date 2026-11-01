@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 
 /// State banner across the bottom of cover art: a finished check + "Finished"
-/// (green) and a downloaded arrow + "Downloaded" (white), stacked, over a strong
+/// (green, or "Skimmed" in amber for a BookOrbit book marked skimmed) and a
+/// downloaded arrow + "Downloaded" (white), stacked, over a strong
 /// dark scrim so they stay legible on any artwork. Place across the bottom of a
 /// cover Stack:
 ///   Positioned(left: 0, right: 0, bottom: 0, child: CoverStateBadges(...))
 class CoverStateBadges extends StatelessWidget {
   final bool isDownloaded;
   final bool isFinished;
+  final bool isSkimmed;
   final double iconSize;
 
   /// Shows just the icons (no text labels), for covers too small to fit the
@@ -23,6 +25,7 @@ class CoverStateBadges extends StatelessWidget {
     super.key,
     required this.isDownloaded,
     required this.isFinished,
+    this.isSkimmed = false,
     this.iconSize = 13,
     this.iconOnly = false,
     this.borderRadius,
@@ -33,7 +36,10 @@ class CoverStateBadges extends StatelessWidget {
     if (!isDownloaded && !isFinished) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;
     final green = Colors.greenAccent.shade400;
-    if (iconOnly) return _iconOnly(green);
+    final skimmed = isFinished && isSkimmed;
+    final doneIcon = skimmed ? Icons.fast_forward_rounded : Icons.check_circle_rounded;
+    final doneColor = skimmed ? Colors.amberAccent.shade200 : green;
+    if (iconOnly) return _iconOnly(doneIcon, doneColor);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
       decoration: BoxDecoration(
@@ -53,7 +59,8 @@ class CoverStateBadges extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (isFinished) _row(Icons.check_circle_rounded, l.finished, green),
+          if (isFinished)
+            _row(doneIcon, skimmed ? l.readStatusSkimmed : l.finished, doneColor),
           if (isFinished && isDownloaded) const SizedBox(height: 2),
           if (isDownloaded) _row(Icons.download_rounded, l.saved, Colors.white),
         ],
@@ -61,7 +68,7 @@ class CoverStateBadges extends StatelessWidget {
     );
   }
 
-  Widget _iconOnly(Color green) {
+  Widget _iconOnly(IconData doneIcon, Color doneColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
       decoration: BoxDecoration(
@@ -79,7 +86,7 @@ class CoverStateBadges extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isFinished) Icon(Icons.check_circle_rounded, size: iconSize, color: green),
+          if (isFinished) Icon(doneIcon, size: iconSize, color: doneColor),
           if (isFinished && isDownloaded) const SizedBox(width: 3),
           if (isDownloaded) Icon(Icons.download_rounded, size: iconSize, color: Colors.white),
         ],
@@ -96,6 +103,40 @@ class CoverStateBadges extends StatelessWidget {
         const SizedBox(width: 3),
         Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color)),
       ],
+    );
+  }
+}
+
+/// Small book icon for a cover corner, on books that come with an ebook,
+/// with headphones beside it when the ebook reads itself aloud:
+///   Positioned(top: 4, left: 4, child: EbookCoverBadge())
+class EbookCoverBadge extends StatelessWidget {
+  final bool readAlong;
+  const EbookCoverBadge({super.key, this.readAlong = false});
+
+  @override
+  Widget build(BuildContext context) {
+    if (readAlong) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.menu_book_rounded, size: 11, color: Colors.white),
+          SizedBox(width: 2),
+          Icon(Icons.headphones_rounded, size: 11, color: Colors.white),
+        ]),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.menu_book_rounded, size: 11, color: Colors.white),
     );
   }
 }

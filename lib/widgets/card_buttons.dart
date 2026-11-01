@@ -13,11 +13,14 @@ import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
+import '../services/ebook_annotation_service.dart';
 import '../services/lyrics_service.dart';
 import '../services/transcription_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/playback_history_service.dart';
+import '../services/narrated_books.dart';
 import '../services/scoped_prefs.dart';
+import '../services/screen_wake.dart';
 import '../services/sleep_timer_service.dart';
 import '../utils/episode_key.dart';
 import 'absorb_slider.dart';
@@ -28,6 +31,7 @@ import 'bookmark_detail_dialog.dart';
 import 'card_button_config.dart';
 import 'card_chapters_sheet.dart';
 import 'chromecast_button.dart';
+import 'ebook_router.dart';
 import 'episode_detail_sheet.dart';
 import 'episode_list_sheet.dart';
 import 'equalizer_sheet.dart';
@@ -45,6 +49,21 @@ Color _inkAccent(Color accent) =>
     PlayerSettings.einkMode ? Colors.black : accent;
 double _inkAlpha(double normal, double eink) =>
     PlayerSettings.einkMode ? eink : normal;
+
+/// A card button's fill under the Button background setting. Subtle is the
+/// tint at the given strength; Solid lays it over an opaque surface.
+Color _buttonFill(ColorScheme cs, Color tint, double normal, double eink, {bool neutral = false}) =>
+    switch (PlayerSettings.cardButtonFill) {
+      'clear' => Colors.transparent,
+      'solid' => neutral
+          ? cs.surfaceContainerHighest
+          : Color.alphaBlend(tint.withValues(alpha: 0.2), cs.surfaceContainerHighest),
+      _ => tint.withValues(alpha: _inkAlpha(normal, eink)),
+    };
+
+/// A card button's edge; Clear drops it with the fill.
+Color _buttonEdge(Color tint, double normal, double eink) =>
+    PlayerSettings.cardButtonFill == 'clear' ? Colors.transparent : tint.withValues(alpha: _inkAlpha(normal, eink));
 
 /// Wrapper that gives any child a press-down opacity+scale effect.
 class Pressable extends StatefulWidget {
@@ -82,6 +101,25 @@ class _PressableState extends State<Pressable> {
 }
 
 /// Show a toast when the user taps a button that requires active playback.
+/// The card's Keep screen on button: holds the screen while the player is up,
+/// until the app is closed. With the Settings switch on, the button switches
+/// it off for this run only; the next launch follows Settings again.
+void toggleKeepScreenOn(BuildContext context) {
+  final l = AppLocalizations.of(context)!;
+  if (PlayerScreenWake.always) {
+    final off = !PlayerScreenWake.sessionOff.value;
+    PlayerScreenWake.sessionOff.value = off;
+    showOverlayToast(context,
+        off ? l.keepScreenOnOffUntilRestart : l.keepScreenOnUntilClosed,
+        icon: off ? Icons.lightbulb_outline_rounded : Icons.lightbulb_rounded);
+    return;
+  }
+  final on = !PlayerScreenWake.sessionOn.value;
+  PlayerScreenWake.sessionOn.value = on;
+  showOverlayToast(context, on ? l.keepScreenOnUntilClosed : l.keepScreenOnOff,
+      icon: on ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded);
+}
+
 void showInactiveToast(BuildContext context) {
   final l = AppLocalizations.of(context)!;
   showOverlayToast(context, l.startPlayingSomethingFirst,
@@ -136,13 +174,13 @@ class CardWideButton extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
           color: highlighted
-              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-              : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+              ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+              : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
           borderRadius: BorderRadius.circular(radius),
           border: Border.all(
               color: highlighted
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
         ),
         child: showIconOnly
           ? Center(child: Icon(icon, size: iconSize, color: fgColor))
@@ -167,6 +205,9 @@ class MoreMenuItem extends StatelessWidget {
   final String label;
   final Color accent;
   final bool enabled;
+  // A toggle that is currently on: the pill lights up in the accent so the
+  // state shows before you press it.
+  final bool active;
   final VoidCallback onTap;
 
   const MoreMenuItem({
@@ -174,10 +215,12 @@ class MoreMenuItem extends StatelessWidget {
     required this.icon, required this.label,
     required this.accent, required this.onTap,
     this.enabled = true,
+    this.active = false,
   });
 
   @override Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ink = _inkAccent(accent);
     // Grid pill: centered icon over a short label, fills its (fixed-height)
     // grid cell. Matches the book menu's quick-actions pills. The loose
     // Flexible lets a long label ellipsise inside the cell at big font scales.
@@ -186,21 +229,28 @@ class MoreMenuItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHigh,
+          color: active ? ink.withValues(alpha: _inkAlpha(0.18, 0.0)) : cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+          border: Border.all(
+            color: active
+                ? ink.withValues(alpha: _inkAlpha(0.6, 1.0))
+                : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55)),
+            width: active ? 1.5 : 1,
+          ),
         ),
         child: Column(mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(icon, size: 22, color: enabled
-              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.85, 1.0))
+              ? ink.withValues(alpha: _inkAlpha(active ? 1.0 : 0.85, 1.0))
               : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))),
           const SizedBox(height: 7),
           Flexible(child: Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: enabled
-                  ? cs.onSurface.withValues(alpha: _inkAlpha(0.85, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)),
-              fontSize: 11, fontWeight: FontWeight.w500, height: 1.15))),
+              color: !enabled
+                  ? cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))
+                  : active
+                      ? ink
+                      : cs.onSurface.withValues(alpha: _inkAlpha(0.85, 1.0)),
+              fontSize: 11, fontWeight: active ? FontWeight.w700 : FontWeight.w500, height: 1.15))),
         ]),
       ),
     );
@@ -253,12 +303,12 @@ class CardSleepButtonInline extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: active
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+                  ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: active
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: Stack(children: [
               if (active && isTime)
@@ -362,12 +412,12 @@ class CardDownloadButtonInline extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: downloaded
-                  ? dlGreen.withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+                  ? _buttonFill(cs, dlGreen, 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: downloaded
-                  ? dlGreen.withValues(alpha: _inkAlpha(0.3, 0.9))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(dlGreen, 0.3, 0.9)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: Stack(children: [
               if (downloading)
@@ -492,9 +542,9 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+          color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+          border: Border.all(color: _buttonEdge(cs.onSurface, 0.08, 0.55)),
         ),
         child: cp || widget.iconsOnly
           ? Center(child: Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant))
@@ -626,9 +676,9 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
           child: Container(
             height: h,
             decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+              color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
               borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+              border: Border.all(color: _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: content,
           ),
@@ -792,7 +842,9 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
 
 class SimpleBookmarkSheet extends StatefulWidget {
   final String itemId; final String? episodeId; final AudioPlayerService player; final Color accent; final ScrollController scrollController; final VoidCallback onChanged;
-  const SimpleBookmarkSheet({super.key, required this.itemId, this.episodeId, required this.player, required this.accent, required this.scrollController, required this.onChanged});
+  /// Off inside the reader, which lists its own highlights.
+  final bool showHighlights;
+  const SimpleBookmarkSheet({super.key, required this.itemId, this.episodeId, required this.player, required this.accent, required this.scrollController, required this.onChanged, this.showHighlights = true});
 
   /// Storage key: 'showId-episodeId' for a podcast episode, the item id for a
   /// book. [itemId] stays the library item for anything the server answers.
@@ -802,12 +854,17 @@ class SimpleBookmarkSheet extends StatefulWidget {
 
 class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
   List<Bookmark>? _bookmarks;
+  // The book's ebook highlights, for a book with an ebook beside its audio or
+  // one that reads itself aloud.
+  List<EbookAnnotation> _highlights = const [];
+  bool _onHighlights = false;
   String _sort = 'newest';
   bool _speedAdjustedTime = true;
   double _savedSpeed = 1.0;
   @override void initState() {
     super.initState();
     _loadSort();
+    if (widget.showHighlights && widget.episodeId == null) _loadHighlights();
     PlayerSettings.getSpeedAdjustedTime().then((v) {
       if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
     });
@@ -850,6 +907,80 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     widget.onChanged();
   }
 
+  Future<void> _loadHighlights() async {
+    final all = await EbookAnnotationService().getAnnotations(widget.itemId);
+    final highlights = all.where((a) => a.type == AnnotationType.highlight).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    if (!mounted) return;
+    setState(() {
+      _highlights = highlights;
+      if (highlights.isEmpty) _onHighlights = false;
+    });
+  }
+
+  Future<void> _openHighlight(EbookAnnotation highlight) async {
+    await openHighlightInReader(context, itemId: widget.itemId, cfi: highlight.cfi);
+    // Highlights added, recolored or removed while reading.
+    if (mounted) await _loadHighlights();
+  }
+
+  Widget _tab(String label, bool selected, VoidCallback onTap) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? widget.accent.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(label, style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: selected ? widget.accent : cs.onSurfaceVariant,
+        )),
+      ),
+    );
+  }
+
+  Widget _highlightList(TextTheme tt, ColorScheme cs, AppLocalizations l) => ListView.builder(
+    controller: widget.scrollController, padding: const EdgeInsets.only(bottom: 24), itemCount: _highlights.length,
+    itemBuilder: (ctx, i) {
+      final h = _highlights[i];
+      final hex = (h.color ?? HighlightColor.yellow).hex;
+      final created = h.createdAt;
+      final date = l.backupDateFormat(created.month, created.day, created.year);
+      final chapter = h.chapter;
+      final meta = chapter != null && chapter.isNotEmpty ? l.highlightsMeta(chapter, date) : date;
+      final hasNote = h.note != null && h.note!.isNotEmpty;
+      return InkWell(
+        onTap: () => _openHighlight(h),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Container(
+            padding: const EdgeInsets.only(left: 10),
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(color: Color(int.parse('FF${hex.substring(1)}', radix: 16)), width: 3)),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(h.selectedText ?? '', maxLines: 4, overflow: TextOverflow.ellipsis, style: tt.bodyMedium),
+              if (hasNote) ...[
+                const SizedBox(height: 4),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(Icons.sticky_note_2_outlined, size: 14, color: cs.onSurfaceVariant.withValues(alpha: 0.7)),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(h.note!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))),
+                ]),
+              ],
+              const SizedBox(height: 4),
+              Text(meta, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+            ]),
+          ),
+        ),
+      );
+    },
+  );
+
   @override Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
@@ -864,7 +995,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
         Padding(padding: const EdgeInsets.symmetric(vertical: 12),
           child: Container(width: 40, height: 4, decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(children: [
-          GestureDetector(
+          if (_onHighlights) const SizedBox(width: 36) else GestureDetector(
             onTap: () {
               final next = _sort == 'newest' ? 'position'
                   : _sort == 'position' ? 'position_desc'
@@ -890,16 +1021,24 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
             ),
           ),
           const Spacer(),
-          Text(l.bookmarks, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          if (_highlights.isEmpty)
+            Text(l.bookmarks, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600))
+          else ...[
+            _tab(l.bookmarksTabBookmarks, !_onHighlights, () => setState(() => _onHighlights = false)),
+            const SizedBox(width: 6),
+            _tab(l.bookmarksTabHighlights, _onHighlights, () => setState(() => _onHighlights = true)),
+          ],
           const Spacer(),
-          GestureDetector(onTap: () => _addBookmark(), child: Container(
+          if (_onHighlights) const SizedBox(width: 36) else GestureDetector(onTap: () => _addBookmark(), child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(color: widget.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
             child: Icon(Icons.add_rounded, color: widget.accent, size: 20),
           )),
         ])),
         const SizedBox(height: 8),
-        Expanded(child: _bookmarks == null
+        Expanded(child: _onHighlights
+            ? _highlightList(tt, cs, l)
+            : _bookmarks == null
             ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
             : _bookmarks!.isEmpty
                 ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1558,6 +1697,21 @@ class CardActionDelegate {
 
   Map<String, dynamic> get _media => item['media'] as Map<String, dynamic>? ?? {};
 
+  /// A book whose audio is its EPUB's narration: Read already opens on the
+  /// sentence being heard, so Find in ebook would be the same button twice.
+  bool get _narratedEbook {
+    if (episodeId != null) return false;
+    if (NarratedBooks.contains(itemId) || _media['narration'] != null) return true;
+    // A BookOrbit card's book can arrive without its files; the narration
+    // looked up when it played or opened says so either way.
+    final api = context.read<AuthProvider>().apiService;
+    return api is BookOrbitApiService && api.knownNarrated(itemId);
+  }
+
+  /// The saved button order, less what this book has no use for.
+  List<String> get _shownOrder =>
+      _narratedEbook ? buttonOrder.where((id) => id != 'findinebook').toList() : buttonOrder;
+
   /// Which episode the bookmark surfaces belong to. A card that knows its own
   /// episode wins; an active podcast card falls back to what is playing.
   String? get _bookmarkEpisodeId =>
@@ -1673,8 +1827,9 @@ class CardActionDelegate {
     bool showAll = false,
   }) {
     final count = visibleButtonCount;
-    final ids = buttonOrder
-        .take(showAll ? buttonOrder.length : count)
+    final order = _shownOrder;
+    final ids = order
+        .take(showAll ? order.length : count)
         .where((id) => !showAll || id != '_more')
         .where((id) => !showAll || buttonDefById(id) != null)
         .where((id) => showChaptersAction || id != 'chapters')
@@ -1756,12 +1911,12 @@ class CardActionDelegate {
             padding: EdgeInsets.symmetric(vertical: vPad),
             decoration: BoxDecoration(
               color: castActive
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
+                  ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: castActive
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: iconsOnly
               ? Center(child: Icon(moreIcon, size: iconSz, color: iconColor))
@@ -1894,6 +2049,17 @@ class CardActionDelegate {
           icon: Icons.directions_car_rounded, label: l.carModeTitle,
           accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
           onTap: () => openCarMode(context),
+        );
+      case 'wake':
+        return ValueListenableBuilder<bool>(
+          valueListenable: PlayerScreenWake.wanted,
+          builder: (_, on, __) => CardWideButton(
+            icon: on ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded,
+            label: l.keepScreenOn,
+            accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+            highlighted: on,
+            onTap: () => toggleKeepScreenOn(context),
+          ),
         );
       case 'notes':
         return CardWideButton(
@@ -2048,6 +2214,15 @@ class CardActionDelegate {
           icon: Icons.directions_car_rounded, label: l.carModeTitle, accent: accent,
           onTap: () { Navigator.pop(ctx); openCarMode(context); },
         );
+      case 'wake':
+        final wakeOn = PlayerScreenWake.wanted.value;
+        return MoreMenuItem(
+          icon: wakeOn ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded,
+          label: wakeOn ? l.keepScreenOnActive : l.keepScreenOn,
+          accent: accent,
+          active: wakeOn,
+          onTap: () { Navigator.pop(ctx); toggleKeepScreenOn(context); },
+        );
       case 'notes':
         return MoreMenuItem(
           icon: Icons.note_rounded, label: l.notes, accent: accent,
@@ -2152,7 +2327,7 @@ class CardActionDelegate {
 
   void showMoreMenu(Color accent, TextTheme tt) {
     final count = visibleButtonCount;
-    final overflowIds = buttonOrder
+    final overflowIds = _shownOrder
         .skip(count)
         .where((id) => id != '_more' && (showChaptersAction || id != 'chapters'))
         .toList();
@@ -2714,14 +2889,31 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
             showRetry: widget.api != null,
           );
         }
+        final add = widget.episodeId == null
+            ? Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    onPressed: _addSession,
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: Text(l.sessionAdd),
+                  ),
+                ),
+              )
+            : null;
         if (sessions.isEmpty) {
-          return _serverMessage(l.historyNoServerSessions, l, cs);
+          return Column(children: [
+            if (add != null) Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 0), child: add),
+            Expanded(child: _serverMessage(l.historyNoServerSessions, l, cs)),
+          ]);
         }
 
         return ListView(
           controller: widget.scrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
+            ?add,
             for (final session in sessions)
               ListeningSessionCard(
                 session: session,
@@ -2731,6 +2923,106 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
         );
       },
     );
+  }
+
+  /// Logs listening done away from the app, to catch a book's listening
+  /// time up on the server.
+  Future<void> _addSession() async {
+    final api = widget.api;
+    if (api == null) return;
+    final l = AppLocalizations.of(context)!;
+    final now = DateTime.now();
+    var day = DateTime(now.year, now.month, now.day);
+    var start = TimeOfDay.fromDateTime(now.subtract(const Duration(hours: 1)));
+    final hoursCtrl = TextEditingController(text: '1');
+    final minutesCtrl = TextEditingController(text: '0');
+    String two(int v) => v.toString().padLeft(2, '0');
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialog) => AlertDialog(
+          scrollable: true,
+          title: Text(l.sessionAdd),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(l.statsScreenListened, style: Theme.of(dialogCtx).textTheme.labelLarge),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: hoursCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: l.statsHoursUnit, border: const OutlineInputBorder()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: minutesCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: l.statsMinutesUnit, border: const OutlineInputBorder()),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Text(l.sessionDayLabel, style: Theme.of(dialogCtx).textTheme.bodyMedium),
+              const Spacer(),
+              TextButton.icon(
+                icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                label: Text('${day.year}-${two(day.month)}-${two(day.day)}'),
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: dialogCtx,
+                    initialDate: day,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) setDialog(() => day = DateTime(picked.year, picked.month, picked.day));
+                },
+              ),
+            ]),
+            Row(children: [
+              Text(l.sessionStartLabel, style: Theme.of(dialogCtx).textTheme.bodyMedium),
+              const Spacer(),
+              TextButton.icon(
+                icon: const Icon(Icons.schedule_rounded, size: 16),
+                label: Text(start.format(dialogCtx)),
+                onPressed: () async {
+                  final picked = await showTimePicker(context: dialogCtx, initialTime: start);
+                  if (picked != null) setDialog(() => start = picked);
+                },
+              ),
+            ]),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text(l.cancel)),
+            FilledButton(onPressed: () => Navigator.pop(dialogCtx, true), child: Text(l.save)),
+          ],
+        ),
+      ),
+    );
+    final h = int.tryParse(hoursCtrl.text.trim()) ?? 0;
+    final m = int.tryParse(minutesCtrl.text.trim()) ?? 0;
+    hoursCtrl.dispose();
+    minutesCtrl.dispose();
+    final seconds = (h < 0 ? 0 : h) * 3600 + (m < 0 ? 0 : m) * 60;
+    if (saved != true || !mounted || seconds <= 0) return;
+
+    var startedAt = DateTime(day.year, day.month, day.day, start.hour, start.minute);
+    final latest = DateTime.now().subtract(Duration(seconds: seconds));
+    if (startedAt.isAfter(latest)) startedAt = latest;
+    final ok = await api.addListeningSession(itemId: widget.itemId, startedAt: startedAt, seconds: seconds);
+    if (!mounted) return;
+    showOverlayToast(
+      context,
+      ok ? l.sessionAdded : l.sessionAddFailed,
+      icon: ok ? Icons.check_rounded : Icons.error_outline_rounded,
+    );
+    if (ok) setState(() => _serverFuture = _fetchServerSessions());
   }
 
   Future<void> _showServerSessionDetails(

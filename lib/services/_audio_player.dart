@@ -157,4 +157,9 @@ class AudioPlayer {
     // uses default AVPlayer caching; acceptable for the experimental flag.
     await ja.AudioPlayer.configureStreamingCache(sizeInMB);
   }
+
+  static Future<void> clearStreamingCache() async {
+    if (AppPlatform.isIOS) return;
+    await ja.AudioPlayer.clearStreamingCache();
+  }
 }

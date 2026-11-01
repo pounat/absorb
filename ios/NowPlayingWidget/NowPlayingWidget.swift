@@ -268,6 +268,19 @@ struct NowPlayingProvider: TimelineProvider {
 
 // MARK: - Cover Art
 
+private extension Image {
+    /// Tinted and Clear home screens flatten an image to one flat color
+    /// unless it asks to keep its own (GH #402).
+    @ViewBuilder
+    func keepingOwnColors() -> some View {
+        if #available(iOS 18.0, *) {
+            self.widgetAccentedRenderingMode(.fullColor)
+        } else {
+            self
+        }
+    }
+}
+
 struct CoverArtView: View {
     let image: UIImage?
     let cornerRadius: CGFloat
@@ -276,6 +289,7 @@ struct CoverArtView: View {
         if let image = image {
             Image(uiImage: image)
                 .resizable()
+                .keepingOwnColors()
                 .aspectRatio(contentMode: .fill)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         } else {
@@ -486,13 +500,23 @@ private struct ArtSkipIcon: View {
 private struct ArtPlayIcon: View {
     let isPlaying: Bool
     let diameter: CGFloat
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     var body: some View {
-        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+        let glyph = Image(systemName: isPlaying ? "pause.fill" : "play.fill")
             .font(.system(size: diameter * 0.42, weight: .semibold))
-            .foregroundStyle(.black)
-            .frame(width: diameter, height: diameter)
-            .background(.white, in: Circle())
+        if renderingMode == .accented {
+            // A black glyph on a white disc flattens to a blank disc there.
+            glyph
+                .foregroundStyle(.white)
+                .frame(width: diameter, height: diameter)
+                .background { Circle().strokeBorder(.white, lineWidth: 1.5) }
+        } else {
+            glyph
+                .foregroundStyle(.black)
+                .frame(width: diameter, height: diameter)
+                .background(.white, in: Circle())
+        }
     }
 }
 
@@ -533,8 +557,35 @@ private struct ArtControlsRow: View {
     }
 }
 
+// The scrim as a picture: on Tinted and Clear home screens a drawn gradient
+// turns into a white haze, an image can keep its black.
+private let artScrimImage: UIImage = {
+    let size = CGSize(width: 1, height: 256)
+    let format = UIGraphicsImageRendererFormat()
+    format.opaque = false
+    format.scale = 1
+    return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+        let colors = [
+            UIColor.black.withAlphaComponent(0).cgColor,
+            UIColor.black.withAlphaComponent(0.65).cgColor,
+        ] as CFArray
+        guard let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: colors,
+            locations: [0.35, 1.0]
+        ) else { return }
+        ctx.cgContext.drawLinearGradient(
+            gradient,
+            start: .zero,
+            end: CGPoint(x: 0, y: size.height),
+            options: []
+        )
+    }
+}()
+
 private struct ArtCoverBackground: View {
     let entry: NowPlayingEntry
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     var body: some View {
         // GeometryReader pins the filled image to the widget's exact bounds;
@@ -544,23 +595,59 @@ private struct ArtCoverBackground: View {
                 if let image = entry.coverImage {
                     Image(uiImage: image)
                         .resizable()
+                        .keepingOwnColors()
                         .scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
-                } else {
+                } else if renderingMode != .accented {
                     LinearGradient(
                         colors: [Color(white: 0.28), Color(white: 0.10)],
                         startPoint: .top, endPoint: .bottom
                     )
                 }
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0.0), location: 0.35),
-                        .init(color: .black.opacity(0.65), location: 1.0),
-                    ],
-                    startPoint: .top, endPoint: .bottom
-                )
+                if renderingMode != .accented {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black.opacity(0.0), location: 0.35),
+                            .init(color: .black.opacity(0.65), location: 1.0),
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                } else if entry.coverImage != nil {
+                    Image(uiImage: artScrimImage)
+                        .resizable()
+                        .keepingOwnColors()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
             }
+        }
+    }
+}
+
+/// Tinted and Clear home screens throw away a widget's container background,
+/// which is where the cover is drawn, so there it goes behind the content.
+private struct ArtCoverBacking: ViewModifier {
+    let entry: NowPlayingEntry
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.widgetContentMargins) private var margins
+
+    func body(content: Content) -> some View {
+        if renderingMode == .accented {
+            content
+                .background {
+                    ArtCoverBackground(entry: entry)
+                        .padding(EdgeInsets(
+                            top: -margins.top,
+                            leading: -margins.leading,
+                            bottom: -margins.bottom,
+                            trailing: -margins.trailing
+                        ))
+                        .clipShape(ContainerRelativeShape())
+                }
+                .containerBackground(for: .widget) { Color.clear }
+        } else {
+            content
+                .containerBackground(for: .widget) { ArtCoverBackground(entry: entry) }
         }
     }
 }
@@ -599,7 +686,7 @@ private struct ArtSmallView: View {
             ArtControlsRow(entry: entry, playDiameter: 34, skipSize: 15, spacing: 14)
         }
         .frame(maxWidth: .infinity)
-        .containerBackground(for: .widget) { ArtCoverBackground(entry: entry) }
+        .modifier(ArtCoverBacking(entry: entry))
     }
 }
 
@@ -627,7 +714,7 @@ private struct ArtMediumView: View {
                 .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .containerBackground(for: .widget) { ArtCoverBackground(entry: entry) }
+        .modifier(ArtCoverBacking(entry: entry))
     }
 }
 
@@ -696,7 +783,7 @@ private struct ArtLargeView: View {
                 .padding(.top, 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .containerBackground(for: .widget) { ArtCoverBackground(entry: entry) }
+        .modifier(ArtCoverBacking(entry: entry))
     }
 }
 

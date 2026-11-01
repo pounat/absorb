@@ -1761,6 +1761,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
       _seriesBooks = null;
       _seriesId = null;
       _seriesName = null;
+      _seriesLibraryId = null;
       _showEpisodes = null;
       _showItem = null;
       _showName = null;
@@ -1868,6 +1869,8 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
   List<Map<String, dynamic>>? _seriesBooks;
   String? _seriesId;
   String? _seriesName;
+  // The series' own library: with libraries merged it can be another one.
+  String? _seriesLibraryId;
   List<Map<String, dynamic>>? _playlistItems;
   String? _playlistId;
   String? _playlistName;
@@ -1975,6 +1978,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
       _seriesBooks = books;
       _seriesId = sid;
       _seriesName = seriesName;
+      _seriesLibraryId = libraryId;
     });
     _scrollToCurrent(
       [for (final b in books) b['id'] as String? ?? ''],
@@ -2179,14 +2183,17 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
                     ),
                   ),
                 ),
-                ButtonSegment(
-                  value: 'playlist',
-                  icon: const Icon(Icons.playlist_play_rounded, size: 16),
-                  label: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(l.queueModePlaylist, maxLines: 1),
+                // BookOrbit has no playlists.
+                if (!context.read<AuthProvider>().isBookOrbit ||
+                    _queueMode == 'playlist')
+                  ButtonSegment(
+                    value: 'playlist',
+                    icon: const Icon(Icons.playlist_play_rounded, size: 16),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(l.queueModePlaylist, maxLines: 1),
+                    ),
                   ),
-                ),
                 // Collection mode is entered via a collection's Play button, not
                 // picked here - shown only while active so the selection is valid.
                 if (_queueMode == 'collection')
@@ -2387,7 +2394,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
                   books: const [],
                   serverUrl: auth.serverUrl,
                   token: auth.token,
-                  libraryId: widget.lib.selectedLibraryId,
+                  libraryId: _seriesLibraryId ?? widget.lib.selectedLibraryId,
                 );
               },
             ),

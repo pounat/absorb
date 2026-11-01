@@ -699,6 +699,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
     final deviceInfo = s['deviceInfo'] as Map<String, dynamic>? ?? {};
     final clientName = deviceInfo['clientName'] as String? ?? deviceInfo['deviceName'] as String? ?? '';
     final isAbsorb = clientName.toLowerCase().contains('absorb');
+    final isWear = isAbsorb && clientName.toLowerCase().contains('wear');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
@@ -718,7 +719,9 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
-              child: isAbsorb
+              child: isWear
+                  ? AbsorbWatchIcon(size: 18, color: Colors.tealAccent.withValues(alpha: 0.7))
+                  : isAbsorb
                   ? AbsorbWaveIcon(size: 16, color: Colors.tealAccent.withValues(alpha: 0.7))
                   : Icon(_clientIcon(clientName), size: 15, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
             ),

@@ -200,6 +200,33 @@ class SleepTimerService extends ChangeNotifier {
     _timer?.cancel();
     _wasPlaying = _isPlaybackActive;
     _scheduleNextTick();
+    _player.removeListener(_onPlayerChanged);
+    _player.addListener(_onPlayerChanged);
+  }
+
+  // The tick only samples playback every second, or every five in the
+  // background, so a quick pause and play between two ticks never showed up
+  // as a resume and the timer did not reset (GH #415). The player's own
+  // change events catch every one.
+  bool _resumeResetInFlight = false;
+
+  void _onPlayerChanged() {
+    if (_mode != SleepTimerMode.time) return;
+    final playing = _isPlaybackActive;
+    if (!playing) {
+      _wasPlaying = false;
+      return;
+    }
+    if (_wasPlaying || _resumeResetInFlight) return;
+    _wasPlaying = true;
+    _resumeResetInFlight = true;
+    PlayerSettings.getResetSleepOnPause().then((reset) {
+      _resumeResetInFlight = false;
+      if (!reset || _mode != SleepTimerMode.time) return;
+      _resetToFull();
+      debugPrint('[SleepTimer] Reset to ${_initialDuration.inMinutes}m on resume');
+      onToast?.call('Sleep timer reset: ${_initialDuration.inMinutes}m');
+    });
   }
 
   void _scheduleNextTick() {
@@ -607,6 +634,7 @@ class SleepTimerService extends ChangeNotifier {
     _isFadingOut = false;
     _timer?.cancel();
     _timer = null;
+    _player.removeListener(_onPlayerChanged);
     _positionSub?.cancel();
     _positionSub = null;
     if (_accelSub != null) debugPrint('[SleepTimer] Accelerometer stream stopped');

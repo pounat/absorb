@@ -444,11 +444,13 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
                 break;
 
             case ExoPlaybackException.TYPE_RENDERER:
-                Log.e(TAG, "TYPE_RENDERER: " + exoError.getRendererException().getMessage());
+                sourceCause = describeThrowable(exoError.getRendererException());
+                Log.e(TAG, "TYPE_RENDERER: " + sourceCause);
                 break;
 
             case ExoPlaybackException.TYPE_UNEXPECTED:
-                Log.e(TAG, "TYPE_UNEXPECTED: " + exoError.getUnexpectedException().getMessage());
+                sourceCause = describeThrowable(exoError.getUnexpectedException());
+                Log.e(TAG, "TYPE_UNEXPECTED: " + sourceCause);
                 break;
 
             default:
@@ -1125,6 +1127,27 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
 
     private void sendError(String errorCode, String errorMsg) {
         sendError(errorCode, errorMsg, null);
+    }
+
+    // Absorb patch: the class, message and first frames of an ExoPlayer
+    // failure, so the Dart log says what broke instead of "runtime error".
+    private static String describeThrowable(Throwable t) {
+        if (t == null) return "null";
+        StringBuilder sb = new StringBuilder(t.getClass().getSimpleName());
+        if (t.getMessage() != null) sb.append(": ").append(t.getMessage());
+        StackTraceElement[] frames = t.getStackTrace();
+        for (int i = 0; i < frames.length && i < 4; i++) {
+            String cls = frames[i].getClassName();
+            sb.append(" @ ").append(cls.substring(cls.lastIndexOf('.') + 1))
+              .append('.').append(frames[i].getMethodName())
+              .append(':').append(frames[i].getLineNumber());
+        }
+        Throwable cause = t.getCause();
+        if (cause != null && cause != t) {
+            sb.append(" <- ").append(cause.getClass().getSimpleName());
+            if (cause.getMessage() != null) sb.append(": ").append(cause.getMessage());
+        }
+        return sb.toString();
     }
 
     private void sendError(String errorCode, String errorMsg, Object details) {

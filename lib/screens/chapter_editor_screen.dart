@@ -10,6 +10,7 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
 import '../widgets/adaptive_modal.dart';
+import '../services/bookorbit_chapters.dart';
 import '../services/chapter_start_finder.dart';
 import '../services/download_service.dart';
 import '../services/remote_audio_slice.dart';
@@ -103,6 +104,13 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
   String? _asin;
   List<Map<String, dynamic>> _tracks = [];
 
+  // BookOrbit 3.6 and newer keep the list with a revision and a history, and
+  // can take chapters from the files, the ebook or the read along.
+  BoChapterState? _bo;
+  bool _protect = true;
+  String? _busyText;
+  double? _busyProgress;
+
   // Preview player - a separate just_audio instance (works on iOS + Android,
   // independent of the main native/ExoPlayer engine). Main playback is paused
   // while previewing and restored when leaving the screen.
@@ -157,7 +165,10 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
   @override
   void initState() {
     super.initState();
-    _load();
+    // _load reads the strings, which can't happen until initState is done.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   @override
@@ -189,6 +200,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     }
     try {
       final item = await api.getLibraryItem(widget.itemId);
+      final bo = api is BookOrbitApiService ? await api.chapterState(widget.itemId) : null;
       final media = item?['media'] as Map<String, dynamic>? ?? {};
       final meta = media['metadata'] as Map<String, dynamic>? ?? {};
       final dur = (media['duration'] as num?)?.toDouble() ?? 0;
@@ -206,7 +218,12 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
         _audioFiles = afs;
         _tracks = tracks;
         _asin = (meta['asin'] as String?)?.trim();
-        _originalChapters = chs.whereType<Map<String, dynamic>>().toList();
+        if ((_asin ?? '').isEmpty) _asin = bo?.audibleId;
+        _bo = bo;
+        _protect = true;
+        _originalChapters = bo != null && bo.chapters.isNotEmpty
+            ? _fromBo(bo.chapters)
+            : chs.whereType<Map<String, dynamic>>().toList();
         _initChapters(_originalChapters);
         _loading = false;
       });
@@ -239,6 +256,254 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     _syncTitleControllers();
     _check();
   }
+
+  List<Map<String, dynamic>> _fromBo(List<BoChapter> list) => [
+        for (var i = 0; i < list.length; i++)
+          {
+            'start': list[i].startMs / 1000,
+            'end': i + 1 < list.length ? list[i + 1].startMs / 1000 : _duration,
+            'title': list[i].title,
+          },
+      ];
+
+  /// Chapters from elsewhere into the editor, in the shape a lookup gives,
+  /// so locked rows stay put. Nothing is saved until Save.
+  void _applyIncoming(List<BoChapter> list) {
+    if (list.isEmpty) return;
+    final sorted = [...list]..sort((a, b) => a.startMs.compareTo(b.startMs));
+    final totalMs = (_duration * 1000).round();
+    _applyChapters([
+      for (var i = 0; i < sorted.length; i++)
+        {
+          'title': sorted[i].title,
+          'startOffsetMs': sorted[i].startMs,
+          'lengthMs': (i + 1 < sorted.length ? sorted[i + 1].startMs : totalMs) - sorted[i].startMs,
+        },
+    ]);
+  }
+
+  Future<({BoChapterJob? value, BoChapterFailure? failure, String? message})?> _runJob(
+      String kind, String text) async {
+    final api = context.read<AuthProvider>().apiService;
+    final bo = _bo;
+    if (api is! BookOrbitApiService || bo == null) return null;
+    setState(() {
+      _busyText = text;
+      _busyProgress = null;
+    });
+    final res = await api.runChapterJob(
+      widget.itemId,
+      kind,
+      baseRevision: bo.revision,
+      onProgress: (done, total) {
+        if (mounted && total > 0) setState(() => _busyProgress = done / total);
+      },
+      stillWanted: () => mounted,
+    );
+    if (!mounted) return null;
+    setState(() {
+      _busyText = null;
+      _busyProgress = null;
+    });
+    if (res.failure == BoChapterFailure.stale) {
+      await _staleDialog();
+      return null;
+    }
+    return res;
+  }
+
+  Future<void> _staleDialog() async {
+    final l = AppLocalizations.of(context)!;
+    final reload = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(l.chapterStaleTitle),
+        content: Text(l.chapterStaleMessage),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx, false), child: Text(l.chapterKeepEditing)),
+          TextButton(onPressed: () => Navigator.pop(dctx, true), child: Text(l.chapterReload)),
+        ],
+      ),
+    );
+    if (reload != true || !mounted) return;
+    setState(() => _loading = true);
+    await _load();
+  }
+
+  void _chapterFailed(BoChapterFailure? failure, String? message) {
+    final l = AppLocalizations.of(context)!;
+    showOverlayToast(
+      context,
+      message ?? (failure == BoChapterFailure.notFound ? l.chapterNoChaptersFound : l.couldNotUpdate),
+      icon: Icons.error_outline_rounded,
+    );
+  }
+
+  Future<void> _fromFiles() async {
+    final l = AppLocalizations.of(context)!;
+    final res = await _runJob('read', l.chapterReadingFiles);
+    if (res == null || !mounted) return;
+    final chapters = BoChapter.listFrom(res.value?.result?['chapters']);
+    if (res.failure != null || chapters.isEmpty) {
+      _chapterFailed(res.failure ?? BoChapterFailure.notFound, res.message);
+      return;
+    }
+    _applyIncoming(chapters);
+  }
+
+  Future<void> _fromEbook(String source) async {
+    final api = context.read<AuthProvider>().apiService;
+    if (api is! BookOrbitApiService) return;
+    setState(() => _saving = true);
+    final res = await api.ebookChapters(widget.itemId, source);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    final got = res.value;
+    if (got == null || got.chapters.isEmpty) {
+      _chapterFailed(res.failure ?? BoChapterFailure.notFound, res.message);
+      return;
+    }
+    if (got.titlesOnly) {
+      _applyTitlesOnly([for (final c in got.chapters) {'title': c.title}]);
+      return;
+    }
+    // A read along made from this audiobook runs the same length give or
+    // take; within BookOrbit's own tolerance its times are stretched to fit.
+    final runtime = got.runtimeMs ?? 0;
+    final total = _duration * 1000;
+    final close = runtime > 0 && total > 0 && (total - runtime).abs() <= (runtime * 0.05).clamp(0, 300000);
+    final scale = close ? total / runtime : 1.0;
+    _applyIncoming([for (final c in got.chapters) BoChapter(c.title, (c.startMs * scale).round())]);
+  }
+
+  Future<void> _openHistory() async {
+    final l = AppLocalizations.of(context)!;
+    final api = context.read<AuthProvider>().apiService;
+    if (api is! BookOrbitApiService) return;
+    setState(() => _saving = true);
+    final res = await api.chapterVersions(widget.itemId);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    final versions = res.value;
+    if (versions == null) {
+      _chapterFailed(res.failure, res.message);
+      return;
+    }
+    final ml = MaterialLocalizations.of(context);
+    final picked = await showAdaptiveActionMenu<BoChapterVersion>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      desktopScrollWrap: false,
+      builder: (sctx) => ListView(
+        shrinkWrap: true,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                20, ModalSurface.isDesktopOf(sctx) ? 20 : 0, 20, 8),
+            child: Text(l.chapterHistoryTitle, style: Theme.of(sctx).textTheme.titleMedium),
+          ),
+          if (versions.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: Text(l.chapterHistoryEmpty),
+            ),
+          for (final v in versions)
+            ListTile(
+              leading: const Icon(Icons.history_rounded),
+              title: Text(v.createdBy == null
+                  ? _sourceLabel(l, v.source)
+                  : l.chapterHistoryBy(_sourceLabel(l, v.source), v.createdBy!)),
+              subtitle: Text([
+                if (v.createdAt != null)
+                  '${ml.formatMediumDate(v.createdAt!.toLocal())} ${ml.formatTimeOfDay(TimeOfDay.fromDateTime(v.createdAt!.toLocal()))}',
+                l.chaptersChip(v.chapterCount),
+              ].join(' · ')),
+              onTap: () => Navigator.pop(sctx, v),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _saving = true);
+    final full = await api.chapterVersion(widget.itemId, picked.id);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    final chapters = full.value?.chapters ?? const [];
+    if (chapters.isEmpty) {
+      _chapterFailed(full.failure, full.message);
+      return;
+    }
+    _applyIncoming(chapters);
+  }
+
+  Future<void> _revertToFiles() async {
+    final l = AppLocalizations.of(context)!;
+    final ok = await _confirm(l.chapterRevertTitle, l.chapterRevertMessage);
+    if (ok != true || !mounted) return;
+    final res = await _runJob('revert', l.chapterReadingFiles);
+    if (res == null || !mounted) return;
+    if (res.failure != null) {
+      _chapterFailed(res.failure, res.message);
+      return;
+    }
+    final state = BoChapterState.fromJson(res.value?.result);
+    if (state == null) {
+      setState(() => _loading = true);
+      await _load();
+    } else {
+      setState(() {
+        _bo = state;
+        _originalChapters = _fromBo(state.chapters);
+        _initChapters(_originalChapters);
+      });
+    }
+    if (mounted) showOverlayToast(context, l.chapterReverted, icon: Icons.check_rounded);
+  }
+
+  Future<void> _writeToFiles() async {
+    final l = AppLocalizations.of(context)!;
+    final bo = _bo;
+    if (bo == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(l.chapterWriteTitle),
+        content: Text(l.chapterWriteMessage(bo.writeFileCount)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx, false), child: Text(l.cancel)),
+          TextButton(onPressed: () => Navigator.pop(dctx, true), child: Text(l.chapterWriteConfirm)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final res = await _runJob('write', l.chapterWriting);
+    if (res == null || !mounted) return;
+    final result = res.value?.result;
+    final written = (result?['filesWritten'] as num?)?.toInt() ?? res.value?.filesWritten ?? 0;
+    final total = (result?['filesTotal'] as num?)?.toInt() ?? res.value?.filesTotal ?? 0;
+    if (res.failure != null || written == 0) {
+      _chapterFailed(res.failure, res.message);
+      return;
+    }
+    showOverlayToast(
+      context,
+      written < total ? l.chapterWrittenPartly(written, total) : l.chapterWritten(written),
+      icon: written < total ? Icons.warning_amber_rounded : Icons.check_rounded,
+    );
+    final api = context.read<AuthProvider>().apiService;
+    final fresh = api is BookOrbitApiService ? await api.chapterState(widget.itemId) : null;
+    if (fresh != null && mounted) setState(() => _bo = fresh);
+  }
+
+  String _sourceLabel(AppLocalizations l, String? source) => switch (source) {
+        'embedded' => l.chapterSourceEmbedded,
+        'tracks' => l.chapterSourceTracks,
+        'provider' => l.chapterSourceProvider,
+        'migration' => l.chapterSourceMigration,
+        'manual' => l.chapterSourceManual,
+        _ => l.chapterSourceNone,
+      };
 
   void _syncTitleControllers() {
     final uids = _chapters.map((c) => c.uid).toSet();
@@ -743,7 +1008,13 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       desktopScrollWrap: false,
-      builder: (_) => _ChapterLookupSheet(api: api, initialAsin: _asin, mediaDuration: _duration),
+      builder: (_) => _ChapterLookupSheet(
+        api: api,
+        itemId: widget.itemId,
+        initialAsin: _asin,
+        initialRegion: _bo?.audibleRegion,
+        mediaDuration: _duration,
+      ),
     );
     if (result == null || !mounted) return;
     var data = result.data;
@@ -881,6 +1152,35 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
       payload.add({'id': i, 'start': c.start, 'end': end, 'title': c.title.trim()});
     }
 
+    final bo = _bo;
+    if (bo != null && api is BookOrbitApiService) {
+      setState(() => _saving = true);
+      final res = await api.saveChapters(
+        widget.itemId,
+        [for (final p in payload) BoChapter(p['title'] as String, ((p['start'] as num) * 1000).round())],
+        baseRevision: bo.revision,
+        lock: _protect,
+      );
+      if (!mounted) return;
+      final saved = res.value;
+      setState(() {
+        _saving = false;
+        if (saved != null) {
+          _bo = saved;
+          _originalChapters = _fromBo(saved.chapters);
+          _check();
+        }
+      });
+      if (res.failure == BoChapterFailure.stale) {
+        await _staleDialog();
+        return;
+      }
+      HapticFeedback.mediumImpact();
+      showOverlayToast(context, saved != null ? l.chaptersUpdated : (res.message ?? l.couldNotUpdate),
+          icon: saved != null ? Icons.check_rounded : Icons.error_outline_rounded);
+      return;
+    }
+
     setState(() => _saving = true);
     final success = await api.updateChapters(widget.itemId, payload);
     if (!mounted) return;
@@ -934,6 +1234,27 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
         ),
+      if (_busyText != null)
+        Positioned.fill(
+          child: ColoredBox(
+            color: const Color(0x88000000),
+            child: Center(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: 260,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(_busyText!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      LinearProgressIndicator(value: _busyProgress),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
     ]);
   }
 
@@ -944,7 +1265,22 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
       child: Row(children: [
         OutlinedButton(onPressed: _saving ? null : _reset, child: Text(l.reset)),
-        const Spacer(),
+        if (_bo != null)
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => setState(() => _protect = !_protect),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Checkbox(value: _protect, onChanged: (v) => setState(() => _protect = v ?? true)),
+                Flexible(
+                  child: Text(l.chapterProtectOnSave,
+                      style: Theme.of(context).textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ),
+              ]),
+            ),
+          )
+        else
+          const Spacer(),
         FilledButton(
           onPressed: _saving ? null : _save,
           child: Text(l.chapterSaveButton),
@@ -1026,7 +1362,13 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
             spacing: 8,
             runSpacing: 8,
             children: [
-              if (_chapters.isNotEmpty)
+              if (_bo != null)
+                OutlinedButton.icon(
+                  onPressed: _revertToFiles,
+                  icon: const Icon(Icons.settings_backup_restore_rounded, size: 18),
+                  label: Text(l.chapterRevertToFiles),
+                )
+              else if (_chapters.isNotEmpty)
                 OutlinedButton.icon(
                   onPressed: _removeAll,
                   icon: const Icon(Icons.delete_sweep_rounded, size: 18),
@@ -1049,8 +1391,66 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
                 icon: const Icon(Icons.travel_explore_rounded, size: 18),
                 label: Text(l.chapterLookup),
               ),
+              if (_bo case final bo?)
+                MenuAnchor(
+                  menuChildren: [
+                    MenuItemButton(
+                      leadingIcon: const Icon(Icons.audio_file_rounded, size: 18),
+                      onPressed: _fromFiles,
+                      child: Text(l.chapterFromFiles),
+                    ),
+                    if (bo.ebookFileId != null)
+                      MenuItemButton(
+                        leadingIcon: const Icon(Icons.menu_book_rounded, size: 18),
+                        onPressed: () => _fromEbook('toc'),
+                        child: Text(l.chapterFromEbookToc),
+                      ),
+                    if (bo.readAlongFileId != null)
+                      MenuItemButton(
+                        leadingIcon: const Icon(Icons.record_voice_over_rounded, size: 18),
+                        onPressed: () => _fromEbook('read_along'),
+                        child: Text(l.chapterFromReadAlong),
+                      ),
+                    if (bo.versionCount > 0)
+                      MenuItemButton(
+                        leadingIcon: const Icon(Icons.history_rounded, size: 18),
+                        onPressed: _openHistory,
+                        child: Text(l.chapterFromHistory),
+                      ),
+                  ],
+                  builder: (_, menu, _) => OutlinedButton.icon(
+                    onPressed: () => menu.isOpen ? menu.close() : menu.open(),
+                    icon: const Icon(Icons.input_rounded, size: 18),
+                    label: Text(l.chapterGetFrom),
+                  ),
+                ),
+              if (_bo case final bo? when bo.canWrite && !bo.derived && !_hasChanges && _chapters.isNotEmpty)
+                OutlinedButton.icon(
+                  onPressed: _writeToFiles,
+                  icon: const Icon(Icons.save_as_rounded, size: 18),
+                  label: Text(l.chapterWriteFiles),
+                ),
             ],
           ),
+          if (_bo case final bo?) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              Icon(bo.locked ? Icons.lock_rounded : Icons.lock_open_rounded, size: 14, color: cs.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  [
+                    bo.locked ? l.chapterProtected : l.chapterNotProtected,
+                    if (bo.source == 'manual' && bo.updatedBy != null)
+                      l.chapterSourceManualBy(bo.updatedBy!)
+                    else
+                      _sourceLabel(l, bo.derived ? 'tracks' : bo.source),
+                  ].join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ),
+            ]),
+          ],
           const SizedBox(height: 4),
           Row(
             children: [
@@ -1472,9 +1872,17 @@ class _LookupResult {
 /// the server, previews the result, and returns how to apply it.
 class _ChapterLookupSheet extends StatefulWidget {
   final ApiService api;
+  final String itemId;
   final String? initialAsin;
+  final String? initialRegion;
   final double mediaDuration;
-  const _ChapterLookupSheet({required this.api, required this.initialAsin, required this.mediaDuration});
+  const _ChapterLookupSheet({
+    required this.api,
+    required this.itemId,
+    required this.initialAsin,
+    this.initialRegion,
+    required this.mediaDuration,
+  });
 
   @override
   State<_ChapterLookupSheet> createState() => _ChapterLookupSheetState();
@@ -1494,6 +1902,8 @@ class _ChapterLookupSheetState extends State<_ChapterLookupSheet> {
   void initState() {
     super.initState();
     _asinCtl = TextEditingController(text: widget.initialAsin ?? '');
+    final region = widget.initialRegion?.toUpperCase();
+    if (region != null && _regions.contains(region)) _region = region;
   }
 
   @override
@@ -1513,7 +1923,7 @@ class _ChapterLookupSheetState extends State<_ChapterLookupSheet> {
       _finding = true;
       _error = null;
     });
-    final data = await widget.api.searchChapters(asin, _region);
+    final data = await widget.api.searchChapters(asin, _region, itemId: widget.itemId);
     if (!mounted) return;
     setState(() {
       _finding = false;

@@ -86,9 +86,11 @@ Future<void> showLibraryPickerSheet(
                   final isSelected = id == lib.selectedLibraryId;
                   return ListTile(
                     leading: Icon(
-                      mediaType == 'podcast'
-                          ? Icons.podcasts_rounded
-                          : Icons.auto_stories_rounded,
+                      library['bookDock'] == true
+                          ? Icons.move_to_inbox_rounded
+                          : mediaType == 'podcast'
+                              ? Icons.podcasts_rounded
+                              : Icons.auto_stories_rounded,
                       color: isSelected ? cs.primary : cs.onSurfaceVariant,
                     ),
                     title: Text(name),

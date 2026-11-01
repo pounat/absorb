@@ -208,7 +208,11 @@ AlignedText? alignCorrected(List<TimedWord> spoken, String corrected,
   return (words: out, matched: anchors.length, total: shorter);
 }
 
-final _endsSentence = RegExp(r'''[.!?]["'”’)\]]*$''');
+// A sentence also ends on an ellipsis, or on an em dash that closes a
+// quote: dialogue that trails off or is cut short ends its paragraph that
+// way, and a line that ran on into the next paragraph left that paragraph's
+// first sentence with no line of its own.
+final _endsSentence = RegExp(r'''(?:[.!?\u2026]|\u2014["'”’]+)["'”’)\]]*$''');
 
 /// [text]'s words timed by a flat per-word estimate from [from] - for the
 /// preview of book sentences no audio has reached yet.

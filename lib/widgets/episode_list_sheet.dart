@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'swipe_action.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -1066,15 +1066,12 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                                       icon: Icons.add_circle_outline_rounded,
                                       color: Theme.of(context).colorScheme.primary,
                                       onTrigger: () async {
-                                        await lib.addToAbsorbingQueue(absorbKey);
-                                        final cached = Map<String, dynamic>.from(_podcastItem);
-                                        cached['recentEpisode'] = Map<String, dynamic>.from(ep);
-                                        cached['_absorbingKey'] = absorbKey;
-                                        lib.absorbingItemCache[absorbKey] = cached;
-                                        HapticFeedback.mediumImpact();
-                                        if (context.mounted) {
-                                          showOverlayToast(context, Wording.of(context).episodeListAddedToAbsorbing(epTitle), icon: Icons.add_circle_outline_rounded);
-                                        }
+                                        await addToAbsorbingWithPicker(context, absorbKey,
+                                            item: {
+                                              ..._podcastItem,
+                                              'recentEpisode': Map<String, dynamic>.from(ep),
+                                            },
+                                            addedToast: Wording.of(context).episodeListAddedToAbsorbing(epTitle));
                                       },
                                     ),
                               child: EpisodeRow(

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../services/player_settings.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
@@ -56,6 +58,21 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
   List<Map<String, dynamic>>? _editItems;
   final Set<String> _selectedKeys = {}; // "libraryItemId" or "libraryItemId-episodeId"
   bool _isBatchUpdating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Same list or grid choice as the Home section sheets, so the view you
+    // picked last time comes back instead of the list every time.
+    PlayerSettings.getSectionGridView().then((v) {
+      if (mounted && v != _gridView) setState(() => _gridView = v);
+    });
+  }
+
+  void _toggleGridView() {
+    setState(() => _gridView = !_gridView);
+    PlayerSettings.setSectionGridView(_gridView);
+  }
 
   /// Find episode data from the playlist item's top-level 'episode' field,
   /// or from the library item's media.episodes array as fallback.
@@ -398,7 +415,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                   : l.turnAutoDownloadOn),
             _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
-              () => setState(() => _gridView = !_gridView)),
+              _toggleGridView),
             _headerIconButton(cs, Icons.edit_rounded, () => _startEdit(items),
               tooltip: l.edit),
           ],
@@ -605,6 +622,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         final progressKey = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
         final progress = lib.getProgress(progressKey);
         final isFinished = lib.getProgressData(progressKey)?['isFinished'] == true;
+        final isSkimmed = lib.getProgressData(progressKey)?['skimmed'] == true;
         final isDownloaded = DownloadService().isDownloaded(progressKey);
 
         String? episodeTitle;
@@ -623,12 +641,9 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                   icon: Icons.add_circle_outline_rounded,
                   color: cs.primary,
                   onTrigger: () async {
-                    await lib.addToAbsorbingQueue(progressKey);
-                    lib.absorbingItemCache[progressKey] = Map<String, dynamic>.from(libraryItem);
-                    HapticFeedback.mediumImpact();
-                    if (context.mounted) {
-                      showOverlayToast(context, Wording.of(context).playlistDetailAddedToAbsorbing(episodeTitle ?? title), icon: Icons.add_circle_outline_rounded);
-                    }
+                    await addToAbsorbingWithPicker(context, progressKey,
+                        item: libraryItem,
+                        addedToast: Wording.of(context).playlistDetailAddedToAbsorbing(episodeTitle ?? title));
                   },
                 ),
           child: Padding(
@@ -673,7 +688,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                         if (isFinished || isDownloaded)
                           Positioned(
                             left: 0, right: 0, bottom: 0,
-                            child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                            child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                           ),
                       ]),
                     ),
@@ -712,8 +727,8 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
           .copyWith(bottom: 40),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: coverGridCount(context),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
         childAspectRatio: 0.62,
       ),
       itemCount: items.length,
@@ -733,6 +748,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         final progressKey = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
         final progress = lib.getProgress(progressKey);
         final isFinished = lib.getProgressData(progressKey)?['isFinished'] == true;
+        final isSkimmed = lib.getProgressData(progressKey)?['skimmed'] == true;
         final isDownloaded = DownloadService().isDownloaded(progressKey);
 
         String? episodeTitle;
@@ -788,7 +804,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                     if (isFinished || isDownloaded)
                       Positioned(
                         left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                       ),
                   ]),
                 ),

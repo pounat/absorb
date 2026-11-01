@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_epub_viewer/src/epub_metadata.dart';
 import 'package:flutter_epub_viewer/src/models/epub_display_settings.dart';
@@ -37,6 +38,14 @@ class EpubController {
   next() {
     checkEpubLoaded();
     webViewController?.evaluateJavascript(source: 'next()');
+  }
+
+  /// How a page turns: "none", "slide" (the page moves sideways and follows
+  /// a finger dragging it) or "curl" (the app draws it; the page turns at
+  /// once and leaves sideways drags alone).
+  Future<void> setTurnStyle(String style) async {
+    await webViewController?.evaluateJavascript(
+        source: 'window.setTurnStyle && setTurnStyle(${jsonEncode(style)})');
   }
 
   ///Moves to previous page in epub view
@@ -112,12 +121,17 @@ class EpubController {
 
     ///Opacity of the highlight
     double opacity = 0.3,
+
+    ///Absorb: a blend mode, which also draws at [opacity] as given
+    String? blend,
   }) {
     var colorHex = color.toHex();
     var opacityString = opacity.toString();
     checkEpubLoaded();
     webViewController?.evaluateJavascript(
-      source: 'addHighlight("$cfi", "$colorHex", "$opacityString")',
+      source: blend == null
+          ? 'addHighlight("$cfi", "$colorHex", "$opacityString")'
+          : 'addHighlightStyled("$cfi", "$colorHex", "$opacityString", "$blend")',
     );
   }
 

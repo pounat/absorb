@@ -312,8 +312,8 @@ class _FinishedBooksThisYearSheetState
       padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPad),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: coverGridCount(context),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
         childAspectRatio: 0.55,
       ),
       itemCount: _items.length,

@@ -147,7 +147,8 @@ class LibraryBooksTab extends StatelessWidget {
               LibraryFilter.abridged ||
               LibraryFilter.issues ||
               LibraryFilter.feedOpen ||
-              LibraryFilter.explicit => l.libraryNoItemsMatchingFilter,
+              LibraryFilter.explicit ||
+              LibraryFilter.readStatus => l.libraryNoItemsMatchingFilter,
               LibraryFilter.missingMetadata => l.libraryNoBooksMissingMetadata,
               LibraryFilter.genre => l.libraryNoBooksInGenre(
                 genreFilter ?? l.genre.toLowerCase(),

@@ -3,18 +3,49 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
+import '../screens/bookorbit_set_password_screen.dart';
+import '../services/api_service.dart';
 import '../services/setup_link_service.dart';
+import '../utils/server_url.dart';
 import 'overlay_toast.dart';
 
+/// Whether [text] is a link [handleSetupLinkLogin] can take: an Absorb setup
+/// link or a BookOrbit password link.
+bool isLoginLink(String text) {
+  if (BookOrbitApiService.passwordLink(text) != null) return true;
+  final uri = Uri.tryParse(text.trim());
+  if (uri == null) return false;
+  try {
+    SetupLinkService.parseLink(uri);
+    return true;
+  } on SetupLinkException {
+    return false;
+  }
+}
+
+/// Signs in from an Absorb setup link, or from a BookOrbit password link
+/// after the person picks their password. [customHeaders] go with a
+/// BookOrbit password link, which carries none of its own.
 Future<bool> handleSetupLinkLogin(
   BuildContext context,
   Uri link, {
   bool askForConfirmation = true,
+  Map<String, String> customHeaders = const {},
 }) async {
   final l = AppLocalizations.of(context)!;
   late final SetupLinkData setup;
+  final passwordLink = BookOrbitApiService.passwordLink(link.toString());
   try {
-    setup = SetupLinkService.parseLink(link);
+    setup = passwordLink != null
+        ? SetupLinkData(
+            serverUrl: normalizeServerUrl(passwordLink.server.toString()),
+            username: '',
+            apiKey: null,
+            passwordToken: passwordLink.token,
+            userId: null,
+            customHeaders: customHeaders,
+          )
+        : SetupLinkService.parseLink(link);
   } on SetupLinkException {
     showOverlayToast(
       context,
@@ -22,6 +53,27 @@ Future<bool> handleSetupLinkLogin(
       icon: Icons.error_outline_rounded,
     );
     return false;
+  }
+
+  if (setup.setsPassword) {
+    final signedIn = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => BookOrbitSetPasswordScreen.fromLink(
+          serverUrl: setup.serverUrl,
+          token: setup.passwordToken!,
+          username: setup.username.isEmpty ? null : setup.username,
+          customHeaders: setup.customHeaders,
+        ),
+      ),
+    );
+    if (signedIn != true || !context.mounted) return false;
+    final auth = context.read<AuthProvider>();
+    showOverlayToast(
+      context,
+      l.loginSignedInAs(auth.username ?? setup.username),
+      icon: Icons.check_circle_outline_rounded,
+    );
+    return true;
   }
 
   if (askForConfirmation) {
@@ -55,7 +107,7 @@ Future<bool> handleSetupLinkLogin(
   final auth = context.read<AuthProvider>();
   final success = await auth.loginWithApiKey(
     serverUrl: setup.serverUrl,
-    apiKey: setup.apiKey,
+    apiKey: setup.apiKey!,
     customHeaders: setup.customHeaders,
     l: l,
   );

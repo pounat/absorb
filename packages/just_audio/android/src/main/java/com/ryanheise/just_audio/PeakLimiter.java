@@ -4,16 +4,19 @@ import java.util.Arrays;
 
 /**
  * Absorb patch: lookahead peak limiter behind the loudness gain. The audio is
- * held back 5 ms so the gain can ease down before a peak comes out and recover
+ * held back 20 ms so the gain can ease down before a peak comes out and recover
  * slowly after it. Clipping the boosted samples one by one squared off every
  * loud syllable, which came out as static on a book mastered near full scale.
+ * A 5 ms grab with a 200 ms recovery still dipped and bounced back on each
+ * word, which sounded gravelly; the slower pair holds the level through a
+ * phrase instead.
  * All channels share one gain so the stereo image stays put. No Android types
  * in here so it compiles and tests on its own.
  */
 final class PeakLimiter {
     static final float CEILING = 0.891f; // -1 dBFS
-    private static final float LOOKAHEAD_SEC = 0.005f;
-    private static final float RELEASE_SEC = 0.2f;
+    private static final float LOOKAHEAD_SEC = 0.02f;
+    private static final float RELEASE_SEC = 1.0f;
 
     private final int channels;
     private final int lookahead;

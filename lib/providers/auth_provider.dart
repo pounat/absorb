@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/bookorbit_admin.dart';
 import '../services/auth_tokens.dart';
 import '../services/android_auto_service.dart';
 import '../services/book_search_index.dart';
@@ -12,6 +13,8 @@ import '../services/audio_player_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/session_cache.dart';
 import '../services/socket_service.dart';
+import '../services/server_backend.dart';
+import '../services/signed_out_playback.dart';
 import '../services/user_account_service.dart';
 import '../services/home_widget_service.dart';
 import '../services/wear_auth_service.dart';
@@ -32,6 +35,12 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _userJson;
   Map<String, dynamic>? _serverSettings;
   String? _serverVersion;
+  ServerBackend __backend = ServerBackend.audiobookshelf;
+  ServerBackend get _backend => __backend;
+  set _backend(ServerBackend value) {
+    __backend = value;
+    ServerBackend.active = value;
+  }
   // Ereader devices come on the login response (top-level, NOT inside user).
   // /api/me doesn't include them, so cache to prefs so the list survives
   // cold restarts until the next login.
@@ -64,9 +73,13 @@ class AuthProvider extends ChangeNotifier {
   bool _startOnAbsorbingAfterAccountChange = false;
   String? _errorMessage;
   bool _authExpiryInProgress = false;
+  // The session ended but the account is kept and the app stays usable on
+  // what is on the phone until the user signs back in.
+  bool _signedOut = false;
 
   // Getters
   bool get isAuthenticated => _accessToken != null && _serverUrl != null;
+  bool get isSignedOut => _signedOut && _accessToken == null && _serverUrl != null;
   bool get isLoading => _isLoading;
   bool get startOnAbsorbingAfterAccountChange =>
       _startOnAbsorbingAfterAccountChange;
@@ -85,16 +98,35 @@ class AuthProvider extends ChangeNotifier {
   String? get userId => _userId;
   String? get defaultLibraryId => _defaultLibraryId;
   String? get errorMessage => _errorMessage;
+
+  /// The last sign-in was turned away because the BookOrbit account still
+  /// has the password it was created with.
+  bool get needsNewBookOrbitPassword => _needsNewBookOrbitPassword;
+  bool _needsNewBookOrbitPassword = false;
+
+  /// BookOrbit accounts from single sign-on and shared accounts have no
+  /// password of their own to change.
+  bool get canChangeBookOrbitPassword {
+    if (!isBookOrbit) return false;
+    final method = (_userJson?['bookOrbit'] as Map?)?['provisioningMethod'];
+    return method != 'oidc' && method != 'shared';
+  }
   Map<String, dynamic>? get userJson => _userJson;
   Map<String, dynamic>? get serverSettings => _serverSettings;
   String? get serverVersion => _serverVersion;
   Map<String, String> get customHeaders => _customHeaders;
+  ServerBackend get backend => _backend;
+  bool get isBookOrbit => _backend.isBookOrbit;
   bool get isAdmin {
     final t = _userJson?['type'] as String?;
     return t == 'admin' || t == 'root';
   }
 
   bool get isRoot => _userJson?['type'] == 'root';
+
+  /// What a BookOrbit user may administer on the server. Null on
+  /// Audiobookshelf, whose admins use [isAdmin].
+  BookOrbitAdminAccess? get bookOrbitAdmin => isBookOrbit ? BookOrbitAdminAccess.fromUser(_userJson) : null;
 
   bool get canAccessExplicitContent {
     final perms = _userJson?['permissions'] as Map<String, dynamic>?;
@@ -240,6 +272,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   ApiService? get apiService {
+    // Signed out, every server call fails straight away as unreachable,
+    // which playback and sync already treat as offline.
+    if (isSignedOut) return SignedOutPlayback.api();
     final url = activeServerUrl;
     if (url != null && _accessToken != null) {
       return _createSessionApi(
@@ -260,7 +295,8 @@ class AuthProvider extends ChangeNotifier {
   }) {
     final sessionServer = _serverUrl ?? baseUrl;
     final sessionUsername = _username;
-    return ApiService(
+    return ApiService.forSession(
+      backend: _backend,
       baseUrl: baseUrl,
       token: token,
       refreshToken: refreshToken,
@@ -353,6 +389,7 @@ class AuthProvider extends ChangeNotifier {
     if (url == null || token == null) return;
     WearAuthService.instance.publish(
       serverUrl: url,
+      backend: _backend.key,
       accessToken: token,
       refreshToken: _refreshToken,
       username: _username ?? '',
@@ -372,8 +409,26 @@ class AuthProvider extends ChangeNotifier {
       server,
       username,
     );
-    if (tokens?.accessToken == null || tokens!.accessToken == _accessToken)
+    if (tokens?.accessToken == null) return;
+    if (tokens!.accessToken == _accessToken) {
+      // A launch that read a pair the watch path stored never passed it
+      // through a rotation, so the saved account can still hold the spent
+      // one, and switching back to that account later would send it.
+      if (username != null) {
+        await UserAccountService().updateTokens(
+          server,
+          username,
+          tokens.accessToken!,
+          refreshToken: tokens.refreshToken,
+        );
+      }
       return;
+    }
+    debugPrint(
+      '[Auth] Taking the token pair stored outside the app (watch or '
+      'background): access=${ApiService.tokenFp(tokens.accessToken)} '
+      'refresh=${ApiService.tokenFp(tokens.refreshToken)}',
+    );
     await _onTokensRefreshed(
       server,
       username,
@@ -413,15 +468,65 @@ class AuthProvider extends ChangeNotifier {
     // Show a message to the user
     final ctx = rootNavigatorKey.currentContext;
     final l = ctx != null ? AppLocalizations.of(ctx) : null;
-    final msg =
-        l?.authSessionExpired ?? 'Session expired. Please log in again.';
+    final msg = l?.authSignedOutKeepListening ??
+        'You have been signed out. Downloads still play. Tap the red cloud to sign in again.';
     if (ctx != null)
-      showOverlayToast(ctx, msg, icon: Icons.error_outline_rounded);
+      showOverlayToast(ctx, msg, icon: Icons.cloud_off_rounded);
     unawaited(
-      logout(forgetAccount: false).whenComplete(() {
+      _signOutKeepingAccount().whenComplete(() {
         _authExpiryInProgress = false;
       }),
     );
+  }
+
+  /// The session ran out: keep the account and the app running, drop the
+  /// tokens, and carry on with what is on the phone. Playback keeps going;
+  /// listening queues like offline and goes up after the next sign-in.
+  Future<void> _signOutKeepingAccount() async {
+    final server = _serverUrl;
+    final user = _username;
+    _accessToken = null;
+    _refreshToken = null;
+    _isLegacyToken = false;
+    _userJson = null;
+    _signedOut = true;
+    AudioPlayerService().useApi(SignedOutPlayback.api());
+    SignedOutPlayback.started();
+    if (!AppPlatform.isWeb) {
+      AndroidAutoService().clearCache();
+      CarPlayService().clearAndRefresh();
+      WearAuthService.instance.clear();
+    }
+    BookOrbitApiService.clearCaches();
+    try {
+      if (server != null && user != null) {
+        await UserAccountService().clearTokens(server, user);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+      await prefs.remove('refresh_token');
+    } catch (e) {
+      debugPrint('[Auth] Clearing the expired session failed: $e');
+    }
+    notifyListeners();
+  }
+
+  /// Open the app signed out on [account], whose session already ended, to
+  /// listen to what is on the phone (the sign-in screen's play downloads).
+  void continueSignedOut(SavedAccount account) {
+    _serverUrl = account.serverUrl;
+    _username = account.username;
+    _userId = account.userId;
+    _customHeaders = account.customHeaders;
+    _backend = account.backend;
+    _useLocalServer = false;
+    _accessToken = null;
+    _refreshToken = null;
+    _userJson = null;
+    _signedOut = true;
+    SignedOutPlayback.started();
+    debugPrint('[Auth] Continuing signed out as ${account.username}@${account.serverUrl}');
+    notifyListeners();
   }
 
   /// Try to restore a saved session from SharedPreferences.
@@ -445,6 +550,7 @@ class AuthProvider extends ChangeNotifier {
       final savedRefreshToken = prefs.getString('refresh_token');
       final savedUsername = prefs.getString('username');
       final savedLibraryId = prefs.getString('default_library_id');
+      _backend = ServerBackend.loadActive(prefs);
       // Restore ereader devices alongside other session data. /api/me doesn't
       // return them, so without this they'd stay empty until next login.
       await _restoreEreaderDevices();
@@ -506,61 +612,7 @@ class AuthProvider extends ChangeNotifier {
         // Load local server config
         await _loadLocalServerSettings();
 
-        // Check if server is actually reachable. With a local address set,
-        // local and remote are pinged together: local answering inside two
-        // seconds wins outright, otherwise launch carries on with the remote
-        // answer and a local reply inside six seconds still switches the app
-        // over quietly. No WiFi gate any more - a local address can sit
-        // behind a VPN or Tailscale and answer on cellular, and a LAN address
-        // off its network just fails in the background at no cost to launch.
-        var reachable = false;
-        if (_localServerEnabled && _localServerUrl.isNotEmpty) {
-          final connectivity = await Connectivity().checkConnectivity();
-          debugPrint(
-            '[Auth] Local server enabled, pinging local and remote together '
-            '(net=${connectivity.map((c) => c.name).join(',')}) (${sw.elapsedMilliseconds}ms)',
-          );
-          final localPing = ApiService.pingServer(
-            _localServerUrl,
-            customHeaders: _customHeaders,
-          ).timeout(const Duration(seconds: 6), onTimeout: () => false);
-          // Cap at 5s so a silently-dropping reverse proxy or dead network
-          // path doesn't hold up app launch. The health-check timer will
-          // re-probe every 60s once we're past startup, so a transient
-          // false-offline self-corrects quickly.
-          final remotePing = ApiService.pingServer(
-            restoredUrl,
-            customHeaders: _customHeaders,
-          ).timeout(const Duration(seconds: 5), onTimeout: () => false);
-          final localReachable = await localPing.timeout(
-            const Duration(seconds: 2),
-            onTimeout: () => false,
-          );
-          if (localReachable) {
-            debugPrint(
-              '[Auth] Local server reachable - using local (${sw.elapsedMilliseconds}ms)',
-            );
-            _useLocalServer = true;
-            reachable = true;
-          } else {
-            unawaited(localPing.then(_adoptLateLocalAnswer));
-            reachable = await remotePing;
-            debugPrint(
-              '[Auth] remote ping result: reachable=$reachable (${sw.elapsedMilliseconds}ms)',
-            );
-          }
-        } else {
-          debugPrint(
-            '[Auth] pinging remote server... (${sw.elapsedMilliseconds}ms)',
-          );
-          reachable = await ApiService.pingServer(
-            restoredUrl,
-            customHeaders: _customHeaders,
-          ).timeout(const Duration(seconds: 5), onTimeout: () => false);
-          debugPrint(
-            '[Auth] remote ping result: reachable=$reachable (${sw.elapsedMilliseconds}ms)',
-          );
-        }
+        final reachable = await _pingServers(restoredUrl, sw);
         _serverReachable = reachable;
         if (AppPlatform.isWeb && !reachable) {
           _accessToken = null;
@@ -629,12 +681,23 @@ class AuthProvider extends ChangeNotifier {
     debugPrint(
       '[Auth] tryRestoreSession done, isAuthenticated=$isAuthenticated (${sw.elapsedMilliseconds}ms)',
     );
-    if (isAuthenticated) _pushSessionToWear();
+    if (isAuthenticated) {
+      try {
+        await apiService?.ensureMediaReady();
+      } catch (e) {
+        debugPrint('[Auth] Media proxy did not start: $e');
+      }
+      _pushSessionToWear();
+    }
     _isLoading = false;
     notifyListeners();
   }
 
   bool _ensuringUserInfo = false;
+
+  // Bumped whenever the signed-in account changes, so an answer that was
+  // still on its way for the account before can't land on the next one.
+  int _accountGen = 0;
 
   /// Public entry point for the reconnect paths (e.g. LibraryProvider going
   /// back online for a remote server, which doesn't flow through the
@@ -652,6 +715,7 @@ class AuthProvider extends ChangeNotifier {
     if (!isAuthenticated || _accessToken == null || activeServerUrl == null)
       return;
     _ensuringUserInfo = true;
+    final gen = _accountGen;
     try {
       final api = _createSessionApi(
         baseUrl: activeServerUrl!,
@@ -660,6 +724,7 @@ class AuthProvider extends ChangeNotifier {
         isLegacyToken: _isLegacyToken,
       );
       final auth = await api.authorize();
+      if (gen != _accountGen) return;
       if (auth != null) {
         final user = auth['user'] as Map<String, dynamic>?;
         if (user != null) {
@@ -676,6 +741,7 @@ class AuthProvider extends ChangeNotifier {
         if (defaultLib != null) _defaultLibraryId = defaultLib;
       } else {
         final me = await api.getMe();
+        if (gen != _accountGen) return;
         if (me != null) {
           _userJson = me;
           _userId = me['id'] as String?;
@@ -703,9 +769,13 @@ class AuthProvider extends ChangeNotifier {
     required String username,
     required String password,
     Map<String, String> customHeaders = const {},
+    ServerBackend backend = ServerBackend.audiobookshelf,
+    String? magicLink,
     AppLocalizations? l,
   }) async {
+    _accountGen++;
     _errorMessage = null;
+    _needsNewBookOrbitPassword = false;
 
     final url = normalizeServerUrl(serverUrl);
 
@@ -713,6 +783,7 @@ class AuthProvider extends ChangeNotifier {
     final reachable = await ApiService.pingServer(
       url,
       customHeaders: customHeaders,
+      backend: backend,
     );
     if (!reachable) {
       _errorMessage =
@@ -721,18 +792,37 @@ class AuthProvider extends ChangeNotifier {
     }
 
     // Attempt login
-    final (result, statusCode) = await ApiService.login(
-      serverUrl: url,
-      username: username,
-      password: password,
-      customHeaders: customHeaders,
-    );
+    final (result, statusCode) = backend.isBookOrbit && magicLink != null
+        ? await BookOrbitApiService.signInWithMagicLink(
+            serverUrl: url,
+            link: magicLink,
+            customHeaders: customHeaders,
+          )
+        : await ApiService.login(
+            serverUrl: url,
+            username: username,
+            password: password,
+            customHeaders: customHeaders,
+            backend: backend,
+          );
 
+    if (result?['bookOrbitPasswordOff'] == true) {
+      _errorMessage = l?.authBookOrbitPasswordOff ??
+          'Password sign-in is turned off on this server. Sign in with a magic link or single sign-on.';
+      return false;
+    }
+    if (result?['bookOrbitDefaultPassword'] == true) {
+      _needsNewBookOrbitPassword = true;
+      _errorMessage = l?.authBookOrbitDefaultPassword ??
+          'This account still has its default password. Change it in BookOrbit, then sign in again.';
+      return false;
+    }
     if (result == null) {
       _errorMessage = statusCode == 401
           ? (l?.authInvalidUsernameOrPassword ?? 'Invalid username or password')
-          : (l?.authLoginFailedDetail ??
-                'Login failed - check your server address and credentials');
+          : await _wrongServerTypeMessage(url, backend, customHeaders, l) ??
+              (l?.authLoginFailedDetail ??
+                  'Login failed - check your server address and credentials');
       return false;
     }
 
@@ -744,7 +834,12 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
 
+    BookOrbitApiService.clearCaches();
     _serverUrl = url;
+    // The old account's local address must not pair with the new
+    // tokens while the rest of the switch is still awaiting.
+    _useLocalServer = false;
+    _backend = backend;
     // Prefer the JWTs returned inside user by current servers, while accepting
     // the top-level shape and legacy token used by older servers.
     final tokens = AuthTokens.fromResponse(result);
@@ -795,6 +890,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
+      await prefs.setString(ServerBackend.prefsKey, _backend.key);
       // Refresh token first: a crash between the two writes then leaves the old
       // access token beside the NEW refresh token, which recovers itself. The
       // other order is the one that strands a spent refresh token.
@@ -824,11 +920,15 @@ class AuthProvider extends ChangeNotifier {
           userId: _userId,
           isLegacyToken: _isLegacyToken,
           customHeaders: customHeaders,
+          backend: _backend,
         ),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Auth] Saving the account failed: $e');
+    }
 
     await _onAccountActivated();
+    await apiService?.ensureMediaReady();
 
     if (!AppPlatform.isWeb) {
       await HomeWidgetService().clearStats();
@@ -841,6 +941,40 @@ class AuthProvider extends ChangeNotifier {
     return true;
   }
 
+  /// When a sign-in fails for a reason other than bad credentials, check
+  /// whether the server is the other kind and say so.
+  Future<String?> _wrongServerTypeMessage(
+    String url,
+    ServerBackend tried,
+    Map<String, String> customHeaders,
+    AppLocalizations? l,
+  ) async {
+    try {
+      if (!tried.isBookOrbit) {
+        final probe = await BookOrbitApiService.probe(
+          url,
+          customHeaders: customHeaders,
+          timeout: const Duration(seconds: 5),
+        );
+        if (probe.ok) {
+          return l?.authServerIsBookOrbit ??
+              'This is a BookOrbit server. Choose BookOrbit above the server address.';
+        }
+      } else {
+        final version = await ApiService.getServerVersion(
+          url,
+          customHeaders: customHeaders,
+          backend: ServerBackend.audiobookshelf,
+        );
+        if (version != null) {
+          return l?.authServerIsAudiobookshelf ??
+              'This is an Audiobookshelf server. Choose Audiobookshelf above the server address.';
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Login with an admin-generated API key. Skips `/login` entirely - the key
   /// is just a bearer token. Treated as a legacy token (no refresh) since API
   /// keys don't expire and don't have a refresh-token counterpart.
@@ -848,8 +982,10 @@ class AuthProvider extends ChangeNotifier {
     required String serverUrl,
     required String apiKey,
     Map<String, String> customHeaders = const {},
+    ServerBackend backend = ServerBackend.audiobookshelf,
     AppLocalizations? l,
   }) async {
+    _accountGen++;
     _errorMessage = null;
 
     final url = normalizeServerUrl(serverUrl);
@@ -857,6 +993,7 @@ class AuthProvider extends ChangeNotifier {
     final reachable = await ApiService.pingServer(
       url,
       customHeaders: customHeaders,
+      backend: backend,
     );
     if (!reachable) {
       _errorMessage =
@@ -868,6 +1005,7 @@ class AuthProvider extends ChangeNotifier {
       serverUrl: url,
       apiKey: apiKey,
       customHeaders: customHeaders,
+      backend: backend,
     );
 
     if (user == null) {
@@ -879,6 +1017,8 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _serverUrl = url;
+    _useLocalServer = false;
+    _backend = backend;
     _accessToken = apiKey;
     _refreshToken = null;
     _isLegacyToken = true;
@@ -895,6 +1035,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
+      await prefs.setString(ServerBackend.prefsKey, _backend.key);
       await prefs.setString('token', _accessToken!);
       await prefs.remove('refresh_token');
       if (_username != null) await prefs.setString('username', _username!);
@@ -916,9 +1057,12 @@ class AuthProvider extends ChangeNotifier {
           userId: _userId,
           isLegacyToken: true,
           customHeaders: customHeaders,
+          backend: _backend,
         ),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Auth] Saving the account failed: $e');
+    }
 
     await _onAccountActivated();
 
@@ -942,6 +1086,7 @@ class AuthProvider extends ChangeNotifier {
     required String serverUrl,
     required Map<String, dynamic> result,
     Map<String, String> customHeaders = const {},
+    ServerBackend backend = ServerBackend.audiobookshelf,
     AppLocalizations? l,
   }) async {
     _errorMessage = null;
@@ -956,7 +1101,10 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
 
+    BookOrbitApiService.clearCaches();
     _serverUrl = url;
+    _useLocalServer = false;
+    _backend = backend;
     final tokens = AuthTokens.fromResponse(result);
     if (tokens.token == null) {
       _errorMessage =
@@ -1001,6 +1149,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
+      await prefs.setString(ServerBackend.prefsKey, _backend.key);
       // Refresh token first: a crash between the two writes then leaves the old
       // access token beside the NEW refresh token, which recovers itself. The
       // other order is the one that strands a spent refresh token.
@@ -1030,11 +1179,15 @@ class AuthProvider extends ChangeNotifier {
           userId: _userId,
           isLegacyToken: _isLegacyToken,
           customHeaders: customHeaders,
+          backend: _backend,
         ),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Auth] Saving the account failed: $e');
+    }
 
     await _onAccountActivated();
+    await apiService?.ensureMediaReady();
 
     if (!AppPlatform.isWeb) {
       await HomeWidgetService().clearStats();
@@ -1099,6 +1252,59 @@ class AuthProvider extends ChangeNotifier {
   /// The launch-time local ping answering after the two-second decision
   /// already went to remote. Switch quietly; the library reloads on the
   /// local address through the usual auth notification.
+  /// Whether the account's server answers, asking its local address too
+  /// when one is set. Local answering inside two seconds wins outright,
+  /// otherwise this goes with the remote answer and a local reply inside six
+  /// seconds still switches over quietly. No WiFi gate - a local address can
+  /// sit behind a VPN or Tailscale and answer on cellular, and a LAN address
+  /// off its network just fails in the background. The remote ping is capped
+  /// at five seconds so a silently dropping proxy or dead network path can't
+  /// hold up a launch or an account switch; the health check re-probes every
+  /// minute, so a false offline corrects itself.
+  Future<bool> _pingServers(String remoteUrl, Stopwatch sw) async {
+    if (_localServerEnabled && _localServerUrl.isNotEmpty) {
+      final connectivity = await Connectivity().checkConnectivity();
+      debugPrint(
+        '[Auth] Local server enabled, pinging local and remote together '
+        '(net=${connectivity.map((c) => c.name).join(',')}) (${sw.elapsedMilliseconds}ms)',
+      );
+      final localPing = ApiService.pingServer(
+        _localServerUrl,
+        customHeaders: _customHeaders,
+      ).timeout(const Duration(seconds: 6), onTimeout: () => false);
+      final remotePing = ApiService.pingServer(
+        remoteUrl,
+        customHeaders: _customHeaders,
+      ).timeout(const Duration(seconds: 5), onTimeout: () => false);
+      final localReachable = await localPing.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => false,
+      );
+      if (localReachable) {
+        debugPrint(
+          '[Auth] Local server reachable - using local (${sw.elapsedMilliseconds}ms)',
+        );
+        _useLocalServer = true;
+        return true;
+      }
+      unawaited(localPing.then(_adoptLateLocalAnswer));
+      final reachable = await remotePing;
+      debugPrint(
+        '[Auth] remote ping result: reachable=$reachable (${sw.elapsedMilliseconds}ms)',
+      );
+      return reachable;
+    }
+    debugPrint('[Auth] pinging remote server... (${sw.elapsedMilliseconds}ms)');
+    final reachable = await ApiService.pingServer(
+      remoteUrl,
+      customHeaders: _customHeaders,
+    ).timeout(const Duration(seconds: 5), onTimeout: () => false);
+    debugPrint(
+      '[Auth] remote ping result: reachable=$reachable (${sw.elapsedMilliseconds}ms)',
+    );
+    return reachable;
+  }
+
   void _adoptLateLocalAnswer(bool reachable) {
     if (!reachable || _useLocalServer) return;
     if (!_localServerEnabled || _localServerUrl.isEmpty || _serverUrl == null) {
@@ -1183,12 +1389,14 @@ class AuthProvider extends ChangeNotifier {
   /// Logout and clear stored session.
   /// Fetch server version asynchronously (non-blocking).
   void _fetchServerVersion(String url) async {
+    final gen = _accountGen;
     try {
       final version = await ApiService.getServerVersion(
         url,
         customHeaders: _customHeaders,
+        backend: _backend,
       );
-      if (version != null) {
+      if (version != null && gen == _accountGen) {
         _serverVersion = version;
         notifyListeners();
       }
@@ -1202,6 +1410,8 @@ class AuthProvider extends ChangeNotifier {
     bool allDevices = false,
   }) async {
     if (revokeServerSession) await adoptCompanionTokens();
+    _accountGen++;
+    _signedOut = false;
 
     // Stop any active playback
     try {
@@ -1225,6 +1435,7 @@ class AuthProvider extends ChangeNotifier {
     // Clear cached session metadata for this user (track URLs would be invalid
     // on next login anyway)
     await SessionCache.clearAll();
+    BookOrbitApiService.clearCaches();
 
     // Remove account from saved accounts list
     final logoutServer = _serverUrl;
@@ -1295,6 +1506,7 @@ class AuthProvider extends ChangeNotifier {
   /// app reloads with the new user's data.
   Future<bool> switchToAccount(SavedAccount account) async {
     if (account.token.isEmpty) return false;
+    final gen = ++_accountGen;
     await adoptCompanionTokens();
 
     // Stop current playback
@@ -1310,6 +1522,7 @@ class AuthProvider extends ChangeNotifier {
       AndroidAutoService().clearCache();
       CarPlayService().clearAndRefresh();
     }
+    BookOrbitApiService.clearCaches();
 
     // Set the new account as active in the account service. It may have been
     // removed since the caller loaded its saved-account row.
@@ -1330,8 +1543,10 @@ class AuthProvider extends ChangeNotifier {
     // values until restart.
     PlayerSettings.showExplicitBadge =
         await PlayerSettings.getShowExplicitBadge();
+    PlayerSettings.showEbookBadge = await PlayerSettings.getShowEbookBadge();
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
     PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
+    PlayerSettings.cardButtonFill = await PlayerSettings.getCardButtonFill();
 
     // Reload EQ settings from the new account's scope. Without this the
     // EqualizerService singleton keeps the previous account's in-memory
@@ -1342,6 +1557,8 @@ class AuthProvider extends ChangeNotifier {
 
     // Set credentials
     _serverUrl = selected.serverUrl;
+    _useLocalServer = false;
+    _backend = selected.backend;
     _accessToken = selected.token;
     _refreshToken = selected.refreshToken;
     _isLegacyToken = selected.isLegacyToken;
@@ -1359,6 +1576,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('server_url', _serverUrl!);
+      await prefs.setString(ServerBackend.prefsKey, _backend.key);
       // Refresh token first, for the same reason as the other persist sites.
       if (_refreshToken != null) {
         await prefs.setString('refresh_token', _refreshToken!);
@@ -1385,57 +1603,67 @@ class AuthProvider extends ChangeNotifier {
       HomeWidgetService().refreshStats(force: true);
     }
 
-    // Verify the token still works and get user info
-    try {
-      final api = _createSessionApi(
-        baseUrl: _serverUrl!,
-        token: _accessToken!,
-        refreshToken: _refreshToken,
-        isLegacyToken: _isLegacyToken,
-      );
-      final auth = await api.authorize();
-      if (auth != null) {
-        final user = auth['user'] as Map<String, dynamic>?;
-        if (user != null) {
-          _userJson = user;
-          _userId = user['id'] as String?;
-        }
-        final devicesRaw = auth['ereaderDevices'] as List<dynamic>?;
-        if (devicesRaw != null) {
-          _ereaderDevices = devicesRaw.cast<Map<String, dynamic>>();
-          await _persistEreaderDevices();
-        }
-        _applyAuthorizeServerInfo(auth, _serverUrl!);
-      } else {
-        final me = await api.getMe();
-        if (me != null) {
-          _userJson = me;
-          _userId = me['id'] as String?;
-        }
-      }
-    } catch (_) {
-      _serverReachable = false;
-    }
-
+    // Ping first, the way a launch does. Without it a server this phone
+    // can't reach (a home address while away) sat through every sign-in
+    // call's own timeout, over a minute, and then still counted as reachable
+    // instead of opening offline.
     await _loadLocalServerSettings();
     _useLocalServer = false;
-    // Check if local server should be active (same logic as tryRestoreSession)
-    if (_localServerEnabled && _localServerUrl.isNotEmpty) {
-      final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity.contains(ConnectivityResult.wifi)) {
-        final localReachable = await ApiService.pingServer(
-          _localServerUrl,
-          customHeaders: _customHeaders,
-        ).timeout(const Duration(seconds: 2), onTimeout: () => false);
-        if (localReachable) {
-          debugPrint(
-            '[Auth] switchToAccount: local server reachable - using local',
-          );
-          _useLocalServer = true;
+    final sw = Stopwatch()..start();
+    _serverReachable = await _pingServers(_serverUrl!, sw);
+    debugPrint('[Auth] switchToAccount: reachable=$_serverReachable (${sw.elapsedMilliseconds}ms)');
+
+    if (_serverReachable) {
+      try {
+        final api = _createSessionApi(
+          baseUrl: activeServerUrl!,
+          token: _accessToken!,
+          refreshToken: _refreshToken,
+          isLegacyToken: _isLegacyToken,
+        );
+        final auth = await api.authorize();
+        if (gen != _accountGen) return false;
+        if (auth != null) {
+          final user = auth['user'] as Map<String, dynamic>?;
+          if (user != null) {
+            _userJson = user;
+            _userId = user['id'] as String?;
+          }
+          final devicesRaw = auth['ereaderDevices'] as List<dynamic>?;
+          if (devicesRaw != null) {
+            _ereaderDevices = devicesRaw.cast<Map<String, dynamic>>();
+            await _persistEreaderDevices();
+          }
+          _applyAuthorizeServerInfo(auth, activeServerUrl!);
+          final defaultLib = auth['userDefaultLibraryId'] as String?;
+          if (defaultLib != null) _defaultLibraryId = defaultLib;
+        } else {
+          final me = await api.getMe();
+          if (gen != _accountGen) return false;
+          if (me != null) {
+            _userJson = me;
+            _userId = me['id'] as String?;
+          }
         }
+      } catch (_) {
+        _serverReachable = false;
+      }
+      _fetchServerVersion(activeServerUrl!);
+      // The server answered the ping but not with the user (a refresh that
+      // ran out, a slow reply): try again shortly rather than leaving the
+      // admin pages hidden until the next minute's check.
+      if (_serverReachable && _userJson == null) {
+        debugPrint('[Auth] switchToAccount: no user info yet - trying again shortly');
+        Future.delayed(const Duration(seconds: 5), () {
+          if (gen == _accountGen) unawaited(_ensureUserInfo());
+        });
       }
     }
-    _fetchServerVersion(activeServerUrl!);
+    try {
+      await apiService?.ensureMediaReady();
+    } catch (e) {
+      debugPrint('[Auth] Media proxy did not start: $e');
+    }
     _pushSessionToWear();
     notifyListeners();
     return true;
@@ -1494,6 +1722,7 @@ class AuthProvider extends ChangeNotifier {
       } catch (_) {}
       final token = _accessToken;
       if (token != null) {
+        SocketService().onTokenExpired = () async => await apiService?.refreshAccessTokenNow() ?? false;
         SocketService().connect(
           activeServerUrl!,
           token,

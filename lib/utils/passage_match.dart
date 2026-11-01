@@ -199,6 +199,12 @@ String _stripHtml(String html) {
       .replaceAll(RegExp(r'<(script|style)[\s\S]*?</\1>', caseSensitive: false), ' ')
       .replaceAll(RegExp(r'</(p|div|h[1-6]|li|blockquote)>', caseSensitive: false), '\n')
       .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+      // Inline tags add no space on the page: "<i>Kermit</i>." reads
+      // "Kermit.", and a space there kept read along from finding it.
+      .replaceAll(
+          RegExp(r'</?(a|abbr|b|bdi|bdo|cite|code|em|font|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|u|var)\b[^>]*>',
+              caseSensitive: false),
+          '')
       .replaceAll(RegExp(r'<[^>]+>'), ' ');
   s = s
       .replaceAll('&amp;', '&')
@@ -249,7 +255,7 @@ String _snapToSentences(String text, int start, int end) {
       s = i + 1;
       break;
     }
-    if (c == '.' || c == '!' || c == '?') {
+    if (c == '.' || c == '!' || c == '?' || c == '\u2026') {
       s = i + 1;
       break;
     }
@@ -257,7 +263,7 @@ String _snapToSentences(String text, int start, int end) {
   final maxE = (end + 260).clamp(0, text.length);
   for (var i = end; i < maxE; i++) {
     final c = text[i];
-    if (c == '.' || c == '!' || c == '?') {
+    if (c == '.' || c == '!' || c == '?' || c == '\u2026') {
       var j = i + 1;
       while (j < text.length && const ['"', "'", '”', '’'].contains(text[j])) {
         j++;
