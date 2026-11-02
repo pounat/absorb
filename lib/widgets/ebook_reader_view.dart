@@ -1814,31 +1814,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   void _restoreHighlights() {
-    _epubController?.webViewController?.addJavaScriptHandler(
-      handlerName: 'absorbCfiText',
-      callback: (args) {
-        final cfi = args.isNotEmpty ? '${args[0]}' : '';
-        final resolved = args.length > 1 ? '${args[1]}' : '';
-        String? stored;
-        for (final x in _annotations) {
-          if (x.cfi == cfi) {
-            stored = x.selectedText;
-            break;
-          }
-        }
-        String cut(String? s) {
-          final t = (s ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
-          return t.length <= 60 ? t : '${t.substring(0, 60)}...';
-        }
-        debugPrint('[Highlight] cfi check stored="${cut(stored)}" '
-            'resolves="${cut(resolved)}" cfi=$cfi');
-      },
-    );
     for (final a in _annotations) {
-      if (a.type == AnnotationType.highlight && a.color != null) {
-        _paintHighlight(a.cfi, a.color!);
-        _probeHighlightCfi(a.cfi);
-      }
+      if (a.type == AnnotationType.highlight && a.color != null) _paintHighlight(a.cfi, a.color!);
     }
     // The layout is still settling when these first draw (load-rescue and
     // settle re-displays, font apply), and the boxes don't follow the text
@@ -1869,22 +1846,52 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     ''');
   }
 
-  /// Debug probe: resolve a stored highlight cfi against this device's copy of
-  /// the epub (book.getRange works off the archive, no rendering involved) and
-  /// log the text it lands on, so cross-device drift shows up in the log.
-  void _probeHighlightCfi(String cfi) {
-    final esc = jsonEncode(cfi);
-    _epubController?.webViewController?.evaluateJavascript(source: '''
-      try {
-        book.getRange($esc).then(function(r){
-          window.flutter_inappwebview.callHandler('absorbCfiText', $esc, r ? r.toString() : '(null range)');
-        }).catch(function(e){
-          window.flutter_inappwebview.callHandler('absorbCfiText', $esc, '(error: ' + e + ')');
-        });
-      } catch(e) {
-        try { window.flutter_inappwebview.callHandler('absorbCfiText', $esc, '(error: ' + e + ')'); } catch(_){}
-      }
-    ''');
+  /// Moves each highlight whose CFI no longer covers its words back onto
+  /// them (anchorHighlights in epubView.js finds the words), so highlights
+  /// made in other readers land where they were made.
+  Future<void> _anchorHighlights() async {
+    final wc = _epubController?.webViewController;
+    final highlights = {
+      for (final a in _annotations)
+        if (a.type == AnnotationType.highlight && (a.selectedText ?? '').trim().isNotEmpty) a.id: a,
+    };
+    if (wc == null || highlights.isEmpty || !mounted) return;
+    Map<String, String> moved;
+    Map<String, String> lost;
+    try {
+      final res = await wc.callAsyncJavaScript(
+        functionBody: 'return JSON.stringify(await anchorHighlights(highlights));',
+        arguments: {
+          'highlights': [for (final a in highlights.values) {'id': a.id, 'cfi': a.cfi, 'text': a.selectedText}],
+        },
+      ).timeout(const Duration(seconds: 30));
+      if (res?.error != null) throw res!.error!;
+      final result = jsonDecode(res!.value as String) as Map<String, dynamic>;
+      moved = (result['moved'] as Map<String, dynamic>).cast<String, String>();
+      lost = (result['lost'] as Map<String, dynamic>).cast<String, String>();
+    } catch (e) {
+      debugPrint('[Highlight] could not check highlights against their words: $e');
+      return;
+    }
+    String words(EbookAnnotation a) {
+      final t = a.selectedText!.replaceAll(RegExp(r'\s+'), ' ').trim();
+      return t.length <= 40 ? t : '${t.substring(0, 40)}...';
+    }
+    lost.forEach((id, why) => debugPrint('[Highlight] "${words(highlights[id]!)}" left at ${highlights[id]!.cfi}: $why'));
+    if (moved.isEmpty || !mounted) return;
+    final updated = await _annotationService.updateCfis(itemId: widget.itemId, cfis: moved);
+    if (!mounted) return;
+    // The current list, so highlights deleted meanwhile stay gone and ones
+    // added meanwhile stay put.
+    for (final a in _annotations) {
+      final cfi = moved[a.id];
+      if (cfi == null || !updated.contains(a.id)) continue;
+      debugPrint('[Highlight] "${words(a)}" moved from ${a.cfi} to $cfi');
+      _epubController?.removeHighlight(cfi: a.cfi);
+      a.cfi = cfi;
+      if (a.color != null) _paintHighlight(cfi, a.color!);
+    }
+    setState(() {});
   }
 
   void _setupPageInfoHandler() {
@@ -7316,7 +7323,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   _didInitViewer = true;
                   _loadAnnotations().then((_) {
                     _restoreHighlights();
-                    unawaited(_syncHighlights(pull: true));
+                    unawaited(_syncHighlights(pull: true).whenComplete(_anchorHighlights));
                   });
                   _setupPageInfoHandler();
                   _setupTapHandler();

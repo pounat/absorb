@@ -2475,6 +2475,128 @@ function addHighlight(cfiRange, color, opacity) {
   }, "hl", { "fill": color, "fill-opacity": '0.3', "mix-blend-mode": "multiply" });
 }
 
+// Absorb: finds highlights again by their words. A highlight keeps the words
+// it covers beside its CFI, and the words are what count: a CFI made by
+// another reader (BookOrbit's web reader, KOReader) can land on other words
+// or nowhere here, since readers parse chapters and number text differently.
+// Each highlight whose CFI doesn't cover its words gets the CFI of the match
+// nearest where its CFI points. Chapters are read through a second Book, one
+// at a time, and checked as the page is drawn: the HTML parse of what the
+// chapter renders to. Resolves to { moved: { id: cfi }, lost: { id: reason } }.
+async function anchorHighlights(highlights) {
+  var moved = {};
+  var lost = {};
+  var byChapter = {};
+  highlights.forEach(function (h) {
+    try {
+      var cfi = new ePub.CFI(h.cfi);
+      (byChapter[cfi.spinePos] = byChapter[cfi.spinePos] || []).push({ id: h.id, saved: h.cfi, cfi: cfi, words: foldText(h.text) });
+    } catch (e) {
+      lost[h.id] = 'unreadable CFI';
+    }
+  });
+  var pages = sideBook();
+  for (var pos in byChapter) {
+    var section = pages.spine.get(Number(pos));
+    try {
+      var page = new DOMParser().parseFromString(await section.render(book.load.bind(book)), 'text/html');
+      var text = null;
+      byChapter[pos].forEach(function (h) {
+        var range = null;
+        try { range = h.cfi.toRange(page); } catch (e) {}
+        if (range && foldText(range.toString()) === h.words) return;
+        text = text || pageText(page);
+        var start = nearestMatch(text.chars, h.words, range ? text.indexAt(range) : 0);
+        if (start === -1) {
+          lost[h.id] = 'words not in the chapter';
+          return;
+        }
+        var cfi = section.cfiFromRange(text.range(start, start + h.words.length));
+        if (cfi !== h.saved) moved[h.id] = cfi;
+      });
+    } catch (e) {
+      byChapter[pos].forEach(function (h) { lost[h.id] = 'chapter not readable'; });
+    } finally {
+      if (section) section.unload();
+    }
+  }
+  return { moved: moved, lost: lost };
+}
+
+// A second Book over the same packaging, whose chapters can be loaded and
+// unloaded without touching the rendition's own (see _searchBook in
+// ebook_reader_view.dart, which shares it).
+function sideBook() {
+  if (!window.__absorbSearchBook) {
+    var pages = ePub();
+    pages.spine.unpack(book.packaging, book.resolve.bind(book), book.canonical.bind(book));
+    window.__absorbSearchBook = pages;
+  }
+  return window.__absorbSearchBook;
+}
+
+// Text as compared with a highlight's words: without spacing (whitespace,
+// soft hyphens, zero-width spaces), which lines and paragraphs break
+// differently, and in lower case, since a selection of text the book styles
+// in capitals comes back in capitals. Each character folds to at most one,
+// so positions in the folded text map back to the page.
+function foldText(s) {
+  var out = '';
+  for (var i = 0; i < (s || '').length; i++) out += foldChar(s[i]);
+  return out;
+}
+
+function foldChar(c) {
+  if (/[\s\u00ad\u200b]/.test(c)) return '';
+  var lower = c.toLowerCase();
+  return lower.length === 1 ? lower : c;
+}
+
+// A page's folded text, and where each of its characters sits.
+function pageText(page) {
+  var chars = '';
+  var at = [];
+  var walker = page.createTreeWalker(page.body, NodeFilter.SHOW_TEXT);
+  for (var node = walker.nextNode(); node; node = walker.nextNode()) {
+    for (var i = 0; i < node.data.length; i++) {
+      var c = foldChar(node.data[i]);
+      if (!c) continue;
+      chars += c;
+      at.push([node, i]);
+    }
+  }
+  return {
+    chars: chars,
+    // The index of the first character at or after the start of a range.
+    indexAt: function (range) {
+      var lo = 0;
+      var hi = at.length;
+      while (lo < hi) {
+        var mid = (lo + hi) >> 1;
+        if (range.comparePoint(at[mid][0], at[mid][1]) < 0) lo = mid + 1; else hi = mid;
+      }
+      return lo;
+    },
+    // A DOM range over the characters from index `from` up to `to`.
+    range: function (from, to) {
+      var range = page.createRange();
+      range.setStart(at[from][0], at[from][1]);
+      range.setEnd(at[to - 1][0], at[to - 1][1] + 1);
+      return range;
+    }
+  };
+}
+
+// The occurrence of `words` in `chars` nearest the index `near`, or -1.
+function nearestMatch(chars, words, near) {
+  var best = -1;
+  if (!words) return best;
+  for (var i = chars.indexOf(words); i !== -1; i = chars.indexOf(words, i + 1)) {
+    if (best === -1 || Math.abs(i - near) < Math.abs(best - near)) best = i;
+  }
+  return best;
+}
+
 // Absorb: a highlight drawn with its own opacity and blend. E-ink draws every
 // highlight as one shade the panel can show, whatever its color.
 // Absorb patch: tag the book's paragraphs with "absorb-p", so paragraph

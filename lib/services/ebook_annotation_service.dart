@@ -28,7 +28,7 @@ enum HighlightColor {
 class EbookAnnotation {
   final String id;
   final AnnotationType type;
-  final String cfi;
+  String cfi;
   final String? selectedText;
   HighlightColor? color;
   String? note;
@@ -254,6 +254,25 @@ class EbookAnnotationService {
     annotations[idx].note = note;
     await _save(itemId, annotations);
     if (!fromServer) await _noteServerChange(itemId, annotations[idx], deleted: false);
+  }
+
+  /// Moves highlights onto their words again, [cfis] keyed by annotation id,
+  /// and returns the ids that were still there to move. The new CFIs stay on
+  /// this device: the server keeps its own record of where each one is.
+  Future<Set<String>> updateCfis({
+    required String itemId,
+    required Map<String, String> cfis,
+  }) async {
+    final annotations = await getAnnotations(itemId);
+    final updated = <String>{};
+    for (final a in annotations) {
+      final cfi = cfis[a.id];
+      if (cfi == null) continue;
+      a.cfi = cfi;
+      updated.add(a.id);
+    }
+    if (updated.isNotEmpty) await _save(itemId, annotations);
+    return updated;
   }
 
   Future<void> setServerId({
