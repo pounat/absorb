@@ -496,6 +496,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     },
   );
 
+  /// Arrow and page keys on desktop: the same path as a volume key, so read
+  /// along knows the reader moved on purpose and doesn't pull the page back.
+  void _keyTurn(bool forward) {
+    if (_autoScroll) return;
+    _userMoved('keyboard');
+    _turnPage(forward);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
@@ -7243,6 +7251,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               epubController: _epubController!,
               initialCfi: _initialCfi,
               cachedLocations: _cachedLocations,
+              onKeyTurn: _keyTurn,
               onLocationsGenerated: (json) {
                 debugPrint('[EbookReader] locations generated item=${widget.itemId} chars=${json.length}');
                 final file = _cachedFile;
@@ -7618,7 +7627,23 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
         ],
       );
-    return _wrap(viewerBody, bg);
+    // Keys land here when the Flutter side of the reader has focus (after a
+    // tap on an overlay button, say); the web view handles its own.
+    return Focus(
+      autofocus: AppPlatform.lacksPhonePlugins,
+      onKeyEvent: (node, event) {
+        if (!node.hasPrimaryFocus || event is KeyUpEvent) return KeyEventResult.ignored;
+        final key = event.logicalKey;
+        final forward = key == LogicalKeyboardKey.arrowRight ||
+            (!_scroll && (key == LogicalKeyboardKey.pageDown || key == LogicalKeyboardKey.space));
+        final back = key == LogicalKeyboardKey.arrowLeft ||
+            (!_scroll && key == LogicalKeyboardKey.pageUp);
+        if (!forward && !back) return KeyEventResult.ignored;
+        _keyTurn(forward);
+        return KeyEventResult.handled;
+      },
+      child: _wrap(viewerBody, bg),
+    );
   }
 }
 
