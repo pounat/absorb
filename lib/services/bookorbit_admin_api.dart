@@ -94,6 +94,35 @@ extension BookOrbitAdminApi on BookOrbitApiService {
         return res?['resetUrl'] as String?;
       });
 
+  /// How much [userId] chose to share about their reading: private, summary
+  /// or detailed. Null on a server that doesn't say. Reading this isn't
+  /// recorded, unlike [adminOpenReadingActivity].
+  Future<String?> adminUserSharingLevel(int userId) => _admin(() async {
+        final res = await _boGet('/account-activity/$userId') as Map<String, dynamic>?;
+        return res?['readingInsightsSharingLevel'] as String?;
+      });
+
+  /// Starts a view of [userId]'s reading activity. The server records this,
+  /// and they can see who looked, so only call it when someone asks to look.
+  Future<String> adminOpenReadingActivity(int userId) => _admin(() async {
+        final res = await _boPost('/shared-reading-insights/$userId/view-sessions', const {}) as Map<String, dynamic>;
+        return res['viewSessionId'] as String;
+      });
+
+  Future<dynamic> _readingActivityGet(int userId, String part, String viewSession, int days) async => _decode(
+        await _authGet(
+          _boUri('/shared-reading-insights/$userId/$part', {'days': days}),
+          headers: {..._headers, 'x-reading-insights-view-session': viewSession},
+          timeout: BookOrbitApiService._timeout,
+        ),
+      );
+
+  Future<BoReadingSummary> adminReadingSummary(int userId, String viewSession, int days) => _admin(() async =>
+      BoReadingSummary.fromJson(await _readingActivityGet(userId, 'summary', viewSession, days) as Map<String, dynamic>));
+
+  Future<BoReadingDetail> adminReadingDetail(int userId, String viewSession, int days) => _admin(() async =>
+      BoReadingDetail.fromJson(await _readingActivityGet(userId, 'detailed', viewSession, days) as Map<String, dynamic>));
+
   Future<void> adminUnlockUser(int userId) => _admin(() async {
         await _boPost('/users/$userId/unlock');
       });

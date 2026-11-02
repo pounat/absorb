@@ -22,6 +22,7 @@ class BookOrbitAdminAccess {
   final bool manageLibraries;
   final bool emailSend;
   final bool manageEmail;
+  final bool viewUserActivity;
   final String userId;
 
   const BookOrbitAdminAccess({
@@ -30,6 +31,7 @@ class BookOrbitAdminAccess {
     required this.manageLibraries,
     this.emailSend = false,
     this.manageEmail = false,
+    this.viewUserActivity = false,
     required this.userId,
   });
 
@@ -49,9 +51,120 @@ class BookOrbitAdminAccess {
       manageLibraries: superuser || perms.contains('manage_libraries'),
       emailSend: superuser || perms.contains('email_send'),
       manageEmail: superuser || perms.contains('manage_email'),
+      viewUserActivity: superuser || perms.contains('view_user_activity'),
       userId: '${user?['id'] ?? ''}',
     );
   }
+}
+
+/// How a request to email a password link went.
+enum BoPasswordResetResult { sent, notSetUp, tooManyTries, failed }
+
+/// One line of a breakdown of someone's reading time.
+class BoReadingTime {
+  final String name;
+  final int seconds;
+  const BoReadingTime(this.name, this.seconds);
+
+  static List<BoReadingTime> listFrom(Object? v, {String key = 'name'}) => [
+        for (final e in (v is List ? v : const []).whereType<Map<String, dynamic>>())
+          BoReadingTime('${e[key] ?? ''}', _int(e['readingSeconds'])),
+      ];
+}
+
+/// What someone chose to share about their reading over a period.
+class BoReadingSummary {
+  final bool detailed;
+  final int activeDays;
+  final int readingSeconds;
+  final int sessions;
+  final int booksStarted;
+  final int booksCompleted;
+  final List<BoReadingTime> formats;
+  final List<BoReadingTime> genres;
+  final List<BoReadingTime> sources;
+  final List<({DateTime day, int seconds})> trend;
+
+  const BoReadingSummary({
+    this.detailed = false,
+    this.activeDays = 0,
+    this.readingSeconds = 0,
+    this.sessions = 0,
+    this.booksStarted = 0,
+    this.booksCompleted = 0,
+    this.formats = const [],
+    this.genres = const [],
+    this.sources = const [],
+    this.trend = const [],
+  });
+
+  bool get hasReading =>
+      sessions > 0 ||
+      booksStarted > 0 ||
+      booksCompleted > 0 ||
+      formats.isNotEmpty ||
+      genres.isNotEmpty ||
+      sources.isNotEmpty;
+
+  factory BoReadingSummary.fromJson(Map<String, dynamic> j) => BoReadingSummary(
+        detailed: j['sharingLevel'] == 'detailed',
+        activeDays: _int(j['activeDays']),
+        readingSeconds: _int(j['readingSeconds']),
+        sessions: _int(j['sessionsCount']),
+        booksStarted: _int(j['booksStarted']),
+        booksCompleted: _int(j['booksCompleted']),
+        formats: BoReadingTime.listFrom(j['formatDistribution']),
+        genres: BoReadingTime.listFrom(j['genreDistribution']),
+        sources: BoReadingTime.listFrom(j['sourceCoverage'], key: 'source'),
+        trend: [
+          for (final p in (j['trend'] as List? ?? const []).whereType<Map<String, dynamic>>())
+            if (DateTime.tryParse('${p['day']}') case final day?) (day: day, seconds: _int(p['readingSeconds'])),
+        ],
+      );
+}
+
+class BoReadingBook {
+  final String? title;
+  final int seconds;
+  final DateTime? lastRead;
+  const BoReadingBook({this.title, this.seconds = 0, this.lastRead});
+
+  static List<BoReadingBook> listFrom(Object? v) => [
+        for (final b in (v is List ? v : const []).whereType<Map<String, dynamic>>())
+          BoReadingBook(
+            title: b['title'] as String?,
+            seconds: _int(b['readingSeconds']),
+            lastRead: _date(b['lastReadAt']),
+          ),
+      ];
+}
+
+/// The books and names behind a summary, for someone who shares details.
+class BoReadingDetail {
+  final List<BoReadingBook> recentBooks;
+  final List<BoReadingBook> topBooks;
+  final List<BoReadingTime> topAuthors;
+  final List<BoReadingTime> topGenres;
+  final List<BoReadingTime> topSeries;
+  final List<BoReadingTime> topNarrators;
+
+  const BoReadingDetail({
+    this.recentBooks = const [],
+    this.topBooks = const [],
+    this.topAuthors = const [],
+    this.topGenres = const [],
+    this.topSeries = const [],
+    this.topNarrators = const [],
+  });
+
+  factory BoReadingDetail.fromJson(Map<String, dynamic> j) => BoReadingDetail(
+        recentBooks: BoReadingBook.listFrom(j['recentBooks']),
+        topBooks: BoReadingBook.listFrom(j['topBooks']),
+        topAuthors: BoReadingTime.listFrom(j['topAuthors']),
+        topGenres: BoReadingTime.listFrom(j['topGenres']),
+        topSeries: BoReadingTime.listFrom(j['topSeries']),
+        topNarrators: BoReadingTime.listFrom(j['topNarrators']),
+      );
 }
 
 DateTime? _date(Object? v) => v is String ? DateTime.tryParse(v)?.toLocal() : null;

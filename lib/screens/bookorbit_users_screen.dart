@@ -16,6 +16,7 @@ import '../widgets/adaptive_modal.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/setup_link_share_sheet.dart';
 import 'bookorbit_admin_screen.dart';
+import 'bookorbit_user_activity_screen.dart';
 
 /// Everyone on the BookOrbit server, for people who manage users.
 class BookOrbitUsersScreen extends StatefulWidget {
@@ -521,6 +522,7 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _changed = false;
+  String? _sharingLevel;
 
   BoUser get _u => widget.user;
 
@@ -530,6 +532,7 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
     _name.addListener(_touch);
     _email.addListener(_touch);
     _load();
+    _loadSharingLevel();
   }
 
   @override
@@ -557,6 +560,18 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
       if (mounted) showBoAdminError(context, e);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Leaves the row hidden on a server without this, or when it can't say.
+  Future<void> _loadSharingLevel() async {
+    final api = boAdminApi(context);
+    if (api == null || context.read<AuthProvider>().bookOrbitAdmin?.viewUserActivity != true) return;
+    try {
+      final level = await api.adminUserSharingLevel(_u.id);
+      if (mounted) setState(() => _sharingLevel = level);
+    } on BookOrbitAdminError catch (e) {
+      debugPrint('[BookOrbit] reading activity level unavailable: $e');
     }
   }
 
@@ -752,6 +767,25 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
                         onChanged: (v) => setState(() => _superuser = v),
                       ),
                   ]),
+                  if (_sharingLevel != null)
+                    _Section(children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        enabled: _sharingLevel != 'private',
+                        leading: const Icon(Icons.auto_stories_rounded),
+                        title: Text(l.boActivityTitle),
+                        subtitle: Text(switch (_sharingLevel) {
+                          'private' => l.boActivityPrivate,
+                          'detailed' => l.boActivitySharesDetails,
+                          _ => l.boActivitySharesSummary,
+                        }),
+                        trailing: _sharingLevel == 'private' ? null : const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => BookOrbitUserActivityScreen(user: _u)),
+                        ),
+                      ),
+                    ]),
                   if (_superuser)
                     _Section(title: l.boUserPermissions, hint: l.boUserAdminHasAll, children: const [])
                   else ...[
