@@ -223,6 +223,9 @@ String? ebookFileVersion(Map<String, dynamic> ebookFile) {
 
 File _versionFileFor(File cached) => File('${cached.path}.version');
 
+/// The server file [cached] was fetched from, noted apart from the version.
+File _sourceFileFor(File cached) => File('${cached.path}.file');
+
 /// Whether [cached] is still the server's current copy. One cached before
 /// versions were kept takes the current version as its own.
 Future<bool> cachedEbookIsCurrent(File cached, Map<String, dynamic> ebookFile) async {
@@ -240,12 +243,27 @@ Future<bool> cachedEbookIsCurrent(File cached, Map<String, dynamic> ebookFile) a
   }
 }
 
-/// Notes which server copy [cached] is, once it has been fetched.
+/// Whether [cached] was fetched from [ebookFile] itself. A book keeps one
+/// copy, so one cached before the file was noted may be another of its files.
+Future<bool> cachedEbookIsFile(File cached, Map<String, dynamic> ebookFile) async {
+  final ino = ebookFile['ino'];
+  if (ino == null) return false;
+  try {
+    final f = _sourceFileFor(cached);
+    return f.existsSync() && await f.readAsString() == '$ino';
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Notes which server copy [cached] is, once it has been fetched: its
+/// version and the file it came from.
 Future<void> rememberEbookVersion(File cached, Map<String, dynamic> ebookFile) async {
   final version = ebookFileVersion(ebookFile);
-  if (version == null) return;
+  final ino = ebookFile['ino'];
   try {
-    await _versionFileFor(cached).writeAsString(version);
+    if (version != null) await _versionFileFor(cached).writeAsString(version);
+    if (ino != null) await _sourceFileFor(cached).writeAsString('$ino');
   } catch (_) {}
 }
 

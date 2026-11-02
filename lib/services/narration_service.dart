@@ -112,6 +112,18 @@ void _copyWithout(({String from, String to, List<String> skip}) job) {
   }
 }
 
+/// Whether the EPUB at [path] carries narration timings (SMIL files).
+bool _hasTimings(String path) {
+  final input = InputFileStream(path);
+  try {
+    return ZipDecoder().decodeStream(input).files.any((f) => f.name.toLowerCase().endsWith('.smil'));
+  } catch (_) {
+    return false;
+  } finally {
+    input.closeSync();
+  }
+}
+
 /// Narrated EPUBs (EPUB 3 media overlays): the narration as the book's
 /// audio, and the sentence timings read along follows.
 ///
@@ -189,6 +201,16 @@ class NarrationService {
     }
   }
 
+  Future<void> _forget(String itemId) async {
+    _overlays.remove(itemId);
+    try {
+      final f = await _file(itemId);
+      if (!f.existsSync()) return;
+      await f.delete();
+      debugPrint('[Narration] $itemId has no timings on the server any more - dropped the ones saved here');
+    } catch (_) {}
+  }
+
   /// The narration this phone knows for [itemId], from memory or disk.
   Future<MediaOverlay?> localOverlay(String itemId) async {
     final mem = _overlays[itemId];
@@ -217,6 +239,13 @@ class NarrationService {
         _overlays[itemId] = o;
         unawaited(_save(itemId, o));
         return (overlay: o, fromServer: true);
+      }
+      // Timings saved here stand in while the server can't be asked. Once it
+      // says the book has none (its read along removed, or no longer matching
+      // the audiobook), they would aim at sentences the EPUB lacks.
+      if (api.knownTimings(itemId) == false) {
+        await _forget(itemId);
+        return null;
       }
       final saved = await localOverlay(itemId);
       return saved == null ? null : (overlay: saved, fromServer: true);
@@ -366,9 +395,10 @@ class NarrationService {
     bool wholeFallback = true,
   }) async {
     final cached = await ebookCacheFileFor(itemId, ebookFile);
-    if (cached.existsSync() && cached.lengthSync() > 0 && !await cachedEbookIsCurrent(cached, ebookFile)) {
+    if (cached.existsSync() && cached.lengthSync() > 0 && !await _cachedIsCurrent(api, itemId, ebookFile, cached)) {
       // The server rewrote the book (BookOrbit writing metadata back, a file
-      // replaced). Fetch the new one, keeping the old copy if that fails.
+      // replaced), or the copy is of another of its files. Fetch the new
+      // one, keeping the old copy if that fails.
       final old = File('${cached.path}.old');
       debugPrint('[EbookCache] $itemId changed on the server - getting the new copy');
       await cached.rename(old.path);
@@ -412,6 +442,26 @@ class NarrationService {
     final fresh = await _freshReaderFile(api, itemId, ebookFile, title, cached, wholeFallback: wholeFallback);
     await rememberEbookVersion(fresh, ebookFile);
     return fresh;
+  }
+
+  /// Whether [cached] is the server's current copy of [ebookFile]. A book
+  /// keeps one copy, so one cached before copies noted their file may be the
+  /// plain EPUB of a book now read in its narrated one, which lacks the
+  /// sentences the timings name: that copy counts once it shows timings.
+  Future<bool> _cachedIsCurrent(
+    ApiService api,
+    String itemId,
+    Map<String, dynamic> ebookFile,
+    File cached,
+  ) async {
+    if (!await cachedEbookIsCurrent(cached, ebookFile)) return false;
+    if (!_bookOrbitNarrated(api, itemId, ebookFile) || await cachedEbookIsFile(cached, ebookFile)) return true;
+    if (!await compute(_hasTimings, cached.path)) {
+      debugPrint('[EbookCache] $itemId: the copy here has no narration timings - another of the book\'s EPUBs');
+      return false;
+    }
+    await rememberEbookVersion(cached, ebookFile);
+    return true;
   }
 
   /// A cached EPUB that still holds the narration: big, the book reads
