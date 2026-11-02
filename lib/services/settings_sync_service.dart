@@ -180,6 +180,31 @@ class SettingsSyncService {
   bool _busy = false;
   DateTime? _lastPullAt;
 
+  /// With the folder unreachable (no signal, a network that blocks it) the
+  /// change check used to retry every 45 seconds for as long as the app
+  /// stayed alive. Automatic pushes now wait longer after each failure; the
+  /// manual Sync button and coming back to the app still try right away.
+  int _networkFailures = 0;
+  DateTime? _retryAfter;
+  static const _maxRetryDelay = Duration(minutes: 30);
+
+  void _noteNetworkFailure() {
+    _networkFailures++;
+    final minutes = 1 << (_networkFailures - 1).clamp(0, 5);
+    final delay = Duration(minutes: minutes) < _maxRetryDelay
+        ? Duration(minutes: minutes)
+        : _maxRetryDelay;
+    _retryAfter = DateTime.now().add(delay);
+    debugPrint(
+      '[SettingsSync] folder unreachable ${_networkFailures}x - next automatic try in ${delay.inMinutes}m',
+    );
+  }
+
+  void _noteReachable() {
+    _networkFailures = 0;
+    _retryAfter = null;
+  }
+
   /// Applying a remote payload writes every setting locally, which fires the
   /// same change notification a user edit does. Left alone that pushes the
   /// settings straight back up with a fresh timestamp, the other device pulls
@@ -377,12 +402,21 @@ class SettingsSyncService {
 
   Future<void> onAppForegrounded() async {
     if (!await getEnabled()) return;
+
+    _changeCheck?.cancel();
+    _changeCheck = Timer.periodic(
+      _changeCheckInterval,
+      (_) => unawaited(pushIfChanged()),
+    );
+
     final now = DateTime.now();
     if (_lastPullAt != null &&
         now.difference(_lastPullAt!) < _foregroundPullGuard) {
       return;
     }
     _lastPullAt = now;
+    // Coming back to the app is a natural moment to try again.
+    _retryAfter = null;
     // Send anything this device is still holding BEFORE taking the remote copy.
     // A change made just before the app was swiped away never got its push -
     // the process was gone - so it is sitting here unsent. Pulling first would
@@ -591,8 +625,14 @@ class SettingsSyncService {
   /// on the device until some unrelated toggle happened to move. Comparing a
   /// hash of the payload catches it without making dozens of setters notify
   /// and rebuild the UI for no reason.
-  Future<SyncResult> pushIfChanged() async {
+  Future<SyncResult> pushIfChanged({bool ignoreBackoff = false}) async {
     if (!await getEnabled()) return const SyncResult(SyncStatus.notConfigured);
+    final retryAfter = _retryAfter;
+    if (!ignoreBackoff &&
+        retryAfter != null &&
+        DateTime.now().isBefore(retryAfter)) {
+      return const SyncResult(SyncStatus.network, 'waiting to retry');
+    }
     try {
       final hash = _hash(await buildPayload());
       if (hash == await _lastHash()) {
@@ -610,6 +650,8 @@ class SettingsSyncService {
   Future<void> onAppBackgrounded() async {
     _debounce?.cancel();
     _debounce = null;
+    _changeCheck?.cancel();
+    _changeCheck = null;
     await pushIfChanged();
   }
 
@@ -730,6 +772,7 @@ class SettingsSyncService {
         return SyncResult(SyncStatus.authFailed, null, _http(resp, uri, 'PUT'));
       }
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        _noteReachable();
         await _setLastSeen(stamp);
         await _setLastHash(_hash(payload));
         debugPrint(
@@ -741,6 +784,7 @@ class SettingsSyncService {
       return SyncResult(SyncStatus.network, null, _http(resp, uri, 'PUT'));
     } catch (e) {
       debugPrint('[SettingsSync] push failed: ${e.runtimeType} - $e');
+      _noteNetworkFailure();
       return SyncResult(SyncStatus.network, null, _err(e, uri, 'PUT'));
     } finally {
       _busy = false;

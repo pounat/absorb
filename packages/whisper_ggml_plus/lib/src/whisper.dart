@@ -110,7 +110,7 @@ class Whisper {
 
   /// Transcribe audio file to text. [language] is what the native side
   /// detected (or was told), e.g. "en".
-  Future<({WhisperTranscribeResponse response, String? language})> transcribe({
+  Future<({WhisperTranscribeResponse response, String? language, String? backend, String? log})> transcribe({
     required TranscribeRequest transcribeRequest,
     required String modelPath,
   }) async {
@@ -124,12 +124,16 @@ class Whisper {
         ),
       );
 
+      final String? log = result['log'] as String?;
       if (result['text'] == null) {
-        throw Exception(result['message']);
+        final String tail = (log ?? '').trim();
+        throw Exception(tail.isEmpty ? result['message'] : '${result['message']}\n$tail');
       }
       return (
         response: WhisperTranscribeResponse.fromJson(result),
         language: result['language'] as String?,
+        backend: result['backend'] as String?,
+        log: log,
       );
     } catch (e) {
       debugPrint(e.toString());

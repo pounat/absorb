@@ -1,0 +1,72 @@
+name: Whisper GPU library
+
+# Rebuilds the whisper plugin's prebuilt Metal library
+# (packages/whisper_ggml_plus/ios/Resources/default.metallib) for the app's
+# minimum iOS. Built without a minimum it takes the SDK's own version, and the
+# August build only loaded on iOS 26.2 and newer. Run by hand, then commit the
+# downloaded file in place of the old one.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build default.metallib
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select latest Xcode
+        run: |
+          LATEST_XCODE=$(ls /Applications/ | grep -E '^Xcode_[0-9]+(\.[0-9]+)?(\.app)?$' | sort -V | tail -1)
+          echo "Selecting: $LATEST_XCODE"
+          sudo xcode-select -s "/Applications/$LATEST_XCODE/Contents/Developer"
+          xcodebuild -version
+
+      # Xcode 26 ships the Metal compiler as a separate download.
+      - name: Make sure the Metal compiler is installed
+        run: |
+          if ! xcrun -sdk iphoneos metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun -sdk iphoneos metal --version
+
+      - name: Build the library
+        working-directory: packages/whisper_ggml_plus/ios
+        run: |
+          set -euo pipefail
+          SRC=Classes/whisper/ggml/src/ggml-metal
+          OUT="$RUNNER_TEMP/metallib"
+          mkdir -p "$OUT"
+          # The same merge as scripts/generate_metal_embed.sh: one source file
+          # with the shared headers pasted in.
+          sed -e "/__embed_ggml-common.h__/r Classes/whisper/ggml/include/ggml-common.h" \
+              -e "/__embed_ggml-common.h__/d" < "$SRC/ggml-metal.metal" > "$OUT/step.metal"
+          sed -e "/#include \"ggml-metal-impl.h\"/r $SRC/ggml-metal-impl.h" \
+              -e "/#include \"ggml-metal-impl.h\"/d" < "$OUT/step.metal" > "$OUT/ggml-metal-embed.metal"
+          xcrun -sdk iphoneos metal -std=ios-metal2.3 -mios-version-min=15.0 -O3 \
+            -I Classes/whisper/ggml/include -I Classes/whisper/ggml/src -I "$SRC" \
+            -c "$OUT/ggml-metal-embed.metal" -o "$OUT/ggml-metal.air"
+          xcrun -sdk iphoneos metallib "$OUT/ggml-metal.air" -o "$OUT/default.metallib"
+          ls -l "$OUT/default.metallib"
+
+      - name: Check it targets iOS 15
+        run: |
+          python3 - "$RUNNER_TEMP/metallib/default.metallib" <<'EOF'
+          import struct, sys
+          data = open(sys.argv[1], 'rb').read()
+          assert data[:4] == b'MTLB', 'not a Metal library'
+          platform = data[0x0B] & 0x7F
+          major, minor = struct.unpack_from('<HH', data, 0x0C)
+          print(f'platform={platform} minimum iOS={major}.{minor} size={len(data)}')
+          assert platform == 2, 'not built for iOS'
+          assert (major, minor) == (15, 0), f'minimum is {major}.{minor}, expected 15.0'
+          assert b'kernel_im2col_f16' in data, 'kernel_im2col_f16 is missing'
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: default-metallib
+          path: ${{ runner.temp }}/metallib/default.metallib
+          if-no-files-found: error

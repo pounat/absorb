@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'swipe_action.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -485,7 +487,7 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: coverUrls[i] != null
-                            ? CachedNetworkImage(imageUrl: coverUrls[i]!, fit: BoxFit.cover, httpHeaders: headers, width: 40, height: 40,
+                            ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: coverUrls[i]!, fit: BoxFit.cover, httpHeaders: headers, width: 40, height: 40,
                                 errorWidget: (_, __, ___) => Container(color: cs.surfaceContainerHighest,
                                   child: Icon(Icons.auto_stories_rounded, size: 18, color: cs.onSurfaceVariant)))
                             : Container(color: cs.surfaceContainerHighest,
@@ -562,12 +564,9 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
                 icon: Icons.add_circle_outline_rounded,
                 color: cs.primary,
                 onTrigger: () async {
-                  await lib.addToAbsorbingQueue(bookId);
-                  lib.absorbingItemCache[bookId] = Map<String, dynamic>.from(book);
-                  HapticFeedback.mediumImpact();
-                  if (context.mounted) {
-                    showOverlayToast(context, Wording.of(context).sectionDetailAddedToAbsorbing(bookTitle), icon: Icons.add_circle_outline_rounded);
-                  }
+                  await addToAbsorbingWithPicker(context, bookId,
+                      item: book,
+                      addedToast: Wording.of(context).sectionDetailAddedToAbsorbing(bookTitle));
                 },
               ),
         child: BookResultTile(
@@ -593,7 +592,7 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
         ),
         clipBehavior: Clip.antiAlias,
         child: _imageUrl != null
-            ? CachedNetworkImage(
+            ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                 imageUrl: _imageUrl!,
                 fit: BoxFit.cover,
                 httpHeaders: headers,

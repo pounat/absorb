@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../services/player_settings.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
 import '../services/wording.dart';
@@ -19,6 +23,7 @@ import 'editable_sheet_item.dart';
 import 'stackable_sheet.dart';
 import 'swipe_action.dart';
 import '../screens/app_shell.dart';
+import '../screens/smart_scope_editor_screen.dart';
 
 class CollectionDetailSheet extends StatefulWidget {
   final String collectionId;
@@ -49,10 +54,55 @@ class CollectionDetailSheet extends StatefulWidget {
 
 class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
   bool _editing = false;
+  bool _savingPublic = false;
+
+  Future<void> _setPublic(LibraryProvider lib, bool isPublic) async {
+    setState(() => _savingPublic = true);
+    final ok = await lib.setCollectionPublic(widget.collectionId, isPublic);
+    if (!mounted) return;
+    setState(() => _savingPublic = false);
+    if (!ok) {
+      showOverlayToast(context, AppLocalizations.of(context)!.failedToUpdateCheckConnection,
+          icon: Icons.error_outline_rounded);
+    }
+  }
   bool _gridView = false;
   List<Map<String, dynamic>>? _editItems;
   final Set<String> _selectedItemIds = {};
   bool _isRemovingSelected = false;
+
+  bool _loadingMore = false;
+  DateTime? _loadMoreFailedAt;
+
+  /// Big BookOrbit lists come with their first books; the rest load as you
+  /// near the bottom.
+  Future<void> _loadMore(LibraryProvider lib) async {
+    if (_loadingMore || _editing || !lib.collectionHasMore(widget.collectionId)) return;
+    final failed = _loadMoreFailedAt;
+    if (failed != null && DateTime.now().difference(failed) < const Duration(seconds: 5)) return;
+    setState(() => _loadingMore = true);
+    final ok = await lib.loadMoreCollectionBooks(widget.collectionId);
+    if (!mounted) return;
+    setState(() {
+      _loadingMore = false;
+      _loadMoreFailedAt = ok ? null : DateTime.now();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Same list or grid choice as the Home section sheets, so the view you
+    // picked last time comes back instead of the list every time.
+    PlayerSettings.getSectionGridView().then((v) {
+      if (mounted && v != _gridView) setState(() => _gridView = v);
+    });
+  }
+
+  void _toggleGridView() {
+    setState(() => _gridView = !_gridView);
+    PlayerSettings.setSectionGridView(_gridView);
+  }
 
   void _openAddBooks(LibraryProvider lib, Map<String, dynamic> collection,
       String name, List<dynamic> books) {
@@ -102,6 +152,14 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
       ),
       child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
     );
+  }
+
+  /// A Smart Scope's rules are edited in the scope editor, not in place.
+  Future<void> _editScope(Map<String, dynamic> collection) async {
+    final id = (collection['bookOrbit'] as Map?)?['scopeId'] as String?;
+    if (id == null) return;
+    final result = await SmartScopeEditorScreen.open(context, scopeId: id);
+    if (mounted && result == SmartScopeEdit.deleted) Navigator.of(context).pop();
   }
 
   Future<void> _deleteCollection(BuildContext context, LibraryProvider lib) async {
@@ -196,6 +254,11 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     }
   }
 
+  /// How many books a BookOrbit collection or scope holds, which can be more
+  /// than are loaded.
+  int? _bookTotal(Map<String, dynamic> collection) =>
+      ((collection['bookOrbit'] as Map?)?['total'] as num?)?.toInt();
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -203,11 +266,6 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
     final auth = context.read<AuthProvider>();
-    // Both gated at isAdmin in the UI; server returns 403 when admin lacks
-    // the `delete` permission flag and we show a friendly toast then.
-    final canEditCollection = auth.isAdmin;
-    final canDeleteCollection = auth.isAdmin;
-
     final collection = lib.collections.cast<Map<String, dynamic>>().where(
       (c) => c['id'] == widget.collectionId,
     ).firstOrNull;
@@ -215,6 +273,16 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     if (collection == null) {
       return Center(child: Text(l.collectionNotFound));
     }
+
+    // Both gated at isAdmin in the UI; server returns 403 when admin lacks
+    // the `delete` permission flag and we show a friendly toast then. A
+    // BookOrbit collection belongs to whoever made it.
+    final ownsBookOrbitCollection = auth.isBookOrbit &&
+        (collection['bookOrbit'] as Map?)?['isOwner'] == true;
+    // A BookOrbit Smart Scope is its rules' live result: read-only here.
+    final isSmartScope = (collection['bookOrbit'] as Map?)?['smartScope'] == true;
+    final canEditCollection = !isSmartScope && (auth.isAdmin || ownsBookOrbitCollection);
+    final canDeleteCollection = canEditCollection;
 
     final name = collection['name'] as String? ?? l.collectionDetailDefaultName;
     final description = collection['description'] as String? ?? '';
@@ -245,14 +313,18 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
               color: cs.primary,
             ),
           ] else ...[
-            Icon(Icons.collections_bookmark_rounded, size: 20, color: cs.primary),
+            Icon(
+                isSmartScope
+                    ? scopeIconData((collection['bookOrbit'] as Map?)?['icon'] as String?)
+                    : Icons.collections_bookmark_rounded,
+                size: 20, color: cs.primary),
             const SizedBox(width: 8),
             Expanded(
               child: Text(name, style: tt.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600, color: cs.onSurface,
               )),
             ),
-            Text(l.collectionDetailBookCount(books.length),
+            Text(l.collectionDetailBookCount(_bookTotal(collection) ?? books.length),
               style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
             ),
             if (canEditCollection)
@@ -269,9 +341,12 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                   : l.turnAutoDownloadOn),
             _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
-              () => setState(() => _gridView = !_gridView)),
+              _toggleGridView),
             if (canEditCollection)
               _headerIconButton(cs, Icons.edit_rounded, () => _startEdit(books),
+                tooltip: l.edit),
+            if (isSmartScope && (collection['bookOrbit'] as Map?)?['isOwner'] == true)
+              _headerIconButton(cs, Icons.edit_rounded, () => _editScope(collection),
                 tooltip: l.edit),
           ],
         ]),
@@ -289,23 +364,55 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
       const SizedBox(height: 12),
       Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.3),
         indent: 20, endIndent: 20),
+      if (_editing && ownsBookOrbitCollection)
+        SwitchListTile(
+          dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+          title: Text(l.collectionPublicTitle),
+          subtitle: Text(l.collectionPublicSubtitle),
+          value: (collection['bookOrbit'] as Map?)?['isPublic'] == true,
+          onChanged: _savingPublic ? null : (v) => _setPublic(lib, v),
+        ),
       if (!_editing)
         _buildPlayButton(cs, lib, books, name, l),
       // Content
       Expanded(
         child: _editing
             ? _buildEditList(cs, tt, lib, l)
-            : _gridView
-                ? _buildGrid(cs, tt, lib, books, name, l)
-                : _buildItemList(
-                    cs,
-                    tt,
-                    lib,
-                    books,
-                    name,
-                    l,
-                    canEditCollection: canEditCollection,
-                  ),
+            : NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (n.metrics.axis == Axis.vertical && n.metrics.extentAfter < 1200) {
+                    _loadMore(lib);
+                  }
+                  return false;
+                },
+                child: Stack(children: [
+                  _gridView
+                      ? _buildGrid(cs, tt, lib, books, name, l)
+                      : _buildItemList(
+                          cs,
+                          tt,
+                          lib,
+                          books,
+                          name,
+                          l,
+                          canEditCollection: canEditCollection,
+                        ),
+                  if (_loadingMore)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 10,
+                      child: Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                        ),
+                      ),
+                    ),
+                ]),
+              ),
       ),
       if (_editing && canDeleteCollection)
         Container(
@@ -454,6 +561,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
         final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
         final progress = lib.getProgress(itemId);
         final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
+        final isSkimmed = lib.getProgressData(itemId)?['skimmed'] == true;
         final isDownloaded = DownloadService().isDownloaded(itemId);
 
         final card = Padding(
@@ -482,7 +590,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                             ? (coverUrl.startsWith('/')
                                 ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => _placeholder(cs))
-                                : CachedNetworkImage(
+                                : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                     imageUrl: coverUrl, fit: BoxFit.cover,
                                     httpHeaders: lib.mediaHeaders,
                                     placeholder: (_, __) => _placeholder(cs),
@@ -515,7 +623,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                       if (isFinished || isDownloaded)
                         Positioned(
                           left: 0, right: 0, bottom: 0,
-                          child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                          child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                         ),
                     ]),
                   ),
@@ -555,12 +663,9 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                   icon: Icons.add_circle_outline_rounded,
                   color: cs.primary,
                   onTrigger: () async {
-                    await lib.addToAbsorbingQueue(itemId);
-                    lib.absorbingItemCache[itemId] = Map<String, dynamic>.from(book);
-                    HapticFeedback.mediumImpact();
-                    if (context.mounted) {
-                      showOverlayToast(context, Wording.of(context).collectionDetailAddedToAbsorbing(title), icon: Icons.add_circle_outline_rounded);
-                    }
+                    await addToAbsorbingWithPicker(context, itemId,
+                        item: book,
+                        addedToast: Wording.of(context).collectionDetailAddedToAbsorbing(title));
                   },
                 ),
           child: card,
@@ -583,8 +688,8 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
           .copyWith(bottom: 40),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: coverGridCount(context),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
         childAspectRatio: 0.62,
       ),
       itemCount: books.length,
@@ -599,6 +704,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
         final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
         final progress = lib.getProgress(itemId);
         final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
+        final isSkimmed = lib.getProgressData(itemId)?['skimmed'] == true;
         final isDownloaded = DownloadService().isDownloaded(itemId);
 
         return GestureDetector(
@@ -621,7 +727,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                           ? (coverUrl.startsWith('/')
                               ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => _placeholder(cs))
-                              : CachedNetworkImage(
+                              : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                   imageUrl: coverUrl, fit: BoxFit.cover,
                                   httpHeaders: lib.mediaHeaders,
                                   placeholder: (_, __) => _placeholder(cs),
@@ -654,7 +760,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                     if (isFinished || isDownloaded)
                       Positioned(
                         left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                       ),
                   ]),
                 ),

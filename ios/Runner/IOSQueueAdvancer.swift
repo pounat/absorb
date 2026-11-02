@@ -23,6 +23,7 @@ final class IOSQueueAdvancer: NSObject {
   private var _preparedItem: AVPlayerItem?
   private var _preparedTitle: String = ""
   private var _preparedArtist: String = ""
+  private var _preparedAlbum: String = ""
   private var _preparedDurationS: Double = 0
   private var _preparedCoverPath: String?
   private var _preparedStartS: Double = 0
@@ -78,6 +79,7 @@ final class IOSQueueAdvancer: NSObject {
       let headers = (args?["headers"] as? [String: String]) ?? [:]
       let title = (args?["title"] as? String) ?? ""
       let artist = (args?["artist"] as? String) ?? ""
+      let album = (args?["album"] as? String) ?? ""
       let duration = (args?["durationS"] as? Double) ?? 0
       let coverPath = args?["coverPath"] as? String
       let startS = (args?["startS"] as? Double) ?? 0
@@ -87,6 +89,7 @@ final class IOSQueueAdvancer: NSObject {
         headers: headers,
         title: title,
         artist: artist,
+        album: album,
         durationS: duration,
         coverPath: coverPath,
         startS: startS,
@@ -124,6 +127,7 @@ final class IOSQueueAdvancer: NSObject {
     headers: [String: String],
     title: String,
     artist: String,
+    album: String,
     durationS: Double,
     coverPath: String?,
     startS: Double,
@@ -169,6 +173,7 @@ final class IOSQueueAdvancer: NSObject {
           self._preparedItem = item
           self._preparedTitle = title
           self._preparedArtist = artist
+          self._preparedAlbum = album
           self._preparedDurationS = durationS
           self._preparedCoverPath = coverPath
           self._preparedStartS = startS
@@ -227,6 +232,7 @@ final class IOSQueueAdvancer: NSObject {
     _preparedItem = nil
     _preparedTitle = ""
     _preparedArtist = ""
+    _preparedAlbum = ""
     _preparedDurationS = 0
     _preparedCoverPath = nil
     _preparedStartS = 0
@@ -247,6 +253,7 @@ final class IOSQueueAdvancer: NSObject {
   private func publishNowPlaying(rate: Double) {
     let title = _preparedTitle
     let artist = _preparedArtist
+    let album = _preparedAlbum
     let duration = _preparedDurationS
     let coverPath = _preparedCoverPath
     let elapsed = _preparedStartS
@@ -260,6 +267,9 @@ final class IOSQueueAdvancer: NSObject {
     ]
     if duration > 0 {
       info[MPMediaItemPropertyPlaybackDuration] = duration
+    }
+    if !album.isEmpty {
+      info[MPMediaItemPropertyAlbumTitle] = album
     }
     if let coverPath = coverPath, let img = UIImage(contentsOfFile: coverPath) {
       let artwork = MPMediaItemArtwork(boundsSize: img.size) { _ in img }

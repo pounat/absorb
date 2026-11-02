@@ -39,6 +39,8 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
       return l.carModeTitle;
     case 'notes':
       return l.notes;
+    case 'wake':
+      return l.keepScreenOn;
     case 'download':
       return l.download;
     case 'ebook':
@@ -63,9 +65,9 @@ final Set<String> _hiddenButtons = {
   if (AppPlatform.lacksPhonePlugins) ...{
     'car',
     'download',
-    'ebook',
     'equalizer',
   },
+  if (AppPlatform.isWeb) 'ebook',
 };
 
 const _allCardButtons = [
@@ -81,6 +83,7 @@ const _allCardButtons = [
   CardButtonDef('remove', 'Remove from Absorbing', Icons.remove_circle_outline_rounded),
   CardButtonDef('car', 'Car Mode', Icons.directions_car_rounded),
   CardButtonDef('notes', 'Notes', Icons.note_rounded),
+  CardButtonDef('wake', 'Keep screen on', Icons.lightbulb_outline_rounded),
   CardButtonDef('download', 'Download', Icons.download_outlined),
   CardButtonDef('ebook', 'Read', Icons.menu_book_rounded),
   CardButtonDef('findinebook', 'Find position in ebook', Icons.manage_search_rounded),

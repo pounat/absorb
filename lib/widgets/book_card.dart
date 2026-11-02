@@ -2,9 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
 import '../providers/auth_provider.dart';
+import '../services/narrated_books.dart';
+import '../services/ebook_cache.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
@@ -64,8 +68,11 @@ class BookCard extends StatelessWidget {
     // Progress from LibraryProvider (fetched via /api/me, same source as book detail)
     final progress = lib.getProgress(itemId);
     final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
+    final isSkimmed = lib.getProgressData(itemId)?['skimmed'] == true;
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final isDownloaded = DownloadService().isDownloaded(itemId ?? '');
+    final hasEbook = PlayerSettings.showEbookBadge && hasEbookFile(item);
+    final readAlong = hasEbook && hasReadAlongEbook(item);
     // Only compute for podcast shows that aren't being rendered as an episode
     // (an episode card shows the recentEpisode payload, not show-level info).
     final unfinishedCount = (lib.isPodcastLibrary && item['recentEpisode'] == null)
@@ -75,8 +82,8 @@ class BookCard extends StatelessWidget {
     final headers = lib.mediaHeaders;
 
     final card = isWide
-        ? _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit)
-        : _buildCompactCard(context, cs, tt, l, title, subtitle, authorName, coverUrl, progress, headers, isFinished: isFinished, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount);
+        ? _buildWideCard(context, cs, tt, l, title, authorName, coverUrl, progress, headers, isExplicit: isExplicit, hasEbook: hasEbook, readAlong: readAlong)
+        : _buildCompactCard(context, cs, tt, l, title, subtitle, authorName, coverUrl, progress, headers, isFinished: isFinished, isSkimmed: isSkimmed, isDownloaded: isDownloaded, isExplicit: isExplicit, unfinishedCount: unfinishedCount, hasEbook: hasEbook, readAlong: readAlong);
     final canEdit = itemId != null &&
         !lib.isPodcastLibrary &&
         !lib.isOffline &&
@@ -224,6 +231,8 @@ class BookCard extends StatelessWidget {
     double progress,
     Map<String, String> headers, {
     bool isExplicit = false,
+    bool hasEbook = false,
+    bool readAlong = false,
   }) {
     return Card(
       elevation: 0,
@@ -245,6 +254,8 @@ class BookCard extends StatelessWidget {
               child: Stack(
                 children: [
                   _CoverImage(coverUrl: coverUrl, cs: cs, fit: BoxFit.contain, httpHeaders: headers, title: title, author: authorName),
+                  if (hasEbook && !selectionMode)
+                    Positioned(top: 4, left: 4, child: EbookCoverBadge(readAlong: readAlong)),
                   if (isExplicit)
                     Positioned(
                       top: 4,
@@ -368,9 +379,12 @@ class BookCard extends StatelessWidget {
     double progress,
     Map<String, String> headers, {
     bool isFinished = false,
+    bool isSkimmed = false,
     bool isDownloaded = false,
     bool isExplicit = false,
     int unfinishedCount = 0,
+    bool hasEbook = false,
+    bool readAlong = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,6 +474,8 @@ class BookCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (hasEbook && !selectionMode)
+                    Positioned(top: 4, left: 4, child: EbookCoverBadge(readAlong: readAlong)),
                   if (isFinished || isDownloaded)
                     Positioned(
                       left: 0,
@@ -468,6 +484,7 @@ class BookCard extends StatelessWidget {
                       child: CoverStateBadges(
                         isDownloaded: isDownloaded,
                         isFinished: isFinished,
+                        isSkimmed: isSkimmed,
                         borderRadius: const BorderRadius.vertical(
                           bottom: Radius.circular(12),
                         ),
@@ -557,13 +574,13 @@ class _CoverImage extends StatelessWidget {
 
     return EinkCoverTone(child: BlurPaddedCover(
       enabled: isSquare,
-      blurChild: CachedNetworkImage(
+      blurChild: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         imageUrl: coverUrl!,
         fit: BoxFit.cover,
         httpHeaders: httpHeaders,
         errorWidget: (_, __, ___) => const SizedBox.shrink(),
       ),
-      child: CachedNetworkImage(
+      child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
         imageUrl: coverUrl!,
         fit: effectiveFit,
         httpHeaders: httpHeaders,

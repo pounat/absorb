@@ -51,6 +51,7 @@ class EpubViewer extends StatefulWidget {
     this.onInitialPositionLoaded,
     this.cachedLocations,
     this.onLocationsGenerated,
+    this.onLoadError,
     this.onTouchDown,
     this.onTouchUp,
     this.suppressNativeContextMenu = false,
@@ -86,6 +87,10 @@ class EpubViewer extends StatefulWidget {
   /// Fires with the freshly generated location index when no cached one was
   /// supplied, so the caller can keep it for next time.
   final ValueChanged<String>? onLocationsGenerated;
+
+  /// Fires when epub.js can't open the book at all (a damaged or unreadable
+  /// file), which otherwise leaves the page blank with no other callback.
+  final ValueChanged<String>? onLoadError;
 
   ///Call back when chapters are loaded
   final ValueChanged<List<EpubChapter>>? onChaptersLoaded;
@@ -463,6 +468,22 @@ class _EpubViewerState extends State<EpubViewer> {
     );
 
     webViewController?.addJavaScriptHandler(
+      handlerName: 'loadError',
+      callback: (data) {
+        final message = data.isNotEmpty ? '${data[0]}' : 'unknown error';
+        debugPrint('[EpubViewer] book failed to open: $message');
+        widget.onLoadError?.call(message);
+      },
+    );
+
+    webViewController?.addJavaScriptHandler(
+      handlerName: 'displayError',
+      callback: (data) {
+        debugPrint('[EpubViewer] display error: ${data.isNotEmpty ? data[0] : ''}');
+      },
+    );
+
+    webViewController?.addJavaScriptHandler(
       handlerName: 'initialPositionLoading',
       callback: (data) {
         String type = 'cfi';
@@ -610,8 +631,10 @@ class _EpubViewerState extends State<EpubViewer> {
         EpubDefaultDirection.ltr.name;
     int fontSize = displaySettings.fontSize;
 
-    bool useCustomSwipe =
-        Platform.isAndroid && !displaySettings.useSnapAnimationAndroid;
+    // Sideways swipes turn pages; a scrolling book has none to turn.
+    bool useCustomSwipe = Platform.isAndroid &&
+        !displaySettings.useSnapAnimationAndroid &&
+        displaySettings.flow == EpubFlow.paginated;
 
     String? foregroundColor = widget.displaySettings?.theme?.foregroundColor
         ?.toHex();
@@ -621,7 +644,11 @@ class _EpubViewerState extends State<EpubViewer> {
 
     bool clearSelectionOnPageChange = widget.clearSelectionOnPageChange;
 
-    String xpathParam = initialXPath != null ? '"$initialXPath"' : 'null';
+    // JSON-encoded so a saved position with quotes or backslashes in it (other
+    // apps store their own formats in the same field) can't break the call
+    // and leave the page blank.
+    String cfiParam = jsonEncode(cfi);
+    String xpathParam = initialXPath != null ? jsonEncode(initialXPath) : 'null';
 
     final sourceFile = widget.epubSource.file;
     final started = DateTime.now();
@@ -665,7 +692,7 @@ class _EpubViewerState extends State<EpubViewer> {
     }
     webViewController?.evaluateJavascript(
       source:
-          'loadBook(null, "$cfi", $xpathParam, "$manager", "$flow", "$spread", $snap, $allowScripted, "$direction", $useCustomSwipe, "${null}", "$foregroundColor", "$fontSize", $clearSelectionOnPageChange, ${widget.selectAnnotationRange}, $customCss)',
+          'loadBook(null, $cfiParam, $xpathParam, "$manager", "$flow", "$spread", $snap, $allowScripted, "$direction", $useCustomSwipe, "${null}", "$foregroundColor", "$fontSize", $clearSelectionOnPageChange, ${widget.selectAnnotationRange}, $customCss)',
     );
   }
 

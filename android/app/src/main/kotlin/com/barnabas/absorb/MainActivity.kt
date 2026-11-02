@@ -161,14 +161,6 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.audio_diag")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "snapshot" -> result.success(AudioService.getDiagnosticSnapshot())
-                    else -> result.notImplemented()
-                }
-            }
-
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.update")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -197,6 +189,30 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
 
+        // The phone's time zone, and how far another one (the zone BookOrbit
+        // counts days in) is from UTC right now, so the Stats screen can say
+        // when the two split days differently.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.time_zone")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "compare" -> {
+                        val now = System.currentTimeMillis()
+                        val here = java.util.TimeZone.getDefault()
+                        val otherId = call.argument<String>("other")
+                        // getTimeZone falls back to GMT for a name it doesn't know.
+                        val other = otherId
+                            ?.takeIf { java.util.TimeZone.getAvailableIDs().contains(it) }
+                            ?.let { java.util.TimeZone.getTimeZone(it) }
+                        result.success(mapOf(
+                            "id" to here.id,
+                            "offsetSeconds" to here.getOffset(now) / 1000,
+                            "otherOffsetSeconds" to other?.getOffset(now)?.div(1000),
+                        ))
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.clip")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -216,12 +232,13 @@ class MainActivity : AudioServiceActivity() {
                         val outPath = call.argument<String>("outPath")
                         val startSeconds = call.argument<Double>("startSeconds") ?: 0.0
                         val durationSeconds = call.argument<Double>("durationSeconds") ?: 0.0
+                        val headers = call.argument<Map<String, String>>("headers") ?: emptyMap()
                         if (sourcePath == null || outPath == null) {
                             result.error("ARGS", "sourcePath and outPath are required", null)
                         } else {
                             Thread {
                                 val ok = try {
-                                    AudioWindowExtractor.extractWav(applicationContext, sourcePath, startSeconds, durationSeconds, outPath)
+                                    AudioWindowExtractor.extractWav(applicationContext, sourcePath, startSeconds, durationSeconds, outPath, headers)
                                 } catch (e: Exception) {
                                     Log.e(TAG, "extractWav crashed: ${e.message}")
                                     false

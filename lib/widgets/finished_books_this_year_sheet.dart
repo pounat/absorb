@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -310,8 +312,8 @@ class _FinishedBooksThisYearSheetState
       padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPad),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: coverGridCount(context),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
         childAspectRatio: 0.55,
       ),
       itemCount: _items.length,
@@ -377,7 +379,7 @@ class _FinishedBooksThisYearSheetState
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _placeholder(cs));
     }
-    return CachedNetworkImage(
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
       imageUrl: coverUrl,
       fit: BoxFit.cover,
       httpHeaders: lib.mediaHeaders,

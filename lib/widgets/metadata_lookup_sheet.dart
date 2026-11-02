@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/metadata_override_service.dart';
@@ -646,7 +648,7 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
               child: SizedBox(
                 width: 60, height: 60,
                 child: cover.isNotEmpty
-                    ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                    ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: cover, fit: BoxFit.cover,
                         placeholder: (_, __) => _placeholder(cs),
                         errorWidget: (_, __, ___) => _placeholder(cs))
                     : _placeholder(cs),

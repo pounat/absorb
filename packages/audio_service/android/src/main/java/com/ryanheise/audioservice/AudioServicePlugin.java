@@ -307,6 +307,20 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         // then attaches to that stuck engine and sits on the splash screen.
         // Engines that actually host audio connect via onAttachedToActivity or
         // the "configure" call below.
+
+        // Absorb patch: the diag snapshot channel lives here instead of in
+        // MainActivity.configureFlutterEngine, which never runs for an engine
+        // Android Auto starts without the activity. There the car-client check
+        // always read "not seen" and the route-loss pause stopped the book
+        // every couple of minutes (GH #369).
+        new MethodChannel(binding.getBinaryMessenger(), "com.absorb.audio_diag")
+                .setMethodCallHandler((call, result) -> {
+                    if ("snapshot".equals(call.method)) {
+                        result.success(AudioService.getDiagnosticSnapshot());
+                    } else {
+                        result.notImplemented();
+                    }
+                });
     }
 
     @Override

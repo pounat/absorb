@@ -11,6 +11,13 @@ var cachedLocations = null;
 function setCachedLocations(json) {
   cachedLocations = json;
 }
+function reportLoadError(e) {
+  try {
+    window.flutter_inappwebview.callHandler('loadError', String((e && e.message) || e));
+  } catch (err) {
+    console.error('Error reporting load failure:', err);
+  }
+}
 function handBackLocations() {
   try {
     window.flutter_inappwebview.callHandler('locationsGenerated', book.locations.save());
@@ -59,6 +66,8 @@ function snapToPageBoundary() {
     var container = manager.container;
     var step = (manager.layout && manager.layout.delta) || container.clientWidth;
     if (!step || step <= 0) return;
+    // A page being dragged or sliding is between pages on purpose.
+    if (turnDragActive || turnSlide) return;
     var off = container.scrollLeft;
     var mis = off % step;
     if (mis < 2 || step - mis < 2) return; // already aligned (within rounding)
@@ -133,7 +142,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   if (bookUrl) {
     var url = bookUrl;
     bookUrl = null;
-    book.open(url);
+    book.open(url).catch(reportLoadError);
   } else {
     var uint8Array;
     if (data) {
@@ -149,7 +158,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
       bookParts = [];
       bookPartsLen = 0;
     }
-    book.open(uint8Array,)
+    book.open(uint8Array,).catch(reportLoadError)
   }
   lastRenderOpts = {
     manager: manager,
@@ -166,7 +175,37 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   lastTheme.fg = foregroundColor;
   lastTheme.css = customCss;
   lastTheme.fontSize = fontSize;
+  // Absorb patch: scroll mode lays out the chapters ahead two screens early,
+  // so reaching them doesn't wait on the layout, and keeps those it passed
+  // as long.
+  if (String(flow || "").indexOf("scrolled") === 0) {
+    lastRenderOpts.offset = Math.round((window.innerHeight || 800) * 2);
+  }
   rendition = book.renderTo("viewer", lastRenderOpts);
+  holdSpotThroughResize(rendition);
+  var turnsFor = rendition;
+  rendition.started.then(function () {
+    setupTurns(turnsFor);
+    setupSmoothScroll(turnsFor);
+  });
+  rendition.hooks.content.register(function (contents) {
+    attachTurnDrag(contents.document);
+  });
+  rendition.hooks.content.register(markParagraphs);
+
+  // Absorb patch: scroll mode only moves up and down, down to each chapter's
+  // own page, so a drag that drifts sideways can't nudge the text aside.
+  var scrolledNow = String(flow || "").indexOf("scrolled") === 0;
+  document.body.classList.toggle("absorb-scrolled", scrolledNow);
+  if (scrolledNow) {
+    rendition.hooks.content.register(function (contents) {
+      try {
+        var st = contents.document.createElement("style");
+        st.textContent = "html, body { overflow-x: hidden !important; touch-action: pan-y; }";
+        contents.document.head.appendChild(st);
+      } catch (e) {}
+    });
+  }
 
   // Apply initial theme
   updateTheme(backgroundColor, foregroundColor, customCss);
@@ -185,7 +224,12 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
     } catch (e) {
       console.error('Error calling initialPositionLoading callback:', e);
     }
-    displayed = rendition.display(cfi)
+    // A saved spot this file doesn't have (another edition of the book)
+    // rejects with no "displayed" event; open at the start instead of a blank page.
+    displayed = rendition.display(cfi).catch(function (e) {
+      console.error('Initial cfi not found, showing the start:', e);
+      return rendition.display();
+    })
   } else {
     displayed = rendition.display()
   }
@@ -997,6 +1041,13 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
     }
 
     var percent = location.start.percentage;
+    // Absorb patch: a book with no text (all page pictures) gets an empty
+    // location index, and epub.js then works -1 / -1 out to 100% on every
+    // page, which marked such a book finished the moment it opened. Use how
+    // far through the spine the page is instead.
+    if (!(book.locations.length() > 0)) {
+      percent = spinePercent(location.start);
+    }
 
     // Convert CFIs to XPath
     Promise.all([
@@ -1027,7 +1078,13 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   });
 
   rendition.on('displayError', function (e) {
-    window.flutter_inappwebview.callHandler('displayError');
+    window.flutter_inappwebview.callHandler('displayError', String((e && e.message) || e));
+    // The first page never painting is the blank-reader case: fall back to
+    // the start once rather than leaving nothing on screen.
+    if (initialPositionLoading) {
+      initialPositionLoading = false;
+      rendition.display();
+    }
   })
 
   rendition.on('markClicked', function (cfiRange) {
@@ -1439,7 +1496,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
     };
 
     // Attach to iframe document
-    doc.addEventListener('touchstart', touchStartHandler, { capture: true, passive: false });
+    doc.addEventListener('touchstart', touchStartHandler, { capture: true, passive: true });
 
     // Also attach to parent window as fallback for iOS
     // On iOS, touch events in iframes may not fire, so we also listen on the parent window
@@ -1470,7 +1527,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
             } catch (err) {
               // Ignore errors in event handler
             }
-          }, { capture: true, passive: false });
+          }, { capture: true, passive: true });
         }
       }
     } catch (err) {
@@ -1513,7 +1570,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
           currentTouchY = e.touches[0].clientY;
         }
       }
-    }, { capture: true, passive: false }); // Use options object with passive: false
+    }, { capture: true, passive: scrolledFlow() });
 
     var touchEndHandler = function (e) {
       // Fire onTouchUp callback with normalized coordinates
@@ -1605,32 +1662,8 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
       // Ignore errors when accessing parent window (cross-origin restrictions)
     }
 
-    if (useCustomSwipe) {
-      const el = contents.document.documentElement;
-
-      if (el) {
-        detectSwipe(el, function (el, direction) {
-          // Block swipes if there's an active selection
-          if (hasActiveSelection()) {
-            console.log('Blocked swipe - selection active, direction:', direction);
-            return;
-          }
-
-          if (direction == 'l') {
-            // Double-check before calling
-            if (!hasActiveSelection()) {
-              rendition.next();
-            }
-          }
-          if (direction == 'r') {
-            // Double-check before calling
-            if (!hasActiveSelection()) {
-              rendition.prev();
-            }
-          }
-        });
-      }
-    }
+    // Absorb patch: sideways swipes turn pages through attachTurnDrag, on
+    // every platform, so the package's own swipe turn is left out.
 
     // Block epub.js built-in click/tap navigation when there's a selection
     // epub.js typically handles clicks on the left/right sides of the page
@@ -2059,6 +2092,36 @@ function setupRenditionBlocking() {
   }
 }
 
+// Absorb patch: epub.js answers a resize by showing the page that holds the
+// first word of the page before it, and in the new size that page usually
+// starts a little earlier. Turning the phone fires several resizes, so the
+// book slid back a page or more each time, down to the start of the chapter.
+// Every resize now goes back to where the reader last was, and the pages the
+// resizes land on never replace that spot. Set before the rendition starts,
+// which is when epub.js binds its resize handler.
+function holdSpotThroughResize(r) {
+  var spot = null;
+  var resizing = 0;
+  var quietUntil = 0;
+  r.onResized = function (size, epubcfi) {
+    this.emit("resized", { width: size.width, height: size.height }, epubcfi);
+    if (!this.location || !this.location.start) return;
+    var cfi = epubcfi || spot || this.location.start.cfi;
+    resizing++;
+    // The relocated event for this display comes a couple of frames after it
+    // resolves.
+    var settle = function () {
+      resizing--;
+      quietUntil = Date.now() + 500;
+    };
+    Promise.resolve(this.display(cfi)).then(settle, settle);
+  };
+  r.on("relocated", function (location) {
+    if (resizing > 0 || Date.now() < quietUntil) return;
+    if (location && location.start && location.start.cfi) spot = location.start.cfi;
+  });
+}
+
 //move to next page
 function next() {
   // Block navigation if there's an active selection
@@ -2067,6 +2130,8 @@ function next() {
     return;
   }
   if (rendition) {
+    finishTurnSlide();
+    turnAnimate = true;
     rendition.next();
   }
 }
@@ -2079,8 +2144,222 @@ function previous() {
     return;
   }
   if (rendition) {
+    finishTurnSlide();
+    turnAnimate = true;
     rendition.prev();
   }
+}
+
+// Absorb patch: page turns. "slide" moves the page sideways and follows a
+// finger dragging it; "none" turns at once. "curl" is drawn by the app over
+// pictures of the page, so here the page turns at once and sideways drags are
+// left to the app.
+var turnStyle = "slide";
+var turnAnimate = false;    // the next turn was asked for by the reader, not auto scroll
+var turnSlide = null;       // the slide in flight
+var turnFromDrag = null;    // where a released drag left the page: {base, from}
+var turnDragActive = false; // a finger is holding the page between pages
+var TURN_MS = 280;
+
+function setTurnStyle(style) {
+  turnStyle = style === "none" || style === "curl" ? style : "slide";
+}
+
+function finishTurnSlide() {
+  if (turnSlide) turnSlide.finish();
+}
+
+function turnSlides(m) {
+  return turnStyle === "slide" && !!m && m.isPaginated && m.settings.axis === "horizontal" &&
+    !m.settings.fullsize && !scrolledFlow();
+}
+
+function setupTurns(r) {
+  var m = r && r.manager;
+  if (!m || m.__absorbTurns) return;
+  m.__absorbTurns = true;
+  var next = m.next;
+  var prev = m.prev;
+  m.next = function () { return slideTurn(m, next); };
+  m.prev = function () { return slideTurn(m, prev); };
+}
+
+// epub.js turns by jumping a page width. The jump is still made, so the page
+// lands exactly where it always did, and is then played as a slide from where
+// the page was, or from where a finger let go of it.
+function slideTurn(m, turn) {
+  var drag = turnFromDrag;
+  turnFromDrag = null;
+  var animate = turnAnimate || !!drag;
+  turnAnimate = false;
+  var c = m.container;
+  if (drag) {
+    m.ignore = true;
+    c.scrollLeft = drag.base;
+  }
+  if (!animate || !turnSlides(m)) return turn.call(m);
+  var from = drag ? drag.from : c.scrollLeft;
+  var result = turn.call(m);
+  var to = c.scrollLeft;
+  if (Math.abs(to - from) < 1) return result;
+  m.ignore = true;
+  c.scrollLeft = from;
+  var page = (m.layout && m.layout.delta) || c.clientWidth || 1;
+  return playSlide(m, from, to, TURN_MS * Math.max(0.4, Math.min(1, Math.abs(to - from) / page)));
+}
+
+function playSlide(m, from, to, ms) {
+  finishTurnSlide();
+  return new Promise(function (resolve) {
+    var c = m.container;
+    var start = null;
+    var shift = 0; // epub.js dropping a chapter on the left moves everything
+    var last = from;
+    var done = false;
+    var slide = {
+      finish: function () {
+        if (done) return;
+        done = true;
+        if (turnSlide === slide) turnSlide = null;
+        m.ignore = true;
+        c.scrollLeft = to + shift;
+        resolve();
+      }
+    };
+    turnSlide = slide;
+    function frame(ts) {
+      if (done) return;
+      if (start === null) start = ts;
+      var now = c.scrollLeft;
+      if (Math.abs(now - last) > 2) shift += now - last;
+      var t = Math.min(1, (ts - start) / ms);
+      if (t >= 1) {
+        slide.finish();
+        return;
+      }
+      last = from + shift + (to - from) * (1 - Math.pow(1 - t, 3));
+      m.ignore = true;
+      c.scrollLeft = last;
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+// A sideways drag turns the page: in "slide" the page follows the finger and
+// settles on whichever page it was pulled toward; in "none" it turns once the
+// finger lifts. Selecting text, auto scroll and scroll mode keep their touches.
+function attachTurnDrag(doc) {
+  if (!doc || doc.__absorbTurnDrag) return;
+  doc.__absorbTurnDrag = true;
+  var d = null;
+  doc.addEventListener("touchstart", function (e) {
+    d = null;
+    if (turnStyle === "curl" || scrolledFlow() || blindRendition || glideActive) return;
+    if (!e.touches || e.touches.length !== 1 || !rendition || !rendition.manager) return;
+    var t = e.touches[0];
+    d = { x0: t.screenX, y0: t.screenY, at: e.timeStamp, moving: false, track: [] };
+  }, { capture: true, passive: true });
+  doc.addEventListener("touchmove", function (e) {
+    if (!d) return;
+    if (!e.touches || e.touches.length !== 1) {
+      release(null, true);
+      return;
+    }
+    var t = e.touches[0];
+    if (!d.moving) {
+      var dx = t.screenX - d.x0;
+      var dy = t.screenY - d.y0;
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+      // A finger that rested before moving was pressing to select text.
+      if (Math.abs(dx) <= Math.abs(dy) * 1.2 || isSelecting || hasActiveSelection() || e.timeStamp - d.at > 400) {
+        d = null;
+        return;
+      }
+      finishTurnSlide();
+      var m = rendition.manager;
+      d.moving = true;
+      d.m = m;
+      d.x = t.screenX; // the page moves from here, without a jump
+      d.base = m.container.scrollLeft;
+      d.page = (m.layout && m.layout.delta) || m.container.clientWidth || 1;
+      turnDragActive = turnStyle === "slide";
+    }
+    d.track.push({ x: t.screenX, at: e.timeStamp });
+    if (d.track.length > 5) d.track.shift();
+    if (turnStyle === "slide") {
+      var off = Math.max(-d.page, Math.min(d.page, t.screenX - d.x));
+      d.m.ignore = true;
+      d.m.container.scrollLeft = d.base - off;
+    }
+  }, { capture: true, passive: true });
+  function release(e, cancelled) {
+    var g = d;
+    d = null;
+    turnDragActive = false;
+    if (!g || !g.moving) return;
+    var m = g.m;
+    var c = m.container;
+    var t = e && e.changedTouches && e.changedTouches[0];
+    var dx = t ? t.screenX - g.x0 : 0;
+    var v = 0;
+    if (g.track.length > 1) {
+      var a = g.track[0];
+      var b = g.track[g.track.length - 1];
+      if (b.at > a.at) v = (b.x - a.x) / (b.at - a.at);
+    }
+    var forward = m.settings.direction === "rtl" ? dx > 0 : dx < 0;
+    var go = !cancelled && dx !== 0 &&
+      (Math.abs(dx) > g.page * 0.2 || (Math.abs(v) > 0.3 && (v < 0) === (dx < 0)));
+    if (!go) {
+      if (turnStyle === "slide") playSlide(m, c.scrollLeft, g.base, 180);
+      return;
+    }
+    var pending = null;
+    if (turnStyle === "slide") {
+      pending = { base: g.base, from: c.scrollLeft };
+      turnFromDrag = pending;
+    }
+    if (forward) rendition.next(); else rendition.prev();
+    // A turn that never picked the drag up (a selection blocked it) leaves
+    // the page between pages: put it back.
+    if (pending) {
+      setTimeout(function () {
+        if (turnFromDrag !== pending) return;
+        turnFromDrag = null;
+        playSlide(m, c.scrollLeft, pending.base, 180);
+      }, 600);
+    }
+  }
+  doc.addEventListener("touchend", function (e) { release(e, false); }, { capture: true, passive: true });
+  doc.addEventListener("touchcancel", function (e) { release(e, true); }, { capture: true, passive: true });
+}
+
+// Absorb patch: in scroll mode epub.js drops chapters far behind, and moves
+// the scroll to make up for the height it took away. Moving the scroll stops
+// a fling dead, so chapters are dropped only once the page has been still for
+// a moment.
+function setupSmoothScroll(r) {
+  var m = r && r.manager;
+  if (!m || m.__absorbSmooth || !scrolledFlow()) return;
+  m.__absorbSmooth = true;
+  var lastScrollAt = 0;
+  m.container.addEventListener("scroll", function () {
+    lastScrollAt = Date.now();
+  }, { passive: true });
+  var trim = m.trim;
+  var later = null;
+  m.trim = function () {
+    var wait = 700 - (Date.now() - lastScrollAt);
+    if (wait > 0) {
+      clearTimeout(later);
+      later = setTimeout(function () {
+        m.q.enqueue(m.trim.bind(m));
+      }, wait + 50);
+      return Promise.resolve();
+    }
+    return trim.call(m);
+  };
 }
 
 //move to given cfi location or xpath
@@ -2196,6 +2475,49 @@ function addHighlight(cfiRange, color, opacity) {
   }, "hl", { "fill": color, "fill-opacity": '0.3', "mix-blend-mode": "multiply" });
 }
 
+// Absorb: a highlight drawn with its own opacity and blend. E-ink draws every
+// highlight as one shade the panel can show, whatever its color.
+// Absorb patch: tag the book's paragraphs with "absorb-p", so paragraph
+// spacing and justified text reach books that set them in <div>s (Calibre
+// conversions) as well as <p>s. A paragraph is a <p>, or a <div> holding
+// text and no other blocks, that the book itself doesn't center or align
+// right. <div>s only count in a chapter with next to no <p> paragraphs:
+// where a book has them, its <div>s are headings, list entries and the
+// like. The reader's own styles are switched off while looking, so the
+// book's alignment is what's read, not the one the reader forces.
+function markParagraphs(contents) {
+  try {
+    var doc = contents.document;
+    var win = contents.window || doc.defaultView;
+    if (!doc || !doc.body || !win) return;
+    var injected = Array.prototype.slice.call(doc.querySelectorAll('style[id^="epubjs-inserted-css"]'));
+    injected.forEach(function (st) { if (st.sheet) st.sheet.disabled = true; });
+    try {
+      var blocks = "p, div, h1, h2, h3, h4, h5, h6, ul, ol, table, blockquote, section, figure, pre, img, svg";
+      var textParagraphs = 0;
+      doc.body.querySelectorAll("p").forEach(function (el) {
+        if (el.textContent && el.textContent.trim()) textParagraphs++;
+      });
+      var divsAreParagraphs = textParagraphs < 3;
+      doc.body.querySelectorAll(divsAreParagraphs ? "p, div" : "p").forEach(function (el) {
+        if (el.tagName === "DIV") {
+          if (el.querySelector(blocks)) return;
+          if (!el.textContent || !el.textContent.trim()) return;
+        }
+        var align = win.getComputedStyle(el).textAlign;
+        if (align === "center" || align === "right" || align === "end" || align === "-webkit-center") return;
+        el.classList.add("absorb-p");
+      });
+    } finally {
+      injected.forEach(function (st) { if (st.sheet) st.sheet.disabled = false; });
+    }
+  } catch (e) {}
+}
+
+function addHighlightStyled(cfiRange, color, opacity, blend) {
+  rendition.annotations.highlight(cfiRange, {}, () => {}, "hl", { "fill": color, "fill-opacity": opacity, "mix-blend-mode": blend });
+}
+
 function addUnderLine(cfiString) {
   rendition.annotations.underline(cfiString)
 }
@@ -2265,7 +2587,22 @@ function clearSelection() {
 // Explicitly attach to window for global access
 window.clearSelection = clearSelection;
 
+function spinePercent(at) {
+  var count = book.spine.spineItems.length;
+  if (!at || !(count > 0) || !(at.index >= 0)) return 0;
+  var shown = at.displayed || {};
+  var within = shown.total > 0 ? (shown.page || 1) / shown.total : 1;
+  return Math.min(1, (at.index + within) / count);
+}
+
 function toProgress(progress) {
+  // Absorb patch: no location index (a book with no text) - go by spine item.
+  if (!(book.locations.length() > 0)) {
+    var count = book.spine.spineItems.length;
+    var item = count > 0 ? book.spine.get(Math.min(count - 1, Math.floor(progress * count))) : null;
+    if (item) rendition.display(item.href);
+    return;
+  }
   var cfi = book.locations.cfiFromPercentage(progress);
   rendition.display(cfi);
 }
@@ -2318,6 +2655,11 @@ var blindLastTs = 0;
 var blindSwapping = false;
 var blindPaused = false;   // the reader asked for it, survives touches
 var blindTouchHold = false; // finger is down, transient
+// Absorb patch: in scroll mode auto scroll glides the page itself instead of
+// running the blind. Speed, pause, the touch pad and stopping are shared.
+var glideActive = false;
+var glideCarry = 0;      // sub-pixel distance owed to the next frame
+var glideStuckFor = 0;   // seconds the page has refused to move
 
 function blindHeight() {
   var host = document.getElementById("viewerNext");
@@ -2404,6 +2746,7 @@ function blindLineColor(paused) {
 }
 
 function blindApply() {
+  if (glideActive) return;
   var host = document.getElementById("viewerNext");
   if (!host) return;
   var h = blindHeight();
@@ -2741,6 +3084,28 @@ function readerPageInfo() {
   try {
     var m = rendition.manager;
     var c = m.container.getBoundingClientRect();
+    // Absorb patch: scroll mode has no pages, so count screenfuls down the
+    // chapter under the top of the screen.
+    if (scrolledFlow()) {
+      var probeY = c.top + 1;
+      var screen = c.height || 1;
+      var all = m.views.all();
+      for (var j = 0; j < all.length; j++) {
+        var sv = all[j];
+        if (!sv || !sv.element || !sv.section) continue;
+        var sb = sv.element.getBoundingClientRect();
+        if (sb.top <= probeY && sb.bottom > probeY) {
+          var screens = Math.max(1, Math.ceil(sb.height / screen));
+          return {
+            page: Math.min(screens, Math.floor((probeY - sb.top) / screen) + 1),
+            total: screens,
+            href: sv.section.href || '',
+            index: sv.section.index
+          };
+        }
+      }
+      return null;
+    }
     var rtl = m.settings && m.settings.direction === "rtl";
     var probe = rtl ? c.right - 1 : c.left + 1;
     var views = m.views.all();
@@ -2823,9 +3188,60 @@ function blindLiveAtEnd() {
 
 // Returns whether the blind started. It can't before the book is displayed,
 // and Flutter must not flag auto scroll on for a blind that never appeared.
+function scrolledFlow() {
+  try {
+    return String((lastRenderOpts && lastRenderOpts.flow) || "").indexOf("scrolled") === 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+function glideTick(ts) {
+  if (!glideActive) return;
+  if (!blindLastTs) blindLastTs = ts;
+  var dt = (ts - blindLastTs) / 1000;
+  blindLastTs = ts;
+  // rAF stops while the app is away; the first frame back carries the whole gap
+  if (dt > 0.25) dt = 0;
+  if (!blindPaused && !blindTouchHold) {
+    var c = rendition.manager.container;
+    glideCarry += blindSpeed * dt;
+    var step = Math.floor(glideCarry);
+    if (step >= 1) {
+      glideCarry -= step;
+      var before = c.scrollTop;
+      c.scrollTop = before + step;
+      // The next chapter loads as the end comes near, so a short stall is
+      // normal. A long one at the end of the book is the end.
+      if (c.scrollTop <= before) {
+        glideStuckFor += dt;
+        if (glideStuckFor > 3) {
+          autoScrollStop("end");
+          return;
+        }
+      } else {
+        glideStuckFor = 0;
+      }
+    }
+  }
+  blindRaf = requestAnimationFrame(glideTick);
+}
+
 function autoScrollStart(speed) {
-  if (!rendition || blindRendition) return false;
+  if (!rendition || blindRendition || glideActive) return false;
   if (typeof speed === "number" && speed > 0) blindSpeed = speed;
+  if (scrolledFlow()) {
+    try { clearSelection(); } catch (e) {}
+    glideActive = true;
+    glideCarry = 0;
+    glideStuckFor = 0;
+    blindPaused = false;
+    blindLastTs = 0;
+    blindTouchAttach();
+    blindLog("start glide");
+    blindRaf = requestAnimationFrame(glideTick);
+    return true;
+  }
   var host = document.getElementById("viewerNext");
   if (!host) return false;
   host.style.display = "block";
@@ -2846,6 +3262,7 @@ function autoScrollStart(speed) {
     blindRendition.hooks.content.register(function (contents) {
       if (window.__absorbApplyFontToDoc) window.__absorbApplyFontToDoc(contents.document);
     });
+    blindRendition.hooks.content.register(markParagraphs);
   } catch (e) {}
   // renderTo points book.rendition at whatever it just made - epub.js internals
   // still expect the live one.
@@ -2949,7 +3366,8 @@ function autoScrollResync() {
 }
 
 function autoScrollStop(reason) {
-  var wasRunning = blindRendition !== null;
+  var wasRunning = blindRendition !== null || glideActive;
+  glideActive = false;
   blindTouchHold = false;
   if (blindRaf) cancelAnimationFrame(blindRaf);
   blindRaf = null;
@@ -2980,7 +3398,7 @@ function autoScrollStop(reason) {
 }
 
 function autoScrollActive() {
-  return blindRendition !== null;
+  return blindRendition !== null || glideActive;
 }
 
 function setFontSize(fontSize) {

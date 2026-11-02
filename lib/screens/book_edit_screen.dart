@@ -17,6 +17,7 @@ class BookEditScreen extends StatelessWidget {
   final bool isEbookOnly;
   final bool isAdmin;
   final String? libraryId;
+  final bool isBookDock;
 
   const BookEditScreen({
     super.key,
@@ -30,6 +31,7 @@ class BookEditScreen extends StatelessWidget {
     required this.isEbookOnly,
     required this.isAdmin,
     this.libraryId,
+    this.isBookDock = false,
   });
 
   @override
@@ -63,6 +65,7 @@ class BookEditScreen extends StatelessWidget {
           isEbookOnly: isEbookOnly,
           isAdmin: isAdmin,
           libraryId: libraryId,
+          isBookDock: isBookDock,
         ),
       ),
     );

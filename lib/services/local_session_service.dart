@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
+import 'download_service.dart';
 import 'progress_sync_service.dart';
 import 'scoped_prefs.dart';
 
@@ -106,6 +107,8 @@ class LocalSessionService {
         'updatedAt': s['updatedAt'],
         'date': s['date'],
         'dayOfWeek': s['dayOfWeek'],
+        if (s['keepProgress'] == true) 'keepProgress': true,
+        if (s['playMethod'] != null) 'playMethod': s['playMethod'],
       };
 
   /// Swap the payload's duration for the item's server-side duration when it
@@ -162,15 +165,27 @@ class LocalSessionService {
     required double startTime,
     String? displayTitle,
     String? displayAuthor,
+    bool streamed = false,
   }) async {
     await _loadActive();
+    // Narration streamed from the EPUB on the server is still logged through
+    // a local session, but the server should show it as Direct Play.
+    final playMethod = streamed ? 0 : null;
+    // Listening to another account's download is that account's, not the
+    // one signed in now, so it isn't logged here.
+    if (DownloadService().isFromOtherAccount(progressKey)) {
+      if (_active != null) await finalizeActive();
+      debugPrint('[LocalSession] $progressKey is another account\'s download - not logged');
+      return;
+    }
     final now = clock();
     final nowMs = now.millisecondsSinceEpoch;
     final today = _dateKey(now);
     // Resume the existing session only if it's the same item on the same day.
     if (_active != null &&
         _active!['progressKey'] == progressKey &&
-        _active!['date'] == today) {
+        _active!['date'] == today &&
+        _active!['playMethod'] == playMethod) {
       return;
     }
     // Any other lingering session — a different item, or the same item from a
@@ -198,6 +213,7 @@ class LocalSessionService {
       // defaulting to the library item title (the show). Books send their title.
       'displayTitle': displayTitle,
       'displayAuthor': displayAuthor,
+      if (playMethod != null) 'playMethod': playMethod,
     };
     await _persistActive();
     debugPrint('[LocalSession] Began session ${_active!['id']} for $progressKey ($today)');
@@ -213,6 +229,7 @@ class LocalSessionService {
     ApiService? api,
   }) async {
     if (seconds <= 0) return;
+    if (DownloadService().isFromOtherAccount(progressKey)) return;
     await _loadActive();
     if (_active == null) {
       debugPrint('[LocalSession] accrue with no active session — skipping');
@@ -255,6 +272,7 @@ class LocalSessionService {
         'dayOfWeek': _dayOfWeek(effective),
         'displayTitle': old['displayTitle'],
         'displayAuthor': old['displayAuthor'],
+        if (old['playMethod'] != null) 'playMethod': old['playMethod'],
       };
       // Ship the just-closed day promptly when online.
       if (api != null) await flushPending(api: api);
@@ -299,6 +317,12 @@ class LocalSessionService {
   }
 
   DateTime? _lastPushLogAt;
+
+  String newSessionId() => _uuid();
+
+  /// A finished session that couldn't be sent (reading time logged while
+  /// offline), queued to go with the next replay.
+  Future<void> queue(Map<String, dynamic> session) => _enqueue(session);
 
   /// Clear the active session (stop / finish / item change). When [pushed] is
   /// false (offline, or the push failed) it's queued for replay; when true it's

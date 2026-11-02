@@ -9,6 +9,9 @@
   "listsNoneHint": "Collections and playlists are made on your Audiobookshelf server, and show up here.",
   "listsLoadFailed": "Couldn't load your lists",
   "listsLoadFailedHint": "Absorb couldn't reach your server for collections and playlists.",
+  "listsNoneBookOrbit": "No collections or Smart Scopes",
+  "listsNoneHintBookOrbit": "Collections and Smart Scopes are made on your BookOrbit server, and show up here.",
+  "listsLoadFailedHintBookOrbit": "Absorb couldn't reach your server for collections and Smart Scopes.",
   "cancel": "Cancel",
   "delete": "Delete",
   "remove": "Remove",
@@ -22,7 +25,21 @@
   "off": "Off",
   "disabled": "Disabled",
   "later": "Later",
+  "whatsNewTitle": "Absorb was updated",
+  "whatsNewContent": "You're now on {version}.",
+  "@whatsNewContent": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "whatsNewButton": "See what's new",
+  "whatsNewKeepShowing": "Show this after every update",
+  "whatsNewKeepShowingHint": "You can turn it back on in Settings",
+  "settingsWhatsNew": "Show what's new after updates",
+  "settingsWhatsNewSubtitle": "After Absorb updates, a popup links to the release notes",
   "gotIt": "Got it",
+  "betaLoggingTitle": "Logs are on",
+  "betaLoggingContent": "Since this is a beta, Absorb now keeps logs to help track down problems. They stay on this device unless you share them.\n\nYou can send them or turn them off in Settings, under Issues & Support. If you turn them off, later betas leave them off.",
   "preview": "Preview",
   "or": "or",
   "file": "File",
@@ -33,6 +50,7 @@
   "stay": "Stay",
   "homeTitle": "Home",
   "continueListening": "Continue Listening",
+  "continueReading": "Continue Reading",
   "continueSeries": "Continue Series",
   "recentlyAdded": "Recently Added",
   "listenAgain": "Listen Again",
@@ -61,7 +79,7 @@
   "loginApiKey": "API Key",
   "loginApiKeyDescription": "Use an admin-generated API key instead of username/password. Useful when token refresh fails for your account.",
   "loginWaitingForSso": "Waiting for SSO...",
-  "loginRedirectUri": "Redirect URI: audiobookshelf://oauth",
+  "loginRedirectUri": "Redirect URI: absorb://oauth",
   "loginOrSignInManually": "or sign in manually",
   "loginUsername": "Username",
   "loginUsernameRequired": "Please enter your username",
@@ -123,6 +141,13 @@
   },
   "setupLinkInvalid": "This sign-in link is invalid or incomplete",
   "setupLinkSigningIn": "Checking sign-in link...",
+  "loginPlayDownloads": "Play your downloads",
+  "signedOutDownloadsNote": "You're signed out. Anything you listen to here syncs to {username} when you sign back in.",
+  "@signedOutDownloadsNote": {
+    "placeholders": {
+      "username": {"type": "String"}
+    }
+  },
   "loginPasteLink": "Paste login link",
   "loginPasteLinkHelp": "Paste the complete sign-in link you received. Treat it like a password.",
   "loginFailed": "Login failed",
@@ -247,6 +272,9 @@
   "author": "Author",
   "dateAdded": "Date Added",
   "numberOfBooks": "Number of Books",
+  "sortTotalDuration": "Total duration",
+  "sortLastBookAdded": "Last book added",
+  "sortLastBookUpdated": "Last book updated",
   "publishedYear": "Published Year",
   "duration": "Duration",
   "random": "Random",
@@ -315,6 +343,7 @@
   "downloadsDownloading": "Downloading",
   "downloadsQueued": "Queued",
   "downloadsCompleted": "Completed",
+  "downloadsEbooks": "Ebooks",
   "downloadsWaiting": "Waiting...",
   "downloadsCancel": "Cancel",
   "downloadsDelete": "Delete",
@@ -346,6 +375,38 @@
   },
   "downloadsRemovedTitle": "\"{title}\" removed",
   "@downloadsRemovedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedMissingFile": "Couldn't download \"{title}\" - one of its files isn't on the server. A library scan may fix it.",
+  "@downloadFailedMissingFile": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedNoSpace": "Couldn't download \"{title}\" - not enough storage space",
+  "@downloadFailedNoSpace": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedPermission": "Couldn't download \"{title}\" - check the download location in Settings",
+  "@downloadFailedPermission": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedGeneric": "Couldn't download \"{title}\"",
+  "@downloadFailedGeneric": {
     "placeholders": {
       "title": {
         "type": "String"
@@ -412,6 +473,17 @@
   "bookmarksSortedByPosition": "Sorted by position",
   "bookmarksSelect": "Select",
   "bookmarksNoBookmarks": "No bookmarks yet",
+  "bookmarksSearchHint": "Search bookmarks",
+  "bookmarksNoMatches": "No bookmarks match your search",
+  "batchDownloadQueued": "{count, plural, =1{Downloading 1 book} other{Downloading {count} books}}",
+  "@batchDownloadQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batchDownloadNothingNew": "Already downloaded",
   "bookmarksDeleteCount": "Delete {count} bookmark(s)?",
   "@bookmarksDeleteCount": {
     "placeholders": {
@@ -784,6 +856,614 @@
   "chapterProgressInNowPlayingBar": "Chapter progress in now playing bar",
   "chapterProgressInNowPlayingBarOnSubtitle": "On - the bottom player shows current chapter progress",
   "chapterProgressInNowPlayingBarOffSubtitle": "Off - the bottom player shows full book progress",
+  "nowPlayingText": "Now playing text",
+  "nowPlayingTextSubtitle": "Choose what the media controls show on each line",
+  "nowPlayingTopLine": "Top line",
+  "nowPlayingSecondLine": "Second line",
+  "nowPlayingNotShown": "Not shown",
+  "nowPlayingTopLineRequired": "The top line needs at least one item",
+  "nowPlayingPieceChapter": "Chapter",
+  "nowPlayingPieceTitle": "Book title",
+  "nowPlayingPieceNarrator": "Narrator",
+  "nowPlayingPieceSeries": "Series",
+  "nowPlayingPiecePercent": "Book percentage",
+  "nowPlayingPieceChapterNumber": "Chapter number",
+  "nowPlayingPieceTimeLeft": "Time left",
+  "nowPlayingChapterNumber": "Ch. {number}/{total}",
+  "@nowPlayingChapterNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "nowPlayingTimeLeft": "{time} left",
+  "@nowPlayingTimeLeft": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockBadgePending": "Pending",
+  "bookDockBadgeExtracting": "Reading file",
+  "bookDockBadgeFetching": "Looking up",
+  "bookDockBadgeError": "Error",
+  "bookDockNeedsReview": "Needs review",
+  "bookDockNoMatch": "No match",
+  "bookDockApplied": "Applied",
+  "bookDockNotApplied": "Found details not used",
+  "bookDockNoDestination": "No destination set",
+  "bookDockNoAuthor": "No author yet",
+  "bookDockLookUpAgain": "Look up again",
+  "bookDockLookingUp": "Looking up details again",
+  "bookDockLookUpFailed": "Couldn't look up details",
+  "bookDockProposedChanges": "Proposed changes",
+  "bookDockNoChanges": "No details found online yet",
+  "bookDockStillReading": "The server is still reading this file",
+  "bookDockRoleBook": "Book",
+  "bookDockRoleCover": "Cover",
+  "bookDockRoleMetadata": "Metadata",
+  "bookDockRoleExtra": "Extra",
+  "bookDockFieldTitle": "Title",
+  "bookDockFieldSubtitle": "Subtitle",
+  "bookDockFieldAuthors": "Authors",
+  "bookDockFieldSeries": "Series",
+  "bookDockFieldPublisher": "Publisher",
+  "bookDockFieldYear": "Year",
+  "bookDockFieldLanguage": "Language",
+  "bookDockFieldIsbn": "ISBN",
+  "bookDockMatch": "{percent}% match",
+  "@bookDockMatch": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockFileCount": "{count, plural, =1{1 file} other{{count} files}}",
+  "@bookDockFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockGoesTo": "Goes to {library}",
+  "@bookDockGoesTo": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockChangedFields": "{count, plural, =1{1 field} other{{count} fields}}",
+  "@bookDockChangedFields": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockFilesInEntry": "{count, plural, =1{File in this entry} other{{count} files in this entry}}",
+  "@bookDockFilesInEntry": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookDockAdded": "Added {date}",
+  "@bookDockAdded": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockAddToLibrary": "Add to library",
+  "bookDockUseFound": "Use found details",
+  "bookDockRemoveTitle": "Remove from Book Dock?",
+  "bookDockRemoveFailed": "Couldn't remove this file",
+  "bookDockPickLibrary": "Add to which library?",
+  "bookDockNoLibraries": "Your account can't add books to a library",
+  "bookDockFileFailed": "Couldn't add this file to the library",
+  "bookDockDuplicateBody": "A file with this name is already in that library. Remove it from Book Dock?",
+  "bookDockDetailsUpdated": "Details updated",
+  "bookDockUseFoundFailed": "No found details to use",
+  "bookDockRemoveBody": "This deletes {title} from the server.",
+  "@bookDockRemoveBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockRemoved": "Removed {title} from Book Dock",
+  "@bookDockRemoved": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockFiled": "Added {title} to {library}",
+  "@bookDockFiled": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockFileFailedReason": "Couldn't add this file: {reason}",
+  "@bookDockFileFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockDuplicateTitle": "Already in {library}",
+  "@bookDockDuplicateTitle": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bomatchSearchAll": "Search all sources",
+  "bomatchSearching": "Searching...",
+  "bomatchSearchFailed": "Couldn't search for matches. Check your connection and try again.",
+  "bomatchNoResults": "No matches found",
+  "bomatchStrong": "Strong matches",
+  "bomatchPossible": "Possible matches",
+  "bomatchSourceTimeout": "timed out",
+  "bomatchSourceBusy": "busy",
+  "bomatchSourceFailed": "failed",
+  "bomatchLinked": "Linked",
+  "bomatchSameIsbn": "Same ISBN",
+  "bomatchFewDetails": "Few details",
+  "bomatchBack": "All results",
+  "bomatchFillEmpty": "Fill empty",
+  "bomatchTakeAll": "Take all",
+  "bomatchOnlyDifferences": "Only differences",
+  "bomatchNow": "Now",
+  "bomatchEmpty": "Empty",
+  "bomatchKindNew": "New",
+  "bomatchKindChange": "Change",
+  "bomatchKindSmall": "Small change",
+  "bomatchKindSame": "Same",
+  "bomatchKindNone": "Not in result",
+  "bomatchKeep": "Keep",
+  "bomatchUse": "Use",
+  "bomatchMerge": "Merge",
+  "bomatchReplace": "Replace",
+  "bomatchUseThis": "Use this",
+  "bomatchChosen": "Chosen",
+  "bomatchOther": "{count, plural, =1{1 other book} other{{count} other books}}",
+  "@bomatchOther": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchChanged": "{count, plural, =1{1 change} other{{count} changes}}",
+  "@bomatchChanged": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchNew": "{count, plural, =1{1 new} other{{count} new}}",
+  "@bomatchNew": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchApply": "{count, plural, =0{Apply} =1{Apply 1 change} other{Apply {count} changes}}",
+  "@bomatchApply": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchOtherSources": "{count, plural, =1{1 other source} other{{count} other sources}}",
+  "@bomatchOtherSources": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchFrom": "From {source}",
+  "@bomatchFrom": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "breqTitle": "Book requests",
+  "breqTabRequest": "Request a book",
+  "breqTabMine": "My requests",
+  "breqTabAll": "All requests",
+  "breqNoAccess": "Your account can't request books on this server.",
+  "breqTitleHint": "Book title",
+  "breqAuthorHint": "Author",
+  "breqKindAudiobook": "Audiobook",
+  "breqKindEbook": "E-book",
+  "breqKindComic": "Comic",
+  "breqSearch": "Search",
+  "breqSearching": "Searching...",
+  "breqSearchFailed": "Couldn't search. Check your connection and try again.",
+  "breqSearchPrompt": "Search for a book the library does not have yet to request it.",
+  "breqNoResults": "No matching books found",
+  "breqInLibrary": "In your library",
+  "breqYouAsked": "You requested this",
+  "breqSomeoneAsked": "Already requested by someone else",
+  "breqView": "View",
+  "breqRequest": "Request",
+  "breqRequested": "Requested",
+  "breqAddMeToo": "Add me too",
+  "breqLibrary": "Library",
+  "breqLibraryApprover": "Let the approver decide",
+  "breqLibraryChoose": "Choose a library",
+  "breqNote": "Note for the approver",
+  "breqNoteHint": "Anything worth knowing about this request",
+  "breqAutoApproved": "Your requests are approved right away.",
+  "breqSubmitted": "Request submitted",
+  "breqJoined": "Added you to the existing request",
+  "breqFailed": "Couldn't send the request",
+  "breqStatusPending": "Pending",
+  "breqStatusApproved": "Approved",
+  "breqStatusRejected": "Rejected",
+  "breqStatusCancelled": "Cancelled",
+  "breqStatusSearching": "Searching",
+  "breqStatusGrabbed": "Release found",
+  "breqStatusDownloading": "Downloading",
+  "breqStatusImporting": "Importing",
+  "breqStatusNeedsReview": "Needs review",
+  "breqStatusAvailable": "Available",
+  "breqStatusFailed": "Failed",
+  "breqWaitingApproval": "Waiting for approval",
+  "breqWaitingRelease": "Waiting for a release to be picked",
+  "breqLookingForRelease": "Looking for a release",
+  "breqStartingDownload": "Starting the download",
+  "breqAddingToLibrary": "Adding to the library",
+  "breqWaitingCheck": "Waiting for a manual check",
+  "breqReady": "Ready in your library",
+  "breqSomethingWrong": "Something went wrong",
+  "breqShowHidden": "Show hidden",
+  "breqHidden": "Hidden",
+  "breqMineEmpty": "You haven't requested any books yet.",
+  "breqAllEmpty": "No requests yet.",
+  "breqLoadFailed": "Couldn't load requests.",
+  "breqLoadMore": "Load more",
+  "breqApprove": "Approve",
+  "breqReject": "Reject",
+  "breqCancel": "Cancel request",
+  "breqHide": "Hide from my list",
+  "breqUnhide": "Show in my list",
+  "breqLeave": "Leave request",
+  "breqDelete": "Delete request",
+  "breqOpenBook": "Open book",
+  "breqCancelConfirm": "Cancel this request? A download in progress stops too.",
+  "breqDeleteConfirm": "Delete this request? This can't be undone.",
+  "breqRejectTitle": "Reject request",
+  "breqRejectReason": "Reason (optional)",
+  "breqApproveTitle": "Approve request",
+  "breqApproveLibraryNeeded": "Choose the library this book goes into.",
+  "breqApprovedToast": "Request approved",
+  "breqRejectedToast": "Request rejected",
+  "breqCancelledToast": "Request cancelled",
+  "breqHiddenToast": "Hidden from your list",
+  "breqRestoredToast": "Back on your list",
+  "breqDeletedToast": "Request deleted",
+  "breqLeftToast": "You left this request",
+  "breqActionFailed": "Couldn't update the request",
+  "breqFactRequestedBy": "Requested by",
+  "breqFactRequestedOn": "Requested on",
+  "breqFactLibrary": "Library",
+  "breqFactDecidedBy": "Decided by",
+  "breqFactNote": "Note from the requester",
+  "breqFactDecisionNote": "Decision note",
+  "breqFactAlsoWanted": "Also wanted by",
+  "breqLibraryCta": "Request a book",
+  "breqSettingsSubtitle": "Ask for books the library does not have yet",
+  "navHoldBookRequests": "Book requests",
+  "breqLibraryDefault": "Default ({library})",
+  "@breqLibraryDefault": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "breqFailedReason": "Couldn't send the request: {reason}",
+  "@breqFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqBookCount": "{count, plural, =1{1 book} other{{count} books}}",
+  "@breqBookCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "breqDownloadingPercent": "Downloading, {percent}%",
+  "@breqDownloadingPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "breqAddedTo": "Added to {library}",
+  "@breqAddedTo": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "breqRejectedWithNote": "Rejected: {note}",
+  "@breqRejectedWithNote": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "breqFailedWithReason": "Failed: {reason}",
+  "@breqFailedWithReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqRequestedBy": "Requested by {name}",
+  "@breqRequestedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "breqActionFailedReason": "Couldn't update the request: {reason}",
+  "@breqActionFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqFooterCta": "Request \"{query}\"",
+  "@breqFooterCta": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "breqCount": "{count, plural, =0{No requests} =1{1 request} other{{count} requests}}",
+  "@breqCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "breqFindRelease": "Find a release",
+  "breqTryAnotherRelease": "Try another release",
+  "breqApproveAndFind": "Approve and find a release",
+  "breqReviewButton": "Review download",
+  "breqStopDownload": "Stop download",
+  "breqStopDownloadConfirm": "Stop this download? The request goes back to approved so another release can be picked.",
+  "breqDiscardImport": "Discard download",
+  "breqDiscardConfirm": "Discard this download? The request is marked failed and can be tried again with another release.",
+  "breqFileAnyway": "Add to library",
+  "breqFiledToast": "Added to the library",
+  "breqDiscardedToast": "Download discarded",
+  "breqStoppedToast": "Download stopped",
+  "breqGrabTitle": "Download this release?",
+  "breqGrab": "Download",
+  "breqGrabbed": "Download started",
+  "breqGrabFailed": "Couldn't start that download",
+  "breqReleaseVipWarning": "This tracker only lets VIP accounts download it.",
+  "breqReleaseNoBookFile": "This release has no book file BookOrbit can add to a library.",
+  "breqReleaseCheckFailed": "Couldn't check what's in this release. Try again or pick another one.",
+  "breqCheckingRelease": "Checking the files...",
+  "breqSearchAgain": "Search again",
+  "breqSearchTerms": "Search terms",
+  "breqIsbnHint": "Leave empty to search by title and author",
+  "breqSearchingIndexers": "Searching your indexers. This can take up to a minute.",
+  "breqReleasesFailed": "Couldn't search for releases.",
+  "breqNoSourcesSetUp": "No search sources are set up in BookOrbit.",
+  "breqNoSourcesOn": "Every search source is switched off in BookOrbit.",
+  "breqNoSourceCarries": "None of your search sources carry this kind of book.",
+  "breqNoReleases": "No releases found. Try different search terms.",
+  "breqFromCache": "from a recent search",
+  "breqIndexerUnauthorized": "sign-in failed",
+  "breqIndexerThrottled": "busy",
+  "breqIndexerTimeout": "timed out",
+  "breqIndexerUnreachable": "unreachable",
+  "breqIndexerNoMedium": "does not carry this",
+  "breqIndexerError": "failed",
+  "breqSortBest": "Best match",
+  "breqSortSeeders": "Seeders",
+  "breqSortSize": "Size",
+  "breqSortNewest": "Newest",
+  "breqFreeleech": "Freeleech",
+  "breqVipOnly": "VIP only",
+  "breqAlreadyGrabbed": "Downloaded before",
+  "breqReasonIsbn": "ISBN",
+  "breqReasonTitle": "Title",
+  "breqReasonAuthor": "Author",
+  "breqReasonUnknownFormat": "Unknown format",
+  "breqReasonExpectedSize": "Size",
+  "breqReasonSuspiciousSize": "Unusual size",
+  "breqReasonFreeleech": "Freeleech",
+  "breqReasonSeveralBooks": "Several books",
+  "breqReviewTitle": "Download waiting for a check",
+  "breqReviewFailed": "Couldn't load the download details.",
+  "breqReviewDockGone": "The downloaded files are no longer in the Book Dock.",
+  "breqReviewNoLibrary": "This request has no library to add the book to.",
+  "breqGrabFailedReason": "Couldn't start that download: {reason}",
+  "@breqGrabFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReleaseCheckFailedReason": "Couldn't check what's in this release: {reason}",
+  "@breqReleaseCheckFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReleasesFailedReason": "Couldn't search for releases: {reason}",
+  "@breqReleasesFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReviewFailedReason": "Couldn't load the download details: {reason}",
+  "@breqReviewFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReleaseCount": "{count, plural, =0{No releases} =1{1 release} other{{count} releases}}",
+  "@breqReleaseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "breqFileCount": "{count, plural, =1{1 file} other{{count} files}}",
+  "@breqFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "breqReviewFiles": "{count, plural, =1{1 file} other{{count} files}}",
+  "@breqReviewFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "breqSeeders": "{seeders} seeders, {leechers} leechers",
+  "@breqSeeders": {
+    "placeholders": {
+      "seeders": {
+        "type": "int"
+      },
+      "leechers": {
+        "type": "int"
+      }
+    }
+  },
+  "breqScore": "Score {score}",
+  "@breqScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "breqReasonPreferredFormat": "Preferred {format}",
+  "@breqReasonPreferredFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReasonFormat": "{format}",
+  "@breqReasonFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReasonSeeders": "{count} seeders",
+  "@breqReasonSeeders": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReviewScore": "Match score {score}. Downloads scoring {threshold} or more are added on their own.",
+  "@breqReviewScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      },
+      "threshold": {
+        "type": "int"
+      }
+    }
+  },
+  "breqReviewRequested": "Requested: {value}",
+  "@breqReviewRequested": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReviewImported": "Downloaded: {value}",
+  "@breqReviewImported": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "breqKindBoth": "Both",
+  "breqEbookLibrary": "E-book library",
+  "breqAudiobookLibrary": "Audiobook library",
+  "breqRequestBoth": "Request both",
+  "breqAddMeToBoth": "Add me to both",
+  "breqRequestEbook": "Request e-book",
+  "breqRequestAudiobook": "Request audiobook",
+  "breqAddMeEbook": "Add me to the e-book request",
+  "breqAddMeAudiobook": "Add me to the audiobook request",
+  "breqPairSubmitted": "Requested the e-book and the audiobook",
+  "breqPairOneJoined": "Requested both. One was already on its way, so you were added to that request",
+  "breqJoinedBoth": "Added you to both requests",
+  "breqJoinsOwned": "Requested. It will join the copy already in your library",
   "speedBookmarkInControls": "Speed & bookmark in media controls",
   "speedBookmarkOnSubtitle": "On - notification shows speed & bookmark; chapter skip stays in Android Auto",
   "speedBookmarkOffSubtitle": "Off - notification shows chapter skip; speed & bookmark stay in Android Auto",
@@ -981,6 +1661,9 @@
   "hideEbookOnlyTitles": "Hide eBook-only titles",
   "hideEbookOnlyOnSubtitle": "Books with no audio files are hidden",
   "hideEbookOnlyOffSubtitle": "Off - all library items shown",
+  "homeCardsOpenDetails": "Open details from Home",
+  "homeCardsOpenDetailsOnSubtitle": "Tapping a Continue Listening or Continue Reading card opens its details",
+  "homeCardsOpenDetailsOffSubtitle": "Tapping a Continue Listening or Continue Reading card picks up where you left off",
   "showGoodreadsButton": "Show Goodreads button",
   "showGoodreadsOnSubtitle": "Book detail sheet shows a link to Goodreads",
   "showGoodreadsOffSubtitle": "Off - Goodreads button hidden",
@@ -1453,14 +2136,27 @@
   "absorbAgain": "Absorb Again",
   "absorb": "Absorb",
   "ebookOnlyNoAudio": "eBook Only - No Audio",
+  "absorbAudioNotDownloaded": "Audio not downloaded",
+  "absorbAudioNotDownloadedEbookOnly": "Audio not downloaded, ebook only",
   "fullyAbsorbed": "Fully Absorbed",
   "fullyAbsorbAction": "Fully Absorb",
   "removeFromAbsorbing": "Remove from Absorbing",
   "addToAbsorbing": "Add to Absorbing",
+  "absorbNext": "Absorb Next",
+  "absorbNextAdded": "Up next in Absorbing",
+  "absorbLast": "Absorb Last",
+  "absorbNextHint": "Right after what's playing now",
+  "absorbLastHint": "At the end of the list",
   "removedFromAbsorbing": "Removed from Absorbing",
   "addedToAbsorbing": "Added to Absorbing",
   "removeFromContinueListening": "Remove from Continue Listening",
   "removedFromContinueListening": "Removed from Continue Listening",
+  "removeFromContinueReading": "Remove from Continue Reading",
+  "removedFromContinueReading": "Removed from Continue Reading",
+  "sessionAdd": "Add session",
+  "sessionStartLabel": "Started at",
+  "sessionAdded": "Session added",
+  "sessionAddFailed": "Could not add the session",
   "removeSeriesFromContinueSeries": "Remove from Continue Series",
   "removedSeriesFromContinueSeries": "Removed from Continue Series",
   "couldNotUpdate": "Could not update, try again",
@@ -1565,7 +2261,11 @@
   "unmark": "Unmark",
   "markedAsNotFinishedBackAtIt": "Marked as not finished - back at it!",
   "resetProgressQuestion": "Reset Progress?",
-  "resetProgressContent": "This will erase all progress for this book and set it back to the beginning. This can't be undone.",
+  "resetProgressListeningAndReading": "Your listening and reading progress will both go back to 0%.",
+  "resetProgressListening": "Your listening progress will go back to 0%.",
+  "resetProgressReading": "Your reading progress will go back to 0%.",
+  "resetProgressMarksUnread": "The book will also be marked as unread.",
+  "resetProgressCantUndo": "This can't be undone.",
   "progressResetFreshStart": "Progress reset - fresh start!",
   "clearLocalMetadataQuestion": "Clear Local Metadata?",
   "clearLocalMetadataContent": "This will remove the locally stored metadata and revert to whatever the server has.",
@@ -1766,6 +2466,14 @@
   "failedToAdd": "Failed to add",
   "newCollection": "New Collection",
   "collectionNameHint": "Collection name",
+  "listsNewCollectionSubtitle": "Group books into a list you keep",
+  "listsNewCollectionNeedsBookSubtitle": "Start it with at least one book",
+  "listsNewPlaylistSubtitle": "Line up books to listen to in order",
+  "listsAddBooksNow": "Add books now",
+  "listsPickBooksNext": "You'll pick books next. A collection on this server needs at least one.",
+  "listsCreate": "Create",
+  "listsCollectionNeedsBook": "A collection needs at least one book, so nothing was created.",
+  "listsCreateFailed": "Couldn't create it",
   "castToDevice": "Cast to Device",
   "searchingForCastDevices": "Searching for Cast devices...",
   "castDevice": "Cast Device",
@@ -1790,6 +2498,7 @@
   "readMore": "Read more",
   "removeDownloadQuestion": "Remove download?",
   "removeDownloadContent": "This will be removed from your device.",
+  "removeWhichDownload": "The audiobook and the ebook are both on this device. Choose what to remove.",
   "downloadRemoved": "Download removed",
   "finished": "Finished",
   "saved": "Downloaded",
@@ -1992,6 +2701,9 @@
   "showExplicitBadge": "Show explicit badge",
   "showExplicitBadgeOnSubtitle": "Explicit items show an \"E\" badge",
   "showExplicitBadgeOffSubtitle": "Off - explicit badge hidden",
+  "showEbookBadge": "Show ebook badge",
+  "showEbookBadgeOnSubtitle": "Books with an ebook show a book icon on the cover",
+  "showEbookBadgeOffSubtitle": "Off - ebook badge hidden",
   "libraryFallback": "Library",
   "preReleaseUpdatesInfoTitle": "Pre-release Updates",
   "preReleaseUpdatesInfoContent": "When enabled, the update checker will also notify you about alpha and pre-release builds from GitHub. These may be less stable but include the latest features and fixes.",
@@ -2202,6 +2914,20 @@
       }
     }
   },
+  "fileInfoTitle": "File info",
+  "fileInfoFileCount": "{count, plural, =1{1 file} other{{count} files}}",
+  "@fileInfoFileCount": {"placeholders": {"count": {"type": "int"}}},
+  "fileInfoNone": "This book has no file details.",
+  "fileInfoAudio": "Audio",
+  "fileInfoEbook": "Ebook",
+  "fileInfoOther": "Other files",
+  "fileInfoBookOrbitNote": "BookOrbit doesn't report codec or bitrate.",
+  "fileInfoChannels": "{count} channels",
+  "@fileInfoChannels": {"placeholders": {"count": {"type": "int"}}},
+  "fileInfoCover": "Cover",
+  "fileInfoMetadata": "Metadata",
+  "fileInfoSupplement": "Extra",
+  "fileInfoPathCopied": "Path copied",
   "resetMayNotHaveSynced": "Reset may not have synced - check your server",
   "failedToDownloadEbook": "Failed to download ebook ({code})",
   "@failedToDownloadEbook": {
@@ -3470,6 +4196,120 @@
     }
   },
   "collectionDetailDefaultName": "Collection",
+  "smartScopeBookCount": "Smart Scope · {count} books",
+  "@smartScopeBookCount": {"placeholders": {"count": {"type": "int"}}},
+  "smartScopeNew": "New Smart Scope",
+  "smartScopeNewSubtitle": "Save a set of filters as a list that keeps itself up to date",
+  "smartScopeEditTitle": "Edit Smart Scope",
+  "smartScopeIcon": "Icon",
+  "smartScopePublic": "Visible to all users",
+  "smartScopeKobo": "Sync to Kobo",
+  "smartScopeRules": "Rules",
+  "smartScopeMatchAll": "Match all",
+  "smartScopeMatchAny": "Match any",
+  "smartScopeAddRule": "Add rule",
+  "smartScopeAddGroup": "Add group",
+  "smartScopeGroup": "Group",
+  "smartScopeStartFrom": "Start from",
+  "smartScopeFromScratch": "Build from scratch",
+  "smartScopeTplHasSeries": "Has a series",
+  "smartScopeTplRecent": "Added recently",
+  "smartScopeTplPdf": "PDF only",
+  "smartScopeTplNoGenres": "No genres",
+  "smartScopeTplEpub": "EPUB only",
+  "smartScopeCounting": "Counting...",
+  "smartScopeSort": "Default sort",
+  "smartScopeAddSort": "Add sort level",
+  "smartScopeSortNone": "No sort set, so books sort by title.",
+  "smartScopeAscending": "Ascending",
+  "smartScopeDescending": "Descending",
+  "smartScopeDelete": "Delete Smart Scope",
+  "smartScopeSaveFailed": "Couldn't save the Smart Scope",
+  "smartScopeDeleteFailed": "Couldn't delete the Smart Scope",
+  "smartScopeLoadFailed": "Couldn't load the Smart Scope",
+  "smartScopeUnsupportedRule": "This rule can only be changed on the BookOrbit web. It's kept as it is.",
+  "smartScopeAnd": "and",
+  "smartScopeDays": "days",
+  "smartScopeWeeks": "weeks",
+  "smartScopeMonths": "months",
+  "smartScopePickDate": "Pick a date",
+  "smartScopeAddValue": "Add a value",
+  "smartScopeValue": "Value",
+  "smartScopeCustomFields": "Custom fields",
+  "smartScopeAnyProvider": "Any provider",
+  "smartScopeScoreOutstanding": "Outstanding",
+  "smartScopeScoreGood": "Good",
+  "smartScopeScoreFair": "Fair",
+  "smartScopeScorePoor": "Poor",
+  "smartScopeMb": "MB",
+  "smartScopeMaxValues": "Up to 20 values",
+  "scopeFieldTitle": "Title",
+  "scopeFieldAuthor": "Author",
+  "scopeFieldSeries": "Series",
+  "scopeFieldSeriesIndex": "Series number",
+  "scopeFieldGenre": "Genre",
+  "scopeFieldTag": "Tag",
+  "scopeFieldReadStatus": "Read status",
+  "scopeFieldReadProgress": "Reading progress",
+  "scopeFieldRating": "Your rating",
+  "scopeFieldFormat": "Format",
+  "scopeFieldLibrary": "Library",
+  "scopeFieldCollection": "Collection",
+  "scopeFieldPublisher": "Publisher",
+  "scopeFieldLanguage": "Language",
+  "scopeFieldPublishedDate": "Published date",
+  "scopeFieldPublishedYear": "Published year",
+  "scopeFieldAddedAt": "Date added",
+  "scopeFieldStartedAt": "Date started",
+  "scopeFieldFinishedAt": "Date finished",
+  "scopeFieldPageCount": "Page count",
+  "scopeFieldFileSize": "File size",
+  "scopeFieldCommunityRating": "Community rating",
+  "scopeFieldCommunityRatingCount": "Community review count",
+  "scopeFieldMetadataScore": "Metadata score",
+  "scopeFieldIsbn": "ISBN",
+  "scopeFieldDescription": "Description",
+  "scopeFieldCover": "Cover",
+  "scopeFieldAudioCover": "Audiobook cover",
+  "scopeFieldFileAvailability": "File availability",
+  "scopeFieldLockStatus": "Lock status",
+  "scopeFieldSeriesStatus": "Series status",
+  "scopeSortUpdatedAt": "Date updated",
+  "scopeSortLastReadAt": "Last read",
+  "scopeSortRandom": "Random",
+  "scopeOpContains": "contains",
+  "scopeOpNotContains": "does not contain",
+  "scopeOpStartsWith": "starts with",
+  "scopeOpEndsWith": "ends with",
+  "scopeOpEq": "is",
+  "scopeOpNotEq": "is not",
+  "scopeOpIsEmpty": "is empty",
+  "scopeOpIsNotEmpty": "is not empty",
+  "scopeOpGt": "greater than",
+  "scopeOpGte": "at least",
+  "scopeOpLt": "less than",
+  "scopeOpLte": "at most",
+  "scopeOpBetween": "between",
+  "scopeOpIncludesAny": "includes any of",
+  "scopeOpIncludesAll": "includes all of",
+  "scopeOpExcludesAll": "excludes all of",
+  "scopeOpBefore": "before",
+  "scopeOpAfter": "after",
+  "scopeOpWithinLast": "within the last",
+  "scopeOpIsMissing": "is missing",
+  "scopeOpIsPresent": "is present",
+  "scopeOpIsUnread": "is unread",
+  "scopeOpIsInProgress": "is in progress",
+  "scopeOpIsFinished": "is finished",
+  "scopeOpIsLocked": "is locked",
+  "scopeOpIsUnlocked": "is unlocked",
+  "scopeOpIsUpNext": "is up next",
+  "scopeOpIsTrue": "is yes",
+  "scopeOpIsFalse": "is no",
+  "smartScopeMatchCount": "{count, plural, =0{No books match} =1{1 book matches} other{{count} books match}}",
+  "@smartScopeMatchCount": {"placeholders": {"count": {"type": "int"}}},
+  "smartScopeDeleteConfirm": "Delete \"{name}\"? This can't be undone.",
+  "@smartScopeDeleteConfirm": {"placeholders": {"name": {"type": "String"}}},
   "collectionDetailBookCount": "{count} books",
   "@collectionDetailBookCount": {
     "placeholders": {
@@ -4132,9 +4972,29 @@
   "carConnectAutoplayIos": "Start playback when CarPlay connects",
   "carConnectAutoplayOnSubtitle": "The last book you were listening to starts by itself when the car connects",
   "carConnectAutoplayOffSubtitle": "Playback waits for you to press play",
+  "sectionCar": "Android Auto",
+  "sectionCarIos": "CarPlay",
+  "sectionSiri": "Siri",
+  "siriUseWithSiri": "Use with Siri",
+  "siriStatusOn": "On. Siri can find and play your books and podcasts by name.",
+  "siriStatusAsk": "Let Siri find and play your books and podcasts by name.",
+  "siriStatusOff": "Siri is turned off for Absorb. Turn it on in iOS Settings.",
+  "siriAllow": "Allow",
+  "siriOpenSettings": "Open Settings",
+  "siriThingsToSay": "Things to say",
+  "siriExamples": "\"Play [book title] on Absorb\"\n\"Play [series name] on Absorb\"\n\"Play something by [author] on Absorb\"\n\"Play the latest episode of [podcast] on Absorb\"\n\"Resume Absorb\"\n\"Skip back in Absorb\"\n\"Next chapter in Absorb\"\n\"Set a sleep timer in Absorb\"\n\"Add a bookmark in Absorb\"\n\"What am I listening to in Absorb\"",
+  "siriShortcutsNote": "Resume, pause, skips, chapters, the sleep timer, bookmarks and what's playing work even without this permission. They are also in the Shortcuts app for automations and the Action button.",
+  "carBookOrder": "Book order in the car",
+  "carBookOrderReverse": "Reverse book order",
+  "carBookOrderReverseSubtitle": "Z to A, or oldest added first",
+  "carPodcastOrder": "Podcast order in the car",
+  "carEpisodesOldestFirst": "Oldest episodes first",
+  "carEpisodesOldestFirstSubtitle": "For shows you listen to from the start",
   "androidAutoCatBooks": "Books",
   "androidAutoCatSeries": "Series",
   "androidAutoCatAuthors": "Authors",
+  "androidAutoCatCollections": "Collections",
+  "androidAutoCatPlaylists": "Playlists",
   "showTipsAgain": "Show tips again",
   "showTipsAgainSubtitle": "Bring back feature tips you've dismissed",
   "tipsRestored": "Tips restored",
@@ -4509,6 +5369,20 @@
   "adminUploadPathCheckFailed": "Couldn't check the destination folder. Nothing was uploaded.",
   "adminUploadDestinationExists": "That destination folder already exists on the server.",
   "adminUploadDestinationUsedBy": "That destination is already used by \"{title}\".",
+  "adminUploadAddToExistingTitle": "Folder already exists",
+  "adminUploadAddToExisting": "That folder belongs to \"{title}\". Add the files to it? The server picks them up on its next scan.",
+  "@adminUploadAddToExisting": { "placeholders": { "title": { "type": "String" } } },
+  "adminUploadAddToExistingNoItem": "That folder already exists on the server. Add the files to it?",
+  "adminUploadAddToBook": "Add to an existing book",
+  "adminUploadAddToBookHint": "Search this library",
+  "adminUploadNoBooksFound": "No books found",
+  "adminUploadAddingTo": "Adding files to \"{title}\"",
+  "@adminUploadAddingTo": { "placeholders": { "title": { "type": "String" } } },
+  "adminUploadAddedTo": "Added files to \"{title}\"",
+  "@adminUploadAddedTo": { "placeholders": { "title": { "type": "String" } } },
+  "adminUploadTargetNoFolder": "Couldn't find that book's folder on the server.",
+  "adminUploadTargetFolderMismatch": "The server would put these files in \"{preview}\", not in that book's folder \"{folder}\". Nothing was uploaded.",
+  "@adminUploadTargetFolderMismatch": { "placeholders": { "preview": { "type": "String" }, "folder": { "type": "String" } } },
   "@adminUploadDestinationUsedBy": {
     "placeholders": {
       "title": {
@@ -4546,6 +5420,8 @@
   "adminUploadReselectFiles": "Choose the files again before retrying.",
   "adminServerSettings": "Server settings",
   "adminServerSettingsSubtitle": "Scanner, storage and sorting",
+  "adminAuthentication": "Authentication",
+  "adminAuthenticationSubtitle": "Password and OpenID Connect sign-in",
   "adminStats": "Statistics",
   "adminStatsSubtitle": "Library and listening totals",
   "adminAllSessions": "All sessions",
@@ -4595,6 +5471,81 @@
   "srvSaved": "Settings saved",
   "srvSaveFailed": "Couldn't save settings",
   "srvPrefixesSaved": "Sorting prefixes updated",
+
+  "authSetLoadFailed": "Couldn't load authentication settings",
+  "authSetCustomMessage": "Custom message on login",
+  "authSetMessage": "Message",
+  "authSetPasswordAuth": "Password authentication",
+  "authSetOpenId": "OpenID Connect authentication",
+  "authSetGuide": "Setup guide",
+  "authSetIssuerUrl": "Issuer URL",
+  "authSetAutoPopulate": "Auto-populate",
+  "authSetAuthorizeUrl": "Authorize URL",
+  "authSetTokenUrl": "Token URL",
+  "authSetUserinfoUrl": "Userinfo URL",
+  "authSetJwksUrl": "JWKS URL",
+  "authSetLogoutUrl": "Logout URL",
+  "authSetClientId": "Client ID",
+  "authSetClientSecret": "Client secret",
+  "authSetSigningAlgorithm": "Signing algorithm",
+  "authSetRedirectUris": "Allowed mobile redirect URIs",
+  "authSetRedirectUrisInfo": "Apps can only return to these addresses after sign-in. Absorb uses absorb://oauth. An asterisk (*) as the only entry allows any address.",
+  "authSetAddRedirectUri": "Add URI",
+  "authSetAddAbsorbRedirect": "Add absorb://oauth",
+  "authSetSubfolder": "Subfolder for redirect URLs",
+  "authSetSubfolderNone": "None",
+  "authSetWebRedirectInfo": "Allow these URLs in your OAuth provider so sign-in can return to the web app:",
+  "authSetButtonText": "Button text",
+  "authSetMatchExisting": "Match existing users by",
+  "authSetMatchNone": "Do not match",
+  "authSetMatchEmail": "Email",
+  "authSetMatchUsername": "Username",
+  "authSetMatchExistingInfo": "Used to link existing users. Once linked, users are matched by their unique ID from the provider.",
+  "authSetAutoLaunch": "Auto launch",
+  "authSetAutoLaunchInfo": "Open the provider automatically from the web login page. /login?autoLaunch=0 skips it.",
+  "authSetAutoRegister": "Auto register",
+  "authSetAutoRegisterInfo": "Create new users automatically after they sign in",
+  "authSetClaimsInfo": "Leave these empty to turn off group and permission assignment. New users then get the User role.",
+  "authSetGroupClaim": "Group claim",
+  "authSetGroupClaimInfo": "Claim that lists the user's groups, usually groups. Groups named admin, user or guest set the role, and the highest one wins. If no group matches, sign-in is refused.",
+  "authSetPermsClaim": "Advanced permission claim",
+  "authSetPermsClaimInfo": "Claim with permissions for non-admin users. If the claim is missing, sign-in is refused, and a missing option counts as off. Expected format:",
+  "authSetRestartNote": "Restart the server after saving to apply OpenID Connect changes.",
+  "authSetNoChanges": "No changes to save",
+  "authSetNeedOneMethod": "Turn on at least one sign-in method",
+  "authSetFieldRequired": "{field} is required",
+  "@authSetFieldRequired": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "authSetInvalidRedirectUri": "Invalid redirect URI: {uri}",
+  "@authSetInvalidRedirectUri": {
+    "placeholders": {
+      "uri": {
+        "type": "String"
+      }
+    }
+  },
+  "authSetAsteriskAlone": "An asterisk (*) must be the only redirect URI",
+  "authSetInvalidClaim": "{field} is not a valid claim name",
+  "@authSetInvalidClaim": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "authSetIssuerFailed": "Couldn't read the issuer: {error}",
+  "@authSetIssuerFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
 
   "libNoneYet": "No libraries yet",
   "libReorderFailed": "Couldn't save the new order",
@@ -4657,16 +5608,55 @@
   "ebookSaveToDeviceTitle": "Save to device?",
   "ebookSaveToDeviceBody": "This saves a copy of the ebook file somewhere on your device (you pick where). It won't make the book available offline in the reader - use Download for that.",
   "readerFormatUnsupported": "This ebook format can't be opened in the reader yet",
+  "readerCouldNotOpen": "This ebook couldn't be opened. The file may be damaged.",
   "moreActions": "More",
   "readerChapters": "Chapters",
   "readerSettings": "Reader Settings",
   "readerFontSize": "Font Size",
   "readerLineSpacing": "Line Spacing",
+  "readerTextAlignment": "Alignment",
+  "readerAlignJustified": "Justified",
+  "readerAlignLeft": "Left",
   "readerSideMargins": "Side margins",
   "readerTopBottom": "Top & bottom",
   "readerPageLayout": "Page layout",
   "readerPinTopBar": "Keep the title and progress bar on screen",
   "readerPinTopBarHint": "Pins them above the page instead of showing them on tap. The page gets a little shorter so no text is covered.",
+  "readerTopBarProgress": "Top bar progress",
+  "readerTopBarProgressBook": "Book",
+  "readerTopBarProgressChapter": "Chapter",
+  "readerTopBarProgressBoth": "Both",
+  "readerSectionText": "Text",
+  "readerSectionPage": "Page",
+  "readerSectionTopBar": "Top bar and screen",
+  "readerSectionControls": "Controls",
+  "readerSectionStats": "Stats",
+  "readerParagraphSpacing": "Paragraph spacing",
+  "readerParagraphSpacingBook": "Book's own",
+  "readerTapZones": "Tap zones",
+  "readerTapZonesHint": "Drag the lines to resize the squares. Tap a square to change what it does, or start from a layout.",
+  "readerTapPrev": "Previous page",
+  "readerTapNext": "Next page",
+  "readerTapMenu": "Show controls",
+  "readerTapNothing": "Nothing",
+  "readerTapKeepMenu": "One square has to show the controls",
+  "readerHideControls": "Hide controls after",
+  "readerHideControlsNever": "Never",
+  "readerBarNotes": "Notes and highlights",
+  "readerHideControlsAfter": "{seconds}s",
+  "@readerHideControlsAfter": {
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+  "playerDownloadStreamingInstead": "This download couldn't be played, so it's streaming from the server. Downloading it again may fix it.",
+  "readerPageTurn": "Page turn",
+  "readerPageTurnNone": "None",
+  "readerPageTurnSlide": "Slide",
+  "readerPageTurnCurl": "Curl",
+  "readerPageTurnRipple": "Ripple",
+  "readerScrollMode": "Scroll mode",
+  "readerScrollModeHint": "Scroll down through the book instead of turning pages. Applies to every book.",
   "readerKeepAwake": "Keep the screen on",
   "readerKeepAwakeHint": "Stops the screen timing out while you read at your own pace. Auto scroll and read along always keep it on.",
   "readerLayoutAuto": "Auto",
@@ -4736,6 +5726,11 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "readerVolumeNavWhilePlaying": "Even while audio is playing",
+  "readerTranslateWith": "Translate with",
+  "readerTranslateApp": "App on this device",
+  "readerTranslateApple": "Built into iOS",
+  "readerTranslateWeb": "Opens in your browser",
+  "readerTranslateHint": "Selected text is sent to the translator you pick.",
   "readerMoreFonts": "Download more fonts",
   "readerFontRemove": "Remove download",
   "readerFontDownloadFailed": "Couldn't download {font}",
@@ -4758,6 +5753,14 @@
     }
   },
   "readerNoHighlights": "No highlights yet",
+  "readerHistory": "History",
+  "sessionReading": "Reading",
+  "readerHistoryEmpty": "Pages you leave are listed here, so you can always get back to them.",
+  "readerHistoryClosed": "Closed the book",
+  "readerHistoryBeforeJump": "Before a jump",
+  "readerHistoryBeforeSync": "Before matching the audio",
+  "readerLogReading": "Count reading time in stats",
+  "readerLogReadingHint": "Logs your time in the reader as a session so it shows in your stats. On Audiobookshelf it counts as listening time.",
   "readerNoBookmarks": "No bookmarks yet",
   "readerBookmarkDefault": "Bookmark",
   "readerNoteTitle": "Note",
@@ -4865,6 +5868,189 @@
       "when": {"type": "String"}
     }
   },
+  "activityYourReading": "Your reading",
+  "activityYourListening": "Your listening",
+  "activityLastRead": "Last read {when}",
+  "@activityLastRead": {
+    "placeholders": {
+      "when": {"type": "String"}
+    }
+  },
+  "activityLastListened": "Last listened {when}",
+  "@activityLastListened": {
+    "placeholders": {
+      "when": {"type": "String"}
+    }
+  },
+  "activityNotStarted": "Not started",
+  "activityNoReading": "No reading sessions yet",
+  "activityTime": "Time",
+  "activityAverage": "Avg",
+  "activityProgress": "Progress",
+  "activityReached": "{percent} reached",
+  "@activityReached": {
+    "placeholders": {
+      "percent": {"type": "String"}
+    }
+  },
+  "readingLogTitle": "Reading log",
+  "readingLogTotalTime": "Total time",
+  "readingLogAverageSession": "Average session",
+  "readingLogActiveDays": "Active days",
+  "readingLogActiveDaysOf": "{active} of {total}",
+  "@readingLogActiveDaysOf": {
+    "placeholders": {
+      "active": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "readingLogPace": "Pace",
+  "readingLogPacePerHour": "{percent}%/h",
+  "@readingLogPacePerHour": {
+    "placeholders": {
+      "percent": {"type": "String"}
+    }
+  },
+  "readingLogLastRead": "Last read",
+  "readingLogStarted": "Started",
+  "readingLogFinished": "Finished",
+  "readingLogNotSet": "Not set",
+  "readingLogLeftMinutes": "About {m}m to finish",
+  "@readingLogLeftMinutes": {
+    "placeholders": {
+      "m": {"type": "int"}
+    }
+  },
+  "readingLogLeftHours": "About {h}h to finish",
+  "@readingLogLeftHours": {
+    "placeholders": {
+      "h": {"type": "int"}
+    }
+  },
+  "readingLogLeftHoursMinutes": "About {h}h {m}m to finish",
+  "@readingLogLeftHoursMinutes": {
+    "placeholders": {
+      "h": {"type": "int"},
+      "m": {"type": "int"}
+    }
+  },
+  "readingLogLeftMax": "Over 99h to finish",
+  "readingLogUpOnLastWeek": "Up {percent}% on the week before",
+  "@readingLogUpOnLastWeek": {
+    "placeholders": {
+      "percent": {"type": "int"}
+    }
+  },
+  "readingLogDownOnLastWeek": "Down {percent}% on the week before",
+  "@readingLogDownOnLastWeek": {
+    "placeholders": {
+      "percent": {"type": "int"}
+    }
+  },
+  "readingLogNewThisWeek": "New this week",
+  "readingLogSameAsLastWeek": "Same as the week before",
+  "readingLogQuietTwoWeeks": "Nothing in the last two weeks",
+  "readingLogWhereYouRead": "Where you read it",
+  "readingLogSourceIos": "iOS app",
+  "readingLogSourceAndroid": "Android app",
+  "readingLogChartTitle": "Progress over time",
+  "readingLogChartPosition": "Position reached",
+  "readingLogChartMinutes": "Minutes",
+  "readingLogRecords": "Records",
+  "readingLogLongestSession": "Longest session",
+  "readingLogBestDay": "Best day",
+  "readingLogLongestStreak": "Longest streak",
+  "readingLogStreakDays": "{count, plural, =1{1 day} other{{count} days}}",
+  "@readingLogStreakDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "readingLogJumpedBack": "Jumped back",
+  "readingLogJumpedBackTimes": "{count, plural, =1{1 time} other{{count} times}}",
+  "@readingLogJumpedBackTimes": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "readingLogFirstOpened": "First opened",
+  "readingLogAttempts": "Attempts",
+  "readingLogAttempt": "Attempt {index}",
+  "@readingLogAttempt": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "readingLogAttemptBegan": "Attempt {index} began",
+  "@readingLogAttemptBegan": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "readingLogOutcomeCompleted": "Completed",
+  "readingLogOutcomeSkimmed": "Skimmed",
+  "readingLogOutcomeAbandoned": "Abandoned",
+  "readingLogOutcomeInProgress": "In progress",
+  "readingLogSpanRange": "{from} to {to}",
+  "@readingLogSpanRange": {
+    "placeholders": {
+      "from": {"type": "String"},
+      "to": {"type": "String"}
+    }
+  },
+  "readingLogSpanSince": "Since {from}",
+  "@readingLogSpanSince": {
+    "placeholders": {
+      "from": {"type": "String"}
+    }
+  },
+  "readingLogSpanEnded": "Ended {to}",
+  "@readingLogSpanEnded": {
+    "placeholders": {
+      "to": {"type": "String"}
+    }
+  },
+  "readingLogSpanUnknown": "No dates recorded",
+  "readingLogSessionCount": "{count, plural, =1{1 session} other{{count} sessions}}",
+  "@readingLogSessionCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "readingLogShowing": "{shown} of {total}",
+  "@readingLogShowing": {
+    "placeholders": {
+      "shown": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "readingLogGapDays": "{count, plural, =1{1 day without reading} other{{count} days without reading}}",
+  "@readingLogGapDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "readingLogEmpty": "No sessions recorded yet",
+  "readingLogEmptyHint": "Sessions show up here as you read or listen, from any app or device that syncs with BookOrbit.",
+  "readingLogNoMatches": "No sessions in this range",
+  "readingLogAllTime": "All time",
+  "readingLogLast30": "Last 30 days",
+  "readingLogLast90": "Last 90 days",
+  "readingLogThisYear": "This year",
+  "readingLogAllFormats": "All formats",
+  "readingLogSortBy": "Sort by",
+  "readingLogSortDay": "Day",
+  "readingLogSortLength": "Length",
+  "readingLogSortChange": "Change",
+  "readingLogSortReached": "Reached",
+  "readingLogNewestFirst": "Newest first",
+  "readingLogOldestFirst": "Oldest first",
+  "readingLogMostFirst": "Most first",
+  "readingLogLeastFirst": "Least first",
+  "readingLogDeleteTitle": "Delete this session?",
+  "readingLogDeleteBody": "It comes off the book's reading log and your stats on BookOrbit.",
+  "readingLogDeleteFailed": "Couldn't delete the session",
+  "readingLogLoadFailed": "Couldn't load the reading log",
   "navHoldServerScan": "Server scan",
   "navHoldScanAll": "Scan all libraries",
   "navHoldScanLibrary": "Scan {name}",
@@ -4901,6 +6087,7 @@
   "readerTooltipCopy": "Copy",
   "readerTooltipSearch": "Search",
   "readerTooltipDefine": "Define",
+  "readerTooltipTranslate": "Translate",
   "readerSearchHint": "Search this book…",
   "readerSearchMatches": "{count, plural, one{{count} match for \"{query}\"} other{{count} matches for \"{query}\"}}",
   "@readerSearchMatches": {
@@ -4939,7 +6126,7 @@
   "transcriptionSavedToNote": "Saved to bookmark note",
   "transcriptionDisabledHint": "Turn on bookmark transcription in Settings, under Advanced.",
   "transcriptionNoModelDownloaded": "Download a transcription model in Settings first.",
-  "transcriptionNotDownloadedBook": "Download this book first to transcribe its bookmarks.",
+  "transcriptionNotDownloadedBook": "Download this book or connect to your server to transcribe it.",
   "transcriptionNoMetadataMsg": "Can't locate this spot in the download. Try re-downloading the book.",
   "transcriptionBusyMsg": "Already transcribing something. Give it a moment.",
   "transcriptionEmptyMsg": "No speech was found at this spot.",
@@ -4969,9 +6156,42 @@
   "lyricsTurnOn": "Turn on",
   "readAlong": "Read along",
   "readAlongNeedsPlaying": "Play this book's audiobook first",
+  "narrationListen": "Listen",
+  "narrationPlayFromHere": "Play from here",
+  "narrationPreparing": "Getting the narration ready",
+  "narrationNone": "This ebook has no narration to play",
+  "narrationDownloadTitle": "Download to listen",
+  "narrationDownloadBody": "This book is an EPUB3 that reads itself aloud. Audiobookshelf can't stream its narration, so the audio needs to be downloaded before it plays.",
+  "narrationDownloadStarted": "Downloading the narration. Tap Absorb when it finishes.",
+  "narrationTextBody": "This book's EPUB has its own words for every moment of the audio, so the text is copied straight from the book. Pick how much to add to the bookmark's note.",
+  "narrationTextLoading": "Getting the words from the book",
+  "downloadToAbsorb": "Download to Absorb",
+  "narrationUpNextTitle": "Download what's up next",
+  "narrationUpNextBody": "{title} is next in your queue. It's an EPUB3 that reads itself aloud, so it needs to be downloaded before it can play.",
+  "@narrationUpNextBody": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "narrationQueueStopped": "Stopped before {title}. Download it to keep going.",
+  "@narrationQueueStopped": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
   "transcriptionNeedsDownload": "This needs the audio on your phone. Download it now?",
   "transcriptionDownloadStarted": "Downloading. Turn this on again when it finishes",
   "readAlongFollow": "Read along follows",
+  "syncReadingListening": "Keep reading and listening in sync",
+  "syncReadingListeningHint": "For books with an audiobook and an ebook. When you stop listening, the ebook moves to where you stopped. When you leave the reader, the audiobook moves to your page. Only moves forward.",
+  "syncEbookMoved": "Ebook moved to where you stopped listening",
+  "syncAudioMoved": "Audiobook moved to where you stopped reading",
+  "syncAudioOffer": "Tap to jump to where you stopped reading",
+  "syncFindingAudio": "Finding your page in the audiobook",
+  "syncFindingEbook": "Finding your spot in the ebook",
+  "syncFailed": "Couldn't sync your place",
+  "syncAlreadyTogether": "Already in sync",
+  "syncPosition": "Sync position",
   "readAlongFollowHint": "Word timing is worked out between the transcript's timestamps, so it can drift slightly inside a sentence.",
   "readAlongFollowWord": "Word",
   "readAlongFollowSentence": "Sentence",
@@ -4979,6 +6199,10 @@
   "readAlongLost": "Can't find the narration on the page",
   "@readAlongLost": {
     "description": "Read along pill after 45s of narration that matches nothing on the page"
+  },
+  "readAlongBackToNarration": "Back to narration",
+  "@readAlongBackToNarration": {
+    "description": "Ebook reader button that returns the page to the sentence being narrated after the reader moved away during read along"
   },
   "findInEbook": "Find in ebook",
   "findInEbookSearching": "Finding this spot in the ebook...",
@@ -4996,5 +6220,1205 @@
   "findInAudiobookAfterLabel": "When the spot is found",
   "findInAudiobookStay": "Keep reading",
   "findInAudiobookGoPlayer": "Open the player",
-  "findInAudiobookPlaying": "Playing this passage in the audiobook"
+  "findInAudiobookPlaying": "Playing this passage in the audiobook",
+  "catchUpAudioAhead": "The audiobook is further along. Tap to go there.",
+  "catchUpPageAhead": "This page is ahead of the audiobook. Tap to move the audiobook here.",
+  "readerShortcutButton": "Shortcut button",
+  "keepScreenOn": "Keep screen on",
+  "keepScreenOnActive": "Screen stays on",
+  "keepScreenOnUntilClosed": "Screen stays on until you close the app",
+  "keepScreenOnOff": "Screen can turn off again",
+  "keepScreenOnOffUntilRestart": "Off until the app restarts. The Settings switch stays on",
+  "keepScreenOnPlayer": "Keep the screen on in the player",
+  "keepScreenOnPlayerSubtitle": "The screen stays on while the player is open",
+  "keepScreenOnCarMode": "Keep the screen on in car mode",
+  "keepScreenOnCarModeSubtitle": "The screen stays on while car mode is open",
+  "loginServerType": "Server type",
+  "authBookOrbitDefaultPassword": "This account still has its default password. Change it in BookOrbit, then sign in again.",
+  "authBookOrbitPasswordOff": "Password sign-in is turned off on this server. Sign in with a magic link or single sign-on.",
+  "authServerIsBookOrbit": "This is a BookOrbit server. Choose BookOrbit above the server address.",
+  "authServerIsAudiobookshelf": "This is an Audiobookshelf server. Choose Audiobookshelf above the server address.",
+  "castNotAvailableBookOrbit": "Casting is not available with BookOrbit servers",
+  "loginMagicLink": "Magic link",
+  "loginMagicLinkDescription": "Sign in with a BookOrbit magic link, or paste a password link to set your password.",
+  "collectionPublicTitle": "Public",
+  "collectionPublicSubtitle": "Everyone on this server can see this collection",
+  "loginSignInWithProvider": "Sign in with {provider}",
+  "@loginSignInWithProvider": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSignInWithSso": "Sign in with SSO",
+  "loginChooseSsoProvider": "Choose how to sign in",
+  "loginRedirectUriBookOrbit": "Redirect URI: bookorbit://oauth2-callback",
+  "readStatusTitle": "Reading status",
+  "readStatusHint": "Listening to or reading the book can change this again.",
+  "readStatusUnread": "Unread",
+  "readStatusWantToRead": "Want to read",
+  "readStatusReading": "Reading",
+  "readStatusOnHold": "On hold",
+  "readStatusRereading": "Rereading",
+  "readStatusRead": "Read",
+  "readStatusSkimmed": "Skimmed",
+  "readStatusAbandoned": "Abandoned",
+  "personalNoteTitle": "Your note",
+  "personalNoteAdd": "Add a private note",
+  "personalNoteHint": "Only you can see this note.",
+  "moreLikeThis": "More like this",
+  "coverSlotAudiobook": "Audiobook cover",
+  "coverSlotBook": "Book cover",
+  "cardButtonFill": "Button background",
+  "cardButtonFillSubtitle": "How the buttons on the player card are filled",
+  "cardButtonFillClear": "Clear",
+  "cardButtonFillSubtle": "Subtle",
+  "cardButtonFillSolid": "Solid",
+  "loginBookOrbitPreview": "BookOrbit support is new. Playback, downloads and browsing work, but some screens may still look or act like Audiobookshelf. Follow the progress on GitHub, and let us know if something seems off.",
+  "signedOutTapToSignIn": "Signed out. Tap to sign in again.",
+  "authSignedOutKeepListening": "You've been signed out. Downloads still play. Tap the red cloud to sign in again.",
+  "signedOutSyncNote": "What you listen to while signed out is kept on this phone and syncs when you sign back in as {username} on {server}. Any way of signing in to that account works.",
+  "@signedOutSyncNote": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      },
+      "server": {
+        "type": "String"
+      }
+    }
+  },
+  "comicReadingDirection": "Reading direction",
+  "comicPageNumber": "Page {page}",
+  "@comicPageNumber": {"placeholders": {"page": {"type": "int"}}},
+  "comicBookmarkRemoveFailed": "Couldn't remove the bookmark from the server. Try again when you're online.",
+  "comicLeftToRight": "Left to right",
+  "comicRightToLeft": "Right to left (manga)",
+  "comicNeedsConnection": "This comic opens page by page from your server, so it needs a connection.",
+  "comicNoPages": "No pages found in this comic.",
+  "boAdminTitle": "Server admin",
+  "boAdminSubtitle": "Users and libraries on this BookOrbit server",
+  "boAdminUsers": "Users",
+  "boAdminLibraries": "Libraries",
+  "boAdminUserCount": "{count, plural, =1{1 person} other{{count} people}}",
+  "@boAdminUserCount": {"placeholders": {"count": {"type": "int"}}},
+  "boAdminLibraryCount": "{count, plural, =1{1 library} other{{count} libraries}}",
+  "@boAdminLibraryCount": {"placeholders": {"count": {"type": "int"}}},
+  "boAdminSaved": "Saved",
+  "boAdminFailed": "That didn't work. Try again.",
+  "boAdminOffline": "Couldn't reach the server.",
+  "boUsersSearch": "Search users",
+  "boUsersNone": "No users here",
+  "boUsersFilterAll": "All",
+  "boUsersFilterAdmins": "Admins",
+  "boUsersFilterActive": "Active",
+  "boUsersFilterInactive": "Inactive",
+  "boUsersFilterAttention": "Needs attention",
+  "boUserBadgeAdmin": "Admin",
+  "boUserBadgeInactive": "Inactive",
+  "boUserBadgeLocked": "Locked",
+  "boUserBadgeNoPassword": "No password yet",
+  "boUserLastActive": "Last active {date}",
+  "@boUserLastActive": {"placeholders": {"date": {"type": "String"}}},
+  "boUserNeverSignedIn": "Never signed in",
+  "boUserNew": "New user",
+  "boUserCreate": "Create",
+  "boUserUsername": "Username",
+  "boUserUsernameHint": "At least 3 characters. It cannot be changed later.",
+  "boUserName": "Name",
+  "boUserEmail": "Email",
+  "boUserEmailInvalid": "Enter a valid email address",
+  "boUserActive": "Active",
+  "boUserActiveSubtitle": "Inactive users can't sign in",
+  "boUserAdmin": "Administrator",
+  "boUserAdminSubtitle": "Full access to everything on the server",
+  "boUserAdminHasAll": "Administrators have every permission and see every library.",
+  "boUserPermissions": "Permissions",
+  "boUserPresetNone": "None",
+  "boUserPresetStandard": "Standard",
+  "boUserPresetEverything": "Everything",
+  "boUserLibraries": "Libraries",
+  "boUserLibrariesHint": "The libraries this person can see.",
+  "boUserPasswordLink": "Send password link",
+  "boUserPasswordLinkSubtitle": "A link to set a new password, valid for 15 minutes",
+  "boUserExternal": "Signs in through single sign-on, so the password is managed there.",
+  "boUserUnlock": "Unlock account",
+  "boUserUnlocked": "Account unlocked",
+  "boUserDelete": "Delete user",
+  "boUserDeleteTitle": "Delete {name}?",
+  "@boUserDeleteTitle": {"placeholders": {"name": {"type": "String"}}},
+  "boUserDeleteBody": "Their account and everything they have on this server are removed. This cannot be undone.",
+  "boUserDeleted": "User deleted",
+  "boUserLinkTitle": "Password link",
+  "boUserLinkBody": "Share this link with {name}. It lets them set a password and works for 15 minutes.",
+  "@boUserLinkBody": {"placeholders": {"name": {"type": "String"}}},
+  "boPasswordRules": "At least 8 characters, with an uppercase letter, a lowercase letter and a number.",
+  "boSetPasswordTitle": "Set your password",
+  "boSetPasswordSubmit": "Set password and sign in",
+  "boSetPasswordLinkBody": "Choose a password for {username} on {server}.",
+  "@boSetPasswordLinkBody": {"placeholders": {"username": {"type": "String"}, "server": {"type": "String"}}},
+  "boSetPasswordLinkBodyNoName": "Choose a password for your account on {server}.",
+  "@boSetPasswordLinkBodyNoName": {"placeholders": {"server": {"type": "String"}}},
+  "boSetPasswordStartingBody": "This account still has the password it was created with. Choose a new one to finish signing in.",
+  "boSetPasswordTrust": "Only continue if you trust who sent this link.",
+  "boPasswordLinkExpired": "This link has expired or was already used. Ask your server admin for a new one.",
+  "boPasswordSetSignInFailed": "Your password is set, but signing in failed: {error}",
+  "@boPasswordSetSignInFailed": {"placeholders": {"error": {"type": "String"}}},
+  "boChangePasswordSubtitle": "Update your BookOrbit password",
+  "boPasswordChangeEffect": "Changing your password signs out your other BookOrbit sessions. This device stays signed in.",
+  "boPasswordChanged": "Password changed. Other signed-in devices were signed out.",
+  "boPasswordShareDescription": "Send this link or have {username} scan the QR code to choose a password and sign in to Absorb. It works for 15 minutes.",
+  "@boPasswordShareDescription": {"placeholders": {"username": {"type": "String"}}},
+  "boPasswordShareWarning": "Anyone with this link can choose the password for {username} until it is used or expires.",
+  "@boPasswordShareWarning": {"placeholders": {"username": {"type": "String"}}},
+  "setupLinkCopyWebLink": "Copy web link",
+  "boUserLinkCopy": "Copy link",
+  "boUserLinkCopied": "Link copied",
+  "boUserLinkShare": "Share",
+  "boUserNoLink": "The user was added, but the server sent no password link. Send one from their page.",
+  "boPermGroupLibrary": "Library and books",
+  "boPermGroupRequests": "Book requests",
+  "boPermGroupDevices": "Devices",
+  "boPermGroupIntegrations": "Reading integrations",
+  "boPermGroupDock": "Book Dock",
+  "boPermGroupEmail": "Email and notifications",
+  "boPermGroupAdmin": "Administration",
+  "boPermLibraryDownload": "Download books",
+  "boPermLibraryUpload": "Upload books",
+  "boPermLibraryEditMetadata": "Edit metadata",
+  "boPermLibraryDeleteBooks": "Delete books",
+  "boPermBookRequestAccess": "Request books",
+  "boPermBookRequestAutoApprove": "Requests approved automatically",
+  "boPermBookRequestSelfFulfill": "Download requested books directly",
+  "boPermManageBookRequests": "Manage book requests",
+  "boPermKoboSync": "Kobo sync",
+  "boPermKoreaderSync": "KOReader sync",
+  "boPermOpdsAccess": "OPDS access",
+  "boPermHardcoverSync": "Hardcover sync",
+  "boPermReadwiseSync": "Readwise sync",
+  "boPermStorygraphSync": "StoryGraph sync",
+  "boPermBookDockAccess": "Use the Book Dock",
+  "boPermManageBookDock": "Manage the Book Dock",
+  "boPermEmailSend": "Send books by email",
+  "boPermNotificationAccess": "Notifications",
+  "boPermManageEmail": "Manage email",
+  "boPermManageLibraries": "Manage libraries",
+  "boPermManageMetadataConfig": "Metadata settings",
+  "boPermManageIcons": "Manage icons",
+  "boPermManageUsers": "Manage users",
+  "boPermViewUserActivity": "View user activity",
+  "boPermViewAuditLog": "View the audit log",
+  "boPermManageAppSettings": "App settings",
+  "boLibsNone": "No libraries yet",
+  "boLibBookCount": "{count, plural, =1{1 book} other{{count} books}}",
+  "@boLibBookCount": {"placeholders": {"count": {"type": "int"}}},
+  "boLibScanNow": "Scan now",
+  "boLibScanStarted": "Scan started",
+  "boLibScanning": "Scanning",
+  "boLibLastScan": "Scanned {date}: {added} added, {updated} updated, {missing} missing",
+  "@boLibLastScan": {"placeholders": {"date": {"type": "String"}, "added": {"type": "int"}, "updated": {"type": "int"}, "missing": {"type": "int"}}},
+  "boLibScanFailed": "The last scan failed",
+  "boLibNeverScanned": "Not scanned yet",
+  "boLibNew": "New library",
+  "boLibName": "Name",
+  "boLibNeedName": "Give the library a name",
+  "boLibIcon": "Icon",
+  "boLibFolders": "Folders",
+  "boLibFoldersHint": "Folders on the server where this library's books live.",
+  "boLibNeedFolder": "Add at least one folder",
+  "boLibAddFolder": "Add folder",
+  "boLibFolderFiles": "{count, plural, =1{1 file} other{{count} files}}",
+  "@boLibFolderFiles": {"placeholders": {"count": {"type": "int"}}},
+  "boLibFolderInUse": "Already in {library}",
+  "@boLibFolderInUse": {"placeholders": {"library": {"type": "String"}}},
+  "boLibFolderUnreadable": "The server can't read this folder",
+  "boLibFolderRescan": "Changing the folders rescans the library.",
+  "boLibOrganization": "Books are stored as",
+  "boLibPerFolder": "One book per folder",
+  "boLibPerFile": "One book per file",
+  "boLibOrganizationFixed": "This cannot be changed after the library is created.",
+  "boLibWatch": "Watch for changes",
+  "boLibWatchSubtitle": "Pick up new and changed files as they appear",
+  "boLibSchedule": "Scheduled scan",
+  "boLibScheduleOff": "Off",
+  "boLibScheduleDaily": "Daily",
+  "boLibScheduleWeekly": "Weekly",
+  "boLibScheduleCustom": "Custom ({cron})",
+  "@boLibScheduleCustom": {"placeholders": {"cron": {"type": "String"}}},
+  "boLibScheduleHint": "Runs at 3 AM server time.",
+  "boLibCovers": "Cover shape",
+  "boLibCoverBook": "Book (2:3)",
+  "boLibCoverSquare": "Square (1:1)",
+  "boLibAccess": "Who can see it",
+  "boLibAccessHint": "Administrators see every library. Others need access here.",
+  "boLibAccessNone": "Only administrators so far",
+  "boLibAccessAdd": "Add person",
+  "boLibAccessEveryoneHas": "Everyone already has access",
+  "boLibLevelViewer": "Viewer",
+  "boLibLevelEditor": "Editor",
+  "boLibLevelOwner": "Owner",
+  "boLibAccessRemove": "Remove access",
+  "boLibDelete": "Delete library",
+  "boLibDeleteTitle": "Delete {name}?",
+  "@boLibDeleteTitle": {"placeholders": {"name": {"type": "String"}}},
+  "boLibDeleteBody": "The library is removed from BookOrbit, with its books' progress and highlights. The files on the server stay where they are.",
+  "boLibDeleted": "Library deleted",
+  "boFolderPickTitle": "Choose a folder",
+  "boFolderUseThis": "Use this folder",
+  "boFolderEmpty": "No folders inside",
+  "statsTotalTime": "TOTAL TIME",
+  "statsTotalReadingTime": "TOTAL READING TIME",
+  "statsDaysOfTime": "That's {days} days",
+  "@statsDaysOfTime": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "statsHoursOfTime": "That's {hours} hours",
+  "@statsHoursOfTime": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "statsMediaAll": "All",
+  "statsMediaListening": "Listening",
+  "statsMediaReading": "Reading",
+  "statsZoneMismatch": "BookOrbit counts your days in {server}, but this phone is set to {phone}. Time late in the day can land on the wrong day.",
+  "@statsZoneMismatch": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "statsZoneUse": "Use {zone}",
+  "@statsZoneUse": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "statsZoneSaved": "BookOrbit now uses {zone}. Older days can take a few minutes to catch up.",
+  "@statsZoneSaved": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "statsZoneFailed": "Couldn't change the time zone on BookOrbit",
+  "statsTimeOfDay": "Time of day",
+  "statsBusiestAround": "Busiest around {time}",
+  "@statsBusiestAround": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "statsFinishedByMonth": "Books finished by month",
+  "statsFinishedLast12": "{count} in the last 12 months",
+  "@statsFinishedLast12": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsWhereTitle": "Where you listen and read",
+  "statsLast12Months": "Last 12 months",
+  "statsHabits": "Habits",
+  "statsTypicalSession": "Typical session",
+  "statsProgressPerSession": "Progress per session",
+  "statsTimeToFinish": "Time to finish",
+  "statsDayCount": "{count, plural, =1{1 day} other{{count} days}}",
+  "@statsDayCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsBooksStarted": "Books started",
+  "statsBooksInProgress": "In progress",
+  "statsAverageProgress": "Average progress",
+  "statsTopBooks": "Top books",
+  "statsTopGenres": "Top genres",
+  "statsYearRead": "Read",
+  "boNotificationsUnread": "{count, plural, =0{Nothing new} =1{1 unread} other{{count} unread}}",
+  "@boNotificationsUnread": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "boNotificationsMarkAllRead": "Mark all read",
+  "boNotificationsClearAll": "Clear all",
+  "boNotificationsClearTitle": "Clear all notifications?",
+  "boNotificationsClearBody": "This removes every notification from your BookOrbit account.",
+  "boNotificationsEmpty": "No notifications yet",
+  "boNotificationsLoadFailed": "Couldn't load notifications",
+  "boNotificationsUpdateFailed": "Couldn't update notifications on BookOrbit",
+  "boNotificationsOccurrences": "Happened {count} times",
+  "@boNotificationsOccurrences": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "boNotificationsSettings": "Notification settings",
+  "boNotificationsSettingsIntro": "Choose which notifications BookOrbit keeps for you.",
+  "boNotificationsProblemsHint": "Problems only notifies you when something fails or needs attention.",
+  "boNotificationLevelOff": "Off",
+  "boNotificationLevelProblems": "Problems",
+  "boNotificationLevelAll": "All",
+  "boNotificationsSaved": "Notification settings saved",
+  "boNotificationsSaveFailed": "Couldn't save notification settings",
+  "boNotificationGroupLibrary": "Library",
+  "boNotificationGroupFiles": "Files",
+  "boNotificationGroupIntegrations": "Integrations",
+  "boNotificationGroupPersonal": "Personal",
+  "boNotifyScanning": "Library scanning",
+  "boNotifyScanningDesc": "When a library scan finishes, fails, or finds missing books.",
+  "boNotifyMetadata": "Metadata fetching",
+  "boNotifyMetadataDesc": "When metadata lookups for your books finish or fail.",
+  "boNotifyAuthorEnrichment": "Author details",
+  "boNotifyAuthorEnrichmentDesc": "When author biographies and photos finish downloading.",
+  "boNotifyFileWriteBack": "Saving to files",
+  "boNotifyFileWriteBackDesc": "When edited details are saved into the book files on disk.",
+  "boNotifyFileRename": "File renaming",
+  "boNotifyFileRenameDesc": "When a book file is renamed to match your naming pattern.",
+  "boNotifyBulkRename": "Bulk renaming",
+  "boNotifyBulkRenameDesc": "When renaming many books, or moving books between libraries, finishes or fails.",
+  "boNotifyMigration": "Imports",
+  "boNotifyMigrationDesc": "When an import from another library app finishes or fails.",
+  "boNotifyBookDock": "Book Dock",
+  "boNotifyBookDockDesc": "When Book Dock finishes adding books or runs into problems.",
+  "boNotifyBookRequests": "Book requests",
+  "boNotifyBookRequestsDesc": "When a book request is submitted or decided, or the book becomes available.",
+  "boNotifyEmail": "Email delivery",
+  "boNotifyEmailDesc": "When sending a book by email works or fails.",
+  "boNotifyAchievements": "Achievements",
+  "boNotifyAchievementsDesc": "When you unlock a new achievement.",
+  "achievementsTitle": "Achievements",
+  "achievementsEarnedSummary": "{earned} of {total} earned",
+  "@achievementsEarnedSummary": {
+    "placeholders": {
+      "earned": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsFilterAll": "All",
+  "achievementsFilterEarned": "Earned",
+  "achievementsFilterInProgress": "In progress",
+  "achievementsFilterLocked": "Locked",
+  "achievementsCategoryReading": "Reading",
+  "achievementsCategoryLibrary": "Library",
+  "achievementsCategoryExploration": "Exploration",
+  "achievementsCategoryDedication": "Dedication",
+  "achievementsCategoryDevices": "Devices",
+  "achievementsRarityCommon": "Common",
+  "achievementsRarityRare": "Rare",
+  "achievementsRarityEpic": "Epic",
+  "achievementsRarityLegendary": "Legendary",
+  "achievementsLoadFailed": "Couldn't load achievements",
+  "achievementsNoneMatch": "No achievements match this filter",
+  "achievementsSecretName": "Secret achievement",
+  "achievementsSecretHint": "Keep reading to reveal this one.",
+  "achievementsEarnedOn": "Earned {date}",
+  "@achievementsEarnedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsWhileReading": "While reading {title}",
+  "@achievementsWhileReading": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsTierOf": "Tier {earned} of {total}",
+  "@achievementsTierOf": {
+    "placeholders": {
+      "earned": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsTiers": "Tiers",
+  "achievementsAllTiers": "Every tier earned",
+  "achievementsProgress": "{current} / {threshold}",
+  "@achievementsProgress": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressBooks": "{current} / {threshold} books",
+  "@achievementsProgressBooks": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressPages": "{current} / {threshold} pages",
+  "@achievementsProgressPages": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressHours": "{current} / {threshold} hours",
+  "@achievementsProgressHours": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressAnnotations": "{current} / {threshold} highlights and notes",
+  "@achievementsProgressAnnotations": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressRatings": "{current} / {threshold} ratings",
+  "@achievementsProgressRatings": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressGenres": "{current} / {threshold} genres",
+  "@achievementsProgressGenres": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressLanguages": "{current} / {threshold} languages",
+  "@achievementsProgressLanguages": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsProgressDays": "{current} / {threshold} days",
+  "@achievementsProgressDays": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHowToGetIt": "How to get it",
+  "achievementsHintReadingPace": "{count, plural, =1{You read 1 hour in the last {days} days.} other{You read {count} hours in the last {days} days.}}",
+  "@achievementsHintReadingPace": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintEtaDays": "{count, plural, =1{About 1 day at this pace.} other{About {count} days at this pace.}}",
+  "@achievementsHintEtaDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintEtaWeeks": "{count, plural, =1{About 1 week at this pace.} other{About {count} weeks at this pace.}}",
+  "@achievementsHintEtaWeeks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintEtaMonths": "{count, plural, =1{About 1 month at this pace.} other{About {count} months at this pace.}}",
+  "@achievementsHintEtaMonths": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintDecadeUnread": "{count, plural, =1{1 book from the {decade}s is waiting on your shelves.} other{{count} books from the {decade}s are waiting on your shelves.}}",
+  "@achievementsHintDecadeUnread": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "decade": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintCenturyUnread": "{count, plural, =1{1 book from the {century}s is waiting on your shelves.} other{{count} books from the {century}s are waiting on your shelves.}}",
+  "@achievementsHintCenturyUnread": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "century": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintStalled": "{title} is {percent} read and was started on {date}.",
+  "@achievementsHintStalled": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintStalledNoProgress": "{title} was started on {date}.",
+  "@achievementsHintStalledNoProgress": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintUntitledBook": "A book in progress",
+  "achievementsHintNearlyFinished": "{count, plural, =1{1 book in progress is past {percent}.} other{{count} books in progress are past {percent}.}}",
+  "@achievementsHintNearlyFinished": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintUnrated": "{count, plural, =1{1 book you finished has no rating yet.} other{{count} books you finished have no rating yet.}}",
+  "@achievementsHintUnrated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintShortBooks": "{count, plural, =1{1 book under {pages} pages is waiting on your shelves.} other{{count} books under {pages} pages are waiting on your shelves.}}",
+  "@achievementsHintShortBooks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "pages": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintAlreadyStarted": "{count, plural, =1{1 is already in progress.} other{{count} are already in progress.}}",
+  "@achievementsHintAlreadyStarted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintLongBooks": "{count, plural, =1{1 book of {pages} pages or more is waiting on your shelves.} other{{count} books of {pages} pages or more are waiting on your shelves.}}",
+  "@achievementsHintLongBooks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "pages": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintOldBooks": "{count, plural, =1{1 book published before {year} is waiting on your shelves.} other{{count} books published before {year} are waiting on your shelves.}}",
+  "@achievementsHintOldBooks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintAuthorUnread": "{author}: {finished} finished, {count} more on your shelves.",
+  "@achievementsHintAuthorUnread": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "finished": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintLanguageUnread": "{count, plural, =1{1 book in {language} is waiting on your shelves.} other{{count} books in {language} are waiting on your shelves.}}",
+  "@achievementsHintLanguageUnread": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintMonthsRead": "{count, plural, =1{You have read in 1 month of {year} so far.} other{You have read in {count} months of {year} so far.}}",
+  "@achievementsHintMonthsRead": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintMonthsLeft": "{count, plural, =1{{months} is left.} other{{months} are left.}}",
+  "@achievementsHintMonthsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "months": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintNoLongBook": "No book on your shelves has {pages} pages or more yet.",
+  "@achievementsHintNoLongBook": {
+    "placeholders": {
+      "pages": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintNothingBefore": "Nothing on your shelves was published before {year}.",
+  "@achievementsHintNothingBefore": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsHintTooFewDecades": "{count, plural, =1{Your shelves span only 1 decade so far.} other{Your shelves span only {count} decades so far.}}",
+  "@achievementsHintTooFewDecades": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintTooFewCenturies": "{count, plural, =1{Your shelves span only 1 century so far.} other{Your shelves span only {count} centuries so far.}}",
+  "@achievementsHintTooFewCenturies": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementsHintMissedMonth": "You did not read in {month}, so {year} is out of reach. The count starts again in January.",
+  "@achievementsHintMissedMonth": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "achievementsSwitch": "Achievements",
+  "achievementsSwitchSubtitle": "Track achievements on BookOrbit. Turning this off hides them here and on the web.",
+  "achievementsTurnedOn": "Achievements turned on",
+  "achievementsTurnedOff": "Achievements turned off",
+  "achievementsSwitchFailed": "Couldn't change achievements on BookOrbit",
+  "boNotifyReadAlong": "Read alongs",
+  "boNotifyReadAlongDesc": "When a read along you started is ready, needs a look, or fails.",
+  "readAlongCreate": "Create read along",
+  "readAlongLoadFailed": "Couldn't check whether a read along can be made for this book.",
+  "readAlongCheckAgain": "Check again",
+  "readAlongWhyWorkerOffline": "BookOrbit's read along worker is offline right now.",
+  "readAlongWhyWorkerOutdated": "BookOrbit's read along worker needs an update to work with this server.",
+  "readAlongWhyFilesMissing": "Restore this book's missing files to make a read along.",
+  "readAlongWhyNoEpub": "Add a plain EPUB to this book to make a read along.",
+  "readAlongWhyNoEpubHasOne": "This book already has a read along and no plain EPUB to make another from.",
+  "readAlongWhyTooManyTracks": "This audiobook has more files than a read along can be made from.",
+  "readAlongWhyEpubNotAllowed": "This library doesn't take EPUB files, so a read along can't be added.",
+  "readAlongWhyNotMounted": "BookOrbit's read along worker can't reach this library's folder.",
+  "readAlongWhyRunning": "A read along is already being made for this book.",
+  "readAlongWhyUnknown": "A read along can't be made for this book right now.",
+  "readAlongSheetTitle": "Create a read along",
+  "readAlongSheetIntro": "BookOrbit matches the narration to the ebook text and adds an EPUB that highlights along with the audio.",
+  "readAlongEbook": "Ebook",
+  "readAlongEbookHint": "Pick the plain EPUB that matches the narration.",
+  "readAlongAudio": "Audiobook",
+  "readAlongTracks": "{count, plural, =1{1 track} other{{count} tracks}}",
+  "@readAlongTracks": {"placeholders": {"count": {"type": "int"}}},
+  "readAlongExistingTitle": "{count, plural, =1{This book already has a read along} other{This book already has {count} read alongs}}",
+  "@readAlongExistingTitle": {"placeholders": {"count": {"type": "int"}}},
+  "readAlongReplace": "Replace {name}",
+  "@readAlongReplace": {"placeholders": {"name": {"type": "String"}}},
+  "readAlongKeepBoth": "{count, plural, =1{Keep both} other{Keep all of them}}",
+  "@readAlongKeepBoth": {"placeholders": {"count": {"type": "int"}}},
+  "readAlongKeepHint": "The new read along is added as another file.",
+  "readAlongReplaceHint": "The old file is only replaced once the new one passes its checks, and reading spots carry over.",
+  "readAlongReplaceNotAllowed": "Replacing a read along needs permission to delete books, so the new one is added as another file.",
+  "readAlongMadeByBookOrbit": "Made by BookOrbit",
+  "readAlongImported": "Imported",
+  "readAlongLanguage": "Narration language",
+  "readAlongPickLanguage": "Choose a language",
+  "readAlongLanguageUnsupported": "The speech model doesn't know this book's language ({language}).",
+  "@readAlongLanguageUnsupported": {"placeholders": {"language": {"type": "String"}}},
+  "readAlongLanguageFromBook": "From this book's details.",
+  "readAlongLanguageIsDefault": "Your default language.",
+  "readAlongLanguageSaved": "Saved as your default language.",
+  "readAlongSetDefault": "Set as default",
+  "readAlongDefaultFailed": "Couldn't save your default language.",
+  "readAlongHighlighting": "Highlighting",
+  "readAlongSentence": "Sentence",
+  "readAlongSentenceHint": "Highlights one sentence at a time. Recommended.",
+  "readAlongWord": "Word",
+  "readAlongWordHint": "Highlights each word. Takes longer and makes a bigger file. Still experimental.",
+  "readAlongEstimatedSize": "Estimated size: {size}",
+  "@readAlongEstimatedSize": {"placeholders": {"size": {"type": "String"}}},
+  "readAlongBackgroundNote": "Runs on the server, so you can close this. Long audiobooks can take hours, and the first run for a language downloads its speech model.",
+  "readAlongLowDisk": "Low disk space: this needs about {needed} of working space on the worker, which has {free} free.",
+  "@readAlongLowDisk": {"placeholders": {"needed": {"type": "String"}, "free": {"type": "String"}}},
+  "readAlongStart": "Start",
+  "readAlongStartFailed": "The read along couldn't be started. Try again.",
+  "readAlongStartInvalid": "Some of the picked files are no longer on this book. Check them and try again.",
+  "readAlongStartOffline": "BookOrbit's read along worker is offline. Try again later.",
+  "readAlongNotAllowed": "You don't have permission to do that.",
+  "readAlongGone": "This read along job is gone.",
+  "readAlongMovedOn": "This job had already moved on. It now shows where it is.",
+  "readAlongActionFailed": "That didn't go through. Try again.",
+  "readAlongStartedBy": "Started by {name}",
+  "@readAlongStartedBy": {"placeholders": {"name": {"type": "String"}}},
+  "readAlongStartedByOther": "Started by another user",
+  "readAlongWaiting": "Waiting to start",
+  "readAlongNextInLine": "Next in line",
+  "readAlongJobsAhead": "{count, plural, =1{1 job ahead} other{{count} jobs ahead}}",
+  "@readAlongJobsAhead": {"placeholders": {"count": {"type": "int"}}},
+  "readAlongStopping": "Stopping",
+  "readAlongStoppingHint": "Finishing the current step, then it stops. Nothing will be added to this book.",
+  "readAlongStagePreparingAudio": "Preparing the audio",
+  "readAlongStageDownloadingModel": "Downloading the speech model",
+  "readAlongStageListening": "Listening to the narration",
+  "readAlongStageMarkingUp": "Marking up the ebook text",
+  "readAlongStageAligning": "Matching the text to the narration",
+  "readAlongStageChecking": "Checking the result",
+  "readAlongStagePublishing": "Adding the read along to this book",
+  "readAlongStageWorking": "Working",
+  "readAlongFileOf": "File {current} of {total}",
+  "@readAlongFileOf": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "readAlongTrackOf": "Track {current} of {total}",
+  "@readAlongTrackOf": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "readAlongChapterOf": "Chapter {current} of {total}",
+  "@readAlongChapterOf": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "readAlongStepOf": "Step {current} of {total}",
+  "@readAlongStepOf": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "readAlongFirstRun": "First run for this language",
+  "readAlongJustStarted": "Just started",
+  "readAlongRunningFor": "Running for {duration}",
+  "@readAlongRunningFor": {"placeholders": {"duration": {"type": "String"}}},
+  "readAlongStepAudio": "Audio",
+  "readAlongStepSpeech": "Speech",
+  "readAlongStepText": "Text",
+  "readAlongStepAlign": "Align",
+  "readAlongStepCheck": "Check",
+  "readAlongStepAdd": "Add",
+  "readAlongReviewTitle": "Ready for review",
+  "readAlongReviewMatched": "{percent} of the text matched the narration. Check it before adding it to the book.",
+  "@readAlongReviewMatched": {"placeholders": {"percent": {"type": "String"}}},
+  "readAlongReviewPlain": "Check it before adding it to the book.",
+  "readAlongReviewWeb": "To leave chapters out and match again, open this book in BookOrbit on the web.",
+  "readAlongReviewExpires": "Thrown away on its own on {date} unless you review it.",
+  "@readAlongReviewExpires": {"placeholders": {"date": {"type": "String"}}},
+  "readAlongAddAnyway": "Add it anyway",
+  "readAlongDiscard": "Discard",
+  "readAlongDiscardPrompt": "Discard this read along?",
+  "readAlongKeepIt": "Keep it",
+  "readAlongReady": "Read along ready",
+  "readAlongReadyWarnings": "Read along ready, with warnings",
+  "readAlongAdded": "Added to this book as a new EPUB.",
+  "readAlongReplaced": "Replaced the old read along. Reading spots carry over.",
+  "readAlongMatchedSentences": "{matched} of {total} sentences matched the narration",
+  "@readAlongMatchedSentences": {"placeholders": {"matched": {"type": "String"}, "total": {"type": "String"}}},
+  "readAlongAudioUsed": "{percent} of the audio used",
+  "@readAlongAudioUsed": {"placeholders": {"percent": {"type": "String"}}},
+  "readAlongOutside": "Not in the narration, so left without audio: {chapters}.",
+  "@readAlongOutside": {"placeholders": {"chapters": {"type": "String"}}},
+  "readAlongOutsideMore": "{count, plural, =1{1 more chapter} other{{count} more chapters}}",
+  "@readAlongOutsideMore": {"placeholders": {"count": {"type": "int"}}},
+  "readAlongWarnUnaligned": "One or more audio tracks couldn't be matched.",
+  "readAlongWarnUnmatched": "A noticeable amount of the ebook text wasn't matched to the narration.",
+  "readAlongWarnInterpolated": "Some text timing was estimated between confident matches.",
+  "readAlongWarnDropped": "Some ebook text was left out of the highlighting.",
+  "readAlongFailed": "Read along failed",
+  "readAlongCancelled": "Read along cancelled",
+  "readAlongDiscarded": "Read along thrown away",
+  "readAlongNothingAdded": "Nothing was added to this book.",
+  "readAlongExpired": "It wasn't reviewed within 14 days, so nothing was added to this book.",
+  "readAlongRetryUntil": "Retry picks up from the last finished step until {date}.",
+  "@readAlongRetryUntil": {"placeholders": {"date": {"type": "String"}}},
+  "readAlongStartOver": "Start over",
+  "readAlongCancel": "Cancel read along",
+  "readAlongCancelPrompt": "Cancel this read along?",
+  "readAlongKeepRunning": "Keep running",
+  "readAlongErrorWorkerOffline": "BookOrbit couldn't reach its read along worker.",
+  "readAlongErrorWorkerCrashed": "The read along worker stopped unexpectedly.",
+  "readAlongErrorSourceMissing": "A picked file is no longer there.",
+  "readAlongErrorSourceChanged": "A picked file changed after the job started.",
+  "readAlongErrorInvalidSource": "The EPUB or audiobook couldn't be read.",
+  "readAlongErrorLanguage": "The speech model doesn't know the picked language.",
+  "readAlongErrorStorage": "There isn't enough free disk space on the worker to finish.",
+  "readAlongErrorAudio": "The audiobook couldn't be prepared.",
+  "readAlongErrorModel": "The speech model couldn't be downloaded.",
+  "readAlongErrorListening": "Speech recognition failed while listening to the narration.",
+  "readAlongErrorMarkup": "The ebook text couldn't be prepared for matching.",
+  "readAlongErrorAlignment": "The text couldn't be matched to the narration.",
+  "readAlongErrorOutput": "The new EPUB failed its checks.",
+  "readAlongErrorPublish": "The new EPUB couldn't be added to this book.",
+  "readAlongErrorDiscarded": "It was thrown away at review.",
+  "readAlongErrorCancelled": "It was cancelled.",
+  "readAlongErrorUnknown": "Something went wrong while making the read along.",
+  "fileInfoNoAudiobook": "No audiobook yet",
+  "fileInfoNoEbook": "No e-book yet",
+  "fileInfoRequestedBySomeone": "Requested by someone else",
+  "fileInfoOwnedSeparately": "In your library as a separate book",
+  "fileInfoCopyPath": "Copy path",
+  "fileInfoDeleteTitle": "Delete file?",
+  "fileInfoDeletePrompt": "\"{name}\" will be deleted from the server. This can't be undone.",
+  "@fileInfoDeletePrompt": {"placeholders": {"name": {"type": "String"}}},
+  "fileInfoDeleteLast": "It's the book's last audio or e-book file, so the book will show as missing.",
+  "fileInfoDeleteNotAllowed": "You don't have permission to delete files",
+  "chapterSourceEmbedded": "Read from the audio files",
+  "chapterSourceTracks": "One chapter per audio file, not saved",
+  "chapterSourceProvider": "From fetched metadata",
+  "chapterSourceMigration": "Imported from Audiobookshelf",
+  "chapterSourceManual": "Edited in BookOrbit",
+  "chapterSourceManualBy": "Edited by {name}",
+  "@chapterSourceManualBy": {"placeholders": {"name": {"type": "String"}}},
+  "chapterSourceNone": "No chapters yet",
+  "chapterProtected": "Protected from rescans",
+  "chapterNotProtected": "A rescan can replace these",
+  "chapterProtectOnSave": "Protect from rescans",
+  "chapterGetFrom": "Get Chapters From",
+  "chapterFromFiles": "The audio files",
+  "chapterFromEbookToc": "The e-book's contents",
+  "chapterFromReadAlong": "The read along",
+  "chapterFromHistory": "Earlier versions",
+  "chapterHistoryTitle": "Earlier versions",
+  "chapterHistoryEmpty": "Saved versions show up here.",
+  "chapterHistoryBy": "{source} by {name}",
+  "@chapterHistoryBy": {"placeholders": {"source": {"type": "String"}, "name": {"type": "String"}}},
+  "chapterReadingFiles": "Reading the audio files...",
+  "chapterRevertToFiles": "Revert to Files",
+  "chapterRevertTitle": "Go back to the chapters in the files?",
+  "chapterRevertMessage": "BookOrbit reads the chapters in the audio files again and stops protecting them from rescans. Unsaved edits are lost. The current list stays in the earlier versions.",
+  "chapterReverted": "Chapters set back to the audio files",
+  "chapterWriteFiles": "Write to Files",
+  "chapterWriteTitle": "Write the chapters into the audio files?",
+  "chapterWriteMessage": "{count, plural, =1{This rewrites the book's audio file with these chapters.} other{This rewrites the book's {count} audio files with these chapters.}} The audio itself is copied unchanged. Phones that already downloaded the book keep their copy until it's downloaded again.",
+  "@chapterWriteMessage": {"placeholders": {"count": {"type": "int"}}},
+  "chapterWriteConfirm": "Write",
+  "chapterWriting": "Writing the chapters into the audio files...",
+  "chapterWritten": "{count, plural, =1{Chapters written into the audio file} other{Chapters written into all {count} audio files}}",
+  "@chapterWritten": {"placeholders": {"count": {"type": "int"}}},
+  "chapterWrittenPartly": "Chapters written into {written} of {total} files. The rest were left as they were.",
+  "@chapterWrittenPartly": {"placeholders": {"written": {"type": "int"}, "total": {"type": "int"}}},
+  "chapterStaleTitle": "These chapters changed",
+  "chapterStaleMessage": "Someone else saved these chapters after you opened them. Reload to see their version. Your edits stay until you do.",
+  "chapterReload": "Reload",
+  "chapterKeepEditing": "Keep editing",
+  "matchExplicitYes": "Marked explicit",
+  "matchExplicitNo": "Not explicit",
+  "matchAbridgedYes": "Abridged",
+  "matchAbridgedNo": "Unabridged",
+  "boQuickMatchBody": "BookOrbit looks up {count, plural, =1{this book} other{these {count} books}} and fills in what it finds, following its metadata settings.",
+  "@boQuickMatchBody": {
+    "placeholders": { "count": {"type": "int"} }
+  },
+  "boQuickMatchIgnoreCache": "Ask every source again",
+  "boQuickMatchIgnoreCacheHint": "Skips saved answers. Slower, and uses more of each source's request limit.",
+  "boAdminServerCount": "{count, plural, =0{None yet} =1{1 mail server} other{{count} mail servers}}",
+  "@boAdminServerCount": {
+    "placeholders": { "count": {"type": "int"} }
+  },
+  "boEmailTitle": "Send by email",
+  "boEmailSubtitle": "Devices, mail servers and templates for sending books",
+  "boEmailTabDevices": "Devices",
+  "boEmailTabServers": "Mail servers",
+  "boEmailTabTemplates": "Templates",
+  "boEmailTabHistory": "History",
+  "boEmailName": "Name",
+  "boEmailDeleteTitle": "Delete {name}?",
+  "@boEmailDeleteTitle": {
+    "placeholders": { "name": {"type": "String"} }
+  },
+  "boEmailMakeDefault": "Make default",
+  "boEmailBadgeDefault": "Default",
+  "boEmailBadgeShared": "Shared",
+  "boEmailBadgeSystem": "Password resets",
+  "boEmailBadgeBuiltIn": "Built in",
+  "boEmailDevicesEmpty": "No devices yet. Add your e-reader's email address to send it books.",
+  "boEmailAddDevice": "Add device",
+  "boEmailNewDevice": "New device",
+  "boEmailDeviceNameHint": "My Kindle",
+  "boEmailDeviceAddress": "Email address",
+  "boEmailDeviceType": "Device",
+  "boEmailDeviceNone": "Person or inbox",
+  "boEmailDeviceKindle": "Kindle",
+  "boEmailDeviceKobo": "Kobo",
+  "boEmailDeviceOther": "Other e-reader",
+  "boEmailKindleHint": "Kindle gets the subject \"convert\" and only takes EPUB and PDF by email.",
+  "boEmailKindleApprove": "Kindle drops mail from addresses it doesn't know. In Amazon's Personal Document Settings, add {address} to the approved list.",
+  "@boEmailKindleApprove": {
+    "placeholders": { "address": {"type": "String"} }
+  },
+  "boEmailKindleApproveNoServer": "Add a mail server first to see the address Kindle needs to approve.",
+  "boEmailFormat": "Format",
+  "boEmailFormatPrimary": "Book's main file",
+  "boEmailFormatHint": "A book without this format gets its main file.",
+  "boEmailReadAlong": "Read along books",
+  "boEmailReadAlongAuto": "Automatic",
+  "boEmailReadAlongAutoHint": "Text only when a copy can be made, otherwise the original.",
+  "boEmailReadAlongText": "Text only",
+  "boEmailReadAlongTextHint": "Narration removed. Small enough for email.",
+  "boEmailReadAlongOriginal": "With narration",
+  "boEmailReadAlongOriginalHint": "Keeps the narration. Often 100 MB or more, over most mail servers' limits.",
+  "boEmailTemplate": "Template",
+  "boEmailTemplateYourDefault": "Your default",
+  "boEmailTemplateKindleHint": "Kindle never shows the message, so it skips the template.",
+  "boEmailDefaultDevice": "Default device",
+  "boEmailDefaultDeviceHint": "Picked first when you send a book.",
+  "boEmailSendTest": "Send a test email",
+  "boEmailTestSubject": "Test email from Absorb",
+  "boEmailTestBody": "This is a test from Absorb. If you can read it, books sent to {name} will arrive here too.",
+  "@boEmailTestBody": {
+    "placeholders": { "name": {"type": "String"} }
+  },
+  "boEmailTestSent": "Test email sent to {name}",
+  "@boEmailTestSent": {
+    "placeholders": { "name": {"type": "String"} }
+  },
+  "boEmailTestFailed": "The test email didn't go out: {error}",
+  "@boEmailTestFailed": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "boEmailDeleteDevice": "Delete device",
+  "boEmailDeleteDeviceBody": "Its send history stays.",
+  "boEmailDeviceRequired": "Enter a name and an email address",
+  "boEmailLastSendFailed": "Last send failed",
+  "boEmailGroups": "Groups",
+  "boEmailGroupsHint": "Send to several devices at once.",
+  "boEmailNewGroup": "New group",
+  "boEmailGroupNameHint": "Book club",
+  "boEmailGroupMembers": "Devices in this group",
+  "boEmailGroupMembersEmpty": "Add a device first.",
+  "boEmailGroupMemberCount": "{count, plural, =0{No devices} =1{1 device} other{{count} devices}}",
+  "@boEmailGroupMemberCount": {
+    "placeholders": { "count": {"type": "int"} }
+  },
+  "boEmailDeleteGroup": "Delete group",
+  "boEmailDeleteGroupBody": "The devices in it stay.",
+  "boEmailGroupRequired": "Enter a group name",
+  "boEmailServersEmptyManage": "No mail servers yet. Add one to start sending books.",
+  "boEmailServersEmpty": "No mail servers yet. Ask an admin to add one.",
+  "boEmailAddServer": "Add mail server",
+  "boEmailNewServer": "New mail server",
+  "boEmailServerPresetOther": "Other",
+  "boEmailServerPresetHint": "A preset fills in the host, port and security. You can still change them.",
+  "boEmailServerHost": "Host",
+  "boEmailServerPort": "Port",
+  "boEmailServerSecurity": "Security",
+  "boEmailServerSecurityNone": "None",
+  "boEmailServerSecurityHint": "STARTTLS on port 587, SSL/TLS on 465.",
+  "boEmailServerNeedsPassword": "Signs in with a password",
+  "boEmailServerUsername": "Username",
+  "boEmailServerPassword": "Password",
+  "boEmailServerAppPassword": "App password",
+  "boEmailServerPasswordKeep": "Saved. Type to replace it",
+  "boEmailServerAppPasswordHint": "Gmail and iCloud need an app password, not your account password.",
+  "boEmailServerFromName": "From name",
+  "boEmailServerFromAddress": "From address",
+  "boEmailServerFromAddressHint": "Kindle owners need to approve this address.",
+  "boEmailServerShare": "Share with everyone",
+  "boEmailServerShareHint": "Other people can send books through this server without seeing the password.",
+  "boEmailServerSystem": "Send password resets and sign-in links",
+  "boEmailServerSystemHint": "The server BookOrbit uses for its own mail.",
+  "boEmailServerVerifyTls": "Check the server's certificate",
+  "boEmailServerVerifyTlsHint": "Turn this off only for a server on your own network with a self-signed certificate.",
+  "boEmailServerTest": "Test connection",
+  "boEmailServerTestSaveFirst": "Save first, then test",
+  "boEmailServerTestOk": "Connected",
+  "boEmailServerTestFailed": "Can't connect: {error}",
+  "@boEmailServerTestFailed": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "boEmailServerDelete": "Delete mail server",
+  "boEmailServerDeleteBody": "Everyone it's shared with loses it.",
+  "boEmailServerSystemFirst": "Turn off password resets on this server before deleting it.",
+  "boEmailServerRequired": "Enter a name and a host",
+  "boEmailServerNotYours": "Someone else added this server. Only they can change it.",
+  "boEmailTemplatesEmpty": "No templates yet.",
+  "boEmailNewTemplate": "New template",
+  "boEmailTemplateSubject": "Subject",
+  "boEmailTemplateMessage": "Message",
+  "boEmailTemplateInsert": "Insert",
+  "boEmailTemplateInsertHint": "Goes in where the cursor is. Details a book doesn't have print nothing.",
+  "boEmailVarBook": "Book",
+  "boEmailVarFile": "File",
+  "boEmailVarOther": "Other",
+  "boEmailTemplatePreview": "Preview",
+  "boEmailTemplatePreviewNone": "Send a book once to preview a template with it.",
+  "boEmailTemplateAttached": "Attached: {name}",
+  "@boEmailTemplateAttached": {
+    "placeholders": { "name": {"type": "String"} }
+  },
+  "boEmailTemplateBuiltIn": "Built in. Only an admin can change it.",
+  "boEmailTemplateKindleNote": "Kindle never shows a template. It always gets the subject \"convert\".",
+  "boEmailTemplateDelete": "Delete template",
+  "boEmailTemplateDeleteBody": "Devices that use it go back to your default template.",
+  "boEmailTemplateRequired": "Enter a name and a subject",
+  "boEmailHistoryEmpty": "Nothing sent yet.",
+  "boEmailHistoryAll": "All",
+  "boEmailHistoryEveryone": "Everyone",
+  "boEmailStatusSent": "Sent",
+  "boEmailStatusSending": "Sending",
+  "boEmailStatusRetrying": "Trying again ({attempt})",
+  "@boEmailStatusRetrying": {
+    "placeholders": { "attempt": {"type": "int"} }
+  },
+  "boEmailStatusFailed": "Failed",
+  "boEmailTo": "To {name}",
+  "@boEmailTo": {
+    "placeholders": { "name": {"type": "String"} }
+  },
+  "boEmailResend": "Send again",
+  "boEmailResent": "Sending again",
+  "boEmailForget": "Remove from history",
+  "boEmailLoadMore": "Load more",
+  "boEmailUnknownBook": "Deleted book",
+  "boEmailSendNoServer": "No mail server is set up on this server yet.",
+  "boEmailSendAskAdmin": "Ask an admin to add one.",
+  "boEmailSendNoDevices": "Add a device to send this book to.",
+  "boEmailSendOptions": "Options",
+  "boEmailSendFormatEach": "Each device's own",
+  "boEmailSendServer": "Mail server",
+  "boEmailSendButton": "Send",
+  "boEmailSendGets": "Gets {format} · {size}",
+  "@boEmailSendGets": {
+    "placeholders": { "format": {"type": "String"}, "size": {"type": "String"} }
+  },
+  "boEmailSendMissing": "No {format}, gets the {got}",
+  "@boEmailSendMissing": {
+    "placeholders": { "format": {"type": "String"}, "got": {"type": "String"} }
+  },
+  "boEmailSendKindleRejects": "Kindle doesn't take {format} by email",
+  "@boEmailSendKindleRejects": {
+    "placeholders": { "format": {"type": "String"} }
+  },
+  "boEmailSendOverKindle": "{size}, over Kindle's 50 MB limit",
+  "@boEmailSendOverKindle": {
+    "placeholders": { "size": {"type": "String"} }
+  },
+  "boEmailSendOverGmail": "{size}, over Gmail's 25 MB limit",
+  "@boEmailSendOverGmail": {
+    "placeholders": { "size": {"type": "String"} }
+  },
+  "boEmailSendNarrated": "Gets the narrated copy · {size}",
+  "@boEmailSendNarrated": {
+    "placeholders": { "size": {"type": "String"} }
+  },
+  "boEmailSendHanding": "Sending through {server}",
+  "@boEmailSendHanding": {
+    "placeholders": { "server": {"type": "String"} }
+  },
+  "boEmailSendAccepted": "Sent through {server}",
+  "@boEmailSendAccepted": {
+    "placeholders": { "server": {"type": "String"} }
+  },
+  "boEmailSendFailedLine": "Didn't send: {error}",
+  "@boEmailSendFailedLine": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "boEmailSendStillGoing": "Still sending. You'll get a notification when it's done.",
+  "boEmailKindleOriginal": "A Kindle can't take the narrated copy. Set it to text only.",
+  "boEmailNoCopy": "Couldn't make a copy without the narration."
 }

@@ -5,12 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart' hide PlaybackEvent;
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../main.dart' show applyOrientationLock;
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../widgets/card_buttons.dart';
+import '../services/screen_wake.dart';
 import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 
@@ -92,6 +95,9 @@ class _CarModeScreenState extends State<CarModeScreen>
     PlayerSettings.getNotificationChapterProgress().then((v) {
       if (mounted && v != _preferChapterBar) setState(() => _preferChapterBar = v);
     });
+    PlayerSettings.getKeepScreenOnInCarMode().then((v) {
+      if (mounted) ScreenWake.hold('car', v);
+    });
   }
 
   void _onPlayerChanged() {
@@ -105,6 +111,7 @@ class _CarModeScreenState extends State<CarModeScreen>
     _displayTimer?.cancel();
     PlayerSettings.settingsChanged.removeListener(_loadSkipSettings);
     widget.player.removeListener(_onPlayerChanged);
+    ScreenWake.hold('car', false);
     _playPauseController.dispose();
     // Back to the user's saved rotation preference - the old empty list
     // ("all allowed") silently dropped the portrait lock until a restart.
@@ -357,7 +364,7 @@ class _CarModeScreenState extends State<CarModeScreen>
                                         ? (_isLocalCover
                                             ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                                 errorBuilder: (_, __, ___) => _placeholderCover(cs))
-                                            : CachedNetworkImage(
+                                            : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                                 imageUrl: coverUrl,
                                                 fit: BoxFit.cover,
                                                 httpHeaders: auth.apiService?.mediaHeaders ?? {},

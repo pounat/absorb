@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -260,7 +262,7 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
                         border: _coverUrlCtrl.text == url ? Border.all(color: cs.primary, width: 2) : null,
                       ),
                       clipBehavior: Clip.antiAlias,
-                      child: CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
+                      child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: url, fit: BoxFit.cover),
                     ),
                   ),
               ],
@@ -315,10 +317,10 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
     final url = _coverUrlCtrl.text.trim();
     final headers = context.read<AuthProvider>().apiService?.mediaHeaders;
     if (url.isNotEmpty) {
-      return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+      return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: url, fit: BoxFit.cover,
         placeholder: (_, __) => _coverPlaceholder(cs), errorWidget: (_, __, ___) => _coverPlaceholder(cs));
     }
-    return CachedNetworkImage(
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
       imageUrl: '$serverCover?v=$_coverVersion',
       httpHeaders: headers,
       fit: BoxFit.cover,

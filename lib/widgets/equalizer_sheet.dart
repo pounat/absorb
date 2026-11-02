@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import '../utils/app_platform.dart';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/equalizer_service.dart';
@@ -480,7 +480,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                 const SizedBox(height: 8),
 
                 // Virtualizer (Android only - no iOS equivalent)
-                if (Platform.isAndroid) ...[
+                if (AppPlatform.isAndroid) ...[
                   _EffectRow(
                     icon: Icons.surround_sound_rounded,
                     label: l.surround,
@@ -534,7 +534,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
 
                 // Skip silence (Android only - just_audio's setSkipSilenceEnabled
                 // is a no-op on iOS).
-                if (Platform.isAndroid) ...[
+                if (AppPlatform.isAndroid) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),

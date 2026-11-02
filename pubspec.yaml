@@ -1,7 +1,7 @@
 name: absorb
 description: An Audiobookshelf Client
 publish_to: 'none'
-version: 1.11.1+285
+version: 1.12.1+303
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -25,6 +25,9 @@ dependencies:
   
   # Image caching
   cached_network_image: ^3.3.0
+  # For ImageRenderMethodForWeb: web covers decode through Flutter instead of
+  # borrowing <img> elements the browser can empty (they drew black).
+  cached_network_image_platform_interface: ^4.1.1
 
   # Audio playback
   just_audio:
@@ -47,6 +50,8 @@ dependencies:
 
   # Reading EPUB text without a WebView (transcript ebook cross-reference).
   archive: ^4.0.9
+  html: ^0.15.4
+  xml: ^6.5.0
 
   # CarPlay - vendored copy of 1.2.11 with a patched image loader (downsampled +
   # cached list thumbnails) so large browse lists don't run CarPlay out of memory.
@@ -129,6 +134,7 @@ dependencies:
   # foliate-js host for MOBI/AZW3/FB2/CBZ (already transitive via the epub
   # viewer; pinned direct so the bridge API is a declared dependency)
   flutter_inappwebview: ^6.0.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -156,6 +162,8 @@ flutter:
     - assets/foliate/
     - assets/foliate/foliate-js/
     - assets/foliate/foliate-js/vendor/
+  shaders:
+    - shaders/page_ripple.frag
   fonts:
     - family: NotoSansJP
       fonts:

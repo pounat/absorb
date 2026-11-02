@@ -54,11 +54,21 @@
             android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
             android:exported="true"
             android:taskAffinity="">
+            <!-- Audiobookshelf sign-in returns to absorb://oauth; the host keeps
+                 absorb://setup links with MainActivity. BookOrbit keeps its own
+                 scheme in a filter of its own, since a host here would apply
+                 to it too. -->
             <intent-filter android:label="flutter_web_auth_2">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="audiobookshelf" />
+                <data android:scheme="absorb" android:host="oauth" />
+            </intent-filter>
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="bookorbit" />
             </intent-filter>
         </activity>
 
@@ -230,12 +240,32 @@
             </intent-filter>
         </service>
 
+        <!-- The watch names the BookOrbit listening sessions it recorded, so
+             the Stats screen can show them with the watch icon. -->
+        <service
+            android:name=".WearSessionListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/absorb/player/sessions" />
+            </intent-filter>
+        </service>
+
     </application>
 
     <queries>
+        <provider android:authorities="androidx.car.app.connection" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- The Wear OS companion app carries "open on the watch" requests
+             (RemoteActivityHelper), so it has to be visible to us. -->
+        <intent>
+            <action android:name="com.google.android.wearable.intent.action.REMOTE_INTENT"/>
         </intent>
     </queries>
 </manifest>

@@ -19,6 +19,17 @@
         -webkit-justify-content: center;
       }
 
+      /* Absorb patch: examples.css gives the body a min-height of 800px, so a
+         shorter page (landscape, or under a pinned top bar) was taller than
+         the screen and could be dragged up and down. The book scrolls inside
+         epub.js's own container, never the page itself. */
+      html,
+      body {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+      }
+
       #viewer {
         width: 100%;
         height: 100%;
@@ -28,6 +39,22 @@
         /* padding: 10px 10px 0px 10px; */
         margin: 5px auto;
         background: white;
+      }
+
+      /* Absorb patch: in scroll mode epub.js shifts the scroll itself when it
+         adds the chapter above (manager counter()). Chrome's scroll anchoring
+         made the same shift on top, so scrolling up across a chapter jumped
+         the page down by that chapter's height. */
+      .epub-container {
+        overflow-anchor: none;
+      }
+
+      /* Absorb patch: scroll mode only moves up and down. A drag that drifted
+         sideways nudged the text to the side. */
+      body.absorb-scrolled,
+      body.absorb-scrolled .epub-container {
+        overflow-x: hidden !important;
+        touch-action: pan-y;
       }
 
       #viewerNext {

@@ -8,6 +8,8 @@ String sectionLabel(String id, String? fallback, AppLocalizations l) {
   switch (id) {
     case 'continue-listening':
       return l.continueListening;
+    case 'continue-reading':
+      return l.continueReading;
     case 'continue-series':
       return l.continueSeries;
     case 'recently-added':

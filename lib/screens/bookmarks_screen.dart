@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -16,7 +18,7 @@ import '../widgets/bookmark_detail_dialog.dart';
 import '../widgets/card_buttons.dart';
 import '../services/download_service.dart';
 import '../services/ebook_annotation_service.dart';
-import '../services/ebook_cache.dart';
+import '../services/highlight_sync.dart';
 import '../utils/episode_key.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/adaptive_modal.dart';
@@ -52,6 +54,12 @@ class _BookmarksScreenState extends State<BookmarksScreen>
   // speed-adjusted-time setting at that book's own speed.
   final Map<String, double> _bookSpeeds = {};
   double _defaultSpeed = 1.0;
+  final TextEditingController _searchCtl = TextEditingController();
+  String _query = '';
+  // Books opened on the bookmarks tab; all start folded. Kept while the screen is open.
+  final Set<String> _expanded = {};
+  // Same for the highlights tab; kept apart since a book can be in both.
+  final Set<String> _expandedHighlights = {};
 
   static const _titleCacheKey = 'bookmark_book_titles';
 
@@ -75,7 +83,59 @@ class _BookmarksScreenState extends State<BookmarksScreen>
   @override
   void dispose() {
     _tabs.dispose();
+    _searchCtl.dispose();
     super.dispose();
+  }
+
+  /// A book matching the search keeps all its bookmarks; otherwise only the
+  /// bookmarks whose title or note match stay, and empty books drop out.
+  Map<String, List<Bookmark>> _filteredBookmarks() {
+    if (_query.isEmpty) return _allBookmarks;
+    final out = <String, List<Bookmark>>{};
+    for (final entry in _allBookmarks.entries) {
+      final book = '${_resolveTitle(entry.key) ?? ''} ${_resolveShowTitle(entry.key) ?? ''}'
+          .toLowerCase();
+      if (book.contains(_query)) {
+        out[entry.key] = entry.value;
+        continue;
+      }
+      final hits = entry.value
+          .where((b) =>
+              b.title.toLowerCase().contains(_query) ||
+              (b.note ?? '').toLowerCase().contains(_query))
+          .toList();
+      if (hits.isNotEmpty) out[entry.key] = hits;
+    }
+    return out;
+  }
+
+  /// Same rule as bookmarks: a matching book keeps all its highlights,
+  /// otherwise only highlights whose text or note match.
+  Map<String, List<EbookAnnotation>> _filteredHighlights() {
+    if (_query.isEmpty) return _highlights;
+    final out = <String, List<EbookAnnotation>>{};
+    for (final entry in _highlights.entries) {
+      if ((_resolveTitle(entry.key) ?? '').toLowerCase().contains(_query)) {
+        out[entry.key] = entry.value;
+        continue;
+      }
+      final hits = entry.value
+          .where((h) =>
+              (h.selectedText ?? '').toLowerCase().contains(_query) ||
+              (h.note ?? '').toLowerCase().contains(_query))
+          .toList();
+      if (hits.isNotEmpty) out[entry.key] = hits;
+    }
+    return out;
+  }
+
+  /// A server that keeps highlights too (BookOrbit) hears about deletes
+  /// straight away; offline they wait for the next sync.
+  void _sendHighlightChanges(String itemId) {
+    final api = context.read<AuthProvider>().apiService;
+    if (api != null && api.keepsEbookHighlights) {
+      unawaited(HighlightSync.instance.push(api, itemId, null));
+    }
   }
 
   Future<void> _loadHighlights() async {
@@ -364,6 +424,7 @@ class _BookmarksScreenState extends State<BookmarksScreen>
         await EbookAnnotationService()
             .delete(itemId: entry.key, annotationId: id);
       }
+      _sendHighlightChanges(entry.key);
     }
 
     _exitSelection();
@@ -592,35 +653,8 @@ class _BookmarksScreenState extends State<BookmarksScreen>
   /// Opens the book at the highlight. A downloaded ebook opens from the reader
   /// cache, so this still works offline.
   Future<void> _openHighlight(String itemId, EbookAnnotation highlight) async {
-    final l = AppLocalizations.of(context)!;
-    final api = context.read<AuthProvider>().apiService;
-    var title = _resolveTitle(itemId);
-    var ebookFile = await cachedEbookFileFor(itemId);
-    if (ebookFile == null && api != null) {
-      final item = await api.getLibraryItem(itemId);
-      ebookFile = resolveEbookFile(item);
-      if (title == null) {
-        final media = item?['media'] as Map<String, dynamic>? ?? {};
-        final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
-        title = metadata['title'] as String?;
-      }
-    }
-    if (!mounted) return;
-    if (ebookFile == null) {
-      showOverlayToast(
-        context,
-        api == null ? l.bookmarksNotConnected : l.noEbookFileFound,
-        icon: Icons.menu_book_outlined,
-      );
-      return;
-    }
-    await openEbookReader(
-      context,
-      itemId: itemId,
-      title: title ?? '',
-      ebookFile: ebookFile,
-      openAtCfi: highlight.cfi,
-    );
+    await openHighlightInReader(context,
+        itemId: itemId, cfi: highlight.cfi, title: _resolveTitle(itemId));
     // Highlights added or removed while reading show up on the way back.
     if (mounted) await _loadHighlights();
   }
@@ -682,6 +716,7 @@ class _BookmarksScreenState extends State<BookmarksScreen>
     } else if (action == 'delete') {
       await EbookAnnotationService()
           .delete(itemId: itemId, annotationId: highlight.id);
+      _sendHighlightChanges(itemId);
       await _loadHighlights();
       if (mounted) {
         showOverlayToast(context, l.highlightDeleted,
@@ -734,16 +769,26 @@ class _BookmarksScreenState extends State<BookmarksScreen>
       return _emptyState(
           cs, tt, Icons.bookmark_border_rounded, l.bookmarksNoBookmarks);
     }
+    final groups = _filteredBookmarks();
+    if (groups.isEmpty) {
+      return _emptyState(
+          cs, tt, Icons.search_off_rounded, l.bookmarksNoMatches);
+    }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      itemCount: _allBookmarks.length,
+      itemCount: groups.length,
       itemBuilder: (ctx, i) {
         final lib = context.read<LibraryProvider>();
-        final itemId = _allBookmarks.keys.elementAt(i);
-        final bookmarks = _allBookmarks[itemId]!;
+        final itemId = groups.keys.elementAt(i);
+        final bookmarks = groups[itemId]!;
         final resolvedTitle = _resolveTitle(itemId);
         final coverUrl = lib.getCoverUrl(itemId, width: 400);
         return _BookGroup(
+          // A search keeps every match in view, folded or not.
+          expanded: _query.isNotEmpty || _expanded.contains(itemId),
+          onToggleExpanded: () => setState(() {
+            if (!_expanded.remove(itemId)) _expanded.add(itemId);
+          }),
           itemId: itemId,
           title: resolvedTitle,
           subtitle: _resolveShowTitle(itemId),
@@ -769,14 +814,25 @@ class _BookmarksScreenState extends State<BookmarksScreen>
       return _emptyState(
           cs, tt, Icons.format_quote_rounded, l.readerNoHighlights);
     }
+    final groups = _filteredHighlights();
+    if (groups.isEmpty) {
+      return _emptyState(
+          cs, tt, Icons.search_off_rounded, l.bookmarksNoMatches);
+    }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      itemCount: _highlights.length,
+      itemCount: groups.length,
       itemBuilder: (ctx, i) {
         final lib = context.read<LibraryProvider>();
-        final itemId = _highlights.keys.elementAt(i);
-        final highlights = _highlights[itemId]!;
+        final itemId = groups.keys.elementAt(i);
+        final highlights = groups[itemId]!;
         return _HighlightGroup(
+          expanded: _query.isNotEmpty || _expandedHighlights.contains(itemId),
+          onToggleExpanded: () => setState(() {
+            if (!_expandedHighlights.remove(itemId)) {
+              _expandedHighlights.add(itemId);
+            }
+          }),
           itemId: itemId,
           title: _resolveTitle(itemId),
           coverUrl: lib.getCoverUrl(itemId, width: 400),
@@ -875,6 +931,37 @@ class _BookmarksScreenState extends State<BookmarksScreen>
                   ),
                   const SizedBox(height: 12),
 
+                  if (_allBookmarks.isNotEmpty || _highlights.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: TextField(
+                        controller: _searchCtl,
+                        onChanged: (v) =>
+                            setState(() => _query = v.trim().toLowerCase()),
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          hintText: l.bookmarksSearchHint,
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _query.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.close_rounded),
+                                  onPressed: () {
+                                    _searchCtl.clear();
+                                    setState(() => _query = '');
+                                  },
+                                ),
+                          isDense: true,
+                          filled: true,
+                          fillColor: cs.surfaceContainerHigh,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+
                   // Audiobook bookmarks and ebook highlights, tabbed only once
                   // there's at least one highlight to show.
                   if (_highlights.isNotEmpty)
@@ -963,8 +1050,12 @@ class _BookGroup extends StatelessWidget {
   final VoidCallback onToggleGroup;
   final void Function(String itemId, String bookmarkId) onLongPress;
   final void Function(String itemId, Bookmark bookmark) onJump;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
 
   const _BookGroup({
+    required this.expanded,
+    required this.onToggleExpanded,
     required this.itemId,
     required this.title,
     this.subtitle,
@@ -1002,7 +1093,8 @@ class _BookGroup extends StatelessWidget {
             children: [
               // Book header with cover + title
               GestureDetector(
-                onTap: selecting ? onToggleGroup : null,
+                behavior: HitTestBehavior.opaque,
+                onTap: selecting ? onToggleGroup : onToggleExpanded,
                 child: Row(children: [
                   if (selecting)
                     Padding(
@@ -1050,10 +1142,18 @@ class _BookGroup extends StatelessWidget {
                     '${bookmarks.length}',
                     style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
                   ),
+                  if (!selecting)
+                    AnimatedRotation(
+                      turns: expanded ? 0 : -0.25,
+                      duration: const Duration(milliseconds: 150),
+                      child: Icon(Icons.expand_more_rounded,
+                          size: 20, color: cs.onSurfaceVariant),
+                    ),
                 ]),
               ),
-              const SizedBox(height: 8),
+              if (expanded) const SizedBox(height: 8),
               // Bookmark rows
+              if (expanded)
               for (var j = 0; j < bookmarks.length; j++) ...[
                 if (j > 0) Divider(height: 1, indent: selecting ? 32 : 28, endIndent: 0, color: cs.outlineVariant.withValues(alpha: 0.3)),
                 _BookmarkRow(
@@ -1111,7 +1211,7 @@ class _BookCover extends StatelessWidget {
       return _placeholder();
     }
 
-    return CachedNetworkImage(
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
       imageUrl: coverUrl!,
       fit: BoxFit.cover,
       httpHeaders: mediaHeaders,
@@ -1230,8 +1330,12 @@ class _HighlightGroup extends StatelessWidget {
   final void Function(String itemId, String annotationId) onToggle;
   final VoidCallback onToggleGroup;
   final void Function(String itemId, String annotationId) onLongPress;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
 
   const _HighlightGroup({
+    required this.expanded,
+    required this.onToggleExpanded,
     required this.itemId,
     required this.title,
     this.coverUrl,
@@ -1266,7 +1370,8 @@ class _HighlightGroup extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
-                onTap: selecting ? onToggleGroup : null,
+                behavior: HitTestBehavior.opaque,
+                onTap: selecting ? onToggleGroup : onToggleExpanded,
                 child: Row(children: [
                 if (selecting)
                   Padding(
@@ -1308,9 +1413,17 @@ class _HighlightGroup extends StatelessWidget {
                   '${highlights.length}',
                   style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
                 ),
+                if (!selecting)
+                  AnimatedRotation(
+                    turns: expanded ? 0 : -0.25,
+                    duration: const Duration(milliseconds: 150),
+                    child: Icon(Icons.expand_more_rounded,
+                        size: 20, color: cs.onSurfaceVariant),
+                  ),
                 ]),
               ),
-              const SizedBox(height: 8),
+              if (expanded) const SizedBox(height: 8),
+              if (expanded)
               for (var j = 0; j < highlights.length; j++) ...[
                 if (j > 0)
                   Divider(height: 1, indent: 14, color: cs.outlineVariant.withValues(alpha: 0.3)),

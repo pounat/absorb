@@ -26,11 +26,15 @@ class Wording {
   String get absorb => classic ? 'Play' : _l.absorb;
   String get absorbing => classic ? 'Playing...' : _l.absorbing;
   String get absorbAgain => classic ? 'Play Again' : _l.absorbAgain;
+  String get downloadToAbsorb => classic ? 'Download to Play' : _l.downloadToAbsorb;
   String get fullyAbsorbed => classic ? 'Finished' : _l.fullyAbsorbed;
   String get fullyAbsorbAction => classic ? 'Mark Finished' : _l.fullyAbsorbAction;
 
   // ── Now Playing list ──
   String get addToAbsorbing => classic ? 'Add to Now Playing' : _l.addToAbsorbing;
+  String get absorbNext => classic ? 'Play Next' : _l.absorbNext;
+  String get absorbLast => classic ? 'Play Last' : _l.absorbLast;
+  String get absorbNextAdded => classic ? 'Up next in Now Playing' : _l.absorbNextAdded;
   String get removeFromAbsorbing => classic ? 'Remove from Now Playing' : _l.removeFromAbsorbing;
   String get addedToAbsorbing => classic ? 'Added to Now Playing' : _l.addedToAbsorbing;
   String get removedFromAbsorbing => classic ? 'Removed from Now Playing' : _l.removedFromAbsorbing;

@@ -33,9 +33,19 @@ object PlatformIntegration {
 
         // Bridge ABS playback state to the watch so it can render Now
         // Playing without making its own API calls.
-        MethodChannel(messenger, "com.barnabas.absorb/wear_player")
+        val wearPlayer = MethodChannel(messenger, "com.barnabas.absorb/wear_player")
+        WearPlayerBridge.channel = wearPlayer
+        wearPlayer
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "publishChapters" -> {
+                        val itemId = call.argument<String>("itemId")
+                        val chapters = call.argument<String>("chapters")
+                        if (itemId != null && chapters != null) {
+                            WearPlayerBridge.publishChapters(activity.applicationContext, itemId, chapters)
+                        }
+                        result.success(true)
+                    }
                     "publish" -> {
                         WearPlayerBridge.publish(
                             context = activity.applicationContext,
@@ -50,6 +60,24 @@ object PlatformIntegration {
                             speed = (call.argument<Number>("speed") ?: 1.0).toFloat(),
                             skipBackSec = (call.argument<Number>("skipBackSec") ?: 10).toInt(),
                             skipForwardSec = (call.argument<Number>("skipForwardSec") ?: 30).toInt(),
+                            chapterStartMs = (call.argument<Number>("chapterStartMs") ?: 0).toLong(),
+                            chapterEndMs = (call.argument<Number>("chapterEndMs") ?: 0).toLong(),
+                            autoRewindEnabled = call.argument<Boolean>("autoRewindEnabled") ?: true,
+                            autoRewindMinSec = (call.argument<Number>("autoRewindMinSec") ?: 1.0).toDouble(),
+                            autoRewindMaxSec = (call.argument<Number>("autoRewindMaxSec") ?: 30.0).toDouble(),
+                            autoRewindDelaySec = (call.argument<Number>("autoRewindDelaySec") ?: 0.0).toDouble(),
+                            autoRewindChapterBarrier = call.argument<Boolean>("autoRewindChapterBarrier") ?: false,
+                            autoRewindSessionStart = call.argument<Boolean>("autoRewindSessionStart") ?: false,
+                            skipChapterBarrier = call.argument<Boolean>("skipChapterBarrier") ?: true,
+                            speedAdjustedTime = call.argument<Boolean>("speedAdjustedTime") ?: true,
+                            chapterIndex = (call.argument<Number>("chapterIndex") ?: -1).toInt(),
+                            chapterCount = (call.argument<Number>("chapterCount") ?: 0).toInt(),
+                            sleepMode = call.argument<String>("sleepMode"),
+                            sleepEndsAtMs = (call.argument<Number>("sleepEndsAtMs") ?: 0).toLong(),
+                            sleepChaptersLeft = (call.argument<Number>("sleepChaptersLeft") ?: 0).toInt(),
+                            sleepAddMinutes = (call.argument<Number>("sleepAddMinutes") ?: 5).toInt(),
+                            speedPresets = call.argument<List<Number>>("speedPresets")?.map { it.toFloat() } ?: emptyList(),
+                            themeColor = (call.argument<Number>("themeColor") ?: 0).toLong(),
                         )
                         result.success(true)
                     }
@@ -84,6 +112,7 @@ object PlatformIntegration {
                             isLegacyToken = call.argument<Boolean>("isLegacyToken") ?: false,
                             customHeaders = headers,
                             supportsTokenReturn = call.argument<Boolean>("supportsTokenReturn") ?: false,
+                            backend = call.argument<String>("backend") ?: "abs",
                         )
                         result.success(true)
                     }

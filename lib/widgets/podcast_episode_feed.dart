@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -434,7 +436,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => placeholder,
             )
-          : CachedNetworkImage(
+          : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
               imageUrl: url,
               httpHeaders: lib.mediaHeaders,
               width: 48,

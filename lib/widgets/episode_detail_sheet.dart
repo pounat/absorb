@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../providers/library_provider.dart';
@@ -14,6 +16,7 @@ import '../providers/auth_provider.dart';
 import 'card_buttons.dart';
 import 'html_description.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'playlist_picker_sheet.dart';
 import 'action_pill.dart';
 import 'adaptive_modal.dart';
@@ -519,7 +522,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       if (coverUrl != null)
         Positioned.fill(
           child: RepaintBoundary(
-            child: CachedNetworkImage(
+            child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
               imageUrl: coverUrl, fit: BoxFit.cover,
               httpHeaders: lib.mediaHeaders,
               imageBuilder: (_, p) => ImageFiltered(
@@ -705,18 +708,12 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
               );
             }
           } else {
-            await lib.addToAbsorbingQueue(dlKey);
-            final cached = Map<String, dynamic>.from(widget.podcastItem);
-            cached['recentEpisode'] = Map<String, dynamic>.from(widget.episode);
-            cached['_absorbingKey'] = dlKey;
-            lib.absorbingItemCache[dlKey] = cached;
-            if (context.mounted) {
-              showOverlayToast(
-                context,
-                Wording.of(context).addedToAbsorbing,
-                icon: Icons.add_circle_outline_rounded,
-              );
-            }
+            await addToAbsorbingWithPicker(context, dlKey,
+                item: {
+                  ...widget.podcastItem,
+                  'recentEpisode': Map<String, dynamic>.from(widget.episode),
+                },
+                addedToast: Wording.of(context).addedToAbsorbing);
           }
         }),
       if (!lib.isOffline)

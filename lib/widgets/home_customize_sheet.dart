@@ -281,7 +281,9 @@ class _HomeCustomizeSheetState extends State<HomeCustomizeSheet> {
             final icon = isPlaylist
                 ? Icons.playlist_play_rounded
                 : isCollection
-                    ? Icons.collections_bookmark_rounded
+                    ? (section['smartScope'] == 'true'
+                        ? Icons.filter_alt_rounded
+                        : Icons.collections_bookmark_rounded)
                     : isGenre
                         ? Icons.label_outline_rounded
                         : (_sectionIcons[id] ?? Icons.album_outlined);

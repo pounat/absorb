@@ -180,9 +180,4 @@ class TranscriptChunker {
     );
   }
 
-  /// Mark a stretch as covered without any text - silence or music, so the
-  /// loop moves past it instead of retrying the same window forever.
-  Future<void> markEmpty(double start, double windowSeconds) =>
-      TranscriptLineStore.instance
-          .addLines(key, [TranscriptLine(start, start + windowSeconds, ' ')]);
 }

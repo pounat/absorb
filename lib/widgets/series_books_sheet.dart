@@ -2,9 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'swipe_action.dart';
 import 'card_buttons.dart' show showErrorToast;
 import '../main.dart' show rootNavigatorKey;
@@ -29,6 +32,7 @@ import 'books_sheet_shared.dart';
 import '../services/api_service.dart';
 import '../utils/duration_format.dart';
 import '../utils/app_platform.dart';
+import '../utils/series_number_match.dart';
 
 /// Show a bottom sheet with all books in a series, sorted by sequence.
 /// Can be called from any screen.
@@ -125,7 +129,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final brightness = Theme.of(context).brightness;
     final ImageProvider provider = url.startsWith('/')
         ? FileImage(File(url))
-        : CachedNetworkImageProvider(url, headers: context.read<LibraryProvider>().mediaHeaders);
+        : CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: context.read<LibraryProvider>().mediaHeaders);
     PaletteGenerator.fromImageProvider(provider, maximumColorCount: 16).then((palette) {
       final seed = accentFromCoverPalette(palette);
       if (seed == null || !mounted) return;
@@ -258,7 +262,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     const groupHeaderExtent = 68.0;
     final columns = coverGridCount(context);
     final width = context.size?.width ?? MediaQuery.sizeOf(context).width;
-    final gridRowExtent = ((width - 32 - 8 * (columns - 1)) / columns) / 0.65 + 8;
+    final gridRowExtent = ((width - 32 - 10 * (columns - 1)) / columns) / 0.65 + 10;
 
     if (!_collapseSeries) {
       final index = _books.indexWhere((b) => b['id'] == bookId);
@@ -895,9 +899,10 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     );
     if (proceed != true || !mounted) return;
 
-    // Collect owned titles and ASINs for cross-referencing
+    // Collect owned titles, ASINs and series numbers for cross-referencing
     final ownedTitles = <String>{};
     final ownedAsins = <String>{};
+    final ownedNumbers = SeriesNumberOwnership();
     for (final book in _books) {
       final media = book['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
@@ -905,6 +910,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       final asin = metadata['asin'] as String? ?? '';
       if (title.isNotEmpty) ownedTitles.add(title);
       if (asin.isNotEmpty) ownedAsins.add(asin);
+      ownedNumbers.add(_getRawSequence(book), title, asin);
     }
 
     // Try to get a series ASIN from one of the books via Audnexus
@@ -971,6 +977,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       seriesAsin: seriesAsin,
       ownedTitles: ownedTitles,
       ownedAsins: ownedAsins,
+      ownedNumbers: ownedNumbers,
     );
   }
 
@@ -1039,7 +1046,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final url = lib.getCoverUrl(bookId);
     if (url == null || url.isEmpty) return const ColoredBox(color: Colors.black26);
     if (url.startsWith('/')) return Image.file(File(url), fit: BoxFit.cover);
-    return CachedNetworkImage(
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
       imageUrl: url,
       httpHeaders: lib.mediaHeaders,
       fit: BoxFit.cover,
@@ -1397,17 +1404,20 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
       child: Column(children: [
         const SizedBox(height: 12),
-        Center(
-          child: Container(
-            width: 32,
-            height: 4,
-            decoration: BoxDecoration(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(2),
+        // A desktop dialog has nothing to drag.
+        if (!ModalSurface.isDesktopOf(context)) ...[
+          Center(
+            child: Container(
+              width: 32,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
+        ],
         if (_books.isNotEmpty) _coverStrip(lib, accent, nextUp),
         const SizedBox(height: 10),
         Text(widget.seriesName,
@@ -1446,7 +1456,9 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: ModalSurface.isDesktopOf(context)
+            ? BorderRadius.zero
+            : const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: ListenableBuilder(
         listenable: DownloadService(),
@@ -1558,6 +1570,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final progress = lib.getProgress(bookId);
     final isFinished = lib.getProgressData(bookId)?['isFinished'] == true;
+    final isSkimmed = lib.getProgressData(bookId)?['skimmed'] == true;
     final isDownloaded =
         !AppPlatform.lacksPhonePlugins && DownloadService().isDownloaded(bookId);
     final isDownloading =
@@ -1580,12 +1593,9 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                 icon: Icons.add_circle_outline_rounded,
                 color: cs.primary,
                 onTrigger: () async {
-                  await lib.addToAbsorbingQueue(bookId);
-                  lib.absorbingItemCache[bookId] = Map<String, dynamic>.from(book);
-                  if (context.mounted) {
-                    HapticFeedback.mediumImpact();
-                    showOverlayToast(context, Wording.of(context).episodeListAddedToAbsorbing(bookTitle), icon: Icons.add_circle_outline_rounded);
-                  }
+                  await addToAbsorbingWithPicker(context, bookId,
+                      item: book,
+                      addedToast: Wording.of(context).episodeListAddedToAbsorbing(bookTitle));
                 },
               ),
         child: Card(
@@ -1615,7 +1625,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                           ? (!AppPlatform.lacksPhonePlugins && coverUrl.startsWith('/')
                               ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => _placeholder(cs))
-                              : CachedNetworkImage(
+                              : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                   imageUrl: coverUrl, fit: BoxFit.cover,
                                   httpHeaders: lib.mediaHeaders,
                                   placeholder: (_, __) => _placeholder(cs),
@@ -1654,7 +1664,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                       ),
                     if (isFinished || isDownloaded)
                       Positioned(left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                       ),
                   ]),
                 ),

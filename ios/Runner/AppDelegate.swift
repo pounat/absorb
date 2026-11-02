@@ -4,10 +4,17 @@ import Flutter
 import UIKit
 import AVFoundation
 import AVKit
+import BackgroundTasks
 import CoreMedia
+import Intents
 import MediaPlayer
 import just_audio
 import os
+import SwiftUI
+#if canImport(Translation)
+import Translation
+#endif
+import UserNotifications
 
 let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadlessExecution: true)
 
@@ -15,6 +22,11 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 @objc class AppDelegate: FlutterAppDelegate {
   private var widgetChannel: FlutterMethodChannel?
   private var volumeKeysChannel: FlutterMethodChannel?
+  private var backgroundChannel: FlutterMethodChannel?
+  // New podcast episodes and release-day books, checked when iOS gives the
+  // app background refresh time. Listed in Info.plist.
+  private let episodeCheckTaskId = "com.barnabas.absorb.episodeNotifCheck"
+  private let episodeCheckMinutesKey = "absorb_episode_check_minutes"
   private let volumeKeyWatcher = VolumeKeyWatcher()
 
   // Native log lines emitted before Dart's channel handler registers, kept
@@ -94,7 +106,13 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     AbsorbAudioEngine.logSink = { [weak self] line in
       self?.logToFlutter(line)
     }
+    SiriBridge.logSink = { [weak self] line in
+      self?.logToFlutter(line)
+    }
     AbsorbAudioBridge.logSink = { [weak self] line in
+      self?.logToFlutter(line)
+    }
+    AudioWindowExtractor.logSink = { [weak self] line in
       self?.logToFlutter(line)
     }
 
@@ -127,7 +145,24 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 
     registerAudioSessionObservers()
 
+    // Notifications the app shows (new episodes, release days) reach the
+    // plugin through FlutterAppDelegate, for taps and showing them in-app.
+    UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
+
+    // Must be registered before launch finishes, or iOS drops the task.
+    registerEpisodeCheckTask()
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Siri's "Play <book> on Absorb" runs here in the app process (in-app
+  /// intent handling), so playback starts without an Intents extension.
+  /// Anything else goes on to Flutter's own handling for plugins.
+  override func application(_ application: UIApplication, handlerFor intent: INIntent) -> Any? {
+    if intent is INPlayMediaIntent {
+      return SiriMediaHandler.shared
+    }
+    return super.application(application, handlerFor: intent)
   }
 
   private func registerAudioSessionObservers() {
@@ -223,6 +258,63 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     ) { [weak self] note in
       if let msg = note.userInfo?["message"] as? String {
         self?.logToFlutter(msg)
+      }
+    }
+  }
+
+  private func registerEpisodeCheckTask() {
+    BGTaskScheduler.shared.register(forTaskWithIdentifier: episodeCheckTaskId, using: nil) { [weak self] task in
+      guard let self, let refresh = task as? BGAppRefreshTask else {
+        task.setTaskCompleted(success: false)
+        return
+      }
+      self.runEpisodeCheck(refresh)
+    }
+  }
+
+  /// Asks iOS for the next background refresh, no sooner than the chosen
+  /// interval. iOS decides when it actually comes. A request already waiting
+  /// is kept unless [replacing]: the app asks on every launch, and starting
+  /// the wait over each time could push the refresh off for good.
+  private func scheduleEpisodeCheck(replacing: Bool) {
+    let minutes = UserDefaults.standard.integer(forKey: episodeCheckMinutesKey)
+    guard minutes > 0 else {
+      BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: episodeCheckTaskId)
+      return
+    }
+    BGTaskScheduler.shared.getPendingTaskRequests { [weak self] pending in
+      guard let self else { return }
+      if !replacing && pending.contains(where: { $0.identifier == self.episodeCheckTaskId }) { return }
+      let request = BGAppRefreshTaskRequest(identifier: self.episodeCheckTaskId)
+      request.earliestBeginDate = Date(timeIntervalSinceNow: TimeInterval(max(minutes, 15) * 60))
+      do {
+        try BGTaskScheduler.shared.submit(request)
+      } catch {
+        self.logToFlutter("[EpisodeNotif] background refresh not scheduled: \(error.localizedDescription)")
+      }
+    }
+  }
+
+  /// The check runs in the app's own Dart code. On a cold background launch
+  /// the message waits in the channel until Dart is listening.
+  private func runEpisodeCheck(_ task: BGAppRefreshTask) {
+    scheduleEpisodeCheck(replacing: true)
+    var done = false
+    let finish: (Bool) -> Void = { ok in
+      DispatchQueue.main.async {
+        guard !done else { return }
+        done = true
+        task.setTaskCompleted(success: ok)
+      }
+    }
+    task.expirationHandler = { finish(false) }
+    DispatchQueue.main.async { [weak self] in
+      guard let channel = self?.backgroundChannel else {
+        finish(false)
+        return
+      }
+      channel.invokeMethod("runEpisodeCheck", arguments: nil) { reply in
+        finish(!(reply is FlutterError))
       }
     }
   }
@@ -348,10 +440,26 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 
     IOSQueueAdvancer.shared.register(with: messenger)
     AbsorbAudioBridge.shared.register(with: messenger)
+    SiriBridge.shared.register(with: messenger)
 
     // CarPlay Now Playing custom buttons (chapter nav, speed, bookmark). These
     // decorate CPNowPlayingTemplate only — the lock screen is untouched.
     CarPlayNowPlaying.shared.register(with: messenger)
+
+    let background = FlutterMethodChannel(name: "com.barnabas.absorb/background",
+                                          binaryMessenger: messenger)
+    background.setMethodCallHandler { [weak self] call, result in
+      guard let self, call.method == "scheduleEpisodeCheck" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let minutes = (call.arguments as? [String: Any])?["minutes"] as? Int ?? 0
+      let changed = UserDefaults.standard.integer(forKey: self.episodeCheckMinutesKey) != minutes
+      UserDefaults.standard.set(minutes, forKey: self.episodeCheckMinutesKey)
+      self.scheduleEpisodeCheck(replacing: changed)
+      result(nil)
+    }
+    backgroundChannel = background
 
     // iOS audio output device switching is not implemented yet — iOS routes
     // through the system's MPVolumeView/AVRoutePicker rather than letting apps
@@ -450,6 +558,28 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       default:
         result(FlutterMethodNotImplemented)
       }
+    }
+
+    // The phone's time zone, and how far another one (the zone BookOrbit
+    // counts days in) is from UTC right now, so the Stats screen can say when
+    // the two split days differently.
+    let timeZoneChannel = FlutterMethodChannel(name: "com.absorb.time_zone",
+                                               binaryMessenger: messenger)
+    timeZoneChannel.setMethodCallHandler { (call, result) in
+      guard call.method == "compare" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let here = TimeZone.current
+      var answer: [String: Any] = [
+        "id": here.identifier,
+        "offsetSeconds": here.secondsFromGMT(),
+      ]
+      if let otherId = (call.arguments as? [String: Any])?["other"] as? String,
+         let other = TimeZone(identifier: otherId) {
+        answer["otherOffsetSeconds"] = other.secondsFromGMT()
+      }
+      result(answer)
     }
 
     // Bookmark clip export: extract a time window of a book and write a .m4a.
@@ -650,19 +780,24 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
       case "primeNowPlaying":
         let title = args?["title"] as? String ?? ""
         let artist = args?["artist"] as? String ?? ""
+        let album = args?["album"] as? String ?? ""
         let duration = args?["duration"] as? Double ?? 0
         let elapsed = args?["elapsed"] as? Double ?? 0
         // Merge into what is on the tile for the same book rather than
         // replacing it: a full replace dropped the artwork audio_service had
         // set, and audio_service only rewrites when its own copy changes, so
         // the cover stayed missing on a locked phone until the next chapter.
-        // The subtitle is "Author · Book", so a match means the same book and
-        // its artwork is still right; anything else starts clean.
+        // The album is the book title whatever the two lines are set to show,
+        // so a match means the same book and its artwork is still right;
+        // anything else starts clean.
         let existing = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-        let sameBook = (existing[MPMediaItemPropertyArtist] as? String) == artist
+        let sameBook = !album.isEmpty && (existing[MPMediaItemPropertyAlbumTitle] as? String) == album
         var info: [String: Any] = sameBook ? existing : [:]
         info[MPMediaItemPropertyTitle] = title
         info[MPMediaItemPropertyArtist] = artist
+        if !album.isEmpty {
+          info[MPMediaItemPropertyAlbumTitle] = album
+        }
         info[MPNowPlayingInfoPropertyPlaybackRate] = 1.0
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
         if duration > 0 {
@@ -697,6 +832,39 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
             result(true)
           }
         }
+
+      case "translateText":
+        // Reader Translate: Apple's translation sheet, the same one the system
+        // text menu offers. Before iOS 17.4 Dart falls back to the web.
+        let text = args?["text"] as? String ?? ""
+        #if canImport(Translation)
+        if #available(iOS 17.4, *), !text.isEmpty {
+          DispatchQueue.main.async {
+            let scene = UIApplication.shared.connectedScenes
+              .compactMap { $0 as? UIWindowScene }
+              .first { $0.activationState == .foregroundActive }
+            let window = scene?.windows.first { $0.isKeyWindow } ?? scene?.windows.first
+            guard var presenter = window?.rootViewController else {
+              result(false)
+              return
+            }
+            while let presented = presenter.presentedViewController {
+              presenter = presented
+            }
+            weak var hostRef: UIViewController?
+            let host = UIHostingController(rootView: TranslateSheetHost(text: text) {
+              hostRef?.dismiss(animated: false)
+            })
+            hostRef = host
+            host.view.backgroundColor = .clear
+            host.modalPresentationStyle = .overFullScreen
+            presenter.present(host, animated: false)
+            result(true)
+          }
+          return
+        }
+        #endif
+        result(false)
 
       case "init":
         result([
@@ -897,18 +1065,41 @@ private final class VolumeKeyWatcher {
 /// conversion and downmix via its output settings, so no ffmpeg is needed.
 /// Used by the opt-in bookmark transcription feature.
 enum AudioWindowExtractor {
+  static var logSink: ((String) -> Void)?
+
+  private static func log(_ line: String) {
+    NSLog("%@", line)
+    logSink?(line)
+  }
+
+  private static func describe(_ track: AVAssetTrack) -> String {
+    let descriptions = track.formatDescriptions as! [CMFormatDescription]
+    guard let first = descriptions.first,
+          let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(first)?.pointee else {
+      return "unknown format"
+    }
+    let id = asbd.mFormatID
+    let bytes = [UInt8((id >> 24) & 0xff), UInt8((id >> 16) & 0xff),
+                 UInt8((id >> 8) & 0xff), UInt8(id & 0xff)]
+    let codec = String(bytes: bytes, encoding: .ascii)?
+      .trimmingCharacters(in: .whitespaces) ?? "\(id)"
+    return "\(codec) \(Int(asbd.mSampleRate))Hz \(asbd.mChannelsPerFrame)ch"
+  }
+
   static func extractWav(sourcePath: String, startSeconds: Double, durationSeconds: Double, outPath: String) -> Bool {
     let asset = AVURLAsset(url: URL(fileURLWithPath: sourcePath))
     guard let track = asset.tracks(withMediaType: .audio).first else {
-      NSLog("[Transcribe] no audio track in %@", sourcePath)
+      log("[Transcribe] no audio track in \(sourcePath)")
       return false
     }
+    log("[Transcribe] decoding \(URL(fileURLWithPath: sourcePath).lastPathComponent): "
+        + "\(describe(track)), \(Int(startSeconds))s +\(Int(durationSeconds))s")
 
     let reader: AVAssetReader
     do {
       reader = try AVAssetReader(asset: asset)
     } catch {
-      NSLog("[Transcribe] reader init failed: %@", error.localizedDescription)
+      log("[Transcribe] reader init failed: \(error.localizedDescription)")
       return false
     }
 
@@ -930,7 +1121,7 @@ enum AudioWindowExtractor {
     guard reader.canAdd(output) else { return false }
     reader.add(output)
     guard reader.startReading() else {
-      NSLog("[Transcribe] startReading failed: %@", reader.error?.localizedDescription ?? "nil")
+      log("[Transcribe] startReading failed: \(reader.error?.localizedDescription ?? "nil")")
       return false
     }
 
@@ -953,7 +1144,7 @@ enum AudioWindowExtractor {
     }
 
     if reader.status == .failed {
-      NSLog("[Transcribe] reader failed: %@", reader.error?.localizedDescription ?? "nil")
+      log("[Transcribe] reader failed: \(reader.error?.localizedDescription ?? "nil")")
       return false
     }
     if pcm.isEmpty { return false }
@@ -996,3 +1187,29 @@ enum AudioWindowExtractor {
     }
   }
 }
+
+#if canImport(Translation)
+/// Invisible full-screen host for Apple's translation sheet; tells the caller
+/// to take it down once the sheet closes.
+@available(iOS 17.4, *)
+struct TranslateSheetHost: View {
+  let text: String
+  let onDone: () -> Void
+  @State private var shown = false
+
+  init(text: String, onDone: @escaping () -> Void) {
+    self.text = text
+    self.onDone = onDone
+  }
+
+  var body: some View {
+    Color.clear
+      .ignoresSafeArea()
+      .translationPresentation(isPresented: $shown, text: text, attachmentAnchor: .point(.center))
+      .onAppear { DispatchQueue.main.async { shown = true } }
+      .onChange(of: shown) { _, isShown in
+        if !isShown { onDone() }
+      }
+  }
+}
+#endif

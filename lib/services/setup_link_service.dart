@@ -5,7 +5,13 @@ import '../utils/server_url.dart';
 class SetupLinkData {
   final String serverUrl;
   final String username;
-  final String apiKey;
+
+  /// Signs straight in. Null on a BookOrbit password link.
+  final String? apiKey;
+
+  /// A BookOrbit password link's token: the person picks their own password
+  /// with it, then signs in with that.
+  final String? passwordToken;
   final String? userId;
   final Map<String, String> customHeaders;
 
@@ -15,7 +21,10 @@ class SetupLinkData {
     required this.apiKey,
     required this.userId,
     required this.customHeaders,
+    this.passwordToken,
   });
+
+  bool get setsPassword => passwordToken != null;
 }
 
 class SetupLinkException implements Exception {
@@ -41,6 +50,35 @@ class SetupLinkService {
     final encoded = base64Url.encode(utf8.encode(json)).replaceAll('=', '');
     return Uri(scheme: scheme, host: host, pathSegments: [encoded]);
   }
+
+  /// A link that lets someone pick the password for a new or reset
+  /// BookOrbit account, then signs them in. [token] is the one in the
+  /// server's password link, so it works for as long as that link does.
+  static Uri createBookOrbitPasswordLink({
+    required String serverUrl,
+    required String username,
+    required String token,
+    Map<String, String> customHeaders = const {},
+  }) =>
+      createLink({
+        'version': 3,
+        'setup': true,
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+        'accounts': [
+          {
+            'serverUrl': serverUrl,
+            'username': username,
+            'backend': 'bookorbit',
+            'passwordToken': token,
+          },
+        ],
+        if (customHeaders.isNotEmpty) 'customHeaders': customHeaders,
+      });
+
+  // A line break in a header would let a link smuggle extra headers or a
+  // second request line into every call to the server.
+  static final _headerName = RegExp(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}$");
+  static const _maxHeaderValueLength = 4096;
 
   static SetupLinkData parseLink(Uri uri) {
     if (!isSetupLink(uri) || uri.pathSegments.length != 1) {
@@ -81,12 +119,14 @@ class SetupLinkService {
     final account = Map<String, dynamic>.from(accounts.single as Map);
     final rawServerUrl = account['serverUrl'];
     final username = account['username'];
-    final apiKey = account['token'];
+    final passwordToken = account['backend'] == 'bookorbit' ? account['passwordToken'] : null;
+    final apiKey = passwordToken is String ? '' : account['token'];
     final userId = account['userId'];
 
     if (rawServerUrl is! String ||
         username is! String ||
         apiKey is! String ||
+        (passwordToken != null && passwordToken is! String) ||
         (userId != null && userId is! String)) {
       throw const SetupLinkException('Setup account fields are invalid');
     }
@@ -98,7 +138,7 @@ class SetupLinkService {
         !parsedServerUrl.hasAuthority ||
         !{'http', 'https'}.contains(parsedServerUrl.scheme.toLowerCase()) ||
         username.trim().isEmpty ||
-        apiKey.trim().isEmpty) {
+        (passwordToken is String ? passwordToken.trim().isEmpty : apiKey.trim().isEmpty)) {
       throw const SetupLinkException('Setup account is incomplete');
     }
 
@@ -109,7 +149,11 @@ class SetupLinkService {
         throw const SetupLinkException('Custom headers are invalid');
       }
       for (final entry in rawHeaders.entries) {
-        if (entry.key is! String || entry.value is! String) {
+        if (entry.key is! String ||
+            entry.value is! String ||
+            !_headerName.hasMatch(entry.key as String) ||
+            (entry.value as String).length > _maxHeaderValueLength ||
+            (entry.value as String).contains(RegExp(r'[\r\n\x00]'))) {
           throw const SetupLinkException('Custom headers are invalid');
         }
         headers[entry.key as String] = entry.value as String;
@@ -119,7 +163,8 @@ class SetupLinkService {
     return SetupLinkData(
       serverUrl: serverUrl,
       username: username.trim(),
-      apiKey: apiKey,
+      apiKey: passwordToken is String ? null : apiKey,
+      passwordToken: passwordToken as String?,
       userId: userId as String?,
       customHeaders: Map.unmodifiable(headers),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
@@ -76,7 +77,14 @@ class _CollectionPickerSheetState extends State<CollectionPickerSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final lib = context.watch<LibraryProvider>();
-    final collections = lib.collections;
+    // A BookOrbit collection only takes books from its owner, and a Smart
+    // Scope takes none: its rules pick its books.
+    final collections = context.read<AuthProvider>().isBookOrbit
+        ? lib.collections.where((c) {
+            final bo = (c as Map)['bookOrbit'] as Map?;
+            return bo?['isOwner'] == true && bo?['smartScope'] != true;
+          }).toList()
+        : lib.collections;
     final l = AppLocalizations.of(context)!;
 
     return SafeArea(
