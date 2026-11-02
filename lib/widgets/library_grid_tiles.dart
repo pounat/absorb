@@ -83,7 +83,13 @@ class _GridBookTileState extends State<GridBookTile> {
     final title = metadata['title'] as String? ?? l.unknown;
     final subtitle = metadata['subtitle'] as String? ?? '';
     final author = metadata['authorName'] as String? ?? '';
-    final coverUrl = lib.getCoverUrl(itemId);
+    // The 400 thumbnail blurs on desktop and web tiles, and on any tile past
+    // 400 physical pixels: ask for the big cover there. Phones keep the
+    // thumbnail, which is sharp at their tile size and a fraction of the
+    // download.
+    final bigCover = AppPlatform.lacksPhonePlugins ||
+        coverGridDecodeWidth(context) > 400;
+    final coverUrl = lib.getCoverUrl(itemId, width: bigCover ? 800 : 400);
     final progress = lib.getProgress(itemId);
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final isDownloaded = _dl.isDownloaded(itemId);
@@ -348,7 +354,14 @@ class _GridBookTileState extends State<GridBookTile> {
   ) {
     final placeholder = CoverPlaceholder(title: title, author: author);
     final isSquare = (aspectRatio - 1.0).abs() < 0.01;
-    final decodeWidth = coverGridDecodeWidth(context);
+    // Decode at the width the grid actually gave the tile. The desktop grid
+    // sizes tiles by a zoomable extent, not the phone column count, so the
+    // phone estimate came out small and the cover was stretched to fit.
+    return LayoutBuilder(builder: (context, constraints) {
+    final tileWidth = constraints.maxWidth;
+    final decodeWidth = tileWidth.isFinite && tileWidth > 0
+        ? (tileWidth * MediaQuery.devicePixelRatioOf(context)).round()
+        : coverGridDecodeWidth(context);
     if (!isSquare) {
       if (coverUrl.startsWith('/')) {
         return Image.file(File(coverUrl), fit: BoxFit.cover,
@@ -384,6 +397,7 @@ class _GridBookTileState extends State<GridBookTile> {
           placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder),
     ]);
+    });
   }
 }
 
