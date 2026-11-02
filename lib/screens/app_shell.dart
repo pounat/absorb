@@ -1277,6 +1277,11 @@ class _AppShellState extends State<AppShell>
       );
     }
 
+    // BookOrbit admins get their own pages; Audiobookshelf admins the
+    // server admin screen.
+    final showAdmin = auth.isBookOrbit
+        ? auth.bookOrbitAdmin?.any == true
+        : auth.isAdmin;
     void openAdmin() {
       if (_adminRouteOpen) return;
       final navigator = _paneNavigatorKey.currentState;
@@ -1284,7 +1289,9 @@ class _AppShellState extends State<AppShell>
       _adminRouteOpen = true;
       unawaited(navigator
           .push(MaterialPageRoute<void>(
-            builder: (_) => AdminScreen(taskTracker: _serverTaskTracker),
+            builder: (_) => auth.isBookOrbit
+                ? const BookOrbitAdminScreen()
+                : AdminScreen(taskTracker: _serverTaskTracker),
           ))
           .whenComplete(() => _adminRouteOpen = false));
     }
@@ -1428,7 +1435,7 @@ class _AppShellState extends State<AppShell>
                 ],
               ),
             ),
-            if (auth.isAdmin)
+            if (showAdmin)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: extended

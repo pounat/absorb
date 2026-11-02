@@ -2157,7 +2157,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                   ),
 
                 // ── Admin Controls ──
-                if (auth.isAdmin)
+                // The desktop sidebar carries the admin button instead.
+                if (auth.isAdmin && !isDesktopWorkspace(context))
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: Material(
@@ -2204,7 +2205,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
 
-                if (auth.bookOrbitAdmin?.any == true)
+                if (auth.bookOrbitAdmin?.any == true && !isDesktopWorkspace(context))
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: Material(
