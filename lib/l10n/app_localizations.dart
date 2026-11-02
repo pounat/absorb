@@ -23594,6 +23594,330 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t make a copy without the narration.'**
   String get boEmailNoCopy;
+
+  /// No description provided for @boForgotLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get boForgotLink;
+
+  /// No description provided for @boForgotTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get boForgotTitle;
+
+  /// No description provided for @boForgotBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the email on your account and the server will send you a link to choose a new password.'**
+  String get boForgotBody;
+
+  /// No description provided for @boForgotSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send link'**
+  String get boForgotSend;
+
+  /// No description provided for @boForgotSent.
+  ///
+  /// In en, this message translates to:
+  /// **'If that email is on an account, a link is on its way. Open it to choose a new password, then sign in here.'**
+  String get boForgotSent;
+
+  /// No description provided for @boForgotNotSetUp.
+  ///
+  /// In en, this message translates to:
+  /// **'This server isn\'t set up to send email. Ask whoever runs it for a password link.'**
+  String get boForgotNotSetUp;
+
+  /// No description provided for @boForgotTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many tries. Wait a while and try again.'**
+  String get boForgotTooMany;
+
+  /// No description provided for @boActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading activity'**
+  String get boActivityTitle;
+
+  /// No description provided for @boActivityPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeps their reading activity private'**
+  String get boActivityPrivate;
+
+  /// No description provided for @boActivitySharesSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares a summary. They can see when you view it.'**
+  String get boActivitySharesSummary;
+
+  /// No description provided for @boActivitySharesDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares details, including books. They can see when you view it.'**
+  String get boActivitySharesDetails;
+
+  /// No description provided for @boActivityNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This person can see that you viewed this.'**
+  String get boActivityNotice;
+
+  /// No description provided for @boActivityNowPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'This person isn\'t sharing their reading activity anymore.'**
+  String get boActivityNowPrivate;
+
+  /// No description provided for @boActivityLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load reading activity.'**
+  String get boActivityLoadFailed;
+
+  /// No description provided for @boActivityEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No reading in this period'**
+  String get boActivityEmpty;
+
+  /// No description provided for @boActivityReadingTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading time'**
+  String get boActivityReadingTime;
+
+  /// No description provided for @boActivitySessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get boActivitySessions;
+
+  /// No description provided for @boActivityActiveDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Active days'**
+  String get boActivityActiveDays;
+
+  /// No description provided for @boActivityStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Books started'**
+  String get boActivityStarted;
+
+  /// No description provided for @boActivityFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Books finished'**
+  String get boActivityFinished;
+
+  /// No description provided for @boActivityTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily reading'**
+  String get boActivityTrend;
+
+  /// No description provided for @boActivitySources.
+  ///
+  /// In en, this message translates to:
+  /// **'Read on'**
+  String get boActivitySources;
+
+  /// No description provided for @boActivityFormats.
+  ///
+  /// In en, this message translates to:
+  /// **'Formats'**
+  String get boActivityFormats;
+
+  /// No description provided for @boActivityGenres.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get boActivityGenres;
+
+  /// No description provided for @boActivityTopBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Most read'**
+  String get boActivityTopBooks;
+
+  /// No description provided for @boActivityRecentBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently read'**
+  String get boActivityRecentBooks;
+
+  /// No description provided for @boActivityTopAuthors.
+  ///
+  /// In en, this message translates to:
+  /// **'Top authors'**
+  String get boActivityTopAuthors;
+
+  /// No description provided for @boActivityTopGenres.
+  ///
+  /// In en, this message translates to:
+  /// **'Top genres'**
+  String get boActivityTopGenres;
+
+  /// No description provided for @boActivityTopSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Top series'**
+  String get boActivityTopSeries;
+
+  /// No description provided for @boActivityTopNarrators.
+  ///
+  /// In en, this message translates to:
+  /// **'Top narrators'**
+  String get boActivityTopNarrators;
+
+  /// No description provided for @boActivityUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled book'**
+  String get boActivityUntitled;
+
+  /// No description provided for @boActivitySourceWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Web reader'**
+  String get boActivitySourceWeb;
+
+  /// No description provided for @boActivitySourceIos.
+  ///
+  /// In en, this message translates to:
+  /// **'iOS app'**
+  String get boActivitySourceIos;
+
+  /// No description provided for @boActivitySourceWatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Watch'**
+  String get boActivitySourceWatch;
+
+  /// No description provided for @boActivitySourceAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Android app'**
+  String get boActivitySourceAndroid;
+
+  /// No description provided for @boActivitySourceManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get boActivitySourceManual;
+
+  /// No description provided for @boActivitySourceUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get boActivitySourceUnknown;
+
+  /// No description provided for @boActivityGenreSciFi.
+  ///
+  /// In en, this message translates to:
+  /// **'Science fiction'**
+  String get boActivityGenreSciFi;
+
+  /// No description provided for @boActivityGenreFantasy.
+  ///
+  /// In en, this message translates to:
+  /// **'Fantasy'**
+  String get boActivityGenreFantasy;
+
+  /// No description provided for @boActivityGenreMystery.
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery and thriller'**
+  String get boActivityGenreMystery;
+
+  /// No description provided for @boActivityGenreRomance.
+  ///
+  /// In en, this message translates to:
+  /// **'Romance'**
+  String get boActivityGenreRomance;
+
+  /// No description provided for @boActivityGenreHorror.
+  ///
+  /// In en, this message translates to:
+  /// **'Horror'**
+  String get boActivityGenreHorror;
+
+  /// No description provided for @boActivityGenreHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History and biography'**
+  String get boActivityGenreHistory;
+
+  /// No description provided for @boActivityGenreScience.
+  ///
+  /// In en, this message translates to:
+  /// **'Science and technology'**
+  String get boActivityGenreScience;
+
+  /// No description provided for @boActivityGenreBusiness.
+  ///
+  /// In en, this message translates to:
+  /// **'Business and economics'**
+  String get boActivityGenreBusiness;
+
+  /// No description provided for @boActivityGenreSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-development'**
+  String get boActivityGenreSelf;
+
+  /// No description provided for @boActivityGenreSociety.
+  ///
+  /// In en, this message translates to:
+  /// **'Society and culture'**
+  String get boActivityGenreSociety;
+
+  /// No description provided for @boActivityGenreChildren.
+  ///
+  /// In en, this message translates to:
+  /// **'Children and young adult'**
+  String get boActivityGenreChildren;
+
+  /// No description provided for @boActivityGenreComics.
+  ///
+  /// In en, this message translates to:
+  /// **'Comics and graphic novels'**
+  String get boActivityGenreComics;
+
+  /// No description provided for @boActivityGenrePoetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Poetry'**
+  String get boActivityGenrePoetry;
+
+  /// No description provided for @boActivityGenreOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get boActivityGenreOther;
+
+  /// No description provided for @boActivityDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days'**
+  String boActivityDays(int count);
+
+  /// No description provided for @boActivityMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min'**
+  String boActivityMinutes(int count);
+
+  /// No description provided for @boActivityHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} h'**
+  String boActivityHours(double count);
 }
 
 class _AppLocalizationsDelegate

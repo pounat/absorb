@@ -2160,6 +2160,9 @@ class LibraryScreenState extends State<LibraryScreen>
   /// AppShell.openLibraryWithTagFilterGlobal so a tag chip tapped from the
   /// book detail sheet drops the user into the matching library view.
   void applyTagFilter(String tag) {
+    // The sheet may have been opened from search results: leave search
+    // so the filtered library shows instead of the results list.
+    clearSearch();
     if (_currentTab != 0 && _tabController != null) {
       _tabController!.animateTo(0);
     }
@@ -2169,6 +2172,7 @@ class LibraryScreenState extends State<LibraryScreen>
   /// Switch to the Books sub-tab (if needed) and apply a genre filter.
   /// Mirrors [applyTagFilter] for genre chips tapped from book detail.
   void applyGenreFilter(String genre) {
+    clearSearch();
     if (_currentTab != 0 && _tabController != null) {
       _tabController!.animateTo(0);
     }

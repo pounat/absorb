@@ -25,6 +25,7 @@ class _BoHttpError implements Exception {
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map && decoded['code'] is String) return decoded['code'] as String;
+      if (decoded is Map && decoded['errorCode'] is String) return decoded['errorCode'] as String;
     } catch (_) {}
     return null;
   }
@@ -538,6 +539,37 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       RegExp('[a-z]').hasMatch(password) &&
       RegExp('[A-Z]').hasMatch(password) &&
       RegExp(r'\d').hasMatch(password);
+
+  /// Asks the server to email a password link. It answers the same whether or
+  /// not the address has an account, so [BoPasswordResetResult.sent] only says
+  /// the request was taken.
+  static Future<BoPasswordResetResult> requestPasswordReset({
+    required String serverUrl,
+    required String email,
+    Map<String, String> customHeaders = const {},
+  }) async {
+    try {
+      final r = await http
+          .post(
+            Uri.parse('${_v1Of(serverUrl)}/auth/forgot-password'),
+            headers: {
+              ...customHeaders,
+              'Content-Type': 'application/json',
+              if (!kIsWeb) 'User-Agent': ApiService.userAgent,
+            },
+            body: jsonEncode({'email': email.trim()}),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (r.statusCode >= 200 && r.statusCode < 300) return BoPasswordResetResult.sent;
+      if (r.statusCode == 503) return BoPasswordResetResult.notSetUp;
+      if (r.statusCode == 429) return BoPasswordResetResult.tooManyTries;
+      debugPrint('[BookOrbit] password reset request returned ${r.statusCode}');
+      return BoPasswordResetResult.failed;
+    } catch (e) {
+      debugPrint('[BookOrbit] password reset request failed: $e');
+      return BoPasswordResetResult.failed;
+    }
+  }
 
   /// Sets a password from a password link. [message] is BookOrbit's reason
   /// when it refused.

@@ -182,7 +182,16 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     final qpId = await PlayerSettings.getQueuePlaylistId();
     final qcName = await PlayerSettings.getQueueCollectionName();
     final showUpNext = await PlayerSettings.getShowUpNextLabel();
-    if (mounted) {
+    if (!mounted) return;
+    // build() calls this on every pass, so a setState with nothing new would
+    // schedule the next build and keep the screen rebuilding without end.
+    final changed = mode != _queueMode ||
+        bm != _bookQueueMode ||
+        pm != _podcastQueueMode ||
+        qpId != _queuePlaylistId ||
+        qcName != _queueCollectionName ||
+        showUpNext != _showUpNextLabel;
+    if (changed) {
       setState(() {
         _queueMode = mode;
         _bookQueueMode = bm;
@@ -191,8 +200,8 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         _queueCollectionName = qcName;
         _showUpNextLabel = showUpNext;
       });
-      _refreshUpNext();
     }
+    _refreshUpNext();
   }
 
   bool _showUpNextLabel = true;

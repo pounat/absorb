@@ -7,6 +7,7 @@ import '_audio_player.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'download_service.dart';
@@ -2956,8 +2957,27 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   /// MUST be called after Activity is ready.
+  /// Whether the phone is on Wi-Fi or wired, where a server push is cheap.
+  /// On cellular each push holds the modem awake for a while after, so
+  /// progress goes up less often there.
+  static bool _onUnmeteredNetwork = true;
+  static StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  static void _noteConnectivity(List<ConnectivityResult> result) {
+    _onUnmeteredNetwork = result.contains(ConnectivityResult.wifi) ||
+        result.contains(ConnectivityResult.ethernet);
+  }
+
   static Future<void> init() async {
     if (_handler != null) return; // Already initialized
+    if (_connectivitySub == null) {
+      try {
+        _noteConnectivity(await Connectivity().checkConnectivity());
+        _connectivitySub =
+            Connectivity().onConnectivityChanged.listen(_noteConnectivity);
+      } catch (e) {
+        debugPrint('[Player] connectivity watch failed: $e');
+      }
+    }
     // Reset for hot restart — previous completer may already be completed
     // while _handler was reset to null by the Dart VM restart.
     if (_initCompleter.isCompleted) {
@@ -6536,11 +6556,13 @@ class AudioPlayerService extends ChangeNotifier {
           await _accrueListening(absolutePos);
           if (_isCachedStartReconcilePending) return;
 
-          // Push to server every 20s regardless of foreground state, in line
-          // with the other ABS clients (official 15s, web 10s). Accuracy rides
-          // on the accrual above, not this cadence - this is just server
-          // freshness.
-          const syncInterval = 20;
+          // Push to server every 20s on Wi-Fi regardless of foreground state,
+          // in line with the other ABS clients (official 15s, web 10s), and
+          // every 60s on cellular, where each push keeps the modem up for
+          // 10-20s after and a 20s cadence never lets it sleep. Accuracy
+          // rides on the accrual above, not this cadence - this is just
+          // server freshness.
+          final syncInterval = _onUnmeteredNetwork ? 20 : 60;
           final sinceLastSync = DateTime.now()
               .difference(_lastServerSync)
               .inSeconds;

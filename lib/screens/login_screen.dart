@@ -18,6 +18,7 @@ import '../services/settings_sync_service.dart';
 import '../services/user_account_service.dart';
 import 'bookorbit_set_password_screen.dart';
 import '../widgets/absorb_wave_icon.dart';
+import '../widgets/bookorbit_forgot_password_dialog.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/setup_link_login.dart';
 import '../services/signed_out_playback.dart';
@@ -204,6 +205,21 @@ class _LoginScreenState extends State<LoginScreen>
     final serverText = _serverController.text.trim();
     final cleanUrl = serverText.replaceAll(RegExp(r'^https?://'), '');
     return '$_protocol$cleanUrl';
+  }
+
+  /// BookOrbit only says whether it can send email once someone asks, so the
+  /// link shows wherever password sign-in is on and the dialog handles a no.
+  bool get _canOfferPasswordReset =>
+      _backend.isBookOrbit && _serverValid && _oidcConfig?.hasLocalAuth != false;
+
+  void _forgotPassword() {
+    final username = _usernameController.text.trim();
+    showBookOrbitForgotPassword(
+      context,
+      serverUrl: _resolvedServerUrl,
+      customHeaders: _collectHeaders(),
+      initialEmail: username.contains('@') ? username : '',
+    );
   }
 
   /// Re-trigger server validation when custom headers change.
@@ -1613,6 +1629,14 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             // No validator — ABS allows passwordless accounts
           ),
+          if (_canOfferPasswordReset)
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                onPressed: _forgotPassword,
+                child: Text(l.boForgotLink),
+              ),
+            ),
         ],
         const SizedBox(height: 24),
 
