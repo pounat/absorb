@@ -226,6 +226,10 @@ class NarrationService {
     }
   }
 
+  /// Whether this phone keeps timings for [itemId], without reading them.
+  Future<bool> hasLocalOverlay(String itemId) async =>
+      _overlays.containsKey(itemId) || (await _file(itemId)).existsSync();
+
   /// The narration of [itemId], for read along. [fromServer] when BookOrbit
   /// plays it as the book's audio; otherwise the timings found on this phone.
   Future<({MediaOverlay overlay, bool fromServer})?> overlayFor(
@@ -569,9 +573,10 @@ class NarrationService {
   }
 
   /// Timings that say which sentence the book's audio is on: its narration,
-  /// or on BookOrbit a read along EPUB laid on the audiobook beside it.
+  /// or on BookOrbit a read along EPUB laid on the audiobook beside it. On
+  /// BookOrbit they are the reader's, saved here for when it can't be asked.
   Future<MediaOverlay?> sentenceTimings(ApiService? api, String itemId) async =>
-      await audioNarration(api, itemId) ?? (api is BookOrbitApiService ? await api.readAlongTimingsFor(itemId) : null);
+      api is BookOrbitApiService ? (await overlayFor(api, itemId))?.overlay : await audioNarration(api, itemId);
 
   List<String> _trackNames(List<Map<String, dynamic>> tracks) => [
         for (final t in tracks)
