@@ -131,6 +131,32 @@ const String _body = r'''
     return vis.v ? 'on' : (vis.dir < 0 ? 'before' : 'after');
   };
 
+  // A CFI for the sentence's text, to mark it the way a found passage is
+  // marked; '' when it isn't loaded. It runs from its first text to its
+  // last: epub.js writes a wrong CFI for a range set on the element itself.
+  MO.cfi = function(href, id) {
+    var el = MO.find(href, id);
+    if (!el) return '';
+    var vs = MO.views();
+    for (var i = 0; i < vs.length; i++) {
+      var c = vs[i].contents;
+      if (!c || c.document !== el.ownerDocument) continue;
+      try {
+        var tw = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+        var first = tw.nextNode(), last = first, n;
+        while ((n = tw.nextNode())) last = n;
+        if (!first) return '';
+        var r = el.ownerDocument.createRange();
+        r.setStart(first, 0);
+        r.setEnd(last, last.length);
+        return c.cfiFromRange(r) || '';
+      } catch (e) {
+        return '';
+      }
+    }
+    return '';
+  };
+
   // Scroll mode: glide the lit sentence up to a quarter of the way down
   // the screen, rather than jumping a whole screen at a time.
   MO.reveal = function(href, id) {

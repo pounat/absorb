@@ -4600,6 +4600,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     await wc.evaluateJavascript(source: _narrationBootstrapSource());
     final go = 'window.__absorbMO && __absorbMO.go(${jsonEncode(clip.textHref)}, ${jsonEncode(id)})';
     await wc.evaluateJavascript(source: go);
+    if (widget.openAtAudioSeconds != null) unawaited(_flashNarrationSentence(clip.textHref, id));
     // The font and the first re-displays can still reflow the book after the
     // jump and leave it a page or more off the sentence: look again, and go
     // back to it unless the page has been moved by hand since.
@@ -4612,6 +4613,30 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       if (where == 'on' || where == 'missing' || where == null || where == '') continue;
       debugPrint('[ReadAlong] the page settled $where of the narration - going there again');
       await wc.evaluateJavascript(source: go);
+    }
+  }
+
+  /// Marks the sentence Find in ebook went to, once its chapter is in, as it
+  /// marks a transcribed passage. Read along lights the sentence itself, so
+  /// no mark once it runs, and none over a saved highlight with the same CFI:
+  /// the mark would take its place and then take it away.
+  Future<void> _flashNarrationSentence(String href, String id) async {
+    final js = 'window.__absorbMO ? __absorbMO.cfi(${jsonEncode(href)}, ${jsonEncode(id)}) : ""';
+    for (var i = 0; i < 10; i++) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final wc = _epubController?.webViewController;
+      if (!mounted || _readAlongOn || wc == null) return;
+      Object? cfi;
+      try {
+        cfi = await wc.evaluateJavascript(source: js);
+      } catch (e) {
+        debugPrint('[FindEbook] marking the sentence failed: $e');
+        return;
+      }
+      if (cfi is! String || cfi.isEmpty) continue;
+      final saved = _annotations.any((a) => a.type == AnnotationType.highlight && a.cfi == cfi);
+      if (mounted && !_readAlongOn && !saved) _flashHighlight(cfi);
+      return;
     }
   }
 
