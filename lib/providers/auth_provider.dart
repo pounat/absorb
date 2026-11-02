@@ -264,18 +264,34 @@ class AuthProvider extends ChangeNotifier {
     }).toList();
   }
 
+  // The client for the current session, kept until any of its inputs
+  // change. This getter runs from build methods, and a new client each time
+  // was a new BookOrbit cover proxy check each time, hundreds a second.
+  ApiService? _sessionApi;
+  String? _sessionApiKey;
+
   ApiService? get apiService {
     // Signed out, every server call fails straight away as unreachable,
     // which playback and sync already treat as offline.
     if (isSignedOut) return SignedOutPlayback.api();
     final url = activeServerUrl;
     if (url != null && _accessToken != null) {
-      return _createSessionApi(
-        baseUrl: url,
-        token: _accessToken!,
-        refreshToken: _refreshToken,
-        isLegacyToken: _isLegacyToken,
-      );
+      final headers = (_customHeaders.entries.toList()
+            ..sort((a, b) => a.key.compareTo(b.key)))
+          .map((e) => '${e.key}=${e.value}')
+          .join('&');
+      final key = '${_backend.name}|$url|$_accessToken|$_refreshToken|'
+          '$_isLegacyToken|$_serverUrl|$_username|$headers';
+      if (key != _sessionApiKey || _sessionApi == null) {
+        _sessionApi = _createSessionApi(
+          baseUrl: url,
+          token: _accessToken!,
+          refreshToken: _refreshToken,
+          isLegacyToken: _isLegacyToken,
+        );
+        _sessionApiKey = key;
+      }
+      return _sessionApi;
     }
     return null;
   }
