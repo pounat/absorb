@@ -38,6 +38,7 @@ import 'services/home_widget_service.dart';
 import 'services/siri_service.dart';
 import 'services/narrated_books.dart';
 import 'services/read_listen_sync.dart';
+import 'services/windows_media_controls.dart';
 import 'services/log_service.dart';
 import 'services/quick_actions_service.dart';
 import 'services/setup_link_service.dart';
@@ -212,6 +213,7 @@ void main() async {
   if (!AppPlatform.isWeb) HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   ReadListenSync.instance.start();
+  WindowsMediaControls.instance.start();
   BookOrbitApiService.placeReadingSpot = NarrationService.readingSpotSeconds;
   BookOrbitApiService.keptNarration = NarrationService.instance.localOverlay;
   ApiService.pageReadElsewhere = NarrationService.pageReadElsewhere;

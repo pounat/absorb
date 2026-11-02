@@ -27,6 +27,8 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   audio_window_channel_ = std::make_unique<AudioWindowChannel>(
       flutter_controller_->engine()->messenger(), GetHandle());
+  media_controls_channel_ = std::make_unique<MediaControlsChannel>(
+      flutter_controller_->engine()->messenger(), GetHandle());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -42,6 +44,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  media_controls_channel_ = nullptr;
   audio_window_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
@@ -70,6 +73,15 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       break;
     case AudioWindowChannel::kDoneMessage:
       if (audio_window_channel_) audio_window_channel_->DrainResults();
+      return 0;
+    case MediaControlsChannel::kButtonMessage:
+      if (media_controls_channel_) media_controls_channel_->DispatchButton(wparam);
+      return 0;
+    case MediaControlsChannel::kSeekMessage:
+      if (media_controls_channel_) media_controls_channel_->DispatchSeek(lparam);
+      return 0;
+    case MediaControlsChannel::kThumbnailMessage:
+      if (media_controls_channel_) media_controls_channel_->ApplyThumbnail();
       return 0;
   }
 

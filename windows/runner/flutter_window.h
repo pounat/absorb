@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "audio_window_channel.h"
+#include "media_controls_channel.h"
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -32,6 +33,7 @@ class FlutterWindow : public Win32Window {
 
   // Decodes audio windows for transcription.
   std::unique_ptr<AudioWindowChannel> audio_window_channel_;
+  std::unique_ptr<MediaControlsChannel> media_controls_channel_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

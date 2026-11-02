@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME} WIN32
   "audio_window_channel.cpp"
   "flutter_window.cpp"
   "main.cpp"
+  "media_controls_channel.cpp"
   "utils.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
@@ -37,6 +38,8 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 # Media Foundation, for decoding audio windows for transcription.
 target_link_libraries(${BINARY_NAME} PRIVATE "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib")
+# WinRT, for the System Media Transport Controls.
+target_link_libraries(${BINARY_NAME} PRIVATE "windowsapp.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
