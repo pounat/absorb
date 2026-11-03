@@ -509,6 +509,14 @@ class DownloadService extends ChangeNotifier {
   /// before they call, or they announce work that never happens.
   bool isAutoDownloadBlocked(String itemId) =>
       _autoDownloadBlocked.contains(itemId);
+
+  /// The queue's next-up books are wanted whatever happened to an earlier
+  /// download of them, so the planner lifts the block before it downloads.
+  Future<void> liftAutoDownloadBlock(String itemId) async {
+    if (!_autoDownloadBlocked.remove(itemId)) return;
+    debugPrint('[Download] $itemId is next in the queue - auto-download may fetch it again');
+    await _saveAutoDownloadBlocks();
+  }
   static const _autoDownloadBlockedKey = 'auto_download_blocked';
 
   /// The current Android SAF folder URI (content://), or null if using default.

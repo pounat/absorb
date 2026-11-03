@@ -3743,6 +3743,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
       if (downloads.isDownloaded(key) || downloads.isDownloading(key)) {
         continue;
       }
+      await downloads.liftAutoDownloadBlock(key);
       final error = await downloads.downloadItem(
         api: api,
         itemId: key,
