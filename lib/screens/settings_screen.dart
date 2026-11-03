@@ -289,6 +289,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   int _episodeNotifMinutes = 0;
   int _maxConcurrentDownloads = 1;
   bool _hideEbookOnly = false;
+  bool _showAudibleRating = true;
   bool _showGoodreadsButton = false;
   bool _homeCardsOpenDetails = false;
   bool _showExplicitBadge = true;
@@ -1299,6 +1300,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final coverSize = await PlayerSettings.getCoverSize();
     final cardButtonFill = await PlayerSettings.getCardButtonFill();
     final flatBackground = await PlayerSettings.getFlatBackground();
+    final showAudibleRating = await PlayerSettings.getShowAudibleRating();
     final showSubtitles = await PlayerSettings.getShowSubtitles();
     final showEbookBadge = await PlayerSettings.getShowEbookBadge();
     final einkMode = await PlayerSettings.getEinkMode();
@@ -1428,6 +1430,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       _mergeAbsorbingLibraries = mergeLibs;
       _maxConcurrentDownloads = maxConc;
       _hideEbookOnly = hideEbook;
+      _showAudibleRating = showAudibleRating;
       _showGoodreadsButton = showGoodreads;
       _loggingEnabled = logging;
       _fullScreenPlayer = fullScreen;
@@ -4358,6 +4361,24 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
+                    // BookOrbit sends ratings with the book, so the switch
+                    // only applies to Audiobookshelf's live Audible lookup.
+                    if (!context.read<AuthProvider>().isBookOrbit) ...[
+                      SwitchListTile(
+                        title: Text(l.audibleRatings),
+                        subtitle: Text(
+                          _showAudibleRating
+                              ? l.audibleRatingsOnSubtitle
+                              : l.audibleRatingsOffSubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        value: _showAudibleRating,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _showAudibleRating = v);
+                          PlayerSettings.setShowAudibleRating(v);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    ],
                     SwitchListTile(
                       title: Text(l.homeCardsOpenDetails),
                       subtitle: Text(

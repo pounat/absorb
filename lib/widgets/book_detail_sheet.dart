@@ -531,7 +531,10 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             unawaited(_loadSimilar(api));
           }
 
-          // Fetch Audible rating
+          // Fetch Audible rating, unless the stars are switched off in
+          // Library settings; then nothing is looked up or shown. BookOrbit
+          // sends its ratings with the book, so the switch is ABS only.
+          if (!api.isBookOrbit && !await PlayerSettings.getShowAudibleRating()) return;
           final media = finalItem['media'] as Map<String, dynamic>? ?? {};
           final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
           final asin = metadata['asin'] as String?;

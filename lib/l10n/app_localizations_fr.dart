@@ -3214,6 +3214,16 @@ class AppLocalizationsFr extends AppLocalizations {
       'Désactivé - tous les éléments de la bibliothèque sont affichés';
 
   @override
+  String get audibleRatings => 'Audible ratings';
+
+  @override
+  String get audibleRatingsOnSubtitle =>
+      'On - book details show the Audible rating';
+
+  @override
+  String get audibleRatingsOffSubtitle => 'Off - no Audible lookup or stars';
+
+  @override
   String get homeCardsOpenDetails => 'Open details from Home';
 
   @override

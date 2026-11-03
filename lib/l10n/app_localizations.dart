@@ -5626,6 +5626,24 @@ abstract class AppLocalizations {
   /// **'Off - all library items shown'**
   String get hideEbookOnlyOffSubtitle;
 
+  /// No description provided for @audibleRatings.
+  ///
+  /// In en, this message translates to:
+  /// **'Audible ratings'**
+  String get audibleRatings;
+
+  /// No description provided for @audibleRatingsOnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On - book details show the Audible rating'**
+  String get audibleRatingsOnSubtitle;
+
+  /// No description provided for @audibleRatingsOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Off - no Audible lookup or stars'**
+  String get audibleRatingsOffSubtitle;
+
   /// No description provided for @homeCardsOpenDetails.
   ///
   /// In en, this message translates to:

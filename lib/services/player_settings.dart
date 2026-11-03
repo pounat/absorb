@@ -1341,6 +1341,11 @@ class PlayerSettings {
   static Future<void> setFullScreenPlayer(bool value) =>
       _set('fullScreenPlayer', value);
 
+  // The Audible stars on the book detail sheet, and the lookup behind them.
+  static Future<bool> getShowAudibleRating() => _get('showAudibleRating', true);
+  static Future<void> setShowAudibleRating(bool value) =>
+      _set('showAudibleRating', value);
+
   // Ebook reader: turn pages with the volume keys. 'off' | 'normal'
   // (up = previous page, down = next, matching the ABS app) | 'mirrored'.
   static Future<String> getEreaderVolumeNav() =>
