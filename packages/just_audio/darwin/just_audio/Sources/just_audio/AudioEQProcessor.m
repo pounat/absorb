@@ -41,6 +41,29 @@ typedef struct {
     _Atomic(int)  coeffVersion;
 } EQParams;
 
+// The loudness slider as an automatic level, the way a car radio's auto
+// volume works. Quiet narration is pulled up toward a target peak and loud
+// narration is left alone, so every book comes out at about the same level;
+// the slider caps how much gain may be added, and at zero nothing is added.
+// The level is followed on speech only: a short-term peak more than 30 dB
+// under the recent level is a pause, and the gain holds through it instead
+// of creeping up and bursting on the next sentence. Gain drops within 10 ms
+// when a louder passage arrives and climbs at 8 dB a second when a quieter
+// one does. Same algorithm as the Android Leveler in just_audio.
+typedef struct {
+    float fastCoef;
+    double followCoef;
+    float dropCoef;
+    float riseStep;
+    float fast;
+    double envelope;
+    float gain;
+} Leveler;
+
+static const float kLevelerTarget = 0.708f;
+static const float kLevelerPauseRatio = 0.0316f;
+static const float kLevelerFloor = 0.001f;
+
 // ── Per-tap context (allocated in tapInit, freed in tapFinalize) ──
 
 typedef struct {
@@ -48,6 +71,7 @@ typedef struct {
     BiquadDelay bassDelay[MAX_CHANNELS];  // bass boost shelf filter
     BiquadCoeffs coeffs[EQ_NUM_BANDS];
     BiquadCoeffs bassCoeffs;
+    Leveler leveler;
     float sampleRate;
     int numChannels;
     int lastCoeffVersion;
@@ -56,6 +80,47 @@ typedef struct {
 // ── Singleton storage ──
 
 static EQParams sParams;
+
+static void levelerPrepare(Leveler *l, float Fs) {
+    l->fastCoef = expf(-1.0f / (0.03f * Fs));
+    l->followCoef = exp(-1.0 / (1.0 * Fs));
+    l->dropCoef = 1.0f - expf(-1.0f / (0.01f * Fs));
+    l->riseStep = powf(10.0f, 8.0f / 20.0f / Fs);
+    l->fast = 0.0f;
+    l->envelope = 0.0;
+    l->gain = 1.0f;
+}
+
+/// The gain for one frame whose loudest channel has magnitude peak, with
+/// maxGain the most the slider allows (1 = off).
+static inline float levelerNext(Leveler *l, float peak, float maxGain) {
+    l->fast = peak > l->fast ? peak : l->fast * l->fastCoef;
+    if (l->fast >= l->envelope) {
+        l->envelope = l->fast;
+    } else if (l->fast > l->envelope * kLevelerPauseRatio) {
+        l->envelope *= l->followCoef;
+        if (l->envelope < l->fast) l->envelope = l->fast;
+    }
+    float wanted;
+    if (l->envelope < kLevelerFloor) {
+        wanted = fminf(l->gain, maxGain);
+    } else {
+        wanted = (float)fmin(maxGain, fmax(1.0, kLevelerTarget / l->envelope));
+    }
+    if (wanted < l->gain) {
+        l->gain += (wanted - l->gain) * l->dropCoef;
+        if (l->gain - wanted < 1e-4f) l->gain = wanted;
+    } else if (wanted > l->gain) {
+        l->gain = fminf(wanted, l->gain * l->riseStep);
+    }
+    return l->gain;
+}
+
+// The DAC clips at full scale, so the overshoot in the 10 ms before the
+// gain has dropped for a sudden loud passage is clamped here.
+static inline float levelerClamp(float sample) {
+    return fmaxf(-1.0f, fminf(1.0f, sample));
+}
 
 // ── Biquad coefficient calculation ──
 
@@ -183,6 +248,7 @@ static void tapPrepare(MTAudioProcessingTapRef tap,
     // Zero delay lines
     memset(ctx->delays, 0, sizeof(ctx->delays));
     memset(ctx->bassDelay, 0, sizeof(ctx->bassDelay));
+    levelerPrepare(&ctx->leveler, ctx->sampleRate);
 
     // Build initial coefficients
     rebuildCoefficients(ctx);
@@ -256,6 +322,9 @@ static void tapProcess(MTAudioProcessingTapRef tap,
     int loudnessMb = atomic_load_explicit(&sParams.loudnessGainMb, memory_order_relaxed);
     float loudnessGain = (loudnessMb > 0) ? powf(10.0f, (float)loudnessMb / 2000.0f) : 1.0f;
     int hasBass = atomic_load_explicit(&sParams.bassBoostStrength, memory_order_relaxed) > 0;
+    // With the slider back at zero the leveler eases its gain down to 1
+    // before the pass stops, so the level never steps.
+    int leveling = loudnessMb > 0 || ctx->leveler.gain > 1.0001f;
 
     UInt32 numBuffers = bufferListInOut->mNumberBuffers;
     CMItemCount frames = *numberFramesOut;
@@ -285,12 +354,27 @@ static void tapProcess(MTAudioProcessingTapRef tap,
                     sample = processBiquad(&ctx->bassCoeffs, &ctx->bassDelay[ch], sample);
                 }
 
-                // Apply loudness gain
-                if (loudnessMb > 0) {
-                    sample *= loudnessGain;
-                }
-
                 data[f] = sample;
+            }
+        }
+
+        if (leveling) {
+            float *chans[MAX_CHANNELS] = {NULL, NULL};
+            for (int ch = 0; ch < totalChans; ch++) {
+                chans[ch] = (float *)bufferListInOut->mBuffers[ch].mData;
+            }
+            for (CMItemCount f = 0; f < frames; f++) {
+                float peak = 0.0f;
+                for (int ch = 0; ch < totalChans; ch++) {
+                    if (!chans[ch]) continue;
+                    float magnitude = fabsf(chans[ch][f]);
+                    if (magnitude > peak) peak = magnitude;
+                }
+                float gain = levelerNext(&ctx->leveler, peak, loudnessGain);
+                for (int ch = 0; ch < totalChans; ch++) {
+                    if (!chans[ch]) continue;
+                    chans[ch][f] = levelerClamp(chans[ch][f] * gain);
+                }
             }
         }
 
@@ -327,11 +411,20 @@ static void tapProcess(MTAudioProcessingTapRef tap,
                         sample = processBiquad(&ctx->bassCoeffs, &ctx->bassDelay[ch], sample);
                     }
 
-                    if (loudnessMb > 0) {
-                        sample *= loudnessGain;
-                    }
-
                     data[f * chansInBuf + ch] = sample;
+                }
+
+                if (leveling) {
+                    float peak = 0.0f;
+                    for (int ch = 0; ch < chansInBuf; ch++) {
+                        float magnitude = fabsf(data[f * chansInBuf + ch]);
+                        if (magnitude > peak) peak = magnitude;
+                    }
+                    float gain = levelerNext(&ctx->leveler, peak, loudnessGain);
+                    for (int ch = 0; ch < chansInBuf; ch++) {
+                        float *sample = &data[f * chansInBuf + ch];
+                        *sample = levelerClamp(*sample * gain);
+                    }
                 }
 
                 // Mono downmix

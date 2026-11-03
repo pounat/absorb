@@ -8,15 +8,18 @@ import java.util.Arrays;
  * slowly after it. Clipping the boosted samples one by one squared off every
  * loud syllable, which came out as static on a book mastered near full scale.
  * A 5 ms grab with a 200 ms recovery still dipped and bounced back on each
- * word, which sounded gravelly; the slower pair holds the level through a
- * phrase instead.
+ * word, which sounded gravelly when this limiter was doing all the work of
+ * a fixed gain. Now the Leveler ahead of it keeps peaks near -3 dBFS and the
+ * limiter only catches the overshoot when a loud passage arrives, so a
+ * shorter recovery no longer pumps and does not hold the level down for a
+ * second after each transient.
  * All channels share one gain so the stereo image stays put. No Android types
  * in here so it compiles and tests on its own.
  */
 final class PeakLimiter {
     static final float CEILING = 0.891f; // -1 dBFS
     private static final float LOOKAHEAD_SEC = 0.02f;
-    private static final float RELEASE_SEC = 1.0f;
+    private static final float RELEASE_SEC = 0.3f;
 
     private final int channels;
     private final int lookahead;

@@ -5,29 +5,25 @@ import androidx.media3.common.audio.BaseAudioProcessor;
 import java.nio.ByteBuffer;
 
 /**
- * Absorb patch: the EQ loudness slider as plain sample gain inside the
- * ExoPlayer audio sink, the way the iOS tap applies it. Android's
- * LoudnessEnhancer is a compressor that leaves narration already peaking near
- * full scale almost untouched, and it lives on the audio session, so it dies
- * with the activity and on phones whose effect stack is broken. This runs on
- * every sample regardless. A lookahead limiter (PeakLimiter) keeps the boosted
- * peaks under full scale. With the slider at zero the audio passes through
- * untouched.
+ * Absorb patch: the EQ loudness slider applied inside the ExoPlayer audio
+ * sink, the way the iOS tap applies it. Android's LoudnessEnhancer lives on
+ * the audio session, so it dies with the activity and on phones whose effect
+ * stack is broken; this runs on every sample regardless. The slider sets how
+ * much gain the Leveler may add to bring quiet narration up, and a lookahead
+ * limiter (PeakLimiter) keeps the result under full scale. With the slider at
+ * zero the audio passes through untouched.
  */
 public final class GainAudioProcessor extends BaseAudioProcessor {
-    private static final float GAIN_SMOOTH_SEC = 0.02f;
-
     private static volatile float sGain = 1f;
 
     private PeakLimiter limiter;
+    private Leveler leveler;
     private float[] frameIn;
     private float[] frameOut;
     private boolean is16Bit;
     private int frameBytes;
-    private float gain = 1f;
-    private float gainCoef;
 
-    /** Gain in millibels (100 mB = 1 dB); zero or less is unity. */
+    /** The most gain the leveler may add, in millibels (100 mB = 1 dB); zero or less is off. */
     public static void setGainMb(int gainMb) {
         sGain = gainMb <= 0 ? 1f : (float) Math.pow(10.0, gainMb / 2000.0);
     }
@@ -53,10 +49,9 @@ public final class GainAudioProcessor extends BaseAudioProcessor {
         is16Bit = inputAudioFormat.encoding == C.ENCODING_PCM_16BIT;
         frameBytes = channels * (is16Bit ? 2 : 4);
         limiter = new PeakLimiter(sampleRate, channels);
+        leveler = new Leveler(sampleRate);
         frameIn = new float[channels];
         frameOut = new float[channels];
-        gain = sGain;
-        gainCoef = (float) (1.0 - Math.exp(-1.0 / (GAIN_SMOOTH_SEC * sampleRate)));
     }
 
     @Override
@@ -68,10 +63,10 @@ public final class GainAudioProcessor extends BaseAudioProcessor {
     public void queueInput(ByteBuffer inputBuffer) {
         int remaining = inputBuffer.remaining();
         if (remaining == 0) return;
-        float target = sGain;
+        float maxGain = sGain;
         // At zero the limiter stops asking for reduction and only recovers, so
         // a hot master is not held down with the boost off.
-        boolean unity = target == 1f && gain == 1f;
+        boolean unity = limiter == null || (maxGain == 1f && leveler.gain() == 1f);
         if (limiter == null || (unity && limiter.isResting())) {
             // Slider at zero and the limiter has let go. Anything it still
             // holds goes out first so no audio is dropped.
@@ -85,13 +80,15 @@ public final class GainAudioProcessor extends BaseAudioProcessor {
         ByteBuffer output = replaceOutputBuffer(remaining);
         int channels = frameIn.length;
         while (inputBuffer.remaining() >= frameBytes) {
-            // Ease toward the slider so dragging it never steps the level.
-            gain += (target - gain) * gainCoef;
-            if (Math.abs(target - gain) < 1e-4f) gain = target;
+            float peak = 0f;
             for (int c = 0; c < channels; c++) {
                 float sample = is16Bit ? inputBuffer.getShort() / 32768f : inputBuffer.getFloat();
-                frameIn[c] = sample * gain;
+                frameIn[c] = sample;
+                float magnitude = Math.abs(sample);
+                if (magnitude > peak) peak = magnitude;
             }
+            float gain = leveler.next(peak, maxGain);
+            for (int c = 0; c < channels; c++) frameIn[c] *= gain;
             if (limiter.push(frameIn, frameOut, !unity)) writeFrame(output);
         }
         inputBuffer.position(inputBuffer.limit());
