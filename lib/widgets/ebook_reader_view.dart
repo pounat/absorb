@@ -115,6 +115,9 @@ class EbookReaderView extends StatefulWidget {
   /// Turn read along on as soon as the book is displayed, for the card's
   /// Read along button.
   final bool startReadAlong;
+  /// Start the narration from [openAtCfi] once the book is displayed, for
+  /// Play from here on a highlight outside the reader.
+  final bool playFromOpenCfi;
 
   const EbookReaderView({
     super.key,
@@ -127,6 +130,7 @@ class EbookReaderView extends StatefulWidget {
     this.findPositionSeconds,
     this.openAtAudioSeconds,
     this.startReadAlong = false,
+    this.playFromOpenCfi = false,
   });
 
   @override
@@ -235,6 +239,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // Read along: follow the audiobook by coloring the words being spoken.
   bool _readAlongOn = false;
   bool _didAutoReadAlong = false;
+  bool _didPlayFromOpenCfi = false;
   // Backgrounding stops read along; this brings it back on return.
   bool _readAlongResume = false;
   // Catch up offers: each direction is offered once per visit.
@@ -2146,9 +2151,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 _shareHighlight(annotation, onThisPage: true);
               },
             ),
+            // A narrated book plays from the highlight outright, the same
+            // button the selection toolbar shows; the search is for books
+            // whose audio has to be matched to the text first.
             ListTile(
-              leading: Icon(Icons.headphones_rounded, color: cs.onSurfaceVariant),
-              title: Text(l.findInAudiobook),
+              leading: Icon(
+                  _useNarration ? Icons.play_arrow_rounded : Icons.headphones_rounded,
+                  color: cs.onSurfaceVariant),
+              title: Text(_useNarration ? l.narrationPlayFromHere : l.findInAudiobook),
               onTap: () {
                 Navigator.pop(ctx);
                 _findInAudiobookFromSelection(
@@ -7407,6 +7417,19 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   _didAutoReadAlong = true;
                   Future.delayed(const Duration(milliseconds: 900), () {
                     if (mounted && !_readAlongOn) _toggleReadAlong();
+                  });
+                }
+                final playAt = widget.openAtCfi;
+                if (widget.playFromOpenCfi && playAt != null && !_didPlayFromOpenCfi) {
+                  _didPlayFromOpenCfi = true;
+                  // Once the load rescue has settled on the highlight and the
+                  // narration lookup has answered.
+                  Future.delayed(const Duration(milliseconds: 1200), () async {
+                    if (!mounted) return;
+                    await _narrationLookup;
+                    if (!mounted || !_useNarration) return;
+                    await _findInAudiobookFromSelection(
+                        cfiOverride: playAt, textOverride: '', flashPassage: false);
                   });
                 }
                 unawaited(_narrationOpenAtAudio());

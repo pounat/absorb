@@ -19,6 +19,7 @@ import '../widgets/card_buttons.dart';
 import '../services/download_service.dart';
 import '../services/ebook_annotation_service.dart';
 import '../services/highlight_sync.dart';
+import '../services/narration_service.dart';
 import '../utils/episode_key.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/adaptive_modal.dart';
@@ -663,6 +664,9 @@ class _BookmarksScreenState extends State<BookmarksScreen>
     final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    // A book whose EPUB reads itself aloud can play from the highlight.
+    final narrated = await NarrationService.instance.knownNarrated(itemId) == true;
+    if (!mounted) return;
     final action = await showAdaptiveActionMenu<String>(
       context: context,
       showDragHandle: true,
@@ -681,6 +685,12 @@ class _BookmarksScreenState extends State<BookmarksScreen>
                 overflow: TextOverflow.ellipsis,
                 style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
+            ),
+          if (narrated)
+            ListTile(
+              leading: Icon(Icons.play_arrow_rounded, color: cs.onSurfaceVariant),
+              title: Text(l.narrationPlayFromHere),
+              onTap: () => Navigator.pop(ctx, 'play'),
             ),
           ListTile(
             leading: Icon(Icons.ios_share_rounded, color: cs.onSurfaceVariant),
@@ -706,7 +716,12 @@ class _BookmarksScreenState extends State<BookmarksScreen>
       ),
     );
     if (action == null || !mounted) return;
-    if (action == 'share') {
+    if (action == 'play') {
+      await openHighlightInReader(context,
+          itemId: itemId, cfi: highlight.cfi, title: _resolveTitle(itemId),
+          playNarration: true);
+      if (mounted) await _loadHighlights();
+    } else if (action == 'share') {
       await _shareHighlight(itemId, highlight);
     } else if (action == 'open') {
       await _openHighlight(itemId, highlight);
