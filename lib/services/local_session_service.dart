@@ -292,26 +292,29 @@ class LocalSessionService {
   /// true when the server durably recorded it (so the caller can skip queuing).
   Future<bool> pushActive({required ApiService api}) async {
     await _loadActive();
-    if (_active == null) return true;
+    // The session can end while the push is away (a book finishing during
+    // a 20s server timeout did), so work from the copy taken here.
+    final active = _active;
+    if (active == null) return true;
     if (_localUnsupported) {
-      await _legacyFlush(api, _active!);
+      await _legacyFlush(api, active);
       return true;
     }
     final result =
-        await api.syncLocalSession(await _trustedPayload(api, _active!));
+        await api.syncLocalSession(await _trustedPayload(api, active));
     if (result.serverTooOld) {
       debugPrint('[LocalSession] Server lacks /api/session/local — falling back to /play');
       _localUnsupported = true;
-      await _legacyFlush(api, _active!);
+      await _legacyFlush(api, active);
       return true;
     }
-    final ct = (_active!['currentTime'] as num?)?.toDouble() ?? 0;
+    final ct = (active['currentTime'] as num?)?.toDouble() ?? 0;
     if (!result.ok) {
-      debugPrint('[LocalSession] Push failed for ${_active!['id']} at ${ct.toStringAsFixed(0)}s');
+      debugPrint('[LocalSession] Push failed for ${active['id']} at ${ct.toStringAsFixed(0)}s');
     } else if (_lastPushLogAt == null ||
         clock().difference(_lastPushLogAt!) >= const Duration(minutes: 5)) {
       _lastPushLogAt = clock();
-      debugPrint('[LocalSession] Pushed ${_active!['id']} at ${ct.toStringAsFixed(0)}s');
+      debugPrint('[LocalSession] Pushed ${active['id']} at ${ct.toStringAsFixed(0)}s');
     }
     return result.ok;
   }
