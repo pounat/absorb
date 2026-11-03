@@ -2,14 +2,15 @@ name: All Platforms Release
 
 # Mirrors the `all-release` workflow in codemagic.yaml. Triggered manually via
 # `gh workflow run all-release.yml` or the Actions UI. Builds the github-flavor
-# APK, the playstore-flavor AAB, and the iOS IPA, uploads all three to the
-# GitHub draft release, and pushes the IPA to TestFlight.
+# APK, the playstore-flavor AAB, the iOS IPA and the Windows installer, uploads
+# all of them to the GitHub draft release, and pushes the IPA to TestFlight.
 #
 # These run in PARALLEL: a `prepare` job creates the draft up front, then the
-# two Android flavors (matrix, on ubuntu) and the iOS IPA (on macOS) build at
-# the same time and each upload their own artifact to that draft. Wall-clock is
-# the slower of Android/iOS rather than their sum. F-Droid is intentionally not
-# built here — F-Droid's own servers build it from the tagged source.
+# two Android flavors (matrix, on ubuntu), the iOS IPA (on macOS) and the
+# Windows installer (on windows) build at the same time and each upload their
+# own artifact to that draft. Wall-clock is the slowest of them rather than
+# their sum. F-Droid is intentionally not built here — F-Droid's own servers
+# build it from the tagged source.
 
 on:
   workflow_dispatch:
@@ -414,10 +415,68 @@ jobs:
           echo "  + Submitting $VERSION_STRING for App Store review (manual release)"
           app-store-connect publish "${ARGS[@]}"
 
-  # Single Discord ping once both halves finish, success or fail.
+  # Windows installer, same recipe as windows-build.yml, uploaded to the draft
+  # beside the phone builds. Unsigned; SmartScreen warns on first run.
+  windows:
+    name: Windows installer
+    needs: prepare
+    # windows-latest is the VS 2026 image, whose STL turns the deprecated
+    # <experimental/coroutine> include in flutter_inappwebview_windows and
+    # permission_handler_windows into a hard error. VS 2022 only warns.
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - name: Build
+        run: flutter build windows --release
+
+      # The installed app needs the VC++ runtime next to the exe on machines
+      # that never installed the redistributable.
+      - name: Add the VC++ runtime DLLs
+        shell: pwsh
+        run: |
+          $out = "build\windows\x64\runner\Release"
+          $crt = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" -Directory -ErrorAction SilentlyContinue | Select-Object -Last 1
+          foreach ($dll in "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
+            $src = if ($crt) { Join-Path $crt.FullName $dll } else { "C:\Windows\System32\$dll" }
+            if (-not (Test-Path $src)) { $src = "C:\Windows\System32\$dll" }
+            Copy-Item $src $out
+          }
+
+      - name: Build the installer
+        shell: pwsh
+        env:
+          FNAME: ${{ needs.prepare.outputs.fname }}
+          RAW_VERSION: ${{ needs.prepare.outputs.raw }}
+        run: |
+          choco install innosetup -y --no-progress
+          # Inno wants a numeric version: 1.11.1+286 -> 1.11.1.286
+          $numeric = $env:RAW_VERSION -replace '\+', '.'
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=$numeric" `
+            "/DOutputBase=$env:FNAME-windows-setup" `
+            windows\installer\absorb.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem build\installer | Select-Object Name, Length
+
+      - name: Upload installer to GitHub draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release upload "$VERSION_TAG" build/installer/*.exe --clobber
+
+  # Single Discord ping once every platform finishes, success or fail.
   notify:
     name: Notify Discord (finished)
-    needs: [prepare, android, ios]
+    needs: [prepare, android, ios, windows]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -429,8 +488,9 @@ jobs:
           RUN_URL: ${{ format('https://github.com/{0}/actions/runs/{1}', github.repository, github.run_id) }}
           ANDROID_RESULT: ${{ needs.android.result }}
           IOS_RESULT: ${{ needs.ios.result }}
+          WINDOWS_RESULT: ${{ needs.windows.result }}
         run: |
-          if [ "$ANDROID_RESULT" = "success" ] && [ "$IOS_RESULT" = "success" ]; then
+          if [ "$ANDROID_RESULT" = "success" ] && [ "$IOS_RESULT" = "success" ] && [ "$WINDOWS_RESULT" = "success" ]; then
             TITLE="Build successful"
             COLOR=3066993
           else
@@ -439,5 +499,5 @@ jobs:
           fi
           curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d "{\"embeds\":[{\"title\":\"$TITLE\",\"description\":\"**All Platforms Release** v$VERSION (android: $ANDROID_RESULT, ios: $IOS_RESULT)\\n[Build log]($RUN_URL)\",\"color\":$COLOR}]}" \
+            -d "{\"embeds\":[{\"title\":\"$TITLE\",\"description\":\"**All Platforms Release** v$VERSION (android: $ANDROID_RESULT, ios: $IOS_RESULT, windows: $WINDOWS_RESULT)\\n[Build log]($RUN_URL)\",\"color\":$COLOR}]}" \
             > /dev/null 2>&1 || true
