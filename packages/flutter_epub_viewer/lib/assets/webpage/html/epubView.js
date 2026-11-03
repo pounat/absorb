@@ -2087,6 +2087,7 @@ function setupRenditionBlocking() {
     rendition.next = function () {
       if (hasActiveSelection()) {
         console.log('Blocked next() - selection active');
+    if (window.__absorbLogMoves) blindNotify("absorbAutoScrollLog", "next blocked by a selection");
         return Promise.resolve(rendition.location);
       }
       return originalNext();
@@ -2123,10 +2124,20 @@ function holdSpotThroughResize(r) {
   var spot = null;
   var resizing = 0;
   var quietUntil = 0;
+  var lastW = 0, lastH = 0;
   r.onResized = function (size, epubcfi) {
     this.emit("resized", { width: size.width, height: size.height }, epubcfi);
     if (!this.location || !this.location.start) return;
-    var cfi = epubcfi || spot || this.location.start.cfi;
+    // A resize to the size the page already has moved nothing, so there is
+    // nothing to put back: going to the remembered spot from here would undo
+    // a page turn or a scroll that happened since. Windows fires these.
+    var same = size && size.width === lastW && size.height === lastH;
+    if (size) { lastW = size.width; lastH = size.height; }
+    var cfi = epubcfi || (same ? this.location.start.cfi : spot) || this.location.start.cfi;
+    if (window.__absorbLogMoves) {
+      blindNotify("absorbAutoScrollLog", "resize " + (size ? size.width + "x" + size.height : "?") +
+        (same ? " (same size)" : "") + " -> " + cfi);
+    }
     resizing++;
     // The relocated event for this display comes a couple of frames after it
     // resolves.
@@ -2137,8 +2148,13 @@ function holdSpotThroughResize(r) {
     Promise.resolve(this.display(cfi)).then(settle, settle);
   };
   r.on("relocated", function (location) {
+    var cfi = location && location.start ? location.start.cfi : null;
+    if (window.__absorbLogMoves) {
+      blindNotify("absorbAutoScrollLog", "relocated " + cfi +
+        (resizing > 0 ? " (during resize)" : Date.now() < quietUntil ? " (quiet)" : ""));
+    }
     if (resizing > 0 || Date.now() < quietUntil) return;
-    if (location && location.start && location.start.cfi) spot = location.start.cfi;
+    if (cfi) spot = cfi;
   });
 }
 
@@ -2147,6 +2163,7 @@ function next() {
   // Block navigation if there's an active selection
   if (hasActiveSelection()) {
     console.log('Blocked next() - selection active');
+    if (window.__absorbLogMoves) blindNotify("absorbAutoScrollLog", "next blocked by a selection");
     return;
   }
   if (rendition) {
@@ -2582,15 +2599,18 @@ function clearSelection() {
         window.getSelection().removeAllRanges();
       }
 
-      // Notify Flutter that selection was cleared - only if we've actually sent a selection
-      if (hasSentSelection && (isSelecting || lastCfiRange) && window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
-        isSelecting = false;
-        lastCfiRange = null;
-        hasSentSelection = false;
-        if (selectionTimeout) {
-          clearTimeout(selectionTimeout);
-          selectionTimeout = null;
-        }
+      // The tracking flags come down whether or not Flutter ever heard of
+      // the selection: left set, hasActiveSelection() keeps blocking page
+      // turns with nothing on screen to show for it.
+      var tell = hasSentSelection && (isSelecting || lastCfiRange);
+      isSelecting = false;
+      lastCfiRange = null;
+      hasSentSelection = false;
+      if (selectionTimeout) {
+        clearTimeout(selectionTimeout);
+        selectionTimeout = null;
+      }
+      if (tell && window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
         window.flutter_inappwebview.callHandler('selectionCleared');
       }
     } else {

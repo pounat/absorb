@@ -501,7 +501,30 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   void _keyTurn(bool forward) {
     if (_autoScroll) return;
     _userMoved('keyboard');
+    _turnByUser(forward);
+  }
+
+  /// A turn asked for by tap or key. With no selection toolbar up, any
+  /// selection the page still holds is stale (a mouse leaves one behind
+  /// where a finger would not) and the viewer would refuse the turn for it.
+  void _turnByUser(bool forward) {
+    if (_selectionCfi == null) _epubController?.clearSelection();
     _turnPage(forward);
+  }
+
+  /// The desktop WebView draws a full-height scrollbar down the page in
+  /// scroll mode; phones show a thin one that fades, so it is hidden only
+  /// where it would stay.
+  void _hideDesktopScrollbar() {
+    _epubController?.webViewController?.evaluateJavascript(source: r'''
+(function () {
+  if (document.getElementById('absorbNoBar')) return;
+  var s = document.createElement('style');
+  s.id = 'absorbNoBar';
+  s.textContent = '.epub-container::-webkit-scrollbar, #viewer::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; } ' +
+    '.epub-container, #viewer, body { scrollbar-width: none; }';
+  document.head.appendChild(s);
+})();''');
   }
 
   @override
@@ -1160,10 +1183,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   void _commitReaderTap(String action) {
     if (action == 'prev') {
       _userMoved('tap');
-      _turnPage(false);
+      _turnByUser(false);
     } else if (action == 'next') {
       _userMoved('tap');
-      _turnPage(true);
+      _turnByUser(true);
     } else if (action == 'menu') {
       _toggleControls();
     }
@@ -1438,6 +1461,17 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// (the same callHandler bridge the selection menu uses). Skips taps while
   /// text is selected so highlighting still works.
   void _setupTapHandler() {
+    // A mouse wheel moves the page in scroll mode without any touch, so it
+    // has to count as the reader moving, or read along pulls the page back.
+    _epubController?.webViewController?.addJavaScriptHandler(
+      handlerName: 'absorbReaderWheel',
+      callback: (args) {
+        if (!mounted || !_scroll) return;
+        _userMoved('scroll');
+        final cfi = _currentCfi;
+        if (cfi != null) _syncProgress(cfi, _progress);
+      },
+    );
     _epubController?.webViewController?.addJavaScriptHandler(
       handlerName: 'absorbReaderTap',
       callback: (args) {
@@ -1497,6 +1531,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
             doc.addEventListener('click', function(e){ onTapGuarded(e,'click'); }, true);
             doc.addEventListener('pointerup', function(e){ onTapGuarded(e,'pointerup'); }, true);
             doc.addEventListener('touchend', function(e){ onTapGuarded(e,'touchend'); }, true);
+            doc.addEventListener('wheel', function(){
+              var now=Date.now();
+              if(now-(window.__absorbWheelAt||0)<400)return;
+              window.__absorbWheelAt=now;
+              try { if(window.flutter_inappwebview){ window.flutter_inappwebview.callHandler('absorbReaderWheel'); return; } } catch(err){}
+              try { if(window.parent && window.parent.flutter_inappwebview){ window.parent.flutter_inappwebview.callHandler('absorbReaderWheel'); } } catch(err){}
+            }, {passive:true});
           } catch(e){}
         }
         try { rendition.getContents().forEach(function(c){ attach(c.document); }); } catch(e){}
@@ -7350,6 +7391,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   _setupPageInfoHandler();
                   _setupTapHandler();
                   _applyTurnStyle();
+                  if (AppPlatform.lacksPhonePlugins) {
+                    _hideDesktopScrollbar();
+                    // Desktop page moves into the app log while the jump
+                    // back after a turn is being chased.
+                    _epubController?.webViewController?.evaluateJavascript(
+                        source: 'window.__absorbLogMoves = true;');
+                  }
                   _queueCurlShot();
                   _setupAutoScrollHandlers();
                   _setupFontInjector();
