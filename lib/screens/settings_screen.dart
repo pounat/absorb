@@ -238,6 +238,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   bool _notifChapterProgress = false;
   bool _notifSpeedBookmark = false;
   bool _duckBriefInterruptions = false;
+  bool _keepPlayingWithOtherApps = false;
   bool _autoplayOnCarConnect = false;
   bool _keepScreenOnPlayer = false;
   bool _keepScreenOnCarMode = false;
@@ -1382,6 +1383,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final podcastTabLibraryId = await PlayerSettings.getPodcastTabLibraryId();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
+    final keepPlayingWithOtherApps = await PlayerSettings.getKeepPlayingWithOtherApps();
     final autoplayOnCarConnect = await PlayerSettings.getAutoplayOnCarConnect();
     final keepScreenOnPlayer = await PlayerSettings.getKeepScreenOnInPlayer();
     final keepScreenOnCarMode = await PlayerSettings.getKeepScreenOnInCarMode();
@@ -1408,6 +1410,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       _notifChapterProgress = notifChapter;
       _notifSpeedBookmark = notifSpeedBookmark;
       _duckBriefInterruptions = duckBriefInterruptions;
+      _keepPlayingWithOtherApps = keepPlayingWithOtherApps;
       _autoplayOnCarConnect = autoplayOnCarConnect;
       _keepScreenOnPlayer = keepScreenOnPlayer;
       _keepScreenOnCarMode = keepScreenOnCarMode;
@@ -3541,6 +3544,20 @@ class SettingsScreenState extends State<SettingsScreen> {
                         onChanged: _loaded ? (v) {
                           setState(() => _duckBriefInterruptions = v);
                           PlayerSettings.setDuckBriefInterruptions(v);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: const Text('Play with other audio'),
+                        subtitle: Text(
+                          _keepPlayingWithOtherApps
+                              ? 'Keeps playing when another app starts its own audio'
+                              : 'Pauses when another app starts its own audio',
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        value: _keepPlayingWithOtherApps,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _keepPlayingWithOtherApps = v);
+                          PlayerSettings.setKeepPlayingWithOtherApps(v);
                         } : null,
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),

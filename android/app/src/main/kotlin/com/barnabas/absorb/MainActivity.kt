@@ -101,6 +101,11 @@ class MainActivity : AudioServiceActivity() {
                     "isBluetoothAudioConnected" -> {
                         result.success(isBluetoothAudioConnected())
                     }
+                    // 0 normal, 1 ringing, 2 in a call, 3 in a VoIP call.
+                    "audioMode" -> {
+                        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                        result.success(am.mode)
+                    }
                     "init" -> handleInit(result)
                     "attachSession" -> {
                         val sessionId = call.argument<Int>("sessionId") ?: 0

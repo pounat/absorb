@@ -1030,6 +1030,13 @@ class PlayerSettings {
   static Future<void> setDuckBriefInterruptions(bool value) =>
       _set('duckBriefInterruptions', value, notify: true);
 
+  // Android only: keep playing when another app starts its own audio, instead
+  // of stopping for it. Calls and navigation prompts still pause or duck.
+  static Future<bool> getKeepPlayingWithOtherApps() =>
+      _get('keepPlayingWithOtherApps', false);
+  static Future<void> setKeepPlayingWithOtherApps(bool value) =>
+      _set('keepPlayingWithOtherApps', value, notify: true);
+
   // GH #371: start the last played book when the car (Android Auto or
   // CarPlay) connects and nothing is loaded yet. The warm case (session
   // alive but paused) belongs to the car system's own resume behavior; this

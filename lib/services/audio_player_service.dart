@@ -1721,6 +1721,9 @@ class AudioPlayerService extends ChangeNotifier {
         }
         await _configureAudioSession();
       });
+      PlayerSettings.getKeepPlayingWithOtherApps().then((v) {
+        _keepPlayingWithOtherApps = v;
+      });
     }
   }
 
@@ -3112,6 +3115,7 @@ class AudioPlayerService extends ChangeNotifier {
   // Whether BT audio was connected when the current interruption began.
   static bool _wasOnBluetooth = false;
   static bool _duckBriefInterruptions = false;
+  static bool _keepPlayingWithOtherApps = false;
   static double? _volumeBeforeInterruptionDuck;
   // Safety net for a duck whose matching "end" event never arrives - a known
   // flaky spot on Android, more so over Bluetooth where focus changes route
@@ -3178,12 +3182,27 @@ class AudioPlayerService extends ChangeNotifier {
   /// starting new playback to avoid blasting audio on the phone speaker.
   static bool get wasNoisyPause => _noisyPause;
 
+  /// Whether the phone is ringing or in a call (including VoIP), read from
+  /// the audio mode, which needs no permission. False where unknown.
+  static Future<bool> _isInCall() async {
+    if (!AppPlatform.isAndroid) return false;
+    try {
+      final mode = await _eqChannelForDiag.invokeMethod<int>('audioMode');
+      return mode != null && mode != 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> _configureAudioSession() async {
     if (AppPlatform.lacksPhonePlugins) return;
     final session = await AudioSession.instance;
     _duckBriefInterruptions =
         AppPlatform.isAndroid &&
         await PlayerSettings.getDuckBriefInterruptions();
+    _keepPlayingWithOtherApps =
+        AppPlatform.isAndroid &&
+        await PlayerSettings.getKeepPlayingWithOtherApps();
 
     await session.configure(
       AudioSessionConfiguration(
@@ -3242,6 +3261,19 @@ class AudioPlayerService extends ChangeNotifier {
               _clearDuckWatchdog();
               await service._player?.setVolume(duckedVolume);
             }
+            // Android reports another app taking the audio for good as
+            // `unknown`, and on a Pixel an incoming call arrives the same
+            // way, so the phone's audio mode tells the two apart. With the
+            // setting on, another app is the one case to play through.
+            final lossType = AppPlatform.isAndroid &&
+                event.type == AudioInterruptionType.unknown;
+            final inCall = lossType && await _isInCall();
+            if (_keepPlayingWithOtherApps && lossType && !inCall) {
+              debugPrint(
+                '[AudioSession] Another app took the audio - keeping playing',
+              );
+              return;
+            }
             if (service.isPlaying) {
               debugPrint(
                 '[AudioSession] Interrupted (${event.type}) — pausing',
@@ -3264,8 +3296,9 @@ class AudioPlayerService extends ChangeNotifier {
               // and nav prompts come as transient `pause`/`duck`. Only a
               // transient one should come back by itself - resuming after a
               // permanent one talked over the radio the user switched to.
-              final permanentLoss = AppPlatform.isAndroid &&
-                  event.type == AudioInterruptionType.unknown;
+              // A call that came in as a permanent loss is still a call:
+              // it ends, and the book should come back like any other.
+              final permanentLoss = lossType && !inCall;
               service._wasPlayingBeforeInterrupt = !permanentLoss;
               if (permanentLoss) {
                 debugPrint(
