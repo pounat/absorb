@@ -9,6 +9,11 @@
   #define OutputBase "absorb-windows-setup"
 #endif
 #define SourceDir "..\..\build\windows\x64\runner\Release"
+; The Visual C++ runtime the Flutter build links against but does not copy.
+; A fresh Windows install can lack it and the app then fails to launch with
+; "VCRUNTIME140.dll was not found". CI copies the three DLLs into the Release
+; folder before packaging; a local build passes the redistributable folder
+; instead, e.g. iscc /DCrtDir="C:\...\VC\Redist\MSVC\<ver>\x64\Microsoft.VC143.CRT"
 
 [Setup]
 ; Never change the AppId: it's how an update finds the installed copy.
@@ -25,6 +30,9 @@ AppSupportURL=https://github.com/pounat/absorb/issues
 DefaultDirName={autopf}\Absorb
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+; The Flutter runtime needs Windows 10; without this the installer would
+; happily install on 7 or 8 and the app would fail at launch.
+MinVersion=10.0
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\..\build\installer
@@ -47,6 +55,11 @@ Type: filesandordirs; Name: "{app}\data"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#ifdef CrtDir
+Source: "{#CrtDir}\msvcp140.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#CrtDir}\vcruntime140.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#CrtDir}\vcruntime140_1.dll"; DestDir: "{app}"; Flags: ignoreversion
+#endif
 
 [Icons]
 Name: "{autoprograms}\Absorb"; Filename: "{app}\absorb.exe"
