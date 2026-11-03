@@ -8386,6 +8386,12 @@ abstract class AppLocalizations {
   /// **'Loudness'**
   String get loudness;
 
+  /// No description provided for @pitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch'**
+  String get pitch;
+
   /// No description provided for @monoAudio.
   ///
   /// In en, this message translates to:

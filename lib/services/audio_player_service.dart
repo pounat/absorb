@@ -3030,6 +3030,14 @@ class AudioPlayerService extends ChangeNotifier {
             debugPrint('[Player] setSkipSilenceEnabled failed: $e');
           }
         });
+        // Pitch is a ratio to ExoPlayer; the slider is in semitones.
+        EqualizerService().setPitchApplier((semitones) {
+          try {
+            _handler?.player.setPitch(math.pow(2.0, semitones / 12.0).toDouble());
+          } catch (e) {
+            debugPrint('[Player] setPitch failed: $e');
+          }
+        });
       }
       // iOS native engine: keep the processing tap attached whenever any
       // EQ/effect is active so effects work with the band EQ off.

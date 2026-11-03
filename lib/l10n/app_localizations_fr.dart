@@ -4775,6 +4775,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get loudness => 'Volume';
 
   @override
+  String get pitch => 'Pitch';
+
+  @override
   String get monoAudio => 'Audio mono';
 
   @override

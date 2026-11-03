@@ -145,6 +145,10 @@ class AudioPlayer {
       _isNative ? _native!.setVolume(volume) : _ja!.setVolume(volume);
   Future<void> setSkipSilenceEnabled(bool enabled) =>
       _isNative ? _native!.setSkipSilenceEnabled(enabled) : _ja!.setSkipSilenceEnabled(enabled);
+  // The native iOS engine ties pitch to speed, so only ExoPlayer takes it.
+  Future<void> setPitch(double pitch) async {
+    if (!_isNative) await _ja!.setPitch(pitch);
+  }
   Future<Duration?> setAsset(String asset) =>
       _isNative ? _native!.setAsset(asset) : _ja!.setAsset(asset);
   Future<void> dispose() =>

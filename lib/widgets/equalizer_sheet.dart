@@ -55,7 +55,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   bool _pEnabled = false;
   String _pPreset = 'flat';
   List<double> _pBands = [];
-  double _pBass = 0.0, _pVirt = 0.0, _pLoud = 0.0;
+  double _pBass = 0.0, _pVirt = 0.0, _pLoud = 0.0, _pPitch = 0.0;
   bool _pMono = false;
   bool _pSkipSilence = false;
 
@@ -94,6 +94,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       _pBass = 0.0;
       _pVirt = 0.0;
       _pLoud = 0.0;
+      _pPitch = 0.0;
       _pMono = false;
       _pSkipSilence = false;
       _loadPreview();
@@ -113,6 +114,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       _pBass = snap['bassBoost'] as double;
       _pVirt = snap['virtualizer'] as double;
       _pLoud = snap['loudnessGain'] as double;
+      _pPitch = snap['pitch'] as double? ?? 0.0;
       _pMono = snap['mono'] as bool;
       _pSkipSilence = snap['skipSilence'] as bool? ?? false;
       _pBands = List<double>.from((snap['bands'] as List).cast<double>());
@@ -130,6 +132,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       'loudnessGain': _pLoud,
       'mono': _pMono,
       'skipSilence': _pSkipSilence,
+      'pitch': _pPitch,
       'bands': _pBands,
     });
   }
@@ -141,6 +144,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   double get _vBass => _previewMode ? _pBass : _eq.bassBoost;
   double get _vVirt => _previewMode ? _pVirt : _eq.virtualizer;
   double get _vLoud => _previewMode ? _pLoud : _eq.loudnessGain;
+  double get _vPitch => _previewMode ? _pPitch : _eq.pitch;
   bool get _vMono => _previewMode ? _pMono : _eq.mono;
   bool get _vSkipSilence => _previewMode ? _pSkipSilence : _eq.skipSilence;
 
@@ -210,6 +214,15 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
     }
   }
 
+  void _setPitch(double v) {
+    if (_previewMode) {
+      setState(() => _pPitch = v.clamp(EqualizerService.minPitch, EqualizerService.maxPitch));
+      _savePreview();
+    } else {
+      _eq.setPitch(v);
+    }
+  }
+
   void _setMono(bool v) {
     if (_previewMode) {
       setState(() => _pMono = v);
@@ -236,6 +249,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
         _pBass = 0.0;
         _pVirt = 0.0;
         _pLoud = 0.0;
+        _pPitch = 0.0;
         _pMono = false;
         _pSkipSilence = false;
       });
@@ -503,6 +517,16 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                 ),
                 const SizedBox(height: 8),
 
+                // Pitch (Android only: the iOS player ties pitch to speed)
+                if (AppPlatform.isAndroid)
+                  _PitchRow(
+                    label: l.pitch,
+                    value: _vPitch,
+                    accent: accent,
+                    onChanged: (v) => _setPitch(v),
+                  ),
+                const SizedBox(height: 8),
+
                 // Mono toggle
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -662,6 +686,78 @@ class _EQBandSlider extends StatelessWidget {
 }
 
 // ── Effect Row with slider ──
+
+/// A centred slider in semitones, so the voice can go lower or higher
+/// without the speed changing.
+class _PitchRow extends StatelessWidget {
+  final String label;
+  final double value;
+  final Color accent;
+  final ValueChanged<double> onChanged;
+
+  const _PitchRow({
+    required this.label,
+    required this.value,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final steps = ((EqualizerService.maxPitch - EqualizerService.minPitch) * 2).round();
+    final text = value == 0
+        ? '0'
+        : '${value > 0 ? '+' : ''}${value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1)}';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.onSurface.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.graphic_eq_rounded, size: 18, color: accent.withValues(alpha: 0.7)),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 72,
+            child: Text(label, style: TextStyle(
+              color: cs.onSurface.withValues(alpha: 0.7),
+              fontSize: 12, fontWeight: FontWeight.w500)),
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                activeTrackColor: accent,
+                inactiveTrackColor: cs.onSurface.withValues(alpha: 0.06),
+                thumbColor: accent,
+                overlayColor: accent.withValues(alpha: 0.15),
+              ),
+              child: Slider(
+                value: value.clamp(EqualizerService.minPitch, EqualizerService.maxPitch),
+                min: EqualizerService.minPitch,
+                max: EqualizerService.maxPitch,
+                divisions: steps,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 32,
+            child: Text(text,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
+                fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _EffectRow extends StatelessWidget {
   final IconData icon;

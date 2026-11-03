@@ -25,14 +25,22 @@ class EqualizerService extends ChangeNotifier {
   double _loudnessGain = 0.0; // 0.0–1.0
   bool _mono = false;
   bool _skipSilence = false;
+  double _pitch = 0.0; // semitones, independent of speed
   bool _perItem = false;
   String? _currentItemId;
+
+  static const double minPitch = -6.0;
+  static const double maxPitch = 6.0;
 
   /// Applied to the just_audio AudioPlayer whenever skipSilence changes
   /// (toggle, per-book switch, account reload). Registered by
   /// AudioPlayerService.init so the EQ service stays decoupled from
   /// just_audio.
   void Function(bool enabled)? _skipSilenceApplier;
+
+  /// Applied to the player whenever the pitch changes, with the shift in
+  /// semitones. Registered by AudioPlayerService like the skip-silence one.
+  void Function(double semitones)? _pitchApplier;
 
   /// Invoked when [anyProcessingActive] may have changed so the iOS engine can
   /// attach/detach its processing tap. Registered by AudioPlayerService.
@@ -63,6 +71,7 @@ class EqualizerService extends ChangeNotifier {
   double get loudnessGain => _loudnessGain;
   bool get mono => _mono;
   bool get skipSilence => _skipSilence;
+  double get pitch => _pitch;
   bool get perItem => _perItem;
   String? get currentItemId => _currentItemId;
 
@@ -105,6 +114,7 @@ class EqualizerService extends ChangeNotifier {
       _setupSoftwareFallback();
     }
     _skipSilenceApplier?.call(_skipSilence);
+    _pitchApplier?.call(_pitch);
     _tapApplier?.call(anyProcessingActive);
     notifyListeners();
   }
@@ -213,6 +223,22 @@ class EqualizerService extends ChangeNotifier {
     fn(_skipSilence);
   }
 
+  /// Shift the voice up or down in semitones without changing the speed.
+  /// Android-only; the applier no-ops elsewhere.
+  Future<void> setPitch(double semitones) async {
+    _pitch = semitones.clamp(minPitch, maxPitch);
+    _pitchApplier?.call(_pitch);
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  /// Register the pitch applier. Called once immediately so the player picks
+  /// up persisted state on app start.
+  void setPitchApplier(void Function(double semitones) fn) {
+    _pitchApplier = fn;
+    fn(_pitch);
+  }
+
   /// Register the iOS processing-tap applier. Called once immediately so the
   /// engine reflects the current state.
   void setTapApplier(void Function(bool active) fn) {
@@ -240,7 +266,9 @@ class EqualizerService extends ChangeNotifier {
     _loudnessGain = 0.0;
     _mono = false;
     _skipSilence = false;
+    _pitch = 0.0;
     _skipSilenceApplier?.call(_skipSilence);
+    _pitchApplier?.call(_pitch);
     if (_enabled) {
       _applyCurrentSettings();
     } else {
@@ -328,6 +356,7 @@ class EqualizerService extends ChangeNotifier {
     _currentItemId = itemId;
     await _loadItemSettings(itemId);
     _skipSilenceApplier?.call(_skipSilence);
+    _pitchApplier?.call(_pitch);
     if (_enabled) {
       _applyCurrentSettings();
     } else {
@@ -355,6 +384,7 @@ class EqualizerService extends ChangeNotifier {
         'loudnessGain': 0.0,
         'mono': false,
         'skipSilence': false,
+        'pitch': 0.0,
         'bands': List<double>.filled(bandCount, 0.0),
       };
     }
@@ -370,6 +400,7 @@ class EqualizerService extends ChangeNotifier {
       'loudnessGain': await ScopedPrefs.getDouble(_itemKey('loudnessGain', itemId)) ?? 0.0,
       'mono': await ScopedPrefs.getBool(_itemKey('mono', itemId)) ?? false,
       'skipSilence': await ScopedPrefs.getBool(_itemKey('skipSilence', itemId)) ?? false,
+      'pitch': await ScopedPrefs.getDouble(_itemKey('pitch', itemId)) ?? 0.0,
       'bands': bands,
     };
   }
@@ -383,6 +414,7 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble(_itemKey('loudnessGain', itemId), s['loudnessGain'] as double);
     await ScopedPrefs.setBool(_itemKey('mono', itemId), s['mono'] as bool);
     await ScopedPrefs.setBool(_itemKey('skipSilence', itemId), s['skipSilence'] as bool? ?? false);
+    await ScopedPrefs.setDouble(_itemKey('pitch', itemId), s['pitch'] as double? ?? 0.0);
     final bands = (s['bands'] as List).cast<double>();
     await ScopedPrefs.setString(_itemKey('bands', itemId), bands.map((l) => l.toStringAsFixed(1)).join(','));
   }
@@ -397,6 +429,7 @@ class EqualizerService extends ChangeNotifier {
       _loudnessGain = 0.0;
       _mono = false;
       _skipSilence = false;
+      _pitch = 0.0;
       _bandLevels = List.filled(_bandLevels.length, 0.0);
       return;
     }
@@ -407,6 +440,7 @@ class EqualizerService extends ChangeNotifier {
     _loudnessGain = await ScopedPrefs.getDouble(_itemKey('loudnessGain', itemId)) ?? 0.0;
     _mono = await ScopedPrefs.getBool(_itemKey('mono', itemId)) ?? false;
     _skipSilence = await ScopedPrefs.getBool(_itemKey('skipSilence', itemId)) ?? false;
+    _pitch = await ScopedPrefs.getDouble(_itemKey('pitch', itemId)) ?? 0.0;
     final bandStr = await ScopedPrefs.getString(_itemKey('bands', itemId));
     if (bandStr != null) {
       _bandLevels = bandStr.split(',').map((s) => double.tryParse(s) ?? 0.0).toList();
@@ -423,6 +457,7 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble(_itemKey('loudnessGain', itemId), _loudnessGain);
     await ScopedPrefs.setBool(_itemKey('mono', itemId), _mono);
     await ScopedPrefs.setBool(_itemKey('skipSilence', itemId), _skipSilence);
+    await ScopedPrefs.setDouble(_itemKey('pitch', itemId), _pitch);
     await ScopedPrefs.setString(_itemKey('bands', itemId), _bandLevels.map((l) => l.toStringAsFixed(1)).join(','));
   }
 
@@ -435,6 +470,7 @@ class EqualizerService extends ChangeNotifier {
     _loudnessGain = await ScopedPrefs.getDouble('eq_loudnessGain') ?? 0.0;
     _mono = await ScopedPrefs.getBool('eq_mono') ?? false;
     _skipSilence = await ScopedPrefs.getBool('eq_skipSilence') ?? false;
+    _pitch = await ScopedPrefs.getDouble('eq_pitch') ?? 0.0;
 
     final bandStr = await ScopedPrefs.getString('eq_bands');
     if (bandStr != null) {
@@ -453,6 +489,7 @@ class EqualizerService extends ChangeNotifier {
     await _loadSettings();
     _currentItemId = null;
     _skipSilenceApplier?.call(_skipSilence);
+    _pitchApplier?.call(_pitch);
     if (_enabled) {
       await _applyCurrentSettings();
     } else {
@@ -470,6 +507,7 @@ class EqualizerService extends ChangeNotifier {
     await ScopedPrefs.setDouble('eq_loudnessGain', _loudnessGain);
     await ScopedPrefs.setBool('eq_mono', _mono);
     await ScopedPrefs.setBool('eq_skipSilence', _skipSilence);
+    await ScopedPrefs.setDouble('eq_pitch', _pitch);
     await ScopedPrefs.setString('eq_bands', _bandLevels.map((l) => l.toStringAsFixed(1)).join(','));
     if (_perItem && _currentItemId != null) {
       await _saveItemSettings(_currentItemId!);
