@@ -1450,10 +1450,19 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     _healthCheckTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
       if (_networkOffline || _manualOffline || !_deviceHasConnectivity) return;
       if ((_auth?.activeServerUrl ?? _auth?.serverUrl ?? '').isEmpty) return;
-      final reachableUrl =
+      var reachableUrl =
           await _pingActiveServerWithFallback(const Duration(seconds: 10));
       if (reachableUrl == null) {
-        debugPrint('[Library] Health check failed — server unreachable, going offline');
+        // One lost answer is often a short drop on the phone's side, so ask
+        // once more before tearing the online state down.
+        debugPrint('[Library] Health check missed - confirming before going offline');
+        await Future.delayed(const Duration(seconds: 3));
+        if (_networkOffline || _manualOffline || !_deviceHasConnectivity) return;
+        reachableUrl =
+            await _pingActiveServerWithFallback(const Duration(seconds: 10));
+      }
+      if (reachableUrl == null) {
+        debugPrint('[Library] Health check failed twice — server unreachable, going offline');
         setNetworkOffline(true);
       } else {
         notifyServerReachable(reachableUrl);
