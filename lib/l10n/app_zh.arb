@@ -533,17 +533,11 @@
   "whenAbsorbedSubtitle": "听完一本书或或一集后收听卡片的处理方式",
   "whenAbsorbedShowOverlay": "显示覆盖层",
   "whenAbsorbedAutoRelease": "自动释放",
-  "mergeLibraries": "合并媒体库",
-  "mergeLibrariesInfoTitle": "合并媒体库",
-  "mergeLibrariesInfoContent": "启用后，“正在收听”界面会将您所有媒体库中正在进行的书籍和播客集中显示在一个视图中。禁用时，仅显示您当前所选媒体库中的项目。",
-  "mergeLibrariesOnSubtitle": "正在收听页面显示来自所有媒体库的项目",
-  "mergeLibrariesOffSubtitle": "正在收听页面仅显示当前媒体库",
   "queueMode": "队列模式",
   "queueModeInfoTitle": "队列模式",
   "queueModeInfoOff": "关闭",
   "queueModeInfoOffDesc": "当前书籍或单集播放完成后停止播放。",
   "queueModeInfoManual": "手动队列",
-  "queueModeInfoManualDesc": "你的收听卡片将作为播放列表使用。当一个播放完成时，会自动播放下一个未完成的卡片。通过书籍或单集详情页的\"添加至正在收听\"按钮添加项目，并在收听界面重新排序。",
   "queueModeOff": "关闭",
   "queueModeManual": "手动",
   "queueModeAuto": "自动",
@@ -774,20 +768,9 @@
   "contact": "联系我们",
   "contactSubtitle": "通过邮件发送设备信息",
   "enableLogging": "启用日志记录",
-  "enableLoggingOnSubtitle": "开启 - 日志保存到文件（重启生效）",
   "enableLoggingOffSubtitle": "关闭 - 不捕获日志",
   "loggingEnabledSnackbar": "日志记录已启用 - 重启应用以开始捕获",
   "loggingDisabledSnackbar": "日志记录已禁用 - 重启应用以停止捕获",
-  "sendLogs": "发送日志",
-  "sendLogsSubtitle": "以附件形式分享日志文件",
-  "failedToShare": "分享失败: {error}",
-  "@failedToShare": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "clearLogs": "清除日志",
   "logsCleared": "日志已清除",
   "sectionAdvanced": "高级",
