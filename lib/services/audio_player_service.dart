@@ -3012,7 +3012,7 @@ class AudioPlayerService extends ChangeNotifier {
               AndroidContentStyle.browsableHintKey:
                   AndroidContentStyle.categoryListItemHintValue,
               AndroidContentStyle.playableHintKey:
-                  AndroidContentStyle.gridItemHintValue,
+                  AndroidContentStyle.listItemHintValue,
               'android.media.browse.SEARCH_SUPPORTED': true,
             },
           ),
