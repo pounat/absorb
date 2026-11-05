@@ -535,6 +535,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+    debugPrint('[EbookReader] lifecycle ${state.name} active=$_readerActive item=${widget.itemId}');
+    // A desktop window is "inactive" whenever its focus is elsewhere, which
+    // includes the page's own web view after a click, so the reader is only
+    // away there once the window is hidden. Treating each click as leaving
+    // dropped every relocation and put the page back on the next click.
+    if (state == AppLifecycleState.inactive && AppPlatform.isDesktop) return;
     if (state == AppLifecycleState.resumed) {
       _readerActive = true;
       // Restore the page we were on before the recents/background resize drifted

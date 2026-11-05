@@ -2090,6 +2090,8 @@ function setupRenditionBlocking() {
     if (window.__absorbLogMoves) blindNotify("absorbAutoScrollLog", "next blocked by a selection");
         return Promise.resolve(rendition.location);
       }
+      window.__absorbUserMoveAt = Date.now();
+      if (window.__absorbLogMoves) blindNotify("absorbAutoScrollLog", "next");
       return originalNext();
     };
 
@@ -2097,8 +2099,11 @@ function setupRenditionBlocking() {
     rendition.prev = function () {
       if (hasActiveSelection()) {
         console.log('Blocked prev() - selection active');
+        if (window.__absorbLogMoves) blindNotify("absorbAutoScrollLog", "prev blocked by a selection");
         return Promise.resolve(rendition.location);
       }
+      window.__absorbUserMoveAt = Date.now();
+      if (window.__absorbLogMoves) blindNotify("absorbAutoScrollLog", "prev");
       return originalPrev();
     };
 
@@ -2106,7 +2111,13 @@ function setupRenditionBlocking() {
     rendition.display = function (cfi) {
       if (hasActiveSelection()) {
         console.log('Blocked display() - selection active, cfi:', cfi);
+        if (window.__absorbLogMoves) blindNotify("absorbAutoScrollLog", "display blocked by a selection " + cfi);
         return Promise.resolve(rendition.location);
+      }
+      // A resize putting the page back is not the reader moving.
+      if (!window.__absorbResizeDisplaying) window.__absorbUserMoveAt = Date.now();
+      if (window.__absorbLogMoves) {
+        blindNotify("absorbAutoScrollLog", "display " + cfi + (window.__absorbResizeDisplaying ? " (resize)" : ""));
       }
       return originalDisplay(cfi);
     };
@@ -2125,6 +2136,7 @@ function holdSpotThroughResize(r) {
   var resizing = 0;
   var quietUntil = 0;
   var lastW = 0, lastH = 0;
+  var resizeAt = 0;
   r.onResized = function (size, epubcfi) {
     this.emit("resized", { width: size.width, height: size.height }, epubcfi);
     if (!this.location || !this.location.start) return;
@@ -2139,21 +2151,29 @@ function holdSpotThroughResize(r) {
         (same ? " (same size)" : "") + " -> " + cfi);
     }
     resizing++;
+    resizeAt = Date.now();
+    window.__absorbResizeDisplaying = true;
     // The relocated event for this display comes a couple of frames after it
     // resolves.
     var settle = function () {
       resizing--;
+      if (resizing <= 0) window.__absorbResizeDisplaying = false;
       quietUntil = Date.now() + 500;
     };
     Promise.resolve(this.display(cfi)).then(settle, settle);
   };
   r.on("relocated", function (location) {
     var cfi = location && location.start ? location.start.cfi : null;
+    // A move the reader asked for since the resize began is theirs to keep,
+    // quiet window or not; only the pages the resize itself lands on are not.
+    var moved = (window.__absorbUserMoveAt || 0) > resizeAt;
+    var settling = resizing > 0 || Date.now() < quietUntil;
     if (window.__absorbLogMoves) {
       blindNotify("absorbAutoScrollLog", "relocated " + cfi +
-        (resizing > 0 ? " (during resize)" : Date.now() < quietUntil ? " (quiet)" : ""));
+        (resizing > 0 ? " (during resize)" : Date.now() < quietUntil ? " (quiet)" : "") +
+        (settling && moved ? " (kept: reader moved)" : ""));
     }
-    if (resizing > 0 || Date.now() < quietUntil) return;
+    if (settling && !moved) return;
     if (cfi) spot = cfi;
   });
 }
