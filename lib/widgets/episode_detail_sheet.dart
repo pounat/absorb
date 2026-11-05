@@ -160,6 +160,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
         api: api, itemId: _itemId, title: _episodeTitle, author: _showTitle,
         coverUrl: api.getCoverUrl(_itemId), totalDuration: _duration, chapters: _chapters,
         episodeId: _episodeId,
+        libraryId: widget.podcastItem['libraryId'] as String?,
       );
       if (mounted) Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
       return;

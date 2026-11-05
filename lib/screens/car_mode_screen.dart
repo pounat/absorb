@@ -498,6 +498,7 @@ class _CarModeScreenState extends State<CarModeScreen>
                           player: player,
                           accent: Colors.white,
                           itemId: player.currentItemId,
+                          libraryId: player.currentLibraryId,
                         ),
                       );
                     },

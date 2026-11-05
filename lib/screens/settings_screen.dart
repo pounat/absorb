@@ -315,6 +315,8 @@ class SettingsScreenState extends State<SettingsScreen> {
   bool _curLibSkipOverride = false;
   int _curLibSkipForward = 30;
   int _curLibSkipBack = 10;
+  bool _curLibSpeedOverride = false;
+  double _curLibSpeed = 1.0;
   bool _coverPlayButton = false;
   String _cardBackground = 'blurred';
   double _progressTextScale = 1.0;
@@ -1514,8 +1516,11 @@ class SettingsScreenState extends State<SettingsScreen> {
     final shape = await PlayerSettings.getRectangleCoversOverride(libraryId);
     final subtitles = await PlayerSettings.getShowSubtitlesOverride(libraryId);
     final skip = await PlayerSettings.getSkipOverride(libraryId);
+    final speed = await PlayerSettings.getSpeedOverride(libraryId);
     if (mounted) setState(() {
       _curLibId = libraryId;
+      _curLibSpeedOverride = speed != null;
+      _curLibSpeed = speed ?? _defaultSpeed;
       _curLibCoverShape = shape ?? 'default';
       _curLibSubtitles = subtitles ?? 'default';
       _curLibSkipOverride = skip != null;
@@ -3187,6 +3192,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
                       leading: Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),
                       title: Text(l.resetSpeedPresets),
@@ -4564,6 +4570,43 @@ class SettingsScreenState extends State<SettingsScreen> {
                             setState(() => _curLibSkipForward = v.round());
                             PlayerSettings.setSkipOverride(_curLibId!,
                                 forward: v.round(), back: _curLibSkipBack);
+                          } : null,
+                        ),
+                      ],
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: Text(l.currentLibrarySpeedOverride),
+                        subtitle: Text(
+                          _curLibSpeedOverride
+                              ? l.currentLibrarySpeedOverrideOnSubtitle
+                              : l.currentLibrarySpeedOverrideOffSubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                        value: _curLibSpeedOverride,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _curLibSpeedOverride = v);
+                          PlayerSettings.setSpeedOverride(_curLibId!, v ? _curLibSpeed : null);
+                        } : null,
+                      ),
+                      if (_curLibSpeedOverride) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(l.currentLibrarySpeed, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                              Text(l.speedValue(_curLibSpeed.toStringAsFixed(2)), style: tt.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600, color: cs.primary)),
+                            ],
+                          ),
+                        ),
+                        AbsorbSlider(
+                          value: _curLibSpeed,
+                          min: 0.5, max: 5.0, divisions: 90,
+                          onChanged: _loaded ? (v) {
+                            final s = (v * 20).round() / 20.0;
+                            setState(() => _curLibSpeed = s);
+                            PlayerSettings.setSpeedOverride(_curLibId!, s);
                           } : null,
                         ),
                       ],

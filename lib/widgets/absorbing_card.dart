@@ -343,7 +343,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
   Future<void> _loadSavedSpeed() async {
     final bookSpeed = await PlayerSettings.getBookSpeed(_itemId);
-    final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+    final speed = bookSpeed ?? await PlayerSettings.defaultSpeedFor(libraryId: _resolveLibraryId());
     if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
   }
 
@@ -1184,7 +1184,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
           final scrubberBar = Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId, compact: compact),
+                  child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId, compact: compact, libraryId: _resolveLibraryId()),
                 );
 
           final controlsRow = Padding(
@@ -1293,6 +1293,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                   itemId: _itemId,
                   compact: compact,
                   showBookPercentage: true,
+                  libraryId: _resolveLibraryId(),
                 ),
               ),
             );
@@ -1600,6 +1601,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     item: widget.item,
     itemId: _itemId,
     episodeId: _episodeId,
+    libraryId: _resolveLibraryId(),
     isPodcastEpisode: _isPodcastEpisode,
     title: _title,
     author: _author,

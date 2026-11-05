@@ -503,6 +503,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
         totalDuration: duration,
         chapters: chapters,
         episodeId: episodeId,
+        libraryId: _podcastItem['libraryId'] as String?,
       );
       if (mounted) Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
       return;

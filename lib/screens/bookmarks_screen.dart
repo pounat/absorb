@@ -55,6 +55,7 @@ class _BookmarksScreenState extends State<BookmarksScreen>
   // speed-adjusted-time setting at that book's own speed.
   final Map<String, double> _bookSpeeds = {};
   double _defaultSpeed = 1.0;
+  final Map<String, double> _librarySpeeds = {};
   final TextEditingController _searchCtl = TextEditingController();
   String _query = '';
   // Books opened on the bookmarks tab; all start folded. Kept while the screen is open.
@@ -181,6 +182,14 @@ class _BookmarksScreenState extends State<BookmarksScreen>
 
   Future<void> _loadBookSpeeds() async {
     _defaultSpeed = await PlayerSettings.getDefaultSpeed();
+    if (mounted) {
+      for (final library in context.read<LibraryProvider>().libraries) {
+        final id = library['id'] as String?;
+        if (id == null) continue;
+        final override = await PlayerSettings.getSpeedOverride(id);
+        if (override != null) _librarySpeeds[id] = override;
+      }
+    }
     var changed = false;
     for (final key in _allBookmarks.keys) {
       final itemId = splitEpisodeKey(key).itemId;
@@ -198,10 +207,14 @@ class _BookmarksScreenState extends State<BookmarksScreen>
     if (!_speedAdjustedTime) return 1.0;
     // Speed is saved per book, and a podcast's per-show, so an episode key has
     // to come apart before either lookup.
-    final itemId = splitEpisodeKey(key).itemId;
+    final parts = splitEpisodeKey(key);
+    final itemId = parts.itemId;
     final player = AudioPlayerService();
     if (player.currentItemId == itemId) return player.speed;
-    return _bookSpeeds[itemId] ?? _defaultSpeed;
+    final libraryId = context
+        .read<LibraryProvider>()
+        .libraryIdOf(itemId, episodeId: parts.episodeId);
+    return _bookSpeeds[itemId] ?? _librarySpeeds[libraryId] ?? _defaultSpeed;
   }
 
   Future<void> _loadSort() async {

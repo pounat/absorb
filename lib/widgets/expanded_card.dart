@@ -749,7 +749,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
 
                     final bookProgressBar = Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: progress, staticDuration: _effectiveDuration, chapters: _chapters, showBookBar: showBookBar, showChapterBar: false, itemId: _itemId, showCenterPercent: true),
+                        child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: progress, staticDuration: _effectiveDuration, chapters: _chapters, showBookBar: showBookBar, showChapterBar: false, itemId: _itemId, showCenterPercent: true, libraryId: _resolveLibraryId()),
                       );
 
                     final coverArea = Padding(
@@ -951,7 +951,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
 
                     final chapterScrubber = Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId),
+                        child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId, libraryId: _resolveLibraryId()),
                       );
 
                     final controlsAndButtons = MediaQuery(
@@ -1246,6 +1246,7 @@ class _ExpandedCardState extends State<ExpandedCard> {
     item: _item,
     itemId: _itemId,
     episodeId: _episodeId,
+    libraryId: _resolveLibraryId(),
     isPodcastEpisode: _isPodcastEpisode,
     title: _title,
     author: _author,

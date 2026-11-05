@@ -606,7 +606,8 @@ class CardSpeedButtonInline extends StatefulWidget {
   final bool compact;
   final bool iconsOnly;
   final String? itemId;
-  const CardSpeedButtonInline({super.key, required this.player, required this.accent, required this.isActive, this.large = false, this.compact = false, this.iconsOnly = false, this.itemId});
+  final String? libraryId;
+  const CardSpeedButtonInline({super.key, required this.player, required this.accent, required this.isActive, this.large = false, this.compact = false, this.iconsOnly = false, this.itemId, this.libraryId});
 
   @override State<CardSpeedButtonInline> createState() => _CardSpeedButtonInlineState();
 }
@@ -630,7 +631,7 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
   Future<void> _loadSavedSpeed() async {
     if (widget.itemId == null) return;
     final bookSpeed = await PlayerSettings.getBookSpeed(widget.itemId!);
-    final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+    final speed = bookSpeed ?? await PlayerSettings.defaultSpeedFor(libraryId: widget.libraryId);
     if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
   }
 
@@ -671,7 +672,7 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
           onTap: () {
             showAdaptiveActionMenu(context: context, backgroundColor: Colors.transparent,
               useSafeArea: true,
-              builder: (ctx) => CardSpeedSheet(player: widget.player, accent: widget.accent, itemId: widget.itemId));
+              builder: (ctx) => CardSpeedSheet(player: widget.player, accent: widget.accent, itemId: widget.itemId, libraryId: widget.libraryId));
           },
           child: Container(
             height: h,
@@ -691,8 +692,8 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
 // ─── SPEED SHEET ─────────────────────────────────────────────
 
 class CardSpeedSheet extends StatefulWidget {
-  final AudioPlayerService player; final Color accent; final String? itemId;
-  const CardSpeedSheet({super.key, required this.player, required this.accent, this.itemId});
+  final AudioPlayerService player; final Color accent; final String? itemId; final String? libraryId;
+  const CardSpeedSheet({super.key, required this.player, required this.accent, this.itemId, this.libraryId});
   @override State<CardSpeedSheet> createState() => _CardSpeedSheetState();
 }
 
@@ -739,7 +740,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
   Future<void> _loadSavedSpeed() async {
     if (widget.itemId == null) return;
     final bookSpeed = await PlayerSettings.getBookSpeed(widget.itemId!);
-    final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+    final speed = bookSpeed ?? await PlayerSettings.defaultSpeedFor(libraryId: widget.libraryId);
     if (mounted) setState(() => _speed = (speed * 20).round() / 20.0);
   }
   void _setSpeed(double v) {
@@ -869,7 +870,9 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
       if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
     });
     PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
-      final speed = s ?? await PlayerSettings.getDefaultSpeed();
+      final speed = s ??
+          await PlayerSettings.defaultSpeedFor(
+              libraryId: context.read<LibraryProvider>().libraryIdOf(widget.itemId, episodeId: widget.episodeId));
       if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
     });
   }
@@ -1629,6 +1632,7 @@ class CardActionDelegate {
   final Map<String, dynamic> item;
   final String itemId;
   final String? episodeId;
+  final String? libraryId;
   final bool isPodcastEpisode;
   final String title;
   final String? author;
@@ -1664,6 +1668,7 @@ class CardActionDelegate {
     required this.item,
     required this.itemId,
     this.episodeId,
+    this.libraryId,
     this.isPodcastEpisode = false,
     required this.title,
     this.author,
@@ -1959,7 +1964,7 @@ class CardActionDelegate {
         return CardWideButton(
           icon: Icons.speed_rounded, label: l.speed,
           accent: accent, isActive: isPlaybackActive, large: large, compact: compact, iconsOnly: iconsOnly,
-          child: CardSpeedButtonInline(player: player, accent: accent, isActive: isActive, large: large, compact: compact, iconsOnly: iconsOnly, itemId: itemId),
+          child: CardSpeedButtonInline(player: player, accent: accent, isActive: isActive, large: large, compact: compact, iconsOnly: iconsOnly, itemId: itemId, libraryId: libraryId),
         );
       case 'sleep':
         return CardWideButton(
@@ -2136,7 +2141,7 @@ class CardActionDelegate {
           onTap: () {
             Navigator.pop(ctx);
             showAdaptiveActionMenu(context: context, backgroundColor: Colors.transparent, useSafeArea: true,
-              builder: (_) => CardSpeedSheet(player: player, accent: accent, itemId: itemId));
+              builder: (_) => CardSpeedSheet(player: player, accent: accent, itemId: itemId, libraryId: libraryId));
           },
         );
       case 'sleep':
@@ -2396,6 +2401,7 @@ class CardActionDelegate {
           api: api, itemId: itemId, title: title, author: author ?? '',
           coverUrl: coverUrl, totalDuration: duration, chapters: chapters,
           episodeId: episodeId ?? player.currentEpisodeId,
+          libraryId: libraryId,
         );
       }
     } else {
@@ -2595,7 +2601,9 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
       if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
     });
     PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
-      final speed = s ?? await PlayerSettings.getDefaultSpeed();
+      final speed = s ??
+          await PlayerSettings.defaultSpeedFor(
+              libraryId: context.read<LibraryProvider>().libraryIdOf(widget.itemId, episodeId: widget.episodeId));
       if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
     });
     _selectedTab = widget.initialTab.index;

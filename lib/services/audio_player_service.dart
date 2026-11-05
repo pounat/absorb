@@ -4636,7 +4636,8 @@ class AudioPlayerService extends ChangeNotifier {
       if (totalDuration > 0 && startTime >= totalDuration - 1.0) startTime = 0;
       final speedKey = _currentItemId ?? itemId;
       final bookSpeed = await PlayerSettings.getBookSpeed(speedKey);
-      final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+      final speed = bookSpeed ??
+          await PlayerSettings.defaultSpeedFor(libraryId: _currentLibraryId);
       startTime = await _sessionStartRewound(
         startTime,
         forceStartTime: forceStartTime,
@@ -4886,7 +4887,8 @@ class AudioPlayerService extends ChangeNotifier {
 
       if (totalDuration > 0 && startTime >= totalDuration - 1.0) startTime = 0;
       final bookSpeed = await PlayerSettings.getBookSpeed(itemId);
-      final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+      final speed = bookSpeed ??
+          await PlayerSettings.defaultSpeedFor(libraryId: _currentLibraryId);
       startTime = await _sessionStartRewound(
         startTime,
         forceStartTime: forceStartTime,
@@ -5350,7 +5352,8 @@ class AudioPlayerService extends ChangeNotifier {
       // If the saved position is at (or past) the end, restart from the beginning
       if (totalDuration > 0 && startTime >= totalDuration - 1.0) startTime = 0;
       final bookSpeed = await PlayerSettings.getBookSpeed(itemId);
-      final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+      final speed = bookSpeed ??
+          await PlayerSettings.defaultSpeedFor(libraryId: _currentLibraryId);
       startTime = await _sessionStartRewound(
         startTime,
         forceStartTime: forceStartTime,
@@ -5595,7 +5598,8 @@ class AudioPlayerService extends ChangeNotifier {
       final initChapter = _initChapterInfo(startTime);
       // Speed before _pushMediaItem - the pushed duration is speed-adjusted.
       final bookSpeed = await PlayerSettings.getBookSpeed(itemId);
-      final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+      final speed = bookSpeed ??
+          await PlayerSettings.defaultSpeedFor(libraryId: _currentLibraryId);
       await _player!.setSpeed(speed);
       _pushMediaItem(
         itemId,

@@ -592,6 +592,7 @@ class ChromecastService extends ChangeNotifier {
     required String? coverUrl, required double totalDuration,
     required List<dynamic> chapters, double startTime = 0,
     String? episodeId,
+    String? libraryId,
   }) async {
     debugPrint('[Cast] >>> castItem() — "$title" (id: $itemId)');
     debugPrint('[Cast] isConnected=$isConnected, connectionState=$_connectionState');
@@ -667,7 +668,8 @@ class ChromecastService extends ChangeNotifier {
 
       // Load per-book speed (or global default)
       final bookSpeed = await PlayerSettings.getBookSpeed(itemId);
-      final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+      final speed = bookSpeed ??
+          await PlayerSettings.defaultSpeedFor(libraryId: libraryId);
       _castSpeed = speed;
 
       debugPrint('[Cast] Starting from position: ${startTime}s, speed: ${speed}x');

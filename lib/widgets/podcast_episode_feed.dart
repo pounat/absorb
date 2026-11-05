@@ -485,6 +485,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
         totalDuration: duration,
         chapters: chapters,
         episodeId: episodeId,
+        libraryId: widget.libraryId,
       );
       return;
     }

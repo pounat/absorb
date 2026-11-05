@@ -134,6 +134,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Library', l.sectionLibrary, l.coverShapeLabel, [l.coverShapeDefault, l.coverShapeSquare, l.coverShapeRectangle]),
     SettingSearchEntry('Library', l.sectionLibrary, l.subtitleVisibilityLabel, [l.subtitleVisibilityDefault, l.subtitleVisibilityShow, l.subtitleVisibilityHide]),
     SettingSearchEntry('Library', l.sectionLibrary, l.currentLibrarySkipOverride, [l.currentLibrarySkipOverrideOnSubtitle, l.currentLibrarySkipOverrideOffSubtitle]),
+    SettingSearchEntry('Library', l.sectionLibrary, l.currentLibrarySpeedOverride, [l.currentLibrarySpeedOverrideOnSubtitle, l.currentLibrarySpeedOverrideOffSubtitle]),
     SettingSearchEntry('Library', l.sectionLibrary, l.currentLibrarySkipBack, const []),
     SettingSearchEntry('Library', l.sectionLibrary, l.currentLibrarySkipForward, const []),
 

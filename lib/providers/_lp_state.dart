@@ -155,6 +155,20 @@ mixin _StateMixin on ChangeNotifier {
   List<String> get absorbingBookIds => _absorbingBookIds;
   Map<String, Map<String, dynamic>> get absorbingItemCache =>
       _absorbingItemCache;
+
+  /// The library an item belongs to, as far as this phone knows: the card
+  /// cache, then download metadata, then whatever is playing.
+  String? libraryIdOf(String itemId, {String? episodeId}) {
+    final key = episodeId != null ? '$itemId-$episodeId' : itemId;
+    final cached = _absorbingItemCache[key]?['libraryId'] as String? ??
+        _absorbingItemCache[itemId]?['libraryId'] as String?;
+    if (cached != null && cached.isNotEmpty) return cached;
+    final downloaded = DownloadService().getInfo(key).libraryId;
+    if (downloaded != null && downloaded.isNotEmpty) return downloaded;
+    final player = AudioPlayerService();
+    if (player.currentItemId == itemId) return player.currentLibraryId;
+    return null;
+  }
   String? get freshQueuedFrontKey => _freshQueuedFrontKey;
 
   Map<String, dynamic>? get selectedLibrary {

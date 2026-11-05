@@ -129,7 +129,9 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                 player.currentEpisodeId == widget.episodeId)
         ? player.speed
         : (await PlayerSettings.getBookSpeed(widget.itemId) ??
-            await PlayerSettings.getDefaultSpeed());
+            await PlayerSettings.defaultSpeedFor(
+                libraryId: context.read<LibraryProvider>().libraryIdOf(
+                    widget.itemId, episodeId: widget.episodeId)));
     if (mounted && speed > 0 && speed != _displaySpeed) {
       setState(() => _displaySpeed = speed);
     }

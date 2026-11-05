@@ -29,7 +29,8 @@ class CardDualProgressBar extends StatefulWidget {
   /// (between elapsed and remaining) instead of the caller stacking a
   /// separate percent line above - saves a row on the full screen player.
   final bool showCenterPercent;
-  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showBookPercentage = false, this.showCenterPercent = false});
+  final String? libraryId;
+  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showBookPercentage = false, this.showCenterPercent = false, this.libraryId});
   @override State<CardDualProgressBar> createState() => _CardDualProgressBarState();
 }
 
@@ -82,7 +83,8 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
   Future<void> _loadSavedSpeed() async {
     final itemId = widget.itemId;
     final bookSpeed = itemId != null ? await PlayerSettings.getBookSpeed(itemId) : null;
-    final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+    final speed = bookSpeed ??
+        await PlayerSettings.defaultSpeedFor(libraryId: widget.libraryId);
     if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
   }
 

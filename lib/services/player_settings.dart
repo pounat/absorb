@@ -144,6 +144,29 @@ class PlayerSettings {
   static Future<void> setDefaultSpeed(double speed) =>
       _set('defaultSpeed', speed);
 
+  /// Per-library default speed: a library (podcasts, say) can start its items
+  /// at its own speed instead of the global default. null = no override.
+  static Future<double?> getSpeedOverride(String libraryId) =>
+      ScopedPrefs.getDouble('speedOverride_$libraryId');
+
+  static Future<void> setSpeedOverride(String libraryId, double? speed) async {
+    if (speed == null) {
+      await ScopedPrefs.remove('speedOverride_$libraryId');
+    } else {
+      await ScopedPrefs.setDouble('speedOverride_$libraryId', speed);
+    }
+    _notify();
+  }
+
+  /// The speed a book or episode starts at before it has one of its own.
+  static Future<double> defaultSpeedFor({String? libraryId}) async {
+    if (libraryId != null && libraryId.isNotEmpty) {
+      final override = await getSpeedOverride(libraryId);
+      if (override != null) return override;
+    }
+    return getDefaultSpeed();
+  }
+
   static const List<double> defaultSpeedPresets = [
     0.75,
     1.0,
