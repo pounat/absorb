@@ -67,6 +67,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/desktop_workspace.dart';
 import '../widgets/desktop_wheel_scroll_region.dart';
 import '../widgets/sign_in_again.dart';
+import '../widgets/headphone_output_tile.dart';
 
 class _SettingsSectionDestination {
   final String id;
@@ -2022,6 +2023,8 @@ class SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 8),
+
+                if (Platform.isAndroid) const HeadphoneOutputTile(),
 
                 // ── Tips & Tricks ──
                 if (!isDesktopSettings)
