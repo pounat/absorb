@@ -847,14 +847,17 @@ class HomeWidgetService {
 
       if (player.isPlaying) {
         _startProgressTimer();
+        _ensureStatsTimer();
       } else {
         _stopProgressTimer();
+        if (_backgrounded) _stopStatsTimer();
       }
     } else {
       // No active book — just mark as paused but keep the last book's data
       // so the widget still shows it after app close / force stop.
       await HomeWidget.saveWidgetData<bool>('widget_is_playing', false);
       _stopProgressTimer();
+      if (_backgrounded) _stopStatsTimer();
     }
 
     await _updateAllWidgets();
@@ -1483,6 +1486,7 @@ class HomeWidgetService {
         final player = AudioPlayerService();
         if (!player.isPlaying) {
           _stopProgressTimer();
+          _stopStatsTimer();
           return;
         }
         _stashPlaybackStateForNativeCore(player);
@@ -1505,6 +1509,11 @@ class HomeWidgetService {
     _statsTimer = Timer.periodic(_statsThrottle, (_) => refreshStats());
   }
 
+  void _stopStatsTimer() {
+    _statsTimer?.cancel();
+    _statsTimer = null;
+  }
+
   void onAppBackgrounded() {
     _backgrounded = true;
     // While playing, the progress timer stays alive in stash-only mode (see
@@ -1517,8 +1526,7 @@ class HomeWidgetService {
     // Keep it running if we're still playing so the widget's "today" total
     // keeps ticking during long background listening sessions.
     if (!AudioPlayerService().isPlaying) {
-      _statsTimer?.cancel();
-      _statsTimer = null;
+      _stopStatsTimer();
     }
   }
 
