@@ -2959,6 +2959,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shakeReset => 'Reset';
 
   @override
+  String get shakeVibrationEnabled => 'Vibrate on shake';
+
+  @override
   String get shakeAdds => 'Shake adds';
 
   @override

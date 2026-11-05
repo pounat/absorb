@@ -860,7 +860,9 @@ class SleepTimerService extends ChangeNotifier {
     if (_shakeMode == 'off') return;
     debugPrint('[SleepTimer] Shake detected! mode=$_shakeMode');
 
-    _vibrateSnooze();
+    if (await PlayerSettings.getShakeVibrationEnabled()) {
+      _vibrateSnooze();
+    }
 
     if (_shakeMode == 'resetTimer') {
       if (_mode == SleepTimerMode.time) {

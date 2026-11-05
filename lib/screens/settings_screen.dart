@@ -257,6 +257,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   int _longForwardSkip = 60;
   int _longBackSkip = 60;
   String _shakeMode = 'addTime';
+  bool _shakeVibrationEnabled = true;
   int _sleepRewindSeconds = 0;
   static const _maxRewindMinutes = 120;
   bool _resetSleepOnPause = false;
@@ -1312,6 +1313,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final gradientIntensity = await PlayerSettings.getGradientIntensity();
     final useColorEverywhere = await PlayerSettings.getUseColorEverywhere();
     final sleepButtonMode = await PlayerSettings.getSleepButtonMode();
+    final shakeVibrationEnabled = await PlayerSettings.getShakeVibrationEnabled();
     final statsGoalMinutes = <String, int>{
       for (final p in PlayerSettings.statsGoalPeriods)
         p: await PlayerSettings.getStatsGoalMinutesFor(p)
@@ -1425,6 +1427,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       _forwardSkip = fwd;
       _backSkip = bk;
       _shakeMode = shake;
+      _shakeVibrationEnabled = shakeVibrationEnabled;
       _resetSleepOnPause = resetOnPause;
       _sleepFadeOut = sleepFade;
       _shakeAddMinutes = shakeMins;
@@ -3784,6 +3787,15 @@ class SettingsScreenState extends State<SettingsScreen> {
                         } : null,
                       ),
                       const SizedBox(height: 4),
+                      SwitchListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        title: Text(l.shakeVibrationEnabled),
+                        value: _shakeVibrationEnabled,
+                        onChanged: _loaded ? (value) {
+                          setState(() => _shakeVibrationEnabled = value);
+                          PlayerSettings.setShakeVibrationEnabled(value);
+                        } : null,
+                      ),
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ],

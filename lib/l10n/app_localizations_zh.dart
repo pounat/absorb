@@ -2926,6 +2926,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shakeReset => '重置';
 
   @override
+  String get shakeVibrationEnabled => 'Vibrate on shake';
+
+  @override
   String get shakeAdds => '摇一摇添加';
 
   @override
