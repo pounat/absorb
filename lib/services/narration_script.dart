@@ -1,8 +1,9 @@
 import 'read_along_script.dart';
 
 /// JavaScript for read along on a narrated EPUB: the sentence the narration
-/// is on gets lit by its element id, and the reader is told whether it is on
-/// the page in view so it can turn. Installed as `window.__absorbMO`.
+/// is on gets lit by its element id, word by word when asked, and the reader
+/// is told whether it is on the page in view so it can turn. Installed as
+/// `window.__absorbMO`.
 String narrationBootstrap(int argb, {bool eink = false}) {
   return '(function() {'
       'var MO = window.__absorbMO = window.__absorbMO || {};'
@@ -14,14 +15,21 @@ String narrationBootstrap(int argb, {bool eink = false}) {
 
 const String _body = r'''
   MO.cur = MO.cur || null;
+  MO.w = MO.w || null;
 
   MO.css = function() {
     if (MO.eink) {
       return '.absorb-mo-on { text-decoration: underline;' +
         ' text-decoration-thickness: 2px; text-underline-offset: 3px; }';
     }
+    // Word by word dims the words still to come, as transcribed read along
+    // does, so the full color reaches each word as it is read.
+    var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(MO.color);
+    var dim = m ? 'rgba(' + parseInt(m[1], 16) + ', ' + parseInt(m[2], 16) + ', ' +
+      parseInt(m[3], 16) + ', 0.8)' : MO.color;
     return '.absorb-mo-on, .absorb-mo-on * { color: ' + MO.color + ' !important;' +
-      ' transition: color 180ms ease; }';
+      ' transition: color 180ms ease; }' +
+      '::highlight(absorb-mo-ahead) { color: ' + dim + '; }';
   };
 
   MO.style = function(doc) {
@@ -98,17 +106,84 @@ const String _body = r'''
   };
 
   MO.clear = function() {
+    MO.unhear();
     if (MO.cur) {
       try { MO.cur.classList.remove('absorb-mo-on'); } catch (e) {}
       MO.cur = null;
     }
   };
 
+  // The words of a sentence: where each one ends in the page, and where it
+  // starts in the sentence's text with the spaces between counted once, which
+  // is what the sentence's time is shared out by.
+  MO.wordsOf = function(el) {
+    var tw = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+    var nodes = [], text = '', n;
+    while ((n = tw.nextNode())) {
+      nodes.push({ node: n, start: text.length });
+      text += n.data;
+    }
+    var words = [], re = /\S+/g, m, at = 0, k = 0;
+    while ((m = re.exec(text))) {
+      var end = m.index + m[0].length;
+      while (k + 1 < nodes.length && nodes[k + 1].start < end) k++;
+      words.push({ at: at, node: nodes[k].node, off: end - nodes[k].start });
+      at += m[0].length + 1;
+    }
+    return { words: words, total: Math.max(1, at - 1) };
+  };
+
+  // Word by word: [share] is how much of the lit sentence has been read, and
+  // the words after the one it has reached are dimmed. The narration only
+  // times sentences, so a word's time is its share of the sentence's text.
+  // The dimming is a CSS highlight laid over the text, never markup put into
+  // it, so CFIs into the page stay right. Without CSS highlights the
+  // sentence is lit whole.
+  MO.hear = function(share) {
+    var el = MO.cur;
+    if (!el || !(share >= 0)) { MO.unhear(); return; }
+    try {
+      var w = MO.w;
+      if (!w || w.el !== el) {
+        MO.unhear();
+        var win = el.ownerDocument.defaultView;
+        if (!win || !win.CSS || !win.CSS.highlights || typeof win.Highlight !== 'function') return;
+        w = MO.wordsOf(el);
+        if (!w.words.length) return;
+        w.el = el;
+        w.win = win;
+        w.i = -1;
+        MO.w = w;
+      }
+      var words = w.words, t = share * w.total, lo = 0, hi = words.length - 1;
+      while (lo < hi) {
+        var mid = (lo + hi + 1) >> 1;
+        if (words[mid].at <= t) lo = mid; else hi = mid - 1;
+      }
+      if (lo === w.i) return;
+      w.i = lo;
+      var last = words[words.length - 1], r = el.ownerDocument.createRange();
+      r.setStart(words[lo].node, words[lo].off);
+      r.setEnd(last.node, last.off);
+      // Set anew for each word rather than moving the range it has, so the
+      // repaint doesn't hang on the engine noticing a range change.
+      w.win.CSS.highlights.set('absorb-mo-ahead', new w.win.Highlight(r));
+    } catch (e) {
+      MO.unhear();
+    }
+  };
+
+  MO.unhear = function() {
+    if (!MO.w) return;
+    try { MO.w.win.CSS.highlights.delete('absorb-mo-ahead'); } catch (e) {}
+    MO.w = null;
+  };
+
   // 'on' when the sentence is on the page in view ('low' when that is near
   // the bottom of a scroll), 'before' or 'after' when it is on the page next
   // to it, 'far-before' or 'far-after' when it is further along the section,
   // 'missing' when its section isn't loaded.
-  MO.show = function(href, id) {
+  MO.show = function(href, id, share) {
     var el = MO.find(href, id);
     if (!el) { MO.clear(); return 'missing'; }
     if (MO.cur !== el) {
@@ -117,6 +192,7 @@ const String _body = r'''
       el.classList.add('absorb-mo-on');
       MO.cur = el;
     }
+    MO.hear(share);
     var vis = MO.visible(el);
     if (vis.low) return 'low';
     if (vis.far) return vis.dir < 0 ? 'far-before' : 'far-after';

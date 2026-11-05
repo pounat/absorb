@@ -484,6 +484,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     PlayerSettings.getTranscriptionEnabled().then((on) {
       if (mounted && on) setState(() => _transcriptionOn = true);
     });
+    // Transcription loads the read along color and the word or sentence
+    // choice when it starts; the settings sheet and narrated read along need
+    // them without it.
+    unawaited(LyricsService.instance.reloadDisplayPrefs());
   }
 
   // Volume-key turns are ignored while auto scroll runs: the blind is already
@@ -2877,9 +2881,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 // reader can change them without leaving the book.
                 if (_transcriptionOn || _useNarration) ...[
                   section(l.readAlong),
-                  // E-ink always follows by sentence, and an EPUB's own
-                  // narration is timed by the sentence, so the choice is hidden.
-                  if (!PlayerSettings.einkMode && !_useNarration) ...[
+                  // E-ink always follows by sentence, so the choice is hidden.
+                  if (!PlayerSettings.einkMode) ...[
                     SizedBox(
                       width: double.infinity,
                       child: SegmentedButton<String>(
@@ -4775,18 +4778,33 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         ?.evaluateJavascript(source: _narrationBootstrapSource());
     _narrationWentTo = null;
     _readAlongColor = LyricsService.instance.readAlongColor;
-    if (mounted) {
-      setState(() {
-        _readAlongOn = true;
-        _narrationReadAlong = true;
-        _readAlongBrowsing = false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _readAlongOn = true;
+      _narrationReadAlong = true;
+      _readAlongBrowsing = false;
+    });
     ScreenWake.hold('reader', true);
     _readAlongTimer?.cancel();
     _readAlongTimer = Timer.periodic(
         const Duration(milliseconds: 150), (_) => _narrationTick());
     debugPrint('[ReadAlong] following the narration for ${widget.itemId}');
+  }
+
+  OverlayClip? _narrationSentenceClip;
+  ({double start, double end}) _narrationSentence = (start: 0, end: 0);
+
+  /// How much of the lit sentence has been read at book time [t], 0 to 1, for
+  /// following it word by word; -1 lights it whole.
+  double _narrationShare(MediaOverlay n, OverlayClip clip, double t) {
+    if (!_readAlongWordMode) return -1;
+    if (!identical(clip, _narrationSentenceClip)) {
+      _narrationSentenceClip = clip;
+      _narrationSentence = n.sentenceOf(clip);
+    }
+    final s = _narrationSentence;
+    if (s.end <= s.start) return -1;
+    return ((t - s.start) / (s.end - s.start)).clamp(0.0, 1.0);
   }
 
   Future<void> _narrationTick({bool force = false}) async {
@@ -4798,11 +4816,16 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       _stopReadAlong();
       return;
     }
-    final clip = n.clipAt(player.position.inMilliseconds / 1000.0);
+    final heard = player.position.inMilliseconds / 1000.0;
+    final clip = n.clipAt(heard);
     final id = clip?.fragment;
     if (clip == null || id == null) return;
     final wc = _epubController?.webViewController;
     if (wc == null) return;
+    // The same small lead transcribed read along gives its words.
+    final share = _narrationShare(n, clip, heard + 0.15 * player.speed);
+    final show = 'window.__absorbMO ? __absorbMO.show(${jsonEncode(clip.textHref)}, '
+        '${jsonEncode(id)}, ${share.toStringAsFixed(3)}) : ""';
     _narrationTickBusy = true;
     try {
       if (LyricsService.instance.readAlongColor != _readAlongColor) {
@@ -4810,13 +4833,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         await wc.evaluateJavascript(
             source: 'window.__absorbMO && __absorbMO.setColor("${cssHex(_readAlongColor)}")');
       }
-      var where = await wc.evaluateJavascript(
-          source: 'window.__absorbMO ? __absorbMO.show(${jsonEncode(clip.textHref)}, ${jsonEncode(id)}) : ""');
+      var where = await wc.evaluateJavascript(source: show);
       if (where == '' || where == null) {
         // A layout change remounts the page and its script goes with it.
         await wc.evaluateJavascript(source: _narrationBootstrapSource());
-        where = await wc.evaluateJavascript(
-            source: 'window.__absorbMO ? __absorbMO.show(${jsonEncode(clip.textHref)}, ${jsonEncode(id)}) : ""');
+        where = await wc.evaluateJavascript(source: show);
       }
       if (where is String && where != _narrationWhere && mounted) {
         setState(() => _narrationWhere = where as String);

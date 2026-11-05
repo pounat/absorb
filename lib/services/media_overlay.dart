@@ -188,6 +188,23 @@ class MediaOverlay {
   /// Book time where [clip] starts.
   double startOf(OverlayClip clip) => tracks[clip.track].start + clip.begin;
 
+  /// Book time where [clip]'s sentence starts and ends. A sentence can be read
+  /// in a few clips in a row (cut where an audio file ends, say), and runs
+  /// over all of them.
+  ({double start, double end}) sentenceOf(OverlayClip clip) {
+    var a = clips.indexOf(clip), b = a;
+    if (a < 0) return (start: startOf(clip), end: startOf(clip) + clip.end - clip.begin);
+    bool same(OverlayClip c) => c.fragment == clip.fragment && c.textHref == clip.textHref;
+    while (a > 0 && same(clips[a - 1])) {
+      a--;
+    }
+    while (b + 1 < clips.length && same(clips[b + 1])) {
+      b++;
+    }
+    final last = clips[b];
+    return (start: startOf(clips[a]), end: startOf(last) + last.end - last.begin);
+  }
+
   static bool sameDoc(String a, String b) {
     if (a == b) return true;
     final x = _docPath(a), y = _docPath(b);
