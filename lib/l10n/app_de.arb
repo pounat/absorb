@@ -809,7 +809,6 @@
   "fullBookScrubber": "Ganzes-Buch-Scrubber",
   "fullBookScrubberOnSubtitle": "An - durchziehbarer Slider über das gesamte Buch",
   "fullBookScrubberOffSubtitle": "Aus - nur Fortschrittsbalken",
-  "cardScrubbers": "Karten scrubber",
   "cardScrubbersBoth": "Beides",
   "cardScrubbersChapter": "Kapitel",
   "cardScrubbersLocked": "Gesperrt",
@@ -827,17 +826,11 @@
   "whenAbsorbedSubtitle": "Was mit der Absorbing-Karte passiert, wenn ein Buch oder eine Episode endet",
   "whenAbsorbedShowOverlay": "Overlay anzeigen",
   "whenAbsorbedAutoRelease": "Automatisch entfernen",
-  "mergeLibraries": "Bibliotheken zusammenführen",
-  "mergeLibrariesInfoTitle": "Bibliotheken zusammenführen",
-  "mergeLibrariesInfoContent": "Wenn aktiviert, zeigt der Absorbing-Bildschirm alle deine angefangenen Bücher und Podcasts aus jeder Bibliothek in einer Ansicht. Wenn deaktiviert, werden nur Inhalte aus der aktuell ausgewählten Bibliothek angezeigt.",
-  "mergeLibrariesOnSubtitle": "Absorbing-Seite zeigt Inhalte aus allen Bibliotheken",
-  "mergeLibrariesOffSubtitle": "Absorbing-Seite zeigt nur die aktuelle Bibliothek",
   "queueMode": "Warteschlangenmodus",
   "queueModeInfoTitle": "Warteschlangenmodus",
   "queueModeInfoOff": "Aus",
   "queueModeInfoOffDesc": "Die Wiedergabe stoppt, wenn das aktuelle Buch oder die Episode endet.",
   "queueModeInfoManual": "Manuelle Warteschlange",
-  "queueModeInfoManualDesc": "Deine Absorbing-Karten funktionieren wie eine Playlist. Wenn eine endet, läuft die nächste noch nicht beendete Karte automatisch weiter. Füge Inhalte über den Button \"Zu Absorbing hinzufügen\" bei einem Buch oder einer Episode hinzu und sortiere sie auf dem Absorbing-Bildschirm um.",
   "queueModeOff": "Aus",
   "queueModeManual": "Manuell",
   "queueModeAuto": "Auto",
@@ -1469,20 +1462,9 @@
   "contact": "Kontakt",
   "contactSubtitle": "Geräteinfos per E-Mail senden",
   "enableLogging": "Logging aktivieren",
-  "enableLoggingOnSubtitle": "An - Logs werden in Datei gespeichert (Neustart nötig)",
   "enableLoggingOffSubtitle": "Aus - keine Logs werden erfasst",
   "loggingEnabledSnackbar": "Logging aktiviert - App neu starten, um Aufzeichnung zu beginnen",
   "loggingDisabledSnackbar": "Logging deaktiviert - App neu starten, um Aufzeichnung zu beenden",
-  "sendLogs": "Logs senden",
-  "sendLogsSubtitle": "Logdatei als Anhang teilen",
-  "failedToShare": "Teilen fehlgeschlagen: {error}",
-  "@failedToShare": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "clearLogs": "Logs löschen",
   "logsCleared": "Logs gelöscht",
   "clearLogsQuestion": "Logs löschen?",
