@@ -5107,6 +5107,16 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     }
   }
 
+  /// Whether the book details read last give [bookId] timings to follow: a
+  /// narration, or a read along EPUB matching its audiobook. Null when none
+  /// were read. No request.
+  bool? knownTimings(String bookId) {
+    final detail = _details[_key(bookId)];
+    if (detail == null) return null;
+    final media = BookOrbitMapper.item(detail: detail)['media'] as Map<String, dynamic>;
+    return media['narration'] != null || media['readAlongEpub'] != null;
+  }
+
   /// Public for the reader's read along: the same narration the player is
   /// streaming, so its timings line up exactly.
   /// Whether [bookId] is known here to be a book whose audio is its EPUB's

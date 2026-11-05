@@ -2025,6 +2025,16 @@ class DownloadService extends ChangeNotifier {
     }
   }
 
+  /// Keeps the timings of the read along EPUB matched to a downloaded
+  /// audiobook, so read along follows it offline.
+  Future<void> _keepReadAlongTimings(ApiService api, String itemId) async {
+    if (api is! BookOrbitApiService) return;
+    final timings = await api.readAlongTimingsFor(itemId);
+    if (timings == null) return;
+    await NarrationService.instance.keepTimings(itemId, timings);
+    debugPrint('[Download] read along timings for $itemId kept for offline');
+  }
+
   /// Re-fetch any companion ebooks whose fire-and-forget download never landed
   /// (killed mid-transfer, offline at the time). Called when the app comes up
   /// with a working connection; cheap when everything is already cached.
@@ -2046,6 +2056,13 @@ class DownloadService extends ChangeNotifier {
         var item = session['libraryItem'] as Map<String, dynamic>?;
         var ebookFile = resolveEbookFile(item);
         final apiItemId = session['libraryItemId'] as String? ?? info.itemId;
+        // Read along timings that didn't come down with the audiobook.
+        if ((item?['media'] as Map?)?['readAlongEpub'] != null &&
+            !await NarrationService.instance.hasLocalOverlay(apiItemId) &&
+            _ebookRecheckDone.add('timings:$apiItemId')) {
+          await _keepReadAlongTimings(api, apiItemId);
+        }
+        Map<String, dynamic>? fresh;
         if (ebookFile == null) {
           // The record was written when the book was downloaded. An epub
           // dropped into the folder later never reaches it, so offline Read
@@ -2053,7 +2070,7 @@ class DownloadService extends ChangeNotifier {
           // server once per run for books whose record has none.
           if (session['episodeId'] != null || item == null) continue;
           if (!_ebookRecheckDone.add(apiItemId)) continue;
-          final fresh = await api.getLibraryItem(apiItemId);
+          fresh = await api.getLibraryItem(apiItemId);
           ebookFile = resolveEbookFile(fresh);
           if (fresh == null || ebookFile == null) continue;
           final freshMedia = fresh['media'] as Map<String, dynamic>? ?? {};
@@ -2082,6 +2099,16 @@ class DownloadService extends ChangeNotifier {
               'download: $apiItemId (${ebookFile['ebookFormat'] ?? ebookFile['metadata']?['ext']})');
         }
         if (await isEbookCached(apiItemId, ebookFile)) continue;
+        // A narrated EPUB comes without its audio only once BookOrbit's
+        // book details say it is narrated: without them it came whole. Once
+        // read they stay known for the run, so they are asked once.
+        if (api.isBookOrbit && fresh == null && !_ebookRecheckDone.contains('reader:$apiItemId')) {
+          fresh = await api.getLibraryItem(apiItemId);
+          if (fresh == null) continue;
+          _ebookRecheckDone.add('reader:$apiItemId');
+          ebookFile = resolveEbookFile(fresh);
+          if (ebookFile == null) continue;
+        }
         await _cacheEbookForOffline(
             api, apiItemId, ebookFile, info.title ?? apiItemId);
       } catch (e) {
@@ -2220,6 +2247,9 @@ class DownloadService extends ChangeNotifier {
           resolveEbookFile(sessionData['libraryItem'] as Map<String, dynamic>?);
       if (ebookFile != null) {
         unawaited(_cacheEbookForOffline(api, apiItemId, ebookFile, title));
+      }
+      if (((sessionData['libraryItem'] as Map?)?['media'] as Map?)?['readAlongEpub'] != null) {
+        unawaited(_keepReadAlongTimings(api, apiItemId));
       }
 
       // Per-book destination. Android downloads to internal storage first - for
