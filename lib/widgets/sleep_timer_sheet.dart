@@ -28,6 +28,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   double _customMinutes = 30;
   int _customChapters = 1;
   String _shakeMode = 'addTime'; // 'off', 'addTime', 'resetTimer'
+  bool _shakeVibrationEnabled = true;
   int _shakeAddMinutes = 5;
   int _sleepRewindSeconds = 0;
   int _selectedChapterIndex = 0;
@@ -49,6 +50,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
       PlayerSettings.getSleepTimerChapters(),
       PlayerSettings.getEffectiveSleepRewindSeconds(AudioPlayerService().currentItemId),
       PlayerSettings.getSleepTimerTab(),
+      PlayerSettings.getShakeVibrationEnabled(),
     ]);
     if (mounted)
       setState(() {
@@ -58,6 +60,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         _customChapters = results[3] as int;
         _sleepRewindSeconds = results[4] as int;
         _tabIndex = results[5] as int;
+        _shakeVibrationEnabled = results[6] as bool;
         // Podcast episodes only have Timer + End-of-Episode tabs; clamp a saved
         // "specific chapter" tab index (2) so it doesn't fall off the end.
         if (AudioPlayerService().currentEpisodeId != null && _tabIndex > 1) {
@@ -809,6 +812,23 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           },
         ),
       ),
+      if (_shakeMode != 'off') ...[
+        const SizedBox(height: 8),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(
+            l.shakeVibrationEnabled,
+            style: const TextStyle(fontSize: 13),
+          ),
+          value: _shakeVibrationEnabled,
+          activeThumbColor: accent,
+          onChanged: (value) {
+            setState(() => _shakeVibrationEnabled = value);
+            PlayerSettings.setShakeVibrationEnabled(value);
+          },
+        ),
+      ],
       AnimatedOpacity(
         opacity: _shakeMode == 'addTime' ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 200),

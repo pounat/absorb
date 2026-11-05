@@ -38,6 +38,7 @@ class BackupService {
       'longForwardSkip': await PlayerSettings.getLongForwardSkip(),
       'longBackSkip': await PlayerSettings.getLongBackSkip(),
       'shakeMode': await PlayerSettings.getShakeMode(),
+      'shakeVibrationEnabled': await PlayerSettings.getShakeVibrationEnabled(),
       'sleepButtonMode': await PlayerSettings.getSleepButtonMode(),
       'shakeAddMinutes': await PlayerSettings.getShakeAddMinutes(),
       'shakeSensitivity': await PlayerSettings.getShakeSensitivity(),
@@ -548,6 +549,7 @@ class BackupService {
     if (s['forwardSkip'] != null) PlayerSettings.setForwardSkip(s['forwardSkip'] as int);
     if (s['backSkip'] != null) PlayerSettings.setBackSkip(s['backSkip'] as int);
     if (s['shakeMode'] != null) PlayerSettings.setShakeMode(s['shakeMode'] as String);
+    if (s['shakeVibrationEnabled'] != null) PlayerSettings.setShakeVibrationEnabled(s['shakeVibrationEnabled'] as bool);
     if (s['sleepButtonMode'] != null) PlayerSettings.setSleepButtonMode(s['sleepButtonMode'] as String);
     // Migrate old bool setting
     if (s['shakeMode'] == null && s['shakeToResetSleep'] != null) {
