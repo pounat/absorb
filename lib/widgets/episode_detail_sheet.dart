@@ -279,12 +279,13 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
         );
         if (confirmed != true) return;
         // Mark finished — update server then local state for instant UI
-        await api.updateEpisodeProgress(
+        final pushed = await api.updateEpisodeProgress(
           _itemId, _episodeId,
           currentTime: _duration,
           duration: _duration,
           isFinished: true,
         );
+        if (!pushed) await ProgressSyncService().saveFinishedOffline(key, _duration);
         lib.markFinishedLocally(key, skipAutoAdvance: true);
         if (mounted) {
           showOverlayToast(

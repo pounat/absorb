@@ -79,6 +79,20 @@ class ProgressSyncService {
     }
   }
 
+  /// Keep a finish the server could not be told about (a work firewall, say)
+  /// so the next flush delivers it.
+  Future<void> saveFinishedOffline(String itemId, double duration) async {
+    final existing = await getLocal(itemId);
+    debugPrint('[Sync] Finished $itemId offline - queued for the next sync');
+    await saveLocal(
+      itemId: itemId,
+      currentTime: duration,
+      duration: duration,
+      speed: (existing?['speed'] as num?)?.toDouble() ?? 1.0,
+      isFinished: true,
+    );
+  }
+
   /// Cache server-known progress locally without marking it as a pending sync.
   /// Skips items with a pending sync so unsynced local writes (e.g. a finished
   /// state saved while offline) are not clobbered by a stale server snapshot.

@@ -1788,6 +1788,20 @@ class AppLocalizationsDe extends AppLocalizations {
       'Aus - diese Bibliothek verwendet die globalen Überspringen-längen';
 
   @override
+  String get currentLibrarySpeedOverride => 'Custom default speed';
+
+  @override
+  String get currentLibrarySpeedOverrideOnSubtitle =>
+      'On - new items in this library start at their own speed';
+
+  @override
+  String get currentLibrarySpeedOverrideOffSubtitle =>
+      'Off - new items in this library start at the global default speed';
+
+  @override
+  String get currentLibrarySpeed => 'Default speed';
+
+  @override
   String get currentLibrarySkipBack => 'Zurückspringen';
 
   @override
@@ -4389,6 +4403,10 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get failedToUpdateCheckConnection =>
       'Aktualisieren fehlgeschlagen - prüfe deine Verbindung';
+
+  @override
+  String get markedFinishedWillSync =>
+      'Marked as finished - will sync when you\'re back online';
 
   @override
   String get markAsNotFinishedQuestion => 'Als nicht beendet markieren?';

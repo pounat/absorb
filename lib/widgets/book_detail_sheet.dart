@@ -3876,8 +3876,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         }
       }
     } catch (_) {
+      await ProgressSyncService().saveFinishedOffline(widget.itemId, duration);
       if (context.mounted) {
-        showOverlayToast(context, l.failedToUpdateCheckConnection, icon: Icons.error_outline_rounded);
+        showOverlayToast(context, l.markedFinishedWillSync, icon: Icons.cloud_off_rounded);
       }
     }
   }

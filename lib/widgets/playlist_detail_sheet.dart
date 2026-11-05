@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/player_settings.dart';
+import '../services/progress_sync_service.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'overlay_toast.dart';
@@ -153,8 +154,11 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
 
       if (episodeId != null) {
         if (finished) {
-          await api.updateEpisodeProgress(libraryItemId, episodeId,
+          final pushed = await api.updateEpisodeProgress(libraryItemId, episodeId,
             currentTime: duration, duration: duration, isFinished: true);
+          if (!pushed) {
+            await ProgressSyncService().saveFinishedOffline('$libraryItemId-$episodeId', duration);
+          }
           lib.markFinishedLocally('$libraryItemId-$episodeId', skipAutoAdvance: true);
         } else {
           final pd = lib.getProgressData('$libraryItemId-$episodeId');
@@ -165,7 +169,11 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         }
       } else {
         if (finished) {
-          await api.markFinished(libraryItemId, duration);
+          try {
+            await api.markFinished(libraryItemId, duration);
+          } catch (_) {
+            await ProgressSyncService().saveFinishedOffline(libraryItemId, duration);
+          }
           lib.markFinishedLocally(libraryItemId, skipAutoAdvance: true);
         } else {
           final pd = lib.getProgressData(libraryItemId);

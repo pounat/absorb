@@ -1771,6 +1771,20 @@ class AppLocalizationsRu extends AppLocalizations {
       'Off - this library uses the global skip amounts';
 
   @override
+  String get currentLibrarySpeedOverride => 'Custom default speed';
+
+  @override
+  String get currentLibrarySpeedOverrideOnSubtitle =>
+      'On - new items in this library start at their own speed';
+
+  @override
+  String get currentLibrarySpeedOverrideOffSubtitle =>
+      'Off - new items in this library start at the global default speed';
+
+  @override
+  String get currentLibrarySpeed => 'Default speed';
+
+  @override
   String get currentLibrarySkipBack => 'Skip back';
 
   @override
@@ -4346,6 +4360,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get failedToUpdateCheckConnection =>
       'Failed to update - check your connection';
+
+  @override
+  String get markedFinishedWillSync =>
+      'Marked as finished - will sync when you\'re back online';
 
   @override
   String get markAsNotFinishedQuestion => 'Mark as Not Finished?';

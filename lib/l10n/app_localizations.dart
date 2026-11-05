@@ -3292,6 +3292,30 @@ abstract class AppLocalizations {
   /// **'Off - this library uses the global skip amounts'**
   String get currentLibrarySkipOverrideOffSubtitle;
 
+  /// No description provided for @currentLibrarySpeedOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom default speed'**
+  String get currentLibrarySpeedOverride;
+
+  /// No description provided for @currentLibrarySpeedOverrideOnSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On - new items in this library start at their own speed'**
+  String get currentLibrarySpeedOverrideOnSubtitle;
+
+  /// No description provided for @currentLibrarySpeedOverrideOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Off - new items in this library start at the global default speed'**
+  String get currentLibrarySpeedOverrideOffSubtitle;
+
+  /// No description provided for @currentLibrarySpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Default speed'**
+  String get currentLibrarySpeed;
+
   /// No description provided for @currentLibrarySkipBack.
   ///
   /// In en, this message translates to:
@@ -7671,6 +7695,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to update - check your connection'**
   String get failedToUpdateCheckConnection;
+
+  /// No description provided for @markedFinishedWillSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Marked as finished - will sync when you\'re back online'**
+  String get markedFinishedWillSync;
 
   /// No description provided for @markAsNotFinishedQuestion.
   ///

@@ -14,6 +14,7 @@ import '../services/wording.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/progress_sync_service.dart';
 import '../services/chromecast_service.dart';
 import '../providers/auth_provider.dart';
 import '../screens/admin_podcasts_screen.dart';
@@ -438,12 +439,13 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       final key = '$_itemId-$epId';
 
       if (finished) {
-        await api.updateEpisodeProgress(
+        final pushed = await api.updateEpisodeProgress(
           _itemId, epId,
           currentTime: duration,
           duration: duration,
           isFinished: true,
         );
+        if (!pushed) await ProgressSyncService().saveFinishedOffline(key, duration);
         lib.markFinishedLocally(key, skipAutoAdvance: true);
       } else {
         final progressData = lib.getEpisodeProgressData(_itemId, epId);
