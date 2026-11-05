@@ -804,7 +804,6 @@
   "fullBookScrubber": "Полосы прокрутки",
   "fullBookScrubberOnSubtitle": "Вкл - видимый слайдер по всей книге",
   "fullBookScrubberOffSubtitle": "Выкл. - только индикатор прогресса",
-  "cardScrubbers": "Полосы прокрутки Card",
   "cardScrubbersBoth": "Оба",
   "cardScrubbersChapter": "Глава",
   "cardScrubbersLocked": "Заблокировано",
@@ -822,17 +821,11 @@
   "whenAbsorbedSubtitle": "Что происходит с поглощающей картой после завершения книги или эпизода",
   "whenAbsorbedShowOverlay": "Показать оверлей",
   "whenAbsorbedAutoRelease": "Авторелиз",
-  "mergeLibraries": "Единая страница Поглощения",
-  "mergeLibrariesInfoTitle": "Главная Поглощающая Страница",
-  "mergeLibrariesInfoContent": "Если включено, в одном окне отображаются все ваши текущие книги и подкасты из каждой библиотеки. Когда отключено, отображаются только элементы из выбранной вами библиотеки.",
-  "mergeLibrariesOnSubtitle": "Показывать элементы из всех библиотек",
-  "mergeLibrariesOffSubtitle": "Показывать элементы из текущей библиотеки",
   "queueMode": "Режим очереди",
   "queueModeInfoTitle": "Режим Очереди",
   "queueModeInfoOff": "Выкл",
   "queueModeInfoOffDesc": "Плеер остановится после текущей книги или серии.",
   "queueModeInfoManual": "Очередь Вручную",
-  "queueModeInfoManualDesc": "Ваши поглощающие карты действуют в качестве плейлиста. По завершении одной следующая незавершённая карта запуститься автоматически. Добавьте элементы нажав на кнопку «Добавить в абсорбцию» на книге или серии и измените порядок с экрана поглощения.",
   "queueModeOff": "Выкл",
   "queueModeManual": "Вручную",
   "queueModeAuto": "Авто",
@@ -1603,20 +1596,9 @@
   "contact": "Контакт",
   "contactSubtitle": "Отправить информацию об устройстве на email",
   "enableLogging": "Включить логи",
-  "enableLoggingOnSubtitle": "Вкл - логи сохраненные в файл (перезапустите для применения)",
   "enableLoggingOffSubtitle": "Вкл - логи не сохраняются",
   "loggingEnabledSnackbar": "Логирование включено - перезапустите приложение, чтобы начать захват",
   "loggingDisabledSnackbar": "Логирование выключено - перезапустите приложение, чтобы остановить захват",
-  "sendLogs": "Отправить логи",
-  "sendLogsSubtitle": "Поделиться файлом журнала как вложением",
-  "failedToShare": "Не удалось поделиться: {error}",
-  "@failedToShare": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "clearLogs": "Очистить логи",
   "logsCleared": "Логи очищены",
   "clearLogsQuestion": "Очистить логи?",
