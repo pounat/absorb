@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../screens/app_shell.dart';
 import '../services/audio_player_service.dart';
+import '../services/chapter_lookup.dart';
 import '../services/chromecast_service.dart';
 import 'absorbing_shared.dart';
 import 'adaptive_modal.dart';
@@ -24,16 +25,9 @@ void showChaptersSheet({
 }) {
   if (chapters.isEmpty) return;
 
-  int currentIdx = -1;
-  for (int i = 0; i < chapters.length; i++) {
-    final ch = chapters[i] as Map<String, dynamic>;
-    final start = (ch['start'] as num?)?.toDouble() ?? 0;
-    final end = (ch['end'] as num?)?.toDouble() ?? 0;
-    if (currentPosition >= start && currentPosition < end) {
-      currentIdx = i;
-      break;
-    }
-  }
+  final currentIdx =
+      ChapterLookup.indexAtWithGrace(chapters, currentPosition, totalDuration) ?? -1;
+  var didInitialScroll = false;
 
   showAdaptiveSheetDialog(
     context: context,
@@ -45,11 +39,13 @@ void showChaptersSheet({
     snap: true,
     maxChildSize: 0.9,
     builder: (ctx, sc) {
-      if (currentIdx > 0) {
+      final rowExtent = (MediaQuery.textScalerOf(ctx).scale(20.0) + 16.0).clamp(48.0, double.infinity);
+      if (currentIdx > 0 && !didInitialScroll) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final target = currentIdx * 48.0 - 48;
-          if (sc.hasClients)
-            sc.jumpTo(target.clamp(0, sc.position.maxScrollExtent));
+          if (!sc.hasClients || didInitialScroll) return;
+          didInitialScroll = true;
+          final target = (currentIdx - 1) * rowExtent;
+          sc.jumpTo(target.clamp(0.0, sc.position.maxScrollExtent));
         });
       }
       final l = AppLocalizations.of(ctx)!;
@@ -150,10 +146,13 @@ class CardChaptersList extends StatelessWidget {
       initialData: Duration(milliseconds: (currentPosition * 1000).round()),
       builder: (context, snapshot) {
         final position = isCastingThis
-            ? cast.castPosition.inMilliseconds / 1000.0
-            : isPlaybackActive
-            ? (snapshot.data ?? player.position).inMilliseconds / 1000.0
-            : currentPosition;
+            ? (cast.castPosition.inMilliseconds > 0
+                ? cast.castPosition.inMilliseconds / 1000.0
+                : currentPosition)
+            : (isPlaybackActive && player.currentItemId != null
+                ? (snapshot.data ?? player.position).inMilliseconds / 1000.0
+                : currentPosition);
+        final rowExtent = (MediaQuery.textScalerOf(context).scale(20.0) + 16.0).clamp(48.0, double.infinity);
         final tt = Theme.of(context).textTheme;
         final cs = Theme.of(context).colorScheme;
         final l = AppLocalizations.of(context)!;
@@ -161,25 +160,31 @@ class CardChaptersList extends StatelessWidget {
         return ListView.builder(
           controller: scrollController,
           itemCount: chapters.length,
+          itemExtent: rowExtent,
           itemBuilder: (_, i) {
             final chapter = chapters[i] as Map<String, dynamic>;
             final chapterTitle =
                 chapter['title'] as String? ?? l.chapterNumber(i + 1);
             final start = (chapter['start'] as num?)?.toDouble() ?? 0;
             final end = (chapter['end'] as num?)?.toDouble() ?? 0;
+            final hasProgress = isPlaybackActive || currentPosition > 0;
+            final isLastGrace = i == chapters.length - 1 &&
+                position >= end &&
+                position <= end + ChapterLookup.graceSeconds;
             final isCurrent =
-                isPlaybackActive && position >= start && position < end;
-            final isFinished = isPlaybackActive && position >= end;
+                hasProgress && position >= start && (position < end || isLastGrace);
+            final isFinished = hasProgress && position >= end && !isLastGrace;
             final percent = totalDuration > 0
                 ? (end / totalDuration * 100).round()
                 : 0;
 
             return ListTile(
               dense: true,
+              minTileHeight: rowExtent,
               selected: isCurrent,
               selectedTileColor: accent.withValues(alpha: 0.1),
-              leading: SizedBox(
-                width: 28,
+              leading: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 28),
                 child: isFinished
                     ? Icon(
                         Icons.check_rounded,
@@ -188,6 +193,8 @@ class CardChaptersList extends StatelessWidget {
                       )
                     : Text(
                         '${i + 1}',
+                        maxLines: 1,
+                        softWrap: false,
                         textAlign: TextAlign.center,
                         style: tt.labelMedium?.copyWith(
                           fontWeight: isCurrent
@@ -199,6 +206,8 @@ class CardChaptersList extends StatelessWidget {
               ),
               title: Text(
                 chapterTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: tt.bodyMedium?.copyWith(
                   fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
                   color: isCurrent
