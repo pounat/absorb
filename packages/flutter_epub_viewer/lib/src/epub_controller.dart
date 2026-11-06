@@ -181,14 +181,14 @@ class EpubController {
   /// next page is revealed top-down over the current one; the text itself
   /// never moves. Returns whether the blind actually started - it can't
   /// before the book is displayed.
-  Future<bool> autoScrollStart({double speed = 40}) async {
-    final r = await webViewController?.evaluateJavascript(source: 'autoScrollStart($speed)');
+  Future<bool> autoScrollStart({double wpm = 250, bool eink = false}) async {
+    final r = await webViewController?.evaluateJavascript(source: 'autoScrollStart($wpm, $eink)');
     return r == true || r == 1 || r == 'true';
   }
 
   /// Change the blind's descent speed while it is running.
-  Future<void> autoScrollSpeed(double speed) async {
-    await webViewController?.evaluateJavascript(source: 'autoScrollSpeed($speed)');
+  Future<void> autoScrollSpeed(double wpm) async {
+    await webViewController?.evaluateJavascript(source: 'autoScrollSpeed($wpm)');
   }
 
   /// Hold the blind where it is without tearing it down.

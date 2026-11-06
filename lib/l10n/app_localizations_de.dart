@@ -10234,6 +10234,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get readerSectionStats => 'Stats';
 
   @override
+  String get readerSectionReading => 'Reading';
+
+  @override
+  String get readerSectionScreen => 'Screen';
+
+  @override
   String get readerParagraphSpacing => 'Paragraph spacing';
 
   @override
@@ -10247,12 +10253,6 @@ class AppLocalizationsDe extends AppLocalizations {
       'Drag the lines to resize the squares. Tap a square to change what it does, or start from a layout.';
 
   @override
-  String get readerTapPrev => 'Previous page';
-
-  @override
-  String get readerTapNext => 'Next page';
-
-  @override
   String get readerTapZonesCardTop => 'Move to the top';
 
   @override
@@ -10263,6 +10263,12 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get readerTapZonesCardShow => 'Show the card';
+
+  @override
+  String get readerTapPrev => 'Previous page';
+
+  @override
+  String get readerTapNext => 'Next page';
 
   @override
   String get readerTapMenu => 'Show controls';
@@ -10308,6 +10314,42 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get readerScrollMode => 'Scroll mode';
+
+  @override
+  String get readerSentenceMode => 'Sentence mode';
+
+  @override
+  String get readerSentenceModeHint =>
+      'One sentence at a time, tap or swipe to move on. Applies to every book.';
+
+  @override
+  String get readerSentencesAtATime => 'Sentences at a time';
+
+  @override
+  String get readerSentenceTransition => 'Transition';
+
+  @override
+  String get readerSentenceTransitionFade => 'Fade';
+
+  @override
+  String get readerSentenceTransitionBurst => 'Burst';
+
+  @override
+  String get readerSentenceSpeed => 'Speed';
+
+  @override
+  String get readerSentenceAutoAdvance => 'Auto advance';
+
+  @override
+  String readerSentenceWpmValue(int wpm) {
+    return '$wpm words per minute';
+  }
+
+  @override
+  String get readerSentencePreparing => 'Preparing sentences';
+
+  @override
+  String get readerSentenceEnd => 'That\'s the end of the book';
 
   @override
   String get readerScrollModeHint =>
@@ -10368,11 +10410,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get readerAutoScrollEndOfBook => 'End of book - auto scroll off';
-
-  @override
-  String readerAutoScrollSpeed(int percent) {
-    return 'Speed $percent%';
-  }
 
   @override
   String get readerMoreControls => 'More controls';

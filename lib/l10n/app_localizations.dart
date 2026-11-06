@@ -17415,6 +17415,18 @@ abstract class AppLocalizations {
   /// **'Stats'**
   String get readerSectionStats;
 
+  /// No description provided for @readerSectionReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading'**
+  String get readerSectionReading;
+
+  /// No description provided for @readerSectionScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen'**
+  String get readerSectionScreen;
+
   /// No description provided for @readerParagraphSpacing.
   ///
   /// In en, this message translates to:
@@ -17439,18 +17451,6 @@ abstract class AppLocalizations {
   /// **'Drag the lines to resize the squares. Tap a square to change what it does, or start from a layout.'**
   String get readerTapZonesHint;
 
-  /// No description provided for @readerTapPrev.
-  ///
-  /// In en, this message translates to:
-  /// **'Previous page'**
-  String get readerTapPrev;
-
-  /// No description provided for @readerTapNext.
-  ///
-  /// In en, this message translates to:
-  /// **'Next page'**
-  String get readerTapNext;
-
   /// No description provided for @readerTapZonesCardTop.
   ///
   /// In en, this message translates to:
@@ -17474,6 +17474,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show the card'**
   String get readerTapZonesCardShow;
+
+  /// No description provided for @readerTapPrev.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous page'**
+  String get readerTapPrev;
+
+  /// No description provided for @readerTapNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next page'**
+  String get readerTapNext;
 
   /// No description provided for @readerTapMenu.
   ///
@@ -17558,6 +17570,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scroll mode'**
   String get readerScrollMode;
+
+  /// No description provided for @readerSentenceMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentence mode'**
+  String get readerSentenceMode;
+
+  /// No description provided for @readerSentenceModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One sentence at a time, tap or swipe to move on. Applies to every book.'**
+  String get readerSentenceModeHint;
+
+  /// No description provided for @readerSentencesAtATime.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentences at a time'**
+  String get readerSentencesAtATime;
+
+  /// No description provided for @readerSentenceTransition.
+  ///
+  /// In en, this message translates to:
+  /// **'Transition'**
+  String get readerSentenceTransition;
+
+  /// No description provided for @readerSentenceTransitionFade.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade'**
+  String get readerSentenceTransitionFade;
+
+  /// No description provided for @readerSentenceTransitionBurst.
+  ///
+  /// In en, this message translates to:
+  /// **'Burst'**
+  String get readerSentenceTransitionBurst;
+
+  /// No description provided for @readerSentenceSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get readerSentenceSpeed;
+
+  /// No description provided for @readerSentenceAutoAdvance.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto advance'**
+  String get readerSentenceAutoAdvance;
+
+  /// No description provided for @readerSentenceWpmValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{wpm} words per minute'**
+  String readerSentenceWpmValue(int wpm);
+
+  /// No description provided for @readerSentencePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing sentences'**
+  String get readerSentencePreparing;
+
+  /// No description provided for @readerSentenceEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s the end of the book'**
+  String get readerSentenceEnd;
 
   /// No description provided for @readerScrollModeHint.
   ///
@@ -17672,12 +17750,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'End of book - auto scroll off'**
   String get readerAutoScrollEndOfBook;
-
-  /// No description provided for @readerAutoScrollSpeed.
-  ///
-  /// In en, this message translates to:
-  /// **'Speed {percent}%'**
-  String readerAutoScrollSpeed(int percent);
 
   /// No description provided for @readerMoreControls.
   ///

@@ -214,7 +214,7 @@ class LyricsService extends ChangeNotifier {
       _watching = true;
       WidgetsBinding.instance.addObserver(_lifecycle);
     }
-    await _refreshRoute();
+    await refreshRoute();
     await reloadDisplayPrefs();
     await TranscriptLineStore.instance.hydrate(key);
     _tick?.cancel();
@@ -324,7 +324,7 @@ class LyricsService extends ChangeNotifier {
       return;
     }
     final pos = AudioPlayerService().position.inMilliseconds / 1000.0;
-    if (++_routeTick % 25 == 0) _refreshRoute();
+    if (++_routeTick % 25 == 0) refreshRoute();
     final speed = AudioPlayerService().speed;
     final covered = _coveredUntil(key, pos);
     final lead = covered - pos;
@@ -417,8 +417,9 @@ class LyricsService extends ChangeNotifier {
 
   /// Re-read which output is in use and load that output's offset. Cheap
   /// enough to run every few seconds, which is how a headphone connection
-  /// mid-listen gets picked up.
-  Future<void> _refreshRoute() async {
+  /// mid-listen gets picked up. The reader's narration read along calls it
+  /// too, since it follows the same offset without the transcript running.
+  Future<void> refreshRoute() async {
     final bt = await AudioPlayerService.isBluetoothAudioConnected();
     if (_routeLoaded && bt == onBluetooth) return;
     onBluetooth = bt;

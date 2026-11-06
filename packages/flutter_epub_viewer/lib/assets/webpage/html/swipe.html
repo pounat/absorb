@@ -72,12 +72,34 @@
       #blindLine {
         display: none;
         position: fixed;
-        height: 2px;
+        height: 14px;
         /* above the blind and the touch pad - nothing should cover it */
         z-index: 4;
         pointer-events: none;
+        overflow: hidden;
         background: rgba(150, 150, 150, 0.9);
-        box-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
+      }
+
+      /* A glint travelling along the edge, so the eye finds it moving. */
+      #blindLine::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 30%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--blindBg, #fff), transparent);
+        opacity: 0.75;
+        animation: blindGlint 2.2s linear infinite;
+      }
+
+      #blindLine.still::after {
+        display: none;
+      }
+
+      @keyframes blindGlint {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(334%); }
       }
 
       #autoScrollTouch {

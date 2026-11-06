@@ -1400,8 +1400,8 @@ class PlayerSettings {
   static Future<String> getEreaderTranslateWith() => _get('ereaderTranslateWith', '');
   static Future<void> setEreaderTranslateWith(String value) => _set('ereaderTranslateWith', value);
 
-  static Future<double> getEreaderAutoScrollSpeed() => _get('ereaderAutoScrollSpeed', 40.0);
-  static Future<void> setEreaderAutoScrollSpeed(double value) => _set('ereaderAutoScrollSpeed', value);
+  static Future<double> getEreaderAutoScrollWpm() => _get('ereaderAutoScrollWpm', 250.0);
+  static Future<void> setEreaderAutoScrollWpm(double value) => _set('ereaderAutoScrollWpm', value);
   static Future<int> getEreaderAutoScrollSleepMinutes() => _get('ereaderAutoScrollSleepMinutes', 30);
   static Future<void> setEreaderAutoScrollSleepMinutes(int value) => _set('ereaderAutoScrollSleepMinutes', value);
 

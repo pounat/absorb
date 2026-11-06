@@ -5643,16 +5643,18 @@
   "readerSectionTopBar": "Top bar and screen",
   "readerSectionControls": "Controls",
   "readerSectionStats": "Stats",
+  "readerSectionReading": "Reading",
+  "readerSectionScreen": "Screen",
   "readerParagraphSpacing": "Paragraph spacing",
   "readerParagraphSpacingBook": "Book's own",
   "readerTapZones": "Tap zones",
   "readerTapZonesHint": "Drag the lines to resize the squares. Tap a square to change what it does, or start from a layout.",
-  "readerTapPrev": "Previous page",
-  "readerTapNext": "Next page",
   "readerTapZonesCardTop": "Move to the top",
   "readerTapZonesCardBottom": "Move to the bottom",
   "readerTapZonesCardHide": "Shrink the card",
   "readerTapZonesCardShow": "Show the card",
+  "readerTapPrev": "Previous page",
+  "readerTapNext": "Next page",
   "readerTapMenu": "Show controls",
   "readerTapNothing": "Nothing",
   "readerTapKeepMenu": "One square has to show the controls",
@@ -5672,6 +5674,24 @@
   "readerPageTurnCurl": "Curl",
   "readerPageTurnRipple": "Ripple",
   "readerScrollMode": "Scroll mode",
+  "readerSentenceMode": "Sentence mode",
+  "readerSentenceModeHint": "One sentence at a time, tap or swipe to move on. Applies to every book.",
+  "readerSentencesAtATime": "Sentences at a time",
+  "readerSentenceTransition": "Transition",
+  "readerSentenceTransitionFade": "Fade",
+  "readerSentenceTransitionBurst": "Burst",
+  "readerSentenceSpeed": "Speed",
+  "readerSentenceAutoAdvance": "Auto advance",
+  "readerSentenceWpmValue": "{wpm} words per minute",
+  "@readerSentenceWpmValue": {
+    "placeholders": {
+      "wpm": {
+        "type": "int"
+      }
+    }
+  },
+  "readerSentencePreparing": "Preparing sentences",
+  "readerSentenceEnd": "That's the end of the book",
   "readerScrollModeHint": "Scroll down through the book instead of turning pages. Applies to every book.",
   "readerKeepAwake": "Keep the screen on",
   "readerKeepAwakeHint": "Stops the screen timing out while you read at your own pace. Auto scroll and read along always keep it on.",
@@ -5691,10 +5711,6 @@
   "readerAutoScrollResumed": "Auto scroll resumed",
   "readerAutoScrollStopped": "Auto scroll off",
   "readerAutoScrollEndOfBook": "End of book - auto scroll off",
-  "readerAutoScrollSpeed": "Speed {percent}%",
-  "@readerAutoScrollSpeed": {
-    "placeholders": { "percent": { "type": "int" } }
-  },
   "readerMoreControls": "More controls",
   "readerAutoScrollSleep": "Auto scroll sleep timer",
   "readerAutoScrollSleepHint": "Stops the scrolling after a while and lets the screen go dark.",
