@@ -1248,9 +1248,35 @@
   "breqGrabFailed": "Der Download konnte nicht gestartet werden",
   "breqReleaseVipWarning": "Dieser Tracker erlaubt es nur VIP-Konten ihn herunterzuladen.",
   "breqReleaseNoBookFile": "Diese Version hat keine Buchdatei, die BookOrbit einer Bibliothek hinzufügen kann.",
+  "breqIndexerThrottled": "Beschäftigt",
+  "breqIndexerTimeout": "Zeitüberschreitung",
+  "breqIndexerError": "fehlgeschlagen",
+  "breqSortBest": "Beste Übereinstimmung",
+  "breqSortSeeders": "Seeder",
   "breqSortSize": "Größe",
+  "breqSortNewest": "Neueste",
+  "breqFreeleech": "Freeleech",
+  "breqVipOnly": "Nur für VIP",
   "breqReasonIsbn": "ISBN",
   "breqReasonTitle": "Titel",
+  "breqReasonAuthor": "Autor",
+  "breqReasonUnknownFormat": "Unbekanntes Format",
+  "breqReasonExpectedSize": "Größe",
+  "breqReasonSuspiciousSize": "Ungewöhnliche Größe",
+  "breqReasonFreeleech": "Freeleech",
+  "breqReasonSeveralBooks": "Mehrere Bücher",
+  "breqReviewTitle": "Download wartet auf Überprüfung",
+  "breqReviewFailed": "Die Downloaddetails konnten nicht geladen werden.",
+  "breqReviewDockGone": "Die heruntergeladenen Dateien befinden sich nicht mehr im Book Dock.",
+  "breqReviewNoLibrary": "Diese Anfrage hat keine Bibliothek, zu der das Buch hinzugefügt werden kann.",
+  "breqGrabFailedReason": "Der Download konnte nicht gestartet werden: {reason}",
+  "@breqGrabFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "breqReasonFormat": "{format}",
   "@breqReasonFormat": {
     "placeholders": {
@@ -1455,6 +1481,7 @@
   "hideEbookOnlyTitles": "Nur-eBook-Titel ausblenden",
   "hideEbookOnlyOnSubtitle": "Bücher ohne Audiodateien werden ausgeblendet",
   "hideEbookOnlyOffSubtitle": "Aus - alle Bibliothekselemente werden angezeigt",
+  "homeCardsOpenDetailsOnSubtitle": "Tippen  auf eine Wiedergabe-Karte oder Lesekarte öffnet ihre Details",
   "showGoodreadsButton": "Goodreads-Button anzeigen",
   "showGoodreadsOnSubtitle": "Buchdetails zeigen einen Link zu Goodreads",
   "showGoodreadsOffSubtitle": "Aus - Goodreads-Button ausgeblendet",
