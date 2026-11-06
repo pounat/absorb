@@ -2083,13 +2083,13 @@ class LibraryScreenState extends State<LibraryScreen>
     }
     PlayerSettings.setAuthorSort(_authorSort.name);
     PlayerSettings.setAuthorSortAsc(_authorSortAsc);
-    if (_hasMoreAuthors) {
-      // Only part of the list is here, so the new order has to come from the
-      // server.
+    if (context.read<LibraryProvider>().isOffline) {
+      setState(() => _sortAuthors());
+    } else {
+      // The server's order is the one that counts, and reshuffling what was
+      // already here did not always match it, so the list comes back fresh.
       _resetAuthors();
       _loadAuthors();
-    } else {
-      setState(() => _sortAuthors());
     }
     if (_authorsScrollController.hasClients) _authorsScrollController.jumpTo(0);
   }
