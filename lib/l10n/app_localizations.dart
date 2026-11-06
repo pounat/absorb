@@ -17451,6 +17451,30 @@ abstract class AppLocalizations {
   /// **'Next page'**
   String get readerTapNext;
 
+  /// No description provided for @readerTapZonesCardTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to the top'**
+  String get readerTapZonesCardTop;
+
+  /// No description provided for @readerTapZonesCardBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to the bottom'**
+  String get readerTapZonesCardBottom;
+
+  /// No description provided for @readerTapZonesCardHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Shrink the card'**
+  String get readerTapZonesCardHide;
+
+  /// No description provided for @readerTapZonesCardShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the card'**
+  String get readerTapZonesCardShow;
+
   /// No description provided for @readerTapMenu.
   ///
   /// In en, this message translates to:

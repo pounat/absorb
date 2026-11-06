@@ -124,6 +124,8 @@ class TapZonesEditor extends StatefulWidget {
 
 class _TapZonesEditorState extends State<TapZonesEditor> {
   late ReaderTapZones _zones = widget.zones;
+  bool _cardShrunk = false;
+  bool _cardAtTop = false;
 
   void _set(ReaderTapZones z) {
     setState(() => _zones = z);
@@ -162,6 +164,87 @@ class _TapZonesEditorState extends State<TapZonesEditor> {
         child: RotatedBox(
           quarterTurns: across ? 1 : 0,
           child: Icon(Icons.drag_indicator_rounded, size: 18, color: cs.onSurface),
+        ),
+      );
+
+  Widget _shrunkCard(ColorScheme cs, AppLocalizations l) => Align(
+        alignment: Alignment.centerRight,
+        child: Material(
+          color: cs.surface,
+          elevation: 6,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: l.readerTapZonesCardShow,
+                  icon: const Icon(Icons.open_in_full_rounded),
+                  onPressed: () => setState(() => _cardShrunk = false),
+                ),
+                FilledButton(onPressed: widget.onDone, child: Text(l.done)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _card(ColorScheme cs, TextTheme tt, AppLocalizations l) => Material(
+        color: cs.surface,
+        elevation: 6,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(l.readerTapZones, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                  ),
+                  IconButton(
+                    tooltip: _cardAtTop ? l.readerTapZonesCardBottom : l.readerTapZonesCardTop,
+                    icon: const Icon(Icons.swap_vert_rounded),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() => _cardAtTop = !_cardAtTop),
+                  ),
+                  IconButton(
+                    tooltip: l.readerTapZonesCardHide,
+                    icon: const Icon(Icons.close_fullscreen_rounded),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() => _cardShrunk = true),
+                  ),
+                ],
+              ),
+              Text(l.readerTapZonesHint, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  for (final preset in ReaderTapZones.presets)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: GestureDetector(
+                        onTap: () => _set(preset),
+                        child: _PresetThumb(preset, selected: _zones.sameAs(preset)),
+                      ),
+                    ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => _set(const ReaderTapZones()),
+                    child: Text(l.reset),
+                  ),
+                  FilledButton(onPressed: widget.onDone, child: Text(l.done)),
+                ],
+              ),
+            ],
+          ),
         ),
       );
 
@@ -255,50 +338,14 @@ class _TapZonesEditorState extends State<TapZonesEditor> {
                   ),
                 ),
               ],
+              // The card covers a row of squares, so it can be sent to the
+              // other end of the screen or shrunk into a corner.
               Positioned(
                 left: 12,
                 right: 12,
-                bottom: 16,
-                child: Material(
-                  color: cs.surface,
-                  elevation: 6,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 8, 4),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(l.readerTapZones, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        Text(l.readerTapZonesHint, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            for (final preset in ReaderTapZones.presets)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 10),
-                                child: GestureDetector(
-                                  onTap: () => _set(preset),
-                                  child: _PresetThumb(preset, selected: _zones.sameAs(preset)),
-                                ),
-                              ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () => _set(const ReaderTapZones()),
-                              child: Text(l.reset),
-                            ),
-                            FilledButton(onPressed: widget.onDone, child: Text(l.done)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                top: _cardAtTop ? MediaQuery.paddingOf(context).top + 16 : null,
+                bottom: _cardAtTop ? null : 16,
+                child: _cardShrunk ? _shrunkCard(cs, l) : _card(cs, tt, l),
               ),
             ],
           );

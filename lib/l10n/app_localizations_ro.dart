@@ -10136,6 +10136,18 @@ class AppLocalizationsRo extends AppLocalizations {
   String get readerTapNext => 'Next page';
 
   @override
+  String get readerTapZonesCardTop => 'Move to the top';
+
+  @override
+  String get readerTapZonesCardBottom => 'Move to the bottom';
+
+  @override
+  String get readerTapZonesCardHide => 'Shrink the card';
+
+  @override
+  String get readerTapZonesCardShow => 'Show the card';
+
+  @override
   String get readerTapMenu => 'Show controls';
 
   @override
