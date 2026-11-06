@@ -2404,6 +2404,24 @@ abstract class AppLocalizations {
   /// **'Podcasts tab library'**
   String get settingsPodcastTabLibrary;
 
+  /// No description provided for @settingsStatsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats tab'**
+  String get settingsStatsTab;
+
+  /// No description provided for @settingsStatsTabDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Stats in the bottom bar. Turn it off for more room on a small screen'**
+  String get settingsStatsTabDesc;
+
+  /// No description provided for @settingsOpenStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Stats'**
+  String get settingsOpenStats;
+
   /// No description provided for @settingsMergeImpliedByPodcastTab.
   ///
   /// In en, this message translates to:

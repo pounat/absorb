@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'stats_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -287,6 +288,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   bool _mergeAbsorbingLibraries = false;
   bool _podcastTabEnabled = false;
   String _podcastTabLibraryId = '';
+  bool _statsTabShown = true;
   int _episodeNotifMinutes = 0;
   int _maxConcurrentDownloads = 1;
   bool _hideEbookOnly = false;
@@ -1383,6 +1385,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final longBack = await PlayerSettings.getLongBackSkip();
     final podcastTabEnabled = await PlayerSettings.getPodcastTabEnabled();
     final podcastTabLibraryId = await PlayerSettings.getPodcastTabLibraryId();
+    final statsTabShown = await PlayerSettings.getStatsTabShown();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
     final keepPlayingWithOtherApps = await PlayerSettings.getKeepPlayingWithOtherApps();
@@ -1396,6 +1399,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {
       _podcastTabEnabled = podcastTabEnabled;
       _podcastTabLibraryId = podcastTabLibraryId;
+      _statsTabShown = statsTabShown;
       _episodeNotifMinutes = episodeNotifMinutes;
       _sleepRewindSeconds = sleepRewind;
       _lockPortrait = lockPortrait;
@@ -2441,9 +2445,10 @@ class SettingsScreenState extends State<SettingsScreen> {
                                 ButtonSegment(value: 0, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenHome, maxLines: 1))),
                                 ButtonSegment(value: 1, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenLibrary, maxLines: 1))),
                                 ButtonSegment(value: 2, label: FittedBox(fit: BoxFit.scaleDown, child: Text(Wording.of(context).startScreenAbsorb, maxLines: 1))),
-                                ButtonSegment(value: 3, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenStats, maxLines: 1))),
+                                if (_statsTabShown)
+                                  ButtonSegment(value: 3, label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.startScreenStats, maxLines: 1))),
                               ],
-                              selected: {_startScreen},
+                              selected: {_statsTabShown || _startScreen != 3 ? _startScreen : 0},
                               onSelectionChanged: _loaded ? (selected) {
                                 final idx = selected.first;
                                 setState(() => _startScreen = idx);
@@ -2644,6 +2649,32 @@ class SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Customize Stats',
                   onExpansionChanged: (v) => _onSectionExpanded('Customize Stats', v),
                   children: [
+                    SwitchListTile(
+                      title: Text(l.settingsStatsTab),
+                      subtitle: Text(l.settingsStatsTabDesc,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _statsTabShown,
+                      onChanged: _loaded ? (v) async {
+                        setState(() => _statsTabShown = v);
+                        await PlayerSettings.setStatsTabShown(v);
+                        // A hidden tab cannot be the start screen.
+                        if (!v && _startScreen == 3) {
+                          setState(() => _startScreen = 0);
+                          await PlayerSettings.setStartScreen(0);
+                        }
+                      } : null,
+                    ),
+                    if (!_statsTabShown)
+                      ListTile(
+                        leading: const Icon(Icons.bar_chart_rounded),
+                        title: Text(l.settingsOpenStats),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const StatsScreen(pushed: true)),
+                        ),
+                      ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       child: Column(

@@ -27,7 +27,10 @@ import 'app_shell.dart';
 import '../l10n/app_localizations.dart';
 
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({super.key});
+  /// Opened as a page of its own, with no tab to come back through, so the
+  /// header carries a back arrow.
+  final bool pushed;
+  const StatsScreen({super.key, this.pushed = false});
   @override
   State<StatsScreen> createState() => _StatsScreenState();
 }
@@ -713,6 +716,14 @@ class _StatsScreenState extends State<StatsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (widget.pushed)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Transform.translate(
+                          offset: const Offset(-12, 0),
+                          child: const BackButton(),
+                        ),
+                      ),
                     AbsorbPageHeader(
                       title: l.statsTitle,
                       showBranding: !desktopWorkspace,

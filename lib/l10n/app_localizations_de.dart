@@ -1288,6 +1288,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsPodcastTabLibrary => 'Podcasts Registerkarte';
 
   @override
+  String get settingsStatsTab => 'Stats tab';
+
+  @override
+  String get settingsStatsTabDesc =>
+      'Keep Stats in the bottom bar. Turn it off for more room on a small screen';
+
+  @override
+  String get settingsOpenStats => 'Open Stats';
+
+  @override
   String get settingsMergeImpliedByPodcastTab =>
       'Immer eingeschaltet, während der Podcasts-Tab aktiviert ist';
 

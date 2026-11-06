@@ -430,6 +430,12 @@ class PlayerSettings {
   static Future<void> setPodcastTabLibraryId(String value) =>
       _set('podcastTabLibraryId', value, notify: true);
 
+  // The Stats tab can leave the bottom bar to make room on a small phone;
+  // the page stays reachable from Settings and the hold menu.
+  static Future<bool> getStatsTabShown() => _get('statsTabShown', true);
+  static Future<void> setStatsTabShown(bool value) =>
+      _set('statsTabShown', value, notify: true);
+
   // Background new-episode notification checks, in minutes (0 = off).
   // WorkManager's floor for periodic jobs is 15 minutes.
   static Future<int> getEpisodeNotifIntervalMinutes() =>

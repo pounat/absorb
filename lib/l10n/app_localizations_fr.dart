@@ -1289,6 +1289,16 @@ class AppLocalizationsFr extends AppLocalizations {
       'Bibliothèque pour l\'onglet podcasts';
 
   @override
+  String get settingsStatsTab => 'Stats tab';
+
+  @override
+  String get settingsStatsTabDesc =>
+      'Keep Stats in the bottom bar. Turn it off for more room on a small screen';
+
+  @override
+  String get settingsOpenStats => 'Open Stats';
+
+  @override
   String get settingsMergeImpliedByPodcastTab =>
       'Toujours allumé lorsque l\'onglet Podcasts est activé';
 

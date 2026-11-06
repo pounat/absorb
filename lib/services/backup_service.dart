@@ -65,6 +65,7 @@ class BackupService {
       'queueAutoDownload': await PlayerSettings.getQueueAutoDownload(),
       'mergeAbsorbingLibraries': await PlayerSettings.getMergeAbsorbingLibrariesRaw(),
       'podcastTabEnabled': await PlayerSettings.getPodcastTabEnabled(),
+      'statsTabShown': await PlayerSettings.getStatsTabShown(),
       'podcastTabLibraryId': await PlayerSettings.getPodcastTabLibraryId(),
       'episodeNotifIntervalMinutes': await PlayerSettings.getEpisodeNotifIntervalMinutes(),
       'maxConcurrentDownloads': await PlayerSettings.getMaxConcurrentDownloads(),
@@ -594,6 +595,7 @@ class BackupService {
         s['podcastTabEnabled'] as bool,
       );
     }
+    if (s['statsTabShown'] != null) PlayerSettings.setStatsTabShown(s['statsTabShown'] as bool);
     if (s['episodeNotifIntervalMinutes'] != null) PlayerSettings.setEpisodeNotifIntervalMinutes(s['episodeNotifIntervalMinutes'] as int);
     if (s['maxConcurrentDownloads'] != null) PlayerSettings.setMaxConcurrentDownloads(s['maxConcurrentDownloads'] as int);
     if (s['colorSource'] != null) PlayerSettings.setColorSource(s['colorSource'] as String);

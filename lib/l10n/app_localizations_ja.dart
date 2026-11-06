@@ -1280,6 +1280,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsPodcastTabLibrary => 'Podcasts tab library';
 
   @override
+  String get settingsStatsTab => 'Stats tab';
+
+  @override
+  String get settingsStatsTabDesc =>
+      'Keep Stats in the bottom bar. Turn it off for more room on a small screen';
+
+  @override
+  String get settingsOpenStats => 'Open Stats';
+
+  @override
   String get settingsMergeImpliedByPodcastTab =>
       'Always on while the Podcasts tab is enabled';
 
