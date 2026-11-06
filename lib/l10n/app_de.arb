@@ -360,6 +360,7 @@
   "absorbingTitle": "Absorbing",
   "absorbingStop": "Stopp",
   "absorbingManageQueue": "Warteschlange verwalten",
+  "desktopAbsorbingQueueHint": "Benutze Hinzufügen zum Absorbieren eines Buchs oder einer Episode, um es hier anzuzeigen. Elemente werden in dieser Reihenfolge wiedergegeben.",
   "absorbingDone": "Fertig",
   "absorbingNoDownloadedEpisodes": "Keine heruntergeladenen Episoden",
   "absorbingNoDownloadedBooks": "Keine heruntergeladenen Bücher",
@@ -1236,6 +1237,7 @@
   },
   "breqFindRelease": "Finde eine Version",
   "breqApproveAndFind": "Freigabe und finde eine Version",
+  "breqReviewButton": "Download überprüfen",
   "breqStopDownload": "Download anhalten",
   "breqDiscardImport": "Download verwerfen",
   "breqFileAnyway": "Zur Bibliothek hinzufügen",
@@ -1250,6 +1252,7 @@
   "breqReleaseNoBookFile": "Diese Version hat keine Buchdatei, die BookOrbit einer Bibliothek hinzufügen kann.",
   "breqIndexerThrottled": "Beschäftigt",
   "breqIndexerTimeout": "Zeitüberschreitung",
+  "breqIndexerNoMedium": "trägt dies nicht",
   "breqIndexerError": "fehlgeschlagen",
   "breqSortBest": "Beste Übereinstimmung",
   "breqSortSeeders": "Seeder",
@@ -1271,6 +1274,14 @@
   "breqReviewNoLibrary": "Diese Anfrage hat keine Bibliothek, zu der das Buch hinzugefügt werden kann.",
   "breqGrabFailedReason": "Der Download konnte nicht gestartet werden: {reason}",
   "@breqGrabFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReleaseCheckFailedReason": "Konnte nicht überprüfen, was in dieser Version ist: {reason}",
+  "@breqReleaseCheckFailedReason": {
     "placeholders": {
       "reason": {
         "type": "String"
@@ -2256,6 +2267,7 @@
   "failedToAdd": "Hinzufügen fehlgeschlagen",
   "newCollection": "Neue Sammlung",
   "collectionNameHint": "Name der Sammlung",
+  "listsPickBooksNext": "Du wirst als nächstes Bücher aussuchen. Eine Sammlung auf diesem Server benötigt mindestens eines.",
   "castToDevice": "An Gerät casten",
   "searchingForCastDevices": "Suche nach Cast-Geräten...",
   "castDevice": "Cast-Gerät",
@@ -3698,6 +3710,14 @@
   "upcomingReleasesFinishedAfterNever": "Niemals",
   "upcomingReleasesSkippedTitle": "Übersprungene Serien",
   "upcomingReleasesSkippedNone": "Noch nichts übersprungen",
+  "upcomingReleasesSkippedLastBook": "{count, plural, =0{Das letzte Buch ist weniger als ein Jahr her} =1{Das letzte Buch ist ein Jahr her} other{Das letzte Buch ist {count} Jahre her}}",
+  "@upcomingReleasesSkippedLastBook": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesSkippedScanNow": "Jetzt scannen",
   "upcomingReleasesSkippedAlwaysScan": "Immer scannen",
   "upcomingReleasesSkippedNeverScan": "Niemals scannen",
@@ -3781,6 +3801,14 @@
   "upcomingReleasesSetAsinSave": "Speichern",
   "upcomingReleasesSetAsinInvalid": "Keine ASIN in diesem Text gefunden",
   "upcomingReleasesSetAsinSaved": "Serie verknüpft - Scan läuft",
+  "upcomingReleasesRemoveTitle": "{count, plural, =1{Buch entfernt} other{Entferne {count} Bücher}}",
+  "@upcomingReleasesRemoveTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesRemoveThisScan": "Aus diesem Scan entfernen",
   "upcomingReleasesRemoveThisScanDesc": "Kann bei einem zukünftigen Scan wieder kommen",
   "upcomingReleasesRemoveForever": "Von diesem und zukünftigen Scans entfernen",
@@ -3808,6 +3836,7 @@
       }
     }
   },
+  "seriesExcludeFromScan": "Von Serienscan ausschließen",
   "homeScreenEpisodeFallback": "Episode",
   "libraryScreenUnknownTitle": "Unbekannter Titel",
   "playlistDetailDefaultName": "Playlist",
