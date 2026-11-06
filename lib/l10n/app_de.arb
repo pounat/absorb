@@ -52,7 +52,7 @@
   "stay": "Bleiben",
   "homeTitle": "Start",
   "continueListening": "Weiterhören",
-  "continueReading": "Weiter lesen",
+  "continueReading": "Weiterlesen",
   "continueSeries": "Serie fortsetzen",
   "recentlyAdded": "Kürzlich hinzugefügt",
   "listenAgain": "Nochmal hören",
@@ -1049,6 +1049,33 @@
   "bookDockFileFailed": "Diese Datei konnte nicht zur Bibliothek hinzugefügt werden",
   "bookDockDuplicateBody": "Eine Datei mit diesem Namen ist bereits in dieser Bibliothek vorhanden. Aus dem Buch-Dock entfernen?",
   "bookDockDetailsUpdated": "Details aktualisiert",
+  "bookDockRemoveBody": "Dies löscht {title} auf dem Server.",
+  "@bookDockRemoveBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockFiled": "{title} zu {library} hinzugefügt",
+  "@bookDockFiled": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockFileFailedReason": "Datei konnte nicht hinzugefügt werden: {reason}",
+  "@bookDockFileFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "bookDockDuplicateTitle": "Bereits in {library}",
   "@bookDockDuplicateTitle": {
     "placeholders": {
@@ -1190,6 +1217,7 @@
   "breqRejectedToast": "Anfrage abgelehnt",
   "breqCancelledToast": "Anfrage storniert",
   "breqHiddenToast": "Aus deiner Liste ausgeblendet",
+  "breqRestoredToast": "Wiederhergestellt",
   "breqDeletedToast": "Anfrage gelöscht",
   "breqLeftToast": "Du hast diese Anfrage eingereicht",
   "breqActionFailed": "Anfrage konnte nicht aktualisiert werden",
@@ -1197,6 +1225,7 @@
   "breqFactRequestedOn": "Angefragt am",
   "breqFactLibrary": "Bibliothek",
   "breqFactDecidedBy": "Entschieden von",
+  "breqFactDecisionNote": "Entscheidungsgrund",
   "breqFactAlsoWanted": "Auch gewünscht von",
   "breqLibraryCta": "Buch anfragen",
   "breqSettingsSubtitle": "Bücher anfragen, die noch nicht in der Bibliothek sind",
@@ -1214,6 +1243,14 @@
     "placeholders": {
       "reason": {
         "type": "String"
+      }
+    }
+  },
+  "breqBookCount": "{count, plural, =1{1 Buch} other{{count} Bücher}}",
+  "@breqBookCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
       }
     }
   },
@@ -1241,6 +1278,14 @@
       }
     }
   },
+  "breqFailedWithReason": "Fehler: {reason}",
+  "@breqFailedWithReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "breqFindRelease": "Finde eine Version",
   "breqApproveAndFind": "Freigabe und finde eine Version",
   "breqReviewButton": "Download überprüfen",
@@ -1256,8 +1301,11 @@
   "breqGrabFailed": "Der Download konnte nicht gestartet werden",
   "breqReleaseVipWarning": "Dieser Tracker erlaubt es nur VIP-Konten ihn herunterzuladen.",
   "breqReleaseNoBookFile": "Diese Version hat keine Buchdatei, die BookOrbit einer Bibliothek hinzufügen kann.",
+  "breqSearchAgain": "Nochmal suchen",
+  "breqIndexerUnauthorized": "Anmeldung fehlgeschlagen",
   "breqIndexerThrottled": "Beschäftigt",
   "breqIndexerTimeout": "Zeitüberschreitung",
+  "breqIndexerUnreachable": "Nicht erreichbar",
   "breqIndexerNoMedium": "trägt dies nicht",
   "breqIndexerError": "fehlgeschlagen",
   "breqSortBest": "Beste Übereinstimmung",
@@ -1266,6 +1314,7 @@
   "breqSortNewest": "Neueste",
   "breqFreeleech": "Freeleech",
   "breqVipOnly": "Nur für VIP",
+  "breqAlreadyGrabbed": "Bereits heruntergeladen",
   "breqReasonIsbn": "ISBN",
   "breqReasonTitle": "Titel",
   "breqReasonAuthor": "Autor",
@@ -4525,7 +4574,8 @@
   "androidAutoTabContinue": "Weiterhören",
   "androidAutoTabLibrary": "Bibliothek",
   "androidAutoTabDownloads": "Downloads",
-  "settingsSearchHint": "Einstellungen suchen...",
+  "settingsSearchHint": "Einstellung suchen...",
+  "settingsSearchNoResults": "Keine passende Einstellung gefunden",
   "sectionCar": "Android Auto",
   "sectionCarIos": "CarPlay",
   "androidAutoCatBooks": "Bücher",
@@ -5124,7 +5174,7 @@
   "syncSettingsUsername": "Benutzername",
   "syncSettingsPassword": "Passwort",
   "syncSettingsTest": "Verbindung testen",
-  "syncSettingsHoldToUpload": "Halten, um jetzt hochzuladen",
+  "syncSettingsHoldToUpload": "Gedrückt halten, um jetzt hochzuladen",
   "syncSettingsUploadNow": "Jetzt hochladen",
   "syncSettingsDownloadNow": "Jetzt herunterladen",
   "syncSettingsOk": "Verbunden",
@@ -5268,8 +5318,10 @@
   "findInAudiobookStay": "Weiterlesen",
   "findInAudiobookGoPlayer": "Im Player öffnen",
   "findInAudiobookPlaying": "Diese Passage im Hörbuch abspielen",
-  "keepScreenOnPlayer": "Bildschirm aktiviert lassen",
+  "keepScreenOnPlayer": "Bildschirm im Player aktiviert lassen",
   "keepScreenOnPlayerSubtitle": "Bildschirm im geöffneten Player nicht ausschalten",
+  "keepScreenOnCarMode": "Bildschirm im Android-Auto Modus aktiviert lassen",
+  "keepScreenOnCarModeSubtitle": "Bildschirm während aktiviertem Android-Auto Modus nicht ausschalten",
   "boNotificationsClearAll": "Alle löschen",
   "boNotificationsClearTitle": "Alle Benachrichtigungen löschen?",
   "boNotificationsOccurrences": "{count} mal passiert",
