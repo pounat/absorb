@@ -50,5 +50,9 @@
   "loginAdvanced": "Avanzado",
   "loginCustomHttpHeaders": "Encabezados HTTP personalizados",
   "loginCustomHeadersDescription": "Para túneles de Cloudflare o proxies inversos que requieren encabezados extra. Agrega encabezados antes de ingresar la URL de su servidor.",
-  "loginHeaderName": "Nombre del encabezado"
+  "loginHeaderName": "Nombre del encabezado",
+  "loginPlayDownloads": "Reproducir tus descargas",
+  "loginPasteLink": "Pegar el enlace de entrada",
+  "loginFailed": "Entrada errónea",
+  "loginRestoreFromBackup": "Importar"
 }
