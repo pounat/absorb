@@ -5,6 +5,8 @@
   "offline": "Sin conexión",
   "stillOffline": "Aún sin conexión. Toca para intentarlo de nuevo.",
   "retry": "Reintentar",
+  "listsLoadFailed": "No se han podido cargar tus listas",
+  "listsLoadFailedHint": "Absorb no ha podido llegar al servidor para cargar colecciones y listas de reproducción.",
   "cancel": "Cancelar",
   "delete": "Borrar",
   "remove": "Eliminar",
