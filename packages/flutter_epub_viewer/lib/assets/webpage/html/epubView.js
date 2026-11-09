@@ -2255,6 +2255,30 @@ function reportPageDirection() {
 // screen tall (less the gap, which is the page's top and bottom margin).
 // Patched where the columns are applied, so every path that lays a section out
 // (first render, resize, expand, a new layout) gets it.
+// The top & bottom margin (px) the reader theme asks of the page, or null.
+// The theme's body padding is what a horizontal book uses; epub.js's own
+// vertical-book padding is an inline !important and would override it.
+var appliedVerticalMargin;
+function themeMarginV() {
+  var css = lastTheme && lastTheme.css;
+  var body = css && typeof css === "object" ? css.body : null;
+  var pad = body ? (body["padding-top"] || body.padding) : null;
+  var m = /^\s*(-?\d*\.?\d+)\s*px/.exec(String(pad || ""));
+  return m ? parseFloat(m[1]) : null;
+}
+
+// A new margin changes where every page of a vertical book starts, so lay
+// the sections out again and put the reader back on the spot they were at.
+function refitVerticalMargin() {
+  var m = rendition && rendition.manager;
+  if (!m || !m.isPaginated || !m.settings || m.settings.axis !== "vertical" || !m.layout) return;
+  if (themeMarginV() === appliedVerticalMargin) return;
+  var loc = rendition.location;
+  var cfi = loc && loc.start && loc.start.cfi;
+  try { m.setLayout(m.layout); } catch (e) { return; }
+  if (cfi) { try { rendition.display(cfi); } catch (e) {} }
+}
+
 (function fitVerticalColumns() {
   var proto = window.ePub && ePub.Contents && ePub.Contents.prototype;
   if (!proto || proto.__absorbVertical) return;
@@ -2279,7 +2303,15 @@ function reportPageDirection() {
   proto.columns = function (width, height, columnWidth, gap, dir) {
     var vertical = false;
     try { vertical = String(this.writingMode() || "").indexOf("vertical") === 0; } catch (e) {}
-    if (vertical) columnWidth = Math.max(1, height - (gap || 0));
+    if (vertical) {
+      // The page's top and bottom margin is the reader's "Top & bottom"
+      // setting (the theme's body padding), not the layout's own gap. A page
+      // is the column plus the gap after it, one screen tall.
+      var margin = themeMarginV();
+      appliedVerticalMargin = margin;
+      if (margin !== null) gap = 2 * Math.max(0, Math.min(margin, height / 4));
+      columnWidth = Math.max(1, height - (gap || 0));
+    }
     return columns.call(this, width, height, columnWidth, gap, dir);
   };
 })();
@@ -3607,6 +3639,7 @@ function updateTheme(backgroundColor, foregroundColor, customCss) {
     rendition.themes.register("user-theme", rules);
     rendition.themes.select("user-theme");
   }
+  refitVerticalMargin();
 }
 
 // Shared by the live rendition and the auto-scroll blind. The blind used to
