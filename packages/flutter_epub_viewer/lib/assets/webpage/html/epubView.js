@@ -2222,6 +2222,44 @@ function setTurnStyle(style) {
   turnStyle = style === "none" || style === "curl" ? style : "slide";
 }
 
+// Absorb patch: vertical writing (tategaki) in paginated flow. epub.js stacks
+// the pages of a vertical book top to bottom, one multi-column strip, and turns
+// by one screen height - but it sizes each column from the screen WIDTH. On a
+// phone that is two short columns per screen with the second cut off at the
+// bottom, a column break that no screen height lines up with, and a first
+// column that starts part way down the screen. A column has to be exactly one
+// screen tall (less the gap, which is the page's top and bottom margin).
+// Patched where the columns are applied, so every path that lays a section out
+// (first render, resize, expand, a new layout) gets it.
+(function fitVerticalColumns() {
+  var proto = window.ePub && ePub.Contents && ePub.Contents.prototype;
+  if (!proto || proto.__absorbVertical) return;
+  proto.__absorbVertical = true;
+  // epub.js reads the writing mode off <html>. A book that sets it on <body>
+  // only (some older Japanese EPUBs do) is drawn vertical, yet read as
+  // horizontal, so it was laid out in horizontal columns and could not be
+  // paged. Read it off <body> too.
+  var writingMode = proto.writingMode;
+  proto.writingMode = function (mode) {
+    var wm = writingMode.call(this, mode);
+    if (!mode && String(wm || "").indexOf("vertical") !== 0) {
+      try {
+        var b = this.window.getComputedStyle(this.content)["writing-mode"] ||
+          this.window.getComputedStyle(this.content).writingMode;
+        if (String(b || "").indexOf("vertical") === 0) return b;
+      } catch (e) {}
+    }
+    return wm;
+  };
+  var columns = proto.columns;
+  proto.columns = function (width, height, columnWidth, gap, dir) {
+    var vertical = false;
+    try { vertical = String(this.writingMode() || "").indexOf("vertical") === 0; } catch (e) {}
+    if (vertical) columnWidth = Math.max(1, height - (gap || 0));
+    return columns.call(this, width, height, columnWidth, gap, dir);
+  };
+})();
+
 function finishTurnSlide() {
   if (turnSlide) turnSlide.finish();
 }
