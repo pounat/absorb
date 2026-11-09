@@ -187,6 +187,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   rendition.started.then(function () {
     setupTurns(turnsFor);
     setupSmoothScroll(turnsFor);
+    fitVerticalMoves(turnsFor);
   });
   rendition.hooks.content.register(function (contents) {
     attachTurnDrag(contents.document);
@@ -2259,6 +2260,27 @@ function setTurnStyle(style) {
     return columns.call(this, width, height, columnWidth, gap, dir);
   };
 })();
+
+// Absorb patch: the continuous manager lands on a spot inside a section by
+// the spot's x only (a horizontal book's pages run sideways). A vertical book's
+// pages run down, so every jump to a saved position, a link, a search hit or
+// the spot kept through a resize landed on the section's first page. Jump by
+// the spot's y, a whole page at a time.
+function fitVerticalMoves(r) {
+  var m = r && r.manager;
+  if (!m || m.__absorbVerticalMoves) return;
+  m.__absorbVerticalMoves = true;
+  var moveTo = m.moveTo;
+  m.moveTo = function (offset) {
+    if (this.isPaginated && this.settings.axis === "vertical" && this.layout && offset) {
+      var page = this.layout.height || this.container.clientHeight || 1;
+      var y = Math.floor(offset.top / page) * page;
+      if (y > 0) this.scrollBy(0, y, true);
+      return;
+    }
+    return moveTo.apply(this, arguments);
+  };
+}
 
 function finishTurnSlide() {
   if (turnSlide) turnSlide.finish();
