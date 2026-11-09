@@ -2352,20 +2352,21 @@ function setupTurns(r) {
   m.__absorbTurns = true;
   var next = m.next;
   var prev = m.prev;
-  m.next = function () { return slideTurn(m, next); };
-  m.prev = function () { return slideTurn(m, prev); };
+  m.next = function () { return slideTurn(m, next, true); };
+  m.prev = function () { return slideTurn(m, prev, false); };
 }
 
 // epub.js turns by jumping a page width. The jump is still made, so the page
 // lands exactly where it always did, and is then played as a slide from where
 // the page was, or from where a finger let go of it.
-function slideTurn(m, turn) {
+function slideTurn(m, turn, forward) {
   var drag = turnFromDrag;
   turnFromDrag = null;
   var animate = turnAnimate || !!drag;
   turnAnimate = false;
+  if (animate && verticalSlides(m)) return slideTurnVertical(m, turn, forward, drag && drag.vertical ? drag : null);
   var c = m.container;
-  if (drag) {
+  if (drag && !drag.vertical) {
     m.ignore = true;
     c.scrollLeft = drag.base;
   }
@@ -2378,6 +2379,153 @@ function slideTurn(m, turn) {
   c.scrollLeft = from;
   var page = (m.layout && m.layout.delta) || c.clientWidth || 1;
   return playSlide(m, from, to, TURN_MS * Math.max(0.4, Math.min(1, Math.abs(to - from) / page)));
+}
+
+// Absorb patch: the slide for vertical-writing books. Their pages are stacked
+// top to bottom in one frame, so two pages are never on screen side by side
+// and the horizontal slide above has nothing to scroll. The page is slid
+// sideways as a whole instead, the way the book turns: the page being left
+// goes out toward the side the book is read from, and the next one comes in
+// from the other (a right-to-left book: out to the right, in from the left).
+function verticalSlides(m) {
+  return turnStyle === "slide" && !!m && m.isPaginated && m.settings.axis === "vertical" &&
+    !m.settings.fullsize && !scrolledFlow();
+}
+
+function easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
+function easeInQuad(t) { return t * t; }
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+// What shows where the page has slid away: the page's own background.
+function stageBackground(m) {
+  try {
+    var v = m.views.displayed()[0] || m.views.first();
+    var win = v.document.defaultView;
+    var bg = win.getComputedStyle(v.document.body).backgroundColor;
+    if (!bg || bg === "transparent" || bg === "rgba(0, 0, 0, 0)") {
+      bg = win.getComputedStyle(v.document.documentElement).backgroundColor;
+    }
+    return bg || "";
+  } catch (e) { return ""; }
+}
+
+function stageX(m, x) {
+  var c = m.container;
+  var host = document.getElementById("viewer");
+  if (x) {
+    if (host && host.__absorbBg === undefined) {
+      host.__absorbBg = host.style.background;
+      var bg = stageBackground(m);
+      if (bg) host.style.background = bg;
+    }
+    c.style.transform = "translate3d(" + x + "px, 0, 0)";
+    c.style.willChange = "transform";
+  } else {
+    c.style.transform = "";
+    c.style.willChange = "";
+    if (host && host.__absorbBg !== undefined) {
+      host.style.background = host.__absorbBg;
+      host.__absorbBg = undefined;
+    }
+  }
+}
+
+function stageTween(m, from, to, ms, ease) {
+  var h = { raf: 0, done: false, finish: null };
+  h.promise = new Promise(function (resolve) {
+    var start = null;
+    h.finish = function () { if (h.done) return; h.done = true; cancelAnimationFrame(h.raf); resolve(); };
+    function frame(ts) {
+      if (h.done) return;
+      if (start === null) start = ts;
+      var t = Math.min(1, (ts - start) / ms);
+      stageX(m, from + (to - from) * ease(t));
+      if (t >= 1) { h.done = true; resolve(); return; }
+      h.raf = requestAnimationFrame(frame);
+    }
+    stageX(m, from);
+    h.raf = requestAnimationFrame(frame);
+  });
+  return h;
+}
+
+// A drag that did not turn: the page settles back. It is the slide in flight
+// while it runs, so the next touch or turn cuts it short instead of fighting it.
+function stageSettle(m, from) {
+  var tween = stageTween(m, from, 0, 180, easeOutQuad);
+  var slide = {
+    finish: function () {
+      tween.finish();
+      stageX(m, 0);
+      if (turnSlide === slide) turnSlide = null;
+    }
+  };
+  turnSlide = slide;
+  tween.promise.then(function () { if (turnSlide === slide) turnSlide = null; });
+  return tween.promise;
+}
+
+// Whether a turn this way moves anywhere: epub.js's own test in next() / prev().
+function canTurnVertical(m, forward) {
+  var c = m.container;
+  if (forward) {
+    if (c.scrollTop + c.offsetHeight < c.scrollHeight) return true;
+    var last = m.views.last();
+    return !!(last && last.section.next());
+  }
+  if (c.scrollTop > 0) return true;
+  var first = m.views.first();
+  return !!(first && first.section.prev());
+}
+
+// [drag] is where a released finger left the page: {vertical: true, x}.
+function slideTurnVertical(m, turn, forward, drag) {
+  var W = m.container.clientWidth || 1;
+  var exit = (forward ? 1 : -1) * (bookIsRtl() ? 1 : -1); // +1: the page leaves to the right
+  var from = drag ? drag.x : 0;
+  if (!canTurnVertical(m, forward)) {
+    if (from) stageSettle(m, from);
+    return turn.call(m);
+  }
+  return new Promise(function (resolve) {
+    var tween = null;
+    var turnDone = null;
+    var finishing = false;
+    var settled = false;
+    function settle() {
+      if (settled) return;
+      settled = true;
+      stageX(m, 0);
+      if (turnSlide === slide) turnSlide = null;
+      resolve();
+    }
+    function doTurn() {
+      if (!turnDone) turnDone = Promise.resolve(turn.call(m));
+      return turnDone;
+    }
+    // A new turn (or touch) cuts this one short: make the turn if it has not
+    // been made yet, and drop the page where it belongs.
+    var slide = {
+      finish: function () {
+        if (settled || finishing) return;
+        finishing = true;
+        if (tween) tween.finish();
+        doTurn().then(settle, settle);
+      }
+    };
+    turnSlide = slide;
+    var left = Math.abs(exit * W - from) / W;
+    tween = stageTween(m, from, exit * W, TURN_MS * 0.45 * Math.max(0.3, left), from ? easeOutQuad : easeInQuad);
+    tween.promise.then(function () {
+      if (finishing) return;
+      // Out of sight: turn, then bring the new page in from the other side.
+      return doTurn().then(function () {
+        if (finishing) return;
+        tween = stageTween(m, -exit * W, 0, TURN_MS * 0.6, easeOutCubic);
+        return tween.promise.then(function () { if (!finishing) settle(); });
+      });
+    }).catch(function () { if (!finishing) settle(); });
+  });
 }
 
 function playSlide(m, from, to, ms) {
@@ -2453,16 +2601,24 @@ function attachTurnDrag(doc) {
       d.moving = true;
       d.m = m;
       d.x = t.screenX; // the page moves from here, without a jump
-      d.base = m.container.scrollLeft;
-      d.page = (m.layout && m.layout.delta) || m.container.clientWidth || 1;
+      d.vertical = verticalSlides(m); // a vertical book's page moves as a whole
+      d.off = 0;
+      d.base = d.vertical ? 0 : m.container.scrollLeft;
+      d.page = d.vertical ? (m.container.clientWidth || 1) :
+        ((m.layout && m.layout.delta) || m.container.clientWidth || 1);
       turnDragActive = turnStyle === "slide";
     }
     d.track.push({ x: t.screenX, at: e.timeStamp });
     if (d.track.length > 5) d.track.shift();
     if (turnStyle === "slide") {
       var off = Math.max(-d.page, Math.min(d.page, t.screenX - d.x));
-      d.m.ignore = true;
-      d.m.container.scrollLeft = d.base - off;
+      if (d.vertical) {
+        d.off = off;
+        stageX(d.m, off);
+      } else {
+        d.m.ignore = true;
+        d.m.container.scrollLeft = d.base - off;
+      }
     }
   }, { capture: true, passive: true });
   function release(e, cancelled) {
@@ -2484,12 +2640,15 @@ function attachTurnDrag(doc) {
     var go = !cancelled && dx !== 0 &&
       (Math.abs(dx) > g.page * 0.2 || (Math.abs(v) > 0.3 && (v < 0) === (dx < 0)));
     if (!go) {
-      if (turnStyle === "slide") playSlide(m, c.scrollLeft, g.base, 180);
+      if (turnStyle === "slide") {
+        if (g.vertical) stageSettle(m, g.off);
+        else playSlide(m, c.scrollLeft, g.base, 180);
+      }
       return;
     }
     var pending = null;
     if (turnStyle === "slide") {
-      pending = { base: g.base, from: c.scrollLeft };
+      pending = g.vertical ? { vertical: true, x: g.off } : { base: g.base, from: c.scrollLeft };
       turnFromDrag = pending;
     }
     if (forward) rendition.next(); else rendition.prev();
@@ -2499,7 +2658,8 @@ function attachTurnDrag(doc) {
       setTimeout(function () {
         if (turnFromDrag !== pending) return;
         turnFromDrag = null;
-        playSlide(m, c.scrollLeft, pending.base, 180);
+        if (pending.vertical) stageSettle(m, pending.x);
+        else playSlide(m, c.scrollLeft, pending.base, 180);
       }, 600);
     }
   }
