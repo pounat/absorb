@@ -40,6 +40,7 @@ class EpubViewer extends StatefulWidget {
     this.onEpubLoaded,
     this.onLocationLoaded,
     this.onKeyTurn,
+    this.onPageDirection,
     this.onRelocated,
     this.onTextSelected,
     this.displaySettings,
@@ -84,6 +85,11 @@ class EpubViewer extends StatefulWidget {
   /// A page turn asked for with the keyboard inside the viewer: arrow and
   /// page keys, true for forward.
   final void Function(bool forward)? onKeyTurn;
+
+  /// Which way the book turns its pages, reported when it opens and whenever
+  /// it changes: true for right to left (vertical text, or a spine that says
+  /// so), where the left edge of the page is the way forward.
+  final void Function(bool rtl)? onPageDirection;
 
   /// Location index saved from an earlier open of this same file (epub.js
   /// JSON); handed to the page so it can skip generating it.
@@ -476,6 +482,13 @@ class _EpubViewerState extends State<EpubViewer> {
       handlerName: 'keyTurn',
       callback: (arguments) {
         widget.onKeyTurn?.call(arguments.isNotEmpty && arguments.first == 'next');
+      },
+    );
+
+    webViewController?.addJavaScriptHandler(
+      handlerName: 'pageDirection',
+      callback: (arguments) {
+        widget.onPageDirection?.call(arguments.isNotEmpty && arguments.first == true);
       },
     );
 

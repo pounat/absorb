@@ -354,6 +354,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // How a page turns: 'none', 'slide' or one of the drawn turns.
   String _turnStyle = 'slide';
   ReaderTapZones _tapZones = const ReaderTapZones();
+  // The book turns its pages right to left (vertical text): the left of the
+  // page is the way forward, so edge taps and the arrow keys swap sides.
+  bool _pageRtl = false;
   bool _editingTapZones = false;
   // Space after each paragraph in em; below zero keeps the book's own.
   double _paragraphSpacing = -1;
@@ -1172,7 +1175,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     // In scroll mode the finger moves the page, so a tap only shows or hides
     // the controls. Edge taps turn pages during read along too; the page then
     // stops following the narration until you go back to it.
-    final action = _scroll ? 'menu' : _tapZones.actionAt(frac, fy);
+    var action = _scroll ? 'menu' : _tapZones.actionAt(frac, fy);
+    if (_pageRtl) action = action == 'prev' ? 'next' : (action == 'next' ? 'prev' : action);
     debugPrint('[ReaderTap] frac=${frac.toStringAsFixed(2)},${fy.toStringAsFixed(2)} src=$source -> $action ctrl=${_epubController != null}');
     final hasHighlights =
         _annotations.any((a) => a.type == AnnotationType.highlight);
@@ -7309,6 +7313,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               initialCfi: _initialCfi,
               cachedLocations: _cachedLocations,
               onKeyTurn: _keyTurn,
+              onPageDirection: (rtl) => _pageRtl = rtl,
               onLocationsGenerated: (json) {
                 debugPrint('[EbookReader] locations generated item=${widget.itemId} chars=${json.length}');
                 final file = _cachedFile;
@@ -7711,9 +7716,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       onKeyEvent: (node, event) {
         if (!node.hasPrimaryFocus || event is KeyUpEvent) return KeyEventResult.ignored;
         final key = event.logicalKey;
-        final forward = key == LogicalKeyboardKey.arrowRight ||
+        final forward = key == (_pageRtl ? LogicalKeyboardKey.arrowLeft : LogicalKeyboardKey.arrowRight) ||
             (!_scroll && (key == LogicalKeyboardKey.pageDown || key == LogicalKeyboardKey.space));
-        final back = key == LogicalKeyboardKey.arrowLeft ||
+        final back = key == (_pageRtl ? LogicalKeyboardKey.arrowRight : LogicalKeyboardKey.arrowLeft) ||
             (!_scroll && key == LogicalKeyboardKey.pageUp);
         if (!forward && !back) return KeyEventResult.ignored;
         _keyTurn(forward);

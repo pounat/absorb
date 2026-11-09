@@ -265,8 +265,10 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   window.__keyTurn = function (e) {
     if (!e || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     var k = e.key;
-    var forward = k === 'ArrowRight' || (!scrolledFlow && (k === 'PageDown' || k === ' ' || k === 'Spacebar'));
-    var back = k === 'ArrowLeft' || (!scrolledFlow && k === 'PageUp');
+    // A right-to-left book (tategaki) reads toward the left: that arrow is forward.
+    var rtl = bookIsRtl();
+    var forward = k === (rtl ? 'ArrowLeft' : 'ArrowRight') || (!scrolledFlow && (k === 'PageDown' || k === ' ' || k === 'Spacebar'));
+    var back = k === (rtl ? 'ArrowRight' : 'ArrowLeft') || (!scrolledFlow && k === 'PageUp');
     if (!forward && !back) return;
     e.preventDefault();
     window.flutter_inappwebview.callHandler('keyTurn', forward ? 'next' : 'prev');
@@ -987,7 +989,10 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   });
 
   //book location changes callback
+  pageDirectionSent = null;
+  rendition.on("displayed", reportPageDirection);
   rendition.on("relocated", function (location) {
+    reportPageDirection();
     // BLOCK navigation if there's an active selection
     // This is a final safeguard - if something bypassed our other blocks, prevent the navigation
     // BUT: Don't block if the user is actively dragging selection handles (isSelecting is true)
@@ -2223,6 +2228,24 @@ function setTurnStyle(style) {
   turnStyle = style === "none" || style === "curl" ? style : "slide";
 }
 
+// Absorb patch: whether the book turns its pages right to left: its spine says
+// so (page-progression-direction="rtl"), or its text runs in vertical-rl lines.
+// The app mirrors its edge taps and arrow keys for such a book.
+var pageDirectionSent = null;
+function bookIsRtl() {
+  var m = rendition && rendition.manager;
+  if (!m) return false;
+  if (m.settings && m.settings.direction === "rtl") return true;
+  return String(m.writingMode || "").indexOf("vertical-rl") === 0;
+}
+
+function reportPageDirection() {
+  var rtl = bookIsRtl();
+  if (rtl === pageDirectionSent) return;
+  pageDirectionSent = rtl;
+  try { window.flutter_inappwebview.callHandler("pageDirection", rtl); } catch (e) {}
+}
+
 // Absorb patch: vertical writing (tategaki) in paginated flow. epub.js stacks
 // the pages of a vertical book top to bottom, one multi-column strip, and turns
 // by one screen height - but it sizes each column from the screen WIDTH. On a
@@ -2425,7 +2448,7 @@ function attachTurnDrag(doc) {
       var b = g.track[g.track.length - 1];
       if (b.at > a.at) v = (b.x - a.x) / (b.at - a.at);
     }
-    var forward = m.settings.direction === "rtl" ? dx > 0 : dx < 0;
+    var forward = bookIsRtl() ? dx > 0 : dx < 0;
     var go = !cancelled && dx !== 0 &&
       (Math.abs(dx) > g.page * 0.2 || (Math.abs(v) > 0.3 && (v < 0) === (dx < 0)));
     if (!go) {
