@@ -1,3 +1,53 @@
 {
-  "@@locale": "pt-PT"
+  "@@locale": "pt-PT",
+  "online": "",
+  "offline": "Desconectado",
+  "stillOffline": "Ainda desconectado. Toque para tentar novamente.",
+  "retry": "Tentar novamente",
+  "listsNone": "Nenhuma coleção ou lista de reprodução",
+  "listsLoadFailed": "Não foi possível carregar as suas listas",
+  "cancel": "Cancelar",
+  "delete": "Excluir",
+  "remove": "Excluir",
+  "save": "Salvar",
+  "done": "Concluído",
+  "edit": "Editar",
+  "search": "Pesquisar",
+  "apply": "Confirmar",
+  "enable": "Ativar",
+  "clear": "Limpar",
+  "off": "Desligado",
+  "disabled": "Desabilitado",
+  "later": "Lembrar mais tarde",
+  "whatsNewContent": "Agora está agora na versão {version}.",
+  "@whatsNewContent": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNewButton": "Ver o que há de novo",
+  "whatsNewKeepShowing": "Exibir isto após cada atualização",
+  "whatsNewKeepShowingHint": "Pode reativá-lo em Configurações",
+  "settingsWhatsNew": "Mostrar o que há de novo após as atualizações",
+  "settingsWhatsNewSubtitle": "",
+  "gotIt": "Entendi",
+  "untitled": "Sem título",
+  "continueListening": "Continuar ouvindo",
+  "continueReading": "Continuar lendo",
+  "continueSeries": "Continuar Série",
+  "recentlyAdded": "Adicionado recentemente",
+  "listenAgain": "Ouvir novamente",
+  "discover": "Descobrir",
+  "loginUsernameRequired": "Por favor, insira o seu nome de usuário",
+  "loginSignIn": "Entrar",
+  "loginSignInAs": "Iniciar sessão como {username}?",
+  "@loginSignInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  }
 }
