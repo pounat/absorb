@@ -1835,7 +1835,9 @@ class AudioPlayerService extends ChangeNotifier {
   double? get activeSeekTarget {
     if (_lastSeekTargetSeconds == null || _lastSeekTime == null) return null;
     final elapsed = DateTime.now().difference(_lastSeekTime!).inMilliseconds;
-    if (elapsed > 8000) {
+    // A slow start keeps its target until the source is up: once it expired,
+    // position read zero off the still-loading player (GH #479).
+    if (elapsed > 8000 && !_isLoadingNewItem) {
       _lastSeekTargetSeconds = null;
       _lastSeekTime = null;
       return null;
@@ -8014,6 +8016,17 @@ class AudioPlayerService extends ChangeNotifier {
     _onPlaybackStateChangedCallback?.call(false);
 
     notifyListeners();
+    // A pause while the item is still loading has nothing to save: the
+    // player sits at zero until its start seek lands, and saving that sent
+    // 0:00 to the server (GH #479). The start keeps the saved position.
+    final state = _player?.processingState;
+    if (_isLoadingNewItem &&
+        (state == null ||
+            state == ProcessingState.idle ||
+            state == ProcessingState.loading)) {
+      debugPrint('[Player] Paused while the item is still loading - keeping the saved position');
+      return;
+    }
     final pos = position;
     debugPrint(
       '[Player] Saving on pause: ${(pos.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
