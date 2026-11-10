@@ -3114,6 +3114,10 @@ class AudioPlayerService extends ChangeNotifier {
   // Set true when BT/headphones disconnect so the interruption handler
   // won't auto-resume playback onto the phone speaker.
   static bool _noisyPause = false;
+
+  /// The volume to put back once a route-removed check has decided; set
+  /// while the player is muted for it.
+  static double? _routeMutedVolume;
   // Whether BT audio was connected when the current interruption began.
   static bool _wasOnBluetooth = false;
   static bool _duckBriefInterruptions = false;
@@ -3446,13 +3450,31 @@ class AudioPlayerService extends ChangeNotifier {
               '[AudioSession] Output route removed: '
               '${lost.map((d) => '${d.type.name} "${d.name}"').join(', ')}',
             );
-            // Settle re-check: some devices drop and re-add a route when
-            // playback starts or the link hiccups. Only pause if it stays gone.
+            // Android moves the sound to the phone speaker the moment the
+            // route goes, so mute right away: two seconds of the book out
+            // loud in a quiet car was the whole complaint (GH #480). The
+            // settle re-check below then decides between pausing and
+            // carrying on: some devices drop and re-add a route when
+            // playback starts or the link hiccups.
+            if (_routeMutedVolume == null) {
+              _routeMutedVolume = service._player?.volume ?? 1.0;
+              await service._player?.setVolume(0);
+            }
+            Future<void> unmute() async {
+              final v = _routeMutedVolume;
+              if (v == null) return;
+              _routeMutedVolume = null;
+              await service._player?.setVolume(v);
+            }
             await Future.delayed(const Duration(seconds: 2));
-            if (!service.isPlaying) return;
+            if (!service.isPlaying) {
+              await unmute();
+              return;
+            }
             final current = await session.getDevices(includeInputs: false);
             if (!lost.any((d) => !current.contains(d))) {
               debugPrint('[AudioSession] Output route came back - keeping playback');
+              await unmute();
               return;
             }
             // Android Auto carries the audio itself, over USB or WiFi. The
@@ -3465,6 +3487,7 @@ class AudioPlayerService extends ChangeNotifier {
               debugPrint(
                 '[AudioSession] Output route removed while playing - car client seen, keeping playback',
               );
+              await unmute();
               return;
             }
             debugPrint(
@@ -3477,7 +3500,9 @@ class AudioPlayerService extends ChangeNotifier {
             // those away and Play looked dead (#369).
             _handler?.cancelPendingClick(guardMs: 1500);
             if (service.isPlaying) await service.pause();
+            await unmute();
           } catch (e) {
+            _routeMutedVolume = null;
             debugPrint('[AudioSession] Device-change handler error: $e');
           }
         },
