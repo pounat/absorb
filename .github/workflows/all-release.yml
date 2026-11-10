@@ -415,6 +415,66 @@ jobs:
           echo "  + Submitting $VERSION_STRING for App Store review (manual release)"
           app-store-connect publish "${ARGS[@]}"
 
+  # The Wear OS companion, from its own repo. Signed with the phone app's
+  # keystore, since the Data Layer only pairs apps that share the signing
+  # key, and stamped with the phone's version so the two always match.
+  wear:
+    name: Wear OS APK
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: pounat/AbsorbWear
+          ref: main
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/absorb-upload-key.jks"
+          cat > key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=$RUNNER_TEMP/absorb-upload-key.jks
+          EOF
+
+      - name: Build the watch APK
+        env:
+          RAW_VERSION: ${{ needs.prepare.outputs.raw }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleGithubRelease --no-daemon --console=plain \
+            -PversionName="${RAW_VERSION%%+*}" -PversionCode="${RAW_VERSION##*+}"
+
+      - name: Rename artifact
+        env:
+          FNAME: ${{ needs.prepare.outputs.fname }}
+        run: |
+          OUT_DIR=app/build/outputs/apk/github/release
+          SRC=$(ls "$OUT_DIR"/*.apk | head -1)
+          DST="$OUT_DIR/${FNAME/absorb-/absorbwear-}.apk"
+          mv "$SRC" "$DST"
+          echo "ARTIFACT=$DST" >> "$GITHUB_ENV"
+
+      # The checkout is the watch repo, so gh has to be told which repo's
+      # release to upload to.
+      - name: Upload to GitHub draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release upload "$VERSION_TAG" "$ARTIFACT" --clobber --repo "$GITHUB_REPOSITORY"
+
   # Windows installer, same recipe as windows-build.yml, uploaded to the draft
   # beside the phone builds. Unsigned; SmartScreen warns on first run.
   windows:
@@ -476,7 +536,7 @@ jobs:
   # Single Discord ping once every platform finishes, success or fail.
   notify:
     name: Notify Discord (finished)
-    needs: [prepare, android, ios, windows]
+    needs: [prepare, android, ios, windows, wear]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -489,8 +549,9 @@ jobs:
           ANDROID_RESULT: ${{ needs.android.result }}
           IOS_RESULT: ${{ needs.ios.result }}
           WINDOWS_RESULT: ${{ needs.windows.result }}
+          WEAR_RESULT: ${{ needs.wear.result }}
         run: |
-          if [ "$ANDROID_RESULT" = "success" ] && [ "$IOS_RESULT" = "success" ] && [ "$WINDOWS_RESULT" = "success" ]; then
+          if [ "$ANDROID_RESULT" = "success" ] && [ "$IOS_RESULT" = "success" ] && [ "$WINDOWS_RESULT" = "success" ] && [ "$WEAR_RESULT" = "success" ]; then
             TITLE="Build successful"
             COLOR=3066993
           else
@@ -499,5 +560,5 @@ jobs:
           fi
           curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d "{\"embeds\":[{\"title\":\"$TITLE\",\"description\":\"**All Platforms Release** v$VERSION (android: $ANDROID_RESULT, ios: $IOS_RESULT, windows: $WINDOWS_RESULT)\\n[Build log]($RUN_URL)\",\"color\":$COLOR}]}" \
+            -d "{\"embeds\":[{\"title\":\"$TITLE\",\"description\":\"**All Platforms Release** v$VERSION (android: $ANDROID_RESULT, ios: $IOS_RESULT, windows: $WINDOWS_RESULT, wear: $WEAR_RESULT)\\n[Build log]($RUN_URL)\",\"color\":$COLOR}]}" \
             > /dev/null 2>&1 || true
