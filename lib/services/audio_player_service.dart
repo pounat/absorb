@@ -4470,11 +4470,14 @@ class AudioPlayerService extends ChangeNotifier {
     // so build the key from the raw parts to avoid double-appending the episode.
     final pKey = episodeId != null ? '$rawItemId-$episodeId' : rawItemId;
     // Reconcile the start position against the server's saved progress before
-    // audio begins. App-screen starts wait up to [_serverPositionCheckCap]
-    // (2s); headphone / widget / Android Auto / cold-start plays use the
-    // shorter [_sessionRaceWindow] (700ms) so an unreachable server falls back
-    // to local files sub-second without overwriting newer server progress
-    // when online (GH #321, GH #430).
+    // audio begins, capped at [_serverPositionCheckCap]. A play from the app
+    // screen always asks. Headphone / widget / Android Auto / cold-start
+    // plays of a download skip it while this phone's own save is fresh, so a
+    // quick re-press needs nothing from the network (GH #321); once the save
+    // is old enough for another device to have carried the book on, they ask
+    // too, since starting stale then pushed the old spot over the newer one
+    // on the server (GH #430). Whatever position we start with, we keep - no
+    // seeking after.
     if (forceStartTime) {
       debugPrint(
         '[Player] Forced start time: ${startTime}s — skipping server/local position comparison',
@@ -4483,10 +4486,13 @@ class AudioPlayerService extends ChangeNotifier {
       // The server signed in now doesn't hold this book's place, and could
       // hold a different book's under the same id.
       debugPrint('[Player] Another account\'s download - playing its spot on this phone, ${startTime.toStringAsFixed(1)}s');
+    } else if (!_playFromUi && startTime > 0 && await _localPositionIsFresh(pKey)) {
+      debugPrint(
+        '[Player] Skipping progress reconcile - not started from the app screen and the local position is fresh, playing ${startTime.toStringAsFixed(1)}s now',
+      );
     } else if (_api != null && !manualOffline && !_knownOffline) {
       try {
-        final checkCap =
-            _playFromUi ? _serverPositionCheckCap : _sessionRaceWindow;
+        const checkCap = _serverPositionCheckCap;
         final serverProgress = await _api!
             .getItemProgress(pKey)
             .timeout(checkCap, onTimeout: () => null);
@@ -7437,11 +7443,12 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   /// [fromUi] marks a play started from the app's own screen. App-screen
-  /// resumes wait up to [_serverPositionCheckCap] (2s) for a server position
+  /// resumes wait up to [_serverPositionCheckCap] for a server position
   /// another device may have advanced; headphone, notification, widget, lock
-  /// screen and Android Auto resumes use the shorter [_sessionRaceWindow]
-  /// (700ms) before audio starts so an unreachable server falls back right
-  /// away without clobbering newer server progress when online (GH #430).
+  /// screen and Android Auto resumes only do so after a pause long enough
+  /// for that to be likely ([_localPositionStaleAfter]), so a quick re-press
+  /// starts right away and a stale one no longer clobbers newer server
+  /// progress (GH #430).
   Future<void> play({String? logDetail, bool fromUi = false}) async {
     _pauseRequested = false;
     // A second Play while the first is still moving the source onto a live
@@ -7806,6 +7813,19 @@ class AudioPlayerService extends ChangeNotifier {
   /// meanwhile. Shorter pauses resume instantly with no server round trip.
   static const _serverPositionCheckMinPause = Duration(minutes: 2);
 
+  /// How old this phone's own save of a position gets before a headphone,
+  /// widget or car start asks the server whether another device moved on.
+  static const _localPositionStaleAfter = Duration(minutes: 5);
+
+  /// Whether this phone saved the item's position within
+  /// [_localPositionStaleAfter].
+  Future<bool> _localPositionIsFresh(String progressKey) async {
+    final ts = await _progressSync.getSavedTimestamp(progressKey);
+    if (ts <= 0) return false;
+    return DateTime.now().millisecondsSinceEpoch - ts <
+        _localPositionStaleAfter.inMilliseconds;
+  }
+
   /// Longest an app-screen resume waits on the server before starting where
   /// the phone left off. A late answer is dropped, never seeked to.
   static const _serverPositionCheckCap = Duration(seconds: 2);
@@ -7840,8 +7860,9 @@ class AudioPlayerService extends ChangeNotifier {
   /// Before a resume after a long pause, look at the server's saved progress
   /// and, if another device genuinely moved it ahead, return that position for
   /// the resume to start at; null keeps the phone's. Runs only before audio,
-  /// capped (2s for app-screen resumes, 700ms for headphone / car / widget),
-  /// and only after a pause long enough to matter; anything slower starts local.
+  /// capped, and only after a pause long enough to matter (a few minutes from
+  /// the app screen, [_localPositionStaleAfter] from headphones, car or
+  /// widget); anything slower starts local.
   Future<double?> _serverPositionBeforeResume({bool fromUi = true}) async {
     if (_api == null || _currentItemId == null || _player == null) return null;
     // An idle player is about to be re-initialised through playItem, which
@@ -7852,9 +7873,11 @@ class AudioPlayerService extends ChangeNotifier {
     final lastPause = _lastPauseTime;
     // BookOrbit has no live progress push to cover a short pause, so check
     // after any pause long enough for someone to have listened elsewhere.
-    final minPause = _api!.isBookOrbit
-        ? const Duration(seconds: 10)
-        : _serverPositionCheckMinPause;
+    final minPause = !fromUi
+        ? _localPositionStaleAfter
+        : _api!.isBookOrbit
+            ? const Duration(seconds: 10)
+            : _serverPositionCheckMinPause;
     if (lastPause == null || DateTime.now().difference(lastPause) < minPause) {
       return null;
     }
@@ -7869,8 +7892,7 @@ class AudioPlayerService extends ChangeNotifier {
         : _currentItemId!;
     try {
       final localTs = await _progressSync.getSavedTimestamp(pKey);
-      final checkCap =
-          fromUi ? _serverPositionCheckCap : _sessionRaceWindow;
+      const checkCap = _serverPositionCheckCap;
       final serverProgress = await _api!
           .getItemProgress(pKey)
           .timeout(checkCap, onTimeout: () => null);
