@@ -939,6 +939,7 @@
   "chapterProgressInNowPlayingBarOnSubtitle": "Ein – der Player unten zeigt den aktuellen Fortschritt im Kapitel an",
   "chapterProgressInNowPlayingBarOffSubtitle": "Aus – der Player unten zeigt den aktuellen Fortschritt im gesamten Buch an",
   "nowPlayingText": "Text der aktuellen Wiedergabe",
+  "nowPlayingTextSubtitle": "Wähle aus, was in den Mediensteuerelementen in der jeweiligen Zeile angezeigt wird",
   "nowPlayingTopLine": "Obere Zeile",
   "nowPlayingSecondLine": "Zweite Zeile",
   "nowPlayingNotShown": "Nicht angezeigt",
@@ -1054,8 +1055,17 @@
   "bookDockFileFailed": "Diese Datei konnte nicht zur Bibliothek hinzugefügt werden",
   "bookDockDuplicateBody": "Eine Datei mit diesem Namen ist bereits in dieser Bibliothek vorhanden. Aus dem Buch-Dock entfernen?",
   "bookDockDetailsUpdated": "Details aktualisiert",
+  "bookDockUseFoundFailed": "Es wurden keine verwertbaren Details gefunden",
   "bookDockRemoveBody": "Dies löscht {title} auf dem Server.",
   "@bookDockRemoveBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockRemoved": "{title} wurde aus dem Buch Dock entfernt",
+  "@bookDockRemoved": {
     "placeholders": {
       "title": {
         "type": "String"
