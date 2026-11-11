@@ -109,7 +109,7 @@ class LibraryProvider extends ChangeNotifier
     AudioPlayerService.setOnPlaybackStateChangedCallback((playing) {
       if (playing) {
         onPlaybackStarted();
-        unawaited(_clearStaleSourceQueueModeForCurrentPlayback());
+        unawaited(_reconcileSourceQueueModeForCurrentPlayback());
       } else {
         onPlaybackStopped();
       }

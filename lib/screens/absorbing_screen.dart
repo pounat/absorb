@@ -1394,6 +1394,14 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
       unawaited(lib.syncQueueAutoDownloads());
       return;
     }
+    if (mode == 'collection') {
+      final cid = await PlayerSettings.getQueueCollectionId();
+      if (cid == null) return;
+      final name = await PlayerSettings.getQueueCollectionName() ?? '';
+      await PlayerSettings.setQueueModeCollection(cid, name);
+      unawaited(lib.syncQueueAutoDownloads());
+      return;
+    }
     if (_mergeLibraries || _queueMode == 'playlist') {
       await PlayerSettings.setBookQueueMode(mode);
       await PlayerSettings.setPodcastQueueMode(mode);
@@ -1886,6 +1894,10 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
   List<Map<String, dynamic>>? _collectionBooks;
   String? _collectionId;
   String? _collectionName;
+  // Set while a playlist / collection is the queue or is remembered after
+  // playing something outside it, so its chip stays on offer.
+  String? _rememberedPlaylistId;
+  String? _rememberedCollectionName;
   String? _activeQueueSourceId;
   int _modeContentGeneration = 0;
   // Podcast auto_next: the current show's episodes (unsorted - the list sorts
@@ -2072,14 +2084,24 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
     } else {
       mode = _currentIsPodcast ? pm : bm;
     }
+    final rememberedPlaylistId = await PlayerSettings.getQueuePlaylistId();
+    final rememberedCollectionName =
+        await PlayerSettings.getQueueCollectionName();
     final sourceId = mode == 'playlist'
-        ? await PlayerSettings.getQueuePlaylistId()
+        ? rememberedPlaylistId
         : mode == 'collection'
         ? await PlayerSettings.getQueueCollectionId()
         : null;
     if (!mounted) return;
     final modeChanged = mode != _queueMode;
     final sourceChanged = sourceId != _activeQueueSourceId;
+    if (rememberedPlaylistId != _rememberedPlaylistId ||
+        rememberedCollectionName != _rememberedCollectionName) {
+      setState(() {
+        _rememberedPlaylistId = rememberedPlaylistId;
+        _rememberedCollectionName = rememberedCollectionName;
+      });
+    }
     if (modeChanged || sourceChanged) {
       setState(() {
         _queueMode = mode;
@@ -2194,7 +2216,8 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
                 ),
                 // BookOrbit has no playlists.
                 if (!context.read<AuthProvider>().isBookOrbit ||
-                    _queueMode == 'playlist')
+                    _queueMode == 'playlist' ||
+                    _rememberedPlaylistId != null)
                   ButtonSegment(
                     value: 'playlist',
                     icon: const Icon(Icons.playlist_play_rounded, size: 16),
@@ -2203,9 +2226,11 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
                       child: Text(l.queueModePlaylist, maxLines: 1),
                     ),
                   ),
-                // Collection mode is entered via a collection's Play button, not
-                // picked here - shown only while active so the selection is valid.
-                if (_queueMode == 'collection')
+                // Collection mode starts from a collection's Play button; the
+                // chip stays while that collection is active or remembered,
+                // so a queue left by playing something else is one tap away.
+                if (_queueMode == 'collection' ||
+                    _rememberedCollectionName != null)
                   ButtonSegment(
                     value: 'collection',
                     icon: const Icon(

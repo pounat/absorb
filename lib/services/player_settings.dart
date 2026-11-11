@@ -682,9 +682,22 @@ class PlayerSettings {
 
   static Future<void> setBookQueueMode(String value) {
     debugPrint('[Queue] Book queue mode -> $value');
-    return _serializeQueueModeMutation(
-      () => _set('bookQueueMode', value, notify: true),
-    );
+    return _serializeQueueModeMutation(() async {
+      await _set('bookQueueMode', value, notify: true);
+      await _endQueueSourceSuspension(value);
+    });
+  }
+
+  /// Set while a playlist or collection queue was turned off by playing
+  /// something outside it. Only then does playing one of its items bring
+  /// the queue back; a mode picked by hand ends that, while the playlist or
+  /// collection stays remembered for the queue manager's chip.
+  static Future<bool> isQueueSourceSuspended() =>
+      _get('queueSourceSuspended', false);
+
+  static Future<void> _endQueueSourceSuspension(String value) async {
+    if (value == 'playlist' || value == 'collection') return;
+    await ScopedPrefs.remove('queueSourceSuspended');
   }
 
   static Future<bool> getShowUpNextLabel() => _get('showUpNextLabel', true);
@@ -698,9 +711,10 @@ class PlayerSettings {
 
   static Future<void> setPodcastQueueMode(String value) {
     debugPrint('[Queue] Podcast queue mode -> $value');
-    return _serializeQueueModeMutation(
-      () => _set('podcastQueueMode', value, notify: true),
-    );
+    return _serializeQueueModeMutation(() async {
+      await _set('podcastQueueMode', value, notify: true);
+      await _endQueueSourceSuspension(value);
+    });
   }
 
   /// Per-show podcast auto-advance direction: 'oldest_first' (default) or
@@ -758,7 +772,28 @@ class PlayerSettings {
         await ScopedPrefs.setString('bookQueueMode', 'playlist');
         await ScopedPrefs.setString('podcastQueueMode', 'playlist');
         await ScopedPrefs.setString('queuePlaylistId', playlistId);
+        // Playlist mode replaces any collection queue, remembered or active.
+        await ScopedPrefs.remove('queueCollectionId');
+        await ScopedPrefs.remove('queueCollectionName');
+        await ScopedPrefs.remove('queueSourceSuspended');
         _notify();
+      });
+
+  /// Playing something outside the active playlist turns the queue off for
+  /// it but keeps the playlist remembered, so playing one of its items
+  /// again picks the queue back up and the queue manager still offers it.
+  static Future<bool> suspendQueueModePlaylistIfActive(String playlistId) =>
+      _serializeQueueModeMutation(() async {
+        if (await getBookQueueMode() != 'playlist' ||
+            await getPodcastQueueMode() != 'playlist' ||
+            await getQueuePlaylistId() != playlistId) {
+          return false;
+        }
+        await ScopedPrefs.setString('bookQueueMode', 'off');
+        await ScopedPrefs.setString('podcastQueueMode', 'off');
+        await ScopedPrefs.setBool('queueSourceSuspended', true);
+        _notify();
+        return true;
       });
 
   /// Exit playlist queue mode: both modes back to 'off' and active playlist cleared.
@@ -809,6 +844,7 @@ class PlayerSettings {
     if ((await ScopedPrefs.getString('podcastQueueMode')) == 'playlist') {
       await ScopedPrefs.setString('podcastQueueMode', 'off');
     }
+    await ScopedPrefs.remove('queueSourceSuspended');
     _notify();
   });
 
@@ -818,6 +854,19 @@ class PlayerSettings {
         await ScopedPrefs.remove('queueCollectionId');
         await ScopedPrefs.remove('queueCollectionName');
         _notify();
+      });
+
+  /// Like [suspendQueueModePlaylistIfActive], for a collection queue.
+  static Future<bool> suspendQueueModeCollectionIfActive(String collectionId) =>
+      _serializeQueueModeMutation(() async {
+        if (await getBookQueueMode() != 'collection' ||
+            await getQueueCollectionId() != collectionId) {
+          return false;
+        }
+        await ScopedPrefs.setString('bookQueueMode', 'off');
+        await ScopedPrefs.setBool('queueSourceSuspended', true);
+        _notify();
+        return true;
       });
 
   static Future<bool> clearQueueModeCollectionIfActive(String collectionId) =>
