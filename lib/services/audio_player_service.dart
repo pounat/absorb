@@ -7199,7 +7199,21 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> skipToNextChapter() async {
-    if (_player == null || _chapters.isEmpty) return;
+    if (_player == null) return;
+    // Fork addition: an item with no chapters (every yt-dlp rip, every stream
+    // recording) used to make this a silent no-op, which is why the skip
+    // button on the card, the notification and the headset all did nothing.
+    // With nothing to skip *to* inside the item, "next" means next in queue:
+    // finish this one and let the queue mode pick what follows - the same
+    // thing a chaptered item already does when you skip past its last chapter.
+    if (_chapters.isEmpty) {
+      if (_currentItemId == null) return;
+      debugPrint('[Service] skipToNextChapter (no chapters) -> finish item');
+      _lastKnownPositionSec = _totalDuration;
+      _logEvent(PlaybackEventType.seek, detail: 'skip item (no chapters)');
+      await _onPlaybackComplete(userRequested: true);
+      return;
+    }
     _resetStuckDetection();
     if (!_player!.playing) _seekedWhilePaused = true;
     final posS = position.inMilliseconds / 1000.0;
@@ -7223,7 +7237,18 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> skipToPreviousChapter() async {
-    if (_player == null || _chapters.isEmpty) return;
+    if (_player == null) return;
+    // Fork addition: same no-op as above. Without chapters, "previous" is
+    // "back to the start".
+    if (_chapters.isEmpty) {
+      _resetStuckDetection();
+      if (!_player!.playing) _seekedWhilePaused = true;
+      debugPrint('[Service] skipToPreviousChapter (no chapters) -> 0s');
+      await _seekAbsolute(0);
+      _logEvent(PlaybackEventType.seek, detail: 'restart (no chapters)');
+      notifyListeners();
+      return;
+    }
     _resetStuckDetection();
     if (!_player!.playing) _seekedWhilePaused = true;
     final posS = position.inMilliseconds / 1000.0;

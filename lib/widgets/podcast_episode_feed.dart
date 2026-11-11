@@ -12,7 +12,9 @@ import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
 import '../services/scoped_prefs.dart';
+import 'ap_episode_tile.dart';
 import 'card_buttons.dart' show showErrorToast;
+import 'episode_detail_sheet.dart';
 import 'episode_list_sheet.dart';
 import 'episode_row.dart';
 import 'overlay_toast.dart';
@@ -476,6 +478,36 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     );
   }
 
+  /// The row used when the list layout is on: the same tile the queue uses,
+  /// so an episode looks identical in the Inbox and after you've queued it.
+  Widget _listLayoutRow(LibraryProvider lib, Map<String, dynamic> ep) {
+    final showId = _showIdOf(ep);
+    final epId = ep['id'] as String? ?? '';
+    final podcastItem = _podcastItemOf(ep);
+    return ApEpisodeTile(
+      title: ep['title'] as String? ?? '',
+      contextLine: _showTitleOf(ep),
+      coverUrl: lib.getCoverUrl(showId, width: 120),
+      coverHeaders: lib.mediaHeaders,
+      publishedAtMs: (ep['publishedAt'] as num?)?.toInt() ?? 0,
+      sizeBytes: (ep['size'] as num?) ?? 0,
+      durationSec: (ep['duration'] as num?)?.toDouble() ?? 0,
+      progress: lib.getEpisodeProgress(showId, epId),
+      finished:
+          lib.getEpisodeProgressData(showId, epId)?['isFinished'] == true,
+      downloaded: DownloadService().isDownloaded('$showId-$epId'),
+      trailing: ApRoundButton(
+        icon: Icons.play_arrow_rounded,
+        tooltip: 'Play',
+        onTap: () => _playEpisode(ep),
+      ),
+      onTap: () => EpisodeDetailSheet.show(context, podcastItem, ep),
+      onLongPress: () =>
+          EpisodeDetailSheet.showQuick(context, podcastItem, ep),
+      onCoverTap: () => EpisodeListSheet.show(context, podcastItem),
+    );
+  }
+
   /// Turn a stored swipe-action name into a spec, or null when the action
   /// doesn't apply to this episode right now (already queued, already
   /// dismissed) so the row just doesn't swipe that way.
@@ -816,7 +848,9 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                   borderRadius: BorderRadius.zero,
                   onStartToEnd: _swipeSpec(_swipeRight, lib, ep, cs),
                   onEndToStart: _swipeSpec(_swipeLeft, lib, ep, cs),
-                  child: Row(
+                  child: lib.queueListLayout
+                      ? _listLayoutRow(lib, ep)
+                      : Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // Show cover so the feed reads at a glance; tapping it

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../widgets/now_playing_sheet.dart';
 import '../services/audio_player_service.dart';
 import '../services/volume_key_service.dart';
 import '../services/chromecast_service.dart';
@@ -784,7 +785,16 @@ class _AppShellState extends State<AppShell>
             ),
           ),
         ),
-        bottomNavigationBar: _buildBottomNav(context),
+        // Fork addition: mini player docked above the nav bar on every tab.
+        // Renders nothing unless the list layout is on and something is
+        // loaded, so the stock layout is unaffected.
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            MiniPlayerBar(navReveal: _navBarAnimController),
+            _buildBottomNav(context),
+          ],
+        ),
       ),
     );
   }

@@ -531,6 +531,21 @@ class PlayerSettings {
   static Future<void> setStrictQueueAdoptSeconds(int value) =>
       _set('strictQueueAdoptSeconds', value, notify: true);
 
+  // ── List layout ──
+  // On: the Now Playing tab is a vertical, drag-to-reorder queue, a mini
+  // player sits above the nav bar on every tab, and the full player opens
+  // from it. Off: upstream's swipeable card carousel, untouched.
+  static Future<bool> getQueueListLayout() => _get('queueListLayout', true);
+  static Future<void> setQueueListLayout(bool value) =>
+      _set('queueListLayout', value, notify: true);
+
+  /// Which full-player layout to show: 'dial', 'tape' or 'cover'.
+  static const List<String> nowPlayingLayouts = ['dial', 'tape', 'cover'];
+  static Future<String> getNowPlayingLayout() =>
+      _get('nowPlayingLayout', 'dial');
+  static Future<void> setNowPlayingLayout(String value) =>
+      _set('nowPlayingLayout', value, notify: true);
+
   /// Days of history the Inbox filter covers. 0 means no limit.
   /// Defaults to 21 to match a server that prunes episodes at three weeks:
   /// past that the file is usually gone, so an Inbox row for it is a dead end.
@@ -1027,7 +1042,8 @@ class PlayerSettings {
   static Future<void> setLibraryTab(int value) => _set('libraryTab', value);
 
   /// Podcast library view: 0 = Shows grid, 1 = Episodes feed.
-  static Future<int> getPodcastView() => _get('podcastView', 0);
+  // Fork: defaults to the Episodes list (1) rather than the grid of shows (0).
+  static Future<int> getPodcastView() => _get('podcastView', 1);
   static Future<void> setPodcastView(int value) => _set('podcastView', value);
 
   // ── Podcast library sort persistence ──

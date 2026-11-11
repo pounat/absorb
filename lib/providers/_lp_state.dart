@@ -129,6 +129,9 @@ mixin _StateMixin on ChangeNotifier {
   /// see _pruneDismissed.
   Map<String, int> _dismissedEpisodeKeys = {};
   int _inboxWindowDays = 21;
+  /// Mirror of PlayerSettings.getQueueListLayout(): the Now Playing tab as a
+  /// drag-to-reorder list with a mini player, instead of the card carousel.
+  bool _queueListLayout = true;
   /// The key the adoption timer is currently counting for, so a rapid
   /// play A -> play B never adopts A off a stale delayed callback.
   String? _adoptCandidateKey;
@@ -168,6 +171,7 @@ mixin _StateMixin on ChangeNotifier {
   Set<String> get dismissedEpisodeKeys => _dismissedEpisodeKeys.keys.toSet();
   int get dismissedEpisodeCount => _dismissedEpisodeKeys.length;
   int get inboxWindowDays => _inboxWindowDays;
+  bool get queueListLayout => _queueListLayout;
   bool isEpisodeDismissed(String key) =>
       _dismissedEpisodeKeys.containsKey(key);
 

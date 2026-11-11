@@ -18,6 +18,7 @@ import '../widgets/series_books_sheet.dart';
 import '../widgets/playlist_detail_sheet.dart';
 import '../widgets/collection_detail_sheet.dart';
 import '../widgets/episode_list_sheet.dart';
+import '../widgets/queue_list_view.dart';
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 
@@ -644,6 +645,17 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         final dlKey = _absorbingKey(b);
         return dl.isDownloaded(dlKey);
       }).toList();
+    }
+
+    // Fork addition: the list layout replaces the carousel wholesale. Casting
+    // falls back to the cards, which is where the cast transport lives.
+    if (lib.queueListLayout && !_cast.isCasting) {
+      return QueueListView(
+        books: books,
+        keyOf: _absorbingKey,
+        onRefresh: _pullRefresh,
+        onOpenManager: () => _showReorderSheet(context, lib, books),
+      );
     }
 
     final showBlockingLoader = lib.isLoading &&

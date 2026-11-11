@@ -135,6 +135,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _feedSwipeRight = 'queue';
   String _feedSwipeLeft = 'dismiss';
   int _inboxWindowDays = 21;
+  bool _queueListLayout = true;
+  String _nowPlayingLayout = 'dial';
   bool _queueAutoDownload = false;
   bool _mergeAbsorbingLibraries = false;
   bool _podcastTabEnabled = false;
@@ -1002,6 +1004,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final feedSwipeRight = await PlayerSettings.getFeedSwipeRight();
     final feedSwipeLeft = await PlayerSettings.getFeedSwipeLeft();
     final inboxWindowDays = await PlayerSettings.getInboxWindowDays();
+    final queueListLayout = await PlayerSettings.getQueueListLayout();
+    final nowPlayingLayout = await PlayerSettings.getNowPlayingLayout();
     final mp3IndexSeek = await PlayerSettings.getMp3IndexSeeking();
     final coverSize = await PlayerSettings.getCoverSize();
     final flatBackground = await PlayerSettings.getFlatBackground();
@@ -1122,6 +1126,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _feedSwipeRight = feedSwipeRight;
       _feedSwipeLeft = feedSwipeLeft;
       _inboxWindowDays = inboxWindowDays;
+      _queueListLayout = queueListLayout;
+      _nowPlayingLayout = nowPlayingLayout;
       _queueAutoDownload = queueAutoDl;
       _mergeAbsorbingLibraries = mergeLibs;
       _maxConcurrentDownloads = maxConc;
@@ -2634,6 +2640,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Queue & Inbox',
                   onExpansionChanged: (v) => _onSectionExpanded('Queue & Inbox', v),
                   children: [
+                    SwitchListTile(
+                      title: const Text('List layout'),
+                      subtitle: Text(
+                        _queueListLayout
+                            ? 'Now Playing is a queue you drag to reorder, with a '
+                                'mini player above the tabs.'
+                            : 'Now Playing is the original swipeable cards.',
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                      value: _queueListLayout,
+                      onChanged: _loaded ? (v) async {
+                        setState(() => _queueListLayout = v);
+                        await PlayerSettings.setQueueListLayout(v);
+                        await lib.refreshQueueInboxSettings();
+                      } : null,
+                    ),
+                    if (_queueListLayout) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Player layout', style: tt.bodyMedium),
+                            Text('Also switchable from the player itself.',
+                              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            const SizedBox(height: 8),
+                            SizedBox(width: double.infinity, child: SegmentedButton<String>(
+                              showSelectedIcon: false,
+                              segments: const [
+                                ButtonSegment(value: 'dial', label: Text('Dial')),
+                                ButtonSegment(value: 'tape', label: Text('Tape')),
+                                ButtonSegment(value: 'cover', label: Text('Cover')),
+                              ],
+                              selected: {_nowPlayingLayout},
+                              onSelectionChanged: _loaded ? (s) async {
+                                if (s.isEmpty) return;
+                                setState(() => _nowPlayingLayout = s.first);
+                                await PlayerSettings.setNowPlayingLayout(s.first);
+                              } : null,
+                              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                            )),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     SwitchListTile(
                       title: const Text('Strict queue'),
                       subtitle: Text(

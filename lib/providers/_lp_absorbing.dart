@@ -131,12 +131,15 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     final strict = await PlayerSettings.getStrictQueue();
     final seconds = await PlayerSettings.getStrictQueueAdoptSeconds();
     final window = await PlayerSettings.getInboxWindowDays();
+    final listLayout = await PlayerSettings.getQueueListLayout();
     final windowChanged = window != _inboxWindowDays;
     if (strict == _strictQueue &&
         seconds == _strictQueueAdoptSeconds &&
+        listLayout == _queueListLayout &&
         !windowChanged) {
       return;
     }
+    _queueListLayout = listLayout;
     _strictQueue = strict;
     _strictQueueAdoptSeconds = seconds;
     _inboxWindowDays = window;
@@ -148,6 +151,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     _strictQueue = await PlayerSettings.getStrictQueue();
     _strictQueueAdoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
     _inboxWindowDays = await PlayerSettings.getInboxWindowDays();
+    _queueListLayout = await PlayerSettings.getQueueListLayout();
     await _loadDismissed();
     _manualAbsorbAdds =
         (await ScopedPrefs.getStringList('absorbing_manual_adds')).toSet();
@@ -220,6 +224,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     _strictQueue = await PlayerSettings.getStrictQueue();
     _strictQueueAdoptSeconds = await PlayerSettings.getStrictQueueAdoptSeconds();
     _inboxWindowDays = await PlayerSettings.getInboxWindowDays();
+    _queueListLayout = await PlayerSettings.getQueueListLayout();
     if (_pruneDismissed()) unawaited(_saveDismissed());
 
     // Under strict queue the sections are still walked - we need them to keep
@@ -622,6 +627,32 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     unawaited(_catchUpQueueAutoDownloads());
   }
 
+  /// Reorder from a view that may be showing only part of the queue (one
+  /// library, finished items hidden, a not-yet-adopted playing item pinned on
+  /// top). The visible keys take their new order inside the slots they already
+  /// occupied; everything the view wasn't showing stays exactly where it was.
+  /// reorderAbsorbing() by contrast replaces the list wholesale, which drops
+  /// whatever the caller couldn't see.
+  Future<void> reorderAbsorbingVisible(List<String> visibleOrder) async {
+    final inQueue = _absorbingBookIds.toSet();
+    final ordered = visibleOrder.where(inQueue.contains).toList();
+    final visible = ordered.toSet();
+    var next = 0;
+    final out = <String>[];
+    for (final key in _absorbingBookIds) {
+      if (visible.contains(key)) {
+        out.add(ordered[next++]);
+      } else {
+        out.add(key);
+      }
+    }
+    _absorbingBookIds = out;
+    setFreshQueuedFront(null);
+    notifyListeners();
+    await _saveManualAbsorbing();
+    unawaited(_catchUpQueueAutoDownloads());
+  }
+
   Future<void> _prepareAbsorbingForPlayback(
     String key,
     double duration,
@@ -753,10 +784,30 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     // Stats widget shows "books finished this year"; force a refresh so it
     // reflects the new count without waiting on the 15-min throttle.
     HomeWidgetService().refreshStats(force: true);
+    // Strict queue: where the finished item sat, so the advance below can
+    // carry on from that slot. Upstream moves a finished item to index 0 and
+    // then advances from "index of finished + 1" - which, after the move, is
+    // the old head of the queue rather than whatever followed the item you
+    // were actually listening to. That quietly broke "play from #5 onward".
+    int? strictResumeIdx;
     if (fromRemote) {
       // Finished on another device: leave Absorbing right away, same as when
       // the book isn't loaded - don't linger until the next play press
       _absorbingBookIds.remove(itemId);
+    } else if (_strictQueue) {
+      // A played item leaves the queue, and the item that slides into its
+      // slot is the one that plays next.
+      final idx = _absorbingBookIds.indexOf(itemId);
+      if (idx >= 0) {
+        _absorbingBookIds.removeAt(idx);
+        strictResumeIdx = idx;
+      } else {
+        // Played from outside the queue: resume at the head.
+        strictResumeIdx = 0;
+      }
+      _manualAbsorbAdds.remove(itemId);
+      _finishedManualAbsorbAdds.remove(itemId);
+      unawaited(_saveManualAbsorbing());
     } else if (_absorbingBookIds.remove(itemId)) {
       _absorbingBookIds.insert(0, itemId);
     }
@@ -780,7 +831,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
       modeFuture.then((mode) {
         debugPrint('[AutoAdvance] queueMode=$mode (${isPodcast ? 'podcast' : 'book'}) for finished item $itemId');
         if (mode == 'manual') {
-          _manualQueueAdvance(itemId);
+          _manualQueueAdvance(itemId, startIdxOverride: strictResumeIdx);
         } else if (mode == 'auto_next') {
           _autoAdvanceOffline(itemId);
         } else if (mode == 'playlist') {
@@ -952,7 +1003,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     }
   }
 
-  void _manualQueueAdvance(String finishedKey) async {
+  void _manualQueueAdvance(String finishedKey, {int? startIdxOverride}) async {
     if (AudioPlayerService.wasNoisyPause) {
       debugPrint('[AutoAdvance] Skipping manual advance - noisy pause active');
       return;
@@ -967,7 +1018,9 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     final finishedIsPodcast = finishedKey.length > 36;
 
     final finishedIdx = _absorbingBookIds.indexOf(finishedKey);
-    final startIdx = finishedIdx >= 0 ? finishedIdx + 1 : 0;
+    final startIdx = startIdxOverride != null
+        ? startIdxOverride.clamp(0, _absorbingBookIds.length).toInt()
+        : (finishedIdx >= 0 ? finishedIdx + 1 : 0);
 
     debugPrint('[Queue] _manualQueueAdvance: finished=$finishedKey '
         '(${finishedIsPodcast ? "podcast" : "book"}, lib=$finishedLibId) '
