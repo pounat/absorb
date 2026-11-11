@@ -3025,6 +3025,8 @@
   },
   "fileInfoCover": "Titelbild",
   "fileInfoMetadata": "Metadaten",
+  "fileInfoSupplement": "Extra",
+  "fileInfoPathCopied": "Pfad kopiert",
   "resetMayNotHaveSynced": "Zurücksetzen wurde möglicherweise nicht synchronisiert - prüfe deinen Server",
   "failedToDownloadEbook": "E-Book konnte nicht heruntergeladen werden ({code})",
   "@failedToDownloadEbook": {
@@ -4028,10 +4030,27 @@
   "upcomingReleasesBadgeAdded": "HINZUGEFÜGT",
   "upcomingReleasesBadgeMissing": "FEHLT",
   "upcomingReleasesScanSettingsTitle": "Scan Einstellungen",
+  "upcomingReleasesFinishedAfterTitle": "Betrachte eine Serie danach beendet an",
   "upcomingReleasesFinishedAfterDesc": "Serien, deren letztes Buch älter als das ist, werden während der Scans übersprungen und nur jeden oder jeden zweiten Monat erneut überprüft.",
+  "upcomingReleasesFinishedAfterYears": "{count, plural, =1{1 Tag} other{{count} Tage}}",
+  "@upcomingReleasesFinishedAfterYears": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesFinishedAfterNever": "Niemals",
   "upcomingReleasesSkippedTitle": "Übersprungene Serien",
   "upcomingReleasesSkippedNone": "Noch nichts übersprungen",
+  "upcomingReleasesSkippedCount": "{count, plural, =1{1 übersprungen} other{{count} übersprungen}}",
+  "@upcomingReleasesSkippedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesSkippedLastBook": "{count, plural, =0{Das letzte Buch ist weniger als ein Jahr her} =1{Das letzte Buch ist ein Jahr her} other{Das letzte Buch ist {count} Jahre her}}",
   "@upcomingReleasesSkippedLastBook": {
     "placeholders": {
@@ -4040,6 +4059,7 @@
       }
     }
   },
+  "upcomingReleasesSkippedUnmatched": "Keine passende Serie auf Audible gefunden",
   "upcomingReleasesSkippedScanNow": "Jetzt scannen",
   "upcomingReleasesSkippedAlwaysScan": "Immer scannen",
   "upcomingReleasesSkippedNeverScan": "Niemals scannen",
@@ -4074,6 +4094,8 @@
   "upcomingReleasesScanUpcomingOption": "Bevorstehende Veröffentlichungen",
   "upcomingReleasesScanUpcomingOptionDesc": "Schneller Scan nach neuen und bevorstehenden Büchern",
   "upcomingReleasesScanDeepOption": "Tiefer Scan",
+  "upcomingReleasesScanDeepOptionDesc": "Findet auch fehlende Bücher in jeder Serie - dauert länger",
+  "upcomingReleasesFirstScanNote": "Der erste Scan überprüft alle Serien auf Audible und kann einige Minuten in Anspruch nehmen. Nachfolgende Scans verlaufen deutlich schneller, sobald deine Serien sortiert sind.",
   "upcomingReleasesLastScanReport": "Letzter Scan-Report",
   "upcomingReleasesReportChecked": "Auf Audible überprüft: {count}",
   "@upcomingReleasesReportChecked": {
@@ -4107,6 +4129,31 @@
       }
     }
   },
+  "upcomingReleasesReportFound": "Gefunden: {upcoming} demnächst, {recent} kürzlich",
+  "@upcomingReleasesReportFound": {
+    "placeholders": {
+      "upcoming": {
+        "type": "int"
+      },
+      "recent": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesReportFoundDeep": "Gefunden: {upcoming} demnächst, {recent} kürzlich, {missing} fehlend",
+  "@upcomingReleasesReportFoundDeep": {
+    "placeholders": {
+      "upcoming": {
+        "type": "int"
+      },
+      "recent": {
+        "type": "int"
+      },
+      "missing": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesReportMore": "+{count} mehr",
   "@upcomingReleasesReportMore": {
     "placeholders": {
@@ -4116,9 +4163,11 @@
     }
   },
   "upcomingReleasesBadgeNew": "NEU",
+  "upcomingReleasesOpenSeries": "Serie auf Audible öffnen",
   "upcomingReleasesOpenLibrarySeries": "Serie in Bibliothek öffnen",
   "upcomingReleasesAsinCopied": "Serien ASIN kopiert",
   "upcomingReleasesSetSeriesAsin": "Serien ASIN setzen",
+  "upcomingReleasesSetAsinInstructions": "Suche die Serie auf audible.com und kopiere den Link zur Seite – die ASIN ist der 10-stellige Code, der mit „B0“ beginnt (zum Beispiel B08S2YN3YS). Du kannst auch einfach den gesamten Link einfügen.",
   "upcomingReleasesSetAsinHint": "B0… oder audible.com Link",
   "upcomingReleasesSetAsinSave": "Speichern",
   "upcomingReleasesSetAsinInvalid": "Keine ASIN in diesem Text gefunden",
@@ -4134,16 +4183,57 @@
   "upcomingReleasesRemoveThisScan": "Aus diesem Scan entfernen",
   "upcomingReleasesRemoveThisScanDesc": "Kann bei einem zukünftigen Scan wieder kommen",
   "upcomingReleasesRemoveForever": "Von diesem und zukünftigen Scans entfernen",
+  "upcomingReleasesRemoveForeverDesc": "Wird in die Liste der entfernten Elemente verschoben, kann jederzeit wiederhergestellt werden.",
   "upcomingReleasesRemovedForeverToast": "Entfernt - wird bei zukünftigen Scans nicht angezeigt",
   "upcomingReleasesRemovedBooksTitle": "Entfernte Bücher",
+  "upcomingReleasesRemovedCount": "{count, plural, =1{1 Buch} other{{count} Bücher}}",
+  "@upcomingReleasesRemovedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesRemovedNone": "Keine Bücher entfernt",
   "upcomingReleasesRestore": "Wiederherstellen",
   "upcomingReleasesRestoredToast": "Wiederhergestellt",
   "upcomingReleasesRestoredNextScan": "Wiederhergestellt - wird nach dem nächsten Scan angezeigt",
+  "upcomingReleasesSelectedCount": "{count, plural, =1{1 ausgewählt} other{{count} ausgewählt}}",
+  "@upcomingReleasesSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesBulkRequest": "Anfragen",
   "upcomingReleasesBulkRemove": "Entfernen",
+  "upcomingReleasesBulkRemoved": "{count, plural, =1{1 entfernt} other{{count} entfernt}}",
+  "@upcomingReleasesBulkRemoved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkRequestDone": "{count, plural, =1{1 Anfrage gesendet} other{{count} Anfragen gesendet}}",
+  "@upcomingReleasesBulkRequestDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "upcomingReleasesBulkRequestSkipped": "{count} Übersprungen",
   "@upcomingReleasesBulkRequestSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkScanned": "{count, plural, =1{1 Serie neu eingescannt} other{{count} Serien neu eingescannt}}",
+  "@upcomingReleasesBulkScanned": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -4159,6 +4249,7 @@
     }
   },
   "seriesExcludeFromScan": "Von Serienscan ausschließen",
+  "seriesIncludeInScan": "In den Serien-Scan einbeziehen",
   "homeScreenEpisodeFallback": "Episode",
   "libraryScreenUnknownTitle": "Unbekannter Titel",
   "playlistDetailDefaultName": "Playlist",
@@ -4206,15 +4297,105 @@
     }
   },
   "collectionDetailDefaultName": "Sammlung",
+  "smartScopeBookCount": "Smart Scope · {count} Bücher",
+  "@smartScopeBookCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "smartScopeNew": "Neuer Smart Scope",
+  "smartScopeNewSubtitle": "Eine Reihe von Filtern als Liste speichern, die sich selbst aktualisiert",
+  "smartScopeEditTitle": "Smart Scope bearbeiten",
+  "smartScopeIcon": "Symbol",
+  "smartScopePublic": "Für alle Benutzer sichtbar",
+  "smartScopeKobo": "Mit Kobo synchronisieren",
+  "smartScopeRules": "Regeln",
+  "smartScopeMatchAll": "Alle Übereinstimmungen",
+  "smartScopeMatchAny": "Beliebige Übereinstimmung",
+  "smartScopeAddRule": "Regel hinzufügen",
+  "smartScopeAddGroup": "Gruppe hinzufügen",
+  "smartScopeGroup": "Gruppe",
+  "smartScopeStartFrom": "Beginnen mit",
+  "smartScopeFromScratch": "Von Grund auf neu erstellen",
+  "smartScopeTplHasSeries": "Hat eine Serie",
+  "smartScopeTplRecent": "Kürzlich hinzugefügt",
   "smartScopeTplPdf": "Nur PDF",
   "smartScopeTplNoGenres": "Keine Genres",
   "smartScopeTplEpub": "Nur EPUB",
+  "smartScopeCounting": "Zählen...",
+  "smartScopeSort": "Standardsortierung",
+  "smartScopeAddSort": "Sortierebene hinzufügen",
+  "smartScopeSortNone": "Keine Sortierung ausgewählt, daher werden Bücher nach Titel sortiert.",
   "smartScopeAscending": "Aufsteigend",
   "smartScopeDescending": "Absteigend",
+  "smartScopeDelete": "Smart Scope löschen",
+  "smartScopeSaveFailed": "Konnte den Smart Scope nicht speichern",
+  "smartScopeDeleteFailed": "Konnte den Smart Scope nicht löschen",
+  "smartScopeLoadFailed": "Smart Scope konnte nicht geladen werden",
+  "smartScopeUnsupportedRule": "Diese Regel kann nur im BookOrbit Web Oberfläche geändert werden. Die Regel bleibt wie sie ist.",
   "smartScopeAnd": "und",
   "smartScopeDays": "Tage",
   "smartScopeWeeks": "Wochen",
   "smartScopeMonths": "Monate",
+  "smartScopePickDate": "Datum auswählen",
+  "smartScopeAddValue": "Wert hinzufügen",
+  "smartScopeValue": "Wert",
+  "smartScopeCustomFields": "Benutzerdefinierte Felder",
+  "smartScopeAnyProvider": "Beliebiger Anbieter",
+  "smartScopeScoreOutstanding": "Hervorragend",
+  "smartScopeScoreGood": "Gut",
+  "smartScopeScoreFair": "Befriedigend",
+  "smartScopeScorePoor": "Schlecht",
+  "smartScopeMb": "MB",
+  "smartScopeMaxValues": "Bis zu 20 Werte",
+  "scopeFieldTitle": "Titel",
+  "scopeFieldAuthor": "Autor",
+  "scopeFieldSeries": "Serie",
+  "scopeFieldSeriesIndex": "Seriennummer",
+  "scopeFieldGenre": "Genre",
+  "scopeFieldTag": "Schlagwort",
+  "scopeFieldReadStatus": "Lesestatus",
+  "scopeFieldReadProgress": "Lesefortschritt",
+  "scopeFieldRating": "Deine Bewertung",
+  "scopeFieldFormat": "Format",
+  "scopeFieldLibrary": "Bibliothek",
+  "scopeFieldCollection": "Sammlung",
+  "scopeFieldPublisher": "Herausgeber",
+  "scopeFieldLanguage": "Sprache",
+  "scopeFieldPublishedDate": "Veröffentlichungsdatum",
+  "scopeFieldPublishedYear": "Erscheinungsjahr",
+  "scopeFieldAddedAt": "Hinzugefügt am",
+  "scopeFieldStartedAt": "Startdatum",
+  "scopeFieldFinishedAt": "Datum abgeschlossen",
+  "scopeFieldPageCount": "Anzahl der Seiten",
+  "scopeFieldFileSize": "Dateigröße",
+  "scopeFieldCommunityRating": "Community-Bewertung",
+  "scopeFieldCommunityRatingCount": "Anzahl der Community-Bewertungen",
+  "scopeFieldMetadataScore": "Metadaten-Bewertung",
+  "scopeFieldIsbn": "ISBN",
+  "scopeFieldDescription": "Beschreibung",
+  "scopeFieldCover": "Titelbild",
+  "scopeFieldAudioCover": "Hörbuch Titelbild",
+  "scopeFieldFileAvailability": "Verfügbarkeit der Datei",
+  "scopeFieldLockStatus": "Sperrstatus",
+  "scopeFieldSeriesStatus": "Serienstatus",
+  "scopeSortUpdatedAt": "Datum aktualisiert",
+  "scopeSortLastReadAt": "Zuletzt gelesen",
+  "scopeSortRandom": "Zufällig",
+  "scopeOpContains": "enthält",
+  "scopeOpNotContains": "beinhaltet nicht",
+  "scopeOpStartsWith": "beginnt mit",
+  "scopeOpEndsWith": "endet mit",
+  "scopeOpEq": "ist",
+  "scopeOpNotEq": "ist nicht",
+  "scopeOpIsEmpty": "ist leer",
+  "scopeOpIsNotEmpty": "ist nicht leer",
+  "scopeOpGt": "größer als",
+  "scopeOpGte": "mindestens",
+  "scopeOpLt": "weniger als",
+  "scopeOpLte": "höchstens",
   "collectionDetailBookCount": "{count} Bücher",
   "@collectionDetailBookCount": {
     "placeholders": {
