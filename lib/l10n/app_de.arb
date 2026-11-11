@@ -1545,7 +1545,7 @@
   "breqPairSubmitted": "Das E-Book und Hörbuch wurden angefordert",
   "breqPairOneJoined": "Habe beides angefordert. Eines war bereits auf dem Weg, daher wurdest du dieser Anfrage hinzugefügt",
   "breqJoinedBoth": "Du wurdest zu beiden Anfragen hinzugefügt",
-  "breqJoinsOwned": "Angefordert. Es wird dem Exemplar hinzugefügt, das sich bereits in deiner Bibliothek befindet.",
+  "breqJoinsOwned": "Angefordert. Es wird dem Exemplar hinzugefügt, das sich bereits in deiner Bibliothek befindet",
   "speedBookmarkInControls": "Geschwindigkeit & Lesezeichen in Mediensteuerung",
   "speedBookmarkOnSubtitle": "An - Benachrichtigung zeigt Geschwindigkeit & Lesezeichen; Kapitel Überspringen bleibt in Android Auto",
   "speedBookmarkOffSubtitle": "Aus - Benachrichtigung zeigt Kapitel-Überspringen; Geschwindigkeit & Lesezeichen bleiben in Android Auto",
@@ -3107,7 +3107,7 @@
       }
     }
   },
-  "adminMissingDeleteCount": "\"{count}\" löschen?",
+  "adminMissingDeleteCount": "\"{count}\" löschen",
   "@adminMissingDeleteCount": {
     "placeholders": {
       "count": {
@@ -4183,7 +4183,7 @@
   "upcomingReleasesRemoveThisScan": "Aus diesem Scan entfernen",
   "upcomingReleasesRemoveThisScanDesc": "Kann bei einem zukünftigen Scan wieder kommen",
   "upcomingReleasesRemoveForever": "Von diesem und zukünftigen Scans entfernen",
-  "upcomingReleasesRemoveForeverDesc": "Wird in die Liste der entfernten Elemente verschoben, kann jederzeit wiederhergestellt werden.",
+  "upcomingReleasesRemoveForeverDesc": "Wird in die Liste der entfernten Elemente verschoben, kann jederzeit wiederhergestellt werden",
   "upcomingReleasesRemovedForeverToast": "Entfernt - wird bei zukünftigen Scans nicht angezeigt",
   "upcomingReleasesRemovedBooksTitle": "Entfernte Bücher",
   "upcomingReleasesRemovedCount": "{count, plural, =1{1 Buch} other{{count} Bücher}}",
@@ -4334,7 +4334,7 @@
   "smartScopeSaveFailed": "Konnte den Smart Scope nicht speichern",
   "smartScopeDeleteFailed": "Konnte den Smart Scope nicht löschen",
   "smartScopeLoadFailed": "Smart Scope konnte nicht geladen werden",
-  "smartScopeUnsupportedRule": "Diese Regel kann nur im BookOrbit Web Oberfläche geändert werden. Die Regel bleibt wie sie ist.",
+  "smartScopeUnsupportedRule": "Diese Regel kann nur in der BookOrbit Web Oberfläche geändert werden. Die Regel bleibt wie sie ist.",
   "smartScopeAnd": "und",
   "smartScopeDays": "Tage",
   "smartScopeWeeks": "Wochen",
@@ -4396,6 +4396,39 @@
   "scopeOpGte": "mindestens",
   "scopeOpLt": "weniger als",
   "scopeOpLte": "höchstens",
+  "scopeOpBetween": "zwischen",
+  "scopeOpIncludesAny": "beinhaltet eines von",
+  "scopeOpIncludesAll": "beinhaltet alle",
+  "scopeOpExcludesAll": "schließt alle aus",
+  "scopeOpBefore": "vorher",
+  "scopeOpAfter": "Nach",
+  "scopeOpWithinLast": "innerhalb der letzten",
+  "scopeOpIsMissing": "fehlt",
+  "scopeOpIsPresent": "ist vorhanden",
+  "scopeOpIsUnread": "ist ungelesen",
+  "scopeOpIsInProgress": "ist angefangen",
+  "scopeOpIsFinished": "ist beendet",
+  "scopeOpIsLocked": "ist gesperrt",
+  "scopeOpIsUnlocked": "ist entsperrt",
+  "scopeOpIsUpNext": "ist als Nächstes",
+  "scopeOpIsTrue": "ist ja",
+  "scopeOpIsFalse": "ist nicht",
+  "smartScopeMatchCount": "{count, plural, =0{Keine Bücher gefunden} =1{1 Buch gefunden} other{{count} Bücher gefunden}}",
+  "@smartScopeMatchCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "smartScopeDeleteConfirm": "„{name}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+  "@smartScopeDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "collectionDetailBookCount": "{count} Bücher",
   "@collectionDetailBookCount": {
     "placeholders": {
@@ -4545,6 +4578,8 @@
   "notesExport": "Exportieren",
   "notesNewNote": "Neue Notiz",
   "librarySortFilterUpcomingReleases": "Serien Scan",
+  "librarySortFilterMatchAllAuthorsSubtitle": "Rufe für jeden Autor ein Foto sowie die Biografie vom Metadaten Anbieter ab",
+  "librarySortFilterUpcomingReleasesSubtitle": "Prüfe bei Audible, welche Bücher deiner Reihe demnächst erscheinen oder noch fehlen.",
   "sleepTimerSheetChaptersLeft": "{count, plural, =1{Noch 1 Kapitel} other{Noch {count} Kapitel}}",
   "@sleepTimerSheetChaptersLeft": {
     "placeholders": {
@@ -4733,6 +4768,7 @@
   "tipsSheetTapToSeekTitle": "Tippen zum Spulen",
   "tipsSheetTapToSeekDesc": "Tippe irgendwo auf den Kapitel- oder Buchfortschrittsbalken, um direkt zu dieser Stelle zu springen. Du kannst die Balken auch ziehen, um feiner zu steuern.",
   "tipsSheetSpeedAdjustedTimeTitle": "Geschwindigkeitsangepasste Zeit",
+  "tipsSheetSpeedAdjustedTimeDesc": "Alle angezeigten Zeitangaben – ob Position, Restlaufzeit, Kapitel oder Lesezeichen – passen sich Ihrer Wiedergabegeschwindigkeit an. Hören Sie mit 1,5-facher Geschwindigkeit? Die angezeigten Zeiten geben an, wie lange es tatsächlich dauern wird.",
   "tipsSheetPlaybackHistoryTitle": "Wiedergabe-Verlauf",
   "tipsSheetPlaybackHistoryDesc": "Tippe auf einer Karte auf den Verlaufs-Button, um eine Zeitleiste mit jeder Wiedergabe, Pause, Sprung und Geschwindigkeitsänderung zu sehen. Tippe auf ein Ereignis, um zu dieser Stelle zurückzuspringen.",
   "tipsSheetAutoRewindTitle": "Auto-Zurückspulen",
@@ -4756,11 +4792,21 @@
   "tipsSheetAudibleSeriesTitle": "Audible-Serien-Suche",
   "tipsSheetAudibleSeriesDesc": "Öffne eine Serie und tippe auf das Drei-Punkte-Symbol, um die komplette Serienliste von Audible zu laden, inklusive fehlender Einträge und noch nicht gestarteter Bücher.",
   "tipsSheetTranscribeBookmarkTitle": "Lesezeichen transkribieren",
+  "tipsSheetTranscribeBookmarkDesc": "Wandeln Sie die Audioaufnahme an einem beliebigen Lesezeichen vollständig auf Ihrem Gerät in Text um. Aktivieren Sie diese Funktion in den Einstellungen unter „Erweitert“ > „Transkription“ und laden Sie ein Modell herunter. Tippen Sie anschließend bei einem Lesezeichen auf „Transkribieren“ – der Text wird in der zugehörigen Notiz gespeichert und kann sofort bearbeitet oder geteilt werden.",
   "tipsSheetFindBetweenFormatsTitle": "Wechsel zwischen Hörbuch und eBook",
+  "tipsSheetFindBetweenFormatsDesc": "Wenn die Transkription aktiviert und das Buch heruntergeladen ist, halten Sie die Wiedergabe an und tippen Sie im Player auf „Position im E-Book finden“, um das E-Book an der Stelle zu öffnen, die Sie gerade gehört haben. Markieren Sie im E-Book einen Textabschnitt und tippen Sie auf das Kopfhörersymbol, um das Hörbuch genau an dieser Stelle zu starten.",
   "tipsSheetShareQuoteTitle": "Zitate teilen",
+  "tipsSheetShareQuoteDesc": "Teile eine E-Book-Markierung oder eine Notiz als Bild, bei dem das Zitat über dem Buchcover eingeblendet wird. Die entsprechende Teilen-Option findest du bei Markierungen sowie in der Lesezeichen-Übersicht.",
   "tipsSheetClipExportTitle": "Audio-Clips exportieren",
   "tipsSheetClipExportDesc": "Öffne ein Lesezeichen und tippe Clip exportieren um einen kurzen Audioschnipsel des Buches, inklusive Coverart zu erstellen - Super um deine Lieblings Szenen zu teilen.",
   "tipsSheetAllHighlightsTitle": "Alle Highlights an einem Ort",
+  "tipsSheetAllHighlightsDesc": "Die Seite „Alle Lesezeichen“ enthält einen Reiter „Markierungen“, in dem sämtliche Markierungen aus allen E-Books zusammengefasst sind. Tippe auf eine Markierung, um sie zu teilen oder direkt an die entsprechende Stelle im Buch zurückzukehren.",
+  "tipsSheetVolumeKeyPagesTitle": "Umblättern per Lautstärke Taste",
+  "tipsSheetVolumeKeyPagesDesc": "Blättere in E-Books mithilfe der Lautstärke Tasten. Aktiviere diese Funktion in den Einstellungen der Lese-App – wahlweise in normaler oder umgekehrter Richtung. Die Funktion kann auch dann aktiv bleiben, wenn gerade Audioinhalte wiedergegeben werden.",
+  "tipsSheetSettingsSyncTitle": "Einstellungs-Synchronisation",
+  "tipsSheetSettingsSyncDesc": "Halten Sie Ihre Einstellungen, die Geschwindigkeit pro Buch und die Aufnahmereihenfolge über Ihren eigenen WebDAV-Server geräteübergreifend auf dem gleichen Stand. Richten Sie es in den Einstellungen unter „Sichern und synchronisieren“ ein.",
+  "tipsSheetNavLongPressTitle": "Die unteren Reiter lange gedrückt halten",
+  "tipsSheetNavLongPressDesc": "Halte die „Start“-Registerkarte gedrückt, um von einer beliebigen Seite aus zwischen Bibliotheken zu wechseln. Halte die „Bibliothek“-Registerkarte gedrückt, um direkt zur Suche zu gelangen.",
   "bookCardUnknownTitle": "Unbekannter Titel",
   "bookCardExplicitBadge": "E",
   "bookCardDone": "Fertig",
@@ -4927,12 +4973,29 @@
       }
     }
   },
+  "lpSubscribedEpisodeDownloaded": "Neue Folge von {showTitle} heruntergeladen",
+  "@lpSubscribedEpisodeDownloaded": {
+    "placeholders": {
+      "showTitle": {
+        "type": "String"
+      }
+    }
+  },
   "statsWeekStartsOn": "Wochenbeginn",
   "episodeListNewEpisodePosition": "Position neuer Folgen",
   "episodeListPositionTop": "Anfang der Warteschlange",
   "episodeListPositionSecond": "Zweite in der Warteschlange",
   "episodeListPositionEnd": "Ende der Warteschlange",
   "episodeListPositionNone": "Nicht zur Warteschlange hinzufügen",
+  "episodeListPositionNoneDesc": "Weiterhin benachrichtigt und heruntergeladen",
+  "sleepRewindUndoNote": "Klicke innerhalb von {minutes} Minuten auf „Abspielen“, dann wird das Zurückspulen rückgängig gemacht",
+  "@sleepRewindUndoNote": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "lpQueueDownloadingItems": "{count, plural, =1{Warteschlange: 1 Eintrag wird heruntergeladen} other{Warteschlange: {count} Einträge werden heruntergeladen}}",
   "@lpQueueDownloadingItems": {
     "placeholders": {
@@ -5024,8 +5087,28 @@
   "androidAutoTabDownloads": "Downloads",
   "settingsSearchHint": "Einstellung suchen...",
   "settingsSearchNoResults": "Keine passende Einstellung gefunden",
+  "carConnectAutoplay": "Wiedergabe starten, wenn Android Auto verbunden wird",
+  "carConnectAutoplayIos": "Wiedergabe starten, wenn CarPlay verbunden wird",
+  "carConnectAutoplayOnSubtitle": "Das letzte Buch, das du gerade gehört hast, startet von selbst, sobald sich das Auto verbindet",
+  "carConnectAutoplayOffSubtitle": "Die Wiedergabe wartet darauf, dass du auf „Wiedergabe“ drückst",
   "sectionCar": "Android Auto",
   "sectionCarIos": "CarPlay",
+  "sectionSiri": "Siri",
+  "siriUseWithSiri": "Mit Siri verwenden",
+  "siriStatusOn": "Ein. Siri kann deine Bücher und Podcasts anhand ihres Namens finden und abspielen.",
+  "siriStatusAsk": "Lass Siri deine Bücher und Podcasts anhand ihres Namens suchen und abspielen.",
+  "siriStatusOff": "Siri ist für Absorb deaktiviert. Aktiviere es in den iOS-Einstellungen.",
+  "siriAllow": "Zulassen",
+  "siriOpenSettings": "Einstellungen öffnen",
+  "siriThingsToSay": "Dinge zu sagen",
+  "siriExamples": "„[Buchtitel] in Absorb abspielen“\n„[Serienname] in Absorb abspielen“\n„Etwas von [Autor] in Absorb abspielen“\n„Die neueste Folge von [Podcast] in Absorb abspielen“\n„Wiedergabe in Absorb fortsetzen“\n„In Absorb zurückspringen“\n„Nächstes Kapitel in Absorb“\n„Sleep-Timer in Absorb einstellen“\n„Lesezeichen in Absorb hinzufügen“\n„Was höre ich gerade in Absorb?“",
+  "siriShortcutsNote": "Fortsetzen, Anhalten, Überspringen, Kapitel, der Sleep-Timer, Lesezeichen sowie die Anzeige der aktuellen Wiedergabe funktionieren auch ohne diese Berechtigung. Sie stehen zudem in der Kurzbefehle-App für Automatisierungen sowie für die Aktionstaste zur Verfügung.",
+  "carBookOrder": "Buch Reihenfolge im Auto",
+  "carBookOrderReverse": "Buchreihenfolge umkehren",
+  "carBookOrderReverseSubtitle": "Z bis A, oder älteste zuerst hinzugefügt",
+  "carPodcastOrder": "Podcast-Reihenfolge im Auto",
+  "carEpisodesOldestFirst": "Älteste Folgen zuerst",
+  "carEpisodesOldestFirstSubtitle": "Für Serien, die du von Anfang an hörst",
   "androidAutoCatBooks": "Bücher",
   "androidAutoCatSeries": "Serien",
   "androidAutoCatAuthors": "Autoren",
@@ -5134,11 +5217,49 @@
       }
     }
   },
+  "chapterLoopCut": "Wiederhole den Schnitt",
+  "chapterFindStart": "Finde den Start",
+  "chapterFindStartListening": "Hören um die Markierung",
+  "chapterFindStartNone": "Nichts hier klingt wie ein Kapitelbeginn",
+  "chapterFindStartWider": "Suche breiter",
+  "chapterFindStartCeiling": "Eine halbe Stunde um die Markierung gesucht. Der Start ist weiter entfernt oder es gibt keine Kapitel-Ankündigung zu hören.",
+  "chapterFindStartStrong": "Klingt wie dieses Kapitel",
+  "chapterFindStartMaybe": "Kapitel ähnliche Wörter",
+  "chapterFindStartGap": "{seconds} s Abstand",
+  "@chapterFindStartGap": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterFindStartRange": "Durchsucht von {from} bis {to}",
+  "@chapterFindStartRange": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterFindStartNeedsModel": "Transkription in den Einstellungen aktivieren und zuerst ein Modell herunterladen",
+  "chapterFindStartUseThis": "Benutze das",
+  "chapterFindStartTitle": "Titel: {title}",
+  "@chapterFindStartTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "chapterShiftBySeconds": "Verschieben um (Sekunden)",
   "chapterShiftHint": "Verschiebt jedes entsperrte Kapitel. Verwende einen negativen Wert, um sie früher zu verschieben.",
   "chapterTitleHint": "Kapitelname",
   "chapterStopPreview": "Vorschau stoppen",
   "chapterPreviewFromHere": "Vorschau ab hier",
+  "chapterScrubHint": "Ziehe oder schiebe um den Anfang zu verschieben",
   "chapterStartAt": "Beginne bei {time}",
   "@chapterStartAt": {
     "placeholders": {
@@ -5379,6 +5500,47 @@
   "adminUploadPathCheckFailed": "Der Zielordner konnte nicht überprüft werden. Es wurde nichts hochgeladen.",
   "adminUploadDestinationExists": "Dieser Zielordner existiert bereits auf dem Server.",
   "adminUploadDestinationUsedBy": "Dieses Ziel wird bereits von \"{title}\" verwendet.",
+  "adminUploadAddToExistingTitle": "Ordner existiert bereits",
+  "adminUploadAddToExisting": "Dieser Ordner gehört zu \"{title}\". Dateien hinzufügen? Der Server nimmt sie beim nächsten Scannen auf.",
+  "@adminUploadAddToExisting": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUploadAddToExistingNoItem": "Dieser Ordner ist auf dem Server bereits vorhanden. Dateien hinzufügen?",
+  "adminUploadAddToBook": "Zu einem vorhandenen Buch hinzufügen",
+  "adminUploadAddToBookHint": "Diese Bibliothek durchsuchen",
+  "adminUploadNoBooksFound": "Keine Bücher gefunden",
+  "adminUploadAddingTo": "Dateien zu \"{title} \" hinzufügen",
+  "@adminUploadAddingTo": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUploadAddedTo": "Dateien zu \"{title}\" hinzugefügt",
+  "@adminUploadAddedTo": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUploadTargetNoFolder": "Konnte den Ordner des Buches auf dem Server nicht finden.",
+  "adminUploadTargetFolderMismatch": "Der Server würde diese Dateien in „{preview}“ ablegen, nicht in den Ordner „{folder}“ des Buches. Es wurde nichts hochgeladen.",
+  "@adminUploadTargetFolderMismatch": {
+    "placeholders": {
+      "preview": {
+        "type": "String"
+      },
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
   "@adminUploadDestinationUsedBy": {
     "placeholders": {
       "title": {
@@ -5416,6 +5578,8 @@
   "adminUploadReselectFiles": "Wähle die Dateien erneut aus, bevor du es wieder versuchst.",
   "adminServerSettings": "Servereinstellungen",
   "adminServerSettingsSubtitle": "Scanner, Speicher und Sortierung",
+  "adminAuthentication": "Authentifizierung",
+  "adminAuthenticationSubtitle": "Passwort und OpenID Connect Anmeldung",
   "adminStats": "Statistiken",
   "adminStatsSubtitle": "Bibliothek und Hörstatistik",
   "adminAllSessions": "Alle Sitzungen",
@@ -5463,6 +5627,22 @@
   "srvSaved": "Einstellungen gespeichert",
   "srvSaveFailed": "Einstellungen konnten nicht gespeichert werden",
   "srvPrefixesSaved": "Sortierungspräfixe aktualisiert",
+  "authSetLoadFailed": "Authentifizierungseinstellungen konnten nicht geladen werden",
+  "authSetCustomMessage": "Benutzerdefinierte Nachricht beim Anmelden",
+  "authSetMessage": "Nachricht",
+  "authSetPasswordAuth": "Authentifizierung mit Passwort",
+  "authSetOpenId": "OpenID Connect Authentifizierung",
+  "authSetGuide": "Einrichtungsanleitung",
+  "authSetIssuerUrl": "URL des Ausstellers",
+  "authSetAutoPopulate": "automatisch ausgefüllt",
+  "authSetAuthorizeUrl": "URL autorisieren",
+  "authSetTokenUrl": "Token URL",
+  "authSetUserinfoUrl": "Benutzerinfo-URL",
+  "authSetJwksUrl": "JWKS URL",
+  "authSetLogoutUrl": "Abmelde-URL",
+  "authSetClientId": "Client ID",
+  "authSetClientSecret": "Client-Secret",
+  "authSetSigningAlgorithm": "Signatur-Algorithmus",
   "libNoneYet": "Noch keine Bibliotheken vorhanden",
   "libReorderFailed": "Neue Reihenfolge konnte nicht gespeichert werden",
   "libDeleteTitle": "Bibliothek löschen?",
@@ -5930,7 +6110,7 @@
       }
     }
   },
-  "achievementsHowToGetIt": "Wie bekomme ich es?",
+  "achievementsHowToGetIt": "Wie man es bekommt",
   "achievementsHintUntitledBook": "Ein Buch in Bearbeitung",
   "achievementsSwitch": "Erfolge",
   "achievementsSwitchSubtitle": "Erfolge in BookOrbit tracken. Wenn du dies deaktivierst, werden sie hier und im Web ausgeblendet.",
