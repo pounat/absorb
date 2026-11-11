@@ -2,6 +2,7 @@ part of 'library_provider.dart';
 
 mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
   int _staleSourceCleanupGeneration = 0;
+  String? _lastStaleSourceCheckedKey;
 
   bool _dedupeAbsorbingIds() {
     final seen = <String>{};
@@ -1465,7 +1466,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     final pl = await _getPlaylistById(playlistId);
     if (pl == null) return null;
     final items = pl['items'];
-    if (items is! List) return null;
+    if (items is! List || items.isEmpty) return null;
     final target =
         episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
     for (final m in items) {
@@ -1499,8 +1500,10 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     }
     final pl = await _getPlaylistById(playlistId);
     if (pl == null) {
-      debugPrint('[AutoAdvance] Playlist $playlistId missing; exiting playlist queue mode');
-      await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
+      // A timeout or a server hiccup at the moment a book finishes looks the
+      // same as a deleted playlist from here; deleting one clears the mode
+      // on its own, so this only loses the advance, not the queue.
+      debugPrint('[AutoAdvance] Playlist $playlistId could not be read; keeping playlist queue mode');
       return;
     }
     final items = (pl['items'] as List<dynamic>?) ?? const [];
@@ -1844,7 +1847,9 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     final c = await _getCollectionById(collectionId);
     if (c == null) return null;
     final books = c['books'];
-    if (books is! List) return null;
+    // No books means the list did not load (a smart scope whose books call
+    // failed comes back empty too), not that this book is outside it.
+    if (books is! List || books.isEmpty) return null;
     final target =
         episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
     for (final book in books) {
@@ -1913,6 +1918,14 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
           await PlayerSettings.clearQueueModePlaylistIfActive(playlistId);
       if (!cleared) return;
       if (!playerStillMatches()) return;
+    // Only a change of item can mean the listener left the playlist or
+    // collection. A resume of the same book proves nothing new, and when
+    // the source failed to load on one of those resumes the queue mode was
+    // dropped for no reason.
+    final playingKey =
+        queueItemKey(libraryItemId: libraryItemId, episodeId: episodeId);
+    if (playingKey == _lastStaleSourceCheckedKey) return;
+    _lastStaleSourceCheckedKey = playingKey;
       debugPrint(
         '[Queue] Cleared playlist mode because $libraryItemId is outside $playlistId',
       );
@@ -1953,7 +1966,7 @@ mixin _AbsorbingMixin on ChangeNotifier, _StateMixin, _CoreMixin {
     if (collectionId == null) return;
     final c = await _getCollectionById(collectionId);
     if (c == null) {
-      await PlayerSettings.clearQueueModeCollectionIfActive(collectionId);
+      debugPrint('[AutoAdvance] Collection $collectionId could not be read; keeping collection queue mode');
       return;
     }
     final items = _collectionItems(c);

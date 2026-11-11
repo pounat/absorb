@@ -2410,6 +2410,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     if (_api!.isBookOrbit) return await deleteCollection(playlistId) == 200;
     final ok = await _api!.deletePlaylist(playlistId);
     if (ok) {
+      // A deleted playlist cannot stay the queue.
+      unawaited(PlayerSettings.clearQueueModePlaylistIfActive(playlistId));
       _playlists = _playlists.where((p) => (p as Map)['id'] != playlistId).toList();
       _hiddenSectionIds.remove('playlist:$playlistId');
       _sectionOrder.remove('playlist:$playlistId');
@@ -2553,6 +2555,8 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     if (_api == null) return 0;
     final status = await _api!.deleteCollection(collectionId);
     if (status == 200) {
+      // A deleted collection cannot stay the queue.
+      unawaited(PlayerSettings.clearQueueModeCollectionIfActive(collectionId));
       _collections = _collections.where((c) => (c as Map)['id'] != collectionId).toList();
       _hiddenSectionIds.remove('collection:$collectionId');
       _sectionOrder.remove('collection:$collectionId');
