@@ -1151,6 +1151,22 @@
       }
     }
   },
+  "bomatchApply": "{count, plural, =0{Anwenden} =1{1 Änderung anwenden} other{{count} Änderungen anwenden}}",
+  "@bomatchApply": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bomatchOtherSources": "{count, plural, =1{1 weitere Quelle} other{{count} weitere Quellen}}",
+  "@bomatchOtherSources": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "bomatchFrom": "Von {source}",
   "@bomatchFrom": {
     "placeholders": {
@@ -1176,6 +1192,7 @@
   "breqNoResults": "Keine passenden Bücher gefunden",
   "breqInLibrary": "In deiner Bibliothek",
   "breqYouAsked": "Du hast dies angefordert",
+  "breqSomeoneAsked": "Bereits von jemand anderem angefragt",
   "breqView": "Anzeigen",
   "breqRequest": "Anfragen",
   "breqRequested": "Angefordert",
@@ -1240,6 +1257,7 @@
   "breqFactRequestedOn": "Angefragt am",
   "breqFactLibrary": "Bibliothek",
   "breqFactDecidedBy": "Entschieden von",
+  "breqFactNote": "Anmerkung vom Anfragendem",
   "breqFactDecisionNote": "Entscheidungsgrund",
   "breqFactAlsoWanted": "Auch gewünscht von",
   "breqLibraryCta": "Buch anfragen",
@@ -1301,11 +1319,46 @@
       }
     }
   },
+  "breqRequestedBy": "Angefragt von {name}",
+  "@breqRequestedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "breqActionFailedReason": "Die Anfrage konnte nicht aktualisiert werden: {reason}",
+  "@breqActionFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqFooterCta": "\"{query}\" anfragen",
+  "@breqFooterCta": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "breqCount": "{count, plural, =0{Keine Anfragen} =1{1 Anfrage} other{{count} Anfragen}}",
+  "@breqCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "breqFindRelease": "Finde eine Version",
+  "breqTryAnotherRelease": "Versuche es mit einer anderen Version",
   "breqApproveAndFind": "Freigabe und finde eine Version",
   "breqReviewButton": "Download überprüfen",
   "breqStopDownload": "Download anhalten",
+  "breqStopDownloadConfirm": "Diesen Download abbrechen? Die Anfrage wird auf den Status „genehmigt“ zurückgesetzt, sodass eine andere Version ausgewählt werden kann.",
   "breqDiscardImport": "Download verwerfen",
+  "breqDiscardConfirm": "Diesen Download verwerfen? Die Anfrage ist als fehlgeschlagen markiert und kann mit einer anderen Version erneut versucht werden.",
   "breqFileAnyway": "Zur Bibliothek hinzufügen",
   "breqFiledToast": "Zur Bibliothek hinzugefügt",
   "breqDiscardedToast": "Download abgebrochen",
@@ -1316,7 +1369,18 @@
   "breqGrabFailed": "Der Download konnte nicht gestartet werden",
   "breqReleaseVipWarning": "Dieser Tracker erlaubt es nur VIP-Konten ihn herunterzuladen.",
   "breqReleaseNoBookFile": "Diese Version hat keine Buchdatei, die BookOrbit einer Bibliothek hinzufügen kann.",
+  "breqReleaseCheckFailed": "Der Inhalt dieser Version konnte nicht überprüft werden. Versuche es erneut oder wähle eine andere aus.",
+  "breqCheckingRelease": "Dateien werden geprüft...",
   "breqSearchAgain": "Nochmal suchen",
+  "breqSearchTerms": "Suchbegriffe",
+  "breqIsbnHint": "Leer lassen, um nach Titel und Autor zu suchen",
+  "breqSearchingIndexers": "Deine Indexer werden durchsucht. Dies kann bis zu einer Minute dauern.",
+  "breqReleasesFailed": "Es konnte nicht nach Veröffentlichungen gesucht werden.",
+  "breqNoSourcesSetUp": "In BookOrbit sind keine Suchquellen eingerichtet.",
+  "breqNoSourcesOn": "In BookOrbit ist jede Suchquelle deaktiviert.",
+  "breqNoSourceCarries": "Keine deiner Suchquellen führt diese Art von Buch.",
+  "breqNoReleases": "Keine Veröffentlichungen gefunden. Versuchen Sie es mit anderen Suchbegriffen.",
+  "breqFromCache": "aus einer kürzlichen Suche",
   "breqIndexerUnauthorized": "Anmeldung fehlgeschlagen",
   "breqIndexerThrottled": "Beschäftigt",
   "breqIndexerTimeout": "Zeitüberschreitung",
@@ -1358,11 +1422,97 @@
       }
     }
   },
+  "breqReleasesFailedReason": "Suche nach Veröffentlichungen nicht möglich: {reason}",
+  "@breqReleasesFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReviewFailedReason": "Die Download-Details konnten nicht geladen werden: {reason}",
+  "@breqReviewFailedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReleaseCount": "{count, plural, =0{Keine Veröffentlichungen} =1{1 Veröffentlichung} other{{count} Veröffentlichungen}}",
+  "@breqReleaseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "breqFileCount": "{count, plural, =1{1 Datei} other{{count} Dateien}}",
+  "@breqFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "breqReviewFiles": "{count, plural,=1{1 Datei} other{{count} Dateien}}",
+  "@breqReviewFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "breqSeeders": "{seeders} Seeder, {leechers} Leecher",
+  "@breqSeeders": {
+    "placeholders": {
+      "seeders": {
+        "type": "int"
+      },
+      "leechers": {
+        "type": "int"
+      }
+    }
+  },
+  "breqScore": "Ergebnis {score}",
+  "@breqScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "breqReasonPreferredFormat": "Bevorzugtes {format}",
+  "@breqReasonPreferredFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
   "breqReasonFormat": "{format}",
   "@breqReasonFormat": {
     "placeholders": {
       "format": {
         "type": "String"
+      }
+    }
+  },
+  "breqReasonSeeders": "{count} Seeder",
+  "@breqReasonSeeders": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "breqReviewScore": "Übereinstimmungswert {score}. Downloads mit einem Wert von {threshold} oder mehr werden separat hinzugefügt.",
+  "@breqReviewScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      },
+      "threshold": {
+        "type": "int"
       }
     }
   },
