@@ -187,6 +187,7 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   rendition.started.then(function () {
     setupTurns(turnsFor);
     setupSmoothScroll(turnsFor);
+    fitVerticalMoves(turnsFor);
   });
   rendition.hooks.content.register(function (contents) {
     attachTurnDrag(contents.document);
@@ -264,8 +265,10 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   window.__keyTurn = function (e) {
     if (!e || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     var k = e.key;
-    var forward = k === 'ArrowRight' || (!scrolledFlow && (k === 'PageDown' || k === ' ' || k === 'Spacebar'));
-    var back = k === 'ArrowLeft' || (!scrolledFlow && k === 'PageUp');
+    // A right-to-left book (tategaki) reads toward the left: that arrow is forward.
+    var rtl = bookIsRtl();
+    var forward = k === (rtl ? 'ArrowLeft' : 'ArrowRight') || (!scrolledFlow && (k === 'PageDown' || k === ' ' || k === 'Spacebar'));
+    var back = k === (rtl ? 'ArrowRight' : 'ArrowLeft') || (!scrolledFlow && k === 'PageUp');
     if (!forward && !back) return;
     e.preventDefault();
     window.flutter_inappwebview.callHandler('keyTurn', forward ? 'next' : 'prev');
@@ -986,7 +989,10 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   });
 
   //book location changes callback
+  pageDirectionSent = null;
+  rendition.on("displayed", reportPageDirection);
   rendition.on("relocated", function (location) {
+    reportPageDirection();
     // BLOCK navigation if there's an active selection
     // This is a final safeguard - if something bypassed our other blocks, prevent the navigation
     // BUT: Don't block if the user is actively dragging selection handles (isSelecting is true)
@@ -2222,6 +2228,115 @@ function setTurnStyle(style) {
   turnStyle = style === "none" || style === "curl" ? style : "slide";
 }
 
+// Absorb patch: whether the book turns its pages right to left: its spine says
+// so (page-progression-direction="rtl"), or its text runs in vertical-rl lines.
+// The app mirrors its edge taps and arrow keys for such a book.
+var pageDirectionSent = null;
+function bookIsRtl() {
+  var m = rendition && rendition.manager;
+  if (!m) return false;
+  if (m.settings && m.settings.direction === "rtl") return true;
+  return String(m.writingMode || "").indexOf("vertical-rl") === 0;
+}
+
+function reportPageDirection() {
+  var rtl = bookIsRtl();
+  if (rtl === pageDirectionSent) return;
+  pageDirectionSent = rtl;
+  try { window.flutter_inappwebview.callHandler("pageDirection", rtl); } catch (e) {}
+}
+
+// Absorb patch: vertical writing (tategaki) in paginated flow. epub.js stacks
+// the pages of a vertical book top to bottom, one multi-column strip, and turns
+// by one screen height - but it sizes each column from the screen WIDTH. On a
+// phone that is two short columns per screen with the second cut off at the
+// bottom, a column break that no screen height lines up with, and a first
+// column that starts part way down the screen. A column has to be exactly one
+// screen tall (less the gap, which is the page's top and bottom margin).
+// Patched where the columns are applied, so every path that lays a section out
+// (first render, resize, expand, a new layout) gets it.
+// The top & bottom margin (px) the reader theme asks of the page, or null.
+// The theme's body padding is what a horizontal book uses; epub.js's own
+// vertical-book padding is an inline !important and would override it.
+var appliedVerticalMargin;
+function themeMarginV() {
+  var css = lastTheme && lastTheme.css;
+  var body = css && typeof css === "object" ? css.body : null;
+  var pad = body ? (body["padding-top"] || body.padding) : null;
+  var m = /^\s*(-?\d*\.?\d+)\s*px/.exec(String(pad || ""));
+  return m ? parseFloat(m[1]) : null;
+}
+
+// A new margin changes where every page of a vertical book starts, so lay
+// the sections out again and put the reader back on the spot they were at.
+function refitVerticalMargin() {
+  var m = rendition && rendition.manager;
+  if (!m || !m.isPaginated || !m.settings || m.settings.axis !== "vertical" || !m.layout) return;
+  if (themeMarginV() === appliedVerticalMargin) return;
+  var loc = rendition.location;
+  var cfi = loc && loc.start && loc.start.cfi;
+  try { m.setLayout(m.layout); } catch (e) { return; }
+  if (cfi) { try { rendition.display(cfi); } catch (e) {} }
+}
+
+(function fitVerticalColumns() {
+  var proto = window.ePub && ePub.Contents && ePub.Contents.prototype;
+  if (!proto || proto.__absorbVertical) return;
+  proto.__absorbVertical = true;
+  // epub.js reads the writing mode off <html>. A book that sets it on <body>
+  // only (some older Japanese EPUBs do) is drawn vertical, yet read as
+  // horizontal, so it was laid out in horizontal columns and could not be
+  // paged. Read it off <body> too.
+  var writingMode = proto.writingMode;
+  proto.writingMode = function (mode) {
+    var wm = writingMode.call(this, mode);
+    if (!mode && String(wm || "").indexOf("vertical") !== 0) {
+      try {
+        var b = this.window.getComputedStyle(this.content)["writing-mode"] ||
+          this.window.getComputedStyle(this.content).writingMode;
+        if (String(b || "").indexOf("vertical") === 0) return b;
+      } catch (e) {}
+    }
+    return wm;
+  };
+  var columns = proto.columns;
+  proto.columns = function (width, height, columnWidth, gap, dir) {
+    var vertical = false;
+    try { vertical = String(this.writingMode() || "").indexOf("vertical") === 0; } catch (e) {}
+    if (vertical) {
+      // The page's top and bottom margin is the reader's "Top & bottom"
+      // setting (the theme's body padding), not the layout's own gap. A page
+      // is the column plus the gap after it, one screen tall.
+      var margin = themeMarginV();
+      appliedVerticalMargin = margin;
+      if (margin !== null) gap = 2 * Math.max(0, Math.min(margin, height / 4));
+      columnWidth = Math.max(1, height - (gap || 0));
+    }
+    return columns.call(this, width, height, columnWidth, gap, dir);
+  };
+})();
+
+// Absorb patch: the continuous manager lands on a spot inside a section by
+// the spot's x only (a horizontal book's pages run sideways). A vertical book's
+// pages run down, so every jump to a saved position, a link, a search hit or
+// the spot kept through a resize landed on the section's first page. Jump by
+// the spot's y, a whole page at a time.
+function fitVerticalMoves(r) {
+  var m = r && r.manager;
+  if (!m || m.__absorbVerticalMoves) return;
+  m.__absorbVerticalMoves = true;
+  var moveTo = m.moveTo;
+  m.moveTo = function (offset) {
+    if (this.isPaginated && this.settings.axis === "vertical" && this.layout && offset) {
+      var page = this.layout.height || this.container.clientHeight || 1;
+      var y = Math.floor(offset.top / page) * page;
+      if (y > 0) this.scrollBy(0, y, true);
+      return;
+    }
+    return moveTo.apply(this, arguments);
+  };
+}
+
 function finishTurnSlide() {
   if (turnSlide) turnSlide.finish();
 }
@@ -2237,20 +2352,21 @@ function setupTurns(r) {
   m.__absorbTurns = true;
   var next = m.next;
   var prev = m.prev;
-  m.next = function () { return slideTurn(m, next); };
-  m.prev = function () { return slideTurn(m, prev); };
+  m.next = function () { return slideTurn(m, next, true); };
+  m.prev = function () { return slideTurn(m, prev, false); };
 }
 
 // epub.js turns by jumping a page width. The jump is still made, so the page
 // lands exactly where it always did, and is then played as a slide from where
 // the page was, or from where a finger let go of it.
-function slideTurn(m, turn) {
+function slideTurn(m, turn, forward) {
   var drag = turnFromDrag;
   turnFromDrag = null;
   var animate = turnAnimate || !!drag;
   turnAnimate = false;
+  if (animate && verticalSlides(m)) return slideTurnVertical(m, turn, forward, drag && drag.vertical ? drag : null);
   var c = m.container;
-  if (drag) {
+  if (drag && !drag.vertical) {
     m.ignore = true;
     c.scrollLeft = drag.base;
   }
@@ -2263,6 +2379,153 @@ function slideTurn(m, turn) {
   c.scrollLeft = from;
   var page = (m.layout && m.layout.delta) || c.clientWidth || 1;
   return playSlide(m, from, to, TURN_MS * Math.max(0.4, Math.min(1, Math.abs(to - from) / page)));
+}
+
+// Absorb patch: the slide for vertical-writing books. Their pages are stacked
+// top to bottom in one frame, so two pages are never on screen side by side
+// and the horizontal slide above has nothing to scroll. The page is slid
+// sideways as a whole instead, the way the book turns: the page being left
+// goes out toward the side the book is read from, and the next one comes in
+// from the other (a right-to-left book: out to the right, in from the left).
+function verticalSlides(m) {
+  return turnStyle === "slide" && !!m && m.isPaginated && m.settings.axis === "vertical" &&
+    !m.settings.fullsize && !scrolledFlow();
+}
+
+function easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
+function easeInQuad(t) { return t * t; }
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+// What shows where the page has slid away: the page's own background.
+function stageBackground(m) {
+  try {
+    var v = m.views.displayed()[0] || m.views.first();
+    var win = v.document.defaultView;
+    var bg = win.getComputedStyle(v.document.body).backgroundColor;
+    if (!bg || bg === "transparent" || bg === "rgba(0, 0, 0, 0)") {
+      bg = win.getComputedStyle(v.document.documentElement).backgroundColor;
+    }
+    return bg || "";
+  } catch (e) { return ""; }
+}
+
+function stageX(m, x) {
+  var c = m.container;
+  var host = document.getElementById("viewer");
+  if (x) {
+    if (host && host.__absorbBg === undefined) {
+      host.__absorbBg = host.style.background;
+      var bg = stageBackground(m);
+      if (bg) host.style.background = bg;
+    }
+    c.style.transform = "translate3d(" + x + "px, 0, 0)";
+    c.style.willChange = "transform";
+  } else {
+    c.style.transform = "";
+    c.style.willChange = "";
+    if (host && host.__absorbBg !== undefined) {
+      host.style.background = host.__absorbBg;
+      host.__absorbBg = undefined;
+    }
+  }
+}
+
+function stageTween(m, from, to, ms, ease) {
+  var h = { raf: 0, done: false, finish: null };
+  h.promise = new Promise(function (resolve) {
+    var start = null;
+    h.finish = function () { if (h.done) return; h.done = true; cancelAnimationFrame(h.raf); resolve(); };
+    function frame(ts) {
+      if (h.done) return;
+      if (start === null) start = ts;
+      var t = Math.min(1, (ts - start) / ms);
+      stageX(m, from + (to - from) * ease(t));
+      if (t >= 1) { h.done = true; resolve(); return; }
+      h.raf = requestAnimationFrame(frame);
+    }
+    stageX(m, from);
+    h.raf = requestAnimationFrame(frame);
+  });
+  return h;
+}
+
+// A drag that did not turn: the page settles back. It is the slide in flight
+// while it runs, so the next touch or turn cuts it short instead of fighting it.
+function stageSettle(m, from) {
+  var tween = stageTween(m, from, 0, 180, easeOutQuad);
+  var slide = {
+    finish: function () {
+      tween.finish();
+      stageX(m, 0);
+      if (turnSlide === slide) turnSlide = null;
+    }
+  };
+  turnSlide = slide;
+  tween.promise.then(function () { if (turnSlide === slide) turnSlide = null; });
+  return tween.promise;
+}
+
+// Whether a turn this way moves anywhere: epub.js's own test in next() / prev().
+function canTurnVertical(m, forward) {
+  var c = m.container;
+  if (forward) {
+    if (c.scrollTop + c.offsetHeight < c.scrollHeight) return true;
+    var last = m.views.last();
+    return !!(last && last.section.next());
+  }
+  if (c.scrollTop > 0) return true;
+  var first = m.views.first();
+  return !!(first && first.section.prev());
+}
+
+// [drag] is where a released finger left the page: {vertical: true, x}.
+function slideTurnVertical(m, turn, forward, drag) {
+  var W = m.container.clientWidth || 1;
+  var exit = (forward ? 1 : -1) * (bookIsRtl() ? 1 : -1); // +1: the page leaves to the right
+  var from = drag ? drag.x : 0;
+  if (!canTurnVertical(m, forward)) {
+    if (from) stageSettle(m, from);
+    return turn.call(m);
+  }
+  return new Promise(function (resolve) {
+    var tween = null;
+    var turnDone = null;
+    var finishing = false;
+    var settled = false;
+    function settle() {
+      if (settled) return;
+      settled = true;
+      stageX(m, 0);
+      if (turnSlide === slide) turnSlide = null;
+      resolve();
+    }
+    function doTurn() {
+      if (!turnDone) turnDone = Promise.resolve(turn.call(m));
+      return turnDone;
+    }
+    // A new turn (or touch) cuts this one short: make the turn if it has not
+    // been made yet, and drop the page where it belongs.
+    var slide = {
+      finish: function () {
+        if (settled || finishing) return;
+        finishing = true;
+        if (tween) tween.finish();
+        doTurn().then(settle, settle);
+      }
+    };
+    turnSlide = slide;
+    var left = Math.abs(exit * W - from) / W;
+    tween = stageTween(m, from, exit * W, TURN_MS * 0.45 * Math.max(0.3, left), from ? easeOutQuad : easeInQuad);
+    tween.promise.then(function () {
+      if (finishing) return;
+      // Out of sight: turn, then bring the new page in from the other side.
+      return doTurn().then(function () {
+        if (finishing) return;
+        tween = stageTween(m, -exit * W, 0, TURN_MS * 0.6, easeOutCubic);
+        return tween.promise.then(function () { if (!finishing) settle(); });
+      });
+    }).catch(function () { if (!finishing) settle(); });
+  });
 }
 
 function playSlide(m, from, to, ms) {
@@ -2338,16 +2601,24 @@ function attachTurnDrag(doc) {
       d.moving = true;
       d.m = m;
       d.x = t.screenX; // the page moves from here, without a jump
-      d.base = m.container.scrollLeft;
-      d.page = (m.layout && m.layout.delta) || m.container.clientWidth || 1;
+      d.vertical = verticalSlides(m); // a vertical book's page moves as a whole
+      d.off = 0;
+      d.base = d.vertical ? 0 : m.container.scrollLeft;
+      d.page = d.vertical ? (m.container.clientWidth || 1) :
+        ((m.layout && m.layout.delta) || m.container.clientWidth || 1);
       turnDragActive = turnStyle === "slide";
     }
     d.track.push({ x: t.screenX, at: e.timeStamp });
     if (d.track.length > 5) d.track.shift();
     if (turnStyle === "slide") {
       var off = Math.max(-d.page, Math.min(d.page, t.screenX - d.x));
-      d.m.ignore = true;
-      d.m.container.scrollLeft = d.base - off;
+      if (d.vertical) {
+        d.off = off;
+        stageX(d.m, off);
+      } else {
+        d.m.ignore = true;
+        d.m.container.scrollLeft = d.base - off;
+      }
     }
   }, { capture: true, passive: true });
   function release(e, cancelled) {
@@ -2365,16 +2636,19 @@ function attachTurnDrag(doc) {
       var b = g.track[g.track.length - 1];
       if (b.at > a.at) v = (b.x - a.x) / (b.at - a.at);
     }
-    var forward = m.settings.direction === "rtl" ? dx > 0 : dx < 0;
+    var forward = bookIsRtl() ? dx > 0 : dx < 0;
     var go = !cancelled && dx !== 0 &&
       (Math.abs(dx) > g.page * 0.2 || (Math.abs(v) > 0.3 && (v < 0) === (dx < 0)));
     if (!go) {
-      if (turnStyle === "slide") playSlide(m, c.scrollLeft, g.base, 180);
+      if (turnStyle === "slide") {
+        if (g.vertical) stageSettle(m, g.off);
+        else playSlide(m, c.scrollLeft, g.base, 180);
+      }
       return;
     }
     var pending = null;
     if (turnStyle === "slide") {
-      pending = { base: g.base, from: c.scrollLeft };
+      pending = g.vertical ? { vertical: true, x: g.off } : { base: g.base, from: c.scrollLeft };
       turnFromDrag = pending;
     }
     if (forward) rendition.next(); else rendition.prev();
@@ -2384,7 +2658,8 @@ function attachTurnDrag(doc) {
       setTimeout(function () {
         if (turnFromDrag !== pending) return;
         turnFromDrag = null;
-        playSlide(m, c.scrollLeft, pending.base, 180);
+        if (pending.vertical) stageSettle(m, pending.x);
+        else playSlide(m, c.scrollLeft, pending.base, 180);
       }, 600);
     }
   }
@@ -3524,6 +3799,7 @@ function updateTheme(backgroundColor, foregroundColor, customCss) {
     rendition.themes.register("user-theme", rules);
     rendition.themes.select("user-theme");
   }
+  refitVerticalMargin();
 }
 
 // Shared by the live rendition and the auto-scroll blind. The blind used to
