@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
-import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import 'overlay_toast.dart';
 import 'absorb_placement.dart';
@@ -130,8 +129,13 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final ImageProvider provider = url.startsWith('/')
         ? FileImage(File(url))
         : CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: context.read<LibraryProvider>().mediaHeaders);
-    PaletteGenerator.fromImageProvider(provider, maximumColorCount: 16).then((palette) {
-      final seed = accentFromCoverPalette(palette);
+    final known = CoverAccents.known(url);
+    if (known != null) {
+      _coverScheme = ColorScheme.fromSeed(seedColor: known, brightness: brightness);
+      if (mounted) setState(() {});
+      return;
+    }
+    CoverAccents.seed(url, provider).then((seed) {
       if (seed == null || !mounted) return;
       setState(() => _coverScheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness));
     }).catchError((e) {

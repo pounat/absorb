@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
-import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../widgets/absorbing_shared.dart';
 import '../providers/auth_provider.dart';
@@ -1145,9 +1144,8 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
         headers: widget.lib.mediaHeaders,
       );
     }
-    PaletteGenerator.fromImageProvider(provider, maximumColorCount: 16)
-        .then((palette) {
-          final picked = accentFromCoverPalette(palette);
+    CoverAccents.seed(coverUrl, provider)
+        .then((picked) {
           if (picked == null) return;
           _accentCache[coverUrl] = picked;
           if (!mounted) return;

@@ -1,7 +1,96 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
+
+import '../services/scoped_prefs.dart';
+
+/// The accent color of a cover, found once and remembered: in memory for
+/// this run and in the preferences across runs, so a sheet opening on a
+/// cover seen before paints in its color straight away. The palette is read
+/// from a small copy of the image, a few milliseconds rather than the
+/// second a full-size cover took.
+class CoverAccents {
+  CoverAccents._();
+
+  static const _prefsKey = 'cover_accent_seeds_v1';
+  static const _keep = 400;
+  static final Map<String, Color?> _known = {};
+  static final Map<String, Future<Color?>> _inFlight = {};
+  static Map<String, int>? _saved;
+
+  /// The accent of the cover at [url] when it is already known, else null.
+  static Color? known(String url) => _known[_keyOf(url)];
+
+  /// The accent of the cover at [url], read through [provider] when it is
+  /// not known yet. Null when the cover has no usable color.
+  static Future<Color?> seed(String url, ImageProvider provider) {
+    final key = _keyOf(url);
+    if (_known.containsKey(key)) return Future.value(_known[key]);
+    final running = _inFlight[key];
+    if (running != null) return running;
+    // A block, not an arrow: whenComplete waits on a future its callback
+    // returns, and remove would hand back this very future.
+    final found = _find(key, provider).whenComplete(() {
+      _inFlight.remove(key);
+    });
+    _inFlight[key] = found;
+    return found;
+  }
+
+  /// The same cover asked for at another size, or through another proxy
+  /// prefix, is the same cover.
+  static String _keyOf(String url) {
+    var key = url;
+    final api = key.indexOf('/api/');
+    if (api > 0) key = key.substring(api);
+    return key.replaceAll(RegExp(r'[?&]width=\d+'), '');
+  }
+
+  static Future<Map<String, int>> _loadSaved() async {
+    final have = _saved;
+    if (have != null) return have;
+    final out = <String, int>{};
+    try {
+      final raw = await ScopedPrefs.getString(_prefsKey);
+      if (raw != null && raw.isNotEmpty) {
+        (jsonDecode(raw) as Map<String, dynamic>).forEach((k, v) {
+          if (v is int) out[k] = v;
+        });
+      }
+    } catch (_) {}
+    return _saved ??= out;
+  }
+
+  static Future<Color?> _find(String key, ImageProvider provider) async {
+    final saved = await _loadSaved();
+    final argb = saved[key];
+    if (argb != null) {
+      final color = Color(argb);
+      _known[key] = color;
+      return color;
+    }
+    final t0 = DateTime.now();
+    final palette = await PaletteGenerator.fromImageProvider(
+      ResizeImage(provider, width: 96),
+      maximumColorCount: 16,
+    );
+    final color = accentFromCoverPalette(palette);
+    debugPrint('[CoverAccent] ${color == null ? 'no accent' : 'accent found'} '
+        'in ${DateTime.now().difference(t0).inMilliseconds}ms for $key');
+    _known[key] = color;
+    if (color != null) {
+      saved[key] = color.toARGB32();
+      while (saved.length > _keep) {
+        saved.remove(saved.keys.first);
+      }
+      unawaited(ScopedPrefs.setString(_prefsKey, jsonEncode(saved)));
+    }
+    return color;
+  }
+}
 
 /// Picks an accent color from a cover's [palette].
 ///

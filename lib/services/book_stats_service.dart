@@ -287,6 +287,9 @@ class BookStatsService {
     }
     s.isAdmin = isAdmin;
     s.bump();
+    // Kept now, not only after the server-wide scan an admin gets, so the
+    // next open of the sheet shows the chart at once from this visit.
+    await _saveCache(s);
     if (isAdmin) {
       await _loadServerWide(s, api);
     } else {
@@ -383,7 +386,7 @@ class BookStatsService {
 
   Future<void> _saveCache(BookStats s) async {
     final payload = jsonEncode({
-      'at': DateTime.now().millisecondsSinceEpoch,
+      'at': s.checkedAt,
       'me': {
         's': s.mySeconds,
         'n': s.mySessions,

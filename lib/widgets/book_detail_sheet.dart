@@ -20,7 +20,6 @@ import 'absorb_placement.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
-import 'package:palette_generator/palette_generator.dart';
 import '../utils/cover_accent.dart';
 import '../utils/app_platform.dart';
 import '../utils/audible_url.dart';
@@ -658,17 +657,21 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       final lib = context.read<LibraryProvider>();
       provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: lib.mediaHeaders);
     }
-    final t0 = DateTime.now();
-    debugPrint('[BookDetail] _deriveCoverScheme start url=$url');
-    PaletteGenerator.fromImageProvider(provider, maximumColorCount: 16)
-        .then((palette) {
-      debugPrint('[BookDetail] PaletteGenerator ok in ${DateTime.now().difference(t0).inMilliseconds}ms');
-      final seedColor = accentFromCoverPalette(palette);
+    // A cover seen before colors the sheet in the same frame it opens.
+    final known = CoverAccents.known(url);
+    if (known != null) {
+      debugPrint('[BookDetail] cover accent known: ${known.toARGB32().toRadixString(16)}');
+      _rawCoverScheme = ColorScheme.fromSeed(seedColor: known, brightness: brightness);
+      if (mounted) setState(() {});
+      return;
+    }
+    CoverAccents.seed(url, provider).then((seedColor) {
+      debugPrint('[BookDetail] cover accent: ${seedColor?.toARGB32().toRadixString(16)}');
       if (seedColor == null || !mounted) return;
       setState(() => _rawCoverScheme = ColorScheme.fromSeed(
         seedColor: seedColor, brightness: brightness));
     }).catchError((e) {
-      debugPrint('[BookDetail] PaletteGenerator error after ${DateTime.now().difference(t0).inMilliseconds}ms: $e');
+      debugPrint('[BookDetail] cover accent failed: $e');
       if (!mounted) return;
       setState(() {
         _coverSchemeUrl = null;
