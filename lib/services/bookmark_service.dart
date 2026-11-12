@@ -124,6 +124,44 @@ class BookmarkService {
 
   static const int _maxBookmarksPerBook = 100;
   static const _keyPrefix = 'bookmarks_';
+  // Books whose server answered that it has no place for bookmarks (a
+  // narrated EPUB on BookOrbit, whose audio is not an audiobook there).
+  // Theirs stay on this phone and are never pushed or pruned against the
+  // server's list.
+  static const _noServerPlaceKey = 'bookmarks_no_server_place';
+
+  /// Bumps on every change to any book's bookmarks, for whoever mirrors
+  /// them (the watch gets the playing book's list).
+  static final ValueNotifier<int> changes = ValueNotifier<int>(0);
+
+  Future<void> _store(String key, List<String> rows) async {
+    await ScopedPrefs.setStringList(key, rows);
+    changes.value++;
+  }
+
+  Future<bool> _serverHasNoPlace(String itemId) async =>
+      (await ScopedPrefs.getStringList(_noServerPlaceKey)).contains(itemId);
+
+  Future<void> _setServerHasNoPlace(String itemId, bool noPlace) async {
+    final list = (await ScopedPrefs.getStringList(_noServerPlaceKey)).toList();
+    if (noPlace == list.contains(itemId)) return;
+    if (noPlace) {
+      list.add(itemId);
+    } else {
+      list.remove(itemId);
+    }
+    await ScopedPrefs.setStringList(_noServerPlaceKey, list);
+  }
+
+  /// After a failed push: true when the server said it has no place for
+  /// this book's bookmarks, in which case they are kept here for good.
+  Future<bool> _keptOnPhone(ApiService api, String itemId, Bookmark b) async {
+    if (api.lastBookmarkCreateStatus != 404) return false;
+    await _setServerHasNoPlace(itemId, true);
+    debugPrint('[Bookmarks] The server has no place for bookmarks in $itemId - '
+        '"${b.title}" at ${b.formattedPosition} stays on this phone');
+    return true;
+  }
   // Persisted via ScopedPrefs so offline pending state survives app restart.
   static const _pendingCreatesKey = 'bookmarks_pending_creates';
   static const _pendingDeletesKey = 'bookmarks_pending_deletes';
@@ -249,7 +287,7 @@ class BookmarkService {
       existing.removeRange(0, existing.length - _maxBookmarksPerBook);
     }
 
-    await ScopedPrefs.setStringList(key, existing);
+    await _store(key, existing);
     debugPrint('[Bookmarks] Added "${bookmark.title}" at ${bookmark.formattedPosition}');
 
     await _ensureHydrated();
@@ -267,13 +305,40 @@ class BookmarkService {
     final unpushedKey = '$itemId::${positionSeconds.toStringAsFixed(1)}';
     _unpushed.add(unpushedKey);
     await _persistUnpushed();
-    if (api != null &&
-        await api.createBookmark(itemId, time: positionSeconds, title: bookmark.serverTitle)) {
-      _unpushed.remove(unpushedKey);
-      await _persistUnpushed();
+    if (api != null) {
+      final pushed = await api.createBookmark(itemId, time: positionSeconds, title: bookmark.serverTitle);
+      if (pushed) await _setServerHasNoPlace(itemId, false);
+      if (pushed || await _keptOnPhone(api, itemId, bookmark)) {
+        _unpushed.remove(unpushedKey);
+        await _persistUnpushed();
+      }
+      // A server that keeps the bookmark by sentence puts it at the start of
+      // the sentence; the phone's copy follows, so the two never drift apart
+      // and the next sync has nothing to undo.
+      final at = api.lastBookmarkCreatedTime;
+      if (pushed && at != null && (at - positionSeconds).abs() >= 1.0) {
+        return await _moveToServerSpot(itemId, bookmark, at);
+      }
     }
 
     return bookmark;
+  }
+
+  Future<Bookmark> _moveToServerSpot(String itemId, Bookmark bookmark, double at) async {
+    final moved = Bookmark(
+      id: bookmark.id,
+      positionSeconds: at,
+      created: bookmark.created,
+      title: bookmark.title,
+      note: bookmark.note,
+    );
+    final all = await getBookmarks(itemId);
+    final i = all.indexWhere((b) => b.id == bookmark.id);
+    if (i < 0) return bookmark;
+    all[i] = moved;
+    await _saveAll(itemId, all);
+    debugPrint('[Bookmarks] "${bookmark.title}" landed on its sentence at ${moved.formattedPosition}');
+    return moved;
   }
 
   /// Update a bookmark's title and/or note.
@@ -308,7 +373,7 @@ class BookmarkService {
       }
     }
 
-    await ScopedPrefs.setStringList(key, updated);
+    await _store(key, updated);
 
     if (isEpisodeKey(itemId)) {
       SettingsSyncService().noteLocalChange();
@@ -358,7 +423,7 @@ class BookmarkService {
       }
     }
     if (oldTime == null) return; // bookmark not found
-    await ScopedPrefs.setStringList(key, updated);
+    await _store(key, updated);
     if ((oldTime - newPos).abs() < 0.05) return; // no real change
 
     await _ensureHydrated();
@@ -385,7 +450,10 @@ class BookmarkService {
       deletedOk = await api.deleteBookmark(itemId, time: oldTime);
       createdOk = await api.createBookmark(itemId, time: newPos, title: serverTitle ?? '');
     }
-    if (createdOk) _unpushed.remove(newKey);
+    if (createdOk ||
+        (api != null && await _serverHasNoPlace(itemId))) {
+      _unpushed.remove(newKey);
+    }
     if (!deletedOk) _pendingDeletes.putIfAbsent(itemId, () => {}).add(oldTime);
     await _persistUnpushed();
     await _persistPendingDeletes();
@@ -416,7 +484,7 @@ class BookmarkService {
       }
     }
 
-    await ScopedPrefs.setStringList(key, updated);
+    await _store(key, updated);
     debugPrint('[Bookmarks] Deleted bookmark $bookmarkId');
 
     await _ensureHydrated();
@@ -502,7 +570,7 @@ class BookmarkService {
           final key = '$_keyPrefix$itemId';
           final existing = (await ScopedPrefs.getStringList(key)).toList();
           existing.add(jsonEncode(serverBm.toJson()));
-          await ScopedPrefs.setStringList(key, existing);
+          await _store(key, existing);
           debugPrint('[Bookmarks] Synced from server: "${serverBm.title}" at ${serverBm.formattedPosition}');
         } else if (serverBm.serverTitle != localMatch.serverTitle && serverBm.created.isAfter(localMatch.created)) {
           // Server is newer - take its title and note (fromServer already
@@ -521,10 +589,15 @@ class BookmarkService {
       final kept = <Bookmark>[];
       bool localChanged = false;
       bool unpushedChanged = false;
+      var noServerPlace = await _serverHasNoPlace(itemId);
       for (final lb in refreshedLocal) {
         final serverMatch = serverBookmarks.whereType<Map<String, dynamic>>().where((sb) =>
             posMatch((sb['time'] as num?)?.toDouble() ?? 0, lb.positionSeconds)).firstOrNull;
         if (serverMatch != null) {
+          kept.add(lb);
+          continue;
+        }
+        if (noServerPlace) {
           kept.add(lb);
           continue;
         }
@@ -538,6 +611,10 @@ class BookmarkService {
             _unpushed.remove(unpushedKey);
             unpushedChanged = true;
             debugPrint('[Bookmarks] Pushed offline bookmark: "${lb.title}" at ${lb.formattedPosition}');
+          } else if (await _keptOnPhone(api, itemId, lb)) {
+            noServerPlace = true;
+            _unpushed.remove(unpushedKey);
+            unpushedChanged = true;
           } else {
             debugPrint('[Bookmarks] Push failed, will retry: "${lb.title}" at ${lb.formattedPosition}');
           }
@@ -557,7 +634,7 @@ class BookmarkService {
   /// Save all bookmarks for an item (used internally after batch updates).
   Future<void> _saveAll(String itemId, List<Bookmark> bookmarks) async {
     final key = '$_keyPrefix$itemId';
-    await ScopedPrefs.setStringList(key, bookmarks.map((b) => jsonEncode(b.toJson())).toList());
+    await _store(key, bookmarks.map((b) => jsonEncode(b.toJson())).toList());
   }
 
   /// Get all bookmarks across all books for the current account, keyed by itemId.

@@ -5803,14 +5803,60 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
           {bool forceTranscode = false}) async =>
       null;
 
+  /// Books the server keeps no audiobook for, so their bookmarks live with
+  /// the text instead: a narrated EPUB reads itself aloud, and BookOrbit
+  /// answers its audiobook bookmark routes with 404.
+  static final Set<String> _bookmarksWithText = {};
+
   Future<List<Map<String, dynamic>>> _rawBookmarks(String bookId) async {
+    if (!_bookmarksWithText.contains(_key(bookId))) {
+      try {
+        final list = await _boGet('/audiobooks/$bookId/bookmarks') as List<dynamic>;
+        return list.whereType<Map<String, dynamic>>().toList();
+      } on _BoHttpError catch (e) {
+        if (e.status == 400) return const [];
+        if (e.status != 404) rethrow;
+      }
+    }
+    return _textBookmarks(bookId);
+  }
+
+  /// A narrated EPUB's bookmarks: the ebook bookmarks of the book, each put
+  /// at the moment its sentence is read. The shape is the audiobook route's,
+  /// with the span of the sentence and an `ebook` flag for the writes.
+  Future<List<Map<String, dynamic>>> _textBookmarks(String bookId) async {
+    final n = await _narration(bookId);
+    if (n == null) return const [];
+    _bookmarksWithText.add(_key(bookId));
+    final List<dynamic> list;
     try {
-      final list = await _boGet('/audiobooks/$bookId/bookmarks') as List<dynamic>;
-      return list.whereType<Map<String, dynamic>>().toList();
+      list = await _boGet('/books/$bookId/bookmarks') as List<dynamic>;
     } on _BoHttpError catch (e) {
-      if (e.status == 404 || e.status == 400) return const [];
+      if (e.status == 404) return const [];
       rethrow;
     }
+    final rows = list
+        .whereType<Map<String, dynamic>>()
+        .where((b) => b['cfi'] is String && (b['cfi'] as String).isNotEmpty)
+        .toList();
+    final placed = await NarrationService.readingSpotsSeconds(
+        bookId, n.overlay, [for (final b in rows) b['cfi'] as String]);
+    final out = <Map<String, dynamic>>[];
+    for (final b in rows) {
+      final seconds = placed[b['cfi'] as String];
+      if (seconds == null) continue;
+      final clip = n.overlay.clipAt(seconds);
+      final end = clip == null ? seconds : n.overlay.startOf(clip) + (clip.end - clip.begin);
+      out.add({
+        ...b,
+        'bookId': bookId,
+        'positionMs': (seconds * 1000).round(),
+        'positionEndMs': (end * 1000).round(),
+        'ebook': true,
+      });
+    }
+    debugPrint('[BookOrbit] $bookId keeps its bookmarks with the text: ${out.length} of ${rows.length} placed');
+    return out;
   }
 
   Future<List<Map<String, dynamic>>> _bookmarksFor(String bookId) async =>
@@ -5834,19 +5880,48 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   Future<Map<String, dynamic>> _createBookmark(String bookId, Map<String, dynamic> body) async {
     final time = (body['time'] as num?)?.toDouble() ?? 0;
     final title = '${body['title'] ?? ''}'.trim();
-    final created = await _boPost('/audiobooks/$bookId/bookmarks', {
-      'clientId': _uuid(),
-      'positionMs': (time * 1000).round(),
-      'title': title.isEmpty ? 'Bookmark' : (title.length > 500 ? title.substring(0, 500) : title),
-    }) as Map<String, dynamic>;
-    return BookOrbitMapper.bookmark(created);
+    final name = title.isEmpty ? 'Bookmark' : (title.length > 500 ? title.substring(0, 500) : title);
+    if (!_bookmarksWithText.contains(_key(bookId))) {
+      try {
+        final created = await _boPost('/audiobooks/$bookId/bookmarks', {
+          'clientId': _uuid(),
+          'positionMs': (time * 1000).round(),
+          'title': name,
+        }) as Map<String, dynamic>;
+        return BookOrbitMapper.bookmark(created);
+      } on _BoHttpError catch (e) {
+        if (e.status != 404) rethrow;
+      }
+    }
+    return _createTextBookmark(bookId, time, name);
+  }
+
+  /// A bookmark in a narrated EPUB goes to the sentence being read at
+  /// [time], as an ebook bookmark, so the web and the readers show it there.
+  Future<Map<String, dynamic>> _createTextBookmark(String bookId, double time, String title) async {
+    final n = await _narration(bookId);
+    if (n == null) throw _BoHttpError(404, 'Book has no audiobook assets');
+    _bookmarksWithText.add(_key(bookId));
+    final cfi = await NarrationService.readingSpotCfi(bookId, n.overlay, time);
+    if (cfi == null) throw _BoHttpError(404, 'No copy of the book here to place the bookmark');
+    final created = await _boPost('/books/$bookId/bookmarks', {'cfi': cfi, 'title': title}) as Map<String, dynamic>;
+    final clip = n.overlay.clipAt(time);
+    final at = clip == null ? time : n.overlay.startOf(clip);
+    return BookOrbitMapper.bookmark({
+      ...created,
+      'bookId': bookId,
+      'positionMs': (at * 1000).round(),
+    });
   }
 
   Future<Map<String, dynamic>?> _findBookmark(String bookId, double time) async {
     Map<String, dynamic>? best;
     var bestGap = 1.0;
     for (final b in await _rawBookmarks(bookId)) {
-      final gap = (((b['positionMs'] as num?) ?? 0) / 1000.0 - time).abs();
+      final start = ((b['positionMs'] as num?) ?? 0) / 1000.0;
+      // A bookmark kept with the text covers its whole sentence.
+      final end = ((b['positionEndMs'] as num?) ?? 0) / 1000.0;
+      final gap = time >= start && time <= end ? 0.0 : (start - time).abs();
       if (gap < bestGap) {
         best = b;
         bestGap = gap;
@@ -5860,14 +5935,16 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     if (b == null) return false;
     final title = '${body['title'] ?? ''}'.trim();
     if (title.isEmpty) return true;
-    await _boPatch('/audiobooks/$bookId/bookmarks/${b['id']}', {'title': title});
+    final route = b['ebook'] == true ? '/books/$bookId/bookmarks' : '/audiobooks/$bookId/bookmarks';
+    await _boPatch('$route/${b['id']}', {'title': title});
     return true;
   }
 
   Future<bool> _deleteBookmark(String bookId, double time) async {
     final b = await _findBookmark(bookId, time);
     if (b == null) return false;
-    await _boDelete('/audiobooks/$bookId/bookmarks/${b['id']}');
+    final route = b['ebook'] == true ? '/books/$bookId/bookmarks' : '/audiobooks/$bookId/bookmarks';
+    await _boDelete('$route/${b['id']}');
     return true;
   }
 

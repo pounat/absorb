@@ -673,6 +673,58 @@ class NarrationService {
     return placed.seconds;
   }
 
+  /// [readingSpotSeconds] for several spots in one pass over the book.
+  static Future<Map<String, double?>> readingSpotsSeconds(
+      String bookId, MediaOverlay overlay, List<String> cfis) async {
+    if (cfis.isEmpty) return const {};
+    final file = await ebookCacheFileFor(bookId, const {'ebookFormat': 'epub'});
+    if (!file.existsSync()) {
+      debugPrint('[Narration] $bookId: no copy of the book here to place ${cfis.length} spots');
+      return {for (final c in cfis) c: null};
+    }
+    final path = file.path;
+    return Isolate.run(() {
+      final book = EpubBookText.open(path);
+      if (book == null) return {for (final c in cfis) c: null};
+      try {
+        return {for (final c in cfis) c: placeCfiOnNarration(overlay, book, c).seconds};
+      } finally {
+        book.close();
+      }
+    });
+  }
+
+  /// The reading spot of the narrated sentence playing at [seconds] of a
+  /// BookOrbit EPUB, as a CFI the readers understand, from the copy kept on
+  /// this phone. Null when there is no copy or the sentence is not in it.
+  static Future<String?> readingSpotCfi(String bookId, MediaOverlay overlay, double seconds) async {
+    final clip = overlay.clipAt(seconds);
+    if (clip == null) return null;
+    final file = await ebookCacheFileFor(bookId, const {'ebookFormat': 'epub'});
+    if (!file.existsSync()) {
+      debugPrint('[Narration] $bookId: no copy of the book here to place ${seconds.toStringAsFixed(0)}s');
+      return null;
+    }
+    final path = file.path;
+    final href = clip.textHref;
+    final fragment = clip.fragment;
+    final cfi = await Isolate.run(() {
+      final book = EpubBookText.open(path);
+      if (book == null) return null;
+      try {
+        final si = book.sectionOf(href);
+        if (si < 0) return null;
+        final offset = fragment == null ? 0 : book.elementOffsets(si)[fragment];
+        return book.cfiAt(si, offset ?? 0);
+      } finally {
+        book.close();
+      }
+    });
+    debugPrint('[Narration] $bookId: ${seconds.toStringAsFixed(0)}s is ${cfi ?? 'not placed'}'
+        ' (${clip.textSrc})');
+    return cfi;
+  }
+
   static final Map<String, double?> _pagesPlaced = {};
 
   /// How far past the words heard a page has to be to move the audio: a page
