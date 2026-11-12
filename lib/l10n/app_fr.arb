@@ -675,7 +675,6 @@
   "settingsPodcastTabLibrary": "Bibliothèque pour l'onglet podcasts",
   "settingsMergeImpliedByPodcastTab": "Toujours allumé lorsque l'onglet Podcasts est activé",
   "settingsEpisodeNotifs": "Paramètres des notifications",
-  "settingsEpisodeNotifsDesc": "Nouveaux épisodes de podcast et versions à venir de livres, vérifiés en arrière-plan",
   "notifIntervalOff": "Désactivé",
   "notifIntervalMinutes": "Toutes les {n} minutes",
   "@notifIntervalMinutes": {
@@ -2849,7 +2848,6 @@
   "tipsSheetAutoRewindDesc": "Lorsque vous redémarrez après une pause, Absorb revient en arrière automatiquement de quelques secondes pour ne pas perdre votre place. La durée du retour varie avec le temps d'absence. Configurez-le dans les paramètres.",
   "tipsSheetSeriesQueueModeDesc": "Quand vous avez terminé un livre qui fait partie d'une série, Absorb peut automatiquement lire le livre suivant. Réglez le mode file d'attente sur \"Séries\" dans les paramètres.",
   "tipsSheetOfflineModeTitle": "Mode hors-ligne",
-  "tipsSheetOfflineModeDesc": "Appuyez sur le bouton Avion de l'écran Absorption pour passer en mode hors ligne. Ceci arrête la synchronisation, enregistre les données et affiche uniquement les livres téléchargés. Idéal pour les vols ou les zones de faible signal.",
   "tipsSheetUpcomingReleasesDesc": "Dans l'onglet Série, appuyez à nouveau sur l'onglet pour ouvrir sa page de tri et de filtre, puis choisissez Sorties à venir pour voir les nouveaux livres et ceux à venir de votre série, triés par date de publication.",
   "tipsSheetPerBookEqTitle": "Égaliseur par livre",
   "tipsSheetPerBookEqDesc": "Chaque livre se souvient de ses propres paramètres d'égaliseur. Ajuster l'EQ une fois pour une épopée de science-fiction et la prochaine fois que vous la jouerez, il sonnera pareil.",
