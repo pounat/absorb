@@ -15,23 +15,46 @@ class AudiobookshelfServerUpdate {
   });
 }
 
-class AudiobookshelfUpdateService {
-  static final Uri _releasesUri = Uri.parse(
-    'https://api.github.com/repos/advplyr/audiobookshelf/releases?per_page=30',
-  );
+/// Where a server publishes its releases. Audiobookshelf reports a bare
+/// version number; BookOrbit's carries its name, which picks its repo.
+class _Releases {
+  final String repo;
 
+  const _Releases(this.repo);
+
+  static const audiobookshelf = _Releases('advplyr/audiobookshelf');
+  static const bookOrbit = _Releases('bookorbit/bookorbit');
+  static const bookOrbitPrefix = 'BookOrbit ';
+
+  static _Releases of(String version) =>
+      version.startsWith(bookOrbitPrefix) ? bookOrbit : audiobookshelf;
+
+  Uri get uri =>
+      Uri.parse('https://api.github.com/repos/$repo/releases?per_page=30');
+
+  String tagUrl(String version) =>
+      'https://github.com/$repo/releases/tag/v$version';
+
+  String bareVersion(String version) => this == bookOrbit
+      ? version.substring(bookOrbitPrefix.length)
+      : version;
+}
+
+class AudiobookshelfUpdateService {
   static Future<AudiobookshelfServerUpdate?> check({
     required String currentVersion,
     http.Client? httpClient,
   }) async {
-    final current = _ServerVersion.tryParse(currentVersion);
+    final releases = _Releases.of(currentVersion.trim());
+    final current =
+        _ServerVersion.tryParse(releases.bareVersion(currentVersion.trim()));
     if (current == null) return null;
 
     final client = httpClient ?? http.Client();
     try {
       final response = await client
           .get(
-            _releasesUri,
+            releases.uri,
             headers: const {'Accept': 'application/vnd.github.v3+json'},
           )
           .timeout(const Duration(seconds: 10));
@@ -50,8 +73,7 @@ class AudiobookshelfUpdateService {
           latest = _ReleaseVersion(
             version: version,
             releaseUrl:
-                value['html_url']?.toString() ??
-                'https://github.com/advplyr/audiobookshelf/releases/tag/v${version.value}',
+                value['html_url']?.toString() ?? releases.tagUrl(version.value),
           );
         }
       }
