@@ -8086,7 +8086,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tipsSheetOfflineModeDesc =>
-      '点击“正在收听”界面上的同步图标即可进入离线模式。这将暂停同步并节省流量，且仅显示你已下载的书籍。非常适合在飞机上或信号较弱的区域使用。';
+      '点击“正在收听”界面顶部的绿色云朵即可离线。同步会暂停，不再消耗流量，并且只显示你已下载的内容。离线时云朵为橙色，再点一次即可重新连接。红色云朵表示你已被登出：下载的内容仍可播放，重新登录后收听记录会同步。也可以在设置的“标签长按快捷方式”中让长按某个标签切换离线模式。';
 
   @override
   String get tipsSheetUpcomingReleasesTitle => '即将上架';

@@ -8223,7 +8223,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tipsSheetOfflineModeDesc =>
-      'Appuyez sur le bouton Avion de l\'écran Absorption pour passer en mode hors ligne. Ceci arrête la synchronisation, enregistre les données et affiche uniquement les livres téléchargés. Idéal pour les vols ou les zones de faible signal.';
+      'Appuyez sur le nuage vert en haut de l\'écran Absorption pour passer hors ligne. La synchronisation s\'arrête, rien ne consomme de données et seuls vos téléchargements s\'affichent. Le nuage devient orange hors ligne, et un nouvel appui reconnecte. Un nuage rouge signifie que vous avez été déconnecté : vos téléchargements se lisent quand même, et ce que vous écoutez se synchronise une fois reconnecté. Un appui long sur un onglet peut aussi basculer le mode hors ligne, via les raccourcis d\'appui long dans les Réglages.';
 
   @override
   String get tipsSheetUpcomingReleasesTitle => 'Upcoming Releases';

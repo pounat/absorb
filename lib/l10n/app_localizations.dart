@@ -14076,7 +14076,7 @@ abstract class AppLocalizations {
   /// No description provided for @tipsSheetOfflineModeDesc.
   ///
   /// In en, this message translates to:
-  /// **'Tap the airplane button on the Absorbing screen to enter offline mode. This stops syncing, saves data, and only shows your downloaded books. Great for flights or low signal areas.'**
+  /// **'Tap the green cloud at the top of the Absorbing screen to go offline. Syncing stops, nothing uses data and only your downloads show. The cloud goes orange while you\'re offline, and tapping it again reconnects. A red cloud means you\'ve been signed out: your downloads still play, and what you listen to syncs once you sign back in. Holding a tab can switch offline mode too, under Tab hold shortcuts in Settings.'**
   String get tipsSheetOfflineModeDesc;
 
   /// No description provided for @tipsSheetUpcomingReleasesTitle.

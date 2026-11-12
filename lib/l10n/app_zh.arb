@@ -1491,7 +1491,7 @@
   "tipsSheetSeriesQueueModeTitle": "系列连播模式",
   "tipsSheetSeriesQueueModeDesc": "当你听完某个系列中的一本书时，Absorb 可以自动播放下一本书。请在“设置”中将队列模式更改为“系列”。",
   "tipsSheetOfflineModeTitle": "离线模式",
-  "tipsSheetOfflineModeDesc": "点击“正在收听”界面上的同步图标即可进入离线模式。这将暂停同步并节省流量，且仅显示你已下载的书籍。非常适合在飞机上或信号较弱的区域使用。",
+  "tipsSheetOfflineModeDesc": "点击“正在收听”界面顶部的绿色云朵即可离线。同步会暂停，不再消耗流量，并且只显示你已下载的内容。离线时云朵为橙色，再点一次即可重新连接。红色云朵表示你已被登出：下载的内容仍可播放，重新登录后收听记录会同步。也可以在设置的“标签长按快捷方式”中让长按某个标签切换离线模式。",
   "tipsSheetUpcomingReleasesTitle": "即将上架",
   "tipsSheetUpcomingReleasesDesc": "在“系列”标签页中，再次点击该标签即可打开其排序与筛选面板，然后选择“即将上架”，即可按出版日期查看当前系列中已推出和即将推出的新书。",
   "tipsSheetPerBookEqTitle": "为每本书单独配置均衡器",

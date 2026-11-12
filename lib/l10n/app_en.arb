@@ -4669,7 +4669,7 @@
   "tipsSheetSeriesQueueModeTitle": "Series Queue Mode",
   "tipsSheetSeriesQueueModeDesc": "When you finish a book that's part of a series, Absorb can automatically play the next book. Set queue mode to \"Series\" in Settings.",
   "tipsSheetOfflineModeTitle": "Offline Mode",
-  "tipsSheetOfflineModeDesc": "Tap the airplane button on the Absorbing screen to enter offline mode. This stops syncing, saves data, and only shows your downloaded books. Great for flights or low signal areas.",
+  "tipsSheetOfflineModeDesc": "Tap the green cloud at the top of the Absorbing screen to go offline. Syncing stops, nothing uses data and only your downloads show. The cloud goes orange while you're offline, and tapping it again reconnects. A red cloud means you've been signed out: your downloads still play, and what you listen to syncs once you sign back in. Holding a tab can switch offline mode too, under Tab hold shortcuts in Settings.",
   "tipsSheetUpcomingReleasesTitle": "Upcoming Releases",
   "tipsSheetUpcomingReleasesDesc": "On the Series tab, tap the tab again to open its sort and filter sheet, then choose Upcoming Releases to see new and upcoming books across your series, sorted by release date.",
   "tipsSheetPerBookEqTitle": "Per-Book Equalizer",

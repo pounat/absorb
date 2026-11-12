@@ -135,7 +135,7 @@ void showTipsSheet(BuildContext context) {
             ),
             if (!AppPlatform.lacksPhonePlugins)
               _tipCard(cs, tt,
-                icon: Icons.airplanemode_active_rounded,
+                icon: Icons.cloud_off_rounded,
                 title: l.tipsSheetOfflineModeTitle,
                 desc: l.tipsSheetOfflineModeDesc,
               ),

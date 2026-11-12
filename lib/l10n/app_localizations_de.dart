@@ -8266,7 +8266,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tipsSheetOfflineModeDesc =>
-      'Tippe auf dem Absorbing-Bildschirm auf den Flugzeug-Button, um in den Offline-Modus zu wechseln. Das stoppt die Synchronisierung, spart Daten und zeigt nur deine heruntergeladenen Bücher. Ideal für Flüge oder schlechten Empfang.';
+      'Tippe oben auf dem Absorbing-Bildschirm auf die grüne Wolke, um offline zu gehen. Die Synchronisierung stoppt, es werden keine Daten verbraucht und nur deine Downloads werden angezeigt. Offline ist die Wolke orange, ein weiterer Tipp verbindet wieder. Eine rote Wolke heißt, du wurdest abgemeldet: Deine Downloads laufen trotzdem, und was du hörst, wird nach der Anmeldung synchronisiert. Auch das Halten eines Tabs kann den Offline-Modus umschalten, unter Tab-Halte-Shortcuts in den Einstellungen.';
 
   @override
   String get tipsSheetUpcomingReleasesTitle => 'Kommende Veröffentlichungen';
