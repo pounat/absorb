@@ -4339,6 +4339,20 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// book's audio files. Without one the files go through the in-app proxy.
   final Map<String, ({String token, DateTime expiresAt, Map<String, String> paths})> _narrationTickets = {};
 
+  /// Set once the server keeps download tickets to its own iOS and Android
+  /// apps (BookOrbit 3.7). Downloads then go through the proxy from the
+  /// start, which refreshes the sign-in as it goes.
+  bool _ticketsLocked = false;
+
+  bool _ticketRefused(Object e) {
+    if (e is _BoHttpError && e.status == 403) {
+      _ticketsLocked = true;
+      debugPrint('[BookOrbit] The server keeps download tickets to its own app - downloads go through the proxy');
+      return true;
+    }
+    return false;
+  }
+
   @override
   String? buildNarrationDownloadUrl(String itemId, String contentUrl) {
     final uri = Uri.parse(contentUrl);
@@ -4363,6 +4377,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// A download ticket for a narrated EPUB's audio files, so a background
   /// download outlives the access token like an audiobook's does.
   Future<void> _prepareNarrationDownload(String itemId) async {
+    if (_ticketsLocked) return;
     final n = await _narration(itemId, fresh: true);
     if (n == null) return;
     final hrefs = n.overlay.tracks.map((t) => t.href).take(2048).toList();
@@ -4382,6 +4397,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         _narrationTickets[_key(itemId)] = (token: token, expiresAt: expires, paths: paths);
       }
     } catch (e) {
+      if (_ticketRefused(e)) return;
       debugPrint('[BookOrbit] No narration download ticket for $itemId ($e) - using the proxy');
     }
   }
@@ -4411,6 +4427,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         _tickets[_key(itemId)] = _BoTicket(token, expires, fileIds.map((e) => '$e').toSet());
       }
     } catch (e) {
+      if (_ticketRefused(e)) return;
       debugPrint('[BookOrbit] No download ticket for $itemId ($e) - using the proxy');
     }
   }
