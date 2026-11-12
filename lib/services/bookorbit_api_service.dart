@@ -2674,6 +2674,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
 
   @override
   Future<List<String>> coverSlots(String itemId) async {
+    if (ApiService.isBookDockItem(itemId)) return const [];
     try {
       final d = await _detail(itemId);
       return (d['coverMedia'] as List<dynamic>? ?? const [])
@@ -2971,27 +2972,61 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     SocketService().emitLocalItemRemoved({'id': itemId, 'libraryId': ApiService.bookDockLibraryId});
   }
 
+  /// Set once the server keeps the upload capabilities to its own iOS app
+  /// (BookOrbit 3.7).
+  bool _uploadCapsLocked = false;
+
   @override
   Future<List<BookDockDestination>> bookDockDestinations() async {
-    try {
-      final caps = await _boGet('/uploads/capabilities') as Map<String, dynamic>;
-      if (caps['canUploadToLibrary'] != true) return const [];
-      final out = <BookDockDestination>[];
-      for (final lib in (caps['libraries'] as List<dynamic>? ?? const []).whereType<Map>()) {
-        for (final folder in (lib['folders'] as List<dynamic>? ?? const []).whereType<Map>()) {
-          out.add(BookDockDestination(
-            libraryId: '${lib['id']}',
-            libraryName: '${lib['name'] ?? ''}',
-            folderId: '${folder['id']}',
-            folderName: '${folder['name'] ?? ''}',
-          ));
+    if (!_uploadCapsLocked) {
+      try {
+        final caps = await _boGet('/uploads/capabilities') as Map<String, dynamic>;
+        if (caps['canUploadToLibrary'] != true) return const [];
+        return _dockDestinations(caps['libraries'], named: true);
+      } on _BoHttpError catch (e) {
+        if (e.status != 403) {
+          debugPrint('[BookOrbit] Book Dock destinations: $e');
+          return const [];
         }
+        _uploadCapsLocked = true;
+      } catch (e) {
+        debugPrint('[BookOrbit] Book Dock destinations: $e');
+        return const [];
       }
-      return out;
+    }
+    // The same libraries and folders, from the list every account may
+    // read, with the upload permission checked here instead.
+    try {
+      if (!await _can('library_upload')) return const [];
+      return _dockDestinations(await _boGet('/libraries'), named: false);
     } catch (e) {
-      debugPrint('[BookOrbit] Book Dock destinations: $e');
+      debugPrint('[BookOrbit] Book Dock destinations from the library list: $e');
       return const [];
     }
+  }
+
+  /// Destinations out of libraries with folders. The capabilities route
+  /// names each folder; the library list gives its path.
+  List<BookDockDestination> _dockDestinations(Object? libraries, {required bool named}) {
+    final out = <BookDockDestination>[];
+    for (final lib in (libraries as List<dynamic>? ?? const []).whereType<Map>()) {
+      if (lib['type'] == 'podcasts') continue;
+      final libName = '${lib['name'] ?? ''}';
+      for (final folder in (lib['folders'] as List<dynamic>? ?? const []).whereType<Map>()) {
+        var name = named ? '${folder['name'] ?? ''}' : '';
+        if (name.isEmpty) {
+          final path = '${folder['path'] ?? ''}'.replaceAll(r'\', '/').replaceAll(RegExp(r'/+$'), '');
+          name = path.contains('/') ? path.substring(path.lastIndexOf('/') + 1) : path;
+        }
+        out.add(BookDockDestination(
+          libraryId: '${lib['id']}',
+          libraryName: libName,
+          folderId: '${folder['id']}',
+          folderName: name.isEmpty ? libName : name,
+        ));
+      }
+    }
+    return out;
   }
 
   @override
@@ -6561,8 +6596,10 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     bool descending = true,
     DateTime? from,
     String? format,
-  }) async =>
-      await _boGet('/books/$bookId/sessions', {
+  }) async {
+    // A dock file is not a book yet and has no sessions.
+    if (ApiService.isBookDockItem(bookId)) return const {'items': [], 'total': 0, 'stats': {}};
+    return await _boGet('/books/$bookId/sessions', {
         'page': page,
         'pageSize': pageSize,
         'sortBy': sortBy,
@@ -6570,6 +6607,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         if (from != null) 'dateFrom': _iso(from),
         if (format != null) 'format': format,
       }) as Map<String, dynamic>;
+  }
 
   Future<List<Map<String, dynamic>>> readingAttempts(String bookId) async {
     final res = await _boGet('/books/$bookId/reading-attempts', {'page': 1, 'pageSize': 50}) as Map<String, dynamic>;
