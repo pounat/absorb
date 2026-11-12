@@ -5555,6 +5555,18 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       final api = _api;
       if (api == null || _currentItemId == null) return;
+      // Android takes the decoder away from a paused app when the headphones
+      // connect or disconnect, which surfaces as a renderer error with
+      // nothing playing. Starting a new stream here would play a book
+      // nobody asked for; the next play rebuilds the player where it was.
+      if (!(_player?.playing ?? false)) {
+        debugPrint(
+          '[Player] Decoder failed while paused at '
+          '${(position.inMilliseconds / 1000.0).toStringAsFixed(1)}s - rebuilding on the next play',
+        );
+        _playerBroken = true;
+        return;
+      }
       debugPrint(
         '[Player] Playback error in stream - retrying with server transcoding',
       );
@@ -7588,8 +7600,9 @@ class AudioPlayerService extends ChangeNotifier {
         ? null
         : DateTime.now().difference(_lastPauseTime!);
     final longPause = pausedFor != null && pausedFor >= _pauseStopTimeout;
+    // A failed decoder can leave the player idle; it is rebuilt all the same.
     bool canRebuild() =>
-        _player?.processingState != ProcessingState.idle &&
+        (_playerBroken || _player?.processingState != ProcessingState.idle) &&
         _currentItemId != null &&
         _api != null;
     String? rebuildWhy = _playerBroken
