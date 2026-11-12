@@ -556,8 +556,31 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   List<_Sentence> get _sentences => _sentenceCache[_sentenceSection] ?? const [];
 
-  List<_Sentence> get _shownSentences =>
-      _sentences.skip(_sentenceIndex).take(_sentencesAtATime).toList();
+  /// The sentences on screen together: up to the chosen number, though a
+  /// picture always stands alone.
+  List<_Sentence> get _shownSentences => _groupFrom(_sentences, _sentenceIndex);
+
+  List<_Sentence> _groupFrom(List<_Sentence> list, int start) {
+    if (start < 0 || start >= list.length) return const [];
+    if (list[start].image != null) return [list[start]];
+    final out = <_Sentence>[];
+    for (var i = start; i < list.length && out.length < _sentencesAtATime; i++) {
+      if (list[i].image != null) break;
+      out.add(list[i]);
+    }
+    return out;
+  }
+
+  /// Where the group shown just before [end] starts.
+  int _groupStartBefore(List<_Sentence> list, int end) {
+    if (end <= 0) return 0;
+    if (list[end - 1].image != null) return end - 1;
+    var start = end;
+    while (start > 0 && end - start < _sentencesAtATime && list[start - 1].image == null) {
+      start--;
+    }
+    return start;
+  }
 
   _Sentence? get _currentSentence => _shownSentences.firstOrNull;
 
@@ -652,8 +675,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         final m = e as Map<String, dynamic>;
         final cfi = m['cfi'] as String? ?? '';
         final text = (m['text'] as String? ?? '').trim();
-        if (cfi.isEmpty || text.isEmpty) continue;
-        list.add(_Sentence(cfi: cfi, text: text, id: m['id'] as String?));
+        final image = m['image'] as String?;
+        final picture = image != null && image.isNotEmpty;
+        if (cfi.isEmpty || (text.isEmpty && !picture)) continue;
+        list.add(_Sentence(cfi: cfi, text: text, id: m['id'] as String?, image: picture ? image : null));
       }
       _sentenceCache[sec] = list;
       _sentenceHrefs[sec] = d['href'] as String? ?? '';
@@ -677,9 +702,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   void _sentenceStep(bool forward) {
     if (!_sentenceMode || _sentenceSection < 0 || _sentencesLoading) return;
     final list = _sentences;
-    final n = _sentencesAtATime;
     _sentenceDir = forward ? 1 : -1;
     if (forward) {
+      final n = _shownSentences.length;
       if (_sentenceIndex + n >= list.length) {
         unawaited(_sentenceMoveSection(1));
         return;
@@ -690,7 +715,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         unawaited(_sentenceMoveSection(-1));
         return;
       }
-      setState(() => _sentenceIndex = max(0, _sentenceIndex - n));
+      setState(() => _sentenceIndex = _groupStartBefore(list, _sentenceIndex));
     }
     _afterSentenceMove();
   }
@@ -712,7 +737,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
           _sentencesLoading = false;
           _sentenceAtEnd = false;
           _sentenceSection = sec;
-          _sentenceIndex = dir > 0 ? 0 : max(0, list.length - _sentencesAtATime);
+          _sentenceIndex = dir > 0 ? 0 : _groupStartBefore(list, list.length);
         });
         _afterSentenceMove();
         _prefetchSentences();
@@ -755,9 +780,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   void _armSentenceAuto() {
     _sentenceAutoTimer?.cancel();
     if (!_sentenceAuto || !_sentenceMode) return;
-    final words = _shownSentences.fold<int>(
+    final shown = _shownSentences;
+    final words = shown.fold<int>(
         0, (n, s) => n + s.text.split(RegExp(r'\s+')).length);
-    final ms = max(900, (words / _sentenceWpm * 60000).round());
+    // A picture gets a few seconds to look at; words go by the chosen pace.
+    final ms = shown.any((s) => s.image != null)
+        ? 3000
+        : max(900, (words / _sentenceWpm * 60000).round());
     _sentenceAutoTimer = Timer(Duration(milliseconds: ms), () {
       if (mounted && _sentenceAuto && _sentenceMode) _sentenceStep(true);
     });
@@ -812,11 +841,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     if (wc == null || !_sentenceMode) return;
     final l = AppLocalizations.of(context)!;
     final waiting = _sentencesLoading || (_sentenceSection < 0 && !_sentenceAtEnd);
+    final shown = _shownSentences;
+    final picture = waiting || _sentenceAtEnd ? null : shown.firstOrNull?.image;
     final text = waiting
         ? ''
         : _sentenceAtEnd
             ? l.readerSentenceEnd
-            : _shownSentences.map((s) => s.text).join('  ');
+            : shown.map((s) => s.text).join('  ');
     final key = waiting ? 'wait' : _sentenceAtEnd ? 'end' : '$_sentenceSection:$_sentenceIndex';
     final palette = _resolvePalette(context);
     final family = _font.family.isEmpty ? 'inherit' : _font.family;
@@ -830,6 +861,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       'lineHeight': _lineHeight + 0.1,
       'align': _alignLeft ? 'left' : 'center',
       'transition': PlayerSettings.einkMode ? 'none' : _sentenceTransition,
+      'dim': css(fgDim),
+      if (picture != null) 'image': picture,
     };
     unawaited(wc.evaluateJavascript(
         source: 'window.absorbSentenceView && absorbSentenceView.set('
@@ -8361,7 +8394,9 @@ class _Sentence {
   final String cfi;
   final String text;
   final String? id;
-  const _Sentence({required this.cfi, required this.text, this.id});
+  /// A picture standing among the sentences, with [text] as its caption.
+  final String? image;
+  const _Sentence({required this.cfi, required this.text, this.id, this.image});
 }
 
 class _SearchPayload {

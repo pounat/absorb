@@ -4977,16 +4977,46 @@ window.absorbSentences = async function (spineIndex, atCfi) {
         }
         return null;
       }
+      // A picture takes its place among the sentences: an <img>, or an
+      // <image> inside an <svg> the way cover pages are often done. Ones
+      // sized down to an ornament or a spacer are left out.
+      var PICTURE = { IMG: 1, IMAGE: 1 };
+      var NOT_SHOWN = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TITLE: 1, HEAD: 1 };
+      function under(node, table) {
+        for (var e = node.parentNode; e && e !== body; e = e.parentNode) {
+          if (table[String(e.nodeName).toUpperCase()]) return true;
+        }
+        return false;
+      }
+      function ornament(el) {
+        var w = parseFloat(el.getAttribute('width')), h = parseFloat(el.getAttribute('height'));
+        return (w > 0 && w < 32) || (h > 0 && h < 32);
+      }
+      function pictureUrl(src) {
+        var base = /^[a-z][a-z0-9+.-]*:/i.test(item.url || '') ? item.url : 'http://absorb.book' + (item.url || '/');
+        var abs;
+        try { abs = new URL(src, base); } catch (e) { return Promise.resolve(''); }
+        var archive = book.archive;
+        if (!archive) return Promise.resolve(abs.href);
+        var path = abs.pathname;
+        if (!archive.zip || !archive.zip.file(decodeURIComponent(path.substr(1)))) return Promise.resolve('');
+        return archive.createUrl(path, { base64: false });
+      }
       var runs = [];
-      var walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT, null, false);
+      var walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null, false);
       var n, cur = null;
       while ((n = walker.nextNode())) {
-        if (!n.nodeValue || !n.nodeValue.trim()) continue;
-        var skip = false;
-        for (var e = n.parentNode; e && e !== body; e = e.parentNode) {
-          if (SKIP[String(e.nodeName).toUpperCase()]) { skip = true; break; }
+        if (n.nodeType === 1) {
+          if (!PICTURE[String(n.nodeName).toUpperCase()] || under(n, NOT_SHOWN) || ornament(n)) continue;
+          var src = n.getAttribute('src') || n.getAttribute('href') ||
+            n.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+          if (!src) continue;
+          runs.push({ picture: n, src: src, alt: (n.getAttribute('alt') || '').replace(/\s+/g, ' ').trim() });
+          cur = null;
+          continue;
         }
-        if (skip) continue;
+        if (!n.nodeValue || !n.nodeValue.trim()) continue;
+        if (under(n, SKIP)) continue;
         var b = blockOf(n);
         if (!cur || cur.block !== b) { cur = { block: b, nodes: [], text: '' }; runs.push(cur); }
         var start = cur.text.length;
@@ -5036,7 +5066,16 @@ window.absorbSentences = async function (spineIndex, atCfi) {
         var last = run.nodes[run.nodes.length - 1];
         return { node: last.node, offset: last.node.nodeValue.length };
       }
-      runs.forEach(function (run) {
+      for (var ri = 0; ri < runs.length; ri++) {
+        var run = runs[ri];
+        if (run.picture) {
+          var pcfi = '';
+          try { pcfi = item.cfiFromElement(run.picture); } catch (err) {}
+          var purl = '';
+          try { purl = await pictureUrl(run.src); } catch (err2) {}
+          if (pcfi && purl) out.push({ cfi: pcfi, text: run.alt, image: purl, id: run.picture.id || idOf(run.picture, body) });
+          continue;
+        }
         splitSentences(run.text).forEach(function (pe) {
           var s = pe[0], e = pe[1];
           while (s < e && /\s/.test(run.text[s])) s++;
@@ -5053,7 +5092,7 @@ window.absorbSentences = async function (spineIndex, atCfi) {
           } catch (err) {}
           if (cfi) out.push({ cfi: cfi, text: t, id: idOf(a.node, run.block) });
         });
-      });
+      }
     }
   } catch (e) {
   } finally {
@@ -5121,6 +5160,22 @@ window.absorbSentenceView = (function () {
       'line-height:' + (o.lineHeight || 1.5) + ';color:' + (o.color || '#000') + ';' +
       'text-align:' + (o.align || 'center') + ';margin:0;' +
       'transition:opacity 220ms ease, transform 220ms ease;will-change:opacity,transform;';
+  }
+  // A picture fills what the box has room for, its alt text small beneath.
+  function picture(el, o, caption) {
+    var img = document.createElement('img');
+    img.src = o.image;
+    img.alt = caption || '';
+    img.style.cssText = 'display:block;max-width:100%;max-height:calc(100vh - ' + (caption ? 180 : 120) + 'px);' +
+      'width:auto;height:auto;margin:0 auto;object-fit:contain;';
+    el.appendChild(img);
+    if (caption) {
+      var cap = document.createElement('div');
+      cap.textContent = caption;
+      cap.style.cssText = 'margin-top:12px;font-size:' + Math.round((o.size || 22) * 0.7) + 'px;' +
+        'color:' + (o.dim || o.color || '#000') + ';';
+      el.appendChild(cap);
+    }
   }
   // The leaving sentence bursts: pinned where it was, each word flies out
   // from the sentence's centre a little way, turning as it fades. Spaces
@@ -5194,12 +5249,12 @@ window.absorbSentenceView = (function () {
     set: function (text, key, dir, o) {
       ensure(o);
       if (cur && key === shownKey) {
-        cur.textContent = text;
+        if (!o.image) cur.textContent = text;
         styled(cur, o);
         return true;
       }
       var el = document.createElement('div');
-      el.textContent = text;
+      if (o.image) picture(el, o, text); else el.textContent = text;
       styled(el, o);
       var style = o.transition || 'none';
       var old = cur;
@@ -5211,7 +5266,8 @@ window.absorbSentenceView = (function () {
         return true;
       }
       if (style === 'burst') {
-        burst(old);
+        // A picture has no words to scatter, so it fades out instead.
+        if (old.querySelector('img')) leave(old, 'scale(0.96)', 220); else burst(old);
         el.style.opacity = '0';
         el.style.transition = 'opacity 260ms ease 120ms';
         inner.appendChild(el);
