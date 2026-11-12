@@ -496,6 +496,9 @@ class ProgressSyncService {
     final ok = _isOnline &&
         await api.updateEbookProgress(itemId,
             ebookLocation: location, ebookProgress: progress);
+    debugPrint('[Sync] ebook spot for $itemId ${ok ? 'saved' : 'not saved'}'
+        '${api.lastEbookProgressStatus == null ? '' : ' status=${api.lastEbookProgressStatus}'}'
+        ' pct=${(progress * 100).toStringAsFixed(2)} at $location');
     if (ok) {
       await _removePendingEbook(itemId);
       return;

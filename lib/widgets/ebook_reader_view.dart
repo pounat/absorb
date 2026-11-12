@@ -2097,7 +2097,13 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         debugPrint('[EbookReader] server position check timed out item=${widget.itemId}');
         return null;
       });
-      if (!mounted || server == null) return;
+      if (!mounted) return;
+      final phone = lib.getProgressData(widget.itemId);
+      debugPrint('[EbookReader] server spot item=${widget.itemId}: '
+          '${server == null ? 'none' : '${server['ebookLocation']} pct=${server['ebookProgress']} updated=${server['ebookUpdatedAt']}'}'
+          ' | phone: ${phone?['ebookLocation']} pct=${phone?['ebookProgress']}'
+          '${pending == null ? '' : ' | queued: ${pending['loc']} ts=${pending['ts']}'}');
+      if (server == null) return;
       if (pending != null) {
         final serverAt = (server['ebookUpdatedAt'] as num?)?.toInt();
         final pendingAt = (pending['ts'] as num?)?.toInt();
