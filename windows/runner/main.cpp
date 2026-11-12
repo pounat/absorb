@@ -4,6 +4,7 @@
 
 #include "flutter_window.h"
 #include "utils.h"
+#include "window_placement.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -31,6 +32,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
+
+  // Back where it was last time: the same size on the same monitor,
+  // maximized again if it was. It still appears with the first frame.
+  WINDOWPLACEMENT placement;
+  if (LoadWindowPlacement(&placement)) {
+    window.SetShowMaximized(placement.showCmd == SW_SHOWMAXIMIZED);
+    placement.showCmd = SW_HIDE;
+    SetWindowPlacement(window.GetHandle(), &placement);
+  }
 
   ::MSG msg;
   while (::GetMessage(&msg, nullptr, 0, 0)) {
