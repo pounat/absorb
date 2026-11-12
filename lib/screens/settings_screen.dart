@@ -1921,7 +1921,8 @@ class SettingsScreenState extends State<SettingsScreen> {
       });
     }
     final serverVersion = auth.serverVersion?.trim();
-    if (auth.isAdmin && serverVersion != null && serverVersion.isNotEmpty &&
+    final serverAdmin = auth.isAdmin || auth.bookOrbitAdmin?.any == true;
+    if (serverAdmin && serverVersion != null && serverVersion.isNotEmpty &&
         !_serverUpdateCheckRunning && _serverUpdateCheckedFor != serverVersion) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadServerUpdate(serverVersion);
@@ -2247,6 +2248,14 @@ class SettingsScreenState extends State<SettingsScreen> {
                                     style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                                 ],
                               )),
+                              if (_serverUpdate != null) ...[
+                                ServerAdminStatusBadges(
+                                  issueCount: 0,
+                                  updateVersion: _serverUpdate!.latestVersion,
+                                  updateTooltip: l.serverUpdateAvailable(_serverUpdate!.latestVersion),
+                                ),
+                                const SizedBox(width: 10),
+                              ],
                               Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                             ],
                           ),
