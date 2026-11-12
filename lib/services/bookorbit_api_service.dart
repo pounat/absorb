@@ -2243,7 +2243,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final books = <Map<String, dynamic>>[];
     var total = 0;
     for (var page = 0; page < 40 && books.length < maxBooks; page++) {
-      final res = await _boGet(path, {'page': page, 'size': 100}) as Map<String, dynamic>;
+      final res = await _booksPage(path, page, 100);
       final items = (res['items'] as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>().toList();
       books.addAll(items.map((card) => _cardItem(card)));
       total = (res['total'] as num?)?.toInt() ?? books.length;
@@ -2259,7 +2259,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         ? '/smart-scopes/${collectionId.substring(_scopeIdPrefix.length)}/books'
         : '/collections/$collectionId/books';
     try {
-      final res = await _boGet(path, {'page': page, 'size': size}) as Map<String, dynamic>;
+      final res = await _booksPage(path, page, size);
       return (res['items'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .map((card) => _cardItem(card))
@@ -2268,6 +2268,18 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       debugPrint('[BookOrbit] $path page $page failed: $e');
       return null;
     }
+  }
+
+  /// One page of a collection's or scope's books. A scope is asked through
+  /// its query route, the one the web uses: BookOrbit 3.7 lets only its iOS
+  /// app at the plain listing.
+  Future<Map<String, dynamic>> _booksPage(String path, int page, int size) async {
+    if (path.startsWith('/smart-scopes/')) {
+      return await _boPost('$path/query', {
+        'pagination': {'page': page, 'size': size},
+      }) as Map<String, dynamic>;
+    }
+    return await _boGet(path, {'page': page, 'size': size}) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> _collection(Map<String, dynamic> c, {bool withBooks = true, int maxBooks = 2000}) async {
@@ -4731,7 +4743,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     if (fileId == null) return;
     final pct = ((progress ?? 0) * 100).clamp(0.0, 100.0);
     final page = location == null ? null : int.tryParse(location);
-    await _boPost('/books/files/$fileId/progress', {
+    await _writeFileProgress('$fileId', {
       'percentage': pct,
       if (location != null && page == null) 'cfi': location,
       if (page != null) 'pageNumber': page,
@@ -4773,7 +4785,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       final fileId = row['fileId'];
       if (fileId == null) continue;
       try {
-        await _boDelete('/books/files/$fileId/progress');
+        await _clearFileProgress('$fileId');
       } on _BoHttpError catch (e) {
         if (e.status != 404) rethrow;
       }
@@ -4783,6 +4795,66 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       await _setStatus(bookId, {'status': 'unread'});
     }
     _forgetProgress(bookId);
+  }
+
+  /// Set once a server turns out to predate the grouped progress route.
+  bool _oldProgressRoute = false;
+
+  /// Saves a file's place through the route BookOrbit's own web reader uses.
+  /// BookOrbit 3.7 lets only its iOS app at the older per-file route, and a
+  /// server from before 3.6 has only that one, so it is tried next. [body]
+  /// is in the per-file route's flat shape.
+  Future<void> _writeFileProgress(String fileId, Map<String, Object?> body) async {
+    final id = int.tryParse(fileId);
+    if (id != null && !_oldProgressRoute) {
+      try {
+        await _boPut('/reading-progress', {
+          'writes': [
+            {
+              'fileId': id,
+              if (body['source'] != null) 'kind': body['source'],
+              'percentage': body['percentage'],
+              if (body.containsKey('cfi') || body.containsKey('pageNumber'))
+                'text': {
+                  if (body.containsKey('cfi')) 'cfi': body['cfi'],
+                  if (body.containsKey('pageNumber')) 'page': body['pageNumber'],
+                },
+              if (body.containsKey('positionSeconds') || body.containsKey('mediaOverlayFragment'))
+                'narration': {
+                  if (body.containsKey('positionSeconds')) 'seconds': body['positionSeconds'],
+                  if (body.containsKey('mediaOverlayFragment')) 'fragment': body['mediaOverlayFragment'],
+                  if (body.containsKey('mediaOverlaySectionIndex')) 'sectionIndex': body['mediaOverlaySectionIndex'],
+                },
+            },
+          ],
+        });
+        return;
+      } on _BoHttpError catch (e) {
+        if (e.status != 404) rethrow;
+        _oldProgressRoute = true;
+      }
+    }
+    await _boPost('/books/files/$fileId/progress', body);
+  }
+
+  /// Forgets a file's place the same way. A 404 from the grouped route may
+  /// only mean there was nothing to forget, so the older route is still
+  /// asked, and refused there (3.7) means it is already gone from the app.
+  Future<void> _clearFileProgress(String fileId) async {
+    if (!_oldProgressRoute) {
+      try {
+        await _boDelete('/reading-progress/$fileId');
+        return;
+      } on _BoHttpError catch (e) {
+        if (e.status != 404) rethrow;
+      }
+    }
+    try {
+      await _boDelete('/books/files/$fileId/progress');
+    } on _BoHttpError catch (e) {
+      if (e.status != 403) rethrow;
+      debugPrint('[BookOrbit] progress for file $fileId not cleared: ${e.status}');
+    }
   }
 
   /// Only the ebook file's progress: the full item progress also reads the
@@ -5391,7 +5463,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final total = n.overlay.duration;
     final clip = n.overlay.clipAt(seconds);
     try {
-      await _boPost('/books/files/${n.fileId}/progress', {
+      await _writeFileProgress('${n.fileId}', {
         'percentage': total > 0 ? (seconds / total * 100).clamp(0.0, 100.0) : 0,
         'positionSeconds': math.max(0.0, seconds),
         'mediaOverlayFragment': clip?.textSrc,
