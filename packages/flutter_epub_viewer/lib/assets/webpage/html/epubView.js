@@ -191,6 +191,9 @@ function loadBook(data, cfi, initialXPath, manager, flow, spread, snap, allowScr
   rendition.hooks.content.register(function (contents) {
     attachTurnDrag(contents.document);
   });
+  // iOS hands a touch on the page to this document, not the page's own, so
+  // the drag is watched from here too. The two share one drag.
+  attachTurnDrag(document);
   rendition.hooks.content.register(markParagraphs);
 
   // Absorb patch: scroll mode only moves up and down, down to each chapter's
@@ -2306,53 +2309,53 @@ function playSlide(m, from, to, ms) {
 // A sideways drag turns the page: in "slide" the page follows the finger and
 // settles on whichever page it was pulled toward; in "none" it turns once the
 // finger lifts. Selecting text, auto scroll and scroll mode keep their touches.
+var turnDrag = null;
 function attachTurnDrag(doc) {
   if (!doc || doc.__absorbTurnDrag) return;
   doc.__absorbTurnDrag = true;
-  var d = null;
   doc.addEventListener("touchstart", function (e) {
-    d = null;
+    turnDrag = null;
     if (turnStyle === "curl" || scrolledFlow() || blindRendition || glideActive) return;
     if (!e.touches || e.touches.length !== 1 || !rendition || !rendition.manager) return;
     var t = e.touches[0];
-    d = { x0: t.screenX, y0: t.screenY, at: e.timeStamp, moving: false, track: [] };
+    turnDrag = { x0: t.screenX, y0: t.screenY, at: e.timeStamp, moving: false, track: [] };
   }, { capture: true, passive: true });
   doc.addEventListener("touchmove", function (e) {
-    if (!d) return;
+    if (!turnDrag) return;
     if (!e.touches || e.touches.length !== 1) {
       release(null, true);
       return;
     }
     var t = e.touches[0];
-    if (!d.moving) {
-      var dx = t.screenX - d.x0;
-      var dy = t.screenY - d.y0;
+    if (!turnDrag.moving) {
+      var dx = t.screenX - turnDrag.x0;
+      var dy = t.screenY - turnDrag.y0;
       if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
       // A finger that rested before moving was pressing to select text.
-      if (Math.abs(dx) <= Math.abs(dy) * 1.2 || isSelecting || hasActiveSelection() || e.timeStamp - d.at > 400) {
-        d = null;
+      if (Math.abs(dx) <= Math.abs(dy) * 1.2 || isSelecting || hasActiveSelection() || e.timeStamp - turnDrag.at > 400) {
+        turnDrag = null;
         return;
       }
       finishTurnSlide();
       var m = rendition.manager;
-      d.moving = true;
-      d.m = m;
-      d.x = t.screenX; // the page moves from here, without a jump
-      d.base = m.container.scrollLeft;
-      d.page = (m.layout && m.layout.delta) || m.container.clientWidth || 1;
+      turnDrag.moving = true;
+      turnDrag.m = m;
+      turnDrag.x = t.screenX; // the page moves from here, without a jump
+      turnDrag.base = m.container.scrollLeft;
+      turnDrag.page = (m.layout && m.layout.delta) || m.container.clientWidth || 1;
       turnDragActive = turnStyle === "slide";
     }
-    d.track.push({ x: t.screenX, at: e.timeStamp });
-    if (d.track.length > 5) d.track.shift();
+    turnDrag.track.push({ x: t.screenX, at: e.timeStamp });
+    if (turnDrag.track.length > 5) turnDrag.track.shift();
     if (turnStyle === "slide") {
-      var off = Math.max(-d.page, Math.min(d.page, t.screenX - d.x));
-      d.m.ignore = true;
-      d.m.container.scrollLeft = d.base - off;
+      var off = Math.max(-turnDrag.page, Math.min(turnDrag.page, t.screenX - turnDrag.x));
+      turnDrag.m.ignore = true;
+      turnDrag.m.container.scrollLeft = turnDrag.base - off;
     }
   }, { capture: true, passive: true });
   function release(e, cancelled) {
-    var g = d;
-    d = null;
+    var g = turnDrag;
+    turnDrag = null;
     turnDragActive = false;
     if (!g || !g.moving) return;
     var m = g.m;
