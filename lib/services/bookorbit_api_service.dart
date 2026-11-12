@@ -4964,7 +4964,10 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   }
 
   void _forgetListeningStats() => _recent.removeWhere((k, _) =>
-      k == _key('listening-stats') || k.startsWith(_key('activity-day-')) || k.startsWith(_key('year-stats-')));
+      k == _key('listening-stats') ||
+      k.startsWith(_key('activity-day-')) ||
+      k.startsWith(_key('timeline-')) ||
+      k.startsWith(_key('year-stats-')));
 
   /// The file a listen is logged against: the audiobook's first file, or
   /// the EPUB that reads itself aloud.
@@ -5840,7 +5843,15 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// streaks reach back past January.
   Future<Map<String, dynamic>> _listeningStats() async {
     const wait = Duration(seconds: 45);
-    final overview = await _boGet('/user-statistics/activity-overview', null, wait) as Map<String, dynamic>;
+    if (_activityLocked) return _openStats();
+    final Map<String, dynamic> overview;
+    try {
+      overview = await _boGet('/user-statistics/activity-overview', null, wait) as Map<String, dynamic>;
+    } on _BoHttpError catch (e) {
+      if (e.status != 403) rethrow;
+      _activityLocked = true;
+      return _openStats();
+    }
     final calendar = overview['calendar'] as Map? ?? const {};
     final thisYear = (calendar['year'] as num?)?.toInt();
     final otherYears = [
@@ -5951,13 +5962,241 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     };
   }
 
+  /// Set once the server refuses the activity routes, which BookOrbit 3.7
+  /// keeps for its own iOS app.
+  bool _activityLocked = false;
+
+  /// The Stats screen's numbers from the routes BookOrbit's own web stats
+  /// use, for a server that keeps the activity routes to its iOS app.
+  /// Listening and reading are told apart by the file's format, and the
+  /// split by day, the books heard most and the typical session come from
+  /// the last half year of sessions.
+  Future<Map<String, dynamic>> _openStats() async {
+    const wait = Duration(seconds: 45);
+    const span = {'days': 3650};
+    Future<Object?> optional(String path, [Map<String, dynamic>? query]) async {
+      try {
+        return await _boGet(path, query, wait);
+      } catch (e) {
+        debugPrint('[BookOrbit] Stats: $path failed: $e');
+        return null;
+      }
+    }
+
+    final parts = await Future.wait([
+      optional('/user-statistics/reading-heatmap', span),
+      optional('/user-statistics/summary'),
+      optional('/user-statistics/peak-hours', span),
+      optional('/user-statistics/reading-source-distribution', span),
+      optional('/user-statistics/completion-timeline', span),
+      optional('/user-statistics/genre-reading-time', span),
+      optional('/user-statistics/reading-pace', span),
+      optional('/user-statistics/completion-latency', span),
+      optional('/auth/me'),
+    ]);
+    List<Map<String, dynamic>> rows(Object? v) =>
+        (v as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>().toList();
+    final summary = parts[1] as Map<String, dynamic>?;
+    final sources = parts[3] as Map<String, dynamic>?;
+    final latency = parts[7] as Map<String, dynamic>?;
+    final settings = (parts[8] as Map<String, dynamic>?)?['settings'] as Map?;
+
+    final heat = <String, num>{};
+    for (final d in rows(parts[0])) {
+      final day = d['day'] as String?;
+      final s = (d['readingSeconds'] as num?) ?? 0;
+      if (day != null && s > 0) heat[day] = s;
+    }
+    final weeks = <({int year, int week})>{};
+    for (final day in heat.keys.toList()..sort((a, b) => b.compareTo(a))) {
+      final d = DateTime.tryParse(day);
+      if (d == null) continue;
+      weeks.add(_isoWeek(d));
+      if (weeks.length >= 26) break;
+    }
+    final sessions = <Map<String, dynamic>>[];
+    final list = weeks.toList();
+    for (var i = 0; i < list.length; i += 6) {
+      final batch = list.sublist(i, math.min(i + 6, list.length));
+      for (final got in await Future.wait(batch.map((w) async {
+        try {
+          return await _timelineWeek(w.year, w.week);
+        } catch (e) {
+          debugPrint('[BookOrbit] Stats: week ${w.year}-${w.week} failed: $e');
+          return const <Map<String, dynamic>>[];
+        }
+      }))) {
+        sessions.addAll(got);
+      }
+    }
+
+    final days = <String, num>{}, listen = <String, num>{}, read = <String, num>{};
+    heat.forEach((day, s) {
+      final d = DateTime.tryParse(day);
+      if (d == null || !weeks.contains(_isoWeek(d))) days[day] = s;
+    });
+    final items = <String, dynamic>{};
+    final all = <num>[], listened = <num>[], readFor = <num>[];
+    for (final s in sessions) {
+      final started = DateTime.tryParse(s['startedAt'] as String? ?? '')?.toLocal();
+      if (started == null) continue;
+      final day = _dayKey(started);
+      final secs = (s['durationOnDaySeconds'] as num?) ?? 0;
+      final listening = s['mediaBucket'] == 'listening';
+      days.update(day, (v) => v + secs, ifAbsent: () => secs);
+      (listening ? listen : read).update(day, (v) => v + secs, ifAbsent: () => secs);
+      (listening ? listened : readFor).add(secs);
+      all.add(secs);
+      final id = '${s['bookId']}';
+      final prev = (items[id] as Map?)?['timeListening'] as num? ?? 0;
+      items[id] = {
+        'id': id,
+        'timeListening': prev + secs,
+        'mediaMetadata': {'title': s['bookTitle'], 'authorName': null},
+      };
+    }
+
+    final hours = <Map<String, dynamic>>[];
+    int? peakHour;
+    num peakSecs = 0;
+    for (final h in rows(parts[2])) {
+      final secs = (h['readingSeconds'] as num?) ?? 0;
+      final audio = _audioSeconds(h['byFormat']);
+      hours.add({'hour': h['hour'], 'listening': audio, 'reading': secs - audio});
+      if (secs > peakSecs) {
+        peakSecs = secs;
+        peakHour = (h['hour'] as num?)?.toInt();
+      }
+    }
+    final goal = (settings?['dashboardConfig'] as Map?)?['readingGoal'];
+    return {
+      'totalTime': days.values.fold<num>(0, (sum, v) => sum + v),
+      'items': items,
+      'days': days,
+      'today': days[_dayKey(DateTime.now())] ?? 0,
+      'recentSessions': const [],
+      'bookOrbit': {
+        'timezone': settings?['timezone'],
+        'listenDays': listen,
+        'readDays': read,
+        'hours': hours,
+        'peakHour': peakHour,
+        'favoriteDay': null,
+        'sources': [
+          for (final s in (sources?['slices'] as List<dynamic>? ?? const []).whereType<Map>())
+            if (((s['readingSeconds'] as num?) ?? 0) > 0) {'bucket': s['bucket'], 'time': s['readingSeconds']},
+        ],
+        'finishedMonths': [
+          for (final m in rows(parts[4])) {'year': m['year'], 'month': m['month'], 'count': m['count'] ?? 0},
+        ],
+        'genres': [
+          for (final g in rows(parts[5])) {'genre': g['genre'], 'time': g['readingSeconds'] ?? 0},
+        ],
+        'medianSession': _median(all),
+        'medianListen': _median(listened),
+        'medianRead': _median(readFor),
+        'medianProgress': _median([
+          for (final p in rows(parts[6]))
+            if (p['progressDelta'] is num) p['progressDelta'] as num,
+        ]),
+        'medianDaysToFinish': latency?['medianDays'],
+        'started': summary?['startedBooks'],
+        'inProgress': summary?['inProgressBooks'],
+        'completed': summary?['completedBooks'],
+        'meanProgress': summary?['meanProgressPercent'],
+        'goalBooks': goal is num && goal > 0 ? goal.round() : null,
+      },
+    };
+  }
+
+  static const _audioFormats = {'M4B', 'MP3', 'M4A', 'AAC', 'FLAC', 'OGG', 'OPUS', 'WAV', 'WMA', 'AIFF'};
+
+  static bool _isAudioFormat(Object? format) => _audioFormats.contains('${format ?? ''}'.toUpperCase());
+
+  static num _audioSeconds(Object? byFormat) {
+    num n = 0;
+    for (final e in ((byFormat as Map?) ?? const {}).entries) {
+      if (_isAudioFormat(e.key)) n += (e.value as num?) ?? 0;
+    }
+    return n;
+  }
+
+  static num? _median(List<num> values) {
+    if (values.isEmpty) return null;
+    final s = [...values]..sort();
+    final m = s.length ~/ 2;
+    return s.length.isOdd ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+
+  /// The ISO week a date's calendar day falls in.
+  static ({int year, int week}) _isoWeek(DateTime day) {
+    final d = DateTime.utc(day.year, day.month, day.day);
+    final thursday = d.add(Duration(days: DateTime.thursday - d.weekday));
+    final dayOfYear = thursday.difference(DateTime.utc(thursday.year)).inDays + 1;
+    return (year: thursday.year, week: (dayOfYear - 1) ~/ 7 + 1);
+  }
+
+  /// One ISO week's sessions from the web's timeline, each in the shape of
+  /// a day's session. The current week keeps changing, so it is asked
+  /// again sooner.
+  Future<List<Map<String, dynamic>>> _timelineWeek(int year, int week) {
+    final now = _isoWeek(DateTime.now().toUtc());
+    final current = now.year == year && now.week == week;
+    return _cached('timeline-$year-$week', Duration(minutes: current ? 1 : 10), () async {
+      final res = await _boGet('/user-statistics/session-timeline', {'year': year, 'week': week},
+          const Duration(seconds: 30)) as Map<String, dynamic>;
+      return [
+        for (final t in (res['items'] as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>())
+          {
+            'id': t['sessionId'],
+            'bookId': t['bookId'],
+            'bookFileId': null,
+            'bookTitle': t['bookTitle'],
+            'format': t['bookFormat'],
+            'mediaBucket': _isAudioFormat(t['bookFormat']) ? 'listening' : 'reading',
+            'sourceBucket': t['bookSource'],
+            'startedAt': t['startedAt'],
+            'endedAt': t['endedAt'],
+            'durationOnDaySeconds': t['durationSeconds'],
+          },
+      ];
+    });
+  }
+
+  /// A day's sessions out of the week's timeline. A session counts whole on
+  /// the day it started, so one that runs past midnight is never split.
+  Future<Map<String, dynamic>> _timelineDay(String day) async {
+    final d = DateTime.tryParse(day);
+    if (d == null) return {'day': day, 'sessions': const []};
+    final local = DateTime(d.year, d.month, d.day);
+    final weeks = {_isoWeek(local.toUtc()), _isoWeek(local.add(const Duration(days: 1)).toUtc())};
+    final sessions = <Map<String, dynamic>>[];
+    for (final w in weeks) {
+      for (final s in await _timelineWeek(w.year, w.week)) {
+        final started = DateTime.tryParse(s['startedAt'] as String? ?? '')?.toLocal();
+        if (started != null && _dayKey(started) == day) sessions.add(s);
+      }
+    }
+    return {'day': day, 'sessions': sessions};
+  }
+
   /// One day's sessions as BookOrbit lists them. Today keeps changing, so it
   /// is asked again sooner than past days.
   Future<Map<String, dynamic>> _activityDay(String day) {
     final now = DateTime.now();
     final today = day == _dayKey(now) || day == _dayKey(now.toUtc());
-    return _cached('activity-day-$day', Duration(minutes: today ? 1 : 10), () async =>
-        await _boGet('/user-statistics/activity-days/$day', null, const Duration(seconds: 30)) as Map<String, dynamic>);
+    return _cached('activity-day-$day', Duration(minutes: today ? 1 : 10), () async {
+      if (!_activityLocked) {
+        try {
+          return await _boGet('/user-statistics/activity-days/$day', null, const Duration(seconds: 30))
+              as Map<String, dynamic>;
+        } on _BoHttpError catch (e) {
+          if (e.status != 403) rethrow;
+          _activityLocked = true;
+        }
+      }
+      return _timelineDay(day);
+    });
   }
 
   static String _dayKey(DateTime d) =>
