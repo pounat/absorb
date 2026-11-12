@@ -892,12 +892,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         behavior: HitTestBehavior.opaque,
         onTapUp: (d) {
           final frac = cons.maxWidth > 0 ? d.localPosition.dx / cons.maxWidth : 0.5;
-          if (frac < 0.3) {
-            _sentenceStep(false);
-          } else if (frac > 0.7) {
-            _sentenceStep(true);
-          } else {
-            _toggleControls();
+          final fy = cons.maxHeight > 0 ? d.localPosition.dy / cons.maxHeight : 0.5;
+          switch (_tapZones.actionAt(frac, fy)) {
+            case 'prev':
+              _sentenceStep(false);
+            case 'next':
+              _sentenceStep(true);
+            case 'menu':
+              _toggleControls();
           }
         },
         onHorizontalDragEnd: (d) {
@@ -1623,8 +1625,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _wakeScreenAgain();
     // While auto scroll runs, the in-WebView pad owns taps: pause, resume and
     // press-and-hold to stop. This Listener sees raw pointers regardless of the
-    // platform view, so without this it turned pages under the blind.
-    if (_autoScroll) return;
+    // platform view, so without this it turned pages under the blind. The tap
+    // zone editor covers the page the same way, and a press on its card has
+    // turned the page beneath it on e-ink readers.
+    if (_autoScroll || _editingTapZones) return;
     final now = DateTime.now();
     final sinceMs = now.difference(_lastReaderTap).inMilliseconds;
     if (sinceMs < 350) {
@@ -8284,7 +8288,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               },
           ))),
 
-          if (_sentenceMode)
+          // The tap zone editor lives in the viewer area, under this layer,
+          // so the layer steps aside while the zones are being edited.
+          if (_sentenceMode && !_editingTapZones)
             Positioned.fill(child: _buildSentenceView(bg, fg, fgDim, accent)),
 
           // Top overlay: what you are reading and how far in. Controls live
