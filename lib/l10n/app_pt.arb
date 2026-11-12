@@ -1,3 +1,109 @@
 {
-  "@@locale": "pt"
+  "@@locale": "pt-PT",
+  "online": "",
+  "offline": "Desconectado",
+  "stillOffline": "Ainda desconectado. Toque para tentar novamente.",
+  "retry": "Tentar novamente",
+  "listsNone": "Nenhuma coleção ou lista de reprodução",
+  "listsLoadFailed": "Não foi possível carregar as suas listas",
+  "cancel": "Cancelar",
+  "delete": "Excluir",
+  "remove": "Excluir",
+  "save": "Salvar",
+  "done": "Concluído",
+  "edit": "Editar",
+  "search": "Pesquisar",
+  "apply": "Confirmar",
+  "enable": "Ativar",
+  "clear": "Limpar",
+  "off": "Desligado",
+  "disabled": "Desabilitado",
+  "later": "Lembrar mais tarde",
+  "whatsNewTitle": "Absorb foi atualizado",
+  "whatsNewContent": "Agora está agora na versão {version}.",
+  "@whatsNewContent": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNewButton": "Ver o que há de novo",
+  "whatsNewKeepShowing": "Exibir isto após cada atualização",
+  "whatsNewKeepShowingHint": "Pode reativá-lo em Configurações",
+  "settingsWhatsNew": "Mostrar o que há de novo após as atualizações",
+  "settingsWhatsNewSubtitle": "",
+  "gotIt": "Entendi",
+  "betaLoggingTitle": "Os logs estão ativados",
+  "preview": "Pré-visualização",
+  "or": "ou",
+  "file": "Arquivo",
+  "more": "Mais",
+  "unknown": "Desconhecido",
+  "untitled": "Sem título",
+  "stay": "Permanecer",
+  "homeTitle": "Início",
+  "continueListening": "Continuar ouvindo",
+  "continueReading": "Continuar lendo",
+  "continueSeries": "Continuar Série",
+  "recentlyAdded": "Adicionado recentemente",
+  "listenAgain": "Ouvir novamente",
+  "discover": "Descobrir",
+  "newEpisodes": "Novos Episódios",
+  "downloads": "Transferências",
+  "noDownloadedBooks": "Nenhum livro baixado",
+  "yourLibraryIsEmpty": "A sua biblioteca está vazia",
+  "downloadBooksWhileOnline": "Baixe livros enquanto estiver online para ouvir offline",
+  "customizeHome": "Personalizar Página Inicial",
+  "loginAdvanced": "Avançado",
+  "loginCustomHttpHeaders": "Cabeçalhos HTTP personalizados",
+  "loginHeaderName": "Nome do cabeçalho",
+  "loginHeaderValue": "Valor",
+  "loginAddHeader": "Adicionar Cabeçalho",
+  "loginApiKey": "Chave da API",
+  "loginWaitingForSso": "Aguardando SSO...",
+  "loginOrSignInManually": "ou entre manualmente",
+  "loginUsername": "Nome de usuário",
+  "loginUsernameRequired": "Por favor, insira o seu nome de usuário",
+  "loginPassword": "Senha",
+  "loginSignIn": "Entrar",
+  "loginSignInAs": "Iniciar sessão como {username}?",
+  "@loginSignInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSignedInAs": "Sessão iniciada como {username}",
+  "@loginSignedInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminCreateSetupFile": "Compartilhar sessão",
+  "adminSetupFileCreate": "Criar link",
+  "setupLinkShareTitle": "Compartilhar sessão",
+  "setupLinkShareSubject": "‘Login’ Absorb para {username}",
+  "@setupLinkShareSubject": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginPlayDownloads": "Reproduzir os seus downloads",
+  "loginPasteLink": "Colar link de login",
+  "loginRestoreFromBackup": "Importar",
+  "loginRestoreBackupTitle": "Restaurar backup?",
+  "libraryTabLibrary": "Biblioteca",
+  "libraryTabSeries": "Séries",
+  "libraryTabAuthors": "Autores",
+  "libraryTabNarrators": "Narradores",
+  "libraryNoBooks": "Nenhum livro encontrado",
+  "libraryNoAuthorsFound": "Nenhum autor encontrado",
+  "libraryNoNarratorsFound": "Nenhum narrador encontrado",
+  "libraryNoResults": "Nenhum resultado encontrado"
 }

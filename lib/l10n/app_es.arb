@@ -1,10 +1,12 @@
 {
-  "@@locale": "es",
+  "@@locale": "es-ES",
   "appTitle": "A B O R B",
   "online": "En línea",
   "offline": "Sin conexión",
   "stillOffline": "Aún sin conexión. Toca para intentarlo de nuevo.",
   "retry": "Reintentar",
+  "listsLoadFailed": "No se han podido cargar tus listas",
+  "listsLoadFailedHint": "Absorb no ha podido llegar al servidor para cargar colecciones y listas de reproducción.",
   "cancel": "Cancelar",
   "delete": "Borrar",
   "remove": "Eliminar",
@@ -48,5 +50,9 @@
   "loginAdvanced": "Avanzado",
   "loginCustomHttpHeaders": "Encabezados HTTP personalizados",
   "loginCustomHeadersDescription": "Para túneles de Cloudflare o proxies inversos que requieren encabezados extra. Agrega encabezados antes de ingresar la URL de su servidor.",
-  "loginHeaderName": "Nombre del encabezado"
+  "loginHeaderName": "Nombre del encabezado",
+  "loginPlayDownloads": "Reproducir tus descargas",
+  "loginPasteLink": "Pegar el enlace de entrada",
+  "loginFailed": "Entrada errónea",
+  "loginRestoreFromBackup": "Importar"
 }
