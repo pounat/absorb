@@ -1912,19 +1912,32 @@ class AudioPlayerService extends ChangeNotifier {
     return (title: ch, subtitle: subtitle);
   }
 
-  /// Chapter-aware primary line for the current item (GH #298).
-  String get nowPlayingTitle => nowPlayingLabels(
-    _currentTitle ?? '',
-    _currentAuthor ?? '',
-    currentChapter?['title'] as String?,
-  ).title;
+  /// Both lines of the media controls for the current item at its current
+  /// position, in the layout the user picked, so the home screen widgets
+  /// read the same as the lock screen, Android Auto and CarPlay.
+  ({String title, String subtitle}) get nowPlayingLines {
+    final posSec = position.inMilliseconds / 1000.0;
+    final chapterIndex = _chapterIndexAt(_chapters, posSec);
+    return _nowPlayingLines(
+      title: _currentTitle ?? '',
+      author: _currentAuthor ?? '',
+      chapter: chapterIndex >= 0
+          ? (_chapters[chapterIndex] as Map<String, dynamic>)['title'] as String?
+          : null,
+      chapterIndex: chapterIndex,
+      chapterCount: _chapters.length,
+      posSec: posSec,
+      totalDuration: totalDuration,
+      narrator: _currentNarrator,
+      series: _currentSeries,
+    );
+  }
 
-  /// Chapter-aware secondary line ("Author · Book") for the current item.
-  String get nowPlayingSubtitle => nowPlayingLabels(
-    _currentTitle ?? '',
-    _currentAuthor ?? '',
-    currentChapter?['title'] as String?,
-  ).subtitle;
+  /// The top line of the media controls for the current item.
+  String get nowPlayingTitle => nowPlayingLines.title;
+
+  /// The second line of the media controls for the current item.
+  String get nowPlayingSubtitle => nowPlayingLines.subtitle;
 
   void updateChapters(List<dynamic> chapters) {
     _chapters = chapters;
