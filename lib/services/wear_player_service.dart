@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'audio_player_service.dart';
+import 'bookmark_service.dart';
 import 'sleep_timer_service.dart';
 
 /// Pushes the active playback snapshot to the paired Wear OS companion
@@ -23,6 +24,8 @@ class WearPlayerService {
 
   bool _listening = false;
   String? _chaptersPublishedFor;
+  String? _bookmarksPublishedFor;
+  int _bookmarksPublishedVersion = -1;
 
   /// Start taking the watch's extra actions (chapter skips, bookmark, sleep
   /// timer, seek). Safe to call more than once.
@@ -35,6 +38,46 @@ class WearPlayerService {
       await WearCommands.handle(args['name'] as String? ?? '', args);
       return true;
     });
+    // A bookmark added, moved or removed reaches the watch right away, not
+    // on the next state push.
+    BookmarkService.changes.addListener(() {
+      final player = AudioPlayerService();
+      publishBookmarks(player.currentEpisodeId == null ? player.currentItemId : null);
+    });
+  }
+
+  /// The playing book's bookmarks as this phone has them, server ones and
+  /// ones kept here alike, so the watch lists what the phone lists. Sent
+  /// when the book or the list changes.
+  Future<void> publishBookmarks(String? itemId) async {
+    if (!_supported) return;
+    if (itemId == null) {
+      _bookmarksPublishedFor = null;
+      return;
+    }
+    final version = BookmarkService.changes.value;
+    if (_bookmarksPublishedFor == itemId && _bookmarksPublishedVersion == version) return;
+    _bookmarksPublishedFor = itemId;
+    _bookmarksPublishedVersion = version;
+    try {
+      final list = await BookmarkService().getBookmarks(itemId);
+      final rows = [
+        for (final b in list)
+          {
+            'id': b.id,
+            'time': b.positionSeconds,
+            'title': b.title,
+            if (b.note != null && b.note!.isNotEmpty) 'note': b.note,
+            'createdAt': b.created.millisecondsSinceEpoch,
+          },
+      ];
+      await _channel.invokeMethod<void>('publishBookmarks', {
+        'itemId': itemId,
+        'bookmarks': jsonEncode(rows),
+      });
+    } catch (e) {
+      debugPrint('[WearPlayer] publishBookmarks failed: $e');
+    }
   }
 
   /// The playing book's chapter list, sent once per book so the watch can
@@ -170,6 +213,14 @@ class WearCommands {
         break;
       case 'sleep':
         final sleep = SleepTimerService();
+        if (args['asleep'] == true || args['asleep'] == 'true') {
+          final since = _int(args['sinceMs']);
+          await sleep.watchSaysAsleep(
+            since: since == null ? null : DateTime.fromMillisecondsSinceEpoch(since),
+            handledOnWatch: args['watchHandled'] == true || args['watchHandled'] == 'true',
+          );
+          break;
+        }
         final minutes = _int(args['minutes']);
         final chapters = _int(args['chapters']);
         final add = _int(args['add']);

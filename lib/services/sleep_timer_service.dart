@@ -587,6 +587,60 @@ class SleepTimerService extends ChangeNotifier {
     }
   }
 
+  /// The most the rewind reaches back for time spent asleep before the
+  /// watch noticed.
+  static const _maxAsleepRewind = Duration(minutes: 30);
+
+  /// The watch saw its wearer fall asleep at [since]. When the watch paused
+  /// its own player this is only noted. Otherwise the book playing here is
+  /// paused the way the timer does it and rewound by the usual sleep rewind
+  /// plus the time asleep, and playing again soon undoes the rewind as
+  /// after the timer.
+  Future<void> watchSaysAsleep({DateTime? since, required bool handledOnWatch}) async {
+    final asleepFor = since == null ? Duration.zero : DateTime.now().difference(since);
+    final when = since == null
+        ? 'an unknown time'
+        : '${since.hour.toString().padLeft(2, '0')}:${since.minute.toString().padLeft(2, '0')}';
+    if (handledOnWatch) {
+      debugPrint('[SleepTimer] Watch says asleep since $when and paused itself');
+      return;
+    }
+    if (_isTriggeringSleep) return;
+    final pauseRequested = !_cast.isCastEngaged && _player.isPauseRequested;
+    if (!_isPlaybackActive || pauseRequested) {
+      debugPrint('[SleepTimer] Watch says asleep since $when, nothing playing here');
+      return;
+    }
+    final extra = asleepFor.isNegative
+        ? Duration.zero
+        : (asleepFor > _maxAsleepRewind ? _maxAsleepRewind : asleepFor);
+    _isTriggeringSleep = true;
+    debugPrint('[SleepTimer] Watch says asleep since $when (${asleepFor.inMinutes} min ago) - pausing playback');
+    try {
+      if (_cast.isCastEngaged) {
+        await _cast.pauseNowOrOnReconnect();
+      } else {
+        await _player.pause();
+        if (_isFadingOut) _player.setVolume(_fadeStartVolume);
+        final rewindSeconds =
+            await PlayerSettings.getEffectiveSleepRewindSeconds(_player.currentItemId) + extra.inSeconds;
+        if (rewindSeconds > 0) {
+          final from = _player.position;
+          await _player.sleepTimerRewind(rewindSeconds);
+          _sleepRewoundAt = DateTime.now();
+          _sleepRewoundItemId = _player.currentItemId;
+          _sleepRewoundFrom = from;
+          _sleepRewoundTo = _player.position;
+          debugPrint('[SleepTimer] Rewound ${rewindSeconds}s, ${extra.inSeconds}s of it for the time asleep');
+        }
+      }
+      _isFadingOut = false;
+      cancel();
+    } finally {
+      _isTriggeringSleep = false;
+    }
+  }
+
   /// Position to jump back to when playback resumes soon after a sleep rewind,
   /// or null if there's nothing to undo. Consumed on read, so it only ever
   /// applies once.
