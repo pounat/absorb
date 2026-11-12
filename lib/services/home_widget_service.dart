@@ -908,6 +908,8 @@ class HomeWidgetService {
       SleepTimerMode.off => null,
     };
     WearPlayerService.instance.publishChapters(hasBook ? player.currentItemId : null, chapters);
+    WearPlayerService.instance.publishBookmarks(
+        hasBook && player.currentEpisodeId == null ? player.currentItemId : null);
     WearPlayerService.instance.publish(
       hasBook: hasBook,
       itemId: hasBook ? player.currentItemId : null,

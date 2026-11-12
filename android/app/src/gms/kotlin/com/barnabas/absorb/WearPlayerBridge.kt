@@ -30,6 +30,7 @@ object WearPlayerBridge {
 
     const val STATE_PATH = "/absorb/player/state/v1"
     const val CHAPTERS_PATH = "/absorb/player/chapters/v1"
+    const val BOOKMARKS_PATH = "/absorb/player/bookmarks/v1"
 
     private const val KEY_PAYLOAD = "payload"
     private const val KEY_ISSUED_AT = "issuedAt"
@@ -148,6 +149,28 @@ object WearPlayerBridge {
                 Log.i(TAG, "published chapters for $itemId")
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to publish chapters", e)
+            }
+        }
+    }
+
+    /** The playing book's bookmarks as the phone lists them, for the watch's
+     *  bookmarks page. [bookmarksJson] is a JSON array of
+     *  `{"id","time","title","note","createdAt"}` with seconds and millis. */
+    fun publishBookmarks(context: Context, itemId: String, bookmarksJson: String) {
+        scope.launch {
+            try {
+                val payload = JSONObject().apply {
+                    put("itemId", itemId)
+                    put("bookmarks", JSONArray(bookmarksJson))
+                }.toString()
+                val request = PutDataMapRequest.create(BOOKMARKS_PATH).apply {
+                    dataMap.putByteArray(KEY_PAYLOAD, payload.toByteArray(Charsets.UTF_8))
+                    dataMap.putLong(KEY_ISSUED_AT, System.currentTimeMillis())
+                }.asPutDataRequest().setUrgent()
+                Wearable.getDataClient(context.applicationContext).putDataItem(request).await()
+                Log.i(TAG, "published bookmarks for $itemId")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to publish bookmarks", e)
             }
         }
     }

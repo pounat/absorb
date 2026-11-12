@@ -46,6 +46,14 @@ object PlatformIntegration {
                         }
                         result.success(true)
                     }
+                    "publishBookmarks" -> {
+                        val itemId = call.argument<String>("itemId")
+                        val bookmarks = call.argument<String>("bookmarks")
+                        if (itemId != null && bookmarks != null) {
+                            WearPlayerBridge.publishBookmarks(activity.applicationContext, itemId, bookmarks)
+                        }
+                        result.success(true)
+                    }
                     "publish" -> {
                         WearPlayerBridge.publish(
                             context = activity.applicationContext,
