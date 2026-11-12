@@ -365,8 +365,13 @@ class SettingsScreenState extends State<SettingsScreen> {
   bool? _boAchievementsOn;
   AchievementCatalogue? _boAchievements;
 
+  static const _kBoNotificationsTile = 'bo_tile_notifications';
+  static const _kBoAchievementsTile = 'bo_tile_achievements';
+  bool _boTilesRemembered = false;
+
   /// BookOrbit's notification badge and achievement count for the tiles under
-  /// the account card.
+  /// the account card. The tiles themselves come up straight away from what
+  /// the server said last time; the server's answer and the numbers follow.
   Future<void> _loadBookOrbitInbox() async {
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
@@ -382,7 +387,26 @@ class SettingsScreenState extends State<SettingsScreen> {
       }
       return;
     }
+    if (!_boTilesRemembered) {
+      _boTilesRemembered = true;
+      final (rememberedNotifications, rememberedAchievements) =
+          await (ScopedPrefs.getBool(_kBoNotificationsTile), ScopedPrefs.getBool(_kBoAchievementsTile)).wait;
+      if (!mounted || _inboxApi != api) return;
+      if (rememberedNotifications != null || rememberedAchievements != null) {
+        setState(() {
+          _boNotificationsOn = rememberedNotifications ?? false;
+          _boAchievementsOn = rememberedAchievements;
+        });
+      }
+    }
     final (notificationsOn, achievementsOn) = await (api.hasServerNotifications(), api.achievementsEnabled()).wait;
+    if (!mounted || _inboxApi != api) return;
+    setState(() {
+      _boNotificationsOn = notificationsOn;
+      _boAchievementsOn = achievementsOn;
+    });
+    unawaited(ScopedPrefs.setBool(_kBoNotificationsTile, notificationsOn));
+    if (achievementsOn != null) unawaited(ScopedPrefs.setBool(_kBoAchievementsTile, achievementsOn));
     final (unread, catalogue) = await (
       notificationsOn ? api.unreadNotificationCount() : Future<int?>.value(),
       achievementsOn == true ? api.achievements() : Future<AchievementCatalogue?>.value(),
@@ -390,9 +414,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     if (!mounted || _inboxApi != api) return;
     if (unread != null) BookOrbitNotificationSocket.instance.unread.value = (api: api, count: unread);
     setState(() {
-      _boNotificationsOn = notificationsOn;
       _boUnread = unread;
-      _boAchievementsOn = achievementsOn;
       _boAchievements = catalogue;
     });
   }
