@@ -490,6 +490,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     ReadListenSync.instance.readerOpened(widget.itemId);
+    unawaited(LyricsService.instance.reloadDisplayPrefs());
     _readingApi = context.read<AuthProvider>().apiService;
     // BookOrbit keeps reading time as reading, the way its own reader logs
     // it, so it's always counted there. Audiobookshelf has only listening
@@ -5424,6 +5425,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         });
       }
     }
+    // The chosen color lives in the preferences; the narration path has no
+    // enable step of its own to read them, so it reads them here.
+    await LyricsService.instance.reloadDisplayPrefs();
     await _epubController?.webViewController
         ?.evaluateJavascript(source: _narrationBootstrapSource());
     _narrationWentTo = null;
