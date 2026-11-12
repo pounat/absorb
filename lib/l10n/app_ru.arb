@@ -729,7 +729,6 @@
   "settingsPodcastTabLibrary": "Библиотека вкладок подкастов",
   "settingsMergeImpliedByPodcastTab": "Всегда включено, пока включена вкладка Подкастов",
   "settingsEpisodeNotifs": "Настройки уведомлений",
-  "settingsEpisodeNotifsDesc": "Новые выпуски подкастов и предстоящие выпуски книг, проверены в фоне",
   "notifIntervalOff": "Выключить",
   "notifIntervalMinutes": "Каждые {n} минут",
   "@notifIntervalMinutes": {
@@ -3620,14 +3619,6 @@
   "readerAutoScroll": "Автопрокрутка",
   "readerAutoScrollStarted": "Автопрокрутка началась",
   "readerAutoScrollStopped": "Автопрокрутка выкл",
-  "readerAutoScrollSpeed": "Скорость {percent}%",
-  "@readerAutoScrollSpeed": {
-    "placeholders": {
-      "percent": {
-        "type": "int"
-      }
-    }
-  },
   "readerAutoScrollSleepMinutes": "{minutes} мин",
   "@readerAutoScrollSleepMinutes": {
     "placeholders": {
