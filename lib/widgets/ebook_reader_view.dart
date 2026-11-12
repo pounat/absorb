@@ -7,7 +7,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_epub_viewer/flutter_epub_viewer.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' show CompressFormat, ScreenshotConfiguration;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart'
+    show CompressFormat, InAppWebViewController, ScreenshotConfiguration;
 import 'package:url_launcher/url_launcher.dart';
 import 'dictionary_sheet.dart';
 import '../services/dictionary_service.dart';
@@ -277,6 +278,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   bool _readAlongLocating = false;
   bool _readAlongAllowBack = false;
   DateTime? _readAlongTurnPending;
+  /// True while the whole sentence is lit rather than word by word.
+  bool _readAlongSentenceLit = false;
+  int _readAlongHeardIndex = -1;
   DateTime? _readAlongMissSince;
   bool _readAlongStepped = false;
   DateTime? _readAlongSeekAt;
@@ -5501,6 +5505,14 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         await wc.evaluateJavascript(
             source: 'window.__absorbMO && __absorbMO.go(${jsonEncode(clip.textHref)}, ${jsonEncode(id)})');
       } else if (where == 'after' || where == 'before') {
+        // A sentence that starts on the page before is no reason to go back
+        // while the words being heard are on this page: the turn forward
+        // mid-sentence put them here, and going back only flipped the page
+        // to and fro until the sentence ended.
+        if (where == 'before' &&
+            (await _narrationHeardSpot(wc, clip, id, heard))?['visible'] == true) {
+          return;
+        }
         _narrationTurnAt = now;
         _readAlongTurnPending = now;
         unawaited(_turnPage(where == 'after', fresh: true));
@@ -5511,11 +5523,56 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         debugPrint('[ReadAlong] narration moved to ${clip.textHref}#$id');
         await wc.evaluateJavascript(
             source: 'window.__absorbMO && __absorbMO.go(${jsonEncode(clip.textHref)}, ${jsonEncode(id)})');
+      } else if (where == 'on') {
+        // The sentence starts on this page but may run onto the next. The
+        // voice is placed in its text by time, so the page turns once the
+        // part being heard is over there, instead of waiting at the last
+        // line until the next sentence begins.
+        final d = await _narrationHeardSpot(wc, clip, id, heard);
+        if (d != null && d['visible'] == false && d['dir'] == 1) {
+          _narrationTurnAt = now;
+          _readAlongTurnPending = now;
+          debugPrint('[ReadAlong] the voice is on to the next page mid-sentence '
+              '(${d['frac']}% into ${clip.textHref}#$id)');
+          if (_scroll) {
+            await wc.evaluateJavascript(
+                source: 'window.__absorbMO && __absorbMO.reveal(${jsonEncode(clip.textHref)}, ${jsonEncode(id)})');
+          } else {
+            unawaited(_turnPage(true, fresh: true));
+          }
+        }
       }
     } catch (e) {
       debugPrint('[ReadAlong] narration tick failed: $e');
     } finally {
       _narrationTickBusy = false;
+    }
+  }
+
+  /// Where the words being heard sit inside the lit sentence, by time, and
+  /// whether that spot is on the page in view. Null for a sentence too short
+  /// to place anything in, or when the page script did not answer.
+  Future<Map<String, dynamic>?> _narrationHeardSpot(
+    InAppWebViewController wc,
+    OverlayClip clip,
+    String id,
+    double heard,
+  ) async {
+    final span = clip.end - clip.begin;
+    if (span <= 1.0) return null;
+    final frac = ((heard - clip.begin) / span).clamp(0.0, 1.0);
+    if (frac <= 0.05) return null;
+    final raw = await wc.evaluateJavascript(
+        source: 'window.__absorbMO ? __absorbMO.heard(${jsonEncode(clip.textHref)}, '
+            '${jsonEncode(id)}, ${frac.toStringAsFixed(3)}) : ""');
+    if (raw is! String || raw.isEmpty) return null;
+    try {
+      final d = jsonDecode(raw) as Map<String, dynamic>;
+      if (d['held'] != true) return null;
+      d['frac'] = (frac * 100).round();
+      return d;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -6201,12 +6258,24 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       }
       return;
     }
-    // Same sentence, later word: a cheap repaint from the cached offsets.
-    if (_readAlongLocating ||
-        _readAlongPageWords == 0 ||
-        !_readAlongWordMode) {
+    if (_readAlongLocating || _readAlongPageWords == 0) return;
+    // Following by sentence, the whole sentence stays lit, but the page still
+    // turns once the words being heard have run onto the next one; a long
+    // sentence ending a page used to leave you waiting on its last line. A
+    // line without word timing (a narrated book's clips) is paced evenly.
+    if (_readAlongSentenceLit) {
+      final at = heard + 0.15 * player.speed;
+      final span = line.end - line.start;
+      final idx = line.wordStarts.isNotEmpty
+          ? line.wordIndexAt(at)
+          : span <= 0
+              ? -1
+              : ((at - line.start) / span * _readAlongLineWords).floor();
+      await _readAlongHeardWord(idx);
       return;
     }
+    // Same sentence, later word: a cheap repaint from the cached offsets.
+    if (!_readAlongWordMode) return;
     final idx = line.wordIndexAt(heard + 0.15 * player.speed);
     if (idx < 0) return;
     // Whisper's word count and the page's can differ on a corrected line, so
@@ -6257,6 +6326,33 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       _readAlongTurn(d['cfi'], d['dir'], why: 'word $wordIndex is off the page');
     } else if (d['seen'] == true) {
       _readAlongCaughtUp();
+    }
+  }
+
+  /// With the sentence lit whole, the word being heard is only placed, never
+  /// painted, to tell when the voice has left the page.
+  Future<void> _readAlongHeardWord(int lineIndex) async {
+    if (lineIndex < 0) return;
+    final scaled = _readAlongLineWords > 0
+        ? (lineIndex * _readAlongPageWords / _readAlongLineWords).floor()
+        : lineIndex;
+    final idx = scaled.clamp(0, _readAlongPageWords - 1);
+    if (idx == _readAlongHeardIndex) return;
+    _readAlongHeardIndex = idx;
+    final raw = await _epubController?.webViewController?.evaluateJavascript(
+        source: 'window.__absorbRA ? __absorbRA.heard($idx) : ""');
+    if (!mounted || !_readAlongOn) return;
+    Map<String, dynamic>? d;
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        d = jsonDecode(raw) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+    if (d == null || d['held'] != true) return;
+    _readAlongLastMatch = DateTime.now();
+    if (d['visible'] == false) {
+      _readAlongTurn(d['cfi'], d['dir'],
+          why: 'the voice is on to the next page mid-sentence (word $idx)');
     }
   }
 
@@ -6431,6 +6527,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       }
       _readAlongPageWords = (d['words'] as num?)?.toInt() ?? 0;
       _readAlongWordIndex = wordMode && _readAlongPageWords > 0 ? 0 : -1;
+      _readAlongSentenceLit = !wordMode;
+      _readAlongHeardIndex = -1;
       _readAlongAt = (d['at'] as num?)?.toInt() ?? -1;
       // Logs the heard line against the page sentence it landed on, so a
       // mis-mapping shows up as two different sentences on one line.

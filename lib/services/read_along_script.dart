@@ -316,6 +316,61 @@ const String _body = r'''
     return JSON.stringify(out);
   };
 
+  // Where the voice is inside the sentence, painting nothing: following by
+  // sentence lights the whole sentence, but the page still has to turn when
+  // the words being heard have run onto the next one.
+  RA.heard = function(i) {
+    if (!RA.cur) return JSON.stringify({ held: false });
+    var out = { held: true, visible: true, dir: 0 };
+    try {
+      var st = RA.cur;
+      var ranges = st.wordRanges;
+      if (!ranges || !ranges.length || i < 0) return JSON.stringify(out);
+      var flat = [];
+      for (var a = 0; a < st.spans.length; a++) {
+        for (var b = 0; b < st.spans[a].length; b++) flat.push(st.spans[a][b]);
+      }
+      if (!flat.length || !flat[0].isConnected) return JSON.stringify({ held: false });
+      var k = Math.min(i + (st.wordFirst || 0), ranges.length - 1);
+      var r = RA.rangeInSpans(st.doc, flat, ranges[k][0] - st.sStart, ranges[k][1] - st.sStart);
+      if (!r) return JSON.stringify(out);
+      var vis = RA.visibleRect(st.doc, r.getBoundingClientRect());
+      out.visible = vis.v;
+      out.dir = vis.dir;
+      out.seen = true;
+      out.x = vis.x; out.w = vis.w;
+      if (!vis.v) out.cfi = RA.cfiFor(st.contents, flat[0], flat[flat.length - 1]);
+    } catch (e) {}
+    return JSON.stringify(out);
+  };
+
+  // A range over [a, b) of the text inside [spans], counted from the first
+  // character of the first span.
+  RA.rangeInSpans = function(doc, spans, a, b) {
+    var nodes = [];
+    for (var i = 0; i < spans.length; i++) {
+      var tw = doc.createTreeWalker(spans[i], NodeFilter.SHOW_TEXT, null, false), n;
+      while (n = tw.nextNode()) nodes.push(n);
+    }
+    if (!nodes.length) return null;
+    var at = 0, sp = null, ep = null;
+    for (var j = 0; j < nodes.length; j++) {
+      var len = nodes[j].textContent.length;
+      if (!sp && a < at + len) sp = { node: nodes[j], offset: Math.max(0, a - at) };
+      if (b <= at + len) { ep = { node: nodes[j], offset: Math.max(0, b - at) }; break; }
+      at += len;
+    }
+    if (!sp) return null;
+    if (!ep) {
+      var last = nodes[nodes.length - 1];
+      ep = { node: last, offset: last.textContent.length };
+    }
+    var r = doc.createRange();
+    r.setStart(sp.node, sp.offset);
+    r.setEnd(ep.node, ep.offset);
+    return r;
+  };
+
   RA.clearDoc = function(doc) {
     if (!doc) return;
     RA.unwrap(doc);
@@ -508,18 +563,22 @@ const String _body = r'''
           map = RA.nodeMap(doc);
         }
         RA.style(doc);
-        var spans = [];
+        var spans = [], wordRanges = null, wordFirst = 0;
         if (wordMode && words.length) {
           for (var wk = words.length - 1; wk >= 0; wk--) {
             spans[wk] = RA.wrap(doc, map, words[wk][0], words[wk][1], 'absorb-ra-w');
           }
         } else {
+          // The words are kept so the voice can still be placed in the lit sentence.
+          wordRanges = words;
+          wordFirst = first;
           spans = [RA.wrap(doc, map, sStart, sEnd, 'absorb-ra-s')];
           words = [[sStart, sEnd]];
           first = 0;
         }
         RA.cur = { doc: doc, contents: c, sStart: sStart, sEnd: sEnd, words: words,
-                   first: first, spans: spans, painted: -2 };
+                   first: first, spans: spans, painted: -2,
+                   wordRanges: wordRanges, wordFirst: wordFirst };
         // Where the sentence sits is judged from the spans themselves, now
         // that they are in the page.
         try {

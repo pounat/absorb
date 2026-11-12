@@ -61,12 +61,18 @@ const String _body = r'''
   // Judged against what is on screen, not the section's iframe, which holds
   // every page of the section side by side (or the whole scroll).
   MO.visible = function(el) {
-    var out = { v: true, dir: 0 };
     try {
       var rects = el.getClientRects();
       var rect = rects.length ? rects[0] : el.getBoundingClientRect();
+      return MO.visibleRect(el.ownerDocument, rect);
+    } catch (e) { return { v: true, dir: 0 }; }
+  };
+
+  MO.visibleRect = function(doc, rect) {
+    var out = { v: true, dir: 0 };
+    try {
       if (!rect || (rect.width === 0 && rect.height === 0)) return out;
-      var fe = el.ownerDocument.defaultView.frameElement;
+      var fe = doc.defaultView.frameElement;
       var fr = fe ? fe.getBoundingClientRect() : { left: 0, top: 0 };
       var flow = '';
       try { flow = (rendition.settings && rendition.settings.flow) || ''; } catch (e0) {}
@@ -121,6 +127,37 @@ const String _body = r'''
     if (vis.low) return 'low';
     if (vis.far) return vis.dir < 0 ? 'far-before' : 'far-after';
     return vis.v ? 'on' : (vis.dir < 0 ? 'before' : 'after');
+  };
+
+  // Where the voice is inside the lit sentence, [frac] of the way through
+  // its text, and whether that spot is on the page in view. A sentence that
+  // runs onto the next page gets the turn once the voice reaches that part,
+  // not when the next sentence starts over there.
+  MO.heard = function(href, id, frac) {
+    var el = MO.find(href, id);
+    if (!el) return JSON.stringify({ held: false });
+    var out = { held: true, visible: true, dir: 0, low: false };
+    try {
+      var doc = el.ownerDocument;
+      var tw = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false), nodes = [], total = 0, n;
+      while (n = tw.nextNode()) { nodes.push(n); total += n.textContent.length; }
+      if (!total) return JSON.stringify(out);
+      var want = Math.max(0, Math.min(total - 1, Math.floor(total * frac)));
+      var at = 0, node = nodes[0], off = 0;
+      for (var i = 0; i < nodes.length; i++) {
+        var len = nodes[i].textContent.length;
+        if (want < at + len) { node = nodes[i]; off = want - at; break; }
+        at += len;
+      }
+      var r = doc.createRange();
+      r.setStart(node, off);
+      r.setEnd(node, Math.min(node.textContent.length, off + 1));
+      var vis = MO.visibleRect(doc, r.getBoundingClientRect());
+      out.visible = vis.v;
+      out.dir = vis.dir;
+      out.low = !!vis.low;
+    } catch (e) {}
+    return JSON.stringify(out);
   };
 
   // Where the sentence is, the same way, without lighting it.
