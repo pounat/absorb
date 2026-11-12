@@ -1638,7 +1638,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       'media.metadata.title' => 'title',
       _ => 'seriesIndex',
     };
-    final out = <Map<String, dynamic>>[];
+    final cards = <Map<String, dynamic>>[];
     for (var page = 0; page < 20; page++) {
       final res = await _boGet('/series/$seriesId/books', {
         'page': page,
@@ -1648,22 +1648,45 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         if (libId != null) 'libraryId': libId,
       }) as Map<String, dynamic>;
       final items = (res['items'] as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>().toList();
-      for (final c in items) {
-        final item = _cardItem(c, libraryId: libId);
-        // A series listing names this series' number in the single-map form
-        // the series sheets read.
-        final meta = (item['media'] as Map<String, dynamic>)['metadata'] as Map<String, dynamic>;
-        meta['series'] = {
-          'id': seriesId,
-          'name': c['seriesName'],
-          'sequence': c['seriesIndex'],
-        };
-        out.add(item);
-      }
-      final total = (res['total'] as num?)?.toInt() ?? out.length;
-      if (items.length < 100 || out.length >= total) break;
+      cards.addAll(items);
+      final total = (res['total'] as num?)?.toInt() ?? cards.length;
+      if (items.length < 100 || cards.length >= total) break;
+    }
+    final out = await _pool([for (final c in cards) () => _cardItemWithLength(c, libraryId: libId)]);
+    for (var i = 0; i < out.length; i++) {
+      // A series listing names this series' number in the single-map form
+      // the series sheets read.
+      final meta = (out[i]['media'] as Map<String, dynamic>)['metadata'] as Map<String, dynamic>;
+      meta['series'] = {
+        'id': seriesId,
+        'name': cards[i]['seriesName'],
+        'sequence': cards[i]['seriesIndex'],
+      };
     }
     return out;
+  }
+
+  /// [_cardItem], except that an audiobook this phone has never opened gets
+  /// its length from the book's detail. A card lists the files without their
+  /// durations, so the series sheet otherwise counts such a book as empty:
+  /// nothing left to listen to, and no headphones on its tile.
+  Future<Map<String, dynamic>> _cardItemWithLength(Map<String, dynamic> card, {String? libraryId}) async {
+    final item = _cardItem(card, libraryId: libraryId);
+    final media = item['media'] as Map<String, dynamic>;
+    final hasAudio = (media['audioFiles'] as List<dynamic>? ?? const []).isNotEmpty;
+    if (!hasAudio || ((media['duration'] as num?) ?? 0) > 0) return item;
+    final k = _key('${card['id']}');
+    try {
+      final detail = _details[k] ?? await _detail('${card['id']}');
+      return BookOrbitMapper.item(
+        detail: detail,
+        manifest: _manifests[k],
+        libraryId: libraryId ?? _bookLibrary[k],
+      );
+    } catch (e) {
+      debugPrint('[BookOrbit] could not find out how long ${card['id']} is: $e');
+      return item;
+    }
   }
 
   Future<List<Map<String, dynamic>>> _shelfCards(String type, int limit) async {

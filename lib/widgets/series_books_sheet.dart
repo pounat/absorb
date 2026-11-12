@@ -19,6 +19,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/narrated_books.dart';
 import 'book_detail_sheet.dart';
 import 'library_grid_tiles.dart';
 import 'episode_list_sheet.dart';
@@ -846,11 +847,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       final bookId = book['id'] as String? ?? '';
       if (bookId.isEmpty) continue;
       if (lib.getProgressData(bookId)?['isFinished'] == true) continue;
-      final media = book['media'] as Map<String, dynamic>? ?? {};
-      final duration = (media['duration'] is num)
-          ? (media['duration'] as num).toDouble()
-          : 0.0;
-      await api.markFinished(bookId, duration);
+      await api.markFinished(bookId, _lengthOf(book));
       lib.markFinishedLocally(bookId, skipRefresh: true, skipAutoAdvance: true);
       lib.removeFromAbsorbing(bookId);
     }
@@ -873,11 +870,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       final bookId = book['id'] as String? ?? '';
       if (bookId.isEmpty) continue;
       if (lib.getProgressData(bookId)?['isFinished'] != true) continue;
-      final media = book['media'] as Map<String, dynamic>? ?? {};
-      final duration = (media['duration'] is num)
-          ? (media['duration'] as num).toDouble()
-          : 0.0;
-      await api.markNotFinished(bookId, currentTime: 0, duration: duration);
+      await api.markNotFinished(bookId, currentTime: 0, duration: _lengthOf(book));
       await lib.markNotFinishedLocally(bookId);
       lib.clearAbsorbingBlock(bookId);
     }
@@ -1358,8 +1351,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     double listenedDuration = 0;
     for (final book in _books) {
       final bookId = book['id'] as String? ?? '';
-      final media = book['media'] as Map<String, dynamic>? ?? {};
-      final dur = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
+      final dur = _lengthOf(book);
       final prog = lib.getProgress(bookId);
       totalDuration += dur;
       listenedDuration += dur * prog;
@@ -1569,7 +1561,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final bookTitle = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
     final sequence = _getSequenceString(book);
-    final duration = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
+    final duration = _lengthOf(book);
 
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final progress = lib.getProgress(bookId);
@@ -1709,6 +1701,17 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         ),
       ),
     );
+  }
+
+  /// How long [book] plays for. An Audiobookshelf row says nothing about an
+  /// EPUB that reads itself aloud, so the length this phone found when it
+  /// looked inside the file stands in.
+  double _lengthOf(Map<String, dynamic> book) {
+    final media = book['media'] as Map<String, dynamic>? ?? const {};
+    final listed = (media['duration'] as num?)?.toDouble() ?? 0.0;
+    if (listed > 0) return listed;
+    final id = book['id'];
+    return id is String ? NarratedBooks.duration(id) ?? 0.0 : 0.0;
   }
 
   Widget _placeholder(ColorScheme cs) {
