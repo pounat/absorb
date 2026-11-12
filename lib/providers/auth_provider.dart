@@ -111,6 +111,20 @@ class AuthProvider extends ChangeNotifier {
     final method = (_userJson?['bookOrbit'] as Map?)?['provisioningMethod'];
     return method != 'oidc' && method != 'shared';
   }
+  /// This BookOrbit session runs on an API key rather than a password:
+  /// the server keeps keys away from passwords, sessions and other keys.
+  bool get bookOrbitSignedInWithKey =>
+      isBookOrbit && (_userJson?['bookOrbit'] as Map?)?['authenticationMethod'] == 'api_key';
+
+  /// Whether the BookOrbit account may make API keys of its own.
+  bool get bookOrbitCanMakeApiKeys {
+    if (!isBookOrbit || bookOrbitSignedInWithKey) return false;
+    final bo = _userJson?['bookOrbit'] as Map?;
+    if (bo == null) return false;
+    if (bo['isSuperuser'] == true) return true;
+    return (bo['permissions'] as List? ?? const []).any((p) => p == 'api_keys' || p == '*');
+  }
+
   Map<String, dynamic>? get userJson => _userJson;
   Map<String, dynamic>? get serverSettings => _serverSettings;
   String? get serverVersion => _serverVersion;

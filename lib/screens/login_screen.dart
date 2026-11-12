@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/bookorbit_api_keys.dart';
 import '../services/backup_service.dart';
 import '../services/log_service.dart';
 import '../services/oidc_service.dart';
@@ -374,7 +375,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     final headers = _collectHeaders();
 
-    final success = apiKey.isNotEmpty && _backend.isBookOrbit
+    final success = apiKey.isNotEmpty && _backend.isBookOrbit && !boLooksLikeApiKey(apiKey)
         ? await auth.login(
             serverUrl: fullUrl,
             username: '',
@@ -899,9 +900,9 @@ class _LoginScreenState extends State<LoginScreen>
                                     const SizedBox(height: 8),
                                     const Divider(height: 1),
                                     const SizedBox(height: 8),
-                                    Text(_backend.isBookOrbit ? l.loginMagicLink : l.loginApiKey, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
+                                    Text(_backend.isBookOrbit ? l.loginBoKeyOrLink : l.loginApiKey, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
                                     const SizedBox(height: 4),
-                                    Text(_backend.isBookOrbit ? l.loginMagicLinkDescription : l.loginApiKeyDescription,
+                                    Text(_backend.isBookOrbit ? l.loginBoKeyOrLinkDescription : l.loginApiKeyDescription,
                                       style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withValues(alpha: 0.4))),
                                     const SizedBox(height: 8),
                                     TextField(
@@ -912,7 +913,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       style: TextStyle(fontSize: 13, color: cs.onSurface),
                                       onChanged: (_) => setState(() {}),
                                       decoration: InputDecoration(
-                                        hintText: _backend.isBookOrbit ? l.loginMagicLink : l.loginApiKey,
+                                        hintText: _backend.isBookOrbit ? l.loginBoKeyOrLink : l.loginApiKey,
                                         hintStyle: TextStyle(color: cs.onSurfaceVariant.withValues(alpha: 0.3), fontSize: 13),
                                         filled: true,
                                         fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),

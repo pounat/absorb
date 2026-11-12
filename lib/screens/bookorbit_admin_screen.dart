@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/bookorbit_admin.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/overlay_toast.dart';
+import 'bookorbit_api_key_settings_screen.dart';
 import 'bookorbit_email_screen.dart';
 import 'bookorbit_libraries_screen.dart';
 import 'bookorbit_users_screen.dart';
@@ -99,6 +100,13 @@ class _BookOrbitAdminScreenState extends State<BookOrbitAdminScreen> {
                 subtitle: _servers == null ? null : l.boAdminServerCount(_servers!),
                 onTap: () => _open(const BookOrbitEmailScreen(initialTab: BoEmailTab.servers)),
               ),
+            if (access?.manageAppSettings == true)
+              _HubTile(
+                icon: Icons.vpn_key_rounded,
+                title: l.boApiKeysTitle,
+                subtitle: l.boAdminApiKeysSubtitle,
+                onTap: () => _open(const BookOrbitApiKeySettingsScreen()),
+              ),
           ],
         ),
       ),
@@ -171,6 +179,9 @@ String boPermissionLabel(AppLocalizations l, String permission) => switch (permi
       'library_upload' => l.boPermLibraryUpload,
       'library_edit_metadata' => l.boPermLibraryEditMetadata,
       'library_delete_books' => l.boPermLibraryDeleteBooks,
+      'library_merge_books' => l.boPermLibraryMergeBooks,
+      'library_generate_read_aloud' => l.boPermLibraryGenerateReadAloud,
+      'api_keys' => l.boPermApiKeys,
       'book_request_access' => l.boPermBookRequestAccess,
       'book_request_auto_approve' => l.boPermBookRequestAutoApprove,
       'book_request_self_fulfill' => l.boPermBookRequestSelfFulfill,

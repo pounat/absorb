@@ -10,6 +10,7 @@ import 'auth_tokens.dart';
 import 'book_dock.dart';
 import 'book_requests.dart';
 import 'bookorbit_admin.dart';
+import 'bookorbit_api_keys.dart';
 import 'bookorbit_email.dart';
 import 'bookorbit_match.dart';
 import 'bookorbit_mapper.dart';
@@ -32,6 +33,7 @@ import '../utils/percent_escapes.dart';
 
 part 'bookorbit_api_service.dart';
 part 'bookorbit_admin_api.dart';
+part 'bookorbit_api_key_api.dart';
 part 'bookorbit_email_api.dart';
 
 /// Outcome of a local-session upsert. [serverTooOld] flags a 404/501 (the
@@ -777,14 +779,15 @@ class ApiService {
   static bool _apiKeyCheckRunning = false;
 
   void _checkRevokedApiKey() {
-    if (isBookOrbit || _apiKeyCheckRunning) return;
+    if (_apiKeyCheckRunning) return;
     final last = _apiKeyCheckedAt;
     if (last != null && DateTime.now().difference(last) < const Duration(minutes: 1)) return;
     _apiKeyCheckedAt = DateTime.now();
     _apiKeyCheckRunning = true;
     () async {
       try {
-        final r = await _get(Uri.parse('$_cleanBaseUrl/api/me'), headers: _headers)
+        final me = isBookOrbit ? '/api/v1/auth/me' : '/api/me';
+        final r = await _get(Uri.parse('$_cleanBaseUrl$me'), headers: _headers)
             .timeout(const Duration(seconds: 15));
         if (r.statusCode == 401) {
           debugPrint('[API] The server no longer accepts this API key');
@@ -1121,9 +1124,8 @@ class ApiService {
     Map<String, String> customHeaders = const {},
     ServerBackend backend = ServerBackend.audiobookshelf,
   }) async {
-    if (backend.isBookOrbit) return (null, 0);
     final base = serverUrl.endsWith('/') ? serverUrl : '$serverUrl/';
-    final url = '${base}api/me';
+    final url = backend.isBookOrbit ? '${base}api/v1/auth/me' : '${base}api/me';
 
     try {
       final response = await http.get(
@@ -1132,7 +1134,8 @@ class ApiService {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        return (jsonDecode(response.body) as Map<String, dynamic>, 200);
+        final me = jsonDecode(response.body) as Map<String, dynamic>;
+        return (backend.isBookOrbit ? BookOrbitMapper.user(me) : me, 200);
       }
       return (null, response.statusCode);
     } catch (_) {

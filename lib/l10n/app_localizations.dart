@@ -24086,6 +24086,570 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} h'**
   String boActivityHours(double count);
+
+  /// No description provided for @loginBoKeyOrLink.
+  ///
+  /// In en, this message translates to:
+  /// **'API key or magic link'**
+  String get loginBoKeyOrLink;
+
+  /// No description provided for @loginBoKeyOrLinkDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with an API key from BookOrbit, a magic link, or paste a password link to set your password.'**
+  String get loginBoKeyOrLinkDescription;
+
+  /// No description provided for @boPermLibraryMergeBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge and link books'**
+  String get boPermLibraryMergeBooks;
+
+  /// No description provided for @boPermLibraryGenerateReadAloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate read-aloud books'**
+  String get boPermLibraryGenerateReadAloud;
+
+  /// No description provided for @boPermApiKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Create API keys'**
+  String get boPermApiKeys;
+
+  /// No description provided for @boAdminApiKeysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow keys on this server and cap how long they last'**
+  String get boAdminApiKeysSubtitle;
+
+  /// No description provided for @boAccountApiKeysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys that sign in without your password'**
+  String get boAccountApiKeysSubtitle;
+
+  /// No description provided for @boAccountKeySession.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in with an API key'**
+  String get boAccountKeySession;
+
+  /// No description provided for @boAccountKeySessionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Password, sessions and keys are managed from a password sign-in'**
+  String get boAccountKeySessionSubtitle;
+
+  /// No description provided for @boAccountKeyReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This key is read only, so nothing you do is saved to the server'**
+  String get boAccountKeyReadOnly;
+
+  /// No description provided for @boUserApiKeysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Issue a key that signs this person in to Absorb, or revoke theirs'**
+  String get boUserApiKeysSubtitle;
+
+  /// No description provided for @boApiKeysTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'API keys'**
+  String get boApiKeysTitle;
+
+  /// No description provided for @boApiKeysForUser.
+  ///
+  /// In en, this message translates to:
+  /// **'API keys for {name}'**
+  String boApiKeysForUser(String name);
+
+  /// No description provided for @boApiKeysIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'A key signs in without your password, for a script or another Absorb. It can do no more than you can, and you can narrow it further.'**
+  String get boApiKeysIntro;
+
+  /// No description provided for @boApiKeysIntroAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'A key signs {name} in without their password. It can do no more than they can, and runs as them.'**
+  String boApiKeysIntroAdmin(String name);
+
+  /// No description provided for @boApiKeysDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'API keys are turned off on this server'**
+  String get boApiKeysDisabled;
+
+  /// No description provided for @boApiKeysNoPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account is not allowed to create API keys. An administrator can grant that, or issue one for you.'**
+  String get boApiKeysNoPermission;
+
+  /// No description provided for @boApiKeysLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'A person can have {count} active keys at most. Revoke one to make room.'**
+  String boApiKeysLimit(int count);
+
+  /// No description provided for @boApiKeysEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No API keys yet'**
+  String get boApiKeysEmpty;
+
+  /// No description provided for @boApiKeyCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'New key'**
+  String get boApiKeyCreate;
+
+  /// No description provided for @boApiKeyIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'Issue a key'**
+  String get boApiKeyIssue;
+
+  /// No description provided for @boApiKeyIssueFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Issue a key for {name}'**
+  String boApiKeyIssueFor(String name);
+
+  /// No description provided for @boApiKeyCreateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The key is shown once, right after it is made.'**
+  String get boApiKeyCreateHint;
+
+  /// No description provided for @boApiKeyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get boApiKeyName;
+
+  /// No description provided for @boApiKeyNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What is this key for?'**
+  String get boApiKeyNameHint;
+
+  /// No description provided for @boApiKeyAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Access'**
+  String get boApiKeyAccess;
+
+  /// No description provided for @boApiKeyAccessRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get boApiKeyAccessRead;
+
+  /// No description provided for @boApiKeyAccessWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Read and write'**
+  String get boApiKeyAccessWrite;
+
+  /// No description provided for @boApiKeyAccessReadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Can look things up but change nothing. Absorb cannot save progress with a read key.'**
+  String get boApiKeyAccessReadHint;
+
+  /// No description provided for @boApiKeyAccessWriteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What Absorb needs to save progress, bookmarks and settings.'**
+  String get boApiKeyAccessWriteHint;
+
+  /// No description provided for @boApiKeyExpires.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires'**
+  String get boApiKeyExpires;
+
+  /// No description provided for @boApiKeyExpiryNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get boApiKeyExpiryNever;
+
+  /// No description provided for @boApiKeyExpiryDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days'**
+  String boApiKeyExpiryDays(int count);
+
+  /// No description provided for @boApiKeyExpiryCapped.
+  ///
+  /// In en, this message translates to:
+  /// **'This server caps keys at {count} days.'**
+  String boApiKeyExpiryCapped(int count);
+
+  /// No description provided for @boApiKeyAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator access'**
+  String get boApiKeyAdmin;
+
+  /// No description provided for @boApiKeyAdminHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The key can do everything an administrator can. It cannot be limited to libraries.'**
+  String get boApiKeyAdminHint;
+
+  /// No description provided for @boApiKeyPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions'**
+  String get boApiKeyPermissions;
+
+  /// No description provided for @boApiKeyPermissionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick what the key may use. With none, it can still read the libraries and personal data.'**
+  String get boApiKeyPermissionsHint;
+
+  /// No description provided for @boApiKeyAdminHasAll.
+  ///
+  /// In en, this message translates to:
+  /// **'An administrator key has every permission.'**
+  String get boApiKeyAdminHasAll;
+
+  /// No description provided for @boApiKeyNoGrantable.
+  ///
+  /// In en, this message translates to:
+  /// **'The account has no permissions a key could carry.'**
+  String get boApiKeyNoGrantable;
+
+  /// No description provided for @boApiKeyLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'Libraries'**
+  String get boApiKeyLibraries;
+
+  /// No description provided for @boApiKeyAllLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'All libraries'**
+  String get boApiKeyAllLibraries;
+
+  /// No description provided for @boApiKeyRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get boApiKeyRename;
+
+  /// No description provided for @boApiKeyRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get boApiKeyRegenerate;
+
+  /// No description provided for @boApiKeyRegenerateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate this key?'**
+  String get boApiKeyRegenerateTitle;
+
+  /// No description provided for @boApiKeyRegenerateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" gets a new secret and the old one stops working at once. Anything using the old one has to be updated.'**
+  String boApiKeyRegenerateBody(String name);
+
+  /// No description provided for @boApiKeyRevoke.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get boApiKeyRevoke;
+
+  /// No description provided for @boApiKeyRevokeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke this key?'**
+  String get boApiKeyRevokeTitle;
+
+  /// No description provided for @boApiKeyRevokeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" stops working at once. Anything signed in with it is signed out.'**
+  String boApiKeyRevokeBody(String name);
+
+  /// No description provided for @boApiKeyRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Key revoked'**
+  String get boApiKeyRevoked;
+
+  /// No description provided for @boApiKeyRevokeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke all'**
+  String get boApiKeyRevokeAll;
+
+  /// No description provided for @boApiKeyRevokeAllTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke every key?'**
+  String get boApiKeyRevokeAllTitle;
+
+  /// No description provided for @boApiKeyRevokeAllBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} keys stop working at once. Anything signed in with them is signed out.'**
+  String boApiKeyRevokeAllBody(int count);
+
+  /// No description provided for @boApiKeyRevokedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} keys revoked'**
+  String boApiKeyRevokedCount(int count);
+
+  /// No description provided for @boApiKeyRevokedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked {date}'**
+  String boApiKeyRevokedOn(String date);
+
+  /// No description provided for @boApiKeyExpiredOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired {date}'**
+  String boApiKeyExpiredOn(String date);
+
+  /// No description provided for @boApiKeyExpiresSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires soon, on {date}'**
+  String boApiKeyExpiresSoon(String date);
+
+  /// No description provided for @boApiKeyExpiresOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String boApiKeyExpiresOn(String date);
+
+  /// No description provided for @boApiKeyNeverExpires.
+  ///
+  /// In en, this message translates to:
+  /// **'Never expires'**
+  String get boApiKeyNeverExpires;
+
+  /// No description provided for @boApiKeyNeverUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Never used'**
+  String get boApiKeyNeverUsed;
+
+  /// No description provided for @boApiKeyLastUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last used {date}'**
+  String boApiKeyLastUsed(String date);
+
+  /// No description provided for @boApiKeyLastUsedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Last used {date} from {ip}'**
+  String boApiKeyLastUsedFrom(String date, String ip);
+
+  /// No description provided for @boApiKeyLibrariesOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only {names}'**
+  String boApiKeyLibrariesOnly(String names);
+
+  /// No description provided for @boApiKeyIssuedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Issued by {name}'**
+  String boApiKeyIssuedBy(String name);
+
+  /// No description provided for @boApiKeyAdminBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get boApiKeyAdminBadge;
+
+  /// No description provided for @boApiKeyExpiringBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiring'**
+  String get boApiKeyExpiringBadge;
+
+  /// No description provided for @boApiKeyExpiredBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get boApiKeyExpiredBadge;
+
+  /// No description provided for @boApiKeyRevokedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked'**
+  String get boApiKeyRevokedBadge;
+
+  /// No description provided for @boApiKeyRevealHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy it now or send it to the other device. It is not shown again.'**
+  String get boApiKeyRevealHint;
+
+  /// No description provided for @boApiKeyCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy key'**
+  String get boApiKeyCopy;
+
+  /// No description provided for @boApiKeyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Key copied'**
+  String get boApiKeyCopied;
+
+  /// No description provided for @boApiKeySignInElsewhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in on another device'**
+  String get boApiKeySignInElsewhere;
+
+  /// No description provided for @boApiKeyRevealWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the only time the key is shown. If it is lost, regenerate it.'**
+  String get boApiKeyRevealWarning;
+
+  /// No description provided for @boApiKeyShareDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this link or scan the QR code on the other device to sign in to Absorb as {username} with this key.'**
+  String boApiKeyShareDescription(String username);
+
+  /// No description provided for @boApiKeyShareWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with this link can use the key \"{name}\" until it is revoked.'**
+  String boApiKeyShareWarning(String name);
+
+  /// No description provided for @boApiKeyErrorExpiryCap.
+  ///
+  /// In en, this message translates to:
+  /// **'That lifetime is longer than this server allows'**
+  String get boApiKeyErrorExpiryCap;
+
+  /// No description provided for @boApiKeyErrorOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'This account cannot hold keys right now: it is suspended or not allowed to create them'**
+  String get boApiKeyErrorOwner;
+
+  /// No description provided for @boApiKeyErrorAdminLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'An administrator key cannot be limited to libraries'**
+  String get boApiKeyErrorAdminLibraries;
+
+  /// No description provided for @boApiKeyErrorScope.
+  ///
+  /// In en, this message translates to:
+  /// **'The key asked for more than its owner has'**
+  String get boApiKeyErrorScope;
+
+  /// No description provided for @boApiKeyErrorKeySession.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys cannot be managed from a session that signed in with a key'**
+  String get boApiKeyErrorKeySession;
+
+  /// No description provided for @boApiKeySettingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'API key settings saved'**
+  String get boApiKeySettingsSaved;
+
+  /// No description provided for @boApiKeySettingsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'These apply to every key on the server.'**
+  String get boApiKeySettingsIntro;
+
+  /// No description provided for @boApiKeySettingsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow API keys'**
+  String get boApiKeySettingsEnabled;
+
+  /// No description provided for @boApiKeySettingsEnabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off turns every key away without revoking any, and stops new ones being made'**
+  String get boApiKeySettingsEnabledHint;
+
+  /// No description provided for @boApiKeySettingsMaxLifetime.
+  ///
+  /// In en, this message translates to:
+  /// **'Longest lifetime'**
+  String get boApiKeySettingsMaxLifetime;
+
+  /// No description provided for @boApiKeySettingsMaxLifetimeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New and regenerated keys cannot last longer than this. Existing keys keep their expiry.'**
+  String get boApiKeySettingsMaxLifetimeHint;
+
+  /// No description provided for @boApiKeySettingsNoLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'No limit'**
+  String get boApiKeySettingsNoLimit;
+
+  /// No description provided for @boApiKeySettingsCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get boApiKeySettingsCustom;
+
+  /// No description provided for @boApiKeySettingsCustomDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Days'**
+  String get boApiKeySettingsCustomDays;
+
+  /// No description provided for @boApiKeySettingsCustomRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Between 1 and {max} days'**
+  String boApiKeySettingsCustomRange(int max);
+
+  /// No description provided for @boUserKeyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in link with an API key'**
+  String get boUserKeyLink;
+
+  /// No description provided for @boUserKeyLinkSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Makes a key with everything this person has and shows a QR code that signs them in to Absorb'**
+  String get boUserKeyLinkSubtitle;
+
+  /// No description provided for @boApiKeyLinkName.
+  ///
+  /// In en, this message translates to:
+  /// **'Absorb sign-in'**
+  String get boApiKeyLinkName;
+
+  /// No description provided for @boApiKeyLinkFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in link for {name}'**
+  String boApiKeyLinkFor(String name);
 }
 
 class _AppLocalizationsDelegate

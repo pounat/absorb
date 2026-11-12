@@ -79,6 +79,7 @@ class NavHoldAdmin {
         if (bookOrbit.manageUsers) 'users',
         if (bookOrbit.manageLibraries) 'libraries',
         if (bookOrbit.manageEmail) 'email',
+        if (bookOrbit.manageAppSettings) 'apikeys',
       ],
       scans: bookOrbit.manageLibraries,
     );

@@ -13,9 +13,11 @@ import '../services/setup_link_service.dart';
 import '../utils/share_origin.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/adaptive_modal.dart';
+import '../widgets/bookorbit_pickers.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/setup_link_share_sheet.dart';
 import 'bookorbit_admin_screen.dart';
+import 'bookorbit_api_keys_screen.dart';
 import 'bookorbit_user_activity_screen.dart';
 
 /// Everyone on the BookOrbit server, for people who manage users.
@@ -306,127 +308,6 @@ class _Badge extends StatelessWidget {
   }
 }
 
-/// Grouped permission checkboxes with BookOrbit's presets on top.
-class _PermissionPicker extends StatelessWidget {
-  final Set<String> selected;
-  final bool enabled;
-  final ValueChanged<Set<String>> onChanged;
-
-  const _PermissionPicker({required this.selected, required this.onChanged, this.enabled = true});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final l = AppLocalizations.of(context)!;
-    final all = boAllPermissions;
-    Widget preset(String label, Set<String> perms) {
-      final on = selected.length == perms.length && selected.containsAll(perms);
-      return Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: ChoiceChip(
-          label: Text(label),
-          selected: on,
-          onSelected: enabled ? (_) => onChanged({...perms}) : null,
-        ),
-      );
-    }
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Wrap(children: [
-          preset(l.boUserPresetNone, const {}),
-          preset(l.boUserPresetStandard, boStandardPermissions),
-          preset(l.boUserPresetEverything, all),
-        ]),
-      ),
-      for (final group in boPermissionGroups) ...[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 14, 4, 2),
-          child: Text(boPermissionGroupLabel(l, group.key),
-              style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
-        ),
-        for (final p in group.permissions)
-          CheckboxListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-            value: selected.contains(p),
-            title: Text(boPermissionLabel(l, p)),
-            onChanged: enabled
-                ? (v) => onChanged(v == true ? {...selected, p} : ({...selected}..remove(p)))
-                : null,
-          ),
-      ],
-    ]);
-  }
-}
-
-class _LibraryPicker extends StatelessWidget {
-  final List<BoLibrary> libraries;
-  final Set<int> selected;
-  final bool enabled;
-  final ValueChanged<Set<int>> onChanged;
-
-  const _LibraryPicker({
-    required this.libraries,
-    required this.selected,
-    required this.onChanged,
-    this.enabled = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(children: [
-      for (final lib in libraries)
-        CheckboxListTile(
-          dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          secondary: Icon(boLibraryIcon(lib.icon)),
-          value: selected.contains(lib.id),
-          title: Text(lib.name),
-          onChanged: enabled
-              ? (v) => onChanged(v == true ? {...selected, lib.id} : ({...selected}..remove(lib.id)))
-              : null,
-        ),
-    ]);
-  }
-}
-
-class _Section extends StatelessWidget {
-  final String? title;
-  final String? hint;
-  final List<Widget> children;
-
-  const _Section({this.title, this.hint, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-        decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(16)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (title != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(title!, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-            ),
-          if (hint != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
-              child: Text(hint!, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-            ),
-          const SizedBox(height: 6),
-          ...children,
-        ]),
-      ),
-    );
-  }
-}
 
 /// Shares a password link as an Absorb link and QR code, so [username] picks
 /// their password in Absorb and is signed straight in. The server's own web
@@ -736,7 +617,7 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: [
-                  _Section(children: [
+                  BoSection(children: [
                     TextField(
                       controller: _name,
                       enabled: editable,
@@ -768,7 +649,7 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
                       ),
                   ]),
                   if (_sharingLevel != null)
-                    _Section(children: [
+                    BoSection(children: [
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                         enabled: _sharingLevel != 'private',
@@ -787,18 +668,18 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
                       ),
                     ]),
                   if (_superuser)
-                    _Section(title: l.boUserPermissions, hint: l.boUserAdminHasAll, children: const [])
+                    BoSection(title: l.boUserPermissions, hint: l.boUserAdminHasAll, children: const [])
                   else ...[
-                    _Section(title: l.boUserPermissions, children: [
-                      _PermissionPicker(
+                    BoSection(title: l.boUserPermissions, children: [
+                      BoPermissionPicker(
                         selected: _permissions,
                         enabled: editable && !self,
                         onChanged: (p) => setState(() => _permissions = p),
                       ),
                     ]),
                     if (_allLibraries.isNotEmpty)
-                      _Section(title: l.boUserLibraries, hint: l.boUserLibrariesHint, children: [
-                        _LibraryPicker(
+                      BoSection(title: l.boUserLibraries, hint: l.boUserLibrariesHint, children: [
+                        BoLibraryPicker(
                           libraries: _allLibraries,
                           selected: _libraries,
                           enabled: editable,
@@ -806,8 +687,22 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
                         ),
                       ]),
                   ],
+                  if (editable && !self)
+                    BoSection(children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        leading: const Icon(Icons.vpn_key_rounded),
+                        title: Text(l.boApiKeysTitle),
+                        subtitle: Text(l.boUserApiKeysSubtitle),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => BookOrbitApiKeysScreen(user: _u)),
+                        ),
+                      ),
+                    ]),
                   if (editable)
-                    _Section(children: [
+                    BoSection(children: [
                       if (_u.external)
                         Padding(
                           padding: const EdgeInsets.all(4),
@@ -820,6 +715,14 @@ class _BookOrbitUserScreenState extends State<_BookOrbitUserScreen> {
                           title: Text(l.boUserPasswordLink),
                           subtitle: Text(l.boUserPasswordLinkSubtitle),
                           onTap: _sendLink,
+                        ),
+                      if (!self)
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          leading: const Icon(Icons.qr_code_2_rounded),
+                          title: Text(l.boUserKeyLink),
+                          subtitle: Text(l.boUserKeyLinkSubtitle),
+                          onTap: () => showBoApiKeySignInLink(context, user: _u),
                         ),
                       if (_u.locked)
                         ListTile(
@@ -957,7 +860,7 @@ class _BookOrbitNewUserScreenState extends State<_BookOrbitNewUserScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
-                _Section(children: [
+                BoSection(children: [
                   TextField(
                     controller: _username,
                     autocorrect: false,
@@ -977,12 +880,12 @@ class _BookOrbitNewUserScreenState extends State<_BookOrbitNewUserScreen> {
                   ),
                   const SizedBox(height: 4),
                 ]),
-                _Section(title: l.boUserPermissions, children: [
-                  _PermissionPicker(selected: _permissions, onChanged: (p) => setState(() => _permissions = p)),
+                BoSection(title: l.boUserPermissions, children: [
+                  BoPermissionPicker(selected: _permissions, onChanged: (p) => setState(() => _permissions = p)),
                 ]),
                 if (_allLibraries.isNotEmpty)
-                  _Section(title: l.boUserLibraries, hint: l.boUserLibrariesHint, children: [
-                    _LibraryPicker(
+                  BoSection(title: l.boUserLibraries, hint: l.boUserLibrariesHint, children: [
+                    BoLibraryPicker(
                       libraries: _allLibraries,
                       selected: _libraries,
                       onChanged: (s) => setState(() => _libraries = s),

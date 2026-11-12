@@ -23,6 +23,7 @@ class BookOrbitAdminAccess {
   final bool emailSend;
   final bool manageEmail;
   final bool viewUserActivity;
+  final bool manageAppSettings;
   final String userId;
 
   const BookOrbitAdminAccess({
@@ -32,10 +33,11 @@ class BookOrbitAdminAccess {
     this.emailSend = false,
     this.manageEmail = false,
     this.viewUserActivity = false,
+    this.manageAppSettings = false,
     required this.userId,
   });
 
-  bool get any => isSuperuser || manageUsers || manageLibraries || manageEmail;
+  bool get any => isSuperuser || manageUsers || manageLibraries || manageEmail || manageAppSettings;
 
   /// Whether the email settings have anything for this user.
   bool get email => emailSend || manageEmail;
@@ -52,6 +54,7 @@ class BookOrbitAdminAccess {
       emailSend: superuser || perms.contains('email_send'),
       manageEmail: superuser || perms.contains('manage_email'),
       viewUserActivity: superuser || perms.contains('view_user_activity'),
+      manageAppSettings: superuser || perms.contains('manage_app_settings'),
       userId: '${user?['id'] ?? ''}',
     );
   }
@@ -279,7 +282,14 @@ class BoPermissionGroup {
 
 /// Podcasts are switched off in BookOrbit, so their permissions are left out.
 const boPermissionGroups = [
-  BoPermissionGroup('library', ['library_download', 'library_upload', 'library_edit_metadata', 'library_delete_books']),
+  BoPermissionGroup('library', [
+    'library_download',
+    'library_upload',
+    'library_edit_metadata',
+    'library_delete_books',
+    'library_merge_books',
+    'library_generate_read_aloud',
+  ]),
   BoPermissionGroup('requests', [
     'book_request_access',
     'book_request_auto_approve',
@@ -287,7 +297,7 @@ const boPermissionGroups = [
     'manage_book_requests',
   ]),
   BoPermissionGroup('devices', ['kobo_sync', 'koreader_sync', 'opds_access']),
-  BoPermissionGroup('integrations', ['hardcover_sync', 'readwise_sync', 'storygraph_sync']),
+  BoPermissionGroup('integrations', ['hardcover_sync', 'readwise_sync', 'storygraph_sync', 'api_keys']),
   BoPermissionGroup('dock', ['book_dock_access', 'manage_book_dock']),
   BoPermissionGroup('email', ['email_send', 'notification_access', 'manage_email']),
   BoPermissionGroup('admin', [

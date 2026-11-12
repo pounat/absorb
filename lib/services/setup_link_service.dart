@@ -1,10 +1,12 @@
 import 'dart:convert';
 
 import '../utils/server_url.dart';
+import 'server_backend.dart';
 
 class SetupLinkData {
   final String serverUrl;
   final String username;
+  final ServerBackend backend;
 
   /// Signs straight in. Null on a BookOrbit password link.
   final String? apiKey;
@@ -22,6 +24,7 @@ class SetupLinkData {
     required this.userId,
     required this.customHeaders,
     this.passwordToken,
+    this.backend = ServerBackend.audiobookshelf,
   });
 
   bool get setsPassword => passwordToken != null;
@@ -75,6 +78,30 @@ class SetupLinkService {
         if (customHeaders.isNotEmpty) 'customHeaders': customHeaders,
       });
 
+  /// A link that signs someone in to BookOrbit with an API key issued for
+  /// them. The key is in the link, so it is shared like a password.
+  static Uri createBookOrbitApiKeyLink({
+    required String serverUrl,
+    required String username,
+    required String token,
+    Map<String, String> customHeaders = const {},
+  }) =>
+      createLink({
+        'version': 3,
+        'setup': true,
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+        'accounts': [
+          {
+            'serverUrl': serverUrl,
+            'username': username,
+            'backend': 'bookorbit',
+            'token': token,
+            'isLegacyToken': true,
+          },
+        ],
+        if (customHeaders.isNotEmpty) 'customHeaders': customHeaders,
+      });
+
   // A line break in a header would let a link smuggle extra headers or a
   // second request line into every call to the server.
   static final _headerName = RegExp(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}$");
@@ -119,7 +146,8 @@ class SetupLinkService {
     final account = Map<String, dynamic>.from(accounts.single as Map);
     final rawServerUrl = account['serverUrl'];
     final username = account['username'];
-    final passwordToken = account['backend'] == 'bookorbit' ? account['passwordToken'] : null;
+    final bookOrbit = account['backend'] == 'bookorbit';
+    final passwordToken = bookOrbit ? account['passwordToken'] : null;
     final apiKey = passwordToken is String ? '' : account['token'];
     final userId = account['userId'];
 
@@ -167,6 +195,7 @@ class SetupLinkService {
       passwordToken: passwordToken as String?,
       userId: userId as String?,
       customHeaders: Map.unmodifiable(headers),
+      backend: bookOrbit ? ServerBackend.bookorbit : ServerBackend.audiobookshelf,
     );
   }
 }

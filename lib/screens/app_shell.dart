@@ -44,6 +44,7 @@ import 'admin_stats_screen.dart';
 import 'admin_upload_screen.dart';
 import 'admin_users_screen.dart';
 import 'bookorbit_admin_screen.dart';
+import 'bookorbit_api_key_settings_screen.dart';
 import 'bookorbit_email_screen.dart';
 import 'bookorbit_libraries_screen.dart';
 import 'bookorbit_users_screen.dart';
@@ -2235,6 +2236,7 @@ class _AppShellState extends State<AppShell>
         'users' => const BookOrbitUsersScreen(),
         'libraries' => const BookOrbitLibrariesScreen(),
         'email' => const BookOrbitEmailScreen(initialTab: BoEmailTab.servers),
+        'apikeys' => const BookOrbitApiKeySettingsScreen(),
         _ => const BookOrbitAdminScreen(),
       };
       await Navigator.push(context, MaterialPageRoute(builder: (_) => screen!));

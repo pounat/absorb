@@ -14227,4 +14227,354 @@ class AppLocalizationsPt extends AppLocalizations {
   String boActivityHours(double count) {
     return '$count h';
   }
+
+  @override
+  String get loginBoKeyOrLink => 'API key or magic link';
+
+  @override
+  String get loginBoKeyOrLinkDescription =>
+      'Sign in with an API key from BookOrbit, a magic link, or paste a password link to set your password.';
+
+  @override
+  String get boPermLibraryMergeBooks => 'Merge and link books';
+
+  @override
+  String get boPermLibraryGenerateReadAloud => 'Generate read-aloud books';
+
+  @override
+  String get boPermApiKeys => 'Create API keys';
+
+  @override
+  String get boAdminApiKeysSubtitle =>
+      'Allow keys on this server and cap how long they last';
+
+  @override
+  String get boAccountApiKeysSubtitle =>
+      'Keys that sign in without your password';
+
+  @override
+  String get boAccountKeySession => 'Signed in with an API key';
+
+  @override
+  String get boAccountKeySessionSubtitle =>
+      'Password, sessions and keys are managed from a password sign-in';
+
+  @override
+  String get boAccountKeyReadOnly =>
+      'This key is read only, so nothing you do is saved to the server';
+
+  @override
+  String get boUserApiKeysSubtitle =>
+      'Issue a key that signs this person in to Absorb, or revoke theirs';
+
+  @override
+  String get boApiKeysTitle => 'API keys';
+
+  @override
+  String boApiKeysForUser(String name) {
+    return 'API keys for $name';
+  }
+
+  @override
+  String get boApiKeysIntro =>
+      'A key signs in without your password, for a script or another Absorb. It can do no more than you can, and you can narrow it further.';
+
+  @override
+  String boApiKeysIntroAdmin(String name) {
+    return 'A key signs $name in without their password. It can do no more than they can, and runs as them.';
+  }
+
+  @override
+  String get boApiKeysDisabled => 'API keys are turned off on this server';
+
+  @override
+  String get boApiKeysNoPermission =>
+      'Your account is not allowed to create API keys. An administrator can grant that, or issue one for you.';
+
+  @override
+  String boApiKeysLimit(int count) {
+    return 'A person can have $count active keys at most. Revoke one to make room.';
+  }
+
+  @override
+  String get boApiKeysEmpty => 'No API keys yet';
+
+  @override
+  String get boApiKeyCreate => 'New key';
+
+  @override
+  String get boApiKeyIssue => 'Issue a key';
+
+  @override
+  String boApiKeyIssueFor(String name) {
+    return 'Issue a key for $name';
+  }
+
+  @override
+  String get boApiKeyCreateHint =>
+      'The key is shown once, right after it is made.';
+
+  @override
+  String get boApiKeyName => 'Name';
+
+  @override
+  String get boApiKeyNameHint => 'What is this key for?';
+
+  @override
+  String get boApiKeyAccess => 'Access';
+
+  @override
+  String get boApiKeyAccessRead => 'Read';
+
+  @override
+  String get boApiKeyAccessWrite => 'Read and write';
+
+  @override
+  String get boApiKeyAccessReadHint =>
+      'Can look things up but change nothing. Absorb cannot save progress with a read key.';
+
+  @override
+  String get boApiKeyAccessWriteHint =>
+      'What Absorb needs to save progress, bookmarks and settings.';
+
+  @override
+  String get boApiKeyExpires => 'Expires';
+
+  @override
+  String get boApiKeyExpiryNever => 'Never';
+
+  @override
+  String boApiKeyExpiryDays(int count) {
+    return '$count days';
+  }
+
+  @override
+  String boApiKeyExpiryCapped(int count) {
+    return 'This server caps keys at $count days.';
+  }
+
+  @override
+  String get boApiKeyAdmin => 'Administrator access';
+
+  @override
+  String get boApiKeyAdminHint =>
+      'The key can do everything an administrator can. It cannot be limited to libraries.';
+
+  @override
+  String get boApiKeyPermissions => 'Permissions';
+
+  @override
+  String get boApiKeyPermissionsHint =>
+      'Pick what the key may use. With none, it can still read the libraries and personal data.';
+
+  @override
+  String get boApiKeyAdminHasAll =>
+      'An administrator key has every permission.';
+
+  @override
+  String get boApiKeyNoGrantable =>
+      'The account has no permissions a key could carry.';
+
+  @override
+  String get boApiKeyLibraries => 'Libraries';
+
+  @override
+  String get boApiKeyAllLibraries => 'All libraries';
+
+  @override
+  String get boApiKeyRename => 'Rename';
+
+  @override
+  String get boApiKeyRegenerate => 'Regenerate';
+
+  @override
+  String get boApiKeyRegenerateTitle => 'Regenerate this key?';
+
+  @override
+  String boApiKeyRegenerateBody(String name) {
+    return '\"$name\" gets a new secret and the old one stops working at once. Anything using the old one has to be updated.';
+  }
+
+  @override
+  String get boApiKeyRevoke => 'Revoke';
+
+  @override
+  String get boApiKeyRevokeTitle => 'Revoke this key?';
+
+  @override
+  String boApiKeyRevokeBody(String name) {
+    return '\"$name\" stops working at once. Anything signed in with it is signed out.';
+  }
+
+  @override
+  String get boApiKeyRevoked => 'Key revoked';
+
+  @override
+  String get boApiKeyRevokeAll => 'Revoke all';
+
+  @override
+  String get boApiKeyRevokeAllTitle => 'Revoke every key?';
+
+  @override
+  String boApiKeyRevokeAllBody(int count) {
+    return '$count keys stop working at once. Anything signed in with them is signed out.';
+  }
+
+  @override
+  String boApiKeyRevokedCount(int count) {
+    return '$count keys revoked';
+  }
+
+  @override
+  String boApiKeyRevokedOn(String date) {
+    return 'Revoked $date';
+  }
+
+  @override
+  String boApiKeyExpiredOn(String date) {
+    return 'Expired $date';
+  }
+
+  @override
+  String boApiKeyExpiresSoon(String date) {
+    return 'Expires soon, on $date';
+  }
+
+  @override
+  String boApiKeyExpiresOn(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String get boApiKeyNeverExpires => 'Never expires';
+
+  @override
+  String get boApiKeyNeverUsed => 'Never used';
+
+  @override
+  String boApiKeyLastUsed(String date) {
+    return 'Last used $date';
+  }
+
+  @override
+  String boApiKeyLastUsedFrom(String date, String ip) {
+    return 'Last used $date from $ip';
+  }
+
+  @override
+  String boApiKeyLibrariesOnly(String names) {
+    return 'Only $names';
+  }
+
+  @override
+  String boApiKeyIssuedBy(String name) {
+    return 'Issued by $name';
+  }
+
+  @override
+  String get boApiKeyAdminBadge => 'Admin';
+
+  @override
+  String get boApiKeyExpiringBadge => 'Expiring';
+
+  @override
+  String get boApiKeyExpiredBadge => 'Expired';
+
+  @override
+  String get boApiKeyRevokedBadge => 'Revoked';
+
+  @override
+  String get boApiKeyRevealHint =>
+      'Copy it now or send it to the other device. It is not shown again.';
+
+  @override
+  String get boApiKeyCopy => 'Copy key';
+
+  @override
+  String get boApiKeyCopied => 'Key copied';
+
+  @override
+  String get boApiKeySignInElsewhere => 'Sign in on another device';
+
+  @override
+  String get boApiKeyRevealWarning =>
+      'This is the only time the key is shown. If it is lost, regenerate it.';
+
+  @override
+  String boApiKeyShareDescription(String username) {
+    return 'Open this link or scan the QR code on the other device to sign in to Absorb as $username with this key.';
+  }
+
+  @override
+  String boApiKeyShareWarning(String name) {
+    return 'Anyone with this link can use the key \"$name\" until it is revoked.';
+  }
+
+  @override
+  String get boApiKeyErrorExpiryCap =>
+      'That lifetime is longer than this server allows';
+
+  @override
+  String get boApiKeyErrorOwner =>
+      'This account cannot hold keys right now: it is suspended or not allowed to create them';
+
+  @override
+  String get boApiKeyErrorAdminLibraries =>
+      'An administrator key cannot be limited to libraries';
+
+  @override
+  String get boApiKeyErrorScope => 'The key asked for more than its owner has';
+
+  @override
+  String get boApiKeyErrorKeySession =>
+      'Keys cannot be managed from a session that signed in with a key';
+
+  @override
+  String get boApiKeySettingsSaved => 'API key settings saved';
+
+  @override
+  String get boApiKeySettingsIntro => 'These apply to every key on the server.';
+
+  @override
+  String get boApiKeySettingsEnabled => 'Allow API keys';
+
+  @override
+  String get boApiKeySettingsEnabledHint =>
+      'Off turns every key away without revoking any, and stops new ones being made';
+
+  @override
+  String get boApiKeySettingsMaxLifetime => 'Longest lifetime';
+
+  @override
+  String get boApiKeySettingsMaxLifetimeHint =>
+      'New and regenerated keys cannot last longer than this. Existing keys keep their expiry.';
+
+  @override
+  String get boApiKeySettingsNoLimit => 'No limit';
+
+  @override
+  String get boApiKeySettingsCustom => 'Other';
+
+  @override
+  String get boApiKeySettingsCustomDays => 'Days';
+
+  @override
+  String boApiKeySettingsCustomRange(int max) {
+    return 'Between 1 and $max days';
+  }
+
+  @override
+  String get boUserKeyLink => 'Sign-in link with an API key';
+
+  @override
+  String get boUserKeyLinkSubtitle =>
+      'Makes a key with everything this person has and shows a QR code that signs them in to Absorb';
+
+  @override
+  String get boApiKeyLinkName => 'Absorb sign-in';
+
+  @override
+  String boApiKeyLinkFor(String name) {
+    return 'Sign-in link for $name';
+  }
 }

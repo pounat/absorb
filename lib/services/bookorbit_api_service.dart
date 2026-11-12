@@ -814,9 +814,18 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
 
   static const _timeout = Duration(seconds: 20);
 
+  /// Set once the server turned a change away because the key this account
+  /// signed in with is read only.
+  static bool keyIsReadOnly = false;
+
   dynamic _decode(http.Response r) {
     if (r.statusCode < 200 || r.statusCode >= 300) {
-      throw _BoHttpError(r.statusCode, r.body.length > 300 ? r.body.substring(0, 300) : r.body, r.body);
+      final err = _BoHttpError(r.statusCode, r.body.length > 300 ? r.body.substring(0, 300) : r.body, r.body);
+      if (r.statusCode == 403 && !keyIsReadOnly && err.serverCode == 'API_KEY_READ_ONLY') {
+        keyIsReadOnly = true;
+        debugPrint('[BookOrbit] This API key is read only, so nothing is saved to the server');
+      }
+      throw err;
     }
     if (r.body.isEmpty) return null;
     return jsonDecode(r.body);
@@ -850,7 +859,9 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     }
 
     var r = await send();
-    if (r.statusCode == 401) {
+    if (r.statusCode == 401 && _isLegacyToken) {
+      _checkRevokedApiKey();
+    } else if (r.statusCode == 401) {
       final outcome = await _refreshAccessToken();
       if (outcome == _RefreshOutcome.refreshed) r = await send();
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();
@@ -3250,7 +3261,9 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     }
 
     var r = await send();
-    if (r.statusCode == 401) {
+    if (r.statusCode == 401 && _isLegacyToken) {
+      _checkRevokedApiKey();
+    } else if (r.statusCode == 401) {
       final outcome = await _refreshAccessToken();
       if (outcome == _RefreshOutcome.refreshed) r = await send();
       if (outcome == _RefreshOutcome.rejected) onAuthExpired?.call();

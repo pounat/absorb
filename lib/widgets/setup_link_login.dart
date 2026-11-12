@@ -109,6 +109,7 @@ Future<bool> handleSetupLinkLogin(
     serverUrl: setup.serverUrl,
     apiKey: setup.apiKey!,
     customHeaders: setup.customHeaders,
+    backend: setup.backend,
     l: l,
   );
   if (!context.mounted) return success;

@@ -120,6 +120,7 @@ class BookOrbitMapper {
         'isSuperuser': superuser,
         'permissions': perms,
         'provisioningMethod': u['provisioningMethod'],
+        'authenticationMethod': u['authenticationMethod'],
         'timezone': (u['settings'] as Map?)?['timezone'],
       },
     };

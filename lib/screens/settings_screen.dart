@@ -30,6 +30,7 @@ import '../widgets/nav_hold_options.dart';
 import '../widgets/now_playing_text_sheet.dart';
 import '../screens/admin_screen.dart';
 import '../screens/bookorbit_admin_screen.dart';
+import '../screens/bookorbit_api_keys_screen.dart';
 import '../screens/bookorbit_email_screen.dart';
 import '../screens/book_requests_screen.dart';
 import '../screens/achievements_screen.dart';
@@ -5616,7 +5617,20 @@ class SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
-          if (!auth.isBookOrbit || auth.canChangeBookOrbitPassword) ...[
+          if (auth.bookOrbitSignedInWithKey)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: Row(children: [
+                Icon(Icons.vpn_key_rounded, size: 20, color: cs.onSurfaceVariant),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(l.boAccountKeySession, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(BookOrbitApiService.keyIsReadOnly ? l.boAccountKeyReadOnly : l.boAccountKeySessionSubtitle,
+                    style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                ])),
+              ]),
+            ),
+          if ((!auth.isBookOrbit || auth.canChangeBookOrbitPassword) && !auth.bookOrbitSignedInWithKey) ...[
           InkWell(
             onTap: () {
               Navigator.pop(ctx);
@@ -5660,6 +5674,29 @@ class SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
+          ],
+          if (auth.bookOrbitCanMakeApiKeys) ...[
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const BookOrbitApiKeysScreen(),
+                ));
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(children: [
+                  Icon(Icons.vpn_key_rounded, size: 20, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(l.boApiKeysTitle, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(l.boAccountApiKeysSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+                  ])),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant),
+                ]),
+              ),
+            ),
+            Divider(height: 1, indent: 20, endIndent: 20, color: cs.onSurface.withValues(alpha: 0.06)),
           ],
           if (auth.bookOrbitAdmin?.email == true) ...[
             InkWell(
