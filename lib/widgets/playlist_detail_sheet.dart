@@ -21,6 +21,7 @@ import '../screens/app_shell.dart';
 import 'add_books_search_sheet.dart';
 import 'book_detail_sheet.dart';
 import 'books_sheet_shared.dart' show coverGridCount;
+import '../utils/up_next.dart';
 import 'editable_sheet_item.dart';
 import 'episode_list_sheet.dart';
 import 'stackable_sheet.dart';
@@ -56,6 +57,8 @@ class PlaylistDetailSheet extends StatefulWidget {
 class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
   bool _editing = false;
   bool _gridView = false;
+  bool _viewKnown = false;
+  bool _didAutoScroll = false;
   List<Map<String, dynamic>>? _editItems;
   final Set<String> _selectedKeys = {}; // "libraryItemId" or "libraryItemId-episodeId"
   bool _isBatchUpdating = false;
@@ -66,7 +69,11 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
     // Same list or grid choice as the Home section sheets, so the view you
     // picked last time comes back instead of the list every time.
     PlayerSettings.getSectionGridView().then((v) {
-      if (mounted && v != _gridView) setState(() => _gridView = v);
+      if (!mounted) return;
+      setState(() {
+        _gridView = v;
+        _viewKnown = true;
+      });
     });
   }
 
@@ -366,6 +373,22 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
 
     final name = playlist['name'] as String? ?? l.playlistDetailDefaultName;
     final items = (playlist['items'] as List<dynamic>?) ?? [];
+
+    // Opens on the item after the last one finished, the way a series does.
+    if (_viewKnown && !_didAutoScroll && !_editing && items.isNotEmpty) {
+      _didAutoScroll = true;
+      final up = upNextIndex(lib, [
+        for (final it in items.cast<Map<String, dynamic>>())
+          it['episodeId'] != null
+              ? '${it['libraryItemId']}-${it['episodeId']}'
+              : (it['libraryItemId'] as String? ?? ''),
+      ]);
+      if (up != null) {
+        scrollSheetToIndex(widget.scrollController, up,
+            columns: _gridView ? coverGridCount(context) : 1,
+            width: MediaQuery.sizeOf(context).width);
+      }
+    }
     // The add-books search only finds books, so hide it for podcast playlists.
     final isPodcastPlaylist = lib.libraries
             .cast<Map<String, dynamic>>()

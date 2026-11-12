@@ -19,6 +19,7 @@ import '../services/download_service.dart';
 import 'add_books_search_sheet.dart';
 import 'book_detail_sheet.dart';
 import 'books_sheet_shared.dart' show coverGridCount;
+import '../utils/up_next.dart';
 import 'editable_sheet_item.dart';
 import 'stackable_sheet.dart';
 import 'swipe_action.dart';
@@ -67,6 +68,8 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     }
   }
   bool _gridView = false;
+  bool _viewKnown = false;
+  bool _didAutoScroll = false;
   List<Map<String, dynamic>>? _editItems;
   final Set<String> _selectedItemIds = {};
   bool _isRemovingSelected = false;
@@ -95,7 +98,11 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     // Same list or grid choice as the Home section sheets, so the view you
     // picked last time comes back instead of the list every time.
     PlayerSettings.getSectionGridView().then((v) {
-      if (mounted && v != _gridView) setState(() => _gridView = v);
+      if (!mounted) return;
+      setState(() {
+        _gridView = v;
+        _viewKnown = true;
+      });
     });
   }
 
@@ -287,6 +294,19 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
     final name = collection['name'] as String? ?? l.collectionDetailDefaultName;
     final description = collection['description'] as String? ?? '';
     final books = (collection['books'] as List<dynamic>?) ?? [];
+
+    // Opens on the book after the last one finished, the way a series does.
+    if (_viewKnown && !_didAutoScroll && !_editing && books.isNotEmpty) {
+      _didAutoScroll = true;
+      final up = upNextIndex(lib, [
+        for (final b in books) (b as Map<String, dynamic>)['id'] as String? ?? '',
+      ]);
+      if (up != null) {
+        scrollSheetToIndex(widget.scrollController, up,
+            columns: _gridView ? coverGridCount(context) : 1,
+            width: MediaQuery.sizeOf(context).width);
+      }
+    }
 
     return Column(children: [
       const SizedBox(height: 4),
