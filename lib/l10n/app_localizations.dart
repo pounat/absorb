@@ -2437,7 +2437,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsEpisodeNotifsDesc.
   ///
   /// In en, this message translates to:
-  /// **'New podcast episodes and upcoming book releases, checked in the background'**
+  /// **'New podcast episodes, upcoming book releases and BookOrbit notifications, checked in the background'**
   String get settingsEpisodeNotifsDesc;
 
   /// No description provided for @notifIntervalOff.

@@ -1298,7 +1298,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsEpisodeNotifsDesc =>
-      'New podcast episodes and upcoming book releases, checked in the background';
+      'New podcast episodes, upcoming book releases and BookOrbit notifications, checked in the background';
 
   @override
   String get notifIntervalOff => 'Off';

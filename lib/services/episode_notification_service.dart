@@ -12,10 +12,12 @@ import 'package:workmanager/workmanager.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../screens/server_notifications_screen.dart';
 import '../screens/upcoming_releases_screen.dart';
 import '../widgets/episode_list_sheet.dart';
 import 'api_service.dart';
 import 'server_backend.dart';
+import 'server_notifications.dart';
 import 'download_service.dart';
 import 'player_settings.dart';
 import 'scoped_prefs.dart';
@@ -33,6 +35,7 @@ import 'package:provider/provider.dart';
 class EpisodeNotificationService {
   static const _uniqueName = 'com.barnabas.absorb.episodeNotifCheck';
   static const channelId = 'new_episodes';
+  static const bookOrbitChannelId = 'bookorbit_notifications';
   static const _iosChannel = MethodChannel('com.barnabas.absorb/background');
   static const _lastCheckKey = 'episodeNotifLastCheckMs';
 
@@ -184,6 +187,22 @@ class EpisodeNotificationService {
 
   /// Open the show's episode list once the app (navigator + session) is up.
   static Future<void> _handleTap(String? payload) async {
+    if (payload == 'bonotif') {
+      // A BookOrbit notification: open the server's notification list.
+      for (var i = 0; i < 60; i++) {
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          try {
+            if (ctx.read<AuthProvider>().apiService != null) {
+              Navigator.push(ctx, MaterialPageRoute(builder: (_) => const ServerNotificationsScreen()));
+              return;
+            }
+          } catch (_) {}
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      return;
+    }
     if (payload == 'upcoming') {
       // Release-day notification: open the upcoming releases page.
       for (var i = 0; i < 60; i++) {
@@ -250,12 +269,16 @@ Future<void> _checkAndNotify({bool inApp = false}) async {
   await _checkReleaseDayNotifs();
 
   final subscribed = await ScopedPrefs.getStringList('subscribed_podcasts');
-  if (subscribed.isEmpty) return;
+  final backend = ServerBackend.loadActive(await SharedPreferences.getInstance());
+  if (subscribed.isEmpty && !backend.isBookOrbit) return;
 
   final api = await _buildApiService();
   if (api == null) return;
 
   final plugin = FlutterLocalNotificationsPlugin();
+  if (api.isBookOrbit) await _checkServerNotifications(api, plugin);
+  if (subscribed.isEmpty) return;
+
   const channel = AndroidNotificationChannel(
     EpisodeNotificationService.channelId,
     'New episodes',
@@ -351,6 +374,85 @@ Future<void> _checkAndNotify({bool inApp = false}) async {
     } catch (e) {
       debugPrint('[EpisodeNotif] check failed for $showId: $e');
     }
+  }
+}
+
+/// Phone notifications for what BookOrbit's own notification list got since
+/// the last check: book requests, finished imports and the like. The first
+/// check only notes the time, so an old backlog never floods the phone, and
+/// anything already read on the server stays quiet.
+Future<void> _checkServerNotifications(ApiService api, FlutterLocalNotificationsPlugin plugin) async {
+  const key = 'bookorbit_notified_through';
+  try {
+    if (!await api.hasServerNotifications()) {
+      debugPrint('[EpisodeNotif] BookOrbit notifications: none for this account');
+      return;
+    }
+    final page = await api.serverNotifications(limit: 30);
+    if (page == null) {
+      debugPrint('[EpisodeNotif] BookOrbit notifications: list not read');
+      return;
+    }
+    final through = await ScopedPrefs.getInt(key);
+    if (through == null) {
+      await ScopedPrefs.setInt(key, DateTime.now().millisecondsSinceEpoch);
+      debugPrint('[EpisodeNotif] BookOrbit notifications: first check, ${page.items.length} listed, noting the time');
+      return;
+    }
+    int at(ServerNotification n) => n.when?.millisecondsSinceEpoch ?? 0;
+    final fresh = page.items.where((n) => !n.read && at(n) > through).toList()
+      ..sort((a, b) => at(a).compareTo(at(b)));
+    debugPrint('[EpisodeNotif] BookOrbit notifications: ${page.items.length} listed, '
+        '${fresh.length} new since ${DateTime.fromMillisecondsSinceEpoch(through)}');
+    if (fresh.isEmpty) return;
+
+    const channelName = 'BookOrbit notifications';
+    const channelDescription = 'What your BookOrbit server tells you about: requests, imports and more';
+    const channel = AndroidNotificationChannel(
+      EpisodeNotificationService.bookOrbitChannelId,
+      channelName,
+      description: channelDescription,
+      importance: Importance.defaultImportance,
+    );
+    await plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        EpisodeNotificationService.bookOrbitChannelId,
+        channelName,
+        channelDescription: channelDescription,
+        icon: 'drawable/ic_notification',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+      ),
+      iOS: DarwinNotificationDetails(threadIdentifier: 'bookorbit_notifications'),
+    );
+    // At most five on their own; the rest fold into one line.
+    final shown = fresh.length > 5 ? fresh.sublist(fresh.length - 4) : fresh;
+    final folded = fresh.length - shown.length;
+    for (final n in shown) {
+      final body = n.message ?? '';
+      await plugin.show(
+        0x424F0000 | (n.id & 0xFFFF),
+        n.title.isEmpty ? 'BookOrbit' : n.title,
+        n.count > 1 ? '$body (${n.count}x)'.trim() : body,
+        details,
+        payload: 'bonotif',
+      );
+    }
+    if (folded > 0) {
+      await plugin.show(0x424FFFFF, 'BookOrbit', '$folded more notifications', details, payload: 'bonotif');
+    }
+    var newest = through;
+    for (final n in fresh) {
+      if (at(n) > newest) newest = at(n);
+    }
+    await ScopedPrefs.setInt(key, newest);
+    debugPrint('[EpisodeNotif] BookOrbit notifications: shown ${shown.length}, folded $folded, '
+        'now through ${DateTime.fromMillisecondsSinceEpoch(newest)}');
+  } catch (e) {
+    debugPrint('[EpisodeNotif] BookOrbit notifications check failed: $e');
   }
 }
 

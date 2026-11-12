@@ -665,7 +665,7 @@
   "settingsOpenStats": "Open Stats",
   "settingsMergeImpliedByPodcastTab": "Always on while the Podcasts tab is enabled",
   "settingsEpisodeNotifs": "Notification settings",
-  "settingsEpisodeNotifsDesc": "New podcast episodes and upcoming book releases, checked in the background",
+  "settingsEpisodeNotifsDesc": "New podcast episodes, upcoming book releases and BookOrbit notifications, checked in the background",
   "notifIntervalOff": "Off",
   "notifIntervalMinutes": "Every {n} minutes",
   "@notifIntervalMinutes": {
