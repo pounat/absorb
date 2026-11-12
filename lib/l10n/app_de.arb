@@ -736,7 +736,6 @@
   "settingsPodcastTabLibrary": "Podcasts Registerkarte",
   "settingsMergeImpliedByPodcastTab": "Immer eingeschaltet, während der Podcasts-Tab aktiviert ist",
   "settingsEpisodeNotifs": "Benachrichtigungseinstellungen",
-  "settingsEpisodeNotifsDesc": "Neue Podcast-Episoden und bevorstehende Buchveröffentlichungen, im Hintergrund geprüft",
   "notifIntervalOff": "Aus",
   "notifIntervalMinutes": "Alle {n} Minuten",
   "@notifIntervalMinutes": {
@@ -4776,7 +4775,6 @@
   "tipsSheetSeriesQueueModeTitle": "Serien-Warteschlangenmodus",
   "tipsSheetSeriesQueueModeDesc": "Wenn du ein Buch beendest, das Teil einer Serie ist, kann Absorb automatisch das nächste Buch abspielen. Stelle den Warteschlangenmodus in den Einstellungen auf \"Serie\".",
   "tipsSheetOfflineModeTitle": "Offline-Modus",
-  "tipsSheetOfflineModeDesc": "Tippe auf dem Absorbing-Bildschirm auf den Flugzeug-Button, um in den Offline-Modus zu wechseln. Das stoppt die Synchronisierung, spart Daten und zeigt nur deine heruntergeladenen Bücher. Ideal für Flüge oder schlechten Empfang.",
   "tipsSheetUpcomingReleasesTitle": "Kommende Veröffentlichungen",
   "tipsSheetUpcomingReleasesDesc": "Tippe im Serien-Tab erneut auf Serien, um die Sortierungs- und Filterfunktionen aufzurufen. Tippe dort auf \"Kommende Veröffentlichungen\" und wähle deine Audible Region, um neue Bücher zu deinen Serien zu entdecken, geordnet nach Veröffentlichungsdatum.",
   "tipsSheetPerBookEqTitle": "Equalizer pro Buch",
