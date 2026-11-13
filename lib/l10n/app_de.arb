@@ -5984,14 +5984,30 @@
   "readerNoteTitle": "Notiz",
   "readerNoteHint": "Notiz hinzufügen...",
   "backupAndSync": "Sicherung und Synchronisierung",
+  "backupAndSyncSubtitle": "Erstellen Sie eine Sicherungsdatei oder halten Sie die Einstellungen geräteübergreifend synchron.",
   "syncSettingsExperimental": "Experimentell",
+  "syncSettingsExperimentalBody": "Die Synchronisierungsfunktion ist neu und befindet sich noch in der Entwicklung. Wenn auf zwei Geräten während einer Zeit der Trennung Änderungen vorgenommen werden, können die Änderungen auf einer der Seiten verloren gehen. Bewahren Sie daher eine Sicherungsdatei als verlässliche Kopie auf.",
+  "syncSettingsNeedServer": "Brauchst du einen Server?",
+  "syncSettingsNeedServerSub": "Jeder WebDAV-Server funktioniert. Nextcloud ist eine kostenlose, selbst gehostete Lösung.",
   "syncSettingsConnection": "Verbindung",
   "syncSettingsConnectionNotSet": "Nicht eingerichtet",
+  "syncSettingsBackupFile": "Sicherungsdatei",
+  "syncSettingsBackupFilePlain": "Speichere alles in einer Datei, die du aufbewahrst.",
+  "syncSettingsBackupFileWithSync": "Speichere alles in einer Datei, die du aufbewahrst. Wenn du deine Anmeldedaten verwendest, um die Daten auf einem anderen Telefon wiederherzustellen, wird dort auch die Synchronisierung aktiviert.",
+  "syncSettingsStatusOff": "Keine Synchronisation",
   "syncSettingsStatusProblem": "Server nicht erreichbar",
   "syncSettings": "Einstellungen zwischen Geräten synchronisieren",
+  "syncSettingsExtras": "Ebenfalls synchronisieren",
   "syncSettingsIncludeRmab": "ReadMeABook Einstellungen",
+  "syncSettingsIncludeRmabSub": "Fügt dein ReadMeABook API-Token in die synchronisierte Datei ein",
+  "syncSettingsSubtitle": "Halten Sie Ihre Einstellungen mithilfe eines eigenen WebDAV-Servers synchron",
+  "syncSettingsEnable": "Synchronisierungseinstellungen",
+  "syncSettingsServerUrl": "WebDAV Ordner URL",
+  "syncSettingsServerUrlHint": "https://cloud.example.com/remote.php/dav/files/you/Absorb",
   "syncSettingsUsername": "Benutzername",
   "syncSettingsPassword": "Passwort",
+  "syncSettingsHeaders": "Benutzerdefinierte Header (optional)",
+  "syncSettingsHeadersHint": "Einer pro Zeile, zum Beispiel: CF-Access-Client-Id: abc123",
   "syncSettingsTest": "Verbindung testen",
   "syncSettingsHoldToUpload": "Gedrückt halten, um jetzt hochzuladen",
   "syncSettingsUploadNow": "Jetzt hochladen",
@@ -6004,6 +6020,14 @@
   "syncSettingsTooLarge": "Einstellungen zu groß zum synchronisieren",
   "syncSettingsUploaded": "Einstellungen hochgeladen",
   "syncSettingsApplied": "Einstellungen von anderem Gerät aktualisiert",
+  "syncSettingsAppliedCount": "{count, plural, one{1 Einstellung von deinem anderen Gerät aktualisiert} other{{count} Einstellungen von deinem anderen Gerät aktualisiert}}",
+  "@syncSettingsAppliedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "syncSettingsUpToDate": "Bereits auf dem neusten Stand",
   "syncSettingsLastSynced": "Zuletzt synchronisiert {when}",
   "@syncSettingsLastSynced": {
@@ -6014,8 +6038,17 @@
     }
   },
   "syncSettingsNever": "Noch nicht synchronisiert",
+  "navHoldPickTitle": "Halten von {tab} wird...",
+  "@navHoldPickTitle": {
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      }
+    }
+  },
   "navHoldPickBody": "Wähle aus, was ein langes Drücken auf diesem Tab bewirkt. Du kannst das Verhalten jederzeit in den Einstellungen ändern.",
   "navHoldSettingTitle": "Tab hält Verknüpfungen",
+  "navHoldSettingSubtitle": "Was passiert, wenn man den einzelnen Tab gedrückt hält",
   "navHoldAskNextTime": "Erneut fragen",
   "navHoldNothing": "Nichts",
   "navHoldPlayPause": "Play / Pause",
@@ -6024,7 +6057,16 @@
   "navHoldOfflineOff": "Offline Modus aus",
   "navHoldMenu": "Menü immer anzeigen",
   "navHoldStop": "Wiedergabe stoppen",
+  "navHoldRmabSearch": "ReadMeABook Suche",
+  "navHoldRmabRequests": "Meine Buchanfragen",
+  "navHoldRmabWeb": "ReadMeABook Seite",
   "navHoldAdd": "Hinzufügen",
+  "navHoldMoveLeft": "Nach links verschieben",
+  "navHoldMoveRight": "Nach rechts verschieben",
+  "navHoldRemoveFromMenu": "Aus dem Menü entfernen",
+  "navHoldEditHint": "Halte ein Element gedrückt, um es zu bewegen oder zu entfernen",
+  "navHoldResetMenu": "Haltemenü-Elemente zurücksetzen",
+  "navHoldMenuReset": "Menüeinträge zurücksetzen",
   "bookStatsAction": "Hörstatistik",
   "bookStatsYou": "Du",
   "bookStatsEveryone": "Jeder",
@@ -6036,6 +6078,18 @@
   "bookStatsFinishedCount": "Nutzer die es beendet haben",
   "bookStatsTotalTime": "Gehörte Zeit aller Nutzer",
   "bookStatsNobody": "Noch niemand hat es gehört",
+  "bookStatsScanning": "Durchsuche die Sitzungen, das könnte etwas dauern...",
+  "bookStatsScanningCount": "Durchsuchen der Sitzungen abgeschlossen, {done} von {total} Benutzer...",
+  "@bookStatsScanningCount": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "bookStatsLastChecked": "Überprüft {when}",
   "@bookStatsLastChecked": {
     "placeholders": {
@@ -6044,6 +6098,8 @@
       }
     }
   },
+  "activityYourReading": "Dein Leseverlauf",
+  "activityYourListening": "Dein Hörverlauf",
   "activityProgress": "Fortschritt",
   "readingLogLongestStreak": "Längste Serie",
   "readingLogStreakDays": "{count, plural, =1{1 Tag} other{{count} Tage}}",
