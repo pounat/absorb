@@ -418,11 +418,17 @@ jobs:
   # The Wear OS companion, from its own repo. Signed with the phone app's
   # keystore, since the Data Layer only pairs apps that share the signing
   # key, and stamped with the phone's version so the two always match.
+  # The watch app, from its own repo: a github APK for the release and a
+  # playstore bundle for the listing's Wear OS track. The watch bundle keeps
+  # its own version code (the phone's plus a million, set in the watch's
+  # Gradle file) so it never collides with the phone bundle in Play.
   wear:
-    name: Wear OS APK
+    name: Wear OS
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -449,13 +455,14 @@ jobs:
           storeFile=$RUNNER_TEMP/absorb-upload-key.jks
           EOF
 
-      - name: Build the watch APK
+      - name: Build the watch APK and Play bundle
         env:
           RAW_VERSION: ${{ needs.prepare.outputs.raw }}
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleGithubRelease --no-daemon --console=plain \
+          ./gradlew :app:assembleGithubRelease :app:bundlePlaystoreRelease --no-daemon --console=plain \
             -PversionName="${RAW_VERSION%%+*}" -PversionCode="${RAW_VERSION##*+}"
+          echo "WEAR_AAB=$(ls app/build/outputs/bundle/playstoreRelease/*.aab | head -1)" >> "$GITHUB_ENV"
 
       - name: Rename artifact
         env:
@@ -474,6 +481,29 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION_TAG: ${{ needs.prepare.outputs.tag }}
         run: gh release upload "$VERSION_TAG" "$ARTIFACT" --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Write Play Store release notes
+        if: inputs.play_notes != ''
+        env:
+          PLAY_NOTES: ${{ inputs.play_notes }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/whatsnew"
+          printf '%s' "$PLAY_NOTES" > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
+          echo "PLAY_WHATSNEW=$RUNNER_TEMP/whatsnew" >> "$GITHUB_ENV"
+
+      # Same listing as the phone, but Wear OS releases live on their own
+      # tracks, named with a "wear:" prefix. The track only exists once the
+      # Wear OS form factor has been added to the app in Play Console.
+      - name: Upload watch bundle to Play Console
+        if: env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.barnabas.absorb
+          releaseFiles: ${{ env.WEAR_AAB }}
+          tracks: wear:${{ inputs.play_track || 'internal' }}
+          status: ${{ inputs.play_release && 'completed' || 'draft' }}
+          whatsNewDirectory: ${{ env.PLAY_WHATSNEW }}
 
   # Windows installer, same recipe as windows-build.yml, uploaded to the draft
   # beside the phone builds. Unsigned; SmartScreen warns on first run.
