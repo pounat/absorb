@@ -6100,7 +6100,119 @@
   },
   "activityYourReading": "Dein Leseverlauf",
   "activityYourListening": "Dein Hörverlauf",
+  "activityLastRead": "Zuletzt gelesen {when}",
+  "@activityLastRead": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "activityLastListened": "Zuletzt gehört {when}",
+  "@activityLastListened": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "activityNotStarted": "Nicht begonnen",
+  "activityNoReading": "Noch keine Lesesitzungen",
+  "activityTime": "Zeit",
+  "activityAverage": "Durchschnitt",
   "activityProgress": "Fortschritt",
+  "activityReached": "{percent} erreicht",
+  "@activityReached": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "readingLogTitle": "Leseprotokoll",
+  "readingLogTotalTime": "Gesamtzeit",
+  "readingLogAverageSession": "Durchschnittliche Sitzung",
+  "readingLogActiveDays": "Aktive Tage",
+  "readingLogActiveDaysOf": "{active} von {total}",
+  "@readingLogActiveDaysOf": {
+    "placeholders": {
+      "active": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogPace": "Geschwindigkeit",
+  "readingLogPacePerHour": "{percent}%/Std",
+  "@readingLogPacePerHour": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "readingLogLastRead": "Zuletzt gelesen",
+  "readingLogStarted": "Begonnen",
+  "readingLogFinished": "Beendet",
+  "readingLogNotSet": "Nicht festgelegt",
+  "readingLogLeftMinutes": "Ungefähr {m}min zum Ende",
+  "@readingLogLeftMinutes": {
+    "placeholders": {
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogLeftHours": "Ungefähr {h}Std zum Ende",
+  "@readingLogLeftHours": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogLeftHoursMinutes": "Ungefähr {h}Std {m}min zum Ende",
+  "@readingLogLeftHoursMinutes": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogLeftMax": "Über 99Std bis zum Ende",
+  "readingLogUpOnLastWeek": "Ein Anstieg um {percent}% gegenüber der Vorwoche",
+  "@readingLogUpOnLastWeek": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogDownOnLastWeek": "{percent}% Rückgang gegenüber der Vorwoche",
+  "@readingLogDownOnLastWeek": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogNewThisWeek": "Neu in dieser Woche",
+  "readingLogSameAsLastWeek": "Genauso wie in der Woche davor",
+  "readingLogQuietTwoWeeks": "Nichts in den letzten zwei Wochen",
+  "readingLogWhereYouRead": "Wo du es gelesen hast",
+  "readingLogSourceIos": "iOS App",
+  "readingLogSourceAndroid": "Android App",
+  "readingLogChartTitle": "Fortschritt im Zeitverlauf",
+  "readingLogChartPosition": "Position erreicht",
+  "readingLogChartMinutes": "Minuten",
+  "readingLogRecords": "Aufzeichnungen",
+  "readingLogLongestSession": "Längste Serie",
+  "readingLogBestDay": "Bester Tag",
   "readingLogLongestStreak": "Längste Serie",
   "readingLogStreakDays": "{count, plural, =1{1 Tag} other{{count} Tage}}",
   "@readingLogStreakDays": {
@@ -6110,6 +6222,7 @@
       }
     }
   },
+  "readingLogJumpedBack": "Zurückgesprungen",
   "readingLogJumpedBackTimes": "{count, plural, =1{1 Mal} other{{count} Mal}}",
   "@readingLogJumpedBackTimes": {
     "placeholders": {
@@ -6118,8 +6231,83 @@
       }
     }
   },
+  "readingLogFirstOpened": "Zum ersten Mal geöffnet",
   "readingLogAttempts": "Versuche",
+  "readingLogAttempt": "Versuch {index}",
+  "@readingLogAttempt": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogAttemptBegan": "{index} Versuche gestartet",
+  "@readingLogAttemptBegan": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "readingLogOutcomeCompleted": "Abgeschlossen",
+  "readingLogOutcomeSkimmed": "Überflogen",
+  "readingLogOutcomeAbandoned": "Anweisungen",
+  "readingLogOutcomeInProgress": "Angefangen",
+  "readingLogSpanRange": "{from} bis {to}",
+  "@readingLogSpanRange": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "readingLogSpanSince": "Seit {from}",
+  "@readingLogSpanSince": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      }
+    }
+  },
+  "readingLogSpanEnded": "{to} beendet",
+  "@readingLogSpanEnded": {
+    "placeholders": {
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "readingLogSpanUnknown": "Keine Daten erfasst",
+  "readingLogSessionCount": "{count, plural, =1{1 Sitzung} other{{count} Sitzungen}}",
+  "@readingLogSessionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogShowing": "{shown} von {total}",
+  "@readingLogShowing": {
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "readingLogGapDays": "{count, plural, =1{1 Tag ohne Lesen} other{{count} Tage ohne Lesen}}",
+  "@readingLogGapDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "readingLogLast30": "Letzten 30 Tage",
   "readingLogLast90": "Letzten 90 Tage",
   "readingLogThisYear": "Dieses Jahr",
