@@ -734,8 +734,12 @@
   "settingsPodcastTab": "Podcast-Tab",
   "settingsPodcastTabDesc": "Gib einer Podcast-Bibliothek einen eigenen Tab in der unteren Leiste",
   "settingsPodcastTabLibrary": "Podcasts Registerkarte",
+  "settingsStatsTab": "Statistik Tab",
+  "settingsStatsTabDesc": "Statistiken in der unteren Leiste anzeigen. Deaktivieren Sie diese Option, um auf einem kleinen Bildschirm mehr Platz zu schaffen.",
+  "settingsOpenStats": "Statistiken öffnen",
   "settingsMergeImpliedByPodcastTab": "Immer eingeschaltet, während der Podcasts-Tab aktiviert ist",
   "settingsEpisodeNotifs": "Benachrichtigungseinstellungen",
+  "settingsEpisodeNotifsDesc": "Neue Podcast-Episoden, bevorstehende Buchveröffentlichungen und BookOrbit-Benachrichtigungen – im Hintergrund überprüft",
   "notifIntervalOff": "Aus",
   "notifIntervalMinutes": "Alle {n} Minuten",
   "@notifIntervalMinutes": {
@@ -4775,6 +4779,7 @@
   "tipsSheetSeriesQueueModeTitle": "Serien-Warteschlangenmodus",
   "tipsSheetSeriesQueueModeDesc": "Wenn du ein Buch beendest, das Teil einer Serie ist, kann Absorb automatisch das nächste Buch abspielen. Stelle den Warteschlangenmodus in den Einstellungen auf \"Serie\".",
   "tipsSheetOfflineModeTitle": "Offline-Modus",
+  "tipsSheetOfflineModeDesc": "Tippe auf die grüne Wolke oben auf dem „Absorbing“-Bildschirm, um in den Offline-Modus zu wechseln. Die Synchronisierung wird angehalten, es werden keine Daten verbraucht und es werden nur deine Downloads angezeigt. Im Offline-Modus färbt sich die Wolke orange; ein erneutes Tippen darauf stellt die Verbindung wieder her. Eine rote Wolke bedeutet, dass du abgemeldet wurdest: Deine Downloads lassen sich weiterhin abspielen, und deine Hörvorgänge werden synchronisiert, sobald du dich wieder anmeldest. Du kannst den Offline-Modus auch aktivieren, indem du einen Tab gedrückt hältst – die entsprechende Option findest du in den Einstellungen unter „Kurzbefehle durch Gedrückthalten von Tabs“.",
   "tipsSheetUpcomingReleasesTitle": "Kommende Veröffentlichungen",
   "tipsSheetUpcomingReleasesDesc": "Tippe im Serien-Tab erneut auf Serien, um die Sortierungs- und Filterfunktionen aufzurufen. Tippe dort auf \"Kommende Veröffentlichungen\" und wähle deine Audible Region, um neue Bücher zu deinen Serien zu entdecken, geordnet nach Veröffentlichungsdatum.",
   "tipsSheetPerBookEqTitle": "Equalizer pro Buch",
@@ -5642,6 +5647,7 @@
   "authSetClientSecret": "Client-Secret",
   "authSetSigningAlgorithm": "Signatur-Algorithmus",
   "authSetRedirectUris": "Erlaubte mobile Weiterleitung-URIs",
+  "authSetRedirectUrisInfo": "Apps können nach der Anmeldung nur zu diesen Adressen zurückkehren. Absorb verwendet absorb://oauth. Ein Sternchen (*) als einziger Eintrag lässt eine beliebige Adresse zu.",
   "authSetAddRedirectUri": "URI hinzufügen",
   "authSetAddAbsorbRedirect": "absorb://oauth hinzufügen",
   "authSetSubfolder": "Unterordner für Weiterleitungs-URLs",
@@ -5657,6 +5663,47 @@
   "authSetAutoLaunchInfo": "Öffne den Provider automatisch von der Web-Login-Seite. /login?autoLaunch=0 überspringt diese.",
   "authSetAutoRegister": "Automatisch registrieren",
   "authSetAutoRegisterInfo": "Neue Benutzer automatisch erstellen, nachdem sie sich angemeldet haben",
+  "authSetClaimsInfo": "Lassen Sie diese leer, um Gruppe und Berechtigung zu deaktivieren. Neue Benutzer erhalten dann die Benutzerrolle.",
+  "authSetGroupClaim": "Gruppen Claim",
+  "authSetGroupClaimInfo": "Ein Claim, der die Gruppen des Benutzers auflistet (üblicherweise unter der Bezeichnung „groups“). Gruppen mit den Namen „admin“, „user“ oder „guest“ legen die Rolle fest, wobei die ranghöchste Rolle maßgeblich ist. Stimmt keine der Gruppen überein, wird die Anmeldung verweigert.",
+  "authSetPermsClaim": "Erweiterter Berechtigungs- Claim",
+  "authSetPermsClaimInfo": "Claim mit Berechtigungen für Nicht-Administrator-Benutzer. Fehlt der Claim, wird die Anmeldung verweigert; eine fehlende Option wird als „deaktiviert“ gewertet. Erwartetes Format:",
+  "authSetRestartNote": "Starten Sie den Server nach dem Speichern neu, um die OpenID Connect Änderungen zu übernehmen.",
+  "authSetNoChanges": "Keine Änderungen zum Speichern",
+  "authSetNeedOneMethod": "Mindestens eine Anmeldemethode aktivieren",
+  "authSetFieldRequired": "{field} ist erforderlich",
+  "@authSetFieldRequired": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "authSetInvalidRedirectUri": "Ungültige Weiterleitungs-URI: {uri}",
+  "@authSetInvalidRedirectUri": {
+    "placeholders": {
+      "uri": {
+        "type": "String"
+      }
+    }
+  },
+  "authSetAsteriskAlone": "Ein Stern (*) muss die einzige Weiterleitung URI sein",
+  "authSetInvalidClaim": "{field} ist kein gültiger Claim Name",
+  "@authSetInvalidClaim": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "authSetIssuerFailed": "Aussteller konnte nicht gelesen werden: {error}",
+  "@authSetIssuerFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "libNoneYet": "Noch keine Bibliotheken vorhanden",
   "libReorderFailed": "Neue Reihenfolge konnte nicht gespeichert werden",
   "libDeleteTitle": "Bibliothek löschen?",
@@ -5716,20 +5763,58 @@
   "ebookSaveToDeviceTitle": "Auf Gerät speichern?",
   "ebookSaveToDeviceBody": "Dies speichert eine Kopie der eBook-Datei auf deinem Gerät (du bestimmst das Verzeichnis). Das Buch wird nicht im offline Reader verfügbar sein - verwende dafür den Download.",
   "readerFormatUnsupported": "Dieses eBook-Format kann noch nicht im Reader geöffnet werden",
+  "readerCouldNotOpen": "Dieses E-Book konnte nicht geöffnet werden. Die Datei könnte beschädigt sein.",
   "moreActions": "Mehr",
   "readerChapters": "Kapitel",
   "readerSettings": "Reader-Einstellungen",
   "readerFontSize": "Schriftgröße",
   "readerLineSpacing": "Zeilenabstand",
+  "readerTextAlignment": "Ausrichtung",
+  "readerAlignJustified": "Blocksatz",
   "readerAlignLeft": "Links",
   "readerSideMargins": "Seitenrand",
   "readerTopBottom": "Oben & Unten",
   "readerPageLayout": "Seitenlayout",
+  "readerPinTopBar": "Titel und Fortschrittsbalken auf dem Bildschirm beibehalten",
+  "readerPinTopBarHint": "Fixiert sie oberhalb der Seite, anstatt sie beim Antippen einzublenden. Die Seite wird dadurch etwas kürzer, sodass kein Text verdeckt wird.",
+  "readerTopBarProgress": "Fortschritt in der oberen Leiste",
   "readerTopBarProgressBook": "Buch",
   "readerTopBarProgressChapter": "Kapitel",
+  "readerTopBarProgressBoth": "Beides",
   "readerSectionText": "Text",
   "readerSectionPage": "Seite",
+  "readerSectionTopBar": "Obere Leiste und Bildschirm",
+  "readerSectionControls": "Steuerung",
+  "readerSectionStats": "Statistiken",
+  "readerSectionReading": "Lesen",
+  "readerSectionScreen": "Screen",
+  "readerParagraphSpacing": "Absatzabstand",
+  "readerParagraphSpacingBook": "Aus dem Buch",
+  "readerTapZones": "Tippbereiche",
+  "readerTapZonesHint": "Ziehe die Linien, um die Größe der Felder anzupassen. Tippe auf ein Feld, um dessen Funktion zu ändern, oder beginne mit einem vorgefertigten Layout.",
+  "readerTapZonesCardTop": "Nach oben verschieben",
+  "readerTapZonesCardBottom": "Nach unten verschieben",
+  "readerTapZonesCardHide": "Karte verkleinern",
+  "readerTapZonesCardShow": "Karte zeigen",
+  "readerTapPrev": "Vorherige Seite",
   "readerTapNext": "Nächste Seite",
+  "readerTapMenu": "Steuerung anzeigen",
+  "readerTapNothing": "Nichts",
+  "readerTapKeepMenu": "Ein Feld muss die Steuerelemente anzeigen",
+  "readerHideControls": "Steuerung ausblenden nach",
+  "readerHideControlsNever": "Niemals",
+  "readerBarNotes": "Notizen und Hervorhebung",
+  "readerHideControlsAfter": "{seconds} Sek",
+  "@readerHideControlsAfter": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "playerDownloadStreamingInstead": "Dieser Download konnte nicht abgespielt werden; es wird daher vom Server gestreamt. Ein erneuter Download könnte das Problem beheben.",
+  "readerPageTurn": "Umblättern",
+  "readerPageTurnNone": "Keine",
   "readerKeepAwake": "Bildschirm ein lassen",
   "readerLayoutAuto": "Automatisch",
   "readerLayoutSingle": "Eine Seite",
