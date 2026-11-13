@@ -420,8 +420,8 @@ jobs:
   # key, and stamped with the phone's version so the two always match.
   # The watch app, from its own repo: a github APK for the release and a
   # playstore bundle for the listing's Wear OS track. The watch bundle keeps
-  # its own version code (the phone's plus a million, set in the watch's
-  # Gradle file) so it never collides with the phone bundle in Play.
+  # its own version code (a million plus ten times the phone's, set in the
+  # watch's Gradle file) so it never collides with the phone bundle in Play.
   wear:
     name: Wear OS
     needs: prepare
