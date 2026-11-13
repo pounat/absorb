@@ -5815,7 +5815,31 @@
   "playerDownloadStreamingInstead": "Dieser Download konnte nicht abgespielt werden; es wird daher vom Server gestreamt. Ein erneuter Download könnte das Problem beheben.",
   "readerPageTurn": "Umblättern",
   "readerPageTurnNone": "Keine",
+  "readerPageTurnSlide": "Gleiten",
+  "readerPageTurnCurl": "Seitenrolle",
+  "readerPageTurnRipple": "Welle",
+  "readerScrollMode": "Scroll-Modus",
+  "readerSentenceMode": "Satzmodus",
+  "readerSentenceModeHint": "Satz für Satz – tippen oder wischen, um weiterzukommen. Gilt für jedes Buch.",
+  "readerSentencesAtATime": "Satz für Satz",
+  "readerSentenceTransition": "Übergangseffekte",
+  "readerSentenceTransitionFade": "Überblenden",
+  "readerSentenceTransitionBurst": "Platzen",
+  "readerSentenceSpeed": "Geschwindigkeit",
+  "readerSentenceAutoAdvance": "Automatisches Vorrücken",
+  "readerSentenceWpmValue": "{wpm} Wörter pro Minute",
+  "@readerSentenceWpmValue": {
+    "placeholders": {
+      "wpm": {
+        "type": "int"
+      }
+    }
+  },
+  "readerSentencePreparing": "Sätze vorbereiten",
+  "readerSentenceEnd": "Das ist das Ende des Buches",
+  "readerScrollModeHint": "Scrollen Sie durch das Buch, anstatt Seiten zu drehen. Gilt für jedes Buch.",
   "readerKeepAwake": "Bildschirm ein lassen",
+  "readerKeepAwakeHint": "Verhindert, dass der Bildschirm nach einer bestimmten Zeit automatisch ausgeschaltet wird, während Sie in Ihrem eigenen Tempo lesen. Durch die Funktionen automatischer Bildlauf und Mitlesen bleibt der Bildschirm stets eingeschaltet.",
   "readerLayoutAuto": "Automatisch",
   "readerLayoutSingle": "Eine Seite",
   "readerLayoutTwoPage": "Zwei Seiten",
@@ -5825,6 +5849,16 @@
   "readerVolumeNavOff": "Aus",
   "readerVolumeNavNormal": "Normal",
   "readerVolumeNavMirrored": "Gespiegelt",
+  "readerAutoScroll": "Automatischer Bildlauf",
+  "readerAutoScrollSubtitle": "Die nächste Seite überdeckt diese von oben nach unten – ziehe in der Mitte des Bildschirms, um die Geschwindigkeit zu ändern; tippe, um anzuhalten",
+  "readerAutoScrollStarted": "Automatischer Bildlauf gestartet",
+  "readerAutoScrollPaused": "Pausiert - Drücke und halte um zu stoppen",
+  "readerAutoScrollResumed": "Automatischer Bildlauf fortgesetzt",
+  "readerAutoScrollStopped": "Automatischer Bildlauf aus",
+  "readerAutoScrollEndOfBook": "Ende des Buchs - automatischer Bildlauf aus",
+  "readerMoreControls": "Weitere Steuerelemente",
+  "readerAutoScrollSleep": "Sleep-Timer automatischer Bildlauf",
+  "readerAutoScrollSleepHint": "Stoppt den Bildlauf nach einer Weile und lässt den Bildschirm dunkel werden.",
   "readerAutoScrollSleepMinutes": "{minutes} min",
   "@readerAutoScrollSleepMinutes": {
     "placeholders": {
@@ -5841,7 +5875,45 @@
       }
     }
   },
+  "readerAutoScrollSleepIn": "Bildlauf stoppt in {minutes} Minuten",
+  "@readerAutoScrollSleepIn": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "readerAutoScrollSleepOff": "Automatischer Bildlauf, Sleep-Timer aus",
+  "readerAutoScrollSleepEnded": "Sleep-Timer – automatischer Bildlauf aus",
   "readerDownloadStarted": "Download gestartet",
+  "detailChaptersJumpTitle": "Zu diesem Kapitel springen?",
+  "detailChaptersJumpContent": "Die Wiedergabe wechselt zu „{title}“.",
+  "@detailChaptersJumpContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "detailChaptersJump": "Springen",
+  "detailChaptersFinished": "{count, plural, =1{1 Kapitel abgeschlossen} other{{count} Kapitel abgeschlossen}}",
+  "@detailChaptersFinished": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "detailOtherListeners": "{count, plural, =0{Keine weiteren Hörer} =1{1 weiterer Hörer} other{{count} weitere Hörer}}",
+  "@detailOtherListeners": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "seriesUpNext": "Als nächstes",
+  "seriesJumpToUpNext": "Weiter zu „Als Nächstes“",
   "seriesStatsFinished": "Beendet",
   "seriesStatsListened": "Gehört",
   "seriesStatsLeft": "Übrig",
@@ -5856,8 +5928,21 @@
       }
     }
   },
+  "detailSessionsNone": "Noch keine Hörsitzungen",
+  "detailSessionsAll": "Alle {count} Sitzungen",
+  "@detailSessionsAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "readerVolumeNavWhilePlaying": "Selbst während Audio abgespielt wird",
+  "readerTranslateWith": "Übersetzen mit",
+  "readerTranslateApp": "Anwendung auf diesem Gerät",
   "readerTranslateApple": "In iOS integriert",
+  "readerTranslateWeb": "Öffnet sich in deinem Browser",
+  "readerTranslateHint": "Der ausgewählte Text wird an den von dir ausgewählten Übersetzer gesendet.",
   "readerMoreFonts": "Weitere Schriftarten herunterladen",
   "readerFontRemove": "Download entfernen",
   "readerFontDownloadFailed": "{font} konnte nicht heruntergeladen werden",
@@ -5887,6 +5972,13 @@
   },
   "readerNoHighlights": "Noch keine Hervorhebungen",
   "readerHistory": "Verlauf",
+  "sessionReading": "Lesen",
+  "readerHistoryEmpty": "Seiten, die du verlässt, werden hier aufgelistet, damit du jederzeit zu ihnen zurückkehren kannst.",
+  "readerHistoryClosed": "Das Buch zugeklappt",
+  "readerHistoryBeforeJump": "Vor einem Sprung",
+  "readerHistoryBeforeSync": "Vor dem Abgleich mit der Audiodatei",
+  "readerLogReading": "Lesezeit in Statistiken zählen",
+  "readerLogReadingHint": "Deine Zeit im Reader wird als Sitzung erfasst, sodass sie in deinen Statistiken erscheint. Bei Audiobookshelf zählt dies als Hörzeit.",
   "readerNoBookmarks": "Noch keine Lesezeichen",
   "readerBookmarkDefault": "Lesezeichen",
   "readerNoteTitle": "Notiz",
