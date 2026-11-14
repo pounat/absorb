@@ -1159,6 +1159,13 @@ class PlayerSettings {
   static Future<String> getShakeMode() => _get('shakeMode', 'addTime');
   static Future<void> setShakeMode(String value) => _set('shakeMode', value);
 
+  // Whether shaking to snooze the sleep timer triggers vibration.
+  // Defaults to true to preserve existing behavior.
+  static Future<bool> getShakeVibrationEnabled() =>
+      _get('shakeVibrationEnabled', true);
+  static Future<void> setShakeVibrationEnabled(bool value) =>
+      _set('shakeVibrationEnabled', value);
+
   static Future<int> getShakeAddMinutes() => _get('shakeAddMinutes', 5);
   static Future<void> setShakeAddMinutes(int minutes) =>
       _set('shakeAddMinutes', minutes);

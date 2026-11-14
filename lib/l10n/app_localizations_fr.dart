@@ -2991,6 +2991,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get shakeReset => 'Réinitialiser';
 
   @override
+  String get shakeVibrationEnabled => 'Vibrate on shake';
+
+  @override
   String get shakeAdds => 'Secouer ajoute';
 
   @override

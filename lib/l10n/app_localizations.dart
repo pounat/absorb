@@ -5248,6 +5248,12 @@ abstract class AppLocalizations {
   /// **'Reset'**
   String get shakeReset;
 
+  /// No description provided for @shakeVibrationEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrate on shake'**
+  String get shakeVibrationEnabled;
+
   /// No description provided for @shakeAdds.
   ///
   /// In en, this message translates to:
