@@ -7014,6 +7014,7 @@ class AudioPlayerService extends ChangeNotifier {
       _bgSaveTimer?.cancel();
       _bgSaveTimer = null;
       await _player?.stop();
+      _onPlaybackStateChangedCallback?.call(false);
       await _saveProgressLocal(
         Duration(milliseconds: (_lastKnownPositionSec * 1000).round()),
       );
@@ -7137,6 +7138,7 @@ class AudioPlayerService extends ChangeNotifier {
     }
 
     // Clear state (player already stopped at top of method)
+    _onPlaybackStateChangedCallback?.call(false);
     _clearState();
     _chapters = [];
     _handler?.updateChaptersQueue(const []);
@@ -8500,6 +8502,7 @@ class AudioPlayerService extends ChangeNotifier {
       await LocalSessionService().finalizeActive();
     }
     await _player?.stop();
+    _onPlaybackStateChangedCallback?.call(false);
     _clearState();
     _chapters = [];
     _handler?.updateChaptersQueue(const []);
