@@ -69,6 +69,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/desktop_workspace.dart';
 import '../widgets/desktop_wheel_scroll_region.dart';
 import '../widgets/sign_in_again.dart';
+import '../widgets/headphone_output_tile.dart';
 
 class _SettingsSectionDestination {
   final String id;
@@ -3673,6 +3674,10 @@ class SettingsScreenState extends State<SettingsScreen> {
                         PlayerSettings.setAutoplayOnCarConnect(v);
                       } : null,
                     ),
+                    if (AppPlatform.isAndroid) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const HeadphoneOutputTile(),
+                    ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     SwitchListTile(
                       title: Text(l.keepScreenOnCarMode),
