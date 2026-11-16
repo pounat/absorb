@@ -17,6 +17,7 @@ enum PlaybackEventType {
   sessionStart,
   sessionEnd,
   clickDebounce,
+  sponsorSkip,
 }
 
 /// Events that only show in the sheet when the user enables advanced mode.
@@ -99,6 +100,9 @@ class PlaybackEvent {
       case PlaybackEventType.clickDebounce:
         if (detail != null && detail!.isNotEmpty) return 'Media button: $detail';
         return 'Media button';
+      case PlaybackEventType.sponsorSkip:
+        if (detail != null && detail!.isNotEmpty) return 'Skipped sponsor: $detail';
+        return 'Skipped sponsor';
     }
   }
 
@@ -130,6 +134,8 @@ class PlaybackEvent {
         return '🔴';
       case PlaybackEventType.clickDebounce:
         return '🖲';
+      case PlaybackEventType.sponsorSkip:
+        return '⏭';
     }
   }
 }

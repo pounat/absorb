@@ -1807,4 +1807,92 @@ class PlayerSettings {
     }
     return getSleepRewindSeconds();
   }
+
+  // ── Podcast sponsor skip (opt-in) ──
+
+  static Future<bool> getPodcastSponsorSkipEnabled() =>
+      _get('podcastSponsorSkipEnabled', false);
+  static Future<void> setPodcastSponsorSkipEnabled(bool value) =>
+      _set('podcastSponsorSkipEnabled', value, notify: true);
+
+  static Future<bool> getPodcastSponsorSkipIntroOutro() =>
+      _get('podcastSponsorSkipIntroOutro', false);
+  static Future<void> setPodcastSponsorSkipIntroOutro(bool value) =>
+      _set('podcastSponsorSkipIntroOutro', value, notify: true);
+
+  static Future<bool> getPodcastSponsorSkipNotify() =>
+      _get('podcastSponsorSkipNotify', true);
+  static Future<void> setPodcastSponsorSkipNotify(bool value) =>
+      _set('podcastSponsorSkipNotify', value, notify: true);
+
+  static Future<String> getPodcastSponsorSkipKeywords() =>
+      _get('podcastSponsorSkipKeywords', '');
+  static Future<void> setPodcastSponsorSkipKeywords(String value) =>
+      _set('podcastSponsorSkipKeywords', value, notify: true);
+
+  static Future<bool> getPodcastSponsorSkipSponsorBlock() =>
+      _get('podcastSponsorSkipSponsorBlock', true);
+  static Future<void> setPodcastSponsorSkipSponsorBlock(bool value) =>
+      _set('podcastSponsorSkipSponsorBlock', value, notify: true);
+
+  static const List<String> defaultSponsorBlockCategories = [
+    'sponsor',
+    'selfpromo',
+  ];
+
+  static Future<List<String>> getPodcastSponsorBlockCategories() async {
+    final raw = await _get('podcastSponsorBlockCategories', 'sponsor,selfpromo');
+    final parsed = raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    return parsed.isEmpty ? List<String>.from(defaultSponsorBlockCategories) : parsed;
+  }
+
+  static Future<void> setPodcastSponsorBlockCategories(
+    List<String> categories,
+  ) =>
+      _set(
+        'podcastSponsorBlockCategories',
+        categories.map((s) => s.trim()).where((s) => s.isNotEmpty).join(','),
+        notify: true,
+      );
+
+  /// Per-show override for podcast sponsor skipping: null = follow global,
+  /// true = always on, false = always off.
+  static Future<bool?> getPodcastSponsorSkipOverride(String showId) =>
+      ScopedPrefs.getBool('podcastSponsorSkip_show_$showId');
+
+  static Future<void> setPodcastSponsorSkipOverride(
+    String showId,
+    bool? value,
+  ) async {
+    if (value == null) {
+      await ScopedPrefs.remove('podcastSponsorSkip_show_$showId');
+    } else {
+      await ScopedPrefs.setBool('podcastSponsorSkip_show_$showId', value);
+    }
+    _notify();
+  }
+
+  /// Per-episode manual YouTube video ID override for SponsorBlock lookup.
+  static Future<String?> getPodcastEpisodeYouTubeId(
+    String itemId,
+    String episodeId,
+  ) => ScopedPrefs.getString('podcastYtId_${itemId}_$episodeId');
+
+  static Future<void> setPodcastEpisodeYouTubeId(
+    String itemId,
+    String episodeId,
+    String? videoId,
+  ) async {
+    final key = 'podcastYtId_${itemId}_$episodeId';
+    if (videoId == null || videoId.trim().isEmpty) {
+      await ScopedPrefs.remove(key);
+    } else {
+      await ScopedPrefs.setString(key, videoId.trim());
+    }
+    _notify();
+  }
 }

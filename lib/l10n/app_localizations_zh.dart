@@ -14486,4 +14486,150 @@ class AppLocalizationsZh extends AppLocalizations {
   String boApiKeyLinkFor(String name) {
     return 'Sign-in link for $name';
   }
+
+  @override
+  String get podcastSponsorSkipTitle => 'Skip podcast sponsors';
+
+  @override
+  String get podcastSponsorSkipSubtitle =>
+      'Auto-skip sponsor and ad segments detected in podcast chapters or timestamped show notes';
+
+  @override
+  String get podcastSponsorSkipIntroOutroTitle => 'Also skip intros & outros';
+
+  @override
+  String get podcastSponsorSkipIntroOutroSubtitle =>
+      'Auto-skip intro, opening, outro, and credits chapters in podcasts';
+
+  @override
+  String get podcastSponsorSkipNotifyTitle => 'Show skip notification';
+
+  @override
+  String get podcastSponsorSkipNotifySubtitle =>
+      'Show a brief toast with tap-to-undo when a segment is skipped';
+
+  @override
+  String get podcastSponsorSkipKeywordsTitle => 'Custom skip keywords';
+
+  @override
+  String get podcastSponsorSkipKeywordsNone =>
+      'Built-in patterns only (sponsor, ad break, mid-roll, promo…)';
+
+  @override
+  String get podcastSponsorSkipKeywordsHint =>
+      'Comma-separated keywords (e.g. patreon, merch, housekeeping)';
+
+  @override
+  String get podcastSponsorSkipShowTitle => 'Sponsor skip';
+
+  @override
+  String get podcastSponsorSkipShowFollowGlobal => 'Follow global setting';
+
+  @override
+  String get podcastSponsorSkipShowAlwaysOn => 'Always skip for this podcast';
+
+  @override
+  String get podcastSponsorSkipShowAlwaysOff => 'Never skip for this podcast';
+
+  @override
+  String get podcastSponsorSkipSponsorBlockTitle =>
+      'Use SponsorBlock for YouTube podcasts';
+
+  @override
+  String get podcastSponsorSkipSponsorBlockSubtitle =>
+      'Query the SponsorBlock API when an episode links to or originates from a YouTube video';
+
+  @override
+  String get podcastSponsorBlockCategoriesTitle => 'SponsorBlock categories';
+
+  @override
+  String get podcastSponsorBlockCategorySponsor => 'Sponsor';
+
+  @override
+  String get podcastSponsorBlockCategorySponsorDesc =>
+      'Paid promotions, ad reads, and sponsorships';
+
+  @override
+  String get podcastSponsorBlockCategorySelfpromo => 'Unpaid / Self-promotion';
+
+  @override
+  String get podcastSponsorBlockCategorySelfpromoDesc =>
+      'Channel merch, Patreon, or unpaid plugs';
+
+  @override
+  String get podcastSponsorBlockCategoryInteraction => 'Interaction reminder';
+
+  @override
+  String get podcastSponsorBlockCategoryInteractionDesc =>
+      'Like, subscribe, and follow reminders';
+
+  @override
+  String get podcastSponsorBlockCategoryPreview => 'Preview / Recap';
+
+  @override
+  String get podcastSponsorBlockCategoryPreviewDesc =>
+      'Episode previews, teasers, or recaps';
+
+  @override
+  String get podcastSponsorBlockCategoryFiller => 'Filler / Tangent';
+
+  @override
+  String get podcastSponsorBlockCategoryFillerDesc =>
+      'Tangential banter or filler segments';
+
+  @override
+  String get podcastSponsorBlockCategoryMusicOfftopic => 'Non-music section';
+
+  @override
+  String get podcastSponsorBlockCategoryMusicOfftopicDesc =>
+      'Non-music intros or breaks in music videos';
+
+  @override
+  String get podcastSponsorBlockSheetTitle => 'SponsorBlock';
+
+  @override
+  String get podcastSponsorBlockLinkTitle => 'Link YouTube video';
+
+  @override
+  String get podcastSponsorBlockLinkBody =>
+      'Paste a YouTube URL or 11-character video ID to load SponsorBlock segments for this episode.';
+
+  @override
+  String get podcastSponsorBlockLinkHint => 'https://youtu.be/... or video ID';
+
+  @override
+  String get podcastSponsorBlockInvalidId => 'Invalid YouTube URL or video ID';
+
+  @override
+  String get podcastSponsorBlockDisabledForShow =>
+      'Sponsor skip disabled for this show';
+
+  @override
+  String podcastSponsorBlockLinkedStatus(String videoId, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count segments',
+      one: '1 segment',
+    );
+    return 'YT: $videoId • $_temp0';
+  }
+
+  @override
+  String podcastSponsorBlockNotLinkedStatus(int count) {
+    return 'YouTube not linked • $count local';
+  }
+
+  @override
+  String get podcastSponsorBlockLinkButton => 'Link YT';
+
+  @override
+  String get podcastSponsorBlockChangeButton => 'Change';
+
+  @override
+  String get podcastSponsorBlockEmptyHint =>
+      'No chapters or SponsorBlock segments detected for this episode yet. Tap \"Link YT\" above to link its YouTube video.';
+
+  @override
+  String get sectionSponsorSkip => 'Podcast Sponsor Skip';
 }

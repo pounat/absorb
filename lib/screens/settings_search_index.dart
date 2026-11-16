@@ -68,6 +68,8 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Playback', l.sectionPlayback, l.rewindAfterPausedFor, [l.rewindAnyPause, l.rewindAlwaysDescription]),
     SettingSearchEntry('Playback', l.sectionPlayback, l.chapterBarrier, [l.chapterBarrierSubtitle]),
     SettingSearchEntry('Playback', l.sectionPlayback, l.rewindOnSessionStart, [l.autoRewindOffSubtitle]),
+    // ── Podcast Sponsor Skip ──
+    SettingSearchEntry('Sponsor Skip', l.sectionSponsorSkip, l.podcastSponsorSkipTitle, [l.podcastSponsorSkipSubtitle, l.podcastSponsorSkipIntroOutroTitle, l.podcastSponsorSkipKeywordsTitle, l.podcastSponsorSkipSponsorBlockTitle, l.podcastSponsorBlockCategoriesTitle, 'sponsor', 'sponsorblock', 'youtube', 'ad', 'skip']),
 
     // ── Media Controls ──
     SettingSearchEntry('Media Controls', l.sectionMediaControls, l.chapterProgressInNotification, [l.chapterProgressInNotificationIos, l.chapterProgressOnSubtitle, l.chapterProgressOnSubtitleIos, l.chapterProgressOffSubtitle]),

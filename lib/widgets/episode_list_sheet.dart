@@ -84,6 +84,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   bool _autoDownloadEnabled = false;
   bool _subscribed = false;
   String _newEpisodePosition = 'start';
+  bool? _sponsorSkipOverride;
   String _sortMode = 'pubDate';
   bool _sortAscending = false;
   bool _hideFinished = false;
@@ -168,7 +169,14 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
   void _loadNewEpisodePosition() async {
     if (_itemId.isEmpty) return;
     final pos = await PlayerSettings.getPodcastNewEpisodePosition(_itemId);
-    if (mounted) setState(() => _newEpisodePosition = pos);
+    final sponsorSkip =
+        await PlayerSettings.getPodcastSponsorSkipOverride(_itemId);
+    if (mounted) {
+      setState(() {
+        _newEpisodePosition = pos;
+        _sponsorSkipOverride = sponsorSkip;
+      });
+    }
   }
 
   void _loadSortOrder() async {
@@ -720,6 +728,16 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                     icon: Icons.low_priority_rounded,
                     label: l.episodeListNewEpisodePosition,
                     onTap: () { Navigator.pop(ctx); _showNewEpisodePositionPicker(); }),
+                if (_itemId.isNotEmpty)
+                  ActionPillData(
+                    icon: Icons.fast_forward_rounded,
+                    label: l.podcastSponsorSkipShowTitle,
+                    tint: _sponsorSkipOverride == true
+                        ? cs.primary
+                        : _sponsorSkipOverride == false
+                            ? cs.error
+                            : null,
+                    onTap: () { Navigator.pop(ctx); _showSponsorSkipPicker(); }),
                 ActionPillData(
                   icon: _hideFinished ? Icons.visibility_rounded : Icons.visibility_off_rounded,
                   label: _hideFinished ? l.episodeListShowFinishedEpisodes : l.episodeListHideFinishedEpisodes,
@@ -803,6 +821,55 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
                   Navigator.pop(ctx);
                   await PlayerSettings.setPodcastNewEpisodePosition(_itemId, entry.key);
                   if (mounted) setState(() => _newEpisodePosition = entry.key);
+                },
+              ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  void _showSponsorSkipPicker() {
+    final cs = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context)!;
+    final options = <({bool? value, String title})>[
+      (value: null, title: l.podcastSponsorSkipShowFollowGlobal),
+      (value: true, title: l.podcastSponsorSkipShowAlwaysOn),
+      (value: false, title: l.podcastSponsorSkipShowAlwaysOff),
+    ];
+    showAdaptiveActionMenu(
+      context: context,
+      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(l.podcastSponsorSkipShowTitle,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+            ),
+            for (final opt in options)
+              ListTile(
+                leading: Icon(
+                  _sponsorSkipOverride == opt.value
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: _sponsorSkipOverride == opt.value ? cs.primary : cs.onSurfaceVariant,
+                ),
+                title: Text(opt.title),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await PlayerSettings.setPodcastSponsorSkipOverride(_itemId, opt.value);
+                  if (mounted) setState(() => _sponsorSkipOverride = opt.value);
                 },
               ),
           ]),

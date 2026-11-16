@@ -10,6 +10,7 @@ import 'package:just_audio/just_audio.dart' show AudioPlayer;
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
+import '../services/sponsor_skip_service.dart';
 import '../services/download_service.dart';
 import '../services/android_auto_service.dart';
 import '../services/siri_service.dart';
@@ -289,6 +290,13 @@ class SettingsScreenState extends State<SettingsScreen> {
   bool _mergeAbsorbingLibraries = false;
   bool _podcastTabEnabled = false;
   String _podcastTabLibraryId = '';
+  bool _podcastSponsorSkip = false;
+  bool _podcastSponsorSkipIntroOutro = false;
+  bool _podcastSponsorSkipNotify = true;
+  String _podcastSponsorSkipKeywords = '';
+  bool _podcastSponsorSkipSponsorBlock = true;
+  List<String> _podcastSponsorBlockCategories =
+      List<String>.from(PlayerSettings.defaultSponsorBlockCategories);
   bool _statsTabShown = true;
   int _episodeNotifMinutes = 0;
   int _maxConcurrentDownloads = 1;
@@ -627,15 +635,128 @@ class SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  String _sponsorBlockCategoryLabel(AppLocalizations l, String cat) {
+    switch (cat) {
+      case 'sponsor':
+        return l.podcastSponsorBlockCategorySponsor;
+      case 'selfpromo':
+        return l.podcastSponsorBlockCategorySelfpromo;
+      case 'interaction':
+        return l.podcastSponsorBlockCategoryInteraction;
+      case 'preview':
+        return l.podcastSponsorBlockCategoryPreview;
+      case 'filler':
+        return l.podcastSponsorBlockCategoryFiller;
+      case 'music_offtopic':
+        return l.podcastSponsorBlockCategoryMusicOfftopic;
+      default:
+        return cat;
+    }
+  }
+
+  String _sponsorBlockCategoryDesc(AppLocalizations l, String cat) {
+    switch (cat) {
+      case 'sponsor':
+        return l.podcastSponsorBlockCategorySponsorDesc;
+      case 'selfpromo':
+        return l.podcastSponsorBlockCategorySelfpromoDesc;
+      case 'interaction':
+        return l.podcastSponsorBlockCategoryInteractionDesc;
+      case 'preview':
+        return l.podcastSponsorBlockCategoryPreviewDesc;
+      case 'filler':
+        return l.podcastSponsorBlockCategoryFillerDesc;
+      case 'music_offtopic':
+        return l.podcastSponsorBlockCategoryMusicOfftopicDesc;
+      default:
+        return '';
+    }
+  }
+
+  String _sponsorBlockCategoriesSummary(AppLocalizations l) {
+    if (_podcastSponsorBlockCategories.isEmpty) {
+      return l.podcastSponsorBlockCategorySponsor;
+    }
+    return _podcastSponsorBlockCategories
+        .map((c) => _sponsorBlockCategoryLabel(l, c))
+        .join(', ');
+  }
+
+  Future<void> _showSponsorBlockCategoriesDialog(AppLocalizations l) async {
+    final selected = Set<String>.from(_podcastSponsorBlockCategories);
+    final saved = await showDialog<List<String>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(l.podcastSponsorBlockCategoriesTitle),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final cat in SponsorSkipService.selectableSponsorBlockCategories)
+                  CheckboxListTile(
+                    value: selected.contains(cat),
+                    title: Text(_sponsorBlockCategoryLabel(l, cat)),
+                    subtitle: Text(_sponsorBlockCategoryDesc(l, cat)),
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    onChanged: (checked) {
+                      setDialogState(() {
+                        if (checked == true) {
+                          selected.add(cat);
+                        } else if (selected.length > 1) {
+                          selected.remove(cat);
+                        }
+                      });
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(
+                ctx,
+                SponsorSkipService.selectableSponsorBlockCategories
+                    .where(selected.contains)
+                    .toList(),
+              ),
+              child: Text(l.save),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == null || saved.isEmpty || !mounted) return;
+    setState(() => _podcastSponsorBlockCategories = saved);
+    await PlayerSettings.setPodcastSponsorBlockCategories(saved);
+  }
+
   void _onExternalSettingsChange() async {
     final bookMode = await PlayerSettings.getBookQueueMode();
     final podMode = await PlayerSettings.getPodcastQueueMode();
     final qpId = await PlayerSettings.getQueuePlaylistId();
+    final podcastSponsorSkip = await PlayerSettings.getPodcastSponsorSkipEnabled();
+    final podcastSponsorSkipIntroOutro = await PlayerSettings.getPodcastSponsorSkipIntroOutro();
+    final podcastSponsorSkipNotify = await PlayerSettings.getPodcastSponsorSkipNotify();
+    final podcastSponsorSkipKeywords = await PlayerSettings.getPodcastSponsorSkipKeywords();
+    final podcastSponsorSkipSponsorBlock = await PlayerSettings.getPodcastSponsorSkipSponsorBlock();
+    final podcastSponsorBlockCategories = await PlayerSettings.getPodcastSponsorBlockCategories();
     if (mounted) {
       setState(() {
         _bookQueueMode = bookMode;
         _podcastQueueMode = podMode;
         _queuePlaylistId = qpId;
+        _podcastSponsorSkip = podcastSponsorSkip;
+        _podcastSponsorSkipIntroOutro = podcastSponsorSkipIntroOutro;
+        _podcastSponsorSkipNotify = podcastSponsorSkipNotify;
+        _podcastSponsorSkipKeywords = podcastSponsorSkipKeywords;
+        _podcastSponsorSkipSponsorBlock = podcastSponsorSkipSponsorBlock;
+        _podcastSponsorBlockCategories = podcastSponsorBlockCategories;
       });
     }
   }
@@ -1419,7 +1540,19 @@ class SettingsScreenState extends State<SettingsScreen> {
     final carBookSortReverse = await PlayerSettings.getCarBookSortReverse();
     final carPodcastSort = await PlayerSettings.getCarPodcastSort();
     final carEpisodesOldestFirst = await PlayerSettings.getCarEpisodesOldestFirst();
+    final podcastSponsorSkip = await PlayerSettings.getPodcastSponsorSkipEnabled();
+    final podcastSponsorSkipIntroOutro = await PlayerSettings.getPodcastSponsorSkipIntroOutro();
+    final podcastSponsorSkipNotify = await PlayerSettings.getPodcastSponsorSkipNotify();
+    final podcastSponsorSkipKeywords = await PlayerSettings.getPodcastSponsorSkipKeywords();
+    final podcastSponsorSkipSponsorBlock = await PlayerSettings.getPodcastSponsorSkipSponsorBlock();
+    final podcastSponsorBlockCategories = await PlayerSettings.getPodcastSponsorBlockCategories();
     if (mounted) setState(() {
+      _podcastSponsorSkip = podcastSponsorSkip;
+      _podcastSponsorSkipIntroOutro = podcastSponsorSkipIntroOutro;
+      _podcastSponsorSkipNotify = podcastSponsorSkipNotify;
+      _podcastSponsorSkipKeywords = podcastSponsorSkipKeywords;
+      _podcastSponsorSkipSponsorBlock = podcastSponsorSkipSponsorBlock;
+      _podcastSponsorBlockCategories = podcastSponsorBlockCategories;
       _podcastTabEnabled = podcastTabEnabled;
       _podcastTabLibraryId = podcastTabLibraryId;
       _statsTabShown = statsTabShown;
@@ -1970,6 +2103,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       _SettingsSectionDestination('Customize Stats', Icons.bar_chart_rounded, l.settingsCustomizeStats),
       _SettingsSectionDestination('Absorbing Cards', Icons.style_rounded, Wording.of(context).sectionAbsorbingCards),
       _SettingsSectionDestination('Playback', Icons.play_circle_outline_rounded, l.sectionPlayback),
+      _SettingsSectionDestination('Sponsor Skip', Icons.fast_forward_rounded, l.sectionSponsorSkip),
       _SettingsSectionDestination('Sleep Timer', Icons.bedtime_outlined, l.sectionSleepTimer),
       _SettingsSectionDestination('Library', Icons.auto_stories_outlined, l.sectionLibrary),
       _SettingsSectionDestination('Issues & Support', Icons.support_agent_rounded, l.sectionIssuesAndSupport),
@@ -3544,6 +3678,133 @@ class SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                       ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // ── Podcast Sponsor Skip ──
+                CollapsibleSection(
+                  key: _keyFor('Sponsor Skip'),
+                  icon: Icons.fast_forward_rounded,
+                  title: l.sectionSponsorSkip,
+                  cs: cs,
+                  isExpanded: _expandedSection == 'Sponsor Skip',
+                  onExpansionChanged: (v) => _onSectionExpanded('Sponsor Skip', v),
+                  children: [
+                    SwitchListTile(
+                      title: Text(l.podcastSponsorSkipTitle),
+                      subtitle: Text(
+                        l.podcastSponsorSkipSubtitle,
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                      ),
+                      value: _podcastSponsorSkip,
+                      onChanged: _loaded ? (v) {
+                        setState(() => _podcastSponsorSkip = v);
+                        PlayerSettings.setPodcastSponsorSkipEnabled(v);
+                      } : null,
+                    ),
+                    if (_podcastSponsorSkip) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: Text(l.podcastSponsorSkipIntroOutroTitle),
+                        subtitle: Text(
+                          l.podcastSponsorSkipIntroOutroSubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                        value: _podcastSponsorSkipIntroOutro,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _podcastSponsorSkipIntroOutro = v);
+                          PlayerSettings.setPodcastSponsorSkipIntroOutro(v);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: Text(l.podcastSponsorSkipNotifyTitle),
+                        subtitle: Text(
+                          l.podcastSponsorSkipNotifySubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                        value: _podcastSponsorSkipNotify,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _podcastSponsorSkipNotify = v);
+                          PlayerSettings.setPodcastSponsorSkipNotify(v);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      ListTile(
+                        title: Text(l.podcastSponsorSkipKeywordsTitle),
+                        subtitle: Text(
+                          _podcastSponsorSkipKeywords.trim().isEmpty
+                              ? l.podcastSponsorSkipKeywordsNone
+                              : _podcastSponsorSkipKeywords,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.edit_outlined, size: 18),
+                        onTap: _loaded ? () async {
+                          final ctrl = TextEditingController(
+                            text: _podcastSponsorSkipKeywords,
+                          );
+                          final saved = await showDialog<String>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text(l.podcastSponsorSkipKeywordsTitle),
+                              content: TextField(
+                                controller: ctrl,
+                                autofocus: true,
+                                maxLines: 2,
+                                decoration: InputDecoration(
+                                  hintText: l.podcastSponsorSkipKeywordsHint,
+                                  border: const OutlineInputBorder(),
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: Text(l.cancel),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                                  child: Text(l.save),
+                                ),
+                              ],
+                            ),
+                          );
+                          ctrl.dispose();
+                          if (saved == null || !mounted) return;
+                          setState(() => _podcastSponsorSkipKeywords = saved);
+                          await PlayerSettings.setPodcastSponsorSkipKeywords(saved);
+                        } : null,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: Text(l.podcastSponsorSkipSponsorBlockTitle),
+                        subtitle: Text(
+                          l.podcastSponsorSkipSponsorBlockSubtitle,
+                          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                        value: _podcastSponsorSkipSponsorBlock,
+                        onChanged: _loaded ? (v) {
+                          setState(() => _podcastSponsorSkipSponsorBlock = v);
+                          PlayerSettings.setPodcastSponsorSkipSponsorBlock(v);
+                        } : null,
+                      ),
+                      if (_podcastSponsorSkipSponsorBlock) ...[
+                        const Divider(height: 1, indent: 16, endIndent: 16),
+                        ListTile(
+                          title: Text(l.podcastSponsorBlockCategoriesTitle),
+                          subtitle: Text(
+                            _sponsorBlockCategoriesSummary(l),
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: const Icon(Icons.tune_rounded, size: 18),
+                          onTap: _loaded ? () => _showSponsorBlockCategoriesDialog(l) : null,
+                        ),
+                      ],
                     ],
                   ],
                 ),

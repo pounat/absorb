@@ -24650,6 +24650,246 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign-in link for {name}'**
   String boApiKeyLinkFor(String name);
+
+  /// No description provided for @podcastSponsorSkipTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip podcast sponsors'**
+  String get podcastSponsorSkipTitle;
+
+  /// No description provided for @podcastSponsorSkipSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-skip sponsor and ad segments detected in podcast chapters or timestamped show notes'**
+  String get podcastSponsorSkipSubtitle;
+
+  /// No description provided for @podcastSponsorSkipIntroOutroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Also skip intros & outros'**
+  String get podcastSponsorSkipIntroOutroTitle;
+
+  /// No description provided for @podcastSponsorSkipIntroOutroSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-skip intro, opening, outro, and credits chapters in podcasts'**
+  String get podcastSponsorSkipIntroOutroSubtitle;
+
+  /// No description provided for @podcastSponsorSkipNotifyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show skip notification'**
+  String get podcastSponsorSkipNotifyTitle;
+
+  /// No description provided for @podcastSponsorSkipNotifySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show a brief toast with tap-to-undo when a segment is skipped'**
+  String get podcastSponsorSkipNotifySubtitle;
+
+  /// No description provided for @podcastSponsorSkipKeywordsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom skip keywords'**
+  String get podcastSponsorSkipKeywordsTitle;
+
+  /// No description provided for @podcastSponsorSkipKeywordsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in patterns only (sponsor, ad break, mid-roll, promo…)'**
+  String get podcastSponsorSkipKeywordsNone;
+
+  /// No description provided for @podcastSponsorSkipKeywordsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated keywords (e.g. patreon, merch, housekeeping)'**
+  String get podcastSponsorSkipKeywordsHint;
+
+  /// No description provided for @podcastSponsorSkipShowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sponsor skip'**
+  String get podcastSponsorSkipShowTitle;
+
+  /// No description provided for @podcastSponsorSkipShowFollowGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow global setting'**
+  String get podcastSponsorSkipShowFollowGlobal;
+
+  /// No description provided for @podcastSponsorSkipShowAlwaysOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Always skip for this podcast'**
+  String get podcastSponsorSkipShowAlwaysOn;
+
+  /// No description provided for @podcastSponsorSkipShowAlwaysOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Never skip for this podcast'**
+  String get podcastSponsorSkipShowAlwaysOff;
+
+  /// No description provided for @podcastSponsorSkipSponsorBlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use SponsorBlock for YouTube podcasts'**
+  String get podcastSponsorSkipSponsorBlockTitle;
+
+  /// No description provided for @podcastSponsorSkipSponsorBlockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Query the SponsorBlock API when an episode links to or originates from a YouTube video'**
+  String get podcastSponsorSkipSponsorBlockSubtitle;
+
+  /// No description provided for @podcastSponsorBlockCategoriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SponsorBlock categories'**
+  String get podcastSponsorBlockCategoriesTitle;
+
+  /// No description provided for @podcastSponsorBlockCategorySponsor.
+  ///
+  /// In en, this message translates to:
+  /// **'Sponsor'**
+  String get podcastSponsorBlockCategorySponsor;
+
+  /// No description provided for @podcastSponsorBlockCategorySponsorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid promotions, ad reads, and sponsorships'**
+  String get podcastSponsorBlockCategorySponsorDesc;
+
+  /// No description provided for @podcastSponsorBlockCategorySelfpromo.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpaid / Self-promotion'**
+  String get podcastSponsorBlockCategorySelfpromo;
+
+  /// No description provided for @podcastSponsorBlockCategorySelfpromoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel merch, Patreon, or unpaid plugs'**
+  String get podcastSponsorBlockCategorySelfpromoDesc;
+
+  /// No description provided for @podcastSponsorBlockCategoryInteraction.
+  ///
+  /// In en, this message translates to:
+  /// **'Interaction reminder'**
+  String get podcastSponsorBlockCategoryInteraction;
+
+  /// No description provided for @podcastSponsorBlockCategoryInteractionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Like, subscribe, and follow reminders'**
+  String get podcastSponsorBlockCategoryInteractionDesc;
+
+  /// No description provided for @podcastSponsorBlockCategoryPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview / Recap'**
+  String get podcastSponsorBlockCategoryPreview;
+
+  /// No description provided for @podcastSponsorBlockCategoryPreviewDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode previews, teasers, or recaps'**
+  String get podcastSponsorBlockCategoryPreviewDesc;
+
+  /// No description provided for @podcastSponsorBlockCategoryFiller.
+  ///
+  /// In en, this message translates to:
+  /// **'Filler / Tangent'**
+  String get podcastSponsorBlockCategoryFiller;
+
+  /// No description provided for @podcastSponsorBlockCategoryFillerDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tangential banter or filler segments'**
+  String get podcastSponsorBlockCategoryFillerDesc;
+
+  /// No description provided for @podcastSponsorBlockCategoryMusicOfftopic.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-music section'**
+  String get podcastSponsorBlockCategoryMusicOfftopic;
+
+  /// No description provided for @podcastSponsorBlockCategoryMusicOfftopicDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-music intros or breaks in music videos'**
+  String get podcastSponsorBlockCategoryMusicOfftopicDesc;
+
+  /// No description provided for @podcastSponsorBlockSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SponsorBlock'**
+  String get podcastSponsorBlockSheetTitle;
+
+  /// No description provided for @podcastSponsorBlockLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Link YouTube video'**
+  String get podcastSponsorBlockLinkTitle;
+
+  /// No description provided for @podcastSponsorBlockLinkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a YouTube URL or 11-character video ID to load SponsorBlock segments for this episode.'**
+  String get podcastSponsorBlockLinkBody;
+
+  /// No description provided for @podcastSponsorBlockLinkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://youtu.be/... or video ID'**
+  String get podcastSponsorBlockLinkHint;
+
+  /// No description provided for @podcastSponsorBlockInvalidId.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid YouTube URL or video ID'**
+  String get podcastSponsorBlockInvalidId;
+
+  /// No description provided for @podcastSponsorBlockDisabledForShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sponsor skip disabled for this show'**
+  String get podcastSponsorBlockDisabledForShow;
+
+  /// No description provided for @podcastSponsorBlockLinkedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'YT: {videoId} • {count, plural, =1{1 segment} other{{count} segments}}'**
+  String podcastSponsorBlockLinkedStatus(String videoId, int count);
+
+  /// No description provided for @podcastSponsorBlockNotLinkedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'YouTube not linked • {count} local'**
+  String podcastSponsorBlockNotLinkedStatus(int count);
+
+  /// No description provided for @podcastSponsorBlockLinkButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Link YT'**
+  String get podcastSponsorBlockLinkButton;
+
+  /// No description provided for @podcastSponsorBlockChangeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get podcastSponsorBlockChangeButton;
+
+  /// No description provided for @podcastSponsorBlockEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No chapters or SponsorBlock segments detected for this episode yet. Tap \"Link YT\" above to link its YouTube video.'**
+  String get podcastSponsorBlockEmptyHint;
+
+  /// No description provided for @sectionSponsorSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Podcast Sponsor Skip'**
+  String get sectionSponsorSkip;
 }
 
 class _AppLocalizationsDelegate
