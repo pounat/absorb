@@ -1,6 +1,6 @@
 {
   "@@locale": "pt-PT",
-  "online": "",
+  "online": "'Online'",
   "offline": "Desconectado",
   "stillOffline": "Ainda desconectado. Toque para tentar novamente.",
   "retry": "Tentar novamente",
