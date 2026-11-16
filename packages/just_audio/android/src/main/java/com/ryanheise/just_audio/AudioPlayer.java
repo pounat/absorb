@@ -87,6 +87,10 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
 
     // Streaming cache — shared across all player instances
     private static SimpleCache sCache;
+    // Absorb: a source whose load the disk cache turned down is loaded again
+    // with this header, which asks for the plain network path and is never
+    // sent to the server.
+    private static final String BYPASS_CACHE_HEADER = "X-Absorb-Stream-Cache";
     private static File sCacheDir;
 
     @androidx.annotation.OptIn(markerClass = androidx.media3.common.util.UnstableApi.class)
@@ -824,6 +828,11 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
         if (userAgent == null) {
             userAgent = Util.getUserAgent(context, "just_audio");
         }
+        boolean bypassCache = false;
+        if (stringHeaders != null) {
+            bypassCache = stringHeaders.remove(BYPASS_CACHE_HEADER) != null
+                    | stringHeaders.remove(BYPASS_CACHE_HEADER.toLowerCase()) != null;
+        }
         DefaultHttpDataSource.Factory httpDataSourceFactory = new DefaultHttpDataSource.Factory()
             .setUserAgent(userAgent)
             .setAllowCrossProtocolRedirects(true)
@@ -835,7 +844,7 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
         DataSource.Factory baseFactory = new DefaultDataSource.Factory(context, httpDataSourceFactory);
 
         // Wrap with disk cache if enabled
-        if (sCache != null) {
+        if (sCache != null && !bypassCache) {
             return new CacheDataSource.Factory()
                 .setCache(sCache)
                 .setUpstreamDataSourceFactory(baseFactory)

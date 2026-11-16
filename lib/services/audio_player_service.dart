@@ -5132,6 +5132,7 @@ class AudioPlayerService extends ChangeNotifier {
     bool forceTranscode = false,
     Map<String, dynamic>? preFetchedSession,
     int? generation,
+    bool bypassStreamCache = false,
   }) async {
     final gen = generation ?? _playbackGeneration;
     // A session fetched ahead of time is this start's to close if it lost.
@@ -5348,6 +5349,7 @@ class AudioPlayerService extends ChangeNotifier {
       startTime = serverPos;
     }
 
+    double? startBeforeRewind;
     try {
       // Checked before the track offsets are rebuilt: they belong to
       // whichever start is current.
@@ -5355,7 +5357,10 @@ class AudioPlayerService extends ChangeNotifier {
         return _abandonStart(api, ownSessionId, 'before building the source');
       }
       _currentTrackIndex = 0;
-      final audioHeaders = api.playbackSessionHeaders;
+      final audioHeaders = {
+        ...api.playbackSessionHeaders,
+        if (bypassStreamCache) _bypassStreamCacheHeader: 'bypass',
+      };
 
       // Build audio source - one source per track file
       _buildTrackOffsets(audioTracks);
@@ -5408,6 +5413,7 @@ class AudioPlayerService extends ChangeNotifier {
       final bookSpeed = await PlayerSettings.getBookSpeed(itemId);
       final speed = bookSpeed ??
           await PlayerSettings.defaultSpeedFor(libraryId: _currentLibraryId);
+      startBeforeRewind = startTime;
       startTime = await _sessionStartRewound(
         startTime,
         forceStartTime: forceStartTime,
@@ -5476,6 +5482,43 @@ class AudioPlayerService extends ChangeNotifier {
         return _abandonStart(api, ownSessionId, 'load interrupted');
       }
 
+      // The disk cache in front of the player turned a byte range down: the
+      // length it has on record for the URL is shorter than what the file
+      // asks for. The file is fine and the session is still open, so the
+      // same tracks load again straight from the network, with no new
+      // session request to lose on the way.
+      if (!bypassStreamCache &&
+          AppPlatform.isAndroid &&
+          PlaybackErrorPolicy.isCacheRangeError(e)) {
+        debugPrint(
+          '[Player] Streaming cache refused the byte range - loading the same session again without it',
+        );
+        final session = Map<String, dynamic>.from(sessionData)
+          ..['id'] = ownSessionId
+          ..['audioTracks'] = audioTracks
+          ..['playMethod'] = sessionPlayMethod;
+        _cacheBypassReloadInFlight = true;
+        try {
+          return await _playFromServer(
+            api,
+            itemId,
+            title,
+            author,
+            coverUrl,
+            totalDuration,
+            chapters,
+            startBeforeRewind ?? startTime,
+            forceStartTime: forceStartTime,
+            forceTranscode: forceTranscode,
+            preFetchedSession: session,
+            generation: gen,
+            bypassStreamCache: true,
+          );
+        } finally {
+          _cacheBypassReloadInFlight = false;
+        }
+      }
+
       // Retry source and codec failures through ABS once. A distinct flag from
       // forceStartTime keeps bookmark/chapter seeks eligible for recovery while
       // still preventing a transcode loop.
@@ -5510,6 +5553,14 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   bool _transcodeRetryInFlight = false;
+
+  /// Read by the Android player plugin, never sent to the server: the
+  /// source skips the streaming cache.
+  static const _bypassStreamCacheHeader = 'X-Absorb-Stream-Cache';
+
+  // Set while a load the streaming cache turned down is redone without it,
+  // so the stream retry the same error scheduled does not start over on top.
+  bool _cacheBypassReloadInFlight = false;
 
   // Set when the player failed while paused; the next play rebuilds it
   // instead of trusting its position or its decoder.
@@ -6276,6 +6327,15 @@ class AudioPlayerService extends ChangeNotifier {
 
     await Future<void>.delayed(delay);
 
+    if (_cacheBypassReloadInFlight) {
+      debugPrint(
+        '[Player] Skipping the stream retry - the load is being redone without the cache',
+      );
+      _streamRetryCount--;
+      _retryInProgress = false;
+      return;
+    }
+
     // Snapshot state before retry — playItem will overwrite these
     final itemId = _currentItemId;
     final title = _currentTitle ?? '';
@@ -6301,10 +6361,11 @@ class AudioPlayerService extends ChangeNotifier {
     // takes the fresh-session path - tokenless public URLs with a
     // known-good credential - instead of re-baking whatever just failed.
     await SessionCache.clear(itemId: itemId, episodeId: episodeId);
-    // The server turned the byte range down: the file changed size since its
-    // bytes were cached, and the cache keeps asking up to the old length.
-    if ('$error'.contains('Response code: 416')) {
-      debugPrint('[Player] Server refused the byte range (416) - clearing the streaming cache');
+    // The byte range was turned down, by the server (416) or by the cache in
+    // front of the player: the length on record for the file no longer
+    // matches it, and the cache keeps asking up to the old length.
+    if (PlaybackErrorPolicy.isCacheRangeError(error)) {
+      debugPrint('[Player] Byte range refused - clearing the streaming cache');
       try {
         await AudioPlayer.clearStreamingCache();
       } catch (e) {
