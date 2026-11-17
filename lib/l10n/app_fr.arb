@@ -3330,21 +3330,5 @@
   "transcriptionWhisperInfo": "La transcription est alimentée par Whisper, un modèle ouvert de reconnaissance vocale qui écoute la narration et écrit les mots - le tout sur cet appareil.",
   "findInAudiobookIntroBody": "Cela permet d'écouter le livre audio près de l'endroit où vous lisez et de le faire correspondre à ce passage, le tout sur votre appareil. Cela peut prendre jusqu'à une minute. Si l'emplacement ne peut pas être associé en toute confiance, rien ne bouge.",
   "findInAudiobookGoPlayer": "Ouvrir le lecteur",
-  "comicBookmarkRemoveFailed": "Impossible de supprimer le signet du serveur. Réessayez lorsque vous êtes connecté.",
-  "settingsEpisodeNotifsDesc": "Nouveaux épisodes de podcast et versions à venir de livres, vérifiés en arrière-plan",
-  "cardScrubbers": "Barres de lecture pour les cartes",
-  "mergeLibraries": "Page d'Absorption unifiée",
-  "mergeLibrariesInfoTitle": "Page d'Absorption unifiée",
-  "mergeLibrariesInfoContent": "Quand activé, l’écran Absorbing affiche tous vos livres et podcasts en cours, provenant de toutes vos bibliothèques, dans une seule vue. Quand désactivé, il n’affiche que les éléments de la bibliothèque que vous avez actuellement sélectionnée.",
-  "mergeLibrariesOnSubtitle": "La page d'absorption affiche les éléments de toutes les bibliothèques",
-  "mergeLibrariesOffSubtitle": "La page d'Absorption ne montre que la bibliothèque actuelle",
-  "queueModeInfoManualDesc": "Vos cartes d'absorption agissent comme une liste de lecture. Quand l'une se termine, la prochaine carte non terminée se lance automatiquement. Ajoutez des éléments avec le bouton \"Ajouter à l'Absorbation\" sur un livre ou un épisode et réorganisez à partir de l'écran d'absorption.",
-  "enableLoggingOnSubtitle": "Activé - journaux enregistrés dans un fichier (redémarrez pour appliquer)",
-  "sendLogs": "Envoyer les journaux",
-  "sendLogsSubtitle": "Partager le fichier de journalisation en pièce jointe",
-  "failedToShare": "Échec du partage : {error}",
-  "@failedToShare": {"placeholders": {"error": {"type": "String"}}},
-  "markAsNotFinishedContent": "Ceci effacera le statut fini mais conservera votre position actuelle.",
-  "tipsSheetOfflineModeDesc": "Appuyez sur le nuage vert en haut de l'écran Absorption pour passer hors ligne. La synchronisation s'arrête, rien ne consomme de données et seuls vos téléchargements s'affichent. Le nuage devient orange hors ligne, et un nouvel appui reconnecte. Un nuage rouge signifie que vous avez été déconnecté : vos téléchargements se lisent quand même, et ce que vous écoutez se synchronise une fois reconnecté. Un appui long sur un onglet peut aussi basculer le mode hors ligne, via les raccourcis d'appui long dans les Réglages.",
-  "transcriptionAutoHint": "Avec plus d'un téléchargement, chaque tâche choisit entre eux. Les livres avec un ebook sont les plus rapides, car les mots exacts viennent de toute façon de l'ebook. Les signets sur les livres sans ebook ont le plus précis possible."
+  "comicBookmarkRemoveFailed": "Impossible de supprimer le signet du serveur. Réessayez lorsque vous êtes connecté."
 }
