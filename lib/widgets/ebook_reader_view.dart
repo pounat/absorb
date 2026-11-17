@@ -1703,8 +1703,6 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       final origin = _turnOrigin(forward);
       if (forward || _revealsUnder) {
         _curl.show(shot, origin: origin, grabY: origin.dy);
-        // A curl lifts the page where it was touched.
-        if (_turnNow == 'curl') _curl.follow(Offset(max(origin.dx, _curl.size.width * 0.75), origin.dy));
         await WidgetsBinding.instance.endOfFrame;
         if (run != _curlRun) return;
         forward ? c.next() : c.prev();

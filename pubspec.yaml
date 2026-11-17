@@ -165,6 +165,7 @@ flutter:
     - assets/foliate/foliate-js/
     - assets/foliate/foliate-js/vendor/
   shaders:
+    - shaders/page_curl.frag
     - shaders/page_ripple.frag
   fonts:
     - family: NotoSansJP
