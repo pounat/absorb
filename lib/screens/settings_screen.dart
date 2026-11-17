@@ -1735,6 +1735,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       case 'en': return 'English';
       case 'de': return 'Deutsch';
       case 'fr': return 'Français';
+      case 'pl': return 'Polski';
       case 'zh': return '中文';
       default: return l.languageSystemDefault;
     }
@@ -1744,7 +1745,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
-    const codes = ['', 'en', 'de', 'fr', 'zh'];
+    const codes = ['', 'en', 'de', 'fr', 'pl', 'zh'];
 
     final picked = await showModalBottomSheet<String>(
       context: context,
