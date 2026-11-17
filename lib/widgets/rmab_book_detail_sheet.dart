@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'expressive.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
@@ -463,7 +464,7 @@ class _RequestButton extends StatelessWidget {
             ? SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(
+                child: AdaptiveSpinner(
                   strokeWidth: 2,
                   color: cs.onPrimary,
                 ),

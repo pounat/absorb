@@ -46,6 +46,8 @@ import '../widgets/rmab_config_sheet.dart'
 import '../widgets/rmab_search_results_sheet.dart';
 import '../widgets/scroll_reveal.dart';
 import '../services/scoped_prefs.dart';
+import '../services/native_tab_bar.dart';
+import '../widgets/expressive.dart';
 import '../services/server_backend.dart';
 import '../services/user_account_service.dart';
 import '../l10n/app_localizations.dart';
@@ -65,7 +67,11 @@ int responsiveGridCount(BuildContext context) => coverGridCount(context);
 /// Room under the grid for the playing pill and the nav bar, which the
 /// desktop workspace does not have.
 double libraryGridBottomPadding(BuildContext context) =>
-    isDesktopWorkspace(context) ? 80 : 180;
+    isDesktopWorkspace(context)
+        ? 80
+        // The glass tab bar and pill row never scroll away, so the last row
+        // needs extra room to clear them.
+        : (NativeTabBar.active.value ? 230 : 180);
 
 const double kDesktopLibraryTileMaxExtent = 220;
 
@@ -674,9 +680,97 @@ class LibraryScreenState extends State<LibraryScreen>
 
   String? _lastLibraryId;
 
+  // With the glass tab bar on, the floating pill row is a native glass
+  // capsule above the tabs. It is only up while this page's bars are showing.
+  String? _glassPillSignature;
+  bool _glassPillHidden = false;
+  bool _glassPillFailed = false;
+
+  void _onGlassNavChanged() {
+    if (!mounted) return;
+    if (!NativeTabBar.active.value) {
+      _glassPillFailed = false;
+      _dropGlassPill();
+    }
+    setState(() {});
+  }
+
+  void _dropGlassPill() {
+    if (_glassPillSignature == null) return;
+    _glassPillSignature = null;
+    _glassPillHidden = false;
+    unawaited(NativeTabBar.removePill());
+  }
+
+  /// True when the native pill row replaces the Flutter one.
+  bool get _glassPillInUse => NativeTabBar.active.value && !_glassPillFailed;
+
+  void _onGlassPillTapped(int index, bool reselect) {
+    if (!mounted) return;
+    if (reselect) {
+      final theme = Theme.of(context);
+      _showSortFilterSheet(context, theme.colorScheme, theme.textTheme);
+    } else {
+      _tabController?.animateTo(index);
+    }
+  }
+
+  Future<void> _syncGlassPill() async {
+    if (!mounted || !_glassPillInUse) return;
+    final hasRow = _tabController != null && !_isInSearchMode;
+    if (!hasRow) {
+      _dropGlassPill();
+      return;
+    }
+    final hidden = NativeTabBar.shownPage.value != 1;
+    final l = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final labels = [
+      l.libraryTabLibrary,
+      l.libraryTabSeries,
+      l.libraryTabAuthors,
+      l.libraryTabNarrators,
+      'Lists',
+    ];
+    final tint = cs.primary.toARGB32();
+    final dark = cs.brightness == Brightness.dark;
+    final signature = '${labels.join('|')};$_currentTab;$tint;$dark';
+    if (signature != _glassPillSignature) {
+      final first = _glassPillSignature == null;
+      _glassPillSignature = signature;
+      // A new row starts hidden so it can't flash over another page.
+      if (first) {
+        _glassPillHidden = true;
+        unawaited(NativeTabBar.setPillHidden(true));
+      }
+      final shown = await NativeTabBar.showPill(
+        labels: labels,
+        selected: _currentTab,
+        tintArgb: tint,
+        dark: dark,
+      );
+      if (!mounted) return;
+      if (!shown) {
+        // Could not draw it: go back to the Flutter pill row.
+        debugPrint('[NativeTabs] falling back to the Flutter pill row');
+        _glassPillSignature = null;
+        _glassPillHidden = false;
+        setState(() => _glassPillFailed = true);
+        return;
+      }
+    }
+    if (hidden != _glassPillHidden) {
+      _glassPillHidden = hidden;
+      unawaited(NativeTabBar.setPillHidden(hidden));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    NativeTabBar.active.addListener(_onGlassNavChanged);
+    NativeTabBar.shownPage.addListener(_syncGlassPill);
+    NativeTabBar.onPillSelect = _onGlassPillTapped;
     _wasOffline = context.read<LibraryProvider>().isOffline;
     // Reveal driver is fed by NotificationListener at the screen level —
     // works across multiple per-tab scroll controllers in the IndexedStack
@@ -1254,6 +1348,10 @@ class LibraryScreenState extends State<LibraryScreen>
 
   @override
   void dispose() {
+    NativeTabBar.active.removeListener(_onGlassNavChanged);
+    NativeTabBar.shownPage.removeListener(_syncGlassPill);
+    NativeTabBar.onPillSelect = null;
+    if (_glassPillSignature != null) unawaited(NativeTabBar.removePill());
     SocketService().removeAuthorsChangedListener(_onAuthorsChanged);
     SocketService().removeItemRemovedListener(_onItemRemoved);
     _authorsRefreshDebounce?.cancel();
@@ -2868,6 +2966,11 @@ class LibraryScreenState extends State<LibraryScreen>
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final desktopWorkspace = isDesktopWorkspace(context);
+    final glassNav = NativeTabBar.active.value;
+    final glassPill = _glassPillInUse;
+    if (glassPill) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncGlassPill());
+    }
     // The bars the reveal driver hides are the phone's; the desktop
     // workspace pins its header and has no floating pill.
     _revealDriver.setEnabled(!desktopWorkspace);
@@ -3036,6 +3139,8 @@ class LibraryScreenState extends State<LibraryScreen>
               ),
             ),
           SafeArea(
+            // Under the glass tab bar the lists scroll beneath it.
+            bottom: !glassNav,
             // Per-tab CustomScrollView with its own SliverAppBar(floating, snap)
             // for the header. No NestedScrollView coordinator in the scroll
             // path, which makes scrolling noticeably smoother. The reveal
@@ -3083,11 +3188,12 @@ class LibraryScreenState extends State<LibraryScreen>
                     },
                   ),
                 ),
-                if (hasTabs && !_isInSearchMode && !desktopWorkspace)
+                if (hasTabs && !_isInSearchMode && !desktopWorkspace && !glassPill)
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: 12,
+                    bottom: 12 +
+                        (glassNav ? MediaQuery.paddingOf(context).bottom : 0),
                     child: ValueListenableBuilder<double>(
                       valueListenable: _revealDriver.notifier,
                       // Translate only; skip the Opacity saveLayer that was
@@ -3110,7 +3216,8 @@ class LibraryScreenState extends State<LibraryScreen>
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: 12,
+                    bottom: 12 +
+                        (glassNav ? MediaQuery.paddingOf(context).bottom : 0),
                     child: ValueListenableBuilder<double>(
                       valueListenable: _revealDriver.notifier,
                       builder: (_, reveal, child) {
@@ -3515,7 +3622,7 @@ class LibraryScreenState extends State<LibraryScreen>
                     );
                   }
                 },
-                child: AnimatedContainer(
+                child: ExpressivePop(active: active, child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
                   padding: EdgeInsets.symmetric(
@@ -3549,7 +3656,7 @@ class LibraryScreenState extends State<LibraryScreen>
                       ],
                     ],
                   ),
-                ),
+                )),
               );
             }),
           );
@@ -3620,7 +3727,7 @@ class LibraryScreenState extends State<LibraryScreen>
                           _tabController?.animateTo(i);
                         }
                       },
-                      child: AnimatedContainer(
+                      child: ExpressivePop(active: active, child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
                         padding: EdgeInsets.symmetric(
@@ -3660,7 +3767,7 @@ class LibraryScreenState extends State<LibraryScreen>
                             ],
                           ],
                         ),
-                      ),
+                      )),
                     );
                   }),
                 ),
@@ -4279,7 +4386,7 @@ class LibraryScreenState extends State<LibraryScreen>
           injector,
           const SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: AdaptiveSpinner()),
           ),
         ],
       );

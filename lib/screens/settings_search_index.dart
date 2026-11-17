@@ -29,7 +29,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Appearance', l.sectionAppearance, l.showSubtitles, [l.showSubtitlesOnSubtitle, l.showSubtitlesOffSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.rectangleBookCovers, [l.rectangleBookCoversOnSubtitle, l.rectangleBookCoversOffSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.coverSize, [l.coverSizeSubtitle, l.coverSizeSmall, l.coverSizeMedium, l.coverSizeLarge]),
-    SettingSearchEntry('Appearance', l.sectionAppearance, l.cardButtonFill, [l.cardButtonFillSubtitle, l.cardButtonFillClear, l.cardButtonFillSubtle, l.cardButtonFillSolid]),
+    SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.cardButtonFill, [l.cardButtonFillSubtitle, l.cardButtonFillClear, l.cardButtonFillSubtle, l.cardButtonFillSolid]),
     SettingSearchEntry('Appearance', l.sectionAppearance, 'Classic wording', const ['Using "Play", "Now Playing", "Finished"', 'Using "Absorb", "Absorbing", "Fully Absorbed"']),
     if (!(AppPlatform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600))
       SettingSearchEntry('Appearance', l.sectionAppearance, 'Lock rotation', const ['Screen stays in portrait', 'Screen can rotate with the device']),
@@ -45,7 +45,8 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     // ── Absorbing Cards ──
     SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.fullScreenPlayer, [l.fullScreenPlayerOnSubtitle, l.fullScreenPlayerOffSubtitle]),
     SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.coverPlayPause, [l.coverPlayPauseOnSubtitle, l.coverPlayPauseOffSubtitle]),
-    SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.cardBackground, [l.cardBackgroundBlurred, l.cardBackgroundGradient, l.off]),
+    SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.cardBackground, [l.cardBackgroundBlurred, l.cardBackgroundGradient, l.off]),
+    SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.cardSwipeStyle, [l.cardSwipeStyleClassic, l.cardSwipeStyleCarousel, l.cardSwipeStyleStack]),
     SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.cardScrubbers, [l.cardScrubbersBothSubtitle, l.cardScrubbersChapterSubtitle, l.cardScrubbersLockedSubtitle]),
     SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.speedAdjustedTime, [l.speedAdjustedTimeOnSubtitle, l.speedAdjustedTimeOffSubtitle]),
     SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.keepScreenOnPlayer, [l.keepScreenOnPlayerSubtitle]),

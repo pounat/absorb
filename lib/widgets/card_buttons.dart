@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'glass_look.dart';
+import 'expressive.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -77,9 +79,75 @@ class Pressable extends StatefulWidget {
 
 class _PressableState extends State<Pressable> {
   bool _pressed = false;
+  DateTime? _pressedAt;
+
+  void _press() {
+    _pressedAt = DateTime.now();
+    setState(() => _pressed = true);
+  }
+
+  // A quick tap lets go before the squish has shown, so the Expressive look
+  // holds it for a moment first.
+  void _release() {
+    final since = _pressedAt == null
+        ? const Duration(seconds: 1)
+        : DateTime.now().difference(_pressedAt!);
+    const hold = Duration(milliseconds: 90);
+    if (!(expressiveNotifier.value || glassLook) || since >= hold) {
+      setState(() => _pressed = false);
+      return;
+    }
+    Future.delayed(hold - since, () {
+      if (mounted) setState(() => _pressed = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (expressiveNotifier.value && !MediaQuery.disableAnimationsOf(context)) {
+      // Squashes flat and wide under the finger, then springs back past its
+      // resting size before settling.
+      return GestureDetector(
+        behavior: widget.behavior,
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        onTapDown: (_) => _press(),
+        onTapUp: (_) => _release(),
+        onTapCancel: _release,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(end: _pressed ? 1.0 : 0.0),
+          duration: Duration(milliseconds: _pressed ? 90 : 520),
+          curve: _pressed ? Curves.easeOut : Curves.elasticOut,
+          builder: (context, t, child) => Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.diagonal3Values(1 + 0.08 * t, 1 - 0.14 * t, 1),
+            child: Opacity(opacity: (1 - 0.25 * t).clamp(0.0, 1.0), child: child),
+          ),
+          child: widget.child,
+        ),
+      );
+    }
+    if (glassLook && !MediaQuery.disableAnimationsOf(context)) {
+      // iOS glass: the button dips under the finger and springs back.
+      return GestureDetector(
+        behavior: widget.behavior,
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        onTapDown: (_) => _press(),
+        onTapUp: (_) => _release(),
+        onTapCancel: _release,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(end: _pressed ? 1.0 : 0.0),
+          duration: Duration(milliseconds: _pressed ? 90 : 480),
+          curve: _pressed ? Curves.easeOut : Curves.elasticOut,
+          builder: (context, t, child) => Transform.scale(
+            scale: 1 - 0.1 * t,
+            child: Opacity(opacity: (1 - 0.2 * t).clamp(0.0, 1.0), child: child),
+          ),
+          child: widget.child,
+        ),
+      );
+    }
     return GestureDetector(
       behavior: widget.behavior,
       onTap: widget.onTap,
@@ -176,7 +244,7 @@ class CardWideButton extends StatelessWidget {
           color: highlighted
               ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
               : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
-          borderRadius: BorderRadius.circular(radius),
+          borderRadius: cardButtonCorners(context, radius, round: highlighted),
           border: Border.all(
               color: highlighted
                   ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
@@ -305,7 +373,7 @@ class CardSleepButtonInline extends StatelessWidget {
               color: active
                   ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
                   : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
-              borderRadius: BorderRadius.circular(radius),
+              borderRadius: cardButtonCorners(context, radius),
               border: Border.all(color: active
                   ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
                   : _buttonEdge(cs.onSurface, 0.08, 0.55)),
@@ -414,7 +482,7 @@ class CardDownloadButtonInline extends StatelessWidget {
               color: downloaded
                   ? _buttonFill(cs, dlGreen, 0.1, 0.12)
                   : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
-              borderRadius: BorderRadius.circular(radius),
+              borderRadius: cardButtonCorners(context, radius),
               border: Border.all(color: downloaded
                   ? _buttonEdge(dlGreen, 0.3, 0.9)
                   : _buttonEdge(cs.onSurface, 0.08, 0.55)),
@@ -543,7 +611,7 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
           color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
-          borderRadius: BorderRadius.circular(radius),
+          borderRadius: cardButtonCorners(context, radius),
           border: Border.all(color: _buttonEdge(cs.onSurface, 0.08, 0.55)),
         ),
         child: cp || widget.iconsOnly
@@ -678,7 +746,7 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
             height: h,
             decoration: BoxDecoration(
               color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
-              borderRadius: BorderRadius.circular(radius),
+              borderRadius: cardButtonCorners(context, radius),
               border: Border.all(color: _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: content,
@@ -1042,7 +1110,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
         Expanded(child: _onHighlights
             ? _highlightList(tt, cs, l)
             : _bookmarks == null
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : _bookmarks!.isEmpty
                 ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.bookmark_outline_rounded, size: 48, color: cs.onSurface.withValues(alpha: 0.1)),
@@ -1858,30 +1926,38 @@ class CardActionDelegate {
       final rowSlots = ids.sublist(offset, (offset + rowLen).clamp(0, n));
       offset += rowLen;
 
-      Widget row = Row(children: [
-        for (int c = 0; c < rowSlots.length; c++) ...[
-          if (c > 0) const SizedBox(width: 8),
-          Expanded(
-            child: KeyedSubtree(
-              key: ValueKey('card-action-${rowSlots[c]}'),
-              child: rowSlots[c] == '_more'
-                  ? _buildInlineMoreButton(
-                      accent,
-                      compact: compact,
-                      short: short,
-                    )
-                  : buildCardButton(
-                      rowSlots[c],
-                      accent,
-                      tt,
-                      compact: compact,
-                      short: short,
-                      iconsOnly: iconsOnly,
-                    ),
-            ),
+      final slots = [
+        for (int c = 0; c < rowSlots.length; c++)
+          KeyedSubtree(
+            key: ValueKey('card-action-${rowSlots[c]}'),
+            child: rowSlots[c] == '_more'
+                ? _buildInlineMoreButton(
+                    accent,
+                    compact: compact,
+                    short: short,
+                  )
+                : buildCardButton(
+                    rowSlots[c],
+                    accent,
+                    tt,
+                    compact: compact,
+                    short: short,
+                    iconsOnly: iconsOnly,
+                  ),
           ),
-        ],
-      ]);
+      ];
+      // Expressive: the row's buttons join up into one connected group.
+      Widget row = expressiveNotifier.value && slots.length > 1
+          ? ExpressiveButtonRow(children: slots)
+          : glassLook && slots.length > 1
+          // iOS glass: the row's buttons join up, with no pane behind them.
+          ? ExpressiveButtonRow(widen: false, children: slots)
+          : Row(children: [
+              for (int c = 0; c < slots.length; c++) ...[
+                if (c > 0) const SizedBox(width: 8),
+                Expanded(child: slots[c]),
+              ],
+            ]);
 
       // Center single-button rows at 1/3 width
       if (rowSlots.length == 1 && n == 1) {
@@ -1918,7 +1994,7 @@ class CardActionDelegate {
               color: castActive
                   ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
                   : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
-              borderRadius: BorderRadius.circular(radius),
+              borderRadius: cardButtonCorners(context, radius),
               border: Border.all(color: castActive
                   ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
                   : _buttonEdge(cs.onSurface, 0.08, 0.55)),
@@ -2785,7 +2861,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
       builder: (futureContext, snapshot) {
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: AdaptiveSpinner(strokeWidth: 2),
           );
         }
         final all = snapshot.data!;
@@ -2876,14 +2952,14 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
   Widget _buildServerHistory(AppLocalizations l, ColorScheme cs) {
     final future = _serverFuture;
     if (future == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     return FutureBuilder<List<Map<String, dynamic>>?>(
       future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: AdaptiveSpinner(strokeWidth: 2),
           );
         }
         final sessions = snapshot.data;

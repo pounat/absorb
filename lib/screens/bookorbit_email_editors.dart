@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -346,7 +347,7 @@ class _BoEmailDeviceScreenState extends State<BoEmailDeviceScreen> {
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 4),
               leading: _testing
-                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2))
                   : const Icon(Icons.outgoing_mail),
               title: Text(l.boEmailSendTest),
               onTap: _testing ? null : _test,
@@ -777,7 +778,7 @@ class _BoEmailServerScreenState extends State<BoEmailServerScreen> {
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 4),
               leading: _testing
-                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2))
                   : const Icon(Icons.wifi_tethering_rounded),
               title: Text(l.boEmailServerTest),
               subtitle: _dirty
@@ -995,7 +996,7 @@ class _BoEmailTemplateScreenState extends State<BoEmailTemplateScreen> {
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
             leading: _previewing
-                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2))
                 : const Icon(Icons.preview_rounded),
             title: Text(l.boEmailTemplatePreview),
             onTap: _previewing ? null : _preview,

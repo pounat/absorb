@@ -436,6 +436,18 @@ class PlayerSettings {
   static Future<void> setStatsTabShown(bool value) =>
       _set('statsTabShown', value, notify: true);
 
+  // iOS 26: swap the bottom bar for a native Liquid Glass tab bar.
+  static Future<bool> getLiquidGlassNav() => _get('liquidGlassNav', false);
+  static Future<void> setLiquidGlassNav(bool value) =>
+      _set('liquidGlassNav', value, notify: true);
+
+  // Android: Material 3 Expressive shapes in the tab bar, play button and
+  // switches.
+  static Future<bool> getMaterialExpressive() =>
+      _get('materialExpressive', false);
+  static Future<void> setMaterialExpressive(bool value) =>
+      _set('materialExpressive', value, notify: true);
+
   // Background new-episode notification checks, in minutes (0 = off).
   // WorkManager's floor for periodic jobs is 15 minutes.
   static Future<int> getEpisodeNotifIntervalMinutes() =>
@@ -1568,6 +1580,12 @@ class PlayerSettings {
   static Future<String> getCardBackgroundRaw() =>
       _get('cardBackground', 'blurred');
   static Future<void> setCardBackground(String value) => _set('cardBackground', value, notify: true);
+
+  /// How the Absorbing cards move when swiped: 'classic' (side cards squeeze),
+  /// 'carousel' (they narrow into slivers) or 'stack' (new cards land on a
+  /// pile). Anything else is treated as classic.
+  static Future<String> getCardSwipeStyle() => _get('cardSwipeStyle', 'classic');
+  static Future<void> setCardSwipeStyle(String value) => _set('cardSwipeStyle', value, notify: true);
 
   // ── Self-signed certificates (global, not per-user) ──
 

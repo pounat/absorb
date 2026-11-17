@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'expressive.dart';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -669,7 +670,7 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                 icon: _preview.isLoading
                     ? const SizedBox(
                         width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: AdaptiveSpinner(strokeWidth: 2))
                     : Icon(_preview.isPlaying
                         ? Icons.pause_rounded
                         : Icons.play_arrow_rounded),

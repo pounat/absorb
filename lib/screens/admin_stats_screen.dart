@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -88,7 +89,7 @@ class _AdminStatsScreenState extends State<AdminStatsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : RefreshIndicator(
                 onRefresh: _loadAll,
                 child: ListView(
@@ -144,7 +145,7 @@ class _AdminStatsScreenState extends State<AdminStatsScreen> {
                     if (_loadingYear)
                       const Padding(
                         padding: EdgeInsets.all(24),
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: Center(child: AdaptiveSpinner(strokeWidth: 2)),
                       )
                     else
                       _yearBody(cs, tt, l),

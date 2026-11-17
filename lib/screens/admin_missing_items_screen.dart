@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -206,7 +207,7 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
   }
 
   Widget _body(ColorScheme cs, TextTheme tt, AppLocalizations l) {
-    if (_loading) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (_loading) return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     if (_items.isEmpty) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -334,7 +335,7 @@ class _AdminMissingItemsScreenState extends State<AdminMissingItemsScreen> {
             if (!_selecting) ...[
               const SizedBox(width: 8),
               busy
-                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant.withValues(alpha: 0.4)))
+                  ? SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurfaceVariant.withValues(alpha: 0.4)))
                   : IconButton(
                       icon: Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red.shade300),
                       tooltip: l.delete,

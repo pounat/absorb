@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
@@ -90,7 +91,7 @@ class _DictionarySheetState extends State<_DictionarySheet> {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 32),
                       child: Center(
-                          child: CircularProgressIndicator(strokeWidth: 2)),
+                          child: AdaptiveSpinner(strokeWidth: 2)),
                     )
                   else if (result.status == DictionaryStatus.found)
                     ..._buildMeanings(result, cs, tt)

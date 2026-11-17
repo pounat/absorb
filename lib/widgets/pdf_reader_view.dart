@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -249,7 +250,7 @@ class _PdfReaderViewState extends State<PdfReaderView> with WidgetsBindingObserv
 
     Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const Center(child: AdaptiveSpinner());
     } else if (_error != null || _file == null) {
       body = Center(
         child: Padding(

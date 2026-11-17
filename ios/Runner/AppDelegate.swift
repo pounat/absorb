@@ -441,6 +441,7 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     IOSQueueAdvancer.shared.register(with: messenger)
     AbsorbAudioBridge.shared.register(with: messenger)
     SiriBridge.shared.register(with: messenger)
+    NativeTabBar.shared.register(with: messenger)
 
     // CarPlay Now Playing custom buttons (chapter nav, speed, bookmark). These
     // decorate CPNowPlayingTemplate only — the lock screen is untouched.

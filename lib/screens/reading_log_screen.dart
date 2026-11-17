@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -266,7 +267,7 @@ class _ReadingLogScreenState extends State<ReadingLogScreen> {
               ),
             )
           : _stats == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: AdaptiveSpinner())
               : RefreshIndicator(
                   onRefresh: _refresh,
                   child: ListView(
@@ -921,7 +922,7 @@ class _ReadingLogScreenState extends State<ReadingLogScreen> {
               child: TextButton(
                 onPressed: _loadingMore ? null : _loadMore,
                 child: _loadingMore
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2))
                     : Text(l.showMore),
               ),
             ),

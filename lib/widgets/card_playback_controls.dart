@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'glass_look.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import 'card_buttons.dart';
+import 'expressive.dart';
 
 // ─── PLAYBACK CONTROLS (card version) ───────────────────────
 
@@ -87,7 +89,7 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
     final cast = ChromecastService();
 
     return ListenableBuilder(
-      listenable: Listenable.merge([cast, widget.player]),
+      listenable: Listenable.merge([cast, widget.player, expressiveNotifier]),
       builder: (context, _) {
         // Check if we're casting this specific book
         final castItemId = widget.itemId ?? widget.player.currentItemId;
@@ -106,6 +108,20 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
     final s = _sevenControls ? 56.0 : widget.playButtonSize;
     final iconSize = s * 0.49;
     final spinnerSize = s * 0.4;
+    if (expressiveNotifier.value) {
+      return Pressable(
+        onTap: onTap,
+        child: ExpressivePlayShape(
+          size: s,
+          playing: playing,
+          color: cs.onSurface,
+          glow: widget.accent.withValues(alpha: 0.4),
+          child: loading
+              ? SizedBox(width: spinnerSize, height: spinnerSize, child: AdaptiveSpinner(strokeWidth: 2, color: widget.accent))
+              : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: cs.surface),
+        ),
+      );
+    }
     return Pressable(
       onTap: onTap,
       child: Container(
@@ -116,7 +132,9 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
           boxShadow: [BoxShadow(color: widget.accent.withValues(alpha: 0.4), blurRadius: 25, spreadRadius: -5)],
         ),
         child: loading
-            ? Center(child: SizedBox(width: spinnerSize, height: spinnerSize, child: CircularProgressIndicator(strokeWidth: 2, color: widget.accent)))
+            ? Center(child: SizedBox(width: spinnerSize, height: spinnerSize, child: AdaptiveSpinner(strokeWidth: 2, color: widget.accent)))
+            : glassLook
+            ? Center(child: MorphingPlayIcon(playing: playing, size: iconSize, color: cs.surface))
             : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: cs.surface),
       ),
     );
@@ -135,7 +153,7 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
       children: [
         Flexible(child: Pressable(
           onTap: cast.skipToPreviousChapter,
-          child: SizedBox(width: chBox, height: chBox, child: Center(
+          child: ExpressiveControlBox(soft: false, width: chBox, height: chBox, child: Center(
             child: Icon(Icons.skip_previous_rounded, size: chIcon, color: cs.onSurfaceVariant),
           )),
         )),
@@ -146,13 +164,13 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
           )),
         Flexible(child: Pressable(
           onTap: () => cast.skipBackward(_backSkip),
-          child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, size: skIcon))),
+          child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, size: skIcon))),
         )),
         if (widget.showPlayButton)
           Flexible(child: _playPauseButton(cs, playing: cast.isPlaying, loading: false, onTap: cast.togglePlayPause)),
         Flexible(child: Pressable(
           onTap: () => cast.skipForward(_forwardSkip),
-          child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, size: skIcon))),
+          child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, size: skIcon))),
         )),
         if (_longSkip)
           Flexible(child: Pressable(
@@ -161,7 +179,7 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
           )),
         Flexible(child: Pressable(
           onTap: cast.skipToNextChapter,
-          child: SizedBox(width: chBox, height: chBox, child: Center(
+          child: ExpressiveControlBox(soft: false, width: chBox, height: chBox, child: Center(
             child: Icon(Icons.skip_next_rounded, size: chIcon, color: cs.onSurfaceVariant),
           )),
         )),
@@ -183,7 +201,7 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
       children: [
         Flexible(child: Pressable(
           onTap: widget.isActive ? widget.player.skipToPreviousChapter : null,
-          child: SizedBox(width: chBox, height: chBox, child: Center(
+          child: ExpressiveControlBox(soft: false, width: chBox, height: chBox, child: Center(
             child: Icon(Icons.skip_previous_rounded, size: chIcon, color: widget.isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.12)),
           )),
         )),
@@ -194,14 +212,14 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
           )),
         Flexible(child: Pressable(
           onTap: widget.isActive ? () => widget.player.skipBackward(_backSkip) : null,
-          child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, active: widget.isActive, size: skIcon))),
+          child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, active: widget.isActive, size: skIcon))),
         )),
         if (widget.showPlayButton)
           Flexible(child: _playPauseButton(cs, playing: widget.isActive && widget.player.isPlaying, loading: loading,
             onTap: widget.isActive ? () => widget.player.togglePlayPause(fromUi: true) : widget.onStart)),
         Flexible(child: Pressable(
           onTap: widget.isActive ? () => widget.player.skipForward(_forwardSkip) : null,
-          child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, active: widget.isActive, size: skIcon))),
+          child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, active: widget.isActive, size: skIcon))),
         )),
         if (_longSkip)
           Flexible(child: Pressable(
@@ -210,7 +228,7 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
           )),
         Flexible(child: Pressable(
           onTap: widget.isActive ? widget.player.skipToNextChapter : null,
-          child: SizedBox(width: chBox, height: chBox, child: Center(
+          child: ExpressiveControlBox(soft: false, width: chBox, height: chBox, child: Center(
             child: Icon(Icons.skip_next_rounded, size: chIcon, color: widget.isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.12)),
           )),
         )),

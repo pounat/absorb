@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -263,7 +264,7 @@ class _LyricsOverlayState extends State<LyricsOverlay> {
           SizedBox(
             width: 12,
             height: 12,
-            child: CircularProgressIndicator(strokeWidth: 1.5, color: _inkQuiet),
+            child: AdaptiveSpinner(strokeWidth: 1.5, color: _inkQuiet),
           ),
           const SizedBox(width: 8),
           Text(l.lyricsListeningAhead, style: quiet),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 
 import '../l10n/app_localizations.dart';
 import 'adaptive_modal.dart';
@@ -263,7 +264,7 @@ class _DaySessionsSheetState extends State<DaySessionsSheet> {
                 ),
               Expanded(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(child: AdaptiveSpinner())
                     : _loadFailed
                     ? Center(
                         child: Column(

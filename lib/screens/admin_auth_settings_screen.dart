@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -284,7 +285,7 @@ class _AdminAuthSettingsScreenState extends State<AdminAuthSettingsScreen> {
           const SizedBox(height: 12),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
                 : _settings == null
                     ? _loadFailed(cs, tt, l)
                     : _form(cs, tt, l),
@@ -346,7 +347,7 @@ class _AdminAuthSettingsScreenState extends State<AdminAuthSettingsScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _populating || _saving ? null : _autoPopulate,
                   icon: _populating
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(width: 14, height: 14, child: AdaptiveSpinner(strokeWidth: 2))
                       : const Icon(Icons.auto_fix_high_rounded, size: 16),
                   label: Text(l.authSetAutoPopulate),
                 ),
@@ -467,7 +468,7 @@ class _AdminAuthSettingsScreenState extends State<AdminAuthSettingsScreen> {
               onPressed: _saving ? null : _save,
               icon: _saving
                   ? SizedBox(width: 14, height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                      child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                   : const Icon(Icons.save_rounded, size: 18),
               label: Text(l.srvSave),
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 
 import 'absorb_wave_icon.dart';
 
@@ -30,7 +31,7 @@ class AuthLoadingScreen extends StatelessWidget {
             SizedBox(
               width: 24,
               height: 24,
-              child: CircularProgressIndicator(
+              child: AdaptiveSpinner(
                 strokeWidth: 2,
                 color: primary.withValues(alpha: 0.5),
               ),

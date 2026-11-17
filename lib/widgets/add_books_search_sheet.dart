@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -252,7 +253,7 @@ class _AddBooksSearchSheetState extends State<AddBooksSearchSheet> {
 
   Widget _buildBody(ColorScheme cs, TextTheme tt, AppLocalizations l) {
     if (_isSearching && _results.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AdaptiveSpinner());
     }
     if (!_hasSearched) {
       // Hardcoded English (l10n follow-up, matches other new-feature strings).
@@ -336,7 +337,7 @@ class _AddBooksSearchSheetState extends State<AddBooksSearchSheet> {
                 child: isBusy
                     ? Padding(
                         padding: const EdgeInsets.all(7),
-                        child: CircularProgressIndicator(
+                        child: AdaptiveSpinner(
                             strokeWidth: 2, color: cs.primary),
                       )
                     : Icon(

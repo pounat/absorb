@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -267,7 +268,7 @@ class _AdminServerLogsScreenState extends State<AdminServerLogsScreen> {
                       child: SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AdaptiveSpinner(strokeWidth: 2),
                       ),
                     )
                   else
@@ -423,7 +424,7 @@ class _AdminServerLogsScreenState extends State<AdminServerLogsScreen> {
     List<_ServerLogEntry> visibleLogs,
   ) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     if (_loadFailed && _logs.isEmpty) {
       return Center(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -223,7 +224,7 @@ class _BookOrbitMatchViewState extends State<BookOrbitMatchView> with AutomaticK
         child: FilledButton.icon(
           onPressed: _runSearch,
           icon: _streaming
-              ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+              ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
               : const Icon(Icons.travel_explore_rounded, size: 18),
           label: Text(_streaming ? l.bomatchSearching : l.bomatchSearchAll),
         ),
@@ -290,7 +291,7 @@ class _BookOrbitMatchViewState extends State<BookOrbitMatchView> with AutomaticK
         if (_streaming && stopped == null && count == 0)
           Padding(
             padding: const EdgeInsets.only(right: 5),
-            child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: color)),
+            child: SizedBox(width: 10, height: 10, child: AdaptiveSpinner(strokeWidth: 1.5, color: color)),
           ),
         Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
       ]),
@@ -464,7 +465,7 @@ class _BookOrbitMatchViewState extends State<BookOrbitMatchView> with AutomaticK
             child: FilledButton(
               onPressed: _pickCount == 0 || _applying ? null : _apply,
               child: _applying
-                  ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                  ? SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                   : Text(l.bomatchApply(_pickCount)),
             ),
           ),

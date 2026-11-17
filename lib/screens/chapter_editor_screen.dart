@@ -1,4 +1,5 @@
 import '../utils/app_platform.dart';
+import '../widgets/expressive.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1220,7 +1221,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     super.build(context);
     final cs = Theme.of(context).colorScheme;
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     if (_loadError != null) {
       return Center(child: Text(_loadError!, style: TextStyle(color: cs.error)));
@@ -1231,7 +1232,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
         const Positioned.fill(
           child: ColoredBox(
             color: Color(0x55000000),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            child: Center(child: AdaptiveSpinner(strokeWidth: 2)),
           ),
         ),
       if (_busyText != null)
@@ -1624,7 +1625,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
           IconButton(
             onPressed: _previewLoading ? null : _togglePreviewPlay,
             icon: _previewLoading
-                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2))
                 : Icon(_previewPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
             iconSize: 30,
             color: cs.primary,
@@ -2008,7 +2009,7 @@ class _ChapterLookupSheetState extends State<_ChapterLookupSheet> {
           child: FilledButton(
             onPressed: _finding ? null : _search,
             child: _finding
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2))
                 : Text(l.search),
           ),
         ),
@@ -2337,7 +2338,7 @@ class _FindStartSheetState extends State<_FindStartSheet> {
             if (_running)
               const Padding(
                 padding: EdgeInsets.all(8),
-                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                child: SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2)),
               ),
           ]),
         ),

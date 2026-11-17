@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -889,7 +890,7 @@ class _BookmarksScreenState extends State<BookmarksScreen>
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AdaptiveSpinner())
             : DesktopPageBody(
                 child: Column(
                 children: [

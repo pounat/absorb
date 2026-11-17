@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -425,7 +426,7 @@ class DesktopBatchActionBar extends StatelessWidget {
                   child: SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AdaptiveSpinner(strokeWidth: 2),
                   ),
                 ),
                 if (busyLabel != null && busyLabel!.isNotEmpty)

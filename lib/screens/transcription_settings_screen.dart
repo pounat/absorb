@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/player_settings.dart';
@@ -143,7 +144,7 @@ class _TranscriptionSettingsScreenState
         title: Text(l.transcriptionTitle),
       ),
       body: !_loaded
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : ListView(
               children: [
                 SwitchListTile(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -979,7 +980,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
           child: FilledButton.icon(
             onPressed: _encoding ? null : _startEncode,
             icon: _encoding
-                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                 : const Icon(Icons.transform_rounded, size: 18),
             label: Text(_encoding
                 ? (_taskProgress != null ? l.encodeProgress(_taskProgress!.toStringAsFixed(0)) : l.encodeProgressIndeterminate)
@@ -1043,7 +1044,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
           child: FilledButton.icon(
             onPressed: _embedding ? null : _startEmbed,
             icon: _embedding
-                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                 : const Icon(Icons.save_rounded, size: 18),
             label: Text(_embedding
                 ? (_taskProgress != null ? l.embedProgress(_taskProgress!.toStringAsFixed(0)) : l.embedProgressIndeterminate)
@@ -1415,7 +1416,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
               child: FilledButton.icon(
                 onPressed: _isSearching ? null : _doSearch,
                 icon: _isSearching
-                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                    ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                     : const Icon(Icons.search_rounded, size: 18),
                 label: Text(l.search),
                 style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -1430,7 +1431,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
         child: _isSearching
             ? ListView(controller: _matchScroll, children: [
                 const SizedBox(height: 80),
-                Center(child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant)),
+                Center(child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurfaceVariant)),
               ])
             : _searchResults.isEmpty
                 ? ListView(controller: _matchScroll, children: [
@@ -1593,7 +1594,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
               key: MetadataEditView.quickMatchButtonKey,
               onPressed: _saving || _quickMatching ? null : _runServerQuickMatch,
               icon: _quickMatching
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary))
+                  ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.primary))
                   : const Icon(Icons.auto_fix_high_rounded, size: 18),
               label: Text(l.quickMatch),
               style: OutlinedButton.styleFrom(
@@ -1605,7 +1606,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
           FilledButton.icon(
             onPressed: _saving || _quickMatching ? null : _saveCustom,
             icon: _saving
-                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                 : const Icon(Icons.check_rounded, size: 18),
             label: Text(l.save),
             style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -1771,7 +1772,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
           FilledButton.icon(
             onPressed: _saving ? null : _saveCustom,
             icon: _saving
-                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                 : const Icon(Icons.check_rounded, size: 18),
             label: Text(l.save),
             style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -1944,7 +1945,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
               FilledButton.tonalIcon(
                 onPressed: _coverSearching ? null : _searchCovers,
                 icon: _coverSearching
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2))
                     : const Icon(Icons.search_rounded, size: 18),
                 label: Text(l.search),
               ),
@@ -1981,7 +1982,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
               if (_coverSearching)
                 const Padding(
                   padding: EdgeInsets.only(top: 16),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: Center(child: AdaptiveSpinner(strokeWidth: 2)),
                 ),
             ],
           ],
@@ -2100,7 +2101,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
                       imageUrl: url,
                       fit: BoxFit.contain,
                       placeholder: (_, __) => const SizedBox(
-                          height: 200, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                          height: 200, child: Center(child: AdaptiveSpinner(strokeWidth: 2))),
                       errorWidget: (_, __, ___) => const SizedBox(
                           height: 200, child: Center(child: Icon(Icons.broken_image_rounded))),
                     ),

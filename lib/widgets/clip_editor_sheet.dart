@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -183,7 +184,7 @@ class _ClipEditorSheetState extends State<ClipEditorSheet> {
           else if (!_c.isReady)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: AdaptiveSpinner()),
             )
           else
             ..._editor(l, tt, cs),
@@ -290,7 +291,7 @@ class _ClipEditorSheetState extends State<ClipEditorSheet> {
         child: FilledButton.icon(
           icon: _saving
               ? const SizedBox(
-                  width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2))
               : const Icon(Icons.save_alt_rounded),
           label: Text(l.clipSave),
           onPressed: (_saving || _c.clipDuration < ClipEditorController.minClip)

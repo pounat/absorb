@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -230,7 +231,7 @@ class _BookOrbitSetPasswordScreenState extends State<BookOrbitSetPasswordScreen>
               onPressed: _busy ? null : _submit,
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
               icon: _busy
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2))
                   : const Icon(Icons.login_rounded),
               label: Text(_passwordSet ? l.loginSignIn : l.boSetPasswordSubmit),
             ),

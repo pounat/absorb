@@ -1279,6 +1279,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsOpenStats => 'Open Stats';
 
   @override
+  String get liquidGlassNavLabel => 'Liquid Glass';
+
+  @override
+  String get liquidGlassNavSubtitle =>
+      'iOS glass for the tab bar, library pills and toasts';
+
+  @override
+  String get materialExpressiveLabel => 'Material 3 Expressive';
+
+  @override
+  String get materialExpressiveSubtitle =>
+      'Playful shapes in the tab bar, play button and switches';
+
+  @override
   String get settingsMergeImpliedByPodcastTab =>
       'Always on while the Podcasts tab is enabled';
 
@@ -4981,6 +4995,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cardBackgroundGradient => 'Gradient';
+
+  @override
+  String get cardBackgroundSolid => 'Solid';
+
+  @override
+  String get cardSwipeStyle => 'Card swipe style';
+
+  @override
+  String get cardSwipeStyleClassic => 'Classic';
+
+  @override
+  String get cardSwipeStyleCarousel => 'Carousel';
+
+  @override
+  String get cardSwipeStyleStack => 'Stack';
 
   @override
   String get queueModeMergedSubtitle => '可选择停止播放、手动队列，或自动播放下一项';

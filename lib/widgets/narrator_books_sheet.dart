@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -102,7 +103,7 @@ class _NarratorBooksSheetState extends State<NarratorBooksSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(l),
-          const Expanded(child: Center(child: CircularProgressIndicator())),
+          const Expanded(child: Center(child: AdaptiveSpinner())),
         ],
       );
     }

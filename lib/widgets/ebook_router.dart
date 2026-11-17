@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -184,7 +185,7 @@ class _EpubGateState extends State<_EpubGate> {
     if (!_decided) {
       return Scaffold(
         appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
-        body: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        body: const Center(child: AdaptiveSpinner(strokeWidth: 2)),
       );
     }
     final imageEpub = _imageEpub;

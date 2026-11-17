@@ -1290,6 +1290,20 @@ class AppLocalizationsNo extends AppLocalizations {
   String get settingsOpenStats => 'Open Stats';
 
   @override
+  String get liquidGlassNavLabel => 'Liquid Glass';
+
+  @override
+  String get liquidGlassNavSubtitle =>
+      'iOS glass for the tab bar, library pills and toasts';
+
+  @override
+  String get materialExpressiveLabel => 'Material 3 Expressive';
+
+  @override
+  String get materialExpressiveSubtitle =>
+      'Playful shapes in the tab bar, play button and switches';
+
+  @override
   String get settingsMergeImpliedByPodcastTab =>
       'Always on while the Podcasts tab is enabled';
 
@@ -5056,6 +5070,21 @@ class AppLocalizationsNo extends AppLocalizations {
 
   @override
   String get cardBackgroundGradient => 'Gradient';
+
+  @override
+  String get cardBackgroundSolid => 'Solid';
+
+  @override
+  String get cardSwipeStyle => 'Card swipe style';
+
+  @override
+  String get cardSwipeStyleClassic => 'Classic';
+
+  @override
+  String get cardSwipeStyleCarousel => 'Carousel';
+
+  @override
+  String get cardSwipeStyleStack => 'Stack';
 
   @override
   String get queueModeMergedSubtitle =>

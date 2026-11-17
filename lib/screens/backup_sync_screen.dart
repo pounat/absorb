@@ -1,4 +1,5 @@
 import '../utils/app_platform.dart';
+import '../widgets/expressive.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -449,7 +450,7 @@ class _BackupSyncScreenState extends State<BackupSyncScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l.backupAndSync)),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [

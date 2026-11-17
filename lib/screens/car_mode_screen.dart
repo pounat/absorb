@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -386,7 +387,7 @@ class _CarModeScreenState extends State<CarModeScreen>
                                           ? SizedBox(
                                               width: compact ? 40 : 56,
                                               height: compact ? 40 : 56,
-                                              child: const CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+                                              child: const AdaptiveSpinner(strokeWidth: 3, color: Colors.white),
                                             )
                                           : AnimatedOpacity(
                                               opacity: playing ? 0.15 : 0.8,

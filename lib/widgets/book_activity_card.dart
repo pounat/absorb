@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:intl/intl.dart';
 
 import '../l10n/app_localizations.dart';
@@ -159,7 +160,7 @@ class BookActivityCard extends StatelessWidget {
                         child: SizedBox(
                             width: 12,
                             height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant)),
+                            child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant)),
                       )
                     else if (others)
                       TextButton.icon(

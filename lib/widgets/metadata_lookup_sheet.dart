@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -470,7 +471,7 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
               child: FilledButton.icon(
                 onPressed: _isSearching ? null : _doSearch,
                 icon: _isSearching
-                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                    ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                     : const Icon(Icons.search_rounded, size: 18),
                 label: Text(l.search),
                 style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -486,7 +487,7 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
         child: _isSearching
             ? ListView(controller: widget.scrollController, children: [
                 const SizedBox(height: 80),
-                Center(child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant.withValues(alpha: 0.5))),
+                Center(child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurfaceVariant.withValues(alpha: 0.5))),
               ])
             : _results.isEmpty
                 ? ListView(controller: widget.scrollController, children: [

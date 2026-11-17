@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
@@ -138,7 +139,7 @@ class _SyncConnectionScreenState extends State<SyncConnectionScreen> {
           if (didPop) _persist();
         },
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AdaptiveSpinner())
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [

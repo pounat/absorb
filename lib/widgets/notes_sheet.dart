@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -231,7 +232,7 @@ class _NotesSheetState extends State<NotesSheet> {
             child: _isLoading
                 ? ListView(controller: widget.scrollController, children: const [
                     SizedBox(height: 80),
-                    Center(child: CircularProgressIndicator()),
+                    Center(child: AdaptiveSpinner()),
                   ])
                 : _notes.isEmpty
                     ? ListView(controller: widget.scrollController, children: [

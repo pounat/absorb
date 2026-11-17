@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'overlay_toast.dart';
@@ -637,7 +638,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
         padding: const EdgeInsets.all(12),
         child: SizedBox(
           width: 18, height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+          child: AdaptiveSpinner(strokeWidth: 2, color: cs.primary),
         ),
       );
     }
@@ -998,7 +999,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
           // ── Scrollable episode list ──
           Expanded(
             child: _isLoading
-                ? Center(child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.24)))
+                ? Center(child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.24)))
                 : _episodes.isEmpty
                     ? ListView(
                         controller: widget.scrollController,
@@ -1103,7 +1104,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
               ),
               child: _isBatchUpdating
                   ? Center(child: SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary)))
+                      child: AdaptiveSpinner(strokeWidth: 2, color: cs.primary)))
                   : Row(children: [
                       Expanded(child: FilledButton.tonalIcon(
                         onPressed: () => _batchMarkFinished(true),

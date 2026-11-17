@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -184,7 +185,7 @@ class _BookRequestReleaseScreenState extends State<BookRequestReleaseScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Column(children: [
-                    const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                    const SizedBox(width: 26, height: 26, child: AdaptiveSpinner(strokeWidth: 2.5)),
                     const SizedBox(height: 14),
                     Text(l.breqSearchingIndexers,
                         textAlign: TextAlign.center, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -445,7 +446,7 @@ class _BookRequestReleaseScreenState extends State<BookRequestReleaseScreen> {
                 ? Padding(
                     padding: const EdgeInsets.all(8),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                      const SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2)),
                       const SizedBox(width: 10),
                       Text(l.breqCheckingRelease, style: tt.bodySmall),
                     ]),
@@ -528,7 +529,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
         Text(widget.request.title, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
         const SizedBox(height: 16),
         if (_loading)
-          const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(strokeWidth: 2)))
+          const Center(child: Padding(padding: EdgeInsets.all(24), child: AdaptiveSpinner(strokeWidth: 2)))
         else if (review == null)
           Text(_error != null ? l.breqReviewFailedReason(_error!) : l.breqReviewFailed,
               style: tt.bodyMedium?.copyWith(color: cs.error))

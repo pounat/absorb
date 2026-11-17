@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
@@ -745,7 +746,7 @@ class _LoginScreenState extends State<LoginScreen>
                                             padding: EdgeInsets.all(14),
                                             child: SizedBox(
                                               width: 18, height: 18,
-                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                              child: AdaptiveSpinner(strokeWidth: 2),
                                             ),
                                           )
                                         : _serverValid
@@ -1520,7 +1521,7 @@ class _LoginScreenState extends State<LoginScreen>
             icon: _isOidcLoading
                 ? SizedBox(
                     width: 18, height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                    child: AdaptiveSpinner(strokeWidth: 2, color: cs.primary),
                   )
                 : Icon(Icons.login_rounded, size: 20, color: cs.primary),
             label: Text(
@@ -1662,7 +1663,7 @@ class _LoginScreenState extends State<LoginScreen>
                       key: const ValueKey('loading'),
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(
+                      child: AdaptiveSpinner(
                         strokeWidth: 2.5,
                         color: cs.onPrimary,
                       ),

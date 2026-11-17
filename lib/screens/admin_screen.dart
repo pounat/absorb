@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -285,7 +286,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : DesktopPageBody(
                 child: RefreshIndicator(
                 onRefresh: _loadAll,
@@ -524,7 +525,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : PopScope(
                 canPop: !_desktopNavigatorCanPop,
                 onPopInvokedWithResult: (didPop, result) {
@@ -894,7 +895,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: AdaptiveSpinner(strokeWidth: 2),
             ),
           );
         }
@@ -961,7 +962,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(14)),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        if (loading) SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
+        if (loading) SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
         else Icon(ic, size: 16, color: cs.primary),
         const SizedBox(width: 8),
         Text(l, style: tt.labelMedium?.copyWith(color: loading ? cs.onSurface.withValues(alpha: 0.24) : cs.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w600)),
@@ -1132,7 +1133,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.04), borderRadius: BorderRadius.circular(10),
         border: Border.all(color: cs.onSurface.withValues(alpha: 0.06))),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        if (loading) SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
+        if (loading) SizedBox(width: 14, height: 14, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
         else Icon(ic, size: 14, color: cs.primary.withValues(alpha: 0.7)),
         const SizedBox(width: 6),
         Text(l, style: tt.labelSmall?.copyWith(color: loading ? cs.onSurface.withValues(alpha: 0.24) : cs.onSurface.withValues(alpha: 0.54), fontWeight: FontWeight.w600, fontSize: 11)),

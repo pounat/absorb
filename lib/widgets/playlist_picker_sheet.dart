@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/library_provider.dart';
@@ -137,7 +138,7 @@ class _PlaylistPickerSheetState extends State<PlaylistPickerSheet> {
                     ? const SizedBox(width: 36, height: 36,
                         child: Padding(
                           padding: EdgeInsets.all(8),
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AdaptiveSpinner(strokeWidth: 2),
                         ))
                     : IconButton(
                         icon: Icon(Icons.check_rounded, color: cs.primary),

@@ -26,6 +26,8 @@ import '../utils/cover_accent.dart';
 import '../main.dart'
     show snappyTransitionsNotifier, einkModeNotifier, coverSchemeNotifier, rootNavigatorKey, applyOrientationLock, applyEinkModeTheme;
 import '../services/scoped_prefs.dart';
+import '../services/native_tab_bar.dart';
+import '../widgets/expressive.dart';
 import 'dart:convert';
 import 'admin_screen.dart';
 import 'admin_api_keys_screen.dart';
@@ -223,6 +225,15 @@ class _AppShellState extends State<AppShell>
     value: 1.0,
   );
   VoidCallback? _navBarListener;
+
+  // iOS 26 Liquid Glass tabs: a native bar over the Flutter view stands in
+  // for the NavigationBar, which leaves an empty spacer of the same height.
+  bool _glassNav = false;
+  bool _glassNavFailed = false;
+  double _glassNavHeight = 0;
+  String? _glassSignature;
+  bool _glassCovered = false;
+  bool _glassHiddenSent = false;
 
   // Lazily build tabs so startup on Absorbing does not initialize Home/Library
   // work until the user actually visits those tabs.
@@ -604,6 +615,11 @@ class _AppShellState extends State<AppShell>
       if (mounted) _deriveCoverScheme();
     });
     context.read<LibraryProvider>().addListener(_onLibraryChanged);
+    // A bar left behind by a hot restart would otherwise sit over the app.
+    unawaited(NativeTabBar.remove());
+    expressiveNotifier.addListener(_onExpressiveChanged);
+    NativeTabBar.onSelect = _onGlassTabSelected;
+    NativeTabBar.onHold = _onGlassTabHeld;
     _loadPodcastTabPrefs();
     PlayerSettings.settingsChanged.addListener(_loadPodcastTabPrefs);
     if (!AppPlatform.lacksPhonePlugins) _showLaunchPrompts();
@@ -623,7 +639,16 @@ class _AppShellState extends State<AppShell>
     final enabled = await PlayerSettings.getPodcastTabEnabled();
     final libId = await PlayerSettings.getPodcastTabLibraryId();
     final statsShown = await PlayerSettings.getStatsTabShown();
+    final glassWanted = await PlayerSettings.getLiquidGlassNav();
+    final glass =
+        glassWanted && !_glassNavFailed && await NativeTabBar.isSupported();
     if (!mounted) return;
+    if (!glassWanted) _glassNavFailed = false;
+    if (glass != _glassNav) {
+      setState(() => _glassNav = glass);
+      NativeTabBar.active.value = glass;
+      if (!glass) _dropGlassNav();
+    }
     if (enabled != _podcastTabEnabled ||
         libId != _podcastTabLibraryId ||
         statsShown != _statsTabShown) {
@@ -653,6 +678,111 @@ class _AppShellState extends State<AppShell>
     )) {
       _syncTabLibrary(_currentIndex, podcastsShown);
     }
+  }
+
+  void _onExpressiveChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _dropGlassNav() {
+    _glassNavHeight = 0;
+    _glassSignature = null;
+    _glassCovered = false;
+    _glassHiddenSent = false;
+    NativeTabBar.active.value = false;
+    NativeTabBar.shownPage.value = null;
+    unawaited(NativeTabBar.remove());
+  }
+
+  void _onGlassTabHeld(String id) {
+    if (!mounted || !_glassNav) return;
+    HapticFeedback.mediumImpact();
+    unawaited(_runNavHold(id));
+  }
+
+  void _onGlassTabSelected(String id) {
+    if (!mounted || !_glassNav) return;
+    final podcastsShown = _podcastsShown(context.read<LibraryProvider>());
+    final dest = _destTabs(podcastsShown).indexOf(id);
+    if (dest < 0) return;
+    _selectDestination(dest, podcastsShown);
+  }
+
+  /// The native bar sits above everything Flutter draws, so it has to leave
+  /// when a page or sheet covers the tabs. It stays put while a list scrolls:
+  /// the content passes underneath, which is the point of the glass.
+  void _pushGlassHidden() {
+    if (!_glassNav) return;
+    final hidden = _glassCovered;
+    NativeTabBar.shownPage.value = hidden ? null : _currentIndex;
+    if (hidden == _glassHiddenSent) return;
+    _glassHiddenSent = hidden;
+    unawaited(NativeTabBar.setHidden(hidden));
+  }
+
+  static String _glassSymbol(String tab, bool isPodcast) => switch (tab) {
+        'home' => isPodcast ? 'safari' : 'house',
+        'library' =>
+          isPodcast ? 'antenna.radiowaves.left.and.right' : 'books.vertical',
+        'podcasts' => 'antenna.radiowaves.left.and.right',
+        'absorbing' => 'waveform',
+        'stats' => 'chart.bar',
+        _ => 'gearshape',
+      };
+
+  /// Sends the native bar whatever changed since the last build.
+  void _syncGlassNav(
+    LibraryProvider lib,
+    bool podcastsShown,
+    List<NavigationDestination> destinations,
+  ) {
+    final ids = _destTabs(podcastsShown);
+    final isPodcast = !podcastsShown && lib.isPodcastLibrary;
+    final tabs = [
+      for (var i = 0; i < ids.length; i++)
+        NativeTab(
+          id: ids[i],
+          title: destinations[i].label,
+          icon: _glassSymbol(ids[i], isPodcast),
+        ),
+    ];
+    final selected = ids[_selectedDest(lib, podcastsShown)];
+    final cs = Theme.of(context).colorScheme;
+    final tint = cs.primary.toARGB32();
+    final dark = cs.brightness == Brightness.dark;
+    final covered = !(ModalRoute.of(context)?.isCurrent ?? true);
+    final signature = [
+      for (final t in tabs) '${t.id}|${t.title}|${t.icon}',
+      selected,
+      tint,
+      dark,
+    ].join(';');
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_glassNav) return;
+      _glassCovered = covered;
+      _pushGlassHidden();
+      if (signature == _glassSignature) return;
+      _glassSignature = signature;
+      final height = await NativeTabBar.show(
+        tabs: tabs,
+        selected: selected,
+        tintArgb: tint,
+        dark: dark,
+      );
+      if (!mounted || !_glassNav) return;
+      if (height == null) {
+        // The native bar could not be shown: go back to the Flutter one
+        // rather than leave the app with no tabs.
+        debugPrint('[NativeTabs] falling back to the Flutter bar');
+        _glassNavFailed = true;
+        setState(() => _glassNav = false);
+        _dropGlassNav();
+        return;
+      }
+      if (height != _glassNavHeight) {
+        setState(() => _glassNavHeight = height);
+      }
+    });
   }
 
   /// The bar's slots in order, by stable tab key. Podcasts only sits there
@@ -747,6 +877,12 @@ class _AppShellState extends State<AppShell>
       _serverUpdateController.removeListener(_onServerUpdateChanged);
     }
     PlayerSettings.settingsChanged.removeListener(_loadPodcastTabPrefs);
+    expressiveNotifier.removeListener(_onExpressiveChanged);
+    NativeTabBar.onSelect = null;
+    NativeTabBar.onHold = null;
+    NativeTabBar.active.value = false;
+    NativeTabBar.shownPage.value = null;
+    if (_glassNav) unawaited(NativeTabBar.remove());
     try {
       context.read<LibraryProvider>().removeListener(_onLibraryChanged);
     } catch (_) {}
@@ -1116,6 +1252,7 @@ class _AppShellState extends State<AppShell>
                       usesExtendedDesktopSidebar(workspaceTier),
                 )
               : Scaffold(
+                  extendBody: _glassNav,
                   body: _buildPageStack(context),
                   bottomNavigationBar: _buildBottomNav(context),
                 ),
@@ -1607,7 +1744,7 @@ class _AppShellState extends State<AppShell>
                           SizedBox(
                             width: 14,
                             height: 14,
-                            child: CircularProgressIndicator(
+                            child: AdaptiveSpinner(
                               strokeWidth: 2,
                               color: cs.onSurfaceVariant,
                             ),
@@ -1627,7 +1764,7 @@ class _AppShellState extends State<AppShell>
                           SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(
+                            child: AdaptiveSpinner(
                               strokeWidth: 2,
                               color: cs.onSurfaceVariant,
                             ),
@@ -1742,6 +1879,10 @@ class _AppShellState extends State<AppShell>
     final lib = context.watch<LibraryProvider>();
     final podcastsShown = _podcastsShown(lib);
     final destinations = _buildDestinations(context, podcastsShown);
+    if (_glassNav) {
+      _syncGlassNav(lib, podcastsShown, destinations);
+      return SizedBox(height: _glassNavHeight);
+    }
     return SizeTransition(
       sizeFactor: _navBarAnimController,
       axisAlignment: 1.0,
@@ -1750,17 +1891,52 @@ class _AppShellState extends State<AppShell>
       child: GestureDetector(
         onLongPressStart: (details) =>
             _onNavLongPress(details.localPosition.dx, destinations.length),
-        child: NavigationBar(
-          selectedIndex: _selectedDest(lib, podcastsShown),
-          height: isPhoneLandscape ? 56 : null,
-          labelBehavior: isPhoneLandscape
-              ? NavigationDestinationLabelBehavior.alwaysHide
-              : NavigationDestinationLabelBehavior.alwaysShow,
-          onDestinationSelected: (dest) =>
-              _selectDestination(dest, podcastsShown),
+        child: _buildNavigationBar(
+          context,
+          selected: _selectedDest(lib, podcastsShown),
+          isPhoneLandscape: isPhoneLandscape,
+          podcastsShown: podcastsShown,
           destinations: destinations,
         ),
       ),
+    );
+  }
+
+  Widget _buildNavigationBar(
+    BuildContext context, {
+    required int selected,
+    required bool isPhoneLandscape,
+    required bool podcastsShown,
+    required List<NavigationDestination> destinations,
+  }) {
+    // Expressive: the bar's own highlight is switched off and a rolling
+    // shape is drawn behind the icons in its place.
+    final expressive = expressiveNotifier.value && !einkModeNotifier.value;
+    final bar = NavigationBar(
+      selectedIndex: selected,
+      height: isPhoneLandscape ? 56 : null,
+      labelBehavior: isPhoneLandscape
+          ? NavigationDestinationLabelBehavior.alwaysHide
+          : NavigationDestinationLabelBehavior.alwaysShow,
+      onDestinationSelected: (dest) => _selectDestination(dest, podcastsShown),
+      destinations: destinations,
+      backgroundColor: expressive ? Colors.transparent : null,
+      indicatorColor: expressive ? Colors.transparent : null,
+      surfaceTintColor: expressive ? Colors.transparent : null,
+      shadowColor: expressive ? Colors.transparent : null,
+      elevation: expressive ? 0 : null,
+    );
+    if (!expressive) return bar;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final barTheme = theme.navigationBarTheme;
+    return ExpressiveNavHighlight(
+      selectedIndex: selected,
+      count: destinations.length,
+      background: barTheme.backgroundColor ?? cs.surfaceContainer,
+      pillColor: barTheme.indicatorColor ?? cs.secondaryContainer,
+      shapeColor: cs.primary.withValues(alpha: 0.5),
+      child: bar,
     );
   }
 

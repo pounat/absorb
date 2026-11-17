@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 
 import 'package:flutter/material.dart';
 
@@ -210,7 +211,7 @@ class _BookOrbitLibrariesScreenState extends State<BookOrbitLibrariesScreen> {
                                   ? const Padding(
                                       padding: EdgeInsets.all(12),
                                       child: SizedBox(
-                                          width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                                          width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2)),
                                     )
                                   : IconButton(
                                       icon: Icon(Icons.sync_rounded, color: cs.onSurfaceVariant),

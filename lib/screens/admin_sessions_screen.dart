@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -129,7 +130,7 @@ class _AdminSessionsScreenState extends State<AdminSessionsScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: _sessions.isEmpty
@@ -162,7 +163,7 @@ class _AdminSessionsScreenState extends State<AdminSessionsScreen> {
                                       child: SizedBox(
                                           width: 20,
                                           height: 20,
-                                          child: CircularProgressIndicator(
+                                          child: AdaptiveSpinner(
                                               strokeWidth: 2))),
                                 );
                               }

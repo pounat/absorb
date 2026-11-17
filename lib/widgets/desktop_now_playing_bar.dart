@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -245,7 +246,7 @@ class _DesktopNowPlayingBarState extends State<DesktopNowPlayingBar> {
                                     ? SizedBox(
                                         width: 20,
                                         height: 20,
-                                        child: CircularProgressIndicator(
+                                        child: AdaptiveSpinner(
                                           strokeWidth: 2,
                                           color: cs.onPrimary,
                                         ),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
@@ -202,7 +203,7 @@ class _FinishedBooksThisYearSheetState
       const SizedBox(height: 4),
       Expanded(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AdaptiveSpinner())
             : _items.isEmpty
                 ? Center(
                     child: Text(_showHidden ? l.statsNothingHidden : l.noBooksFound,

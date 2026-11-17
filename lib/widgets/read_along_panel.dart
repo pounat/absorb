@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -464,7 +465,7 @@ class _JobCard extends StatelessWidget {
                     ? (Icons.error_rounded, cs.error)
                     : (Icons.block_rounded, cs.onSurfaceVariant);
 
-    Widget spinner() => const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2));
+    Widget spinner() => const SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2));
 
     final step = readAlongStepOf(job.stage);
     final stepLabels = [
@@ -539,7 +540,7 @@ class _JobCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 1),
                 child: job.running
-                    ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: iconColor))
+                    ? SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2, color: iconColor))
                     : Icon(icon, size: 18, color: iconColor),
               ),
               const SizedBox(width: 10),
@@ -588,7 +589,7 @@ class _JobCard extends StatelessWidget {
                       if (step >= 0 && i < step)
                         Icon(Icons.check_circle_rounded, size: 14, color: cs.primary)
                       else if (i == step)
-                        SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.6, color: cs.primary))
+                        SizedBox(width: 12, height: 12, child: AdaptiveSpinner(strokeWidth: 1.6, color: cs.primary))
                       else
                         Icon(Icons.circle_outlined, size: 14, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                       const SizedBox(width: 4),
@@ -992,7 +993,7 @@ class _CreateReadAlongSheetState extends State<_CreateReadAlongSheet> {
               child: FilledButton(
                 onPressed: canStart ? _start : null,
                 child: _starting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2))
                     : Text(l.readAlongStart),
               ),
             ),

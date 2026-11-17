@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 
 /// Blocking progress dialog for short on-device work (transcription, ebook
@@ -14,7 +15,7 @@ void showProgressDialog(BuildContext context, String message) {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(
-              width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+              width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2.5)),
           const SizedBox(width: 16),
           Flexible(child: Text(message)),
         ],
@@ -38,7 +39,7 @@ void showProgressDialogListenable(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(
-                width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2.5)),
             const SizedBox(width: 16),
             Flexible(child: Text(text)),
           ],
