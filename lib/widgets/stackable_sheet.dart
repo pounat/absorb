@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/desktop_workspace.dart';
 import 'adaptive_modal.dart';
 import 'books_sheet_shared.dart';
+import 'grow_from_origin.dart';
 
 const int maxSheetDepth = 3;
 final List<Route<dynamic>> _activeSheetRoutes = [];
@@ -48,6 +49,11 @@ Future<T?> showStackableSheet<T>({
     );
   }
 
+  // Opened from a cover or another small thing that was tapped, the sheet
+  // grows out of it instead of sliding up from the bottom.
+  final origin = growOriginOf(context);
+  final growing = ValueNotifier(true);
+
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
@@ -56,13 +62,20 @@ Future<T?> showStackableSheet<T>({
     backgroundColor: backgroundColor ?? (showHandle ? null : Colors.transparent),
     // Sheets are capped narrower than a landscape screen; cover grids inside
     // size their columns from the sheet, not the screen.
-    builder: (_) => CoverGridScope(
-      child: _StackableSheet(
-        initialChildSize: initialChildSize,
-        minChildSize: minChildSize,
-        maxChildSize: maxChildSize,
-        showHandle: showHandle,
-        builder: builder,
+    builder: (_) => GrowFromOrigin(
+      origin: origin,
+      active: growing,
+      child: CoverGridScope(
+        child: _StackableSheet(
+          initialChildSize: initialChildSize,
+          minChildSize: minChildSize,
+          maxChildSize: maxChildSize,
+          showHandle: showHandle,
+          // Swiped down, the sheet is already at the bottom of the screen,
+          // so it leaves from there instead of shrinking back to the cover.
+          onSwipedAway: () => growing.value = false,
+          builder: builder,
+        ),
       ),
     ),
   );
@@ -73,6 +86,7 @@ class _StackableSheet extends StatefulWidget {
   final double minChildSize;
   final double maxChildSize;
   final bool showHandle;
+  final VoidCallback? onSwipedAway;
   final Widget Function(BuildContext, ScrollController) builder;
 
   const _StackableSheet({
@@ -80,6 +94,7 @@ class _StackableSheet extends StatefulWidget {
     required this.minChildSize,
     required this.maxChildSize,
     required this.showHandle,
+    this.onSwipedAway,
     required this.builder,
   });
 
@@ -115,6 +130,7 @@ class _StackableSheetState extends State<_StackableSheet> {
   void _onSizeChanged() {
     if (!_dismissed && _controller.size <= widget.minChildSize) {
       _dismissed = true;
+      widget.onSwipedAway?.call();
       Navigator.of(context).pop();
     }
   }
