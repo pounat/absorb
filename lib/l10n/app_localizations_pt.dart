@@ -12,26 +12,26 @@ class AppLocalizationsPt extends AppLocalizations {
   String get appTitle => 'A B S O R B';
 
   @override
-  String get online => 'Online';
+  String get online => '\'Online\'';
 
   @override
-  String get offline => 'Offline';
+  String get offline => 'Desconectado';
 
   @override
-  String get stillOffline => 'Still offline. Tap to try again.';
+  String get stillOffline => 'Ainda desconectado. Toque para tentar novamente.';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Tentar novamente';
 
   @override
-  String get listsNone => 'No collections or playlists';
+  String get listsNone => 'Nenhuma coleção ou lista de reprodução';
 
   @override
   String get listsNoneHint =>
       'Collections and playlists are made on your Audiobookshelf server, and show up here.';
 
   @override
-  String get listsLoadFailed => 'Couldn\'t load your lists';
+  String get listsLoadFailed => 'Não foi possível carregar as suas listas';
 
   @override
   String get listsLoadFailedHint =>
@@ -49,141 +49,141 @@ class AppLocalizationsPt extends AppLocalizations {
       'Absorb couldn\'t reach your server for collections and Smart Scopes.';
 
   @override
-  String get cancel => 'Cancel';
+  String get cancel => 'Cancelar';
 
   @override
-  String get delete => 'Delete';
+  String get delete => 'Excluir';
 
   @override
-  String get remove => 'Remove';
+  String get remove => 'Excluir';
 
   @override
-  String get save => 'Save';
+  String get save => 'Salvar';
 
   @override
-  String get done => 'Done';
+  String get done => 'Concluído';
 
   @override
-  String get edit => 'Edit';
+  String get edit => 'Editar';
 
   @override
-  String get search => 'Search';
+  String get search => 'Pesquisar';
 
   @override
-  String get apply => 'Apply';
+  String get apply => 'Confirmar';
 
   @override
-  String get enable => 'Enable';
+  String get enable => 'Ativar';
 
   @override
-  String get clear => 'Clear';
+  String get clear => 'Limpar';
 
   @override
-  String get off => 'Off';
+  String get off => 'Desligado';
 
   @override
-  String get disabled => 'Disabled';
+  String get disabled => 'Desabilitado';
 
   @override
-  String get later => 'Later';
+  String get later => 'Lembrar mais tarde';
 
   @override
-  String get whatsNewTitle => 'Absorb was updated';
+  String get whatsNewTitle => 'Absorb foi atualizado';
 
   @override
   String whatsNewContent(String version) {
-    return 'You\'re now on $version.';
+    return 'Agora está agora na versão $version.';
   }
 
   @override
-  String get whatsNewButton => 'See what\'s new';
+  String get whatsNewButton => 'Ver o que há de novo';
 
   @override
-  String get whatsNewKeepShowing => 'Show this after every update';
+  String get whatsNewKeepShowing => 'Exibir isto após cada atualização';
 
   @override
-  String get whatsNewKeepShowingHint => 'You can turn it back on in Settings';
+  String get whatsNewKeepShowingHint => 'Pode reativá-lo em Configurações';
 
   @override
-  String get settingsWhatsNew => 'Show what\'s new after updates';
+  String get settingsWhatsNew =>
+      'Mostrar o que há de novo após as atualizações';
 
   @override
-  String get settingsWhatsNewSubtitle =>
-      'After Absorb updates, a popup links to the release notes';
+  String get settingsWhatsNewSubtitle => '';
 
   @override
-  String get gotIt => 'Got it';
+  String get gotIt => 'Entendi';
 
   @override
-  String get betaLoggingTitle => 'Logs are on';
+  String get betaLoggingTitle => 'Os logs estão ativados';
 
   @override
   String get betaLoggingContent =>
       'Since this is a beta, Absorb now keeps logs to help track down problems. They stay on this device unless you share them.\n\nYou can send them or turn them off in Settings, under Issues & Support. If you turn them off, later betas leave them off.';
 
   @override
-  String get preview => 'Preview';
+  String get preview => 'Pré-visualização';
 
   @override
-  String get or => 'or';
+  String get or => 'ou';
 
   @override
-  String get file => 'File';
+  String get file => 'Arquivo';
 
   @override
-  String get more => 'More';
+  String get more => 'Mais';
 
   @override
-  String get unknown => 'Unknown';
+  String get unknown => 'Desconhecido';
 
   @override
-  String get untitled => 'Untitled';
+  String get untitled => 'Sem título';
 
   @override
   String get noThanks => 'No Thanks';
 
   @override
-  String get stay => 'Stay';
+  String get stay => 'Permanecer';
 
   @override
-  String get homeTitle => 'Home';
+  String get homeTitle => 'Início';
 
   @override
-  String get continueListening => 'Continue Listening';
+  String get continueListening => 'Continuar ouvindo';
 
   @override
-  String get continueReading => 'Continue Reading';
+  String get continueReading => 'Continuar lendo';
 
   @override
-  String get continueSeries => 'Continue Series';
+  String get continueSeries => 'Continuar Série';
 
   @override
-  String get recentlyAdded => 'Recently Added';
+  String get recentlyAdded => 'Adicionado recentemente';
 
   @override
-  String get listenAgain => 'Listen Again';
+  String get listenAgain => 'Ouvir novamente';
 
   @override
-  String get discover => 'Discover';
+  String get discover => 'Descobrir';
 
   @override
-  String get newEpisodes => 'New Episodes';
+  String get newEpisodes => 'Novos Episódios';
 
   @override
-  String get downloads => 'Downloads';
+  String get downloads => 'Transferências';
 
   @override
-  String get noDownloadedBooks => 'No downloaded books';
+  String get noDownloadedBooks => 'Nenhum livro baixado';
 
   @override
-  String get yourLibraryIsEmpty => 'Your library is empty';
+  String get yourLibraryIsEmpty => 'A sua biblioteca está vazia';
 
   @override
   String get downloadBooksWhileOnline =>
-      'Download books while online to listen offline';
+      'Baixe livros enquanto estiver online para ouvir offline';
 
   @override
-  String get customizeHome => 'Customize Home';
+  String get customizeHome => 'Personalizar Página Inicial';
 
   @override
   String get dragToReorderTapEye => 'Drag to reorder, tap eye to show/hide';
@@ -207,23 +207,23 @@ class AppLocalizationsPt extends AppLocalizations {
   String get loginCouldNotReachServer => 'Could not reach server';
 
   @override
-  String get loginAdvanced => 'Advanced';
+  String get loginAdvanced => 'Avançado';
 
   @override
-  String get loginCustomHttpHeaders => 'Custom HTTP Headers';
+  String get loginCustomHttpHeaders => 'Cabeçalhos HTTP personalizados';
 
   @override
   String get loginCustomHeadersDescription =>
       'For Cloudflare tunnels or reverse proxies that require extra headers. Add headers before entering your server URL.';
 
   @override
-  String get loginHeaderName => 'Header name';
+  String get loginHeaderName => 'Nome do cabeçalho';
 
   @override
-  String get loginHeaderValue => 'Value';
+  String get loginHeaderValue => 'Valor';
 
   @override
-  String get loginAddHeader => 'Add Header';
+  String get loginAddHeader => 'Adicionar Cabeçalho';
 
   @override
   String get loginSelfSignedCertificates => 'Self-signed Certificates';
@@ -233,36 +233,36 @@ class AppLocalizationsPt extends AppLocalizations {
       'Trust all certificates (for self-signed / custom CA setups)';
 
   @override
-  String get loginApiKey => 'API Key';
+  String get loginApiKey => 'Chave da API';
 
   @override
   String get loginApiKeyDescription =>
       'Use an admin-generated API key instead of username/password. Useful when token refresh fails for your account.';
 
   @override
-  String get loginWaitingForSso => 'Waiting for SSO...';
+  String get loginWaitingForSso => 'Aguardando SSO...';
 
   @override
   String get loginRedirectUri => 'Redirect URI: absorb://oauth';
 
   @override
-  String get loginOrSignInManually => 'or sign in manually';
+  String get loginOrSignInManually => 'ou entre manualmente';
 
   @override
-  String get loginUsername => 'Username';
+  String get loginUsername => 'Nome de usuário';
 
   @override
-  String get loginUsernameRequired => 'Please enter your username';
+  String get loginUsernameRequired => 'Por favor, insira o seu nome de usuário';
 
   @override
-  String get loginPassword => 'Password';
+  String get loginPassword => 'Senha';
 
   @override
-  String get loginSignIn => 'Sign In';
+  String get loginSignIn => 'Entrar';
 
   @override
   String loginSignInAs(String username) {
-    return 'Sign in as $username?';
+    return 'Iniciar sessão como $username?';
   }
 
   @override
@@ -270,11 +270,11 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String loginSignedInAs(String username) {
-    return 'Signed in as $username';
+    return 'Sessão iniciada como $username';
   }
 
   @override
-  String get adminCreateSetupFile => 'Share sign-in';
+  String get adminCreateSetupFile => 'Compartilhar sessão';
 
   @override
   String adminSetupFileDescription(String username) {
@@ -293,7 +293,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'A dedicated API key will be included. Treat the link like a password.';
 
   @override
-  String get adminSetupFileCreate => 'Create link';
+  String get adminSetupFileCreate => 'Criar link';
 
   @override
   String get adminSetupFileSaveTitle => 'Save setup file';
@@ -313,7 +313,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get setupLinkShareTitle => 'Share sign-in';
+  String get setupLinkShareTitle => 'Compartilhar sessão';
 
   @override
   String setupLinkShareDescription(String username) {
@@ -343,7 +343,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String setupLinkShareSubject(String username) {
-    return 'Absorb sign-in for $username';
+    return '‘Login’ Absorb para $username';
   }
 
   @override
@@ -361,7 +361,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get setupLinkSigningIn => 'Checking sign-in link...';
 
   @override
-  String get loginPlayDownloads => 'Play your downloads';
+  String get loginPlayDownloads => 'Reproduzir os seus downloads';
 
   @override
   String signedOutDownloadsNote(String username) {
@@ -369,7 +369,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get loginPasteLink => 'Paste login link';
+  String get loginPasteLink => 'Colar link de login';
 
   @override
   String get loginPasteLinkHelp =>
@@ -386,13 +386,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'SSO authentication failed. Please try again.';
 
   @override
-  String get loginRestoreFromBackup => 'Import';
+  String get loginRestoreFromBackup => 'Importar';
 
   @override
   String get loginInvalidBackupFile => 'Invalid backup file';
 
   @override
-  String get loginRestoreBackupTitle => 'Restore backup?';
+  String get loginRestoreBackupTitle => 'Restaurar backup?';
 
   @override
   String loginRestoreBackupWithAccounts(int count) {
@@ -437,19 +437,19 @@ class AppLocalizationsPt extends AppLocalizations {
   String get librarySearchShowsHint => 'Search shows and episodes...';
 
   @override
-  String get libraryTabLibrary => 'Library';
+  String get libraryTabLibrary => 'Biblioteca';
 
   @override
-  String get libraryTabSeries => 'Series';
+  String get libraryTabSeries => 'Séries';
 
   @override
-  String get libraryTabAuthors => 'Authors';
+  String get libraryTabAuthors => 'Autores';
 
   @override
-  String get libraryTabNarrators => 'Narrators';
+  String get libraryTabNarrators => 'Narradores';
 
   @override
-  String get libraryNoBooks => 'No books found';
+  String get libraryNoBooks => 'Nenhum livro encontrado';
 
   @override
   String get libraryNoUnfinishedBooks => 'No unfinished books';
@@ -493,13 +493,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get libraryClearFilter => 'Clear filter';
 
   @override
-  String get libraryNoAuthorsFound => 'No authors found';
+  String get libraryNoAuthorsFound => 'Nenhum autor encontrado';
 
   @override
-  String get libraryNoNarratorsFound => 'No narrators found';
+  String get libraryNoNarratorsFound => 'Nenhum narrador encontrado';
 
   @override
-  String get libraryNoResults => 'No results found';
+  String get libraryNoResults => 'Nenhum resultado encontrado';
 
   @override
   String get librarySearchBooks => 'Books';

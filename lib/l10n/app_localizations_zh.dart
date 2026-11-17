@@ -280,7 +280,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get adminSetupFileServerUrl => 'Server URL the new user will use';
+  String get adminSetupFileServerUrl => '新用户将使用的服务器 URL';
 
   @override
   String get adminSetupFileNoteWithHeaders =>
@@ -294,15 +294,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adminSetupFileCreate => 'Create link';
 
   @override
-  String get adminSetupFileSaveTitle => 'Save setup file';
+  String get adminSetupFileSaveTitle => '保存配置文件';
 
   @override
-  String get adminSetupFileKeyError =>
-      'Could not create an API key for this user';
+  String get adminSetupFileKeyError => '无法为此用户创建 API 密钥';
 
   @override
   String adminSetupFileSaved(String username) {
-    return 'Setup file for $username saved';
+    return '$username 的配置文件已保存';
   }
 
   @override
@@ -383,7 +382,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get loginSsoAuthFailed => '单点登录认证失败，请重试。';
 
   @override
-  String get loginRestoreFromBackup => '从备份恢复';
+  String get loginRestoreFromBackup => '导入';
 
   @override
   String get loginInvalidBackupFile => '无效的备份文件';
@@ -480,7 +479,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String libraryNoBooksWithTag(String tag) {
-    return 'No books tagged \"$tag\"';
+    return '没有标记为 \"$tag\" 的有声书';
   }
 
   @override
@@ -511,10 +510,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get librarySearchAuthors => '作者';
 
   @override
-  String get librarySearchTags => 'Tags';
+  String get librarySearchTags => '标签';
 
   @override
-  String get librarySearchGenres => 'Genres';
+  String get librarySearchGenres => '流派';
 
   @override
   String librarySeriesCount(int count) {
@@ -645,7 +644,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get genre => '分类';
 
   @override
-  String get tag => 'Tag';
+  String get tag => '标签';
 
   @override
   String get clearFilter => '清除筛选';
@@ -654,7 +653,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noGenresFound => '未找到分类';
 
   @override
-  String get noTagsFound => 'No tags found';
+  String get noTagsFound => '未找到标签';
 
   @override
   String get asc => '升序';
@@ -1044,40 +1043,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statsEpisodesThisYear => '今年单集';
 
   @override
-  String get statsRemoveFromYearTitle => 'Remove from this year';
+  String get statsRemoveFromYearTitle => '从今年列表中移除';
 
   @override
   String statsRemoveFromYearWithDate(String date, String title) {
-    return 'The finished date will still be $date on the server. This only removes \"$title\" from your Absorb books-this-year list.';
+    return '服务器上的完成日期仍为 $date。此操作仅将 \"$title\" 从您的 Absorb 年度书单中移除。';
   }
 
   @override
   String statsRemoveFromYearNoDate(String title) {
-    return 'The finished date stays on the server. This only removes \"$title\" from your Absorb books-this-year list.';
+    return '完成日期仍保留在服务器上。此操作仅将 \"$title\" 从您的 Absorb 年度书单中移除。';
   }
 
   @override
-  String get statsRemovedFromYear => 'Removed from this year';
+  String get statsRemovedFromYear => '已从今年列表中移除';
 
   @override
-  String get statsAddBackToYearTitle => 'Add back to this year';
+  String get statsAddBackToYearTitle => '重新加入今年列表';
 
   @override
   String statsAddBackToYearBody(String title) {
-    return 'Add \"$title\" back to your Absorb books-this-year list?';
+    return '将 \"$title\" 重新加入您的 Absorb 年度书单？';
   }
 
   @override
-  String get statsAddBack => 'Add back';
+  String get statsAddBack => '重新加入';
 
   @override
-  String get statsAddedBackToYear => 'Added back to this year';
+  String get statsAddedBackToYear => '已重新加入今年列表';
 
   @override
   String get statsHiddenFromYear => 'Hidden from this year';
 
   @override
-  String get statsNothingHidden => 'Nothing hidden';
+  String get statsNothingHidden => '没有隐藏项';
 
   @override
   String get settingsCustomizeStats => 'Customize stats';
@@ -1108,23 +1107,23 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String statsBooksShort(int count) {
-    return '$count books';
+    return '$count 本有声书';
   }
 
   @override
-  String get statsBookChallengeTitle => 'Reading challenge';
+  String get statsBookChallengeTitle => '阅读挑战';
 
   @override
-  String get statsBookChallengeDesc => 'Books to finish this year';
+  String get statsBookChallengeDesc => '今年待完成的有声书';
 
   @override
-  String get statsDailyGoal => 'Daily goal';
+  String get statsDailyGoal => '每日目标';
 
   @override
-  String get statsWeeklyGoal => 'Weekly goal';
+  String get statsWeeklyGoal => '每周目标';
 
   @override
-  String get statsMonthlyGoal => 'Monthly goal';
+  String get statsMonthlyGoal => '每月目标';
 
   @override
   String statsGoalProgress(String done, String target) {

@@ -24,29 +24,30 @@ class AppLocalizationsEs extends AppLocalizations {
   String get retry => 'Reintentar';
 
   @override
-  String get listsNone => 'No collections or playlists';
+  String get listsNone => 'No hay colecciones o playlists';
 
   @override
   String get listsNoneHint =>
-      'Collections and playlists are made on your Audiobookshelf server, and show up here.';
+      'Las colecciones y playlists se hacen en tu servidor Audiobookshelf, y aparecen aquí.';
 
   @override
-  String get listsLoadFailed => 'Couldn\'t load your lists';
+  String get listsLoadFailed => 'No se han podido cargar tus listas';
 
   @override
   String get listsLoadFailedHint =>
-      'Absorb couldn\'t reach your server for collections and playlists.';
+      'Absorb no ha podido llegar al servidor para cargar colecciones y listas de reproducción.';
 
   @override
-  String get listsNoneBookOrbit => 'No collections or Smart Scopes';
+  String get listsNoneBookOrbit =>
+      'No hay colecciones ni alcances inteligentes';
 
   @override
   String get listsNoneHintBookOrbit =>
-      'Collections and Smart Scopes are made on your BookOrbit server, and show up here.';
+      'Las colecciones y alcances inteligentes se hacen en tu servidor BookOrbit, y aparecen aquí.';
 
   @override
   String get listsLoadFailedHintBookOrbit =>
-      'Absorb couldn\'t reach your server for collections and Smart Scopes.';
+      'Absorb no ha podido acceder a tu servidor para obtener las colecciones y Alcances inteligentes.';
 
   @override
   String get cancel => 'Cancelar';
@@ -88,38 +89,39 @@ class AppLocalizationsEs extends AppLocalizations {
   String get later => 'Después';
 
   @override
-  String get whatsNewTitle => 'Absorb was updated';
+  String get whatsNewTitle => 'Absorb fue actualizado';
 
   @override
   String whatsNewContent(String version) {
-    return 'You\'re now on $version.';
+    return 'Ya estás usando la versión $version.';
   }
 
   @override
-  String get whatsNewButton => 'See what\'s new';
+  String get whatsNewButton => 'Ver novedades';
 
   @override
-  String get whatsNewKeepShowing => 'Show this after every update';
+  String get whatsNewKeepShowing => 'Mostrar esto luego de cada actualización';
 
   @override
-  String get whatsNewKeepShowingHint => 'You can turn it back on in Settings';
+  String get whatsNewKeepShowingHint => 'Puedes volver a activarlo en Ajustes';
 
   @override
-  String get settingsWhatsNew => 'Show what\'s new after updates';
+  String get settingsWhatsNew =>
+      'Mostrar las novedades después de las actualizaciones';
 
   @override
   String get settingsWhatsNewSubtitle =>
-      'After Absorb updates, a popup links to the release notes';
+      'Después de las actualizaciones, una ventana emergente muestra un enlace a las notas de la versión';
 
   @override
   String get gotIt => 'Entendido';
 
   @override
-  String get betaLoggingTitle => 'Logs are on';
+  String get betaLoggingTitle => 'Los registros están activados';
 
   @override
   String get betaLoggingContent =>
-      'Since this is a beta, Absorb now keeps logs to help track down problems. They stay on this device unless you share them.\n\nYou can send them or turn them off in Settings, under Issues & Support. If you turn them off, later betas leave them off.';
+      'Ya que estás utilizando una versión beta, Absob ahora escribe registros para rastrear problemas. Estos se mantienen en tu dispositivo a no ser que los compartas.\n\nPuedes compartirlos o desactivarlos en Ajustes, en la sección de Problemas & Soporte. Si los desactivas, las betas próximas los mantienen desactivados.';
 
   @override
   String get preview => 'Vista previa';
@@ -152,7 +154,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get continueListening => 'Continuar escuchando';
 
   @override
-  String get continueReading => 'Continue Reading';
+  String get continueReading => 'Seguir leyendo';
 
   @override
   String get continueSeries => 'Continuar Serie';
@@ -190,7 +192,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Arrastra para reordenar, toca el ojo para mostrar/ocultar';
 
   @override
-  String get loginTagline => 'Start Absorbing';
+  String get loginTagline => 'Empezar a absorber';
 
   @override
   String get loginConnectToServer => 'Conectar a tu servidor';
@@ -222,126 +224,128 @@ class AppLocalizationsEs extends AppLocalizations {
   String get loginHeaderName => 'Nombre del encabezado';
 
   @override
-  String get loginHeaderValue => 'Value';
+  String get loginHeaderValue => 'Valor';
 
   @override
-  String get loginAddHeader => 'Add Header';
+  String get loginAddHeader => 'Agregar Encabezado';
 
   @override
-  String get loginSelfSignedCertificates => 'Self-signed Certificates';
+  String get loginSelfSignedCertificates => 'Certificados autofirmados';
 
   @override
   String get loginTrustAllCertificates =>
-      'Trust all certificates (for self-signed / custom CA setups)';
+      'Confiar en todos los certificados (para configuraciones CA autofirmadas o personalizadas)';
 
   @override
-  String get loginApiKey => 'API Key';
+  String get loginApiKey => 'Llave API';
 
   @override
   String get loginApiKeyDescription =>
-      'Use an admin-generated API key instead of username/password. Useful when token refresh fails for your account.';
+      'Utilice una clave API generada por el administrador en lugar de nombre de usuario/contraseña. Útil cuando la actualización de token falla para su cuenta.';
 
   @override
-  String get loginWaitingForSso => 'Waiting for SSO...';
+  String get loginWaitingForSso => 'Esperando al SSO...';
 
   @override
-  String get loginRedirectUri => 'Redirect URI: absorb://oauth';
+  String get loginRedirectUri => 'URI de redireccionado: absorb://oauth';
 
   @override
-  String get loginOrSignInManually => 'or sign in manually';
+  String get loginOrSignInManually => 'o inicia sesión manualmente';
 
   @override
-  String get loginUsername => 'Username';
+  String get loginUsername => 'Nombre de usuario';
 
   @override
-  String get loginUsernameRequired => 'Please enter your username';
+  String get loginUsernameRequired =>
+      'Por favor introduce tu nombre de usuario';
 
   @override
-  String get loginPassword => 'Password';
+  String get loginPassword => 'Contraseña';
 
   @override
-  String get loginSignIn => 'Sign In';
+  String get loginSignIn => 'Iniciar Sesión';
 
   @override
   String loginSignInAs(String username) {
-    return 'Sign in as $username?';
+    return '¿Iniciar sesión como $username?';
   }
 
   @override
-  String get loginSignInToServer => 'Sign in to this server?';
+  String get loginSignInToServer => '¿Iniciar sesión en este servidor?';
 
   @override
   String loginSignedInAs(String username) {
-    return 'Signed in as $username';
+    return 'Sesión iniciada como $username';
   }
 
   @override
-  String get adminCreateSetupFile => 'Share sign-in';
+  String get adminCreateSetupFile => 'Compartir inicio de sesión';
 
   @override
   String adminSetupFileDescription(String username) {
-    return 'Creates a private sign-in link for $username that only works in the Absorb app.';
+    return 'Crea un enlace privado de inicio de sesión para $username que solo funciona en la aplicación Absorb.';
   }
 
   @override
-  String get adminSetupFileServerUrl => 'Server URL the new user will use';
+  String get adminSetupFileServerUrl =>
+      'URL del servidor que utilizará el nuevo usuario';
 
   @override
   String get adminSetupFileNoteWithHeaders =>
-      'A dedicated API key and your custom headers will be included so they can reach the server. Treat the link like a password.';
+      'Se incluirá una clave API dedicada y tus cabeceras personalizadas para que puedan llegar al servidor. Trata el enlace como una contraseña.';
 
   @override
   String get adminSetupFileNote =>
-      'A dedicated API key will be included. Treat the link like a password.';
+      'Se incluirá una clave API dedicada. Trata el enlace como una contraseña.';
 
   @override
-  String get adminSetupFileCreate => 'Create link';
+  String get adminSetupFileCreate => 'Crear enlace';
 
   @override
-  String get adminSetupFileSaveTitle => 'Save setup file';
+  String get adminSetupFileSaveTitle => 'Guardar archivo de configuración';
 
   @override
   String get adminSetupFileKeyError =>
-      'Could not create an API key for this user';
+      'No se pudo crear una clave API para este usuario';
 
   @override
   String adminSetupFileSaved(String username) {
-    return 'Setup file for $username saved';
+    return 'Archivo de configuración para $username guardado';
   }
 
   @override
   String adminSetupFileFailed(String error) {
-    return 'Failed to create sign-in: $error';
+    return 'No se pudo crear el inicio de sesión: $error';
   }
 
   @override
-  String get setupLinkShareTitle => 'Share sign-in';
+  String get setupLinkShareTitle => 'Compartir inicio de sesión';
 
   @override
   String setupLinkShareDescription(String username) {
-    return 'Send this private link or have them scan the QR code to sign in as $username.';
+    return 'Envía este enlace privado o haz que escanee el código QR para iniciar sesión como $username.';
   }
 
   @override
   String setupLinkPrivateWarning(String username) {
-    return 'Anyone with this link can sign in as $username. Treat it like a password.';
+    return 'Cualquiera que tenga este enlace puede iniciar sesión como $username. Tratarlo como una contraseña.';
   }
 
   @override
-  String get setupLinkShare => 'Share link';
+  String get setupLinkShare => 'Compartir enlace';
 
   @override
-  String get setupLinkCopy => 'Copy link';
+  String get setupLinkCopy => 'Copiar enlace';
 
   @override
-  String get setupLinkCopied => 'Sign-in link copied';
+  String get setupLinkCopied => 'Link de inicio de sesión copiado';
 
   @override
-  String get setupLinkSaveFile => 'Save setup file';
+  String get setupLinkSaveFile => 'Guardar archivo de configuración';
 
   @override
   String get setupLinkQrError =>
-      'This setup link is too large for a QR code. Share the link instead.';
+      'Este enlace de configuración es demasiado grande para un código QR. Comparte el enlace en su lugar.';
 
   @override
   String setupLinkShareSubject(String username) {
@@ -363,7 +367,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get setupLinkSigningIn => 'Checking sign-in link...';
 
   @override
-  String get loginPlayDownloads => 'Play your downloads';
+  String get loginPlayDownloads => 'Reproducir tus descargas';
 
   @override
   String signedOutDownloadsNote(String username) {
@@ -371,14 +375,14 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get loginPasteLink => 'Paste login link';
+  String get loginPasteLink => 'Pegar el enlace de entrada';
 
   @override
   String get loginPasteLinkHelp =>
       'Paste the complete sign-in link you received. Treat it like a password.';
 
   @override
-  String get loginFailed => 'Login failed';
+  String get loginFailed => 'Entrada errónea';
 
   @override
   String get loginSsoFailed => 'SSO login failed or was cancelled';
@@ -388,7 +392,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'SSO authentication failed. Please try again.';
 
   @override
-  String get loginRestoreFromBackup => 'Import';
+  String get loginRestoreFromBackup => 'Importar';
 
   @override
   String get loginInvalidBackupFile => 'Invalid backup file';
@@ -531,138 +535,138 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String libraryAuthorsCount(int count) {
-    return '$count authors';
+    return '$count autores';
   }
 
   @override
   String libraryNarratorsCount(int count) {
-    return '$count narrators';
+    return '$count narradores';
   }
 
   @override
   String libraryBooksCount(int loaded, int total) {
-    return '$loaded/$total books';
+    return '$loaded/$total libros';
   }
 
   @override
-  String get sort => 'Sort';
+  String get sort => 'Ordenar por';
 
   @override
-  String get filter => 'Filter';
+  String get filter => 'Filtro';
 
   @override
-  String get filterActive => 'Filter ●';
+  String get filterActive => 'Filtro ●';
 
   @override
-  String get name => 'Name';
+  String get name => 'Nombre';
 
   @override
-  String get title => 'Title';
+  String get title => 'Título';
 
   @override
-  String get author => 'Author';
+  String get author => 'Escrito por';
 
   @override
-  String get dateAdded => 'Date Added';
+  String get dateAdded => 'Fecha en que se agregó';
 
   @override
-  String get numberOfBooks => 'Number of Books';
+  String get numberOfBooks => 'Cantidad de libros';
 
   @override
-  String get sortTotalDuration => 'Total duration';
+  String get sortTotalDuration => 'Duración total';
 
   @override
-  String get sortLastBookAdded => 'Last book added';
+  String get sortLastBookAdded => 'Último libro agregado';
 
   @override
-  String get sortLastBookUpdated => 'Last book updated';
+  String get sortLastBookUpdated => 'Último libro actualizado';
 
   @override
-  String get publishedYear => 'Published Year';
+  String get publishedYear => 'Año de publicación';
 
   @override
-  String get duration => 'Duration';
+  String get duration => 'Duración';
 
   @override
-  String get random => 'Random';
+  String get random => 'Aleatorio';
 
   @override
-  String get collapseSeries => 'Collapse Series';
+  String get collapseSeries => 'Contraer serie';
 
   @override
-  String get notFinished => 'Not Finished';
+  String get notFinished => 'Incompleto';
 
   @override
-  String get inProgress => 'In Progress';
+  String get inProgress => 'En curso';
 
   @override
-  String get filterFinished => 'Finished';
+  String get filterFinished => 'Completado';
 
   @override
-  String get notStarted => 'Not Started';
+  String get notStarted => 'Sin empezar';
 
   @override
-  String get downloaded => 'Downloaded';
+  String get downloaded => 'Descargado';
 
   @override
-  String get hasEbook => 'Has eBook';
+  String get hasEbook => 'Tiene eBook';
 
   @override
-  String get noEbook => 'No eBook';
+  String get noEbook => 'Sin eBook';
 
   @override
-  String get hasSupplementaryEbook => 'Has Supplementary eBook';
+  String get hasSupplementaryEbook => 'Tiene eBook complementario';
 
   @override
-  String get noSupplementaryEbook => 'No Supplementary eBook';
+  String get noSupplementaryEbook => 'No tiene eBook complementario';
 
   @override
-  String get noSeries => 'No Series';
+  String get noSeries => 'Sin serie';
 
   @override
-  String get publishedDecade => 'Published Decade';
+  String get publishedDecade => 'Década de publicación';
 
   @override
-  String get tracks => 'Tracks';
+  String get tracks => 'Pistas';
 
   @override
-  String get noTracks => 'No Tracks';
+  String get noTracks => 'Sin pistas';
 
   @override
-  String get singleTrack => 'Single Track';
+  String get singleTrack => 'Pista única';
 
   @override
-  String get multipleTracks => 'Multiple Tracks';
+  String get multipleTracks => 'Múltiples pistas';
 
   @override
-  String get abridged => 'Abridged';
+  String get abridged => 'Abreviado';
 
   @override
-  String get issues => 'Issues';
+  String get issues => 'Problemas';
 
   @override
-  String get rssFeedOpen => 'RSS Feed Open';
+  String get rssFeedOpen => 'Feed RSS abierto';
 
   @override
-  String get explicitContent => 'Explicit';
+  String get explicitContent => 'Explícito';
 
   @override
-  String get missingMetadata => 'Missing Metadata';
+  String get missingMetadata => 'Faltan metadatos';
 
   @override
-  String get genre => 'Genre';
+  String get genre => 'Género';
 
   @override
-  String get tag => 'Tag';
+  String get tag => 'Etiqueta';
 
   @override
-  String get clearFilter => 'Clear Filter';
+  String get clearFilter => 'Borrar filtros';
 
   @override
-  String get noGenresFound => 'No genres found';
+  String get noGenresFound => 'No se encontraron géneros';
 
   @override
-  String get noTagsFound => 'No tags found';
+  String get noTagsFound => 'No se encontraron etiquetas';
 
   @override
   String get asc => 'ASC';
@@ -671,19 +675,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String get desc => 'DESC';
 
   @override
-  String get fileSize => 'File Size';
+  String get fileSize => 'Tamaño del archivo';
 
   @override
-  String get lastUpdated => 'Last Updated';
+  String get lastUpdated => 'Actualizado por última vez';
 
   @override
-  String get fileCreated => 'File Created';
+  String get fileCreated => 'Archivo creado';
 
   @override
-  String get lastModified => 'Last Modified';
+  String get lastModified => 'Última Modificación';
 
   @override
-  String get authorFirstLast => 'Author (First Last)';
+  String get authorFirstLast => 'Autor (Nombre y apellido)';
 
   @override
   String get authorLastFirst => 'Author (Last, First)';
@@ -860,65 +864,65 @@ class AppLocalizationsEs extends AppLocalizations {
   String get bookmarksTabHighlights => 'Highlights';
 
   @override
-  String get highlightOpenInBook => 'Open in book';
+  String get highlightOpenInBook => 'Abrir en el libro';
 
   @override
-  String get highlightDeleteAction => 'Delete highlight';
+  String get highlightDeleteAction => 'Eliminar resaltado';
 
   @override
-  String get highlightDeleted => 'Highlight deleted';
+  String get highlightDeleted => 'Resaltado eliminado';
 
   @override
   String highlightsDeleteCount(int count) {
-    return 'Delete $count highlight(s)?';
+    return '¿Eliminar $count resaltado(s)?';
   }
 
   @override
   String highlightsDeletedCount(int count) {
-    return 'Deleted $count highlight(s)';
+    return '$count Destacado(s) eliminados';
   }
 
   @override
-  String get quoteShareTitle => 'Share quote';
+  String get quoteShareTitle => 'Compartir cita';
 
   @override
-  String get quoteShareAction => 'Share';
+  String get quoteShareAction => 'Compartir';
 
   @override
-  String get quoteShareFailed => 'Couldn\'t make the quote image';
+  String get quoteShareFailed => 'No se pudo hacer la imagen de cita';
 
   @override
-  String get quoteShapePortrait => 'Portrait';
+  String get quoteShapePortrait => 'Vertical';
 
   @override
-  String get quoteShapeSquare => 'Square';
+  String get quoteShapeSquare => 'Cuadrada';
 
   @override
-  String get quoteShapeStory => 'Story';
+  String get quoteShapeStory => 'Cuento';
 
   @override
-  String get quoteStyleBlur => 'Blurred';
+  String get quoteStyleBlur => 'Desenfocada';
 
   @override
-  String get quoteStyleDim => 'Dimmed';
+  String get quoteStyleDim => 'Atenuada';
 
   @override
-  String get quoteStyleNone => 'Plain cover';
+  String get quoteStyleNone => 'Portada sencilla';
 
   @override
-  String get quoteTextLight => 'Light text';
+  String get quoteTextLight => 'Texto claro';
 
   @override
-  String get quoteTextDark => 'Dark text';
+  String get quoteTextDark => 'Texto oscuro';
 
   @override
-  String get quoteFieldTitle => 'Title';
+  String get quoteFieldTitle => 'Título';
 
   @override
-  String get quoteFieldDetail => 'Details';
+  String get quoteFieldDetail => 'Detalles';
 
   @override
-  String get quoteFieldDetailHint => 'Author, chapter, page, who said it';
+  String get quoteFieldDetailHint => 'Autor, capítulo, página, quien lo dijo';
 
   @override
   String highlightsMeta(String chapter, String date) {
@@ -926,83 +930,84 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get bookmarksCancelSelection => 'Cancel selection';
+  String get bookmarksCancelSelection => 'Cancelar selección';
 
   @override
-  String get bookmarksSortedByNewest => 'Sorted by newest';
+  String get bookmarksSortedByNewest => 'Ordenado por más reciente';
 
   @override
-  String get bookmarksSortedByPosition => 'Sorted by position';
+  String get bookmarksSortedByPosition => 'Ordenado por posición';
 
   @override
-  String get bookmarksSelect => 'Select';
+  String get bookmarksSelect => 'Seleccionar';
 
   @override
-  String get bookmarksNoBookmarks => 'No bookmarks yet';
+  String get bookmarksNoBookmarks => 'Aún no hay marcadores';
 
   @override
-  String get bookmarksSearchHint => 'Search bookmarks';
+  String get bookmarksSearchHint => 'Buscar marcadores';
 
   @override
-  String get bookmarksNoMatches => 'No bookmarks match your search';
+  String get bookmarksNoMatches =>
+      'No hay marcadores que coincidan con tu búsqueda';
 
   @override
   String batchDownloadQueued(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Downloading $count books',
-      one: 'Downloading 1 book',
+      other: 'Descargando $count libros',
+      one: 'Descargando 1 libro',
     );
     return '$_temp0';
   }
 
   @override
-  String get batchDownloadNothingNew => 'Already downloaded';
+  String get batchDownloadNothingNew => 'Ya descargado';
 
   @override
   String bookmarksDeleteCount(int count) {
-    return 'Delete $count bookmark(s)?';
+    return '¿Eliminar $count marcardor(es)?';
   }
 
   @override
-  String get bookmarksDeleteContent => 'This cannot be undone.';
+  String get bookmarksDeleteContent => 'Esta acción no se puede deshacer.';
 
   @override
   String bookmarksDeletedCount(int count) {
-    return 'Deleted $count bookmark(s)';
+    return '$count marcador(es) eliminados';
   }
 
   @override
-  String get bookmarksJumpTitle => 'Jump to bookmark?';
+  String get bookmarksJumpTitle => '¿Saltar al marcador?';
 
   @override
   String bookmarksJumpContent(String title, String position, String bookTitle) {
-    return '\"$title\" at $position\nin $bookTitle';
+    return '\"$title\" en $position\nen $bookTitle';
   }
 
   @override
-  String get bookmarksJump => 'Jump';
+  String get bookmarksJump => 'Saltar';
 
   @override
-  String get bookmarksNotConnected => 'Not connected to server';
+  String get bookmarksNotConnected => 'Sin conexión al servidor';
 
   @override
-  String get bookmarksCouldNotLoad => 'Could not load book';
+  String get bookmarksCouldNotLoad => 'No se pudo cargar el libro';
 
   @override
   String bookmarksSelectedCount(int count) {
-    return '$count selected';
+    return '$count seleccionado(s)';
   }
 
   @override
-  String get statsTitle => 'Your Stats';
+  String get statsTitle => 'Tus estadísticas';
 
   @override
-  String get statsCouldNotLoad => 'Couldn\'t load stats';
+  String get statsCouldNotLoad => 'No se pudieron cargar las estadísticas';
 
   @override
-  String get statsTotalListeningTime => 'TOTAL LISTENING TIME';
+  String get statsTotalListeningTime => 'Tiempo total escuchado';
 
   @override
   String get statsHoursUnit => 'h';
@@ -1015,25 +1020,25 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String statsDaysOfAudio(String days) {
-    return 'That\'s $days days of audio';
+    return 'Has escuchado por un total de $days días';
   }
 
   @override
   String statsHoursOfAudio(String hours) {
-    return 'That\'s $hours hours of audio';
+    return 'Has escuchado por un total de $hours horas';
   }
 
   @override
-  String get statsToday => 'Today';
+  String get statsToday => 'Hoy';
 
   @override
-  String get statsThisWeek => 'This Week';
+  String get statsThisWeek => 'Esta semana';
 
   @override
-  String get statsThisMonth => 'This Month';
+  String get statsThisMonth => 'Este mes';
 
   @override
-  String get statsActivity => 'Activity';
+  String get statsActivity => 'Actividad';
 
   @override
   String get statsCurrentStreak => 'Current Streak';

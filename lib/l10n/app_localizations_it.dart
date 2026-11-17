@@ -189,7 +189,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get dragToReorderTapEye => 'Drag to reorder, tap eye to show/hide';
 
   @override
-  String get loginTagline => 'Start Absorbing';
+  String get loginTagline => 'Avvia Absorbing';
 
   @override
   String get loginConnectToServer => 'Connect to your server';
@@ -201,13 +201,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String get loginServerHint => 'my.server.com';
 
   @override
-  String get loginServerHelper => 'IP:port works too (e.g. 192.168.1.5:13378)';
+  String get loginServerHelper => 'IP:port (ad es. 192.168.1.5:13378)';
 
   @override
   String get loginCouldNotReachServer => 'Could not reach server';
 
   @override
-  String get loginAdvanced => 'Advanced';
+  String get loginAdvanced => 'Avanzate';
 
   @override
   String get loginCustomHttpHeaders => 'Custom HTTP Headers';
@@ -220,7 +220,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get loginHeaderName => 'Nome intestazione';
 
   @override
-  String get loginHeaderValue => 'Value';
+  String get loginHeaderValue => 'Valore';
 
   @override
   String get loginAddHeader => 'Add Header';
@@ -427,7 +427,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get loginSavedAccounts => 'saved accounts';
 
   @override
-  String get libraryTitle => 'Library';
+  String get libraryTitle => 'Libreria';
 
   @override
   String get librarySearchBooksHint =>
