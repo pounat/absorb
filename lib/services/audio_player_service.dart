@@ -302,6 +302,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
           return;
         }
 
+        AudioPlayerService()._playerFailedWhilePaused('player error');
+
         final now = DateTime.now();
         // Reset counter if it's been more than 5 seconds since last error
         if (now.difference(_lastResubscribe).inSeconds > 5) {
@@ -2748,6 +2750,8 @@ class AudioPlayerService extends ChangeNotifier {
     if (_isLoadingNewItem && seekTarget != null && seekTarget > 0) {
       return Duration(milliseconds: (seekTarget * 1000).round());
     }
+    final held = _heldPausedSpot;
+    if (held != null) return Duration(milliseconds: (held * 1000).round());
     final trackRelative = _player!.position;
     if (_trackStartOffsets.length <= 1) return trackRelative; // single file
     final offsetMs = (_trackStartOffsets[_currentTrackIndex] * 1000).round();
@@ -2828,6 +2832,13 @@ class AudioPlayerService extends ChangeNotifier {
     _indexSub = _player!.currentIndexStream.listen(
       (index) {
         if (index == null) return;
+        // A paused player only changes file through a seek, and a seek sets
+        // the index first. Anything else is the player skipping past a file
+        // it failed on, which is not where the listener stopped.
+        if (index != _currentTrackIndex &&
+            _playerFailedWhilePaused('moved from file $_currentTrackIndex to $index')) {
+          return;
+        }
         // Pre-buffer auto-advance: if the queue has grown past the current
         // book's tracks and AVQueuePlayer has stepped into the pre-loaded
         // next book's range, fire the book transition.
@@ -2851,6 +2862,9 @@ class AudioPlayerService extends ChangeNotifier {
             );
           }
           _currentTrackIndex = clamped;
+          if (_pausedAtS != null && !_playerBroken && !_player!.playing) {
+            _pausedAtS = position.inMilliseconds / 1000.0;
+          }
         }
       },
       onError: (Object e, StackTrace st) {
@@ -2940,6 +2954,7 @@ class AudioPlayerService extends ChangeNotifier {
       absoluteSeconds = _shortLocalDurationSec!;
     }
 
+    if (_pausedAtS != null) _pausedAtS = absoluteSeconds;
     // Record seek target so UI can snap immediately
     _lastSeekTargetSeconds = absoluteSeconds;
     _lastSeekTime = DateTime.now();
@@ -3307,6 +3322,7 @@ class AudioPlayerService extends ChangeNotifier {
               // prompts rewind like a manual pause, gated by activationDelay.
               await service._player?.pause();
               service._lastPauseTime = DateTime.now();
+              service._pausedAtS = service.position.inMilliseconds / 1000.0;
               // Keep the spot on this phone, though: without it a server copy
               // up to a sync behind could be taken for newer (GH #440).
               unawaited(service._saveProgressLocal(service.position));
@@ -3845,6 +3861,7 @@ class AudioPlayerService extends ChangeNotifier {
     }
 
     _isLoadingNewItem = true;
+    _pausedAtS = null;
     _api = api;
     _currentItemId = itemId;
     _currentEpisodeId = episodeId;
@@ -5566,6 +5583,40 @@ class AudioPlayerService extends ChangeNotifier {
   // instead of trusting its position or its decoder.
   bool _playerBroken = false;
 
+  // Where the book sat when it was paused, moved only by seeks made during
+  // the pause. Null while playing.
+  double? _pausedAtS;
+
+  /// The paused spot, while a failed player's own position can't be trusted.
+  double? get _heldPausedSpot {
+    if (!_playerBroken || _isLoadingNewItem) return null;
+    if (_player?.playing ?? true) return null;
+    return _pausedAtS;
+  }
+
+  /// Android can take the decoder from a paused app. The player then reports
+  /// an error and may step to the start of the next file, once per failure,
+  /// so a long pause can walk the book forward by hours. Keep the paused spot
+  /// and rebuild on the next play. Returns whether the player was paused.
+  bool _playerFailedWhilePaused(String what) {
+    if (_pausedAtS == null || _isLoadingNewItem) return false;
+    if (_player?.playing ?? true) return false;
+    // A file that ended just as pause was pressed reports its move late.
+    final pausedAt = _lastPauseTime;
+    if (pausedAt == null ||
+        DateTime.now().difference(pausedAt) < const Duration(seconds: 2)) {
+      return false;
+    }
+    if (!_playerBroken) {
+      debugPrint(
+        '[Player] Paused player failed ($what) - keeping '
+        '${_pausedAtS!.toStringAsFixed(1)}s and rebuilding on the next play',
+      );
+    }
+    _playerBroken = true;
+    return true;
+  }
+
   /// A downloaded book needs no server to come back from a decoder failure.
   /// Android can take the decoder away from a paused app, which surfaces as
   /// a renderer error; the file is fine. Playing: start over where it was.
@@ -6102,6 +6153,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   void _clearState() {
+    _pausedAtS = null;
     _currentItemId = null;
     _currentEpisodeId = null;
     _currentLibraryId = null;
@@ -7855,6 +7907,7 @@ class AudioPlayerService extends ChangeNotifier {
     _lastAccrual = DateTime.now();
     _lastAccrualPos = null;
     // Start playback immediately — don't wait for server calls
+    _pausedAtS = null;
     _player?.play();
     // Any paused seek up to this instant belonged to this resume (a socket
     // adoption can land between the check above and here); the flag is for
@@ -8172,6 +8225,7 @@ class AudioPlayerService extends ChangeNotifier {
       return;
     }
     final pos = position;
+    _pausedAtS = pos.inMilliseconds / 1000.0;
     debugPrint(
       '[Player] Saving on pause: ${(pos.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
     );
