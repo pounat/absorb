@@ -2986,6 +2986,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get shakeReset => 'Zurücksetzen';
 
   @override
+  String get shakeVibrationEnabled => 'Vibrate on shake';
+
+  @override
   String get shakeAdds => 'Schütteln fügt hinzu';
 
   @override

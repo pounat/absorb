@@ -1530,6 +1530,7 @@
   "shakeOff": "Off",
   "shakeAddTime": "Add Time",
   "shakeReset": "Reset",
+  "shakeVibrationEnabled": "Vibrate on shake",
   "shakeAdds": "Shake adds",
   "sleepAddAmount": "Add time amount",
   "shakeAddsValue": "{minutes} min",
