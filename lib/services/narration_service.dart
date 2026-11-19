@@ -6,6 +6,7 @@ import 'dart:math';
 
 import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import 'api_service.dart';
@@ -32,6 +33,9 @@ Future<MediaOverlay?> _parseEpub(String path) async {
     input.closeSync();
   }
 }
+
+MediaOverlay? _parseSidecarSmil(({String xml, double? duration}) job) =>
+    MediaOverlay.fromSidecarSmil(job.xml, totalDuration: job.duration);
 
 /// A zip path with every escape undone, so a name stored escaped and one
 /// stored plain compare equal.
@@ -223,15 +227,59 @@ class NarrationService {
     }
     final known = await localOverlay(itemId);
     if (known != null) return (overlay: known, fromServer: false);
-    if (await knownNarrated(itemId) == false) return null;
-    if (epub == null || !epub.existsSync()) return null;
-    final o = await compute(_parseEpub, epub.path);
-    await _remember(itemId, o == null || o.isEmpty ? null : o);
-    final found = _overlays[itemId];
-    if (found == null) return null;
-    debugPrint('[Narration] $itemId reads itself aloud: ${found.tracks.length} files, '
-        '${found.clips.length} sentences, ${found.duration.toStringAsFixed(0)}s');
-    return (overlay: found, fromServer: false);
+    if (await knownNarrated(itemId) != false && epub != null && epub.existsSync()) {
+      final o = await compute(_parseEpub, epub.path);
+      await _remember(itemId, o == null || o.isEmpty ? null : o);
+      final found = _overlays[itemId];
+      if (found != null) {
+        debugPrint('[Narration] $itemId reads itself aloud: ${found.tracks.length} files, '
+            '${found.clips.length} sentences, ${found.duration.toStringAsFixed(0)}s');
+        return (overlay: found, fromServer: false);
+      }
+    }
+    final sidecar = await _fetchSidecarSmil(api, itemId);
+    if (sidecar != null) {
+      _overlays[itemId] = sidecar;
+      unawaited(_save(itemId, sidecar));
+      debugPrint('[Narration] $itemId has sidecar .smil: ${sidecar.clips.length} clips, '
+          '${sidecar.duration.toStringAsFixed(0)}s');
+      return (overlay: sidecar, fromServer: false);
+    }
+    return null;
+  }
+
+  Future<MediaOverlay?> _fetchSidecarSmil(ApiService api, String itemId) async {
+    try {
+      final item = await api.getLibraryItem(itemId);
+      if (item == null) return null;
+      String? smilIno;
+      for (final f in (item['libraryFiles'] as List<dynamic>? ?? const [])) {
+        if (f is! Map) continue;
+        final meta = f['metadata'] as Map?;
+        final ext = (meta?['ext'] as String? ?? '').toLowerCase();
+        final name = (meta?['filename'] as String? ?? meta?['path'] as String? ?? '').toLowerCase();
+        if (ext == '.smil' || name.endsWith('.smil')) {
+          final ino = f['ino'] as String?;
+          if (ino != null && ino.isNotEmpty) {
+            smilIno = ino;
+            break;
+          }
+        }
+      }
+      if (smilIno == null) return null;
+      final res = await http
+          .get(Uri.parse(api.buildEbookUrl(itemId, smilIno)), headers: api.mediaHeaders)
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode != 200 || res.bodyBytes.isEmpty) return null;
+      final xml = utf8.decode(res.bodyBytes, allowMalformed: true);
+      final media = item['media'] as Map<String, dynamic>?;
+      final duration = (media?['duration'] as num?)?.toDouble();
+      final o = await compute(_parseSidecarSmil, (xml: xml, duration: duration));
+      return (o == null || o.isEmpty) ? null : o;
+    } catch (e) {
+      debugPrint('[Narration] sidecar .smil fetch failed for $itemId: $e');
+      return null;
+    }
   }
 
   /// [item] with its narration as audio, the way BookOrbit's books arrive:

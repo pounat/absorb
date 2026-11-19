@@ -5,6 +5,9 @@ import 'package:archive/archive_io.dart';
 
 import '../utils/percent_escapes.dart';
 
+/// One aligned word inside an [OverlayClip], in audio-track-local seconds.
+typedef OverlayWord = ({double start, double end});
+
 /// One narrated sentence: where its text is and which stretch of which audio
 /// file reads it.
 class OverlayClip {
@@ -14,6 +17,8 @@ class OverlayClip {
   final int track;
   final double begin;
   final double end;
+  final int wordOffset;
+  final List<OverlayWord> words;
 
   const OverlayClip({
     required this.section,
@@ -22,7 +27,29 @@ class OverlayClip {
     required this.track,
     required this.begin,
     required this.end,
+    this.wordOffset = 0,
+    this.words = const [],
   });
+
+  bool get hasWords => words.isNotEmpty;
+
+  /// Block-local word index (`wordOffset + i`) being spoken at track-local
+  /// time [t], or `null` when this clip has no per-word timings.
+  int? wordIndexAt(double t) {
+    if (words.isEmpty) return null;
+    if (t < words.first.start) return wordOffset;
+    var lo = 0, hi = words.length - 1, ans = 0;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (words[mid].start <= t + 0.001) {
+        ans = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return wordOffset + ans;
+  }
 
   /// The sentence the way the SMIL file names it, document and id. BookOrbit's
   /// read along keeps its place in this form and only matches it exactly.
@@ -56,19 +83,32 @@ class _RawClip {
   final String audioHref;
   final double begin;
   double? end;
-  _RawClip(this.section, this.textHref, this.fragment, this.audioHref, this.begin, this.end);
+  final int wordOffset;
+  final List<OverlayWord> words;
+  _RawClip(
+    this.section,
+    this.textHref,
+    this.fragment,
+    this.audioHref,
+    this.begin,
+    this.end, {
+    this.wordOffset = 0,
+    this.words = const [],
+  });
 }
 
 /// An EPUB 3 media overlay (a narrated or "read along" EPUB) laid out the way
 /// the player sees it: the audio files end to end, each sentence a stretch of
-/// one file. Built from BookOrbit's playlist or straight from the EPUB.
+/// one file. Built from BookOrbit's playlist, a sidecar `.smil`, or straight
+/// from the EPUB.
 class MediaOverlay {
   final List<OverlayTrack> tracks;
   final List<OverlayClip> clips;
   final List<OverlaySection> sections;
+  final bool isSidecar;
   final List<List<int>> _byTrack;
 
-  MediaOverlay._(this.tracks, this.clips, this.sections)
+  MediaOverlay._(this.tracks, this.clips, this.sections, {this.isSidecar = false})
       : _byTrack = List.generate(tracks.length, (_) => <int>[]) {
     for (var i = 0; i < clips.length; i++) {
       _byTrack[clips[i].track].add(i);
@@ -86,6 +126,7 @@ class MediaOverlay {
     List<_RawClip> raw, {
     required Map<String, String> mediaTypes,
     required Map<int, ({String href, String? label})> sectionInfo,
+    bool isSidecar = false,
   }) {
     if (raw.isEmpty) return null;
     final order = <String, int>{};
@@ -120,6 +161,8 @@ class MediaOverlay {
           track: order[c.audioHref]!,
           begin: c.begin,
           end: c.end ?? c.begin,
+          wordOffset: c.wordOffset,
+          words: c.words,
         ),
     ];
     final sections = <OverlaySection>[];
@@ -135,7 +178,7 @@ class MediaOverlay {
       ));
     }
     sections.sort((a, b) => a.start.compareTo(b.start));
-    return MediaOverlay._(tracks, clips, sections);
+    return MediaOverlay._(tracks, clips, sections, isSidecar: isSidecar);
   }
 
   static String _guessType(String href) {
@@ -293,7 +336,7 @@ class MediaOverlay {
     return MediaOverlay._(tracks, clips, [
       for (final s in sections)
         OverlaySection(s.index, s.href, names.containsKey(s.index) ? names[s.index] : s.label, s.start),
-    ]);
+    ], isSidecar: isSidecar);
   }
 
   /// Audiobookshelf-shaped audio tracks, with [url] giving each file's address.
@@ -332,7 +375,7 @@ class MediaOverlay {
         OverlaySection(s.index, s.href, s.label,
             first[s.index] == null ? s.start : laid[first[s.index]!.track].start + first[s.index]!.begin),
     ];
-    return MediaOverlay._(laid, clips, secs);
+    return MediaOverlay._(laid, clips, secs, isSidecar: isSidecar);
   }
 
   /// This narration stretched evenly to last [total] seconds: a read along
@@ -353,9 +396,12 @@ class MediaOverlay {
             track: c.track,
             begin: c.begin * f,
             end: c.end * f,
+            wordOffset: c.wordOffset,
+            words: [for (final w in c.words) (start: w.start * f, end: w.end * f)],
           ),
       ],
       [for (final s in sections) OverlaySection(s.index, s.href, s.label, s.start * f)],
+      isSidecar: isSidecar,
     );
   }
 
@@ -369,13 +415,27 @@ class MediaOverlay {
   }
 
   Map<String, dynamic> toJson() => {
+        if (isSidecar) 'sidecar': true,
         'tracks': [
           for (final t in tracks)
             {'href': t.href, 'type': t.mediaType, 'duration': t.duration, 'start': t.start},
         ],
         'clips': [
           for (final c in clips)
-            [c.section, c.textHref, c.fragment, c.track, c.begin, c.end],
+            [
+              c.section,
+              c.textHref,
+              c.fragment,
+              c.track,
+              c.begin,
+              c.end,
+              if (c.hasWords || c.wordOffset != 0) ...[
+                c.wordOffset,
+                [
+                  for (final w in c.words) [w.start, w.end],
+                ],
+              ],
+            ],
         ],
         'sections': [
           for (final s in sections) {'index': s.index, 'href': s.href, 'label': s.label, 'start': s.start},
@@ -398,6 +458,13 @@ class MediaOverlay {
             track: (c[3] as num).toInt(),
             begin: (c[4] as num).toDouble(),
             end: (c[5] as num).toDouble(),
+            wordOffset: c.length > 6 ? (c[6] as num).toInt() : 0,
+            words: c.length > 7
+                ? [
+                    for (final w in (c[7] as List<dynamic>))
+                      (start: ((w as List<dynamic>)[0] as num).toDouble(), end: (w[1] as num).toDouble()),
+                  ]
+                : const [],
           ),
       ];
       final sections = [
@@ -406,7 +473,7 @@ class MediaOverlay {
               (s['start'] as num).toDouble()),
       ];
       if (tracks.isEmpty || clips.isEmpty) return null;
-      return MediaOverlay._(tracks, clips, sections);
+      return MediaOverlay._(tracks, clips, sections, isSidecar: j['sidecar'] == true);
     } catch (_) {
       return null;
     }
@@ -444,6 +511,85 @@ class MediaOverlay {
   /// no narration.
   static Future<MediaOverlay?> fromEpub(Archive archive) =>
       fromFiles((name) async => _text(archive, name));
+
+  /// From an `audiobooksync` sidecar `.smil` file stored alongside the EPUB and
+  /// audiobook in Audiobookshelf. Each `<par>` carries `data-word-offset` and
+  /// `data-word-timestamps` for word-level highlighting.
+  static MediaOverlay? fromSidecarSmil(String smilXml, {double? totalDuration}) {
+    final raw = <_RawClip>[];
+    final sectionIndexByHref = <String, int>{};
+    final sectionInfo = <int, ({String href, String? label})>{};
+
+    for (final par in _sidecarParBlock.allMatches(smilXml)) {
+      final parAttrs = _attrs(par.group(1)!);
+      final body = par.group(2)!;
+      final text = _textTag.firstMatch(body);
+      final audio = _audioTag.firstMatch(body);
+      if (text == null || audio == null) continue;
+      final t = _attrs(text.group(0)!);
+      final au = _attrs(audio.group(0)!);
+      final src = t['src'];
+      final audioSrc = au['src'];
+      if (src == null || audioSrc == null) continue;
+
+      final hash = src.indexOf('#');
+      final textHref = undoPathEscapes(hash < 0 ? src : src.substring(0, hash));
+      final fragment = hash < 0 ? null : undoPathEscapes(src.substring(hash + 1));
+      if (textHref.isEmpty) continue;
+
+      final secIdx = sectionIndexByHref.putIfAbsent(textHref, () {
+        final idx = sectionIndexByHref.length;
+        sectionInfo[idx] = (href: textHref, label: null);
+        return idx;
+      });
+
+      final begin = parseClock(au['clipbegin']) ?? 0;
+      final end = parseClock(au['clipend']);
+      final wordOffset = int.tryParse(parAttrs['data-word-offset'] ?? '') ?? 0;
+      final words = _parseWordTimestamps(parAttrs['data-word-timestamps']);
+
+      raw.add(_RawClip(
+        secIdx,
+        textHref,
+        fragment,
+        undoPathEscapes(audioSrc),
+        begin,
+        end,
+        wordOffset: wordOffset,
+        words: words,
+      ));
+    }
+
+    final built = _build(raw, mediaTypes: const {}, sectionInfo: sectionInfo, isSidecar: true);
+    if (built == null) return null;
+    if (totalDuration != null && totalDuration > 0 && built.tracks.length == 1) {
+      return built.withTrackDurations([totalDuration]);
+    }
+    return built;
+  }
+
+  static List<OverlayWord> _parseWordTimestamps(String? rawJson) {
+    if (rawJson == null || rawJson.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(rawJson);
+      if (decoded is! List) return const [];
+      final out = <OverlayWord>[];
+      for (final item in decoded) {
+        if (item is List && item.length >= 2) {
+          final s = (item[0] as num?)?.toDouble();
+          final e = (item[1] as num?)?.toDouble();
+          if (s != null && e != null) out.add((start: s, end: e));
+        } else if (item is Map) {
+          final s = (item['start'] as num?)?.toDouble();
+          final e = (item['end'] as num?)?.toDouble();
+          if (s != null && e != null) out.add((start: s, end: e));
+        }
+      }
+      return out;
+    } catch (_) {
+      return const [];
+    }
+  }
 
   /// The same, with the EPUB's files read through [load] (a local zip, or
   /// range requests to one on the server). [onNarrated] hears as soon as the
@@ -601,6 +747,7 @@ final _itemTag = RegExp(r'<(?:\w+:)?item\b[^>]*>', caseSensitive: false);
 final _itemrefTag = RegExp(r'<(?:\w+:)?itemref\b[^>]*>', caseSensitive: false);
 final _rootfileTag = RegExp(r'<(?:\w+:)?rootfile\b[^>]*>', caseSensitive: false);
 final _parBlock = RegExp(r'<(?:\w+:)?par\b[^>]*>(.*?)</(?:\w+:)?par\s*>', caseSensitive: false, dotAll: true);
+final _sidecarParBlock = RegExp(r'<(?:\w+:)?par\b([^>]*)>(.*?)</(?:\w+:)?par\s*>', caseSensitive: false, dotAll: true);
 final _textTag = RegExp(r'<(?:\w+:)?text\b[^>]*>', caseSensitive: false);
 final _audioTag = RegExp(r'<(?:\w+:)?audio\b[^>]*>', caseSensitive: false);
 final _navLink = RegExp(r'''<a\b[^>]*href\s*=\s*("([^"]*)"|'([^']*)')[^>]*>(.*?)</a\s*>''', caseSensitive: false, dotAll: true);
