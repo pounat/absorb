@@ -363,6 +363,10 @@ class HomeWidgetService {
   /// the current item).
   Future<void> resumeLastPlayedIfAvailable() => _handlePlayPause();
 
+  /// The watch picked a book to play on this phone.
+  Future<void> playItemFromWatch(String itemId, String? episodeId, {double? position}) =>
+      _handlePlayItem(itemId, episodeId, position: position);
+
   void _handleSkipBack() {
     final player = AudioPlayerService();
     debugPrint('[WidgetDebug] _handleSkipBack hasBook=${player.hasBook}');

@@ -30,6 +30,7 @@ import android.support.v4.media.RatingCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 import android.util.LruCache;
 import android.util.Size;
 import android.view.KeyEvent;
@@ -936,13 +937,25 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void enterPlayingState() {
-        ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
+        // Absorb patch: a start from the background (the watch waking the
+        // app) can be refused the foreground service on Android 12+. Play on
+        // without it rather than crash; the next press from the app or the
+        // notification gets it.
+        try {
+            ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
+        } catch (Exception e) {
+            Log.w("AudioService", "foreground service start refused", e);
+        }
         if (!mediaSession.isActive())
             mediaSession.setActive(true);
 
         acquireWakeLock();
         mediaSession.setSessionActivity(contentIntent);
-        internalStartForeground();
+        try {
+            internalStartForeground();
+        } catch (Exception e) {
+            Log.w("AudioService", "startForeground refused", e);
+        }
     }
 
     private void exitPlayingState() {

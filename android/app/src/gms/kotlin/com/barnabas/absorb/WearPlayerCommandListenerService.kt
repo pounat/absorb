@@ -16,25 +16,23 @@ import org.json.JSONObject
 /**
  * Phone-side receiver for playback commands from the AbsorbWear watch.
  *
- * Three flavours:
+ * Kinds:
  *  - play-pause / skip-back / skip-forward: forwarded to the active
  *    MediaSession as a MEDIA_BUTTON broadcast. Same code path Bluetooth
  *    headphones and the NowPlayingWidget already use, so we get
  *    user-configured skip durations for free.
- *  - next-chapter / prev-chapter / bookmark / sleep / seek / speed: handed to the
- *    Dart player over the wear_player channel while the app is up; when it
- *    is not, the app is woken with the same request as a widget-style URI.
- *  - play-item: launches MainActivity with a URI the home_widget plugin
- *    can route. Flutter's HomeWidgetService picks it up and calls
- *    AudioPlayerService.playItem unconditionally (replacing any current
- *    session).
+ *  - next-chapter / prev-chapter / bookmark / sleep / seek / speed /
+ *    play-item: handed to the Dart player over the wear_player channel.
+ *    When the app is not running it is started in the background, the way
+ *    Android Auto starts it, and the request waits until it is ready.
+ *    Opening the phone's screen from here is blocked by Android.
  *  - open-watch: opens the watch app on the asking watch.
  */
 class WearPlayerCommandListenerService : WearableListenerService() {
 
     override fun onMessageReceived(event: MessageEvent) {
         when (event.path) {
-            "/absorb/player/cmd/play-pause" -> dispatchMediaButton(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+            "/absorb/player/cmd/play-pause" -> playPause()
             "/absorb/player/cmd/skip-back" -> dispatchMediaButton(KeyEvent.KEYCODE_MEDIA_REWIND)
             "/absorb/player/cmd/skip-forward" -> dispatchMediaButton(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)
             "/absorb/player/cmd/play-item" -> handlePlayItem(event.data)
@@ -65,16 +63,21 @@ class WearPlayerCommandListenerService : WearableListenerService() {
     }
 
     // The Dart player takes it straight away while the app is up; otherwise
-    // the app is started with the request, the way play-item is.
+    // the app is started in the background and gets it once it is ready.
     private fun command(name: String, args: Map<String, Any?> = emptyMap()) {
         Log.i(TAG, "Watch -> $name $args")
-        if (WearPlayerBridge.command(name, args)) return
-        val builder = Uri.Builder()
-            .scheme("absorb")
-            .authority("widget")
-            .appendPath(name)
-        for ((k, v) in args) if (v != null) builder.appendQueryParameter(k, v.toString())
-        launch(builder.build())
+        WearPlayerBridge.command(applicationContext, name, args)
+    }
+
+    // With the app up this is a media button press, like headphones. With it
+    // down, a media button reaches no one, so the app is started and resumes
+    // the last book itself.
+    private fun playPause() {
+        if (WearPlayerBridge.isReady) {
+            dispatchMediaButton(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+        } else {
+            command("play_pause")
+        }
     }
 
     // The watch saw this phone start playing and has "Open when phone plays"
@@ -147,37 +150,13 @@ class WearPlayerCommandListenerService : WearableListenerService() {
         // Where the watch was, so the phone carries on from there.
         val position = payload.optDouble("position").takeIf { it.isFinite() && it > 0.0 }
 
-        // Build a URI the home_widget plugin already knows how to route
-        // — it captures intents whose action is HOME_WIDGET_CLICK and
-        // posts the data URI onto HomeWidget.widgetClicked. The Dart
-        // side adds a /play_item case that parses these query params.
-        val builder = Uri.Builder()
-            .scheme("absorb")
-            .authority("widget")
-            .appendPath("play_item")
-            .appendQueryParameter("itemId", itemId)
-        if (episodeId != null) builder.appendQueryParameter("episodeId", episodeId)
-        if (position != null) builder.appendQueryParameter("position", position.toString())
-        launch(builder.build())
-    }
-
-    private fun launch(uri: Uri) {
-        val intent = Intent(applicationContext, MainActivity::class.java).apply {
-            action = HOME_WIDGET_CLICK
-            this.data = uri
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        Log.i(TAG, "Watch -> launch uri=$uri")
-        try {
-            applicationContext.startActivity(intent)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to launch MainActivity for $uri", e)
-        }
+        val args = mutableMapOf<String, Any?>("itemId" to itemId)
+        if (episodeId != null) args["episodeId"] = episodeId
+        if (position != null) args["position"] = position
+        command("play_item", args)
     }
 
     companion object {
         private const val TAG = "WearPlayerBridge"
-        // Intent action the home_widget plugin filters for.
-        private const val HOME_WIDGET_CLICK = "es.antonborri.home_widget.action.LAUNCH"
     }
 }

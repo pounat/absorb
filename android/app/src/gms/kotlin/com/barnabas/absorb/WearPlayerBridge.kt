@@ -6,6 +6,9 @@ import android.os.Looper
 import android.util.Log
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
+import com.ryanheise.audioservice.AudioServicePlugin
+import io.flutter.embedding.engine.FlutterEngineCache
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +45,32 @@ object WearPlayerBridge {
      *  actions (chapters, bookmark, sleep timer, seek) go through it. */
     @Volatile
     var channel: MethodChannel? = null
+        private set
+    @Volatile
+    private var channelMessenger: BinaryMessenger? = null
+    @Volatile
+    private var readyMessenger: BinaryMessenger? = null
+    private val pending = mutableListOf<Map<String, Any?>>()
+
+    fun attach(ch: MethodChannel, messenger: BinaryMessenger) {
+        channel = ch
+        channelMessenger = messenger
+    }
+
+    /** Dart has its handler up on [messenger]. Hands back what the watch
+     *  asked for while it was starting. */
+    fun ready(messenger: BinaryMessenger): List<Map<String, Any?>> {
+        readyMessenger = messenger
+        synchronized(pending) {
+            val out = pending.toList()
+            pending.clear()
+            if (out.isNotEmpty()) Log.i(TAG, "handing ${out.size} held watch request(s) to the app")
+            return out
+        }
+    }
+
+    val isReady: Boolean
+        get() = channel != null && readyMessenger != null && readyMessenger === channelMessenger
 
     /** Push the current playback snapshot. Call from the same throttle
      *  loop that updates the home widget — anything finer-grained than
@@ -175,17 +204,39 @@ object WearPlayerBridge {
         }
     }
 
-    /** Hands a watch command to the Dart player. False when the Flutter
-     *  engine is not up, so the caller can wake the app instead. */
-    fun command(name: String, args: Map<String, Any?> = emptyMap()): Boolean {
-        val ch = channel ?: return false
-        main.post {
-            try {
-                ch.invokeMethod("command", HashMap<String, Any?>(args).apply { put("name", name) })
-            } catch (e: Exception) {
-                Log.w(TAG, "command $name failed", e)
+    /** Hands a watch command to the Dart player. When the app is not
+     *  running it is started in the background, the way Android Auto starts
+     *  it, and the command waits until it is ready. */
+    fun command(context: Context, name: String, args: Map<String, Any?> = emptyMap()) {
+        val call = HashMap<String, Any?>(args).apply { put("name", name) }
+        if (isReady) {
+            val ch = channel ?: return
+            main.post {
+                try {
+                    ch.invokeMethod("command", call)
+                } catch (e: Exception) {
+                    Log.w(TAG, "command $name failed", e)
+                }
             }
+            return
         }
-        return true
+        synchronized(pending) {
+            pending.add(call)
+            while (pending.size > 20) pending.removeAt(0)
+        }
+        val app = context.applicationContext
+        main.post { wake(app) }
+    }
+
+    private fun wake(context: Context) {
+        try {
+            val existing = FlutterEngineCache.getInstance().get(AudioServicePlugin.getFlutterEngineId())
+            val engine = existing ?: AudioServicePlugin.getFlutterEngine(context)
+            Log.i(TAG, if (existing == null) "app not running, starting it for the watch" else "app still starting, watch request held")
+            val messenger = engine.dartExecutor.binaryMessenger
+            if (channelMessenger !== messenger) PlatformIntegration.registerWearPlayer(context, messenger)
+        } catch (e: Exception) {
+            Log.w(TAG, "starting the app for the watch failed", e)
+        }
     }
 }
