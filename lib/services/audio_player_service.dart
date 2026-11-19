@@ -2903,6 +2903,36 @@ class AudioPlayerService extends ChangeNotifier {
     }
   }
 
+  /// The Windows player loses a seek that moves to another file: it applies
+  /// the position while the old file is still open, so starting deep in a
+  /// multi-file book played from the top of the right file instead. There the
+  /// source loads already sitting at the start spot, with no seek at all.
+  ({int index, Duration position})? _windowsStartPoint(double startTime) {
+    if (!AppPlatform.isWindows || startTime <= 0) return null;
+    final last = _trackStartOffsets.length - 2;
+    if (last < 1) return null;
+    for (var i = 0; i <= last; i++) {
+      if (startTime < _trackStartOffsets[i + 1] || i == last) {
+        final local = startTime - _trackStartOffsets[i];
+        return (
+          index: i,
+          position: Duration(milliseconds: (local * 1000).round()),
+        );
+      }
+    }
+    return null;
+  }
+
+  void _noteStartPoint(({int index, Duration position}) point, double startTime) {
+    _currentTrackIndex = point.index;
+    _lastSeekTargetSeconds = startTime;
+    _lastSeekTime = DateTime.now();
+    debugPrint(
+      '[Player] Loading at ${startTime.toStringAsFixed(1)}s -> track '
+      '${point.index} at ${(point.position.inMilliseconds / 1000).toStringAsFixed(1)}s',
+    );
+  }
+
   /// Seek to an absolute book position, handling multi-file offset conversion.
   // A seek that lands at the very end of a file never answers on Android,
   // and everything waiting on it hung with it (GH #428).
@@ -3023,6 +3053,10 @@ class AudioPlayerService extends ChangeNotifier {
       // this AudioService.init threw, no player existed, and play spun
       // forever. media_kit plays the audio; the handler runs standalone.
       if (AppPlatform.isWindows) {
+        // With pitch control on, speed runs through mpv's old scaletempo
+        // filter, which sounds robotic above 1x. Off, mpv picks scaletempo2.
+        // The pitch slider is Android-only, so nothing is lost.
+        JustAudioMediaKit.pitch = false;
         JustAudioMediaKit.ensureInitialized(windows: true, linux: false);
         _handler = AudioPlayerHandler();
       } else {
@@ -4667,9 +4701,26 @@ class AudioPlayerService extends ChangeNotifier {
       if (_startSuperseded(gen)) {
         return _abandonStart(null, null, 'local, before loading the source');
       }
+      // Only a multi-file book gets a start point, and the truncation check
+      // below only applies to single files, so working these out first is safe.
+      if (totalDuration > 0 && startTime >= totalDuration - 1.0) startTime = 0;
+      final speedKey = _currentItemId ?? itemId;
+      final bookSpeed = await PlayerSettings.getBookSpeed(speedKey);
+      final speed = bookSpeed ??
+          await PlayerSettings.defaultSpeedFor(libraryId: _currentLibraryId);
+      startTime = await _sessionStartRewound(
+        startTime,
+        forceStartTime: forceStartTime,
+        speed: speed,
+      );
+      final startPoint = _windowsStartPoint(startTime);
+      if (startPoint != null) _noteStartPoint(startPoint, startTime);
+
       _resetPreBufferState();
       final decoded = await _player!.setAudioSource(
         source,
+        initialIndex: startPoint?.index,
+        initialPosition: startPoint?.position,
         itemId: rawItemId,
       );
       if (_startSuperseded(gen)) {
@@ -4703,18 +4754,7 @@ class AudioPlayerService extends ChangeNotifier {
         );
       }
 
-      // If the saved position is at (or past) the end, restart from the beginning
-      if (totalDuration > 0 && startTime >= totalDuration - 1.0) startTime = 0;
-      final speedKey = _currentItemId ?? itemId;
-      final bookSpeed = await PlayerSettings.getBookSpeed(speedKey);
-      final speed = bookSpeed ??
-          await PlayerSettings.defaultSpeedFor(libraryId: _currentLibraryId);
-      startTime = await _sessionStartRewound(
-        startTime,
-        forceStartTime: forceStartTime,
-        speed: speed,
-      );
-      if (startTime > 0) {
+      if (startTime > 0 && startPoint == null) {
         await _seekAbsolute(startTime);
       }
       clearSeekTarget(); // Seek done; let position events flow immediately
@@ -4947,15 +4987,6 @@ class AudioPlayerService extends ChangeNotifier {
         dropPendingSession();
         return _abandonStart(null, null, 'cached start, before loading the source');
       }
-      _resetPreBufferState();
-      await _player!.setAudioSource(source, itemId: itemId);
-      if (_startSuperseded(playbackGeneration)) {
-        dropPendingSession();
-        return _abandonStart(null, null, 'cached start, after loading the source');
-      }
-      _activeConcatSource = source as ConcatenatingAudioSource;
-      _currentBookTrackCount = trackSources.length;
-
       if (totalDuration > 0 && startTime >= totalDuration - 1.0) startTime = 0;
       final bookSpeed = await PlayerSettings.getBookSpeed(itemId);
       final speed = bookSpeed ??
@@ -4965,7 +4996,24 @@ class AudioPlayerService extends ChangeNotifier {
         forceStartTime: forceStartTime,
         speed: speed,
       );
-      if (startTime > 0) {
+      final startPoint = _windowsStartPoint(startTime);
+      if (startPoint != null) _noteStartPoint(startPoint, startTime);
+
+      _resetPreBufferState();
+      await _player!.setAudioSource(
+        source,
+        initialIndex: startPoint?.index,
+        initialPosition: startPoint?.position,
+        itemId: itemId,
+      );
+      if (_startSuperseded(playbackGeneration)) {
+        dropPendingSession();
+        return _abandonStart(null, null, 'cached start, after loading the source');
+      }
+      _activeConcatSource = source as ConcatenatingAudioSource;
+      _currentBookTrackCount = trackSources.length;
+
+      if (startTime > 0 && startPoint == null) {
         await _seekForStart(startTime, playbackGeneration);
       }
       clearSeekTarget();
@@ -5417,14 +5465,6 @@ class AudioPlayerService extends ChangeNotifier {
       if (_startSuperseded(gen)) {
         return _abandonStart(api, ownSessionId, 'before loading the source');
       }
-      _resetPreBufferState();
-      await _player!.setAudioSource(source, itemId: itemId);
-      if (_startSuperseded(gen)) {
-        return _abandonStart(api, ownSessionId, 'after loading the source');
-      }
-      _activeConcatSource = source;
-      _currentBookTrackCount = trackSources.length;
-
       // If the saved position is at (or past) the end, restart from the beginning
       if (totalDuration > 0 && startTime >= totalDuration - 1.0) startTime = 0;
       final bookSpeed = await PlayerSettings.getBookSpeed(itemId);
@@ -5436,7 +5476,23 @@ class AudioPlayerService extends ChangeNotifier {
         forceStartTime: forceStartTime,
         speed: speed,
       );
-      if (startTime > 0) {
+      final startPoint = _windowsStartPoint(startTime);
+      if (startPoint != null) _noteStartPoint(startPoint, startTime);
+
+      _resetPreBufferState();
+      await _player!.setAudioSource(
+        source,
+        initialIndex: startPoint?.index,
+        initialPosition: startPoint?.position,
+        itemId: itemId,
+      );
+      if (_startSuperseded(gen)) {
+        return _abandonStart(api, ownSessionId, 'after loading the source');
+      }
+      _activeConcatSource = source;
+      _currentBookTrackCount = trackSources.length;
+
+      if (startTime > 0 && startPoint == null) {
         await _seekForStart(startTime, gen);
       }
       clearSeekTarget(); // Seek done; let position events flow immediately

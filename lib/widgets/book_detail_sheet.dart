@@ -1306,7 +1306,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       // Primary action row: Download | Fully Absorb | ebook download (ebook-only)
       const SizedBox(height: 12),
       Row(children: [
-        if (AppPlatform.lacksPhonePlugins && auth.canDownload) ...[
+        if (AppPlatform.isWeb && auth.canDownload) ...[
           Expanded(child: _webDownloadButton(context, cs, l, auth)),
           const SizedBox(width: 8),
         ],

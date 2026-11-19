@@ -39,7 +39,9 @@ dependencies:
     path: packages/audio_service
 
   # Windows has no just_audio engine of its own; this plays through libmpv.
-  just_audio_media_kit: ^2.1.0
+  # Vendored so a seek into another track lands at its spot, not the top.
+  just_audio_media_kit:
+    path: packages/just_audio_media_kit
   media_kit_libs_windows_audio: ^1.0.9
 
   # On-device bookmark transcription (Whisper, opt-in). No ffmpeg companion:
