@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -52,7 +53,7 @@ class _AdminApiKeysScreenState extends State<AdminApiKeysScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: _keys.isEmpty
@@ -294,7 +295,7 @@ class _ApiKeyEditorSheetState extends State<_ApiKeyEditorSheet> {
             onPressed: _saving ? null : _create,
             style: FilledButton.styleFrom(backgroundColor: cs.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             child: _saving
-              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+              ? SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
               : Text(l.adminApiKeysCreate, style: TextStyle(fontWeight: FontWeight.w700, color: cs.onPrimary)),
           ))),
       ]));

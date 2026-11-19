@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/library_screen.dart';
 import '../utils/desktop_workspace.dart';
@@ -57,7 +58,7 @@ class LibraryAuthorsTab extends StatelessWidget {
           ...headers,
           const SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: AdaptiveSpinner()),
           ),
         ],
       );
@@ -132,7 +133,7 @@ class LibraryAuthorsTab extends StatelessWidget {
                     return const Center(
                       child: Padding(
                         padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AdaptiveSpinner(strokeWidth: 2),
                       ),
                     );
                   }

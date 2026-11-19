@@ -1,4 +1,5 @@
 import '../utils/app_platform.dart';
+import 'expressive.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -930,7 +931,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                           SizedBox(
                               width: 28,
                               height: 28,
-                              child: CircularProgressIndicator(strokeWidth: 2.5, color: accent)),
+                              child: AdaptiveSpinner(strokeWidth: 2.5, color: accent)),
                           const SizedBox(height: 14),
                           Text(l.readerSentencePreparing, style: TextStyle(color: fgDim)),
                         ]),
@@ -1703,8 +1704,6 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       final origin = _turnOrigin(forward);
       if (forward || _revealsUnder) {
         _curl.show(shot, origin: origin, grabY: origin.dy);
-        // A curl lifts the page where it was touched.
-        if (_turnNow == 'curl') _curl.follow(Offset(max(origin.dx, _curl.size.width * 0.75), origin.dy));
         await WidgetsBinding.instance.endOfFrame;
         if (run != _curlRun) return;
         forward ? c.next() : c.prev();
@@ -3792,7 +3791,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 trailing: downloading
                     ? const SizedBox(
                         width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: AdaptiveSpinner(strokeWidth: 2))
                     : (f.downloadable
                         ? (installed
                             ? IconButton(
@@ -6805,7 +6804,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       future: EbookHistory.instance.spots(widget.itemId),
       builder: (ctx, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          return const Center(child: AdaptiveSpinner(strokeWidth: 2));
         }
         final spots = snap.data ?? const <EbookSpot>[];
         if (spots.isEmpty) {
@@ -8043,7 +8042,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     // mid-transition (e.g. for an already-cached book) stutters the slide-in.
     if (_loading || !_entered) {
       return _wrap(
-        const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        const Center(child: AdaptiveSpinner(strokeWidth: 2)),
         bg,
         appBar: AppBar(
           title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -8624,7 +8623,7 @@ class _EbookSearchScreenState extends State<_EbookSearchScreen> {
           if (_searching)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: Center(child: AdaptiveSpinner(strokeWidth: 2)),
             )
           else if (_results.isNotEmpty)
             Padding(

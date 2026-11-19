@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -287,7 +288,7 @@ class _ServerNotificationsScreenState extends State<ServerNotificationsScreen> {
                         if (i >= _items.length) {
                           return const Padding(
                             padding: EdgeInsets.all(16),
-                            child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                            child: Center(child: SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2))),
                           );
                         }
                         final n = _items[i];
@@ -527,7 +528,7 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
           Text(l.boNotificationsProblemsHint,
               style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
           if (levels == null && !_failed)
-            const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator())),
+            const Padding(padding: EdgeInsets.all(32), child: Center(child: AdaptiveSpinner())),
           if (_failed)
             Padding(
               padding: const EdgeInsets.all(32),

@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
+import '../widgets/glass_look.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -122,6 +124,8 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     _player.addListener(_rebuild);
     _cast.addListener(_rebuild);
     PlayerSettings.settingsChanged.addListener(_loadQueueMode);
+    PlayerSettings.settingsChanged.addListener(_loadSwipeStyle);
+    _loadSwipeStyle();
     _restoreLastFinished();
     _loadMergeLibraries();
     _loadQueueMode();
@@ -155,6 +159,13 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     final n = _queueCollectionName;
     if (n == null || n.isEmpty) return l.queueModeCollection;
     return n.length > 24 ? '${n.substring(0, 23)}…' : n;
+  }
+
+  String _swipeStyle = 'classic';
+
+  Future<void> _loadSwipeStyle() async {
+    final style = await PlayerSettings.getCardSwipeStyle();
+    if (mounted && style != _swipeStyle) setState(() => _swipeStyle = style);
   }
 
   Future<void> _loadQueueMode() async {
@@ -232,6 +243,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     _player.removeListener(_rebuild);
     _cast.removeListener(_rebuild);
     PlayerSettings.settingsChanged.removeListener(_loadQueueMode);
+    PlayerSettings.settingsChanged.removeListener(_loadSwipeStyle);
     _pageController.dispose();
     _desktopQueueScrollController.dispose();
     super.dispose();
@@ -810,7 +822,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                                 SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(
+                                  child: AdaptiveSpinner(
                                     strokeWidth: 1.5,
                                     color: muted,
                                   ),
@@ -855,7 +867,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                             ? SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(
+                                child: AdaptiveSpinner(
                                   strokeWidth: 1.5,
                                   color: muted,
                                 ),
@@ -970,7 +982,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                       Expanded(
                         child: showBlockingLoader
                             ? Center(
-                                child: CircularProgressIndicator(
+                                child: AdaptiveSpinner(
                                   strokeWidth: 2,
                                   color: cs.onSurface.withValues(alpha: 0.24),
                                 ),
@@ -1202,7 +1214,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                     Expanded(
                       child: showBlockingLoader
                           ? Center(
-                              child: CircularProgressIndicator(
+                              child: AdaptiveSpinner(
                                 strokeWidth: 2,
                                 color: cs.onSurface.withValues(alpha: 0.24),
                               ),
@@ -1271,6 +1283,91 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                                             page -
                                             i; // negative = card is to the right
                                         distFromCenter = rawDist.abs();
+                                      }
+                                      final padding = EdgeInsets.symmetric(
+                                        horizontal: hPad,
+                                        vertical: vPad,
+                                      );
+                                      if (_swipeStyle == 'stack') {
+                                        // Stack: a card that has been passed
+                                        // stays put in the middle and sinks
+                                        // back a little, and the next one
+                                        // slides in from the side to land on
+                                        // top of it.
+                                        final under = rawDist.clamp(0.0, 2.0);
+                                        final sink =
+                                            Curves.easeOut.transform(
+                                              under.clamp(0.0, 1.0),
+                                            );
+                                        return Transform(
+                                          alignment: Alignment.center,
+                                          transform: Matrix4.identity()
+                                            ..translate(
+                                              under * cardWidth - sink * 10,
+                                              sink * 6,
+                                              0.0,
+                                            )
+                                            ..scale(
+                                              1 - 0.07 * sink,
+                                              1 - 0.07 * sink,
+                                              1.0,
+                                            ),
+                                          child: Padding(
+                                            padding: padding,
+                                            child: Opacity(
+                                              opacity: 1 - 0.35 * sink,
+                                              child: child,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      if (_swipeStyle == 'carousel') {
+                                        // Carousel: a card leaving
+                                        // the middle narrows into a rounded
+                                        // sliver that shows its own centre,
+                                        // and the one arriving widens out of
+                                        // a sliver. The card is never
+                                        // squashed or laid out again: a
+                                        // window over it changes width.
+                                        final open = Curves.easeOut.transform(
+                                          (1.0 - distFromCenter).clamp(0.0, 1.0),
+                                        );
+                                        final full = cardWidth - hPad * 2;
+                                        final sliver = full * 0.22;
+                                        final width =
+                                            sliver + (full - sliver) * open;
+                                        // Each card keeps to the edge nearest
+                                        // the middle, so neighbours stay
+                                        // side by side as they trade widths.
+                                        final alignment = rawDist > 0
+                                            ? Alignment.centerRight
+                                            : (rawDist < 0
+                                                  ? Alignment.centerLeft
+                                                  : Alignment.center);
+                                        return Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: hPad,
+                                            vertical: vPad,
+                                          ),
+                                          child: Align(
+                                            alignment: alignment,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    softCardCorners ? 34 : 24,
+                                                  ),
+                                              child: SizedBox(
+                                                width: width,
+                                                height: double.infinity,
+                                                child: OverflowBox(
+                                                  minWidth: full,
+                                                  maxWidth: full,
+                                                  child: child,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
                                       }
                                       final double scaleX;
                                       if (distFromCenter >= 1.0) {
@@ -1433,7 +1530,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     final l = AppLocalizations.of(context)!;
     final chaptersPanel = chapterData == null
         ? Center(
-            child: CircularProgressIndicator(
+            child: AdaptiveSpinner(
               strokeWidth: 2,
               color: cs.onSurface.withValues(alpha: 0.24),
             ),
@@ -2571,7 +2668,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
   ) {
     final books = _collectionBooks;
     if (books == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     if (books.isEmpty) {
       return Center(
@@ -2604,7 +2701,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
   ) {
     final eps = _showEpisodes;
     if (eps == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     if (eps.isEmpty) {
       return Center(
@@ -2653,7 +2750,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
   ) {
     final books = _seriesBooks;
     if (books == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     if (books.isEmpty) {
       return Center(
@@ -2695,7 +2792,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
   ) {
     final items = _playlistItems;
     if (items == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     if (items.isEmpty) {
       return Center(

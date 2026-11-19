@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'dart:math' show min;
 import 'dart:ui' as ui;
 
@@ -332,7 +333,7 @@ class _QuoteShareSheetState extends State<_QuoteShareSheet> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: AdaptiveSpinner(strokeWidth: 2))
                     : const Icon(Icons.ios_share_rounded, size: 18),
                 label: Text(l.quoteShareAction),
                 onPressed: _busy || !_coverSettled ? null : _share,

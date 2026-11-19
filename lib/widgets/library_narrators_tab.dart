@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/library_screen.dart';
 import '../utils/desktop_workspace.dart';
@@ -44,7 +45,7 @@ class LibraryNarratorsTab extends StatelessWidget {
           ...headers,
           const SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: AdaptiveSpinner()),
           ),
         ],
       );

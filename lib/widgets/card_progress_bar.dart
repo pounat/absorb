@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
@@ -549,6 +550,11 @@ class ChapterPillPainter extends CustomPainter {
     final radius = h / 2;
     final p = progress.clamp(0.0, 1.0);
 
+    if (expressiveNotifier.value) {
+      _paintExpressive(canvas, w, h, p);
+      return;
+    }
+
     // Pill shape
     final pillRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(0, 0, w, h),
@@ -650,6 +656,49 @@ class ChapterPillPainter extends CustomPainter {
         canvas.drawCircle(center, 5.5, Paint()..color = accent);
       }
     }
+  }
+
+  // The current Material slider: the played and unplayed parts are separate
+  // pieces with a gap either side of a tall bar handle, and the handle
+  // narrows while it is being dragged.
+  void _paintExpressive(Canvas canvas, double w, double h, double p) {
+    const gap = 5.0;
+    const tight = Radius.circular(3);
+    final big = Radius.circular(h / 2);
+    final handleW = isDragging ? 2.5 : 5.0;
+    final x = (p * w).clamp(handleW / 2, w - handleW / 2);
+
+    final playedRight = x - handleW / 2 - gap;
+    if (playedRight > 10) {
+      canvas.drawRRect(
+        RRect.fromLTRBAndCorners(0, 0, playedRight, h,
+            topLeft: big, bottomLeft: big, topRight: tight, bottomRight: tight),
+        Paint()..color = accent.withValues(alpha: isDragging ? 0.5 : 0.38),
+      );
+    }
+    final restLeft = x + handleW / 2 + gap;
+    if (w - restLeft > 2) {
+      canvas.drawRRect(
+        RRect.fromLTRBAndCorners(restLeft, 0, w, h,
+            topLeft: tight, bottomLeft: tight, topRight: big, bottomRight: big),
+        Paint()..color = backgroundColor,
+      );
+      // The stop mark at the far end of the track.
+      if (w - restLeft > h) {
+        canvas.drawCircle(
+          Offset(w - h / 2, h / 2),
+          2,
+          Paint()..color = accent.withValues(alpha: 0.7),
+        );
+      }
+    }
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(x, h / 2), width: handleW, height: h),
+        Radius.circular(handleW / 2),
+      ),
+      Paint()..color = accent.withValues(alpha: isPlaying || isDragging ? 0.95 : 0.7),
+    );
   }
 
   @override

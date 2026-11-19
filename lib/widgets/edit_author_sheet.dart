@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -287,7 +288,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
             Text(l.editAuthor, style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const Spacer(),
             if (_saving || _matching)
-              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2)),
           ]),
         ),
         const SizedBox(height: 8),
@@ -358,7 +359,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
             child: FilledButton.icon(
               onPressed: _matching ? null : _runMatch,
               icon: _matching
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                  ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                   : const Icon(Icons.search_rounded, size: 18),
               label: Text(l.quickMatch),
               style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -477,7 +478,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
           FilledButton.icon(
             onPressed: _saving ? null : _saveCustom,
             icon: _saving
-                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                 : const Icon(Icons.check_rounded, size: 18),
             label: Text(l.save),
             style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),

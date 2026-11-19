@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -629,7 +630,7 @@ class _ComicReaderViewState extends State<ComicReaderView> with WidgetsBindingOb
 
     Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator(color: Colors.white70));
+      body = const Center(child: AdaptiveSpinner(color: Colors.white70));
     } else if (_error != null || pages == null || controller == null) {
       body = Center(
         child: Padding(
@@ -911,7 +912,7 @@ class _ComicPageState extends State<_ComicPage> with SingleTickerProviderStateMi
             filterQuality: FilterQuality.medium,
             loadingBuilder: (_, child, progress) => progress == null
                 ? child
-                : const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
+                : const Center(child: AdaptiveSpinner(color: Colors.white54, strokeWidth: 2)),
             errorBuilder: (_, __, ___) =>
                 const Center(child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 48)),
           ),

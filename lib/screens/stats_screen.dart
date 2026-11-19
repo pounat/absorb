@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../services/native_tab_bar.dart';
+import '../widgets/expressive.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -470,9 +472,11 @@ class _StatsScreenState extends State<StatsScreen>
           ),
         ),
         child: SafeArea(
+          // Under the glass tab bar the stats scroll beneath it.
+          bottom: !NativeTabBar.active.value,
           child: _isLoading
               ? Center(
-                  child: CircularProgressIndicator(
+                  child: AdaptiveSpinner(
                       strokeWidth: 2,
                       color: cs.onSurface.withValues(alpha: 0.24)))
               : _stats == null
@@ -709,7 +713,14 @@ class _StatsScreenState extends State<StatsScreen>
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(
-              horizontalPadding, 0, horizontalPadding, 32),
+            horizontalPadding,
+            0,
+            horizontalPadding,
+            32 +
+                (NativeTabBar.active.value
+                    ? MediaQuery.paddingOf(context).bottom
+                    : 0),
+          ),
           children: [
             Align(
               alignment: Alignment.topCenter,
@@ -746,7 +757,7 @@ class _StatsScreenState extends State<StatsScreen>
                             child: SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
+                              child: AdaptiveSpinner(
                                   strokeWidth: 2,
                                   color: cs.onSurface.withValues(alpha: 0.24)),
                             ),
@@ -1040,7 +1051,7 @@ class _StatsScreenState extends State<StatsScreen>
           child: TextButton(
             onPressed: _zoneSaving ? null : () => _usePhoneZone(z.phone),
             child: _zoneSaving
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2))
                 : Text(l.statsZoneUse(z.phone)),
           ),
         ),
@@ -1342,7 +1353,7 @@ class _StatsScreenState extends State<StatsScreen>
     if (_yirLoading) {
       body.add(const Padding(
         padding: EdgeInsets.symmetric(vertical: 28),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: AdaptiveSpinner()),
       ));
     } else if (d == null || (totalSeconds <= 0 && sessions == 0 && finished == 0)) {
       body.add(Container(
@@ -2810,7 +2821,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
           ? const SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2))
+              child: AdaptiveSpinner(strokeWidth: 2))
           : Icon(icon),
       label: Column(
         mainAxisSize: MainAxisSize.min,

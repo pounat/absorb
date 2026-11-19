@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../widgets/expressive.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -446,7 +447,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
             ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: _progressItems.isEmpty && _sessions.isEmpty
@@ -487,7 +488,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
                                 Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 24),
                                   child: Center(child: SizedBox(width: 16, height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.2)))),
+                                    child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.2)))),
                                 )
                               else if (_sessions.isNotEmpty) ...[
                                 Padding(
@@ -510,7 +511,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
                                         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                                           if (_loadingMoreSessions)
                                             SizedBox(width: 12, height: 12,
-                                              child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.3)))
+                                              child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.3)))
                                           else
                                             Icon(Icons.expand_more_rounded, size: 14, color: cs.onSurface.withValues(alpha: 0.4)),
                                           const SizedBox(width: 6),
@@ -551,7 +552,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
                                         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                                           if (_fetchingMore)
                                             SizedBox(width: 14, height: 14,
-                                              child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.3)))
+                                              child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.3)))
                                           else
                                             Icon(Icons.expand_more_rounded, size: 16, color: cs.onSurface.withValues(alpha: 0.4)),
                                           const SizedBox(width: 8),
@@ -1067,7 +1068,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
               SizedBox(width: double.infinity, child: OutlinedButton.icon(
                 onPressed: _unlinking ? null : _unlinkOpenID,
                 icon: _unlinking
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.error))
+                  ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.error))
                   : Icon(Icons.link_off_rounded, size: 18, color: cs.error),
                 label: Text(l.adminUsersUnlinkOpenId, style: TextStyle(color: cs.error, fontWeight: FontWeight.w600)),
                 style: OutlinedButton.styleFrom(
@@ -1082,7 +1083,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             onPressed: _saving ? null : _save,
             style: FilledButton.styleFrom(backgroundColor: cs.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             child: _saving
-              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+              ? SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
               : Text(_isNew ? l.adminUsersCreateUser : l.adminUsersSaveChanges, style: TextStyle(fontWeight: FontWeight.w700, color: cs.onPrimary)),
           ))),
       ]));

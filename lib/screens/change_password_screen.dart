@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -154,7 +155,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AdaptiveSpinner(strokeWidth: 2),
                   )
                 : const Icon(Icons.password_rounded),
             label: Text(l.changePasswordTitle),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'expressive.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -371,7 +372,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     if (_loadingPrefs) {
       return const SizedBox(
         height: 220,
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: AdaptiveSpinner()),
       );
     }
     if (_wasConfigured) {
@@ -738,7 +739,7 @@ class _SetupForm extends StatelessWidget {
                   ? SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(
+                      child: AdaptiveSpinner(
                         strokeWidth: 2,
                         color: cs.onPrimary,
                       ),
@@ -945,7 +946,7 @@ class _MyRequestsTabState extends State<_MyRequestsTab>
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
         children: const [
-          Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          Center(child: AdaptiveSpinner(strokeWidth: 2)),
         ],
       );
     }

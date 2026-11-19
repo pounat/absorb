@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -398,7 +399,7 @@ class _FoliateReaderViewState extends State<FoliateReaderView> with WidgetsBindi
 
     Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const Center(child: AdaptiveSpinner());
     } else if (_error != null || _port == 0) {
       body = Center(
         child: Padding(

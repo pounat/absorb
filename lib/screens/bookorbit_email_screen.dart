@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -457,7 +458,7 @@ class _BookOrbitEmailScreenState extends State<BookOrbitEmailScreen> with Single
       if (_historyLoading)
         const Padding(
           padding: EdgeInsets.all(16),
-          child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+          child: Center(child: SizedBox(width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2))),
         )
       else if (_historyMore)
         Center(

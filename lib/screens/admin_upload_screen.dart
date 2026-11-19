@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
@@ -800,7 +801,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
                                         ? SizedBox(
                                             width: 18,
                                             height: 18,
-                                            child: CircularProgressIndicator(
+                                            child: AdaptiveSpinner(
                                               strokeWidth: 2,
                                               color: cs.onPrimary,
                                             ),
@@ -1097,7 +1098,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
                 const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AdaptiveSpinner(strokeWidth: 2),
                 ),
               ],
               Switch(
@@ -1393,7 +1394,7 @@ class _ExistingBookPickerState extends State<_ExistingBookPicker> {
                           padding: EdgeInsets.all(12),
                           child: SizedBox(
                               width: 18, height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2)),
+                              child: AdaptiveSpinner(strokeWidth: 2)),
                         )
                       : null,
                 ),

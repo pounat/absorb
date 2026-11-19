@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
@@ -365,7 +366,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
         if (_isLoading)
           Expanded(child: ListView(controller: widget.scrollController, children: [
             const SizedBox(height: 80),
-            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            const Center(child: AdaptiveSpinner(strokeWidth: 2)),
             const SizedBox(height: 12),
             Center(child: Text(l.audibleSeriesSearching, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4)))),
           ]))

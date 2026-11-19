@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../widgets/expressive.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -291,7 +292,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AdaptiveSpinner())
             : Column(
                 children: [
                   // Header

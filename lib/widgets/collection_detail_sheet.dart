@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/player_settings.dart';
@@ -427,7 +428,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                         child: SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                          child: AdaptiveSpinner(strokeWidth: 2, color: cs.primary),
                         ),
                       ),
                     ),
@@ -446,7 +447,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
           ),
           child: _isRemovingSelected
               ? Center(child: SizedBox(width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary)))
+                  child: AdaptiveSpinner(strokeWidth: 2, color: cs.primary)))
               : _selectedItemIds.isNotEmpty
                   ? FilledButton.tonalIcon(
                       onPressed: () => _removeSelected(lib),

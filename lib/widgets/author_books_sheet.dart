@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
@@ -156,7 +157,7 @@ class _AuthorBooksSheetState extends State<AuthorBooksSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(cs, tt, headers, l, canEdit: canEdit),
-          const Expanded(child: Center(child: CircularProgressIndicator())),
+          const Expanded(child: Center(child: AdaptiveSpinner())),
         ],
       );
     }

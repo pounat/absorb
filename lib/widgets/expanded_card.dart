@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'glass_look.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ import 'absorbing_shared.dart';
 import 'card_progress_bar.dart';
 import 'card_playback_controls.dart';
 import 'card_buttons.dart';
+import 'expressive.dart';
 import 'ebook_router.dart';
 import '../services/lyrics_service.dart';
 import 'lyrics_overlay.dart';
@@ -696,6 +698,9 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                   Colors.white.withValues(alpha: 0.7),
                                   Colors.white.withValues(alpha: 0.9),
                                 ])
+                          : _cardBackground == 'solid'
+                          // The solid shade is already as dark as it should be.
+                          ? const [Colors.transparent, Colors.transparent, Colors.transparent]
                           : (isDark
                               ? [
                                   Colors.black.withValues(alpha: 0.15),
@@ -879,23 +884,13 @@ class _ExpandedCardState extends State<ExpandedCard> {
                                                           ),
                                                           child: Padding(
                                                             padding: const EdgeInsets.all(12),
-                                                            child: CircularProgressIndicator(strokeWidth: 3, color: accent),
+                                                            child: AdaptiveSpinner(strokeWidth: 3, color: accent),
                                                           ),
                                                         )
                                                       : AnimatedOpacity(
                                                           opacity: coverPlaying ? 0.2 : 0.9,
                                                           duration: const Duration(milliseconds: 200),
-                                                          child: Container(
-                                                            width: 76, height: 76,
-                                                            decoration: BoxDecoration(
-                                                              shape: BoxShape.circle,
-                                                              color: Colors.black.withValues(alpha: 0.45),
-                                                            ),
-                                                            child: Icon(
-                                                              coverPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                                              size: 44, color: accent,
-                                                            ),
-                                                          ),
+                                                          child: CoverPlayButton(size: 76, iconSize: 44, playing: coverPlaying, accent: accent),
                                                         ),
                                                 ),
                                               ),
@@ -1100,6 +1095,12 @@ class _ExpandedCardState extends State<ExpandedCard> {
       return SizedBox.expand(
         key: const ValueKey('bg-off'),
         child: ColoredBox(color: Theme.of(context).colorScheme.surface),
+      );
+    }
+    if (_cardBackground == 'solid') {
+      return SizedBox.expand(
+        key: const ValueKey('bg-solid'),
+        child: ColoredBox(color: solidCoverBackground(cs.primary, dark: isDark)),
       );
     }
     if (_cardBackground == 'gradient') {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../widgets/expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -170,7 +171,7 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
             child: FilledButton.icon(
               onPressed: _saving ? null : _save,
               icon: _saving
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                  ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                   : const Icon(Icons.check_rounded, size: 18),
               label: Text(l.save),
               style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -235,7 +236,7 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
             FilledButton.tonalIcon(
               onPressed: _coverSearching ? null : _searchCovers,
               icon: _coverSearching
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2))
                   : const Icon(Icons.search_rounded, size: 18),
               label: Text(l.search),
             ),

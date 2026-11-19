@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -156,7 +157,7 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
             Expanded(child: AbsorbPageHeader(title: l.adminPodcasts, padding: EdgeInsets.zero)),
             _checkingEpisodes
                 ? Padding(padding: const EdgeInsets.all(12),
-                    child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.6))))
+                    child: SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.6))))
                 : IconButton(
                     icon: Icon(Icons.cloud_download_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.6), size: 22),
                     tooltip: l.adminPodcastsCheckFeedsTooltip,
@@ -167,7 +168,7 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
         const SizedBox(height: 12),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+              ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
               : RefreshIndicator(onRefresh: _loadShows, child: _buildShowList(cs, tt)),
         ),
       ]))),
@@ -477,7 +478,7 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
               Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.1)),
               Expanded(
                 child: _searching
-                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
                     : _results.isNotEmpty
                         ? _buildResultsList(cs, tt, sc)
                         : _buildDiscover(cs, tt, sc),
@@ -525,7 +526,7 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
       // Chart list
       Expanded(
         child: _loadingChart
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : _chartResults.isEmpty
                 ? Center(child: Text(l.adminPodcastsNoPodcastsFound, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.24))))
                 : ListView.builder(
@@ -577,7 +578,7 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
                               ])),
                               const SizedBox(width: 8),
                               if (isLoading)
-                                SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.primary))
+                                SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.primary))
                               else
                                 Icon(Icons.chevron_right_rounded, color: cs.onSurface.withValues(alpha: 0.15)),
                             ]),
@@ -606,7 +607,7 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
           suffixIcon: _searching
               ? Padding(
                   padding: const EdgeInsets.all(12),
-                  child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
+                  child: SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
                 )
               : IconButton(icon: Icon(Icons.arrow_forward_rounded, color: cs.primary), onPressed: _search),
           filled: true,
@@ -913,7 +914,7 @@ class _PodcastPreviewScreenState extends State<_PodcastPreviewScreen> {
                   if (_loadingFeed)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      child: Center(child: AdaptiveSpinner(strokeWidth: 2)),
                     )
                   else if (_feedEpisodes.isNotEmpty) ...[
                     Text(
@@ -965,7 +966,7 @@ class _PodcastPreviewScreenState extends State<_PodcastPreviewScreen> {
                 child: FilledButton.icon(
                   onPressed: _adding ? null : _addPodcast,
                   icon: _adding
-                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface))
+                      ? SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface))
                       : const Icon(Icons.add_rounded),
                   label: Text(_adding ? l.adminPodcastsAdding : l.adminPodcastsAddToLibrary, style: const TextStyle(fontWeight: FontWeight.w700)),
                   style: FilledButton.styleFrom(
@@ -1498,7 +1499,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
                 ),
                 child: Row(children: [
                   SizedBox(width: 18, height: 18, child: isActive
-                    ? CircularProgressIndicator(strokeWidth: 1.5, color: cs.primary)
+                    ? AdaptiveSpinner(strokeWidth: 1.5, color: cs.primary)
                     : Icon(Icons.hourglass_top_rounded, size: 16, color: cs.primary.withValues(alpha: 0.5))),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1691,7 +1692,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
 
   Widget _buildFeedTab(ColorScheme cs, TextTheme tt) {
     final l = AppLocalizations.of(context)!;
-    if (_loadingFeed) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (_loadingFeed) return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     if (_feedUrl.isEmpty) return Center(child: Text(l.adminPodcastsNoFeedAvailable, style: tt.bodyMedium?.copyWith(color: cs.onSurface.withValues(alpha: 0.3))));
     if (_feedEpisodes.isEmpty) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -2576,7 +2577,7 @@ class _DownloadedEpisodeDetailSheet extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: isDeleting ? null : onDelete,
                 icon: isDeleting
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurface.withValues(alpha: 0.54)))
+                  ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurface.withValues(alpha: 0.54)))
                   : const Icon(Icons.delete_outline_rounded, size: 18),
                 label: Text(isDeleting ? l.adminPodcastsDeleting : l.adminPodcastsDeleteEpisode,
                   style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -2738,7 +2739,7 @@ class _PodcastMatchSheetState extends State<_PodcastMatchSheet> {
                 prefixIcon: Icon(Icons.search_rounded, color: cs.onSurface.withValues(alpha: 0.3)),
                 suffixIcon: _searching
                     ? Padding(padding: const EdgeInsets.all(12),
-                        child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.6))))
+                        child: SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.6))))
                     : IconButton(icon: Icon(Icons.arrow_forward_rounded, color: cs.primary), onPressed: _search),
                 filled: true,
                 fillColor: cs.onSurface.withValues(alpha: 0.05),
@@ -2752,12 +2753,12 @@ class _PodcastMatchSheetState extends State<_PodcastMatchSheet> {
           Expanded(
             child: _applying
                 ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const CircularProgressIndicator(strokeWidth: 2),
+                    const AdaptiveSpinner(strokeWidth: 2),
                     const SizedBox(height: 12),
                     Text(l.adminPodcastsApplyingMatch, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4))),
                   ]))
                 : _searching
-                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
                     : _results.isEmpty
                         ? Center(child: Text(l.adminPodcastsNoResults, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.24))))
                         : ListView.builder(

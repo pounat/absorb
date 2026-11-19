@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
 import '../l10n/app_localizations.dart';
 import '../services/chromecast_service.dart';
@@ -57,7 +58,7 @@ void showCastDevicePicker(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant)),
+                          SizedBox(width: 24, height: 24, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurfaceVariant)),
                           const SizedBox(height: 12),
                           Text(l.searchingForCastDevices, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
                         ],

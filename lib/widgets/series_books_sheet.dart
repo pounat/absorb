@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -1165,7 +1166,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       return SizedBox(
         height: 34,
         child: Center(child: SizedBox(width: 18, height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2, color: accent))),
+            child: AdaptiveSpinner(strokeWidth: 2, color: accent))),
       );
     }
     final items = _actionPills(context);
@@ -1491,7 +1492,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                 ),
               ),
             if (_isLoading && _books.isEmpty)
-              fill(const CircularProgressIndicator())
+              fill(const AdaptiveSpinner())
             else if (_books.isEmpty && _loadFailed)
               fill(Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(l.failedToLoad,
@@ -1512,7 +1513,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                   style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)))
             else if (_collapseSeries && !_subSeriesLoaded)
               fill(Column(mainAxisSize: MainAxisSize.min, children: [
-                const CircularProgressIndicator(strokeWidth: 2),
+                const AdaptiveSpinner(strokeWidth: 2),
                 const SizedBox(height: 12),
                 Text(l.seriesBooksLoadingSubSeries, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4))),
               ]))

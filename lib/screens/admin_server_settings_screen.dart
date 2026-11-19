@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -215,7 +216,7 @@ class _AdminServerSettingsScreenState extends State<AdminServerSettingsScreen> {
                       onPressed: _saving ? null : _save,
                       icon: _saving
                           ? SizedBox(width: 14, height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                              child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                           : const Icon(Icons.save_rounded, size: 18),
                       label: Text(l.srvSave),
                     ),
@@ -257,7 +258,7 @@ class _AdminServerSettingsScreenState extends State<AdminServerSettingsScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _savingPrefixes || _prefixes.isEmpty ? null : _savePrefixes,
                       icon: _savingPrefixes
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(width: 14, height: 14, child: AdaptiveSpinner(strokeWidth: 2))
                           : const Icon(Icons.save_rounded, size: 16),
                       label: Text(l.srvSavePrefixes),
                     ),

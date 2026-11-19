@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -129,7 +130,7 @@ class _AuthSessionsScreenState extends State<AuthSessionsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l.manageSessionsTitle)),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : DesktopPageBody(
               maxWidth: 720,
               child: RefreshIndicator(
@@ -183,7 +184,7 @@ class _AuthSessionsScreenState extends State<AuthSessionsScreen> {
                     TextButton(
                       onPressed: _loadingMore ? null : () => _load(more: true),
                       child: _loadingMore
-                          ? const CircularProgressIndicator()
+                          ? const AdaptiveSpinner()
                           : Text(l.sessionsLoadMore),
                     ),
                   if (api?.hasRefreshToken == true &&

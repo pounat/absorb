@@ -1,4 +1,5 @@
 import 'package:flutter_svg/flutter_svg.dart';
+import 'expressive.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -358,7 +359,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             child: SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: onAccent),
+              child: AdaptiveSpinner(strokeWidth: 2, color: onAccent),
             ),
           ),
         ),
@@ -744,7 +745,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: SizedBox(
                   height: MediaQuery.of(context).size.height * 0.85,
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.24))),
+                  child: Center(child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.24))),
                 ),
               )
             : _item == null
@@ -1196,7 +1197,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                       SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: accent),
+                        child: AdaptiveSpinner(strokeWidth: 2, color: accent),
                       ),
                       const SizedBox(width: 10),
                       Flexible(
@@ -1369,7 +1370,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                         ),
                         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                           if (_ebookOfflineDownloading)
-                            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant))
+                            SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurfaceVariant))
                           else
                             Icon(saved ? Icons.download_done_rounded : Icons.download_rounded,
                                 size: 16, color: saved ? dlGreen : cs.onSurfaceVariant),
@@ -1396,7 +1397,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               if (_preview?.isLoading ?? false)
-                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant))
+                SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurfaceVariant))
               else
                 Icon((_preview?.isPlaying ?? false) ? Icons.stop_rounded : Icons.headphones_rounded,
                     size: 16, color: cs.onSurfaceVariant),
@@ -2539,7 +2540,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       SizedBox(height: 52, child: FilledButton.icon(
         onPressed: busy || dock.isWorking ? null : () => _fileDockItem(context, auth, lib, title, dock),
         icon: _dockBusy
-            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+            ? SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
             : const Icon(Icons.library_add_rounded, size: 22),
         label: Text(l.bookDockAddToLibrary,
             style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onPrimary)),
@@ -2687,7 +2688,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         if (working)
           Padding(
             padding: const EdgeInsets.only(right: 5),
-            child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: color)),
+            child: SizedBox(width: 10, height: 10, child: AdaptiveSpinner(strokeWidth: 1.5, color: color)),
           )
         else if (icon != null)
           Padding(padding: const EdgeInsets.only(right: 4), child: Icon(icon, size: 12, color: color)),
@@ -4220,7 +4221,7 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
                     imageUrl: widget.url,
                     httpHeaders: widget.headers,
                     fit: BoxFit.contain,
-                    placeholder: (_, __) => const CircularProgressIndicator(strokeWidth: 2),
+                    placeholder: (_, __) => const AdaptiveSpinner(strokeWidth: 2),
                     errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 48, color: Colors.white54),
                   ),
                 ),
@@ -4245,7 +4246,7 @@ class _FullCoverViewerState extends State<_FullCoverViewer> {
           child: IconButton(
             onPressed: _saving ? null : _saveAndShare,
             icon: _saving
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.save_alt_rounded, color: Colors.white),
             style: IconButton.styleFrom(backgroundColor: Colors.black45),
           ),

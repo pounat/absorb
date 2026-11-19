@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -95,7 +96,7 @@ class _FilesystemPickerScreenState extends State<FilesystemPickerScreen> {
           const Divider(height: 1),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
                 : ListView(
                     padding: const EdgeInsets.only(bottom: 16),
                     children: [

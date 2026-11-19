@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../widgets/expressive.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +44,7 @@ import 'app_shell.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/desktop_workspace.dart';
 import '../utils/duration_format.dart';
+import '../services/native_tab_bar.dart';
 import '../utils/app_platform.dart';
 import '../utils/media_card_gesture_policy.dart';
 
@@ -206,9 +208,14 @@ class HomeScreenState extends State<HomeScreen>
   String? _lastKnownItemId;
   bool _lastKnownPlaying = false;
 
+  void _onGlassNavChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
+    NativeTabBar.active.addListener(_onGlassNavChanged);
     _revealDriver.attach(_scrollController);
     _player.addListener(_onPlayerChanged);
     PlayerSettings.settingsChanged.addListener(_loadSettings);
@@ -326,6 +333,7 @@ class HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    NativeTabBar.active.removeListener(_onGlassNavChanged);
     _revealDriver.dispose();
     _scrollController.dispose();
     _player.removeListener(_onPlayerChanged);
@@ -507,6 +515,7 @@ class HomeScreenState extends State<HomeScreen>
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final desktop = isDesktopWorkspace(context);
+    final glassNav = NativeTabBar.active.value;
     _revealDriver.setEnabled(!desktop);
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
     final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
@@ -568,6 +577,8 @@ class HomeScreenState extends State<HomeScreen>
                 ),
               ),
         child: SafeArea(
+          // Under the glass tab bar the shelves scroll beneath it.
+          bottom: !glassNav,
           child: NotificationListener<ScrollNotification>(
             onNotification: (n) {
               if (n is ScrollEndNotification) _revealDriver.settle();
@@ -940,7 +951,10 @@ class HomeScreenState extends State<HomeScreen>
                     }),
 
                   SliverPadding(
-                    padding: EdgeInsets.only(bottom: desktop ? 80 : 100),
+                    padding: EdgeInsets.only(
+                      bottom: (desktop ? 80 : 100) +
+                          (glassNav ? MediaQuery.paddingOf(context).bottom : 0),
+                    ),
                   ),
                 ],
               ),
@@ -1414,7 +1428,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
                                       child: SizedBox(
                                         width: 22,
                                         height: 22,
-                                        child: CircularProgressIndicator(
+                                        child: AdaptiveSpinner(
                                           strokeWidth: 2,
                                           color: Colors.white,
                                         ),

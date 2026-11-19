@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -574,7 +575,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     // Shelf mode renders from its own state - don't let the recent-feed's
     // initial load or error blank an already-loaded shelf.
     if (_loading && !_isShelfFilter) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AdaptiveSpinner());
     }
     if (_error != null && _episodes.isEmpty && !_isShelfFilter) {
       return Center(
@@ -637,7 +638,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
           if (_isShelfFilter && _shelfLoading && _shelfEpisodes.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: AdaptiveSpinner()),
             )
           else if (filtered.isEmpty)
             SliverFillRemaining(
@@ -663,7 +664,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                       child: SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AdaptiveSpinner(strokeWidth: 2),
                       ),
                     ),
                   );

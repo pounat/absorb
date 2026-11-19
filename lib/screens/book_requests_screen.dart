@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -125,7 +126,7 @@ class _BookRequestsScreenState extends State<BookRequestsScreen> with TickerProv
 
     Widget body;
     if (access == null) {
-      body = const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      body = const Center(child: AdaptiveSpinner(strokeWidth: 2));
     } else if (!access.canRequest || tabs == null || api == null) {
       body = Center(
         child: Padding(
@@ -681,7 +682,7 @@ class _RequestSearchState extends State<_RequestSearch> with AutomaticKeepAliveC
         child: FilledButton.icon(
           onPressed: _runSearch,
           icon: _streaming
-              ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+              ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
               : const Icon(Icons.search_rounded, size: 18),
           label: Text(_streaming ? l.breqSearching : l.breqSearch),
         ),
@@ -826,7 +827,7 @@ class _RequestSearchState extends State<_RequestSearch> with AutomaticKeepAliveC
           busy
               ? const Padding(
                   padding: EdgeInsets.all(8),
-                  child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: SizedBox(width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2)),
                 )
               : action,
         ]),
@@ -1186,7 +1187,7 @@ class _RequestListState extends State<_RequestList> with AutomaticKeepAliveClien
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
-    if (_loading) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (_loading) return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     if (_failed) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1231,7 +1232,7 @@ class _RequestListState extends State<_RequestList> with AutomaticKeepAliveClien
               child: _loadingMore
                   ? const Padding(
                       padding: EdgeInsets.all(12),
-                      child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+                      child: SizedBox(width: 22, height: 22, child: AdaptiveSpinner(strokeWidth: 2)),
                     )
                   : TextButton(onPressed: _loadMore, child: Text(l.breqLoadMore)),
             ),
@@ -1299,7 +1300,7 @@ class _RequestListState extends State<_RequestList> with AutomaticKeepAliveClien
                 if (busy)
                   const Padding(
                     padding: EdgeInsets.only(left: 8),
-                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2)),
                   ),
               ]),
               if (!busy && (pendingForManager || grabbable || reviewable))

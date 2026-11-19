@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -239,14 +240,14 @@ class _RmabSearchSheetContentState extends State<_RmabSearchSheetContent> {
   Widget _buildBody(
       ColorScheme cs, TextTheme tt, AppLocalizations l) {
     if (_loadingPrefs) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     if (_searching) {
       return ListView(
         controller: widget.scrollController,
         children: const [
           SizedBox(height: 80),
-          Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          Center(child: AdaptiveSpinner(strokeWidth: 2)),
         ],
       );
     }

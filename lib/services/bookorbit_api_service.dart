@@ -6668,7 +6668,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// BookOrbit keeps no per-book totals by year, so the books listened, top
   /// authors and narrator are left out.
   Future<Map<String, dynamic>> _yearStats(int year) async {
-    final now = DateTime.now();
+    if (_activityLocked) return _yearFromTimeline(year);
     final Map<String, dynamic> cal;
     try {
       cal = await _boGet('/user-statistics/activity-calendar/$year', null, const Duration(seconds: 30))
@@ -6676,6 +6676,10 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     } on _BoHttpError catch (e) {
       // Asked for a year before the first one with any activity.
       if (e.status == 400) return const {};
+      if (e.status == 403) {
+        _activityLocked = true;
+        return _yearFromTimeline(year);
+      }
       rethrow;
     }
     num listen = 0, read = 0, sessions = 0;
@@ -6691,16 +6695,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       final month = DateTime.tryParse(d['day'] as String? ?? '')?.month;
       if (month != null) byMonth[month - 1] += l + r;
     }
-    var finished = 0;
-    try {
-      final days = (now.difference(DateTime(year)).inDays + 1).clamp(1, 3650);
-      final months = await _boGet('/user-statistics/completion-timeline', {'days': days}) as List<dynamic>;
-      for (final m in months.whereType<Map>()) {
-        if (m['year'] == year) finished += ((m['count'] as num?) ?? 0).toInt();
-      }
-    } catch (e) {
-      debugPrint('[BookOrbit] Finished books for $year failed: $e');
-    }
+    final finished = await _finishedIn(year);
     var topMonth = -1;
     for (var i = 0; i < 12; i++) {
       if (byMonth[i] > 0 && (topMonth < 0 || byMonth[i] > byMonth[topMonth])) topMonth = i;
@@ -6710,6 +6705,77 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       'bookOrbitReadingTime': read,
       'bookOrbitActiveDays': activeDays,
       'totalListeningSessions': sessions,
+      'numBooksFinished': finished,
+      if (topMonth >= 0) 'mostListenedMonth': {'month': topMonth},
+    };
+  }
+
+  /// Books finished in [year], from the web's completion timeline.
+  Future<int> _finishedIn(int year) async {
+    var finished = 0;
+    try {
+      final days = (DateTime.now().difference(DateTime(year)).inDays + 1).clamp(1, 3650);
+      final months = await _boGet('/user-statistics/completion-timeline', {'days': days}) as List<dynamic>;
+      for (final m in months.whereType<Map>()) {
+        if (m['year'] == year) finished += ((m['count'] as num?) ?? 0).toInt();
+      }
+    } catch (e) {
+      debugPrint('[BookOrbit] Finished books for $year failed: $e');
+    }
+    return finished;
+  }
+
+  /// Year in Review for a server that keeps the activity routes to its own
+  /// apps: every week of the year out of the web's session timeline.
+  Future<Map<String, dynamic>> _yearFromTimeline(int year) async {
+    final now = DateTime.now();
+    final weeks = <({int year, int week})>{};
+    for (var d = DateTime(year); d.year == year && !d.isAfter(now); d = DateTime(d.year, d.month, d.day + 1)) {
+      weeks.add(_isoWeek(d));
+    }
+    if (weeks.isEmpty) return const {};
+    final list = weeks.toList();
+    final sessions = <Map<String, dynamic>>[];
+    for (var i = 0; i < list.length; i += 6) {
+      final batch = list.sublist(i, math.min(i + 6, list.length));
+      for (final got in await Future.wait(batch.map((w) async {
+        try {
+          return await _timelineWeek(w.year, w.week);
+        } catch (e) {
+          debugPrint('[BookOrbit] Year $year: week ${w.year}-${w.week} failed: $e');
+          return const <Map<String, dynamic>>[];
+        }
+      }))) {
+        sessions.addAll(got);
+      }
+    }
+    num listen = 0, read = 0;
+    var count = 0;
+    final activeDays = <String>{};
+    final byMonth = List<num>.filled(12, 0);
+    for (final s in sessions) {
+      final started = DateTime.tryParse(s['startedAt'] as String? ?? '')?.toLocal();
+      if (started == null || started.year != year) continue;
+      final secs = (s['durationOnDaySeconds'] as num?) ?? 0;
+      if (s['mediaBucket'] == 'listening') {
+        listen += secs;
+      } else {
+        read += secs;
+      }
+      count++;
+      if (secs > 0) activeDays.add(_dayKey(started));
+      byMonth[started.month - 1] += secs;
+    }
+    final finished = await _finishedIn(year);
+    var topMonth = -1;
+    for (var i = 0; i < 12; i++) {
+      if (byMonth[i] > 0 && (topMonth < 0 || byMonth[i] > byMonth[topMonth])) topMonth = i;
+    }
+    return {
+      'totalListeningTime': listen,
+      'bookOrbitReadingTime': read,
+      'bookOrbitActiveDays': activeDays.length,
+      'totalListeningSessions': count,
       'numBooksFinished': finished,
       if (topMonth >= 0) 'mostListenedMonth': {'month': topMonth},
     };

@@ -62,6 +62,7 @@ class PageCurlLayer extends StatefulWidget {
 
 class _Shaders {
   static ui.FragmentProgram? ripple;
+  static ui.FragmentProgram? curl;
   static Future<void>? _loading;
 
   static Future<void> load() => _loading ??= () async {
@@ -69,6 +70,11 @@ class _Shaders {
           ripple = await ui.FragmentProgram.fromAsset('shaders/page_ripple.frag');
         } catch (e) {
           debugPrint('[PageTurn] the ripple shader did not load: $e');
+        }
+        try {
+          curl = await ui.FragmentProgram.fromAsset('shaders/page_curl.frag');
+        } catch (e) {
+          debugPrint('[PageTurn] the curl shader did not load: $e');
         }
       }();
 }
@@ -86,6 +92,7 @@ class _PageCurlLayerState extends State<PageCurlLayer> with SingleTickerProvider
   Offset _to = Offset.zero;
   double _arc = 0;
   ui.FragmentShader? _ripple;
+  ui.FragmentShader? _curl;
   Completer<void>? _settled;
 
   @override
@@ -111,6 +118,7 @@ class _PageCurlLayerState extends State<PageCurlLayer> with SingleTickerProvider
     if (widget.controller._layer == this) widget.controller._layer = null;
     _anim.dispose();
     _ripple?.dispose();
+    _curl?.dispose();
     super.dispose();
   }
 
@@ -146,15 +154,26 @@ class _PageCurlLayerState extends State<PageCurlLayer> with SingleTickerProvider
     _to = _at(away ? 1 : 0);
     final span = ((_to.dx - _from.dx).abs() / (2 * _size.width)).clamp(0.0, 1.0);
     final curl = widget.style == 'curl';
-    // A longer trip lifts a curling page a little on the way, like a hand
-    // turning it. The others take their time so the effect can be seen.
-    _arc = curl ? _size.height * 0.08 * span : 0;
-    final full = curl ? 340 : 1150;
-    _anim.duration = Duration(milliseconds: (150 + full * span).round());
+    // A hand turning a page carries the edge toward the middle of the book
+    // on the way across, so the page peels from the corner nearest to where
+    // it was taken hold of. The others take their time so the effect can be
+    // seen.
+    final off = _size.height > 0 ? 2 * _grabY / _size.height - 1 : 1.0;
+    _arc = curl ? _size.height * 0.16 * span * max(off.abs(), 0.3) * (off < 0 ? -1 : 1) : 0;
+    final full = curl ? 460 : 1150;
+    _anim.duration = Duration(milliseconds: (curl ? 140 : 150) + (full * span).round());
     _anim.value = 0;
     setState(() => _settling = true);
     final done = _settled = Completer<void>();
-    unawaited(_anim.animateTo(1, curve: curl ? Curves.easeInOut : Curves.easeInOutSine).then((_) => _landed(done)));
+    // A page let go of part way is already moving; one turned by a tap
+    // starts from rest.
+    final moving = span < 0.97;
+    final curve = !curl
+        ? Curves.easeInOutSine
+        : moving
+            ? Curves.easeOutCubic
+            : const Cubic(0.45, 0.05, 0.3, 1.0);
+    unawaited(_anim.animateTo(1, curve: curve).then((_) => _landed(done)));
     return done.future;
   }
 
@@ -201,13 +220,12 @@ class _PageCurlLayerState extends State<PageCurlLayer> with SingleTickerProvider
     if (widget.style == 'ripple' && ripple != null) {
       return _ShaderPainter(_ripple ??= ripple.fragmentShader(), page, top, _under, away, _origin);
     }
-    return _CurlPainter(
-      page: page,
-      top: top,
-      under: _under,
-      edge: Offset(_size.width, _grabY),
-      finger: finger,
-    );
+    final edge = Offset(_size.width, _grabY);
+    final rolled = _Shaders.curl;
+    if (rolled != null) {
+      return _RolledCurlPainter(_curl ??= rolled.fragmentShader(), page, top, _under, edge, finger);
+    }
+    return _CurlPainter(page: page, top: top, under: _under, edge: edge, finger: finger);
   }
 
   @override
@@ -247,7 +265,8 @@ class _Page {
 }
 
 /// The page folded along the line halfway between the edge being held and
-/// the finger: the part beyond it flips over, showing its back.
+/// the finger: the part beyond it flips over, showing its back. Stands in
+/// when the curl shader can't be loaded.
 class _CurlPainter extends CustomPainter {
   _CurlPainter({
     required this.page,
@@ -372,6 +391,61 @@ class _CurlPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CurlPainter old) => true;
+}
+
+/// The page rolled over a cylinder, drawn by a shader: the edge in hand lies
+/// face down at the finger, and the page bends round to reach it.
+class _RolledCurlPainter extends CustomPainter {
+  _RolledCurlPainter(this.shader, this.page, this.top, this.under, this.edge, this.finger);
+
+  final ui.FragmentShader shader;
+  final _Page page;
+  final ui.Image top;
+  final ui.Image? under;
+  final Offset edge;
+  final Offset finger;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final area = Offset.zero & size;
+    canvas.clipRect(area);
+    // The page turns on its spine, so the edge in hand can't be pulled
+    // further from it than the page is wide.
+    final spine = Offset(0, edge.dy);
+    var f = finger;
+    final reach = (f - spine).distance;
+    if (reach > size.width) f = spine + (f - spine) * (size.width / reach);
+    final pull = edge - f;
+    final length = pull.distance;
+    if (length < 0.5) {
+      page.paint(canvas, area, top);
+      return;
+    }
+    final n = pull / length;
+    // The roll opens up as the page lifts; kept under a third of the pull so
+    // the edge in hand always lies flat at the finger.
+    final radius = min(size.shortestSide * 0.085, length * 0.3);
+    final axis = edge - n * ((length + pi * radius) / 2);
+    final rect = page.pictureRect(area);
+    final values = [
+      size.width, size.height,
+      rect.left, rect.top, rect.right, rect.bottom,
+      page.color.r, page.color.g, page.color.b, 1.0,
+      axis.dx, axis.dy,
+      n.dx, n.dy,
+      radius,
+      under != null ? 1.0 : 0.0,
+    ];
+    for (var i = 0; i < values.length; i++) {
+      shader.setFloat(i, values[i]);
+    }
+    shader.setImageSampler(0, top);
+    shader.setImageSampler(1, under ?? top);
+    canvas.drawRect(area, Paint()..shader = shader);
+  }
+
+  @override
+  bool shouldRepaint(_RolledCurlPainter old) => true;
 }
 
 /// Ripple: a shader blends the two pages, starting at [origin].

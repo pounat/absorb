@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -719,7 +720,7 @@ class _AdminLibraryEditScreenState extends State<AdminLibraryEditScreen> {
                             ? SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(
+                                child: AdaptiveSpinner(
                                   strokeWidth: 2,
                                   color: colors.onPrimary,
                                 ),
@@ -1397,7 +1398,7 @@ class _AdminLibraryEditScreenState extends State<AdminLibraryEditScreen> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AdaptiveSpinner(strokeWidth: 2),
                   )
                 : const Icon(Icons.delete_outline_rounded),
             label: Text('Remove metadata.$extension'),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'glass_look.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ import 'card_edge_progress_bar.dart';
 import 'card_progress_bar.dart';
 import 'card_playback_controls.dart';
 import 'card_buttons.dart';
+import 'expressive.dart';
 import '../services/chromecast_service.dart';
 import 'expanded_card.dart';
 import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme;
@@ -781,17 +783,19 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       child: Container(
       key: ValueKey(desktopPresentation ? 'desktop-absorbing-player' : 'absorbing-card-shell'),
       decoration: desktopPresentation ? null : BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(softCardCorners ? 34 : 24),
         border: Border.all(color: accent.withValues(alpha: 0.15), width: 1),
       ),
       child: ClipRRect(
-        borderRadius: desktopPresentation ? BorderRadius.zero : BorderRadius.circular(23),
+        borderRadius: desktopPresentation ? BorderRadius.zero : BorderRadius.circular(softCardCorners ? 33 : 23),
         child: Stack(
           fit: StackFit.expand,
           children: [
           // Layer 1: Card background — blurred cover, color gradient, or plain surface
           if (!desktopPresentation && _cardBackground == 'off')
             ColoredBox(color: Theme.of(context).colorScheme.surface)
+          else if (!desktopPresentation && _cardBackground == 'solid')
+            ColoredBox(color: solidCoverBackground(cs.primary, dark: isDark))
           else if (!desktopPresentation && _cardBackground == 'gradient')
             DecoratedBox(
               decoration: BoxDecoration(
@@ -864,6 +868,9 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                             Colors.white.withValues(alpha: 0.7),
                             Colors.white.withValues(alpha: 0.9),
                           ])
+                    : _cardBackground == 'solid'
+                    // The solid shade is already as dark as it should be.
+                    ? const [Colors.transparent, Colors.transparent, Colors.transparent]
                     : (isDark
                         ? [
                             Colors.black.withValues(alpha: 0.15),
@@ -1042,7 +1049,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                           width: coverW,
                           height: coverH,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(softCardCorners ? 26 : 16),
                             boxShadow: [
                               BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15), blurRadius: 20, spreadRadius: -2, offset: const Offset(0, 6)),
                               BoxShadow(color: accent.withValues(alpha: 0.15), blurRadius: 30, spreadRadius: -5),
@@ -1050,7 +1057,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                           ),
                           child: RepaintBoundary(
                             child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(softCardCorners ? 26 : 16),
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
@@ -1142,23 +1149,13 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                                               ),
                                               child: Padding(
                                                 padding: const EdgeInsets.all(12),
-                                                child: CircularProgressIndicator(strokeWidth: 3, color: accent),
+                                                child: AdaptiveSpinner(strokeWidth: 3, color: accent),
                                               ),
                                             )
                                           : AnimatedOpacity(
                                               opacity: coverPlaying ? 0.2 : 0.9,
                                               duration: const Duration(milliseconds: 200),
-                                              child: Container(
-                                                width: 72, height: 72,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: Colors.black.withValues(alpha: 0.45),
-                                                ),
-                                                child: Icon(
-                                                  coverPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                                  size: 42, color: accent,
-                                                ),
-                                              ),
+                                              child: CoverPlayButton(size: 72, iconSize: 42, playing: coverPlaying, accent: accent),
                                             ),
                                     ),
                                   ),

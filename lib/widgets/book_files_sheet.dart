@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -330,7 +331,7 @@ class _BookFilesBodyState extends State<_BookFilesBody> {
       action = FilledButton.tonal(
         onPressed: _requesting ? null : _requestMissing,
         child: _requesting
-            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+            ? const SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2))
             : Text(missing.joinable ? l.breqAddMeToo : (audiobook ? l.breqRequestAudiobook : l.breqRequestEbook)),
       );
     }
@@ -564,7 +565,7 @@ class _FileTile extends StatelessWidget {
           if (deleting)
             const Padding(
               padding: EdgeInsets.all(12),
-              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              child: SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2)),
             )
           else if (onDelete != null)
             PopupMenuButton<VoidCallback>(

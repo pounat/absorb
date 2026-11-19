@@ -48,6 +48,8 @@ import '../screens/auth_sessions_screen.dart';
 import '../screens/transcription_settings_screen.dart';
 import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
+import '../services/native_tab_bar.dart';
+import '../widgets/expressive.dart';
 import '../utils/app_platform.dart';
 import '../utils/share_origin.dart';
 import '../widgets/settings_search.dart';
@@ -298,6 +300,9 @@ class SettingsScreenState extends State<SettingsScreen> {
   List<String> _podcastSponsorBlockCategories =
       List<String>.from(PlayerSettings.defaultSponsorBlockCategories);
   bool _statsTabShown = true;
+  bool _liquidGlassNav = false;
+  bool _liquidGlassSupported = false;
+  bool _materialExpressive = false;
   int _episodeNotifMinutes = 0;
   int _maxConcurrentDownloads = 1;
   bool _hideEbookOnly = false;
@@ -330,6 +335,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   double _curLibSpeed = 1.0;
   bool _coverPlayButton = false;
   String _cardBackground = 'blurred';
+  String _cardSwipeStyle = 'classic';
   double _progressTextScale = 1.0;
   String _themeMode = 'dark';
   bool _flatBackground = false;
@@ -1519,6 +1525,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final notifSpeedBookmark = results[49] as bool;
     final lockSeek = results[50] as bool;
     final cardBg = results[51] as String;
+    final cardSwipeStyle = await PlayerSettings.getCardSwipeStyle();
     final rmabBaseUrl = await ScopedPrefs.getString(kRmabBaseUrlKey);
     final rmabApiToken = await ScopedPrefs.getString(kRmabApiTokenKey);
     final sleepRewind = await PlayerSettings.getSleepRewindSeconds();
@@ -1530,6 +1537,9 @@ class SettingsScreenState extends State<SettingsScreen> {
     final podcastTabEnabled = await PlayerSettings.getPodcastTabEnabled();
     final podcastTabLibraryId = await PlayerSettings.getPodcastTabLibraryId();
     final statsTabShown = await PlayerSettings.getStatsTabShown();
+    final liquidGlassNav = await PlayerSettings.getLiquidGlassNav();
+    final materialExpressive = await PlayerSettings.getMaterialExpressive();
+    final liquidGlassSupported = await NativeTabBar.isSupported();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
     final keepPlayingWithOtherApps = await PlayerSettings.getKeepPlayingWithOtherApps();
@@ -1556,6 +1566,9 @@ class SettingsScreenState extends State<SettingsScreen> {
       _podcastTabEnabled = podcastTabEnabled;
       _podcastTabLibraryId = podcastTabLibraryId;
       _statsTabShown = statsTabShown;
+      _liquidGlassNav = liquidGlassNav;
+      _materialExpressive = materialExpressive;
+      _liquidGlassSupported = liquidGlassSupported;
       _episodeNotifMinutes = episodeNotifMinutes;
       _sleepRewindSeconds = sleepRewind;
       _lockPortrait = lockPortrait;
@@ -1629,6 +1642,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       _cardButtonFill = cardButtonFill;
       _coverPlayButton = coverPlay;
       _cardBackground = cardBg;
+      _cardSwipeStyle = cardSwipeStyle;
       _progressTextScale = progressScale;
       _skipChapterBarrier = skipBarrier;
       _longSkipButtons = longSkipButtons;
@@ -1854,6 +1868,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       case 'en': return 'English';
       case 'de': return 'Deutsch';
       case 'fr': return 'Français';
+      case 'pl': return 'Polski';
       case 'zh': return '中文';
       default: return l.languageSystemDefault;
     }
@@ -1863,7 +1878,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
-    const codes = ['', 'en', 'de', 'fr', 'zh'];
+    const codes = ['', 'en', 'de', 'fr', 'pl', 'zh'];
 
     final picked = await showModalBottomSheet<String>(
       context: context,
@@ -2060,8 +2075,35 @@ class SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  // On iPhone the switches are drawn the iOS way, which is green unless told
+  // otherwise. This keeps them on the app's own accent color.
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return SwitchTheme(
+      data: SwitchTheme.of(context).copyWith(
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) &&
+                  !states.contains(WidgetState.disabled)
+              ? primary
+              : null,
+        ),
+        // Expressive switches carry a tick or a cross in the thumb.
+        thumbIcon: expressiveNotifier.value
+            ? WidgetStateProperty.resolveWith(
+                (states) => Icon(
+                  states.contains(WidgetState.selected)
+                      ? Icons.check_rounded
+                      : Icons.close_rounded,
+                ),
+              )
+            : null,
+      ),
+      child: Builder(builder: _buildSettings),
+    );
+  }
+
+  Widget _buildSettings(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final auth = context.watch<AuthProvider>();
@@ -2124,6 +2166,8 @@ class SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         child: SafeArea(
+        // Under the glass tab bar the settings scroll beneath it.
+        bottom: !NativeTabBar.active.value,
         child: _SettingsAdaptiveFrame(
         desktopMode: isDesktopSettings,
         selectedSection: _expandedSection,
@@ -2488,6 +2532,29 @@ class SettingsScreenState extends State<SettingsScreen> {
                               applyFlatBackground(v);
                             } : null,
                           ),
+                          if (AppPlatform.isAndroid)
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(l.materialExpressiveLabel, style: tt.bodyLarge),
+                              subtitle: Text(l.materialExpressiveSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                              value: _materialExpressive,
+                              onChanged: _loaded ? (v) {
+                                setState(() => _materialExpressive = v);
+                                PlayerSettings.setMaterialExpressive(v);
+                                expressiveNotifier.value = v;
+                              } : null,
+                            ),
+                          if (_liquidGlassSupported)
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(l.liquidGlassNavLabel, style: tt.bodyLarge),
+                              subtitle: Text(l.liquidGlassNavSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                              value: _liquidGlassNav,
+                              onChanged: _loaded ? (v) {
+                                setState(() => _liquidGlassNav = v);
+                                PlayerSettings.setLiquidGlassNav(v);
+                              } : null,
+                            ),
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
                             title: Text(l.einkModeLabel, style: tt.bodyLarge),
@@ -2660,7 +2727,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.disablePageFade),
                       subtitle: Text(
                         _snappyTransitions ? l.disablePageFadeOnSubtitle : l.disablePageFadeOffSubtitle,
@@ -2673,7 +2740,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.showSubtitles),
                       subtitle: Text(
                         _showSubtitles ? l.showSubtitlesOnSubtitle : l.showSubtitlesOffSubtitle,
@@ -2685,7 +2752,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.rectangleBookCovers),
                       subtitle: Text(
                         _rectangleCovers ? l.rectangleBookCoversOnSubtitle : l.rectangleBookCoversOffSubtitle,
@@ -2733,43 +2800,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(l.cardButtonFill, style: tt.titleSmall),
-                          const SizedBox(height: 4),
-                          Text(
-                            l.cardButtonFillSubtitle,
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: SegmentedButton<String>(
-                              showSelectedIcon: false,
-                              segments: [
-                                ButtonSegment(value: 'clear', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillClear, maxLines: 1))),
-                                ButtonSegment(value: 'subtle', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillSubtle, maxLines: 1))),
-                                ButtonSegment(value: 'solid', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillSolid, maxLines: 1))),
-                              ],
-                              selected: {_cardButtonFill},
-                              onSelectionChanged: _loaded ? (selected) {
-                                final v = selected.first;
-                                setState(() => _cardButtonFill = v);
-                                PlayerSettings.setCardButtonFill(v);
-                              } : null,
-                              style: const ButtonStyle(
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: const Text('Classic wording'),
                       subtitle: Text(
                         _classicWording
@@ -2787,7 +2818,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     // apps, so the lock can't work there - hide it on iPad.
                     if (!(AppPlatform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600)) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: const Text('Lock rotation'),
                         subtitle: Text(
                           _lockPortrait
@@ -2815,7 +2846,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Customize Stats',
                   onExpansionChanged: (v) => _onSectionExpanded('Customize Stats', v),
                   children: [
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.settingsStatsTab),
                       subtitle: Text(l.settingsStatsTabDesc,
                           style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -3013,7 +3044,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Absorbing Cards',
                   onExpansionChanged: (v) => _onSectionExpanded('Absorbing Cards', v),
                   children: [
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.fullScreenPlayer),
                       subtitle: Text(
                         _fullScreenPlayer ? l.fullScreenPlayerOnSubtitle : l.fullScreenPlayerOffSubtitle,
@@ -3025,7 +3056,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.coverPlayPause),
                       subtitle: Text(
                         _coverPlayButton ? l.coverPlayPauseOnSubtitle : l.coverPlayPauseOffSubtitle,
@@ -3039,6 +3070,65 @@ class SettingsScreenState extends State<SettingsScreen> {
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l.cardButtonFill, style: tt.titleSmall),
+                          const SizedBox(height: 4),
+                          Text(
+                            l.cardButtonFillSubtitle,
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: SegmentedButton<String>(
+                              showSelectedIcon: false,
+                              segments: [
+                                ButtonSegment(value: 'clear', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillClear, maxLines: 1))),
+                                ButtonSegment(value: 'subtle', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillSubtle, maxLines: 1))),
+                                ButtonSegment(value: 'solid', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardButtonFillSolid, maxLines: 1))),
+                              ],
+                              selected: {_cardButtonFill},
+                              onSelectionChanged: _loaded ? (selected) {
+                                final v = selected.first;
+                                setState(() => _cardButtonFill = v);
+                                PlayerSettings.setCardButtonFill(v);
+                              } : null,
+                              style: const ButtonStyle(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(l.cardSwipeStyle, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                        const SizedBox(height: 8),
+                        SizedBox(width: double.infinity, child: SegmentedButton<String>(
+                          showSelectedIcon: false,
+                          segments: [
+                            ButtonSegment(value: 'classic', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardSwipeStyleClassic, maxLines: 1))),
+                            ButtonSegment(value: 'carousel', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardSwipeStyleCarousel, maxLines: 1))),
+                            ButtonSegment(value: 'stack', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardSwipeStyleStack, maxLines: 1))),
+                          ],
+                          selected: {_cardSwipeStyle},
+                          onSelectionChanged: _loaded ? (s) {
+                            if (s.isEmpty) return;
+                            setState(() => _cardSwipeStyle = s.first);
+                            PlayerSettings.setCardSwipeStyle(s.first);
+                          } : null,
+                          style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                        )),
+                      ]),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(l.cardBackground, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
                         const SizedBox(height: 8),
@@ -3047,6 +3137,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                           segments: [
                             ButtonSegment(value: 'blurred', icon: const Icon(Icons.blur_on_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundBlurred))),
                             ButtonSegment(value: 'gradient', icon: const Icon(Icons.gradient_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundGradient))),
+                            ButtonSegment(value: 'solid', icon: const Icon(Icons.square_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.cardBackgroundSolid))),
                             ButtonSegment(value: 'off', icon: const Icon(Icons.block_rounded, size: 18), label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.off))),
                           ],
                           selected: {_cardBackground},
@@ -3098,7 +3189,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.speedAdjustedTime),
                       subtitle: Text(
                         _speedAdjustedTime ? l.speedAdjustedTimeOnSubtitle : l.speedAdjustedTimeOffSubtitle,
@@ -3110,7 +3201,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.keepScreenOnPlayer),
                       subtitle: Text(l.keepScreenOnPlayerSubtitle,
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -3129,7 +3220,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         // show it locked on rather than a toggle that snaps back.
                         final effectiveMerge =
                             _mergeAbsorbingLibraries || _podcastTabEnabled;
-                        return SwitchListTile(
+                        return SwitchListTile.adaptive(
                           title: Row(children: [
                             Flexible(child: Text(w.mergeLibraries)),
                             _infoIcon(w.mergeLibrariesInfoTitle, w.mergeLibrariesInfoContent),
@@ -3252,7 +3343,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ],
                         if (_bookQueueMode != 'off' || _podcastQueueMode != 'off') ...[
                           const SizedBox(height: 4),
-                          SwitchListTile(
+                          SwitchListTile.adaptive(
                             title: Text(l.autoDownloadQueue),
                             subtitle: Text(
                               _queueAutoDownload
@@ -3451,7 +3542,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                               color: cs.onSurfaceVariant, height: 1.35),
                         ),
                       ),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Row(children: [
                         Expanded(child: Text(l.chapterBarrierOnRewind)),
                         GestureDetector(
@@ -3480,7 +3571,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     // Long skip pair (GH #242)
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.longSkipButtons),
                       subtitle: Text(
                         _longSkipButtons ? l.longSkipButtonsOnSubtitle : l.longSkipButtonsOffSubtitle,
@@ -3534,7 +3625,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     // ── Auto-Rewind ──
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.autoRewindOnResume),
                       subtitle: Text(
                         _rewindSettings.enabled
@@ -3611,7 +3702,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                           style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11)),
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Text(l.chapterBarrier),
                         subtitle: Text(
                           l.chapterBarrierSubtitle,
@@ -3627,7 +3718,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         )),
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Row(children: [
                           Expanded(child: Text(l.rewindOnSessionStart)),
                           GestureDetector(
@@ -3820,7 +3911,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Media Controls',
                   onExpansionChanged: (v) => _onSectionExpanded('Media Controls', v),
                   children: [
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(AppPlatform.isIOS
                           ? l.chapterProgressInNotificationIos
                           : l.chapterProgressInNotification),
@@ -3848,7 +3939,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     // Cross-platform: drops the seek action so the scrubber in the
                     // notification / lockscreen / car can't be dragged.
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.lockSeekBar),
                       subtitle: Text(
                         _lockSeekBar ? l.lockSeekBarOnSubtitle : l.lockSeekBarOffSubtitle,
@@ -3863,7 +3954,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     // player's two extra slots. iOS uses CarPlay's own buttons.
                     if (AppPlatform.isAndroid) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: const Text('Duck brief interruptions'),
                         subtitle: Text(
                           _duckBriefInterruptions
@@ -3877,7 +3968,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         } : null,
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: const Text('Play with other audio'),
                         subtitle: Text(
                           _keepPlayingWithOtherApps
@@ -3891,7 +3982,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         } : null,
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Text(l.speedBookmarkInControls),
                         subtitle: Text(
                           _notifSpeedBookmark
@@ -3919,7 +4010,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   isExpanded: _expandedSection == 'Car',
                   onExpansionChanged: (v) => _onSectionExpanded('Car', v),
                   children: [
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(AppPlatform.isIOS
                           ? l.carConnectAutoplayIos
                           : l.carConnectAutoplay),
@@ -3935,7 +4026,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.keepScreenOnCarMode),
                       subtitle: Text(l.keepScreenOnCarModeSubtitle,
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -3957,7 +4048,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                             .then((_) => AndroidAutoService.browseOrderChanged());
                       },
                     ),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.carBookOrderReverse),
                       subtitle: Text(l.carBookOrderReverseSubtitle,
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -3980,7 +4071,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                             .then((_) => AndroidAutoService.browseOrderChanged());
                       },
                     ),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.carEpisodesOldestFirst),
                       subtitle: Text(l.carEpisodesOldestFirstSubtitle,
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -4166,7 +4257,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 4),
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.resetTimerOnPause),
                       subtitle: Text(
                         _resetSleepOnPause
@@ -4226,7 +4317,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.fadeVolumeBeforeSleep),
                       subtitle: Text(
                         _sleepFadeOut
@@ -4240,7 +4331,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.chimeBeforeSleep),
                       subtitle: Text(
                         _sleepChime
@@ -4297,7 +4388,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     // ── Auto Sleep Timer ──
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.autoSleepTimer),
                       subtitle: Text(
                         _autoSleepSettings.enabled
@@ -4358,7 +4449,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       // End of chapter toggle
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Text(l.endOfChapterShort),
                         subtitle: Text(
                           _autoSleepSettings.useEndOfChapter
@@ -4439,7 +4530,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Row(children: [
                         Flexible(child: Text(l.autoDownloadOnWifi)),
                         _infoIcon(l.autoDownloadOnWifiInfoTitle, l.autoDownloadOnWifiInfoContent),
@@ -4456,7 +4547,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: const Text('Auto-download series'),
                       subtitle: Text(
                         _autoSeriesDownloadDefault
@@ -4537,7 +4628,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Row(children: [
                         Flexible(child: Text(Wording.of(context).deleteAbsorbedDownloads)),
                         _infoIcon(Wording.of(context).deleteAbsorbedDownloadsInfoTitle, l.deleteAbsorbedDownloadsInfoContent),
@@ -4665,7 +4756,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         orElse: () => podcastLibs.first,
                       )['name'] as String? ?? '';
                       return Column(children: [
-                        SwitchListTile(
+                        SwitchListTile.adaptive(
                           title: Text(l.settingsPodcastTab),
                           subtitle: Text(l.settingsPodcastTabDesc,
                               style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -4694,7 +4785,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         const Divider(height: 1, indent: 16, endIndent: 16),
                       ]);
                     }),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.hideEbookOnlyTitles),
                       subtitle: Text(
                         _hideEbookOnly
@@ -4711,7 +4802,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     // BookOrbit sends ratings with the book, so the switch
                     // only applies to Audiobookshelf's live Audible lookup.
                     if (!context.read<AuthProvider>().isBookOrbit) ...[
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Text(l.audibleRatings),
                         subtitle: Text(
                           _showAudibleRating
@@ -4726,7 +4817,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
                     ],
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.homeCardsOpenDetails),
                       subtitle: Text(
                         _homeCardsOpenDetails
@@ -4740,7 +4831,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.showGoodreadsButton),
                       subtitle: Text(
                         _showGoodreadsButton
@@ -4754,7 +4845,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.showExplicitBadge),
                       subtitle: Text(
                         _showExplicitBadge
@@ -4768,7 +4859,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       } : null,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.showEbookBadge),
                       subtitle: Text(
                         _showEbookBadge
@@ -4836,7 +4927,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Text(l.currentLibrarySkipOverride),
                         subtitle: Text(
                           _curLibSkipOverride
@@ -4898,7 +4989,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Text(l.currentLibrarySpeedOverride),
                         subtitle: Text(
                           _curLibSpeedOverride
@@ -5032,7 +5123,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       },
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       secondary: Icon(Icons.new_releases_outlined, color: cs.onSurfaceVariant),
                       title: Text(l.settingsWhatsNew),
                       subtitle: Text(l.settingsWhatsNewSubtitle,
@@ -5081,7 +5172,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       },
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Text(l.enableLogging),
                       subtitle: Text(
                         _loggingEnabled
@@ -5175,7 +5266,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     // neither a LAN switch nor a certificate override applies.
                     if (!AppPlatform.isWeb) ...[
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Row(children: [
                         Flexible(child: Text(l.localServer)),
                         _infoIcon(l.localServerInfoTitle, l.localServerInfoContent),
@@ -5229,7 +5320,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
+                    SwitchListTile.adaptive(
                       title: Row(children: [
                         Flexible(child: Text(l.trustAllCertificates)),
                         _infoIcon(l.trustAllCertificatesInfoTitle, l.trustAllCertificatesInfoContent),
@@ -5249,7 +5340,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ],
                     if (AppPlatform.isAndroid) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Row(children: [
                           Flexible(child: Text(l.mp3IndexSeeking)),
                           _infoIcon(l.mp3IndexSeekingInfoTitle, l.mp3IndexSeekingInfoContent),
@@ -5268,7 +5359,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ],
                     if (_isGithubBuild) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         title: Row(children: [
                           Flexible(child: Text(l.includePreReleases)),
                           _infoIcon(l.preReleaseUpdatesInfoTitle, l.preReleaseUpdatesInfoContent),
@@ -5463,6 +5554,10 @@ class SettingsScreenState extends State<SettingsScreen> {
                     settingsSearchEntries(context), _settingsQuery),
                 onOpen: _openSearchResult,
               ),
+            ),
+        if (NativeTabBar.active.value)
+            SliverToBoxAdapter(
+              child: SizedBox(height: MediaQuery.paddingOf(context).bottom),
             ),
         ],
       ),
@@ -6053,7 +6148,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                           Text(l.achievementsSwitch, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                           Text(l.achievementsSwitchSubtitle, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
                         ])),
-                        Switch(value: _boAchievementsOn ?? true, onChanged: toggle),
+                        Switch.adaptive(value: _boAchievementsOn ?? true, onChanged: toggle),
                       ]),
                     ),
                   );

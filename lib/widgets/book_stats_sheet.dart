@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -107,7 +108,7 @@ class _BookStatsSheetState extends State<_BookStatsSheet> {
             if (s.loading && !failed)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: AdaptiveSpinner()),
               )
             else if (failed)
               Padding(
@@ -138,7 +139,7 @@ class _BookStatsSheetState extends State<_BookStatsSheet> {
                     SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(
+                      child: AdaptiveSpinner(
                           strokeWidth: 2, color: cs.onSurfaceVariant),
                     )
                   else if (s.checkedAt != null)
@@ -151,7 +152,7 @@ class _BookStatsSheetState extends State<_BookStatsSheet> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Column(children: [
-                      const CircularProgressIndicator(),
+                      const AdaptiveSpinner(),
                       const SizedBox(height: 14),
                       Text(
                         s.scanTotal > 0

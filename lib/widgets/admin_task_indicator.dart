@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/server_task_tracker.dart';
@@ -38,7 +39,7 @@ class AdminTaskIndicator extends StatelessWidget {
             SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(
+              child: AdaptiveSpinner(
                 strokeWidth: 2.2,
                 color: cs.primary,
               ),
@@ -296,7 +297,7 @@ class _ServerTaskCard extends StatelessWidget {
       return SizedBox(
         width: 20,
         height: 20,
-        child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+        child: AdaptiveSpinner(strokeWidth: 2, color: cs.primary),
       );
     }
     return Icon(

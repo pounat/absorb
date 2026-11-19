@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -63,7 +64,7 @@ class OfflineStatusIcon extends StatelessWidget {
           child: reconnecting
               ? const Padding(
                   padding: EdgeInsets.all(1),
-                  child: CircularProgressIndicator(
+                  child: AdaptiveSpinner(
                     strokeWidth: 2,
                     color: Colors.orange,
                   ),

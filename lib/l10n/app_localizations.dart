@@ -13,6 +13,7 @@ import 'app_localizations_fr.dart';
 import 'app_localizations_it.dart';
 import 'app_localizations_ja.dart';
 import 'app_localizations_no.dart';
+import 'app_localizations_pl.dart';
 import 'app_localizations_pt.dart';
 import 'app_localizations_ro.dart';
 import 'app_localizations_ru.dart';
@@ -112,6 +113,7 @@ abstract class AppLocalizations {
     Locale('it'),
     Locale('ja'),
     Locale('no'),
+    Locale('pl'),
     Locale('pt'),
     Locale('ro'),
     Locale('ru'),
@@ -2421,6 +2423,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open Stats'**
   String get settingsOpenStats;
+
+  /// No description provided for @liquidGlassNavLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Liquid Glass'**
+  String get liquidGlassNavLabel;
+
+  /// No description provided for @liquidGlassNavSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'iOS glass for the tab bar, library pills and toasts'**
+  String get liquidGlassNavSubtitle;
+
+  /// No description provided for @materialExpressiveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Material 3 Expressive'**
+  String get materialExpressiveLabel;
+
+  /// No description provided for @materialExpressiveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playful shapes in the tab bar, play button and switches'**
+  String get materialExpressiveSubtitle;
 
   /// No description provided for @settingsMergeImpliedByPodcastTab.
   ///
@@ -8985,6 +9011,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Gradient'**
   String get cardBackgroundGradient;
+
+  /// No description provided for @cardBackgroundSolid.
+  ///
+  /// In en, this message translates to:
+  /// **'Solid'**
+  String get cardBackgroundSolid;
+
+  /// No description provided for @cardSwipeStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Card swipe style'**
+  String get cardSwipeStyle;
+
+  /// No description provided for @cardSwipeStyleClassic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get cardSwipeStyleClassic;
+
+  /// No description provided for @cardSwipeStyleCarousel.
+  ///
+  /// In en, this message translates to:
+  /// **'Carousel'**
+  String get cardSwipeStyleCarousel;
+
+  /// No description provided for @cardSwipeStyleStack.
+  ///
+  /// In en, this message translates to:
+  /// **'Stack'**
+  String get cardSwipeStyleStack;
 
   /// No description provided for @queueModeMergedSubtitle.
   ///
@@ -24911,6 +24967,7 @@ class _AppLocalizationsDelegate
     'it',
     'ja',
     'no',
+    'pl',
     'pt',
     'ro',
     'ru',
@@ -24940,6 +24997,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsJa();
     case 'no':
       return AppLocalizationsNo();
+    case 'pl':
+      return AppLocalizationsPl();
     case 'pt':
       return AppLocalizationsPt();
     case 'ro':

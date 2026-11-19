@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -1064,7 +1065,7 @@ class GridAuthorTile extends StatelessWidget {
                         child: SizedBox(
                           width: 22,
                           height: 22,
-                          child: CircularProgressIndicator(
+                          child: AdaptiveSpinner(
                             strokeWidth: 2,
                             color: Colors.white,
                           ),

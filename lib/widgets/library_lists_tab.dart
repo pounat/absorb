@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/library_screen.dart';
 import '../services/server_backend.dart';
@@ -79,7 +80,7 @@ class LibraryListsTab extends StatelessWidget {
             hasScrollBody: false,
             child: Center(
               child: isLoading
-                  ? const CircularProgressIndicator()
+                  ? const AdaptiveSpinner()
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [

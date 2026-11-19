@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -337,7 +338,7 @@ class _SmartScopeEditorScreenState extends State<SmartScopeEditorScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
           : _loadError != null
               ? Center(
                   child: Padding(

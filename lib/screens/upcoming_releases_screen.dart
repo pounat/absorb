@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
@@ -1051,7 +1052,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
     }
 
     if (!_service.isRunning && !_service.isComplete && _service.results.isEmpty) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
 
     if (_sortByDate && !_service.isRunning) {
@@ -1065,7 +1066,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
         if (index >= _service.results.length) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            child: Center(child: AdaptiveSpinner(strokeWidth: 2)),
           );
         }
         return _buildSeriesSection(cs, tt, l, _service.results[index]);
@@ -1097,7 +1098,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
                 child: SizedBox(width: 18, height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: AdaptiveSpinner(strokeWidth: 2)),
               )
             else ...[
               if (_canRequest)
@@ -1148,7 +1149,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
           padding: const EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             if (_service.isRunning) ...[
-              const CircularProgressIndicator(strokeWidth: 2),
+              const AdaptiveSpinner(strokeWidth: 2),
             ] else ...[
               Icon(Icons.check_circle_outline_rounded, size: 48, color: cs.primary.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
@@ -1167,7 +1168,7 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
         if (index >= results.length) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            child: Center(child: AdaptiveSpinner(strokeWidth: 2)),
           );
         }
         final r = results[index];
@@ -2133,7 +2134,7 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: SizedBox(width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: AdaptiveSpinner(strokeWidth: 2)),
                     )
                   else ...[
                     IconButton(
@@ -2239,7 +2240,7 @@ class _SkippedSeriesSheetState extends State<_SkippedSeriesSheet> {
                 const Padding(
                   padding: EdgeInsets.all(12),
                   child: SizedBox(width: 18, height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: AdaptiveSpinner(strokeWidth: 2)),
                 )
               else if (!mismatch)
                 IconButton(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -235,7 +236,7 @@ class _SendBodyState extends State<_SendBody> {
     final server = _server?.name ?? '';
     if (e == null || e.pending) {
       return Row(children: [
-        const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5)),
+        const SizedBox(width: 12, height: 12, child: AdaptiveSpinner(strokeWidth: 1.5)),
         const SizedBox(width: 8),
         Flexible(child: Text(l.boEmailSendHanding(server), style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))),
       ]);
@@ -266,7 +267,7 @@ class _SendBodyState extends State<_SendBody> {
     if (_loading && setup == null) {
       children.add(const Padding(
         padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(child: AdaptiveSpinner(strokeWidth: 2)),
       ));
     } else if (setup == null) {
       children.add(BoEmailEmpty(l.boAdminFailed));
@@ -413,7 +414,7 @@ class _SendBodyState extends State<_SendBody> {
         FilledButton.icon(
           onPressed: _picked.isEmpty || blocking != null || _sending ? null : _send,
           icon: _sending
-              ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+              ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
               : const Icon(Icons.send_rounded),
           label: Text(l.boEmailSendButton),
         ),
