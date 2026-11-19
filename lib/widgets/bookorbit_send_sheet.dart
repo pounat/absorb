@@ -218,6 +218,10 @@ class _SendBodyState extends State<_SendBody> {
     final plan = boPlanFile(_files, d, f);
     if (plan == null) return null;
     final file = plan.file;
+    // The server takes the narration out on the way, so the full size of the
+    // narrated file says nothing about what gets sent.
+    final stripped = file.readAlong && (_setup?.readAlongChoice ?? false) && (d.isKindle || d.readAlong != 'original');
+    if (stripped && plan.missingFormat == null) return (l.boEmailSendTextOnly, false);
     final size = file.size != null && file.size! > 0 ? formatFileSize(file.size!) : '';
     final limit = boSizeLimit(file.size, d.deviceType, _server?.host);
     if (limit == BoSizeLimit.kindle) return (l.boEmailSendOverKindle(size), true);

@@ -17327,6 +17327,24 @@ abstract class AppLocalizations {
   /// **'This saves a copy of the ebook file somewhere on your device (you pick where). It won\'t make the book available offline in the reader - use Download for that.'**
   String get ebookSaveToDeviceBody;
 
+  /// No description provided for @ebookSaveNarratedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This EPUB has its narration built in, so the full file is large. Text only saves just the book\'s text and pictures, which is much smaller.'**
+  String get ebookSaveNarratedBody;
+
+  /// No description provided for @ebookSaveTextOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Text only'**
+  String get ebookSaveTextOnly;
+
+  /// No description provided for @ebookSaveWithNarration.
+  ///
+  /// In en, this message translates to:
+  /// **'With narration'**
+  String get ebookSaveWithNarration;
+
   /// No description provided for @readerFormatUnsupported.
   ///
   /// In en, this message translates to:
@@ -23776,6 +23794,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{size}, over Gmail\'s 25 MB limit'**
   String boEmailSendOverGmail(String size);
+
+  /// No description provided for @boEmailSendTextOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Gets the text only EPUB, narration left out'**
+  String get boEmailSendTextOnly;
 
   /// No description provided for @boEmailSendNarrated.
   ///

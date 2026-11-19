@@ -10213,6 +10213,16 @@ class AppLocalizationsDe extends AppLocalizations {
       'Dies speichert eine Kopie der eBook-Datei auf deinem Gerät (du bestimmst das Verzeichnis). Das Buch wird nicht im offline Reader verfügbar sein - verwende dafür den Download.';
 
   @override
+  String get ebookSaveNarratedBody =>
+      'This EPUB has its narration built in, so the full file is large. Text only saves just the book\'s text and pictures, which is much smaller.';
+
+  @override
+  String get ebookSaveTextOnly => 'Text only';
+
+  @override
+  String get ebookSaveWithNarration => 'With narration';
+
+  @override
   String get readerFormatUnsupported =>
       'Dieses eBook-Format kann noch nicht im Reader geöffnet werden';
 
@@ -14211,6 +14221,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String boEmailSendOverGmail(String size) {
     return '$size, over Gmail\'s 25 MB limit';
   }
+
+  @override
+  String get boEmailSendTextOnly =>
+      'Gets the text only EPUB, narration left out';
 
   @override
   String boEmailSendNarrated(String size) {

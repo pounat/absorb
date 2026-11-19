@@ -3371,18 +3371,25 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
     // Clarify this exports a copy elsewhere on the device and is NOT the same as
     // the offline Download, which is a common point of confusion.
-    final confirmed = await showDialog<bool>(
+    final api0 = auth.apiService;
+    final narrated = api0 != null && NarrationService.instance.isNarratedEpub(api0, widget.itemId, ebookFile);
+    final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.ebookSaveToDeviceTitle),
-        content: Text(l.ebookSaveToDeviceBody),
+        content: Text(narrated ? l.ebookSaveNarratedBody : l.ebookSaveToDeviceBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.ebookSaveToDevice)),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
+          if (narrated) ...[
+            TextButton(onPressed: () => Navigator.pop(ctx, 'full'), child: Text(l.ebookSaveWithNarration)),
+            FilledButton(onPressed: () => Navigator.pop(ctx, 'text'), child: Text(l.ebookSaveTextOnly)),
+          ] else
+            FilledButton(onPressed: () => Navigator.pop(ctx, 'full'), child: Text(l.ebookSaveToDevice)),
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (choice == null) return;
+    final textOnly = choice == 'text';
 
     setState(() => _ebookSaving = true);
 
@@ -3404,13 +3411,16 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
 
       final ebookName = ebookFile['metadata']?['filename'] as String? ?? ebookFile['name'] as String? ?? 'book.epub';
       final ext = ebookName.contains('.') ? ebookName.substring(ebookName.lastIndexOf('.')) : '.epub';
-      final safeTitle = bookTitle.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
+      final cleanTitle = bookTitle.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
+      final safeTitle = textOnly ? '$cleanTitle - Text Only' : cleanTitle;
 
       // Download to cache first (reuse if already cached)
       final cacheDir = await getTemporaryDirectory();
       final cachedFile = File('${cacheDir.path}/$safeTitle$ext');
 
-      if (!cachedFile.existsSync()) {
+      if (textOnly && !cachedFile.existsSync()) {
+        await NarrationService.instance.writeTextOnlyCopy(api, widget.itemId, ebookFile, cachedFile);
+      } else if (!cachedFile.existsSync()) {
         final cleanBase = api.baseUrl.endsWith('/') ? api.baseUrl.substring(0, api.baseUrl.length - 1) : api.baseUrl;
         final url = api.isBookOrbit
             ? api.buildEbookUrl(widget.itemId, ino)
@@ -3476,14 +3486,22 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
         }
       }
 
-      final bytes = await cachedFile.readAsBytes();
-
-      // Open system save dialog so user can choose the location
-      final savedPath = await FilePicker.platform.saveFile(
-        dialogTitle: l.saveEbook,
-        fileName: '$safeTitle$ext',
-        bytes: Uint8List.fromList(bytes),
-      );
+      // On desktop the picker only returns a path and writes nothing, so the
+      // file is copied there. Phones need the bytes handed over.
+      final String? savedPath;
+      if (AppPlatform.isDesktop) {
+        savedPath = await FilePicker.platform.saveFile(
+          dialogTitle: l.saveEbook,
+          fileName: '$safeTitle$ext',
+        );
+        if (savedPath != null) await cachedFile.copy(savedPath);
+      } else {
+        savedPath = await FilePicker.platform.saveFile(
+          dialogTitle: l.saveEbook,
+          fileName: '$safeTitle$ext',
+          bytes: await cachedFile.readAsBytes(),
+        );
+      }
 
       if (savedPath == null) return; // user cancelled
 

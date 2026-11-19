@@ -14,6 +14,7 @@ import 'audio_player_service.dart';
 import 'download_service.dart';
 import 'ebook_cache.dart';
 import 'epub_book_text.dart';
+import 'epub_text_only.dart';
 import 'media_overlay.dart';
 import 'narrated_books.dart';
 import 'progress_sync_service.dart';
@@ -500,6 +501,34 @@ class NarrationService {
       return null;
     } finally {
       zip?.close();
+    }
+  }
+
+  /// Whether [ebookFile] is an EPUB with narration built in, as far as this
+  /// device knows.
+  bool isNarratedEpub(ApiService api, String itemId, Map<String, dynamic> ebookFile) {
+    if (ebookExtFromFile(ebookFile) != '.epub') return false;
+    return api.isBookOrbit ? _bookOrbitNarrated(api, itemId, ebookFile) : NarratedBooks.contains(itemId);
+  }
+
+  /// Writes [ebookFile] to [out] as a plain EPUB with the narration taken
+  /// out. Only the text, images and styles come down from the server.
+  Future<void> writeTextOnlyCopy(ApiService api, String itemId, Map<String, dynamic> ebookFile, File out) async {
+    final ino = ebookFile['ino'] as String?;
+    if (ino == null) throw RemoteZipException('no ebook file');
+    final zip = api.isBookOrbit
+        ? await RemoteZip.open(Uri.parse(api.buildEbookUrl(itemId, ino)))
+        : await RemoteZip.open(Uri.parse(api.buildFileUrl(itemId, ino)), headers: api.mediaHeaders);
+    final raw = File('${out.path}.raw');
+    try {
+      await zip.writeCopy(raw, (e) => !isNarrationEntry(e.name));
+    } finally {
+      zip.close();
+    }
+    try {
+      await out.writeAsBytes(stripNarrationFromEpub(await raw.readAsBytes()), flush: true);
+    } finally {
+      if (raw.existsSync()) await raw.delete();
     }
   }
 
