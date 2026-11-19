@@ -1915,6 +1915,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final complete = !cancelled &&
         (forward ? (moved < -w * 0.18 || speed < -500) : (moved > w * 0.18 || speed > 500));
     _curlDragDecision = complete;
+    if (complete) _userMoved('swipe');
     if (_curlDragReady) unawaited(_endCurlDrag(forward, complete, _curlRun));
     return true;
   }
@@ -5502,6 +5503,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         }
         return;
       }
+      // A finger on the page is turning it. A swipe moves the page before
+      // the finger lifts, and following the voice in that moment pulled the
+      // page straight back, so it is the reader's until they let go.
+      if (!force && _curlPointer != null) return;
       final now = DateTime.now();
       if (!force && now.difference(_narrationTurnAt) < const Duration(milliseconds: 700)) return;
       if (_scroll && (where == 'after' || where == 'before' || where == 'low')) {
@@ -5571,9 +5576,15 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     String id,
     double heard,
   ) async {
+    final n = _narration;
+    if (n == null) return null;
     final span = clip.end - clip.begin;
     if (span <= 1.0) return null;
-    final frac = ((heard - clip.begin) / span).clamp(0.0, 1.0);
+    // A clip's own times count from the start of its audio file, and [heard]
+    // from the start of the book, so the clip is placed on the book's
+    // timeline first. Without that every sentence past the first file looked
+    // finished the moment it began, and the page turned straight away.
+    final frac = ((heard - n.startOf(clip)) / span).clamp(0.0, 1.0);
     if (frac <= 0.05) return null;
     final raw = await wc.evaluateJavascript(
         source: 'window.__absorbMO ? __absorbMO.heard(${jsonEncode(clip.textHref)}, '
@@ -6465,6 +6476,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       _readAlongSeenSince = null;
       return;
     }
+    if (_curlPointer != null) return;
     // A finger on a scrolling page is moving it; it is yours until you let go.
     final down = _touchDownAt;
     if (_scroll &&
@@ -7327,6 +7339,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   _ptrDownX = null;
                   _ptrDownY = null;
                   if (_curlDragUp(e)) return;
+                  if (!_scroll && dx > 16 && dx > dy) _userMoved('swipe');
                   if (dx > 16 || dy > 16 || w <= 0) return;
                   final h = cons.maxHeight;
                   _readerTapAt(e.localPosition.dx / w, h > 0 ? e.localPosition.dy / h : 0.5, 'flutterPtr');
