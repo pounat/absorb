@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:async';
 import 'expressive.dart';
 import 'package:flutter/material.dart';
@@ -124,6 +125,25 @@ class _MetadataEditViewState extends State<MetadataEditView>
 
   String? _coverFilePath;
   int _coverVersion = 0; // cache-bust the cover preview when it changes
+  // The cover just saved or applied, shown as it is rather than waiting on
+  // the server's copy. Only while nothing else has changed the cover since.
+  String? _shownCoverFile;
+  String? _shownCoverUrl;
+  int _shownCoverVersion = -1;
+
+  void _showChosenCover({String? file, String? url}) {
+    _shownCoverFile = file;
+    _shownCoverUrl = url;
+    _shownCoverVersion = _coverVersion;
+  }
+
+  /// A typed cover link that looks like it could load.
+  String? get _pendingCoverLink {
+    final text = _coverUrlCtrl.text.trim();
+    final uri = Uri.tryParse(text);
+    if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https') || uri.host.isEmpty) return null;
+    return text;
+  }
   List<String> _coverResults = [];
   bool _coverSearching = false;
   String _coverProvider = 'best';
@@ -807,6 +827,8 @@ class _MetadataEditViewState extends State<MetadataEditView>
         : <String>[];
 
     bool ok = await api.updateItemMedia(widget.itemId, update, tags: tags);
+    final savedFile = _coverFilePath;
+    final savedLink = _coverFilePath == null ? _pendingCoverLink : null;
 
     if (ok && _coverFilePath != null) {
       ok = await api.uploadItemCover(widget.itemId, _coverFilePath!, coverSlot: _coverSlot);
@@ -820,7 +842,14 @@ class _MetadataEditViewState extends State<MetadataEditView>
     final l = AppLocalizations.of(context)!;
     if (ok) {
       context.read<LibraryProvider>().refresh();
-      _coverVersion++;
+      setState(() {
+        _coverVersion++;
+        if (savedFile != null || savedLink != null) {
+          _showChosenCover(file: savedFile, url: savedLink);
+          _coverFilePath = null;
+          _coverUrlCtrl.clear();
+        }
+      });
       // stays on the edit page
       showOverlayToast(context, l.metadataUpdated,
           icon: Icons.check_circle_outline_rounded);
@@ -1806,6 +1835,7 @@ class _MetadataEditViewState extends State<MetadataEditView>
                       : (s) => setState(() {
                             _coverSlot = s.first;
                             _coverResults = [];
+                            _shownCoverVersion = -1;
                           }),
                 ),
               ),
@@ -1816,16 +1846,17 @@ class _MetadataEditViewState extends State<MetadataEditView>
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
                   height: 200,
-                  child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
-                    imageUrl: coverUrl,
-                    httpHeaders: context.read<AuthProvider>().apiService?.mediaHeaders,
-                    fit: BoxFit.contain,
-                    errorWidget: (_, __, ___) => _placeholder(cs),
-                    placeholder: (_, __) => _placeholder(cs),
-                  ),
+                  child: _coverPreview(cs, coverUrl),
                 ),
               ),
             ),
+            if (_coverFilePath != null || _pendingCoverLink != null) ...[
+              const SizedBox(height: 6),
+              Center(
+                child: Text(l.coverNotSavedYet,
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              ),
+            ],
             if (base.isNotEmpty && !widget.isBookDock) ...[
               const SizedBox(height: 8),
               Center(
@@ -1991,6 +2022,39 @@ class _MetadataEditViewState extends State<MetadataEditView>
     ]);
   }
 
+  /// The cover as it will be: a picked file or typed link before it is
+  /// saved, the one just saved or applied, else the server's.
+  Widget _coverPreview(ColorScheme cs, String serverUrl) {
+    Widget fromFile(String path) => Image.file(File(path),
+        fit: BoxFit.contain, errorBuilder: (_, __, ___) => _placeholder(cs));
+    Widget fromLink(String url) => CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet,
+          imageUrl: url,
+          fit: BoxFit.contain,
+          errorWidget: (_, __, ___) => _placeholder(cs),
+          placeholder: (_, __) => _placeholder(cs),
+        );
+    final file = _coverFilePath;
+    if (file != null) return fromFile(file);
+    final link = _pendingCoverLink;
+    if (link != null) return fromLink(link);
+    if (_shownCoverVersion == _coverVersion) {
+      final shownFile = _shownCoverFile;
+      if (shownFile != null) return fromFile(shownFile);
+      final shownUrl = _shownCoverUrl;
+      if (shownUrl != null) return fromLink(shownUrl);
+    }
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet,
+      imageUrl: serverUrl,
+      // A new name each time the cover changes, or the old image stays
+      // cached under the same address.
+      cacheKey: '$serverUrl#$_coverVersion',
+      httpHeaders: context.read<AuthProvider>().apiService?.mediaHeaders,
+      fit: BoxFit.contain,
+      errorWidget: (_, __, ___) => _placeholder(cs),
+      placeholder: (_, __) => _placeholder(cs),
+    );
+  }
+
   String _safeBaseCoverUrl() {
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return '';
@@ -2050,7 +2114,10 @@ class _MetadataEditViewState extends State<MetadataEditView>
     if (ok) context.read<LibraryProvider>().refresh();
     setState(() {
       _saving = false;
-      if (ok) _coverVersion++;
+      if (ok) {
+        _coverVersion++;
+        _showChosenCover(url: url);
+      }
     });
     showOverlayToast(
       context,
