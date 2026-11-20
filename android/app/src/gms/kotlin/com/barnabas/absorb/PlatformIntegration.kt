@@ -134,6 +134,8 @@ object PlatformIntegration {
                             sleepAddMinutes = (call.argument<Number>("sleepAddMinutes") ?: 5).toInt(),
                             speedPresets = call.argument<List<Number>>("speedPresets")?.map { it.toFloat() } ?: emptyList(),
                             themeColor = (call.argument<Number>("themeColor") ?: 0).toLong(),
+                            coverVersion = (call.argument<Number>("coverVersion") ?: 0).toLong(),
+                            appIcon = call.argument<String>("appIcon"),
                         )
                         result.success(true)
                     }

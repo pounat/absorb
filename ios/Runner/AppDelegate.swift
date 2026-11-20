@@ -447,6 +447,33 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     // decorate CPNowPlayingTemplate only — the lock screen is untouched.
     CarPlayNowPlaying.shared.register(with: messenger)
 
+    // App icon colors: each is an AppIcon-<id> set in the asset catalog;
+    // "classic" is the main icon, which iOS also shows dark or tinted itself.
+    let appIcon = FlutterMethodChannel(name: "com.barnabas.absorb/app_icon",
+                                       binaryMessenger: messenger)
+    appIcon.setMethodCallHandler { call, result in
+      switch call.method {
+      case "get":
+        let name = UIApplication.shared.alternateIconName ?? ""
+        result(name.hasPrefix("AppIcon-") ? String(name.dropFirst(8)) : "classic")
+      case "set":
+        let want = (call.arguments as? [String: Any])?["icon"] as? String ?? "classic"
+        guard UIApplication.shared.supportsAlternateIcons else {
+          result(FlutterError(code: "ICON", message: "Alternate icons aren't supported here", details: nil))
+          return
+        }
+        UIApplication.shared.setAlternateIconName(want == "classic" ? nil : "AppIcon-" + want) { error in
+          if let error {
+            result(FlutterError(code: "ICON", message: error.localizedDescription, details: nil))
+          } else {
+            result(want)
+          }
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     let background = FlutterMethodChannel(name: "com.barnabas.absorb/background",
                                           binaryMessenger: messenger)
     background.setMethodCallHandler { [weak self] call, result in

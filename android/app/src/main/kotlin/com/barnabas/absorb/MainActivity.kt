@@ -90,6 +90,23 @@ class MainActivity : AudioServiceActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.barnabas.absorb/app_icon")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "get" -> result.success(AppIcons.current(this))
+                    "enableShortcuts" -> {
+                        AppIcons.enableShortcuts(this, call.argument<List<String>>("ids") ?: emptyList())
+                        result.success(true)
+                    }
+                    "set" -> {
+                        val id = call.argument<String>("icon") ?: "classic"
+                        if (AppIcons.set(this, id)) result.success(id)
+                        else result.error("ICON", "Could not switch to $id", null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {

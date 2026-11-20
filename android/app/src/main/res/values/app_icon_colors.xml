@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="icon_bg_light">#F7F7F5</color>
+    <color name="icon_bg_teal">#1F7A72</color>
+    <color name="icon_bg_blue">#2F5FB3</color>
+    <color name="icon_bg_sky">#9FD0EE</color>
+    <color name="icon_bg_purple">#6A4CAF</color>
+    <color name="icon_bg_pink">#F2A7BB</color>
+    <color name="icon_bg_red">#C8432B</color>
+    <color name="icon_bg_orange">#E8833A</color>
+    <color name="icon_bg_yellow">#F2C94C</color>
+    <color name="icon_bg_green">#2E7D5B</color>
+</resources>
