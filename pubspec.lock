@@ -280,7 +280,7 @@ packages:
     source: hosted
     version: "0.7.12"
   desktop_webview_window:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: desktop_webview_window
       sha256: "57cf20d81689d5cbb1adfd0017e96b669398a669d927906073b0e42fc64111c0"
@@ -648,7 +648,7 @@ packages:
     source: hosted
     version: "4.1.2"
   image:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: image
       sha256: f9881ff4998044947ec38d098bc7c8316ae1186fa786eddffdb867b9bc94dfce

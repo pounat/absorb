@@ -94,6 +94,9 @@ dependencies:
   crypto: ^3.0.3
   url_launcher: ^6.2.5
   flutter_web_auth_2: ^5.0.1
+  # flutter_web_auth_2's sign-in window on Windows and Linux; main hands
+  # it the run that draws that window's title bar.
+  desktop_webview_window: ^0.2.3
 
   # Pausing for interruptions
   audio_session: ^0.1.21
@@ -145,6 +148,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.1
   flutter_launcher_icons: ^0.14.3
+  # scripts/make_app_icons.dart draws the app icon colors with it.
+  image: ^4.8.0
   change_app_package_name: ^1.5.0
   rename_app: ^1.6.5
   mocktail: ^1.0.4

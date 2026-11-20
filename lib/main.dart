@@ -13,6 +13,7 @@ import 'package:app_links/app_links.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'l10n/app_localizations.dart';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -46,10 +47,13 @@ import 'services/wording.dart';
 import 'utils/app_platform.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_shell.dart';
-import 'widgets/auth_loading_screen.dart';
+import 'widgets/auth_loading_screen.dart';
+
 import 'widgets/expressive.dart';
 import 'widgets/beta_logging_notice.dart';
 import 'widgets/setup_link_login.dart';
+import 'widgets/bookorbit_password_session.dart';
+import 'services/app_icon_service.dart';
 
 /// Global notifier so any widget (e.g. settings) can change the theme instantly.
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
@@ -212,12 +216,18 @@ Future<void> applyOrientationLock() async {
         ]);
 }
 
-void main() async {
+void main(List<String> args) async {
+  // On Windows and Linux the single sign-on window draws its title bar with
+  // a second run of main, handed these args. Without this, that run started
+  // all of Absorb inside the sign-in window and the sign-in never finished.
+  if (runWebViewTitleBarWidget(args)) return;
   if (!AppPlatform.isWeb) HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   ReadListenSync.instance.start();
   WindowsMediaControls.instance.start();
   BookOrbitApiService.placeReadingSpot = NarrationService.readingSpotSeconds;
+  wireBoPasswordSession();
+  unawaited(AppIconService.load());
   BookOrbitApiService.keptNarration = NarrationService.instance.localOverlay;
   ApiService.pageReadElsewhere = NarrationService.pageReadElsewhere;
   try {
