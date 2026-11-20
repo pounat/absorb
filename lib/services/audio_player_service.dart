@@ -29,6 +29,7 @@ import 'now_playing_layout.dart';
 import 'cold_start_play_policy.dart';
 import 'playback_error_policy.dart';
 import 'player_settings.dart';
+import 'sponsor_skip_service.dart';
 import 'session_cache.dart';
 import 'home_widget_service.dart';
 import 'bookmark_service.dart';
@@ -1706,6 +1707,7 @@ class AudioPlayerService extends ChangeNotifier {
         _handler!.refreshPlaybackState();
       }
     });
+    unawaited(_refreshSponsorSegments());
     PlayerSettings.getLockSeekBar().then((v) {
       if (_handler != null && v != _handler!._cachedLockSeekBar) {
         _handler!._cachedLockSeekBar = v;
@@ -1941,9 +1943,258 @@ class AudioPlayerService extends ChangeNotifier {
   /// The second line of the media controls for the current item.
   String get nowPlayingSubtitle => nowPlayingLines.subtitle;
 
+  List<SponsorSegment> _sponsorSegments = const [];
+  final Set<String> _suppressedSponsorKeys = {};
+  bool _sponsorSkipEnabled = false;
+  bool _sponsorSkipNotify = true;
+  String? _currentEpisodeDescription;
+  String? _currentEpisodeYouTubeId;
+  bool _sponsorSkipInFlight = false;
+  String? _fetchingSponsorDescForKey;
+
+  List<SponsorSegment> get sponsorSegments => _sponsorSegments;
+  bool get isSponsorSkipEnabled => _sponsorSkipEnabled;
+  String? get currentEpisodeYouTubeId =>
+      (_currentEpisodeYouTubeId != null && _currentEpisodeYouTubeId!.isNotEmpty)
+          ? _currentEpisodeYouTubeId
+          : null;
+
+  /// Saves a manual YouTube video ID/URL override for the active podcast
+  /// episode (or clears it when [input] is null/empty) and refreshes segments.
+  Future<bool> setManualYouTubeVideoId(String? input) async {
+    final itemId = _currentItemId;
+    final episodeId = _currentEpisodeId;
+    if (itemId == null || episodeId == null) return false;
+
+    final trimmed = input?.trim() ?? '';
+    String? videoId;
+    if (trimmed.isNotEmpty) {
+      videoId = SponsorSkipService.extractYouTubeVideoId(
+        trimmed,
+        allowBareId: true,
+      );
+      if (videoId == null) return false;
+    }
+
+    await PlayerSettings.setPodcastEpisodeYouTubeId(itemId, episodeId, videoId);
+    _currentEpisodeYouTubeId = videoId;
+    await _refreshSponsorSegments();
+    return true;
+  }
+
+  Future<void> _refreshSponsorSegments() async {
+    final itemId = _currentItemId;
+    final episodeId = _currentEpisodeId;
+    if (itemId == null || episodeId == null) {
+      _sponsorSegments = const [];
+      _sponsorSkipEnabled = false;
+      return;
+    }
+
+    final results = await Future.wait<Object?>([
+      SponsorSkipService.isEnabledForShow(itemId),
+      PlayerSettings.getPodcastSponsorSkipIntroOutro(),
+      PlayerSettings.getPodcastSponsorSkipNotify(),
+      PlayerSettings.getPodcastSponsorSkipKeywords(),
+      PlayerSettings.getPodcastSponsorSkipSponsorBlock(),
+      PlayerSettings.getPodcastSponsorBlockCategories(),
+      PlayerSettings.getPodcastEpisodeYouTubeId(itemId, episodeId),
+    ]);
+
+    if (_currentItemId != itemId || _currentEpisodeId != episodeId) return;
+
+    final enabled = results[0] as bool;
+    final includeIntroOutro = results[1] as bool;
+    final notify = results[2] as bool;
+    final customKeywords =
+        SponsorSkipService.parseCustomKeywords(results[3] as String);
+    final useSponsorBlock = results[4] as bool;
+    final sbCategories = results[5] as List<String>;
+    final manualYtId = results[6] as String?;
+
+    _sponsorSkipEnabled = enabled;
+    _sponsorSkipNotify = notify;
+
+    if (!enabled) {
+      if (_sponsorSegments.isNotEmpty) {
+        _sponsorSegments = const [];
+        notifyListeners();
+      }
+      return;
+    }
+
+    if (manualYtId != null && manualYtId.isNotEmpty) {
+      _currentEpisodeYouTubeId = manualYtId;
+    }
+
+    var localSegments = SponsorSkipService.detectSegments(
+      chapters: _chapters,
+      description: _currentEpisodeDescription,
+      totalDuration: _totalDuration,
+      includeIntroOutro: includeIntroOutro,
+      customKeywords: customKeywords,
+    );
+
+    String? showTitleForSearch = _currentTitle;
+    String? epTitleForSearch = _currentEpisodeTitle;
+
+    final needEpisodeMetadata = _api != null &&
+        ((localSegments.isEmpty && _currentEpisodeDescription == null) ||
+            (useSponsorBlock && _currentEpisodeYouTubeId == null));
+
+    if (needEpisodeMetadata) {
+      final fetchKey = '$itemId-$episodeId';
+      if (_fetchingSponsorDescForKey != fetchKey) {
+        _fetchingSponsorDescForKey = fetchKey;
+        try {
+          final item = await _api!.getLibraryItem(itemId);
+          if (_currentItemId != itemId || _currentEpisodeId != episodeId) return;
+          final media = item?['media'] as Map<String, dynamic>?;
+          final metaTitle =
+              (media?['metadata'] as Map<String, dynamic>?)?['title'] as String?;
+          if (metaTitle != null && metaTitle.trim().isNotEmpty) {
+            showTitleForSearch = metaTitle;
+          }
+          final episodes = media?['episodes'] as List<dynamic>? ?? const [];
+          for (final rawEp in episodes) {
+            if (rawEp is Map && rawEp['id'] == episodeId) {
+              _currentEpisodeDescription =
+                  (rawEp['description'] as String?) ?? '';
+              final rawEpTitle = rawEp['title'] as String?;
+              if (rawEpTitle != null && rawEpTitle.trim().isNotEmpty) {
+                epTitleForSearch = rawEpTitle;
+              }
+              if (_currentEpisodeYouTubeId == null ||
+                  _currentEpisodeYouTubeId!.isEmpty) {
+                _currentEpisodeYouTubeId =
+                    SponsorSkipService.extractYouTubeVideoIdFromEpisode(rawEp);
+              }
+              break;
+            }
+          }
+          _currentEpisodeDescription ??= '';
+          localSegments = SponsorSkipService.detectSegments(
+            chapters: _chapters,
+            description: _currentEpisodeDescription,
+            totalDuration: _totalDuration,
+            includeIntroOutro: includeIntroOutro,
+            customKeywords: customKeywords,
+          );
+        } catch (e) {
+          debugPrint('[SponsorSkip] Failed to fetch episode metadata: $e');
+        } finally {
+          if (_fetchingSponsorDescForKey == fetchKey) {
+            _fetchingSponsorDescForKey = null;
+          }
+        }
+      }
+    }
+
+    if (useSponsorBlock && _currentEpisodeYouTubeId == null) {
+      final epTitle = epTitleForSearch ?? '';
+      if (epTitle.trim().isNotEmpty) {
+        final foundId = await SponsorSkipService.searchYouTubeVideoId(
+          showTitle: showTitleForSearch,
+          episodeTitle: epTitle,
+          expectedDurationSeconds: _totalDuration,
+        );
+        if (_currentItemId != itemId || _currentEpisodeId != episodeId) return;
+        _currentEpisodeYouTubeId = foundId ?? '';
+      } else {
+        _currentEpisodeYouTubeId = '';
+      }
+    }
+
+    var sbSegments = const <SponsorSegment>[];
+    final ytId = _currentEpisodeYouTubeId;
+    if (useSponsorBlock && ytId != null && ytId.isNotEmpty) {
+      sbSegments = await SponsorSkipService.fetchSponsorBlockSegments(
+        ytId,
+        categories: sbCategories,
+        includeIntroOutro: includeIntroOutro,
+      );
+      if (_currentItemId != itemId || _currentEpisodeId != episodeId) return;
+    }
+
+    final segments = SponsorSkipService.mergeSegments([
+      ...localSegments,
+      ...sbSegments,
+    ]);
+
+    _sponsorSegments = segments;
+    debugPrint(
+      '[SponsorSkip] Refreshed for $itemId-$episodeId: '
+      'segments=${segments.length}, yt=${ytId != null && ytId.isNotEmpty ? ytId : 'none'}, '
+      'sb=${sbSegments.length}, local=${localSegments.length}',
+    );
+    notifyListeners();
+  }
+
+  void _suppressSponsorAt(double posSec) {
+    final seg = SponsorSkipService.findSegmentAt(_sponsorSegments, posSec);
+    if (seg != null) {
+      _suppressedSponsorKeys.add(seg.key);
+    }
+  }
+
+  Future<void> _maybeSkipSponsorAt(double posSec) async {
+    if (_currentEpisodeId == null ||
+        !_sponsorSkipEnabled ||
+        _sponsorSkipInFlight ||
+        _isLoadingNewItem ||
+        _sponsorSegments.isEmpty) {
+      return;
+    }
+    final seg = SponsorSkipService.findSegmentAt(_sponsorSegments, posSec);
+    if (seg == null || _suppressedSponsorKeys.contains(seg.key)) return;
+
+    _sponsorSkipInFlight = true;
+    _suppressedSponsorKeys.add(seg.key);
+    try {
+      final rawTarget = seg.end;
+      final targetSec = (_totalDuration > 0 && rawTarget >= _totalDuration - 1.0)
+          ? (_totalDuration - 0.5).clamp(0.0, _totalDuration)
+          : rawTarget;
+      if (targetSec <= posSec + 0.5) return;
+
+      final fromDur = Duration(milliseconds: (posSec * 1000).round());
+      final toDur = Duration(milliseconds: (targetSec * 1000).round());
+      debugPrint(
+        '[SponsorSkip] Skipping "${seg.label}" (${posSec.toStringAsFixed(1)}s -> ${targetSec.toStringAsFixed(1)}s)',
+      );
+      await _seekAbsolute(targetSec);
+      _logEvent(
+        PlaybackEventType.sponsorSkip,
+        detail: '${seg.label} (${_formatPos(fromDur)} → ${_formatPos(toDur)})',
+        overridePosition: posSec,
+      );
+      notifyListeners();
+
+      if (_sponsorSkipNotify) {
+        showNavigatorOverlayToast(
+          rootNavigatorKey.currentState,
+          'Skipped ${seg.label} • Tap to undo',
+          icon: Icons.fast_forward_rounded,
+          onTap: () {
+            _suppressedSponsorKeys.add(seg.key);
+            unawaited(
+              seekTo(
+                fromDur,
+                logDetail: 'Undo sponsor skip: ${seg.label}',
+              ),
+            );
+          },
+        );
+      }
+    } finally {
+      _sponsorSkipInFlight = false;
+    }
+  }
+
   void updateChapters(List<dynamic> chapters) {
     _chapters = chapters;
     _handler?.updateChaptersQueue(chapters);
+    unawaited(_refreshSponsorSegments());
     notifyListeners();
   }
 
@@ -2236,6 +2487,10 @@ class AudioPlayerService extends ChangeNotifier {
     _metaDuration = _totalDuration;
     _chapters = (next['chapters'] as List<dynamic>?) ?? [];
     _handler?.updateChaptersQueue(_chapters);
+    _suppressedSponsorKeys.clear();
+    _currentEpisodeDescription = null;
+    _currentEpisodeYouTubeId = null;
+    unawaited(_refreshSponsorSegments());
     _trackStartOffsets = [0.0, _totalDuration];
     _currentTrackIndex = 0;
     _playbackSessionId = null;
@@ -3920,6 +4175,11 @@ class AudioPlayerService extends ChangeNotifier {
     _metaDuration = totalDuration;
     _chapters = chapters;
     _shortLocalDurationSec = null; // re-evaluated per source in _playFromLocal
+    _suppressedSponsorKeys.clear();
+    _currentEpisodeDescription = null;
+    _currentEpisodeYouTubeId = null;
+    _sponsorSegments = const [];
+    unawaited(_refreshSponsorSegments());
     _handler?.updateChaptersQueue(chapters);
     // New book = fresh session — clear any auto sleep dismissal
     SleepTimerService().resetDismiss();
@@ -5317,6 +5577,7 @@ class AudioPlayerService extends ChangeNotifier {
           chapters = sessionChapters;
           _chapters = sessionChapters;
           _handler?.updateChaptersQueue(sessionChapters);
+          unawaited(_refreshSponsorSegments());
         }
         final sessionDur = (retrySession['duration'] as num?)?.toDouble() ?? 0;
         if (sessionDur > 0) {
@@ -5333,6 +5594,7 @@ class AudioPlayerService extends ChangeNotifier {
         chapters = sessionChapters;
         _chapters = sessionChapters;
         _handler?.updateChaptersQueue(sessionChapters);
+        unawaited(_refreshSponsorSegments());
         debugPrint(
           '[Player] Loaded ${sessionChapters.length} chapters from session',
         );
@@ -6262,6 +6524,13 @@ class AudioPlayerService extends ChangeNotifier {
     _nativeAutoAdvanceSub?.cancel();
     _nativeAutoAdvanceSub = null;
     _lastKnownPositionSec = 0;
+    _sponsorSegments = const [];
+    _suppressedSponsorKeys.clear();
+    _sponsorSkipEnabled = false;
+    _currentEpisodeDescription = null;
+    _currentEpisodeYouTubeId = null;
+    _sponsorSkipInFlight = false;
+    _fetchingSponsorDescForKey = null;
 
     _bgSaveTimer?.cancel();
     _bgSaveTimer = null;
@@ -6715,6 +6984,11 @@ class AudioPlayerService extends ChangeNotifier {
         if (_isBackgrounded) {
           if (sec == _lastBgProcessedSec) return;
           _lastBgProcessedSec = sec;
+        }
+
+        if (_currentEpisodeId != null && _sponsorSkipEnabled) {
+          await _maybeSkipSponsorAt(posSec);
+          if (_sponsorSkipInFlight) return;
         }
 
         // ─── Chapter change detection ──────────────────────────
@@ -8406,8 +8680,10 @@ class AudioPlayerService extends ChangeNotifier {
     }
     _resetStuckDetection();
     if (_player != null && !_player!.playing) _seekedWhilePaused = true;
+    final targetSec = pos.inMilliseconds / 1000.0;
+    _suppressSponsorAt(targetSec);
     final from = position;
-    await _seekAbsolute(pos.inMilliseconds / 1000.0);
+    await _seekAbsolute(targetSec);
     _logEvent(
       logAs,
       detail: logDetail ?? '${_formatPos(from)} → ${_formatPos(pos)}',
@@ -8454,7 +8730,9 @@ class AudioPlayerService extends ChangeNotifier {
       '[Service] skipForward(${seconds}s × ${speed}x = ${adjusted}s) — playing=${_player!.playing}',
     );
     final newPos = position + Duration(seconds: adjusted);
-    await _seekAbsolute(newPos.inMilliseconds / 1000.0);
+    final targetSec = newPos.inMilliseconds / 1000.0;
+    _suppressSponsorAt(targetSec);
+    await _seekAbsolute(targetSec);
     _logEvent(
       PlaybackEventType.skipForward,
       detail: '+${seconds}s (${adjusted}s @ ${speed}x)',
@@ -8495,6 +8773,7 @@ class AudioPlayerService extends ChangeNotifier {
         if (!recentSnap) {
           // Snap to chapter start instead of crossing
           _lastRewindChapterSnap = now;
+          _suppressSponsorAt(chapterStart);
           await _seekAbsolute(chapterStart);
           _logEvent(
             PlaybackEventType.skipBackward,
@@ -8508,6 +8787,7 @@ class AudioPlayerService extends ChangeNotifier {
     }
 
     var n = targetS < 0 ? 0.0 : targetS;
+    _suppressSponsorAt(n);
     await _seekAbsolute(n);
     _logEvent(
       PlaybackEventType.skipBackward,
@@ -8550,6 +8830,7 @@ class AudioPlayerService extends ChangeNotifier {
       final start = (_chapters[i]['start'] as num?)?.toDouble() ?? 0;
       if (start < posS - 3.0) {
         debugPrint('[Service] skipToPreviousChapter → chapter $i at ${start}s');
+        _suppressSponsorAt(start);
         await _seekAbsolute(start);
         _logEvent(PlaybackEventType.seek, detail: 'prev chapter');
         notifyListeners();
@@ -8557,6 +8838,7 @@ class AudioPlayerService extends ChangeNotifier {
       }
     }
     // If at the very start, seek to 0
+    _suppressSponsorAt(0);
     await _seekAbsolute(0);
     notifyListeners();
   }

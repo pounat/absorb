@@ -6,6 +6,7 @@ import '../providers/library_provider.dart';
 import '../screens/app_shell.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
+import '../services/sponsor_skip_service.dart';
 import 'absorbing_shared.dart';
 import 'adaptive_modal.dart';
 
@@ -22,7 +23,7 @@ void showChaptersSheet({
   required AudioPlayerService player,
   String? itemId,
 }) {
-  if (chapters.isEmpty) return;
+  if (chapters.isEmpty && player.currentEpisodeId == null) return;
 
   int currentIdx = -1;
   for (int i = 0; i < chapters.length; i++) {
@@ -77,24 +78,34 @@ void showChaptersSheet({
               ),
             ),
             Text(
-              l.chaptersCount(chapters.length),
+              chapters.isNotEmpty
+                  ? l.chaptersCount(chapters.length)
+                  : l.podcastSponsorBlockSheetTitle,
               style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
+            if (isPlaybackActive && player.currentEpisodeId != null)
+              _SponsorBlockStatusBar(player: player, accent: accent),
             const SizedBox(height: 8),
             Expanded(
-              child: CardChaptersList(
-                accent: accent,
-                chapters: chapters,
-                totalDuration: totalDuration,
-                currentPosition: currentPosition,
-                isPlaybackActive: isPlaybackActive,
-                isCastingThis: isCastingThis,
-                displaySpeed: displaySpeed,
-                player: player,
-                itemId: itemId,
-                scrollController: sc,
-                closeOnSelection: true,
-              ),
+              child: chapters.isNotEmpty
+                  ? CardChaptersList(
+                      accent: accent,
+                      chapters: chapters,
+                      totalDuration: totalDuration,
+                      currentPosition: currentPosition,
+                      isPlaybackActive: isPlaybackActive,
+                      isCastingThis: isCastingThis,
+                      displaySpeed: displaySpeed,
+                      player: player,
+                      itemId: itemId,
+                      scrollController: sc,
+                      closeOnSelection: true,
+                    )
+                  : _SponsorSegmentsOnlyList(
+                      player: player,
+                      accent: accent,
+                      scrollController: sc,
+                    ),
             ),
           ],
         ),
@@ -173,6 +184,14 @@ class CardChaptersList extends StatelessWidget {
             final percent = totalDuration > 0
                 ? (end / totalDuration * 100).round()
                 : 0;
+            final isSponsorSegment =
+                isPlaybackActive &&
+                end > start &&
+                SponsorSkipService.findSegmentAt(
+                      player.sponsorSegments,
+                      start + (end - start) * 0.5,
+                    ) !=
+                    null;
 
             return ListTile(
               dense: true,
@@ -211,6 +230,14 @@ class CardChaptersList extends StatelessWidget {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (isSponsorSegment) ...[
+                    Icon(
+                      Icons.fast_forward_rounded,
+                      size: 14,
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   Text(
                     '$percent%',
                     style: tt.labelSmall?.copyWith(
@@ -307,5 +334,193 @@ class CardChaptersList extends StatelessWidget {
       libraryId: fullItem['libraryId'] as String?,
     );
     AppShell.goToAbsorbingGlobal();
+  }
+}
+
+class _SponsorBlockStatusBar extends StatelessWidget {
+  final AudioPlayerService player;
+  final Color accent;
+
+  const _SponsorBlockStatusBar({
+    required this.player,
+    required this.accent,
+  });
+
+  Future<void> _showLinkDialog(BuildContext context) async {
+    final l = AppLocalizations.of(context)!;
+    final ctrl = TextEditingController(
+      text: player.currentEpisodeYouTubeId ?? '',
+    );
+    String? errorText;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text(l.podcastSponsorBlockLinkTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.podcastSponsorBlockLinkBody),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: l.podcastSponsorBlockLinkHint,
+                  errorText: errorText,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            if (player.currentEpisodeYouTubeId != null)
+              TextButton(
+                onPressed: () async {
+                  await player.setManualYouTubeVideoId(null);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: Text(l.clear),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final ok = await player.setManualYouTubeVideoId(ctrl.text);
+                if (!ok) {
+                  setState(() {
+                    errorText = l.podcastSponsorBlockInvalidId;
+                  });
+                  return;
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: Text(l.save),
+            ),
+          ],
+        ),
+      ),
+    );
+    ctrl.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+    return ListenableBuilder(
+      listenable: player,
+      builder: (context, _) {
+        final ytId = player.currentEpisodeYouTubeId;
+        final segCount = player.sponsorSegments.length;
+        final statusText = !player.isSponsorSkipEnabled
+            ? l.podcastSponsorBlockDisabledForShow
+            : ytId != null
+                ? l.podcastSponsorBlockLinkedStatus(ytId, segCount)
+                : l.podcastSponsorBlockNotLinkedStatus(segCount);
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 12, 0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  ytId != null
+                      ? Icons.fast_forward_rounded
+                      : Icons.link_off_rounded,
+                  size: 16,
+                  color: ytId != null ? accent : cs.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    statusText,
+                    style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  onPressed: () => _showLinkDialog(context),
+                  child: Text(
+                    ytId != null
+                        ? l.podcastSponsorBlockChangeButton
+                        : l.podcastSponsorBlockLinkButton,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SponsorSegmentsOnlyList extends StatelessWidget {
+  final AudioPlayerService player;
+  final Color accent;
+  final ScrollController scrollController;
+
+  const _SponsorSegmentsOnlyList({
+    required this.player,
+    required this.accent,
+    required this.scrollController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+    return ListenableBuilder(
+      listenable: player,
+      builder: (context, _) {
+        final segs = player.sponsorSegments;
+        if (segs.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                l.podcastSponsorBlockEmptyHint,
+                textAlign: TextAlign.center,
+                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            ),
+          );
+        }
+        return ListView.builder(
+          controller: scrollController,
+          itemCount: segs.length,
+          itemBuilder: (_, i) {
+            final seg = segs[i];
+            return ListTile(
+              dense: true,
+              leading: Icon(Icons.fast_forward_rounded, size: 18, color: accent),
+              title: Text(seg.label, style: tt.bodyMedium),
+              trailing: Text(
+                '${fmtDur(seg.start)} → ${fmtDur(seg.end)}',
+                style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+              ),
+              onTap: () => player.seekTo(
+                Duration(milliseconds: (seg.end * 1000).round()),
+                logDetail: 'Skip segment ${seg.label}',
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

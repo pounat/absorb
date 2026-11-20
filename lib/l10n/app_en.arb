@@ -7694,5 +7694,56 @@
   "boUserKeyLinkSubtitle": "Makes a key with everything this person has and shows a QR code that signs them in to Absorb",
   "boApiKeyLinkName": "Absorb sign-in",
   "boApiKeyLinkFor": "Sign-in link for {name}",
-  "@boApiKeyLinkFor": {"placeholders": {"name": {"type": "String"}}}
+  "@boApiKeyLinkFor": {"placeholders": {"name": {"type": "String"}}},
+  "podcastSponsorSkipTitle": "Skip podcast sponsors",
+  "podcastSponsorSkipSubtitle": "Auto-skip sponsor and ad segments detected in podcast chapters or timestamped show notes",
+  "podcastSponsorSkipIntroOutroTitle": "Also skip intros & outros",
+  "podcastSponsorSkipIntroOutroSubtitle": "Auto-skip intro, opening, outro, and credits chapters in podcasts",
+  "podcastSponsorSkipNotifyTitle": "Show skip notification",
+  "podcastSponsorSkipNotifySubtitle": "Show a brief toast with tap-to-undo when a segment is skipped",
+  "podcastSponsorSkipKeywordsTitle": "Custom skip keywords",
+  "podcastSponsorSkipKeywordsNone": "Built-in patterns only (sponsor, ad break, mid-roll, promo…)",
+  "podcastSponsorSkipKeywordsHint": "Comma-separated keywords (e.g. patreon, merch, housekeeping)",
+  "podcastSponsorSkipShowTitle": "Sponsor skip",
+  "podcastSponsorSkipShowFollowGlobal": "Follow global setting",
+  "podcastSponsorSkipShowAlwaysOn": "Always skip for this podcast",
+  "podcastSponsorSkipShowAlwaysOff": "Never skip for this podcast",
+  "podcastSponsorSkipSponsorBlockTitle": "Use SponsorBlock for YouTube podcasts",
+  "podcastSponsorSkipSponsorBlockSubtitle": "Query the SponsorBlock API when an episode links to or originates from a YouTube video",
+  "podcastSponsorBlockCategoriesTitle": "SponsorBlock categories",
+  "podcastSponsorBlockCategorySponsor": "Sponsor",
+  "podcastSponsorBlockCategorySponsorDesc": "Paid promotions, ad reads, and sponsorships",
+  "podcastSponsorBlockCategorySelfpromo": "Unpaid / Self-promotion",
+  "podcastSponsorBlockCategorySelfpromoDesc": "Channel merch, Patreon, or unpaid plugs",
+  "podcastSponsorBlockCategoryInteraction": "Interaction reminder",
+  "podcastSponsorBlockCategoryInteractionDesc": "Like, subscribe, and follow reminders",
+  "podcastSponsorBlockCategoryPreview": "Preview / Recap",
+  "podcastSponsorBlockCategoryPreviewDesc": "Episode previews, teasers, or recaps",
+  "podcastSponsorBlockCategoryFiller": "Filler / Tangent",
+  "podcastSponsorBlockCategoryFillerDesc": "Tangential banter or filler segments",
+  "podcastSponsorBlockCategoryMusicOfftopic": "Non-music section",
+  "podcastSponsorBlockCategoryMusicOfftopicDesc": "Non-music intros or breaks in music videos",
+  "podcastSponsorBlockSheetTitle": "SponsorBlock",
+  "podcastSponsorBlockLinkTitle": "Link YouTube video",
+  "podcastSponsorBlockLinkBody": "Paste a YouTube URL or 11-character video ID to load SponsorBlock segments for this episode.",
+  "podcastSponsorBlockLinkHint": "https://youtu.be/... or video ID",
+  "podcastSponsorBlockInvalidId": "Invalid YouTube URL or video ID",
+  "podcastSponsorBlockDisabledForShow": "Sponsor skip disabled for this show",
+  "podcastSponsorBlockLinkedStatus": "YT: {videoId} • {count, plural, =1{1 segment} other{{count} segments}}",
+  "@podcastSponsorBlockLinkedStatus": {
+    "placeholders": {
+      "videoId": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "podcastSponsorBlockNotLinkedStatus": "YouTube not linked • {count} local",
+  "@podcastSponsorBlockNotLinkedStatus": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "podcastSponsorBlockLinkButton": "Link YT",
+  "podcastSponsorBlockChangeButton": "Change",
+  "podcastSponsorBlockEmptyHint": "No chapters or SponsorBlock segments detected for this episode yet. Tap \"Link YT\" above to link its YouTube video.",
+  "sectionSponsorSkip": "Podcast Sponsor Skip"
 }

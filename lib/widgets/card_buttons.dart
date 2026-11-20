@@ -2033,7 +2033,9 @@ class CardActionDelegate {
         return CardWideButton(
           icon: Icons.list_rounded, label: l.chapters,
           accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
-          onTap: chapters.isNotEmpty ? () => showChapters(context, accent, tt) : _showNoChapters,
+          onTap: (chapters.isNotEmpty || (isActive && isPodcastEpisode))
+              ? () => showChapters(context, accent, tt)
+              : _showNoChapters,
         );
       case 'speed':
         return CardWideButton(
@@ -2205,7 +2207,10 @@ class CardActionDelegate {
           enabled: true,
           onTap: () {
             Navigator.pop(ctx);
-            if (chapters.isEmpty) { _showNoChapters(); return; }
+            if (chapters.isEmpty && !(isActive && isPodcastEpisode)) {
+              _showNoChapters();
+              return;
+            }
             showChapters(context, accent, tt);
           },
         );
@@ -2490,7 +2495,7 @@ class CardActionDelegate {
   void showChapters(BuildContext ctx, Color accent, TextTheme tt) {
     final cast = ChromecastService();
     final chaps = isCastingThis ? cast.castingChapters : (isActive ? player.chapters : chapters);
-    if (chaps.isEmpty) return;
+    if (chaps.isEmpty && !(isActive && isPodcastEpisode)) return;
     double pos = 0;
     if (isCastingThis) {
       pos = cast.castPosition.inMilliseconds / 1000.0;
