@@ -5914,11 +5914,6 @@ class AudioPlayerService extends ChangeNotifier {
     return null;
   }
 
-  /// Content provider authority. Follows the installed package, as the
-  /// manifest's `${applicationId}.covers` does, so the dev flavor reaches its
-  /// own provider.
-  static String get _coverAuthority => '${ApiService.packageName}.covers';
-
   void _pushMediaItem(
     String itemId,
     String title,
@@ -5948,6 +5943,8 @@ class AudioPlayerService extends ChangeNotifier {
     } else if (AppPlatform.isIOS) {
       final localCover = DownloadService().getInfo(itemId).localCoverPath;
       if (localCover != null && localCover.isNotEmpty) {
+        // No cache-busting query here: audio_service turns this into a file
+        // path, which a query breaks, and it reads the file fresh each time.
         effectiveCoverUrl = Uri.file(localCover).toString();
       } else {
         effectiveCoverUrl = coverUrl;
@@ -5964,8 +5961,13 @@ class AudioPlayerService extends ChangeNotifier {
               itemId == '$_currentItemId-$_currentEpisodeId'
           ? _currentItemId!
           : itemId;
-      effectiveCoverUrl = 'content://$_coverAuthority/cover/$coverId';
-      if (coverCacheBust != null) effectiveCoverUrl += '?cb=$coverCacheBust';
+      // The cover's version rides along on every push, not only the one right
+      // after a cover change: a later push with the plain address had Android
+      // Auto go back to the old picture it still held for it.
+      effectiveCoverUrl = AndroidAutoService.localCoverUri(coverId);
+      if (coverCacheBust != null) {
+        effectiveCoverUrl += '${effectiveCoverUrl.contains('?') ? '&' : '?'}cb=$coverCacheBust';
+      }
       // Streamed cover (no local file) won't be cached on first play - schedule
       // one cache-busted re-push so the art shows up the first time too.
       if (streamed && coverCacheBust == null && _coverRepushItem != coverId) {
@@ -6131,6 +6133,26 @@ class AudioPlayerService extends ChangeNotifier {
             _nowPlayingLayout.uses(NowPlayingPiece.series))) {
       _repushNotifiedMediaItem();
     }
+  }
+
+  /// The cover file for [itemId] was replaced: hand the playback notification,
+  /// lock screen, Android Auto and the watch a fresh artwork address so they
+  /// load it again instead of keeping the old picture.
+  void refreshArtwork(String itemId) {
+    if (_currentItemId == null) return;
+    if (_currentItemId != itemId && _mediaItemKey != itemId) return;
+    final chapterTitle = _lastNotifiedChapterIndex >= 0 && _chapters.isNotEmpty
+        ? (_chapters[_lastNotifiedChapterIndex] as Map<String, dynamic>)['title'] as String?
+        : null;
+    _pushMediaItem(
+      itemId,
+      _currentTitle ?? '',
+      _currentAuthor ?? '',
+      _currentCoverUrl,
+      _totalDuration,
+      chapter: chapterTitle,
+      coverCacheBust: DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   void _scheduleStreamedCoverRepush(String itemId) {

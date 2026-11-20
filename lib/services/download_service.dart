@@ -2777,6 +2777,39 @@ class DownloadService extends ChangeNotifier {
 
   /// Cache the cover into INTERNAL storage (lockscreen / Android Auto / offline).
   /// Always internal, since a custom external audio path may lack write access.
+  final Set<String> _coverRefreshTried = {};
+
+  /// A downloaded book keeps the cover it had when it was downloaded, and
+  /// Android Auto, the watch and the playback notification all show that
+  /// copy. When the book changed on the server after the copy was saved
+  /// ([updatedAtMs] is newer), the cover may have too, so fetch it again into
+  /// the same file. True when the file was replaced.
+  Future<bool> refreshCoverIfStale(ApiService api, String itemId, int updatedAtMs) async {
+    final path = _downloads[itemId]?.localCoverPath;
+    if (path == null || path.isEmpty) return false;
+    if (!_coverRefreshTried.add('$itemId@$updatedAtMs')) return false;
+    final file = File(path);
+    try {
+      if (await file.exists() && (await file.lastModified()).millisecondsSinceEpoch >= updatedAtMs) {
+        return false;
+      }
+      final r = await http
+          .get(Uri.parse(_hiResCoverUrl(api.getCoverUrl(itemId, width: 800, updatedAt: updatedAtMs))),
+              headers: api.mediaHeaders)
+          .timeout(const Duration(seconds: 10));
+      if (r.statusCode != 200 || r.bodyBytes.isEmpty) return false;
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(r.bodyBytes, flush: true);
+      PaintingBinding.instance.imageCache.evict(FileImage(file));
+      debugPrint('[Download] Refreshed the saved cover for $itemId, the server changed it');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('[Download] Saved cover refresh failed for $itemId: $e');
+      return false;
+    }
+  }
+
   Future<String?> _cacheCover(ApiService api, String itemId, String? coverUrl) async {
     if (coverUrl == null || coverUrl.isEmpty) return null;
     try {

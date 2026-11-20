@@ -106,6 +106,8 @@ object WearPlayerBridge {
         sleepAddMinutes: Int = 5,
         speedPresets: List<Float> = emptyList(),
         themeColor: Long = 0L,
+        coverVersion: Long = 0L,
+        appIcon: String? = null,
     ) {
         scope.launch {
             try {
@@ -142,6 +144,8 @@ object WearPlayerBridge {
                     put("sleepAddMinutes", sleepAddMinutes)
                     put("speedPresets", JSONArray().apply { for (p in speedPresets) put(p.toDouble()) })
                     put("themeColor", themeColor)
+                    put("coverVersion", coverVersion)
+                    put("appIcon", appIcon ?: JSONObject.NULL)
                     put("issuedAt", now)
                 }.toString()
 

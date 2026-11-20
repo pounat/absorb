@@ -7,7 +7,11 @@ import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../main.dart' show rootNavigatorKey;
+import '../providers/library_provider.dart';
 
 import 'audio_player_service.dart';
 import 'api_service.dart';
@@ -19,6 +23,8 @@ import 'scoped_prefs.dart';
 import 'user_account_service.dart';
 import 'wear_player_service.dart';
 import 'sleep_timer_service.dart';
+import 'android_auto_service.dart';
+import 'app_icon_service.dart';
 
 const String _androidWidgetName = 'NowPlayingWidget';
 const String _androidWidgetCompactName = 'NowPlayingWidgetCompact';
@@ -362,6 +368,29 @@ class HomeWidgetService {
   /// a media button press hits the service before the UI has bootstrapped
   /// the current item).
   Future<void> resumeLastPlayedIfAvailable() => _handlePlayPause();
+
+  /// When [itemId]'s cover last changed, as best this phone knows: the
+  /// newest of the server's last change to the book, the saved cover file,
+  /// and a refresh this run. The watch uses it to stop showing a cover it
+  /// kept from before.
+  int _coverVersion(String itemId) {
+    var version = AndroidAutoService.coverTsFor(itemId) ?? 0;
+    final context = rootNavigatorKey.currentContext;
+    if (context != null) {
+      try {
+        final updated = Provider.of<LibraryProvider>(context, listen: false).itemUpdatedAt(itemId);
+        if (updated != null && updated > version) version = updated;
+      } catch (_) {}
+    }
+    final path = DownloadService().getInfo(itemId).localCoverPath;
+    if (path != null && path.isNotEmpty) {
+      try {
+        final saved = File(path).lastModifiedSync().millisecondsSinceEpoch;
+        if (saved > version) version = saved;
+      } catch (_) {}
+    }
+    return version;
+  }
 
   /// The watch picked a book to play on this phone.
   Future<void> playItemFromWatch(String itemId, String? episodeId, {double? position}) =>
@@ -732,6 +761,10 @@ class HomeWidgetService {
     _onPlayerChanged();
   }
 
+  /// Sends the watch the current state again, for a change it should see
+  /// right away even with nothing playing, such as a new app icon.
+  void republishToWatch() => _scheduleUpdate();
+
   /// Schedule an update on the next microtask so we never do async work
   /// inside the synchronous ChangeNotifier callback.
   void _scheduleUpdate() {
@@ -946,6 +979,8 @@ class HomeWidgetService {
           : 0,
       sleepChaptersLeft: sleep.mode == SleepTimerMode.chapters ? sleep.chaptersRemaining : 0,
       themeColor: themeColor,
+      coverVersion: hasBook && player.currentItemId != null ? _coverVersion(player.currentItemId!) : 0,
+      appIcon: AppIconService.supported ? AppIconService.current.value : null,
     );
   }
 

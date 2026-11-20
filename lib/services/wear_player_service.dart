@@ -151,6 +151,8 @@ class WearPlayerService {
     int sleepAddMinutes = 5,
     List<double> speedPresets = const [],
     int themeColor = 0,
+    int coverVersion = 0,
+    String? appIcon,
   }) async {
     if (!_supported) return;
     try {
@@ -184,6 +186,11 @@ class WearPlayerService {
         'sleepAddMinutes': sleepAddMinutes,
         'speedPresets': speedPresets,
         'themeColor': themeColor,
+        // When the book's cover last changed, so the watch app stops showing
+        // a cover it kept from before.
+        'coverVersion': coverVersion,
+        // The icon picked on this phone, so the watch app shows the same one.
+        'appIcon': appIcon,
       });
     } catch (e) {
       debugPrint('[WearPlayer] publish failed: $e');
