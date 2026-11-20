@@ -357,10 +357,11 @@ class CardSleepButtonInline extends StatelessWidget {
           label = l.timer;
         }
 
-        final h = compact ? 30.0 : (large ? 48.0 : 36.0);
+        // Same height as the other buttons: icon, padding and border.
+        final h = compact ? 31.0 : (large ? 50.0 : 38.0);
         final iconSz = compact ? 13.0 : (large ? 20.0 : 16.0);
         final fontSize = compact ? 10.0 : (large ? (active && isTime ? 15.0 : 14.0) : (active && isTime ? 13.0 : 12.0));
-        final radius = compact ? 10.0 : (large ? 16.0 : 14.0);
+        final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
 
         return Pressable(
           onTap: isActive ? () {
@@ -468,10 +469,11 @@ class CardDownloadButtonInline extends StatelessWidget {
           color = cs.onSurfaceVariant;
         }
 
-        final h = compact ? 30.0 : (large ? 48.0 : 36.0);
+        // Same height as the other buttons: icon, padding and border.
+        final h = compact ? 31.0 : (large ? 50.0 : 38.0);
         final iconSz = compact ? 13.0 : (large ? 20.0 : 16.0);
         final fontSize = compact ? 10.0 : (large ? 14.0 : 12.0);
-        final radius = compact ? 10.0 : (large ? 16.0 : 14.0);
+        final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
 
         return Pressable(
           onTap: () => _handleTap(context, dl),
@@ -706,10 +708,11 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
   @override Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final cast = ChromecastService();
-    final h = widget.compact ? 30.0 : (widget.large ? 48.0 : 36.0);
+    // Same height as the other buttons: icon, padding and border.
+    final h = widget.compact ? 31.0 : (widget.large ? 50.0 : 38.0);
     final iconSz = widget.compact ? 13.0 : (widget.large ? 20.0 : 16.0);
     final fontSize = widget.compact ? 10.0 : (widget.large ? 15.0 : 13.0);
-    final radius = widget.compact ? 10.0 : (widget.large ? 16.0 : 14.0);
+    final radius = widget.compact ? 10.0 : (widget.large ? 14.0 : 12.0);
     return ListenableBuilder(
       listenable: Listenable.merge([cast, widget.player]),
       builder: (context, _) {
@@ -1946,18 +1949,11 @@ class CardActionDelegate {
                   ),
           ),
       ];
-      // Expressive: the row's buttons join up into one connected group.
-      Widget row = expressiveNotifier.value && slots.length > 1
-          ? ExpressiveButtonRow(children: slots)
-          : glassLook && slots.length > 1
-          // iOS glass: the row's buttons join up, with no pane behind them.
-          ? ExpressiveButtonRow(widen: false, children: slots)
-          : Row(children: [
-              for (int c = 0; c < slots.length; c++) ...[
-                if (c > 0) const SizedBox(width: 8),
-                Expanded(child: slots[c]),
-              ],
-            ]);
+      // The row's buttons join up into one connected group, everywhere. Only
+      // the Expressive look has the one under the finger widen.
+      Widget row = slots.length > 1
+          ? ExpressiveButtonRow(widen: expressiveNotifier.value, children: slots)
+          : Row(children: [Expanded(child: slots.first)]);
 
       // Center single-button rows at 1/3 width
       if (rowSlots.length == 1 && n == 1) {
@@ -1973,14 +1969,17 @@ class CardActionDelegate {
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
     final large = MediaQuery.sizeOf(context).height > 700;
-    final h = compact ? 30.0 : (large ? 48.0 : 36.0);
+    // Same height as the other buttons: icon, padding and border.
+        final h = compact ? 31.0 : (large ? 50.0 : 38.0);
     final iconSz = compact ? 13.0 : (large ? 20.0 : 16.0);
     final fontSize = compact ? 10.0 : (large ? 13.0 : 11.0);
     final vPad = compact ? 8.0 : (large ? 14.0 : 10.0);
     final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
     return ListenableBuilder(
       listenable: ChromecastService(),
-      builder: (_, __) {
+      // This builder's own context sits in the row's slot; the card's context
+      // doesn't, so More came out with every corner rounded.
+      builder: (slotContext, __) {
         final castActive = ChromecastService().isCasting &&
             !buttonOrder.take(visibleCount).contains('cast');
         final iconColor = castActive ? accent : cs.onSurfaceVariant;
@@ -1994,7 +1993,7 @@ class CardActionDelegate {
               color: castActive
                   ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
                   : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
-              borderRadius: cardButtonCorners(context, radius),
+              borderRadius: cardButtonCorners(slotContext, radius),
               border: Border.all(color: castActive
                   ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
                   : _buttonEdge(cs.onSurface, 0.08, 0.55)),

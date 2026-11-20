@@ -19,6 +19,16 @@ Color solidCoverBackground(Color cover, {required bool dark}) {
       .toColor();
 }
 
+/// Where a gradient card background starts: the cover's colour at a softer
+/// strength, fading to the surface.
+Color gradientCoverStart(Color cover, {required bool dark}) {
+  final hsl = HSLColor.fromColor(cover);
+  return hsl
+      .withSaturation(hsl.saturation.clamp(0.0, dark ? 0.55 : 0.5))
+      .withLightness(dark ? 0.24 : 0.8)
+      .toColor();
+}
+
 /// The play or pause icon, with the one morphing into the other, the way
 /// iOS animates the control.
 class MorphingPlayIcon extends StatefulWidget {

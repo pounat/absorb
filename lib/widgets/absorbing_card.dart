@@ -27,12 +27,13 @@ import 'card_playback_controls.dart';
 import 'card_buttons.dart';
 import 'expressive.dart';
 import '../services/chromecast_service.dart';
-import 'expanded_card.dart';
 import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme;
 import '../utils/desktop_workspace.dart';
 import 'stable_cached_network_image.dart';
 
-enum AbsorbingCardPresentation { card, desktop }
+/// [fullScreen] is a card shown as the full player on its own, for a book
+/// with no card on the Absorbing page to grow out of.
+enum AbsorbingCardPresentation { card, desktop, fullScreen }
 
 const double kAbsorbingDesktopRowLayoutWidth = 760;
 const double kAbsorbingSpaciousDesktopLayoutWidth = 1280;
@@ -79,9 +80,43 @@ class AbsorbingCard extends StatefulWidget {
 
   @override
   State<AbsorbingCard> createState() => AbsorbingCardState();
+
+  static final Map<String, AbsorbingCardState> _shown = {};
+
+  /// This book's card grown into the full player, when the card is on
+  /// screen. Null otherwise; then [fullScreenRoute] slides it up instead.
+  static PageRoute<void>? routeFromCard(String itemId, String? episodeId) {
+    final card = _shown[episodeId == null ? itemId : '$itemId-$episodeId'];
+    if (card == null || card._visibleRect() == null) return null;
+    return card._openLiftRoute();
+  }
+
+  /// The card as the full player on its own, sliding up, for a book with no
+  /// card on the Absorbing page to grow out of.
+  static PageRoute<void> fullScreenRoute(Map<String, dynamic> item, AudioPlayerService player) =>
+      PageRouteBuilder<void>(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 350),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (_, __, ___) => Material(
+          type: MaterialType.transparency,
+          child: AbsorbingCard(
+            item: item,
+            player: player,
+            presentation: AbsorbingCardPresentation.fullScreen,
+          ),
+        ),
+        transitionsBuilder: (_, animation, __, child) {
+          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+          return SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(curved),
+            child: child,
+          );
+        },
+      );
 }
 
-class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveClientMixin {
+class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   ColorScheme? _rawCoverScheme;
   Brightness? _coverBrightness; // brightness used to generate _coverScheme
 
@@ -316,6 +351,13 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     DownloadService().addListener(_onDownloadChanged);
     PlayerSettings.settingsChanged.addListener(_reloadButtonOrder);
     _reloadButtonOrder();
+    _registerShown();
+    if (_fullScreen) {
+      // Shown as the full player on its own, it follows playback the same
+      // way a grown card does.
+      _wasPlayingHere = _playingHere;
+      widget.player.addListener(_onPlaybackMoved);
+    }
   }
 
   void _onSpeedMaybeChanged() => _loadSavedSpeed();
@@ -551,6 +593,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       _coverTopLuminance = null;
       _fetchedChapters = null;
       _fetchedEbookFile = null;
+      _coverPaletteColor = null;
+      _paletteFor = null;
       _lastChapterIdx = -1;
       _lastChapterDataSignature = null;
       _lastSeenUpdatedAt = context.read<LibraryProvider>().itemUpdatedAt(_itemId);
@@ -563,10 +607,16 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     // or the player may now know the library for the item that just started.
     _reloadCoverShape();
     if (oldWidget.player != widget.player) _startChapterTracking();
+    _registerShown();
   }
 
   @override
   void dispose() {
+    _unregisterShown();
+    _removeGrowEntry();
+    _grow.dispose();
+    _liftTick.dispose();
+    widget.player.removeListener(_onPlaybackMoved);
     PlayerSettings.settingsChanged.removeListener(_reloadButtonOrder);
     ChromecastService().removeListener(_onCastChanged);
     DownloadService().removeListener(_onDownloadChanged);
@@ -577,8 +627,35 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     super.dispose();
   }
 
+  /// The cover's own most striking colour, picked the way the home screen
+  /// picks it, for the solid and gradient backgrounds. The Material scheme
+  /// smooths every cover toward the same soft tones, so dark covers all came
+  /// out a similar pink.
+  Color? _coverPaletteColor;
+  String? _paletteFor;
+
+  Color? get _backgroundCoverColor {
+    if (PlayerSettings.einkMode) return null;
+    if (colorSourceNotifier.value == 'manual' && useColorEverywhereNotifier.value) return null;
+    return _coverPaletteColor;
+  }
+
+  void _pickCoverPaletteColor(ImageProvider provider, String coverIdentity) {
+    if (_paletteFor == coverIdentity) return;
+    _paletteFor = coverIdentity;
+    _coverPaletteColor = CoverAccents.known(coverIdentity);
+    if (_coverPaletteColor != null) return;
+    CoverAccents.seed(coverIdentity, provider).then((color) {
+      if (!mounted || _paletteFor != coverIdentity || color == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _paletteFor == coverIdentity) setState(() => _coverPaletteColor = color);
+      });
+    }).catchError((_) {});
+  }
+
   void _onCoverLoaded(ImageProvider provider, String coverIdentity) {
     if (_currentCoverIdentity() != coverIdentity) return;
+    _pickCoverPaletteColor(provider, coverIdentity);
     if (_coverProviderIdentity != coverIdentity) {
       _rawCoverScheme = null;
       _coverBrightness = null;
@@ -714,6 +791,23 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   @override
   Widget build(BuildContext context) {
     super.build(context); // required for AutomaticKeepAliveClientMixin
+    if (_lifted) {
+      // The card's insides are up in the full-screen layer; this keeps its
+      // place in the row. That layer builds from this state too, so it hears
+      // about every change here.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_lifted) _liftTick.value++;
+      });
+      return const SizedBox.expand();
+    }
+    return KeyedSubtree(key: _bodyKey, child: _CardBody(this));
+  }
+
+  /// Everything the card shows, built against wherever it is right now: its
+  /// slot on the Absorbing page, or lifted up and growing into the full
+  /// player. It is one widget either way, which is what lets it grow and
+  /// shrink with nothing swapped in between.
+  Widget _buildBody(BuildContext context) {
     // E-ink mode: the cover-derived palette renders as washed-out grey, so
     // the card sticks to the monochrome app theme.
     final cs = (PlayerSettings.einkMode ? null : _coverScheme) ??
@@ -774,20 +868,23 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     // podcast: no top book bar, just the scrubber bar carrying the title.
     final showBookBar = _chapters.isNotEmpty;
     final desktopPresentation = widget.presentation == AbsorbingCardPresentation.desktop;
+    // 0 as the card in its slot, rising to 1 as it grows into the full player.
+    final g = _growth(context);
+    final liftInsets = _liftInsets(context, g);
     _publishChapterData();
     return GestureDetector(
-      onVerticalDragEnd: desktopPresentation ? null : (details) {
-        final vy = details.primaryVelocity ?? 0;
-        if (vy < -300) expandCard(context); // swipe up to expand
-      },
+      onVerticalDragStart: desktopPresentation ? null : (_) => _dragUp = 0,
+      onVerticalDragUpdate: desktopPresentation ? null : (d) => _onDragUpdate(context, d),
+      onVerticalDragEnd: desktopPresentation ? null : (d) => _onDragEnd(context, d),
+      onVerticalDragCancel: desktopPresentation ? null : _onDragCancel,
       child: Container(
       key: ValueKey(desktopPresentation ? 'desktop-absorbing-player' : 'absorbing-card-shell'),
       decoration: desktopPresentation ? null : BoxDecoration(
-        borderRadius: BorderRadius.circular(softCardCorners ? 34 : 24),
-        border: Border.all(color: accent.withValues(alpha: 0.15), width: 1),
+        borderRadius: BorderRadius.circular((softCardCorners ? 34 : 24) * (1 - g)),
+        border: Border.all(color: accent.withValues(alpha: 0.15 * (1 - g)), width: 1),
       ),
       child: ClipRRect(
-        borderRadius: desktopPresentation ? BorderRadius.zero : BorderRadius.circular(softCardCorners ? 33 : 23),
+        borderRadius: desktopPresentation ? BorderRadius.zero : BorderRadius.circular((softCardCorners ? 33 : 23) * (1 - g)),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -795,14 +892,19 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
           if (!desktopPresentation && _cardBackground == 'off')
             ColoredBox(color: Theme.of(context).colorScheme.surface)
           else if (!desktopPresentation && _cardBackground == 'solid')
-            ColoredBox(color: solidCoverBackground(cs.primary, dark: isDark))
+            ColoredBox(color: solidCoverBackground(_backgroundCoverColor ?? cs.primary, dark: isDark))
           else if (!desktopPresentation && _cardBackground == 'gradient')
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [cs.primaryContainer, cs.surface],
+                  colors: [
+                    _backgroundCoverColor == null
+                        ? cs.primaryContainer
+                        : gradientCoverStart(_backgroundCoverColor!, dark: isDark),
+                    cs.surface,
+                  ],
                 ),
               ),
             )
@@ -886,11 +988,16 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
               ),
             ),
           ),
-          // Layer 3: Content
-          LayoutBuilder(
+          // Layer 3: Content. Grown toward full screen it keeps clear of the
+          // status and navigation bars, easing in as it reaches the edges.
+          Padding(
+          padding: liftInsets,
+          child: LayoutBuilder(
           builder: (context, cardConstraints) {
           final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.5);
-          final compact = cardConstraints.maxHeight < 600 * textScale;
+          // Lifted, it keeps the card's spacing all the way up: switching
+          // partway would be a step in the middle of the grow.
+          final compact = _liftCompact ?? cardConstraints.maxHeight < 600 * textScale;
           final spaciousDesktop = desktopPresentation &&
               (widget.spaciousDesktopLayout ??
                   cardConstraints.maxWidth >=
@@ -986,7 +1093,9 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                     builder: (context, constraints) {
                       final maxW = spaciousDesktop
                           ? (constraints.maxWidth * 0.9).clamp(0.0, 780.0).toDouble()
-                          : constraints.maxWidth * 0.85;
+                          // A little more of the width as it grows into the
+                          // full player.
+                          : constraints.maxWidth * (0.85 + 0.1 * g);
                       final rawH = constraints.maxHeight.isFinite ? constraints.maxHeight : maxW;
                       final maxH = rawH - 24;
                       double coverW, coverH;
@@ -1045,15 +1154,12 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                         child: Container(
                           key: desktopPresentation
                               ? const ValueKey('desktop-player-cover')
-                              : null,
+                              : _coverBoxKey,
                           width: coverW,
                           height: coverH,
-                          decoration: BoxDecoration(
+                          decoration: OutsideShadowDecoration(
                             borderRadius: BorderRadius.circular(softCardCorners ? 26 : 16),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15), blurRadius: 20, spreadRadius: -2, offset: const Offset(0, 6)),
-                              BoxShadow(color: accent.withValues(alpha: 0.15), blurRadius: 30, spreadRadius: -5),
-                            ],
+                            shadow: BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15), blurRadius: 20, spreadRadius: -2, offset: const Offset(0, 6)),
                           ),
                           child: RepaintBoundary(
                             child: ClipRRect(
@@ -1413,11 +1519,11 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
               buttonGrid,
             ],
           );
-          }),
+          })),
           // Edge progress bar (thin strip at top of card)
           if (!desktopPresentation && showBookBar)
             Positioned(
-              top: 0,
+              top: liftInsets.top,
               left: 0,
               right: 0,
               child: CardEdgeProgressBar(
@@ -1534,24 +1640,260 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     return null;
   }
 
+  String get _shownKey => _episodeId == null ? _itemId : '$_itemId-$_episodeId';
+  String? _registeredKey;
+
+  void _registerShown() {
+    final key = _shownKey;
+    if (key == _registeredKey) return;
+    _unregisterShown();
+    if (widget.presentation != AbsorbingCardPresentation.card) return;
+    AbsorbingCard._shown[key] = this;
+    _registeredKey = key;
+  }
+
+  void _unregisterShown() {
+    final key = _registeredKey;
+    if (key != null && AbsorbingCard._shown[key] == this) AbsorbingCard._shown.remove(key);
+    _registeredKey = null;
+  }
+
+  /// Where this card is on screen, or null when it can't be seen: on another
+  /// tab, under a sheet, or swiped off to the side. On close the player is
+  /// the route above this card, so [onTop] is only checked when opening.
+  Rect? _visibleRect({bool onTop = true}) {
+    if (!mounted) return null;
+    // While the player covers the screen, Flutter hides what is under it,
+    // which reads as this card being on a hidden tab. Its place is still
+    // known, so on close only the opening checks apply.
+    if (onTop && (!TickerMode.of(context) || !(ModalRoute.isCurrentOf(context) ?? true))) return null;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    if (rect.isEmpty || !(Offset.zero & MediaQuery.sizeOf(context)).contains(rect.center)) {
+      return null;
+    }
+    return rect;
+  }
+
+  final GlobalKey _coverBoxKey = GlobalKey();
+
+  // The card grows into the full player by lifting its insides out of its
+  // slot into a full-screen layer, the same widget the whole way, and putting
+  // them back when it shrinks. A drag grows it in an overlay first, since
+  // pushing a route cancels the finger that is dragging; on release it moves
+  // into the route.
+  final GlobalKey _bodyKey = GlobalKey();
+  final ValueNotifier<int> _liftTick = ValueNotifier(0);
+  bool _lifted = false;
+  bool? _liftCompact;
+  Rect? _liftFrom;
+  _CardLiftRoute? _route;
+  late final AnimationController _grow = AnimationController(vsync: this);
+  OverlayEntry? _growEntry;
+  bool _growSettling = false;
+  double _dragUp = 0;
+  double _dragDown = 0;
+
+  bool get _fullScreen => widget.presentation == AbsorbingCardPresentation.fullScreen;
+
+  double _growth(BuildContext context) =>
+      _fullScreen ? 1 : (_lifted ? (_CardLift.maybeOf(context) ?? 0) : 0);
+
+  EdgeInsets _liftInsets(BuildContext context, double g) {
+    if (g <= 0) return EdgeInsets.zero;
+    final p = MediaQuery.paddingOf(context);
+    return EdgeInsets.fromLTRB(0, p.top * g, 0, p.bottom * g);
+  }
+
+  /// Where the card's slot is, which the lifted card grows out of and
+  /// shrinks back into.
+  Rect _slotRect() => _visibleRect(onTop: false) ?? _liftFrom ?? Rect.zero;
+
+  Widget _liftedBody() => ValueListenableBuilder<int>(
+        valueListenable: _liftTick,
+        builder: (_, __, ___) => KeyedSubtree(key: _bodyKey, child: _CardBody(this)),
+      );
+
+  bool _beginLift() {
+    if (_lifted) return true;
+    final from = _visibleRect();
+    if (from == null) return false;
+    _liftFrom = from;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.5);
+    _liftCompact = from.height < 600 * textScale;
+    setState(() => _lifted = true);
+    AppShell.setExpandedOpen(true);
+    _wasPlayingHere = _playingHere;
+    widget.player.addListener(_onPlaybackMoved);
+    return true;
+  }
+
+  // While grown, the card follows playback: when the book it shows stops or
+  // gives way to another (a pick in the car, on the watch, Siri, or the next
+  // book in a series starting on its own), it shrinks back into its slot.
+  bool _wasPlayingHere = false;
+
+  bool get _playingHere {
+    final p = widget.player;
+    if (!p.hasBook || p.currentItemId != _itemId) return false;
+    return _episodeId == null || p.currentEpisodeId == null || p.currentEpisodeId == _episodeId;
+  }
+
+  void _onPlaybackMoved() {
+    final here = _playingHere;
+    final left = _wasPlayingHere && !here;
+    _wasPlayingHere = here;
+    if (!left) return;
+    final route = _fullScreen ? ModalRoute.of(context) : _route;
+    final nav = route?.navigator;
+    if (route == null || nav == null || !route.isActive) return;
+    // Anything opened on top of it (a sheet, a menu) goes with it.
+    nav.popUntil((r) => r == route);
+    if (route.isCurrent) nav.pop();
+  }
+
+  void _endLift() {
+    _route = null;
+    widget.player.removeListener(_onPlaybackMoved);
+    if (!mounted || !_lifted) return;
+    setState(() {
+      _lifted = false;
+      _liftCompact = null;
+    });
+    AppShell.setExpandedOpen(false);
+  }
+
+  _CardLiftRoute? _openLiftRoute({bool openedByDrag = false}) {
+    if (!_beginLift()) return null;
+    return _route = _CardLiftRoute(card: this, openedByDrag: openedByDrag);
+  }
+
   void expandCard(BuildContext context) {
     // The desktop workspace has no full-screen player; the Absorbing tab is
     // the now-playing surface itself.
-    if (isDesktopWorkspace(context)) return;
-    AppShell.setExpandedOpen(true);
-    Navigator.of(context, rootNavigator: true).push(
-      ExpandedCardRoute(
-        child: ExpandedCard(
-          item: widget.item,
-          player: widget.player,
-          initialCoverScheme: _coverScheme,
-          initialBlurredCover: _blurredCover,
-          initialChapters: _fetchedChapters,
-          initialEbookFile: _ebookFile,
-          initialCardBackground: _cardBackground,
+    if (isDesktopWorkspace(context) || _fullScreen || _route != null) return;
+    final route = _openLiftRoute();
+    if (route != null) Navigator.of(this.context, rootNavigator: true).push(route);
+  }
+
+  bool _startGrow() {
+    final overlay = Navigator.of(context, rootNavigator: true).overlay;
+    if (overlay == null || !_beginLift()) return false;
+    _grow.value = 0;
+    final entry = OverlayEntry(
+      builder: (_) => IgnorePointer(
+        child: _CardLiftHost(
+          progress: _grow,
+          shownAt: (v) => v,
+          from: _slotRect,
+          child: _liftedBody(),
         ),
       ),
-    ).then((_) => AppShell.setExpandedOpen(false));
+    );
+    _growEntry = entry;
+    overlay.insert(entry);
+    return true;
+  }
+
+  void _onDragUpdate(BuildContext context, DragUpdateDetails d) {
+    final route = _route;
+    if (_fullScreen || route != null) {
+      // Grown: dragging down shrinks it back toward the card.
+      _dragDown += d.delta.dy;
+      if (route == null || !route.isCurrent) return;
+      if (!route.closeDragging) {
+        if (_dragDown < 12) return;
+        route.startCloseDrag();
+      }
+      route.dragCloseTo(_dragDown / (MediaQuery.sizeOf(context).height * 0.5));
+      return;
+    }
+    _dragUp -= d.delta.dy;
+    if (_growSettling) return;
+    if (_growEntry == null) {
+      // A small push first, so a downward or shaky drag opens nothing.
+      if (_dragUp < 12 || isDesktopWorkspace(context)) return;
+      if (!_startGrow()) return;
+    }
+    // Fully open once the finger has gone about half the screen; it grows in
+    // step with the finger until then, both ways.
+    _grow.value = (_dragUp / (MediaQuery.sizeOf(context).height * 0.5)).clamp(0.0, 1.0);
+  }
+
+  void _onDragEnd(BuildContext context, DragEndDetails d) {
+    final vy = d.primaryVelocity ?? 0;
+    final down = _dragDown;
+    _dragUp = 0;
+    _dragDown = 0;
+    if (_fullScreen) {
+      if (vy > 300 || down > 120) Navigator.of(context).maybePop();
+      return;
+    }
+    final route = _route;
+    if (route != null) {
+      if (route.closeDragging) {
+        final close = vy > 300 || (vy > -300 && route.openAmount < 0.65);
+        route.endCloseDrag(close: close).then((_) {
+          if (close && route.isCurrent) route.navigator?.pop();
+        });
+      } else if (vy > 300 && route.isCurrent) {
+        route.navigator?.pop();
+      }
+      return;
+    }
+    if (_growSettling) return;
+    if (_growEntry == null) {
+      if (vy < -300) expandCard(context);
+      return;
+    }
+    _settleGrow(open: vy < -300 || (vy < 300 && _grow.value > 0.35));
+  }
+
+  void _onDragCancel() {
+    _dragUp = 0;
+    _dragDown = 0;
+    final route = _route;
+    if (route != null && route.closeDragging) {
+      route.endCloseDrag(close: false);
+      return;
+    }
+    if (_growEntry != null && !_growSettling) _settleGrow(open: false);
+  }
+
+  void _settleGrow({required bool open}) {
+    _growSettling = true;
+    final v = _grow.value;
+    final settle = open
+        ? _grow.animateTo(1, duration: const Duration(milliseconds: 300) * (1 - v), curve: Curves.easeOutCubic)
+        // Settles back into the card, slowing as it lands.
+        : _grow.animateBack(0, duration: const Duration(milliseconds: 300) * v, curve: Curves.easeOutCubic);
+    settle.whenCompleteOrCancel(() {
+      if (open && mounted) {
+        _handOffGrow();
+      } else {
+        _removeGrowEntry();
+        _growSettling = false;
+        _endLift();
+      }
+    });
+  }
+
+  /// Moves the grown card from the overlay into its route. Removing the one
+  /// and pushing the other in the same frame keeps the very same widget.
+  void _handOffGrow() {
+    _removeGrowEntry();
+    _growSettling = false;
+    final route = _route = _CardLiftRoute(card: this, openedByDrag: true);
+    Navigator.of(context, rootNavigator: true).push(route);
+  }
+
+  void _removeGrowEntry() {
+    final entry = _growEntry;
+    _growEntry = null;
+    if (entry == null) return;
+    entry.remove();
+    WidgetsBinding.instance.addPostFrameCallback((_) => entry.dispose());
   }
 
   Future<void> _startPlayback() async {
@@ -1640,4 +1982,172 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
 
   void _showMoreMenu(BuildContext context, Color accent, TextTheme tt) => _makeActions().showMoreMenu(accent, tt);
 
+}
+
+/// The card's insides, built from its state against whichever place they are
+/// in right now.
+class _CardBody extends StatelessWidget {
+  final AbsorbingCardState state;
+  const _CardBody(this.state);
+
+  @override
+  Widget build(BuildContext context) => state._buildBody(context);
+}
+
+/// How far the lifted card has grown, 0 at its slot to 1 at full screen.
+class _CardLift extends InheritedWidget {
+  final double t;
+  const _CardLift({required this.t, required super.child});
+
+  static double? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_CardLift>()?.t;
+
+  @override
+  bool updateShouldNotify(_CardLift old) => old.t != t;
+}
+
+/// Lays the lifted card out at its size [shownAt] of the way between its
+/// slot and the whole screen. It is really laid out at that size, so it is
+/// the card at the start and the full player at the end, with no step.
+class _CardLiftHost extends StatelessWidget {
+  final Animation<double> progress;
+  final double Function(double value) shownAt;
+  final Rect Function() from;
+  final Widget child;
+
+  const _CardLiftHost({
+    required this.progress,
+    required this.shownAt,
+    required this.from,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: progress,
+      child: child,
+      builder: (context, child) {
+        final t = shownAt(progress.value.clamp(0.0, 1.0));
+        final shape = Rect.lerp(from(), Offset.zero & MediaQuery.sizeOf(context), t)!;
+        if (shape.width <= 0 || shape.height <= 0) return const SizedBox.shrink();
+        return Stack(children: [
+          Positioned.fromRect(
+            rect: shape,
+            // Lifted out of its page, it needs a Material of its own, or text
+            // falls back to Flutter's yellow double-underlined warning look.
+            child: Material(type: MaterialType.transparency, child: _CardLift(t: t, child: child!)),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
+/// The full player: the card, lifted and grown to fill the screen. Back or a
+/// drag down shrinks it into its slot again.
+class _CardLiftRoute extends PageRoute<void> {
+  final AbsorbingCardState card;
+
+  /// Already fully grown when pushed, by a drag in the overlay.
+  final bool openedByDrag;
+
+  _CardLiftRoute({required this.card, required this.openedByDrag});
+
+  bool _dragging = false;
+  // Follows the finger one to one while it drags and through the settle that
+  // follows, so letting go never changes the size it was at.
+  bool _linear = false;
+  bool _closed = false;
+
+  @override Color? get barrierColor => null;
+  @override String? get barrierLabel => null;
+  @override bool get maintainState => true;
+  @override bool get opaque => true;
+
+  @override
+  Duration get transitionDuration => openedByDrag ? Duration.zero : const Duration(milliseconds: 420);
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 300);
+
+  bool get closeDragging => _dragging;
+  double get openAmount => controller?.value ?? 1;
+
+  @override
+  void install() {
+    super.install();
+    // Back in its slot the moment the shrink ends, in the same frame the
+    // route goes, so it is never nowhere.
+    animation!.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed) _close();
+    });
+  }
+
+  void _close() {
+    if (_closed) return;
+    _closed = true;
+    card._endLift();
+  }
+
+  @override
+  void dispose() {
+    _close();
+    super.dispose();
+  }
+
+  void startCloseDrag() {
+    if (_dragging || !isCurrent || controller == null) return;
+    _dragging = true;
+    _linear = true;
+    navigator?.didStartUserGesture();
+  }
+
+  void dragCloseTo(double closed) {
+    if (!_dragging) return;
+    // Exactly 0 would count as closed and take the route away mid-drag.
+    controller!.value = (1 - closed).clamp(0.001, 1.0);
+  }
+
+  /// The finger let go. Closing, it glides the rest of the way and slows as
+  /// it reaches the slot; the caller then pops the route, with nothing left
+  /// to move.
+  Future<void> endCloseDrag({required bool close}) async {
+    if (!_dragging) return;
+    _dragging = false;
+    navigator?.didStopUserGesture();
+    final c = controller!;
+    if (close) {
+      await c
+          .animateBack(0.0005, duration: const Duration(milliseconds: 300) * c.value, curve: Curves.easeOutCubic)
+          .orCancel
+          .catchError((_) {});
+      return;
+    }
+    c.animateTo(1.0, duration: const Duration(milliseconds: 280) * (1 - c.value), curve: Curves.easeOutCubic);
+  }
+
+  double _shownAt(double v) {
+    if (_linear) {
+      if (animation?.isCompleted ?? false) _linear = _dragging;
+      return v;
+    }
+    // Growing eases in and out; shrinking goes quickly at first and slows as
+    // it reaches the slot, so it sits down in place.
+    return animation?.status == AnimationStatus.reverse
+        ? Curves.easeInCubic.transform(v)
+        : Curves.easeInOutCubicEmphasized.transform(v);
+  }
+
+  @override
+  Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) =>
+      _CardLiftHost(
+        progress: animation,
+        shownAt: _shownAt,
+        from: card._slotRect,
+        child: card._liftedBody(),
+      );
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) =>
+      child;
 }

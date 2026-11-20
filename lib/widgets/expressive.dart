@@ -114,10 +114,18 @@ class _ExpressiveNavHighlightState extends State<ExpressiveNavHighlight>
 
   @override
   Widget build(BuildContext context) {
+    // The bar keeps its tabs inside the safe area, so in landscape they sit
+    // clear of the camera cutout; the highlight has to measure the same span
+    // or it drifts further off with every tab.
+    final inset = MediaQuery.paddingOf(context);
     return Stack(
       children: [
         Positioned.fill(child: ColoredBox(color: widget.background)),
-        Positioned.fill(
+        Positioned(
+          left: inset.left,
+          right: inset.right,
+          top: 0,
+          bottom: 0,
           child: RepaintBoundary(
             child: CustomPaint(
               painter: _NavHighlightPainter(
@@ -276,7 +284,6 @@ class ExpressivePlayShape extends StatelessWidget {
   final double size;
   final bool playing;
   final Color color;
-  final Color glow;
   final Widget child;
 
   const ExpressivePlayShape({
@@ -284,7 +291,6 @@ class ExpressivePlayShape extends StatelessWidget {
     required this.size,
     required this.playing,
     required this.color,
-    required this.glow,
     required this.child,
   });
 
@@ -296,7 +302,7 @@ class ExpressivePlayShape extends StatelessWidget {
       duration: still ? Duration.zero : const Duration(milliseconds: 520),
       curve: Curves.easeOutBack,
       builder: (context, t, child) => CustomPaint(
-        painter: _PlayShapePainter(t: t, color: color, glow: glow),
+        painter: _PlayShapePainter(t: t, color: color),
         child: child,
       ),
       child: SizedBox(width: size, height: size, child: Center(child: child)),
@@ -307,9 +313,8 @@ class ExpressivePlayShape extends StatelessWidget {
 class _PlayShapePainter extends CustomPainter {
   final double t;
   final Color color;
-  final Color glow;
 
-  _PlayShapePainter({required this.t, required this.color, required this.glow});
+  _PlayShapePainter({required this.t, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -323,19 +328,13 @@ class _PlayShapePainter extends CustomPainter {
     canvas.rotate(t * math.pi / 4);
     final scale = radius * (1 + 0.06 * (t - morph).abs());
     canvas.scale(scale, scale);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = glow
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 10 / radius),
-    );
     canvas.drawPath(path, Paint()..color = color);
     canvas.restore();
   }
 
   @override
   bool shouldRepaint(_PlayShapePainter old) =>
-      old.t != t || old.color != color || old.glow != glow;
+      old.t != t || old.color != color;
 }
 
 /// The play button drawn over the cover: a dark circle with the accent icon,
@@ -356,9 +355,10 @@ class CoverPlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // On iOS glass the play icon morphs into the pause icon.
+    // On iOS glass the play icon morphs into the pause icon. It draws from
+    // its top-left corner, so it needs centering in the circle.
     final Widget icon = glassLook && !expressiveNotifier.value
-        ? MorphingPlayIcon(playing: playing, size: iconSize, color: accent)
+        ? Center(child: MorphingPlayIcon(playing: playing, size: iconSize, color: accent))
         : Icon(
             playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
             size: iconSize,
@@ -372,7 +372,6 @@ class CoverPlayButton extends StatelessWidget {
               size: size,
               playing: playing,
               color: fill,
-              glow: Colors.transparent,
               child: icon,
             )
           : Container(

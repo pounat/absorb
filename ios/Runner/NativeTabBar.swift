@@ -17,6 +17,9 @@ final class NativeTabBar: NSObject, UITabBarDelegate, UIGestureRecognizerDelegat
   private var holding = false
   private var holdEndedAt: Date?
   private var selectedBeforeHold: UITabBarItem?
+  // The tab whose page is really showing: the one Flutter last set, or the
+  // last real tap. The bar's own highlight can run ahead of it during a hold.
+  private var shownItem: UITabBarItem?
 
   private var pill: UIVisualEffectView?
   private var pillStack: UIStackView?
@@ -114,9 +117,9 @@ final class NativeTabBar: NSObject, UITabBarDelegate, UIGestureRecognizerDelegat
     }
     if let selected = args["selected"] as? String,
        let index = ids.firstIndex(of: selected),
-       let items = bar.items, index < items.count,
-       bar.selectedItem !== items[index] {
-      bar.selectedItem = items[index]
+       let items = bar.items, index < items.count {
+      shownItem = items[index]
+      if bar.selectedItem !== items[index] { bar.selectedItem = items[index] }
     }
     if let tint = args["tint"] as? NSNumber {
       bar.tintColor = color(argb: tint.uint32Value)
@@ -149,6 +152,11 @@ final class NativeTabBar: NSObject, UITabBarDelegate, UIGestureRecognizerDelegat
     bar.translatesAutoresizingMaskIntoConstraints = false
     let hold = UILongPressGestureRecognizer(target: self, action: #selector(barHeld(_:)))
     hold.delegate = self
+    // The bar slides its glass to a tab as soon as a finger lands on it, so a
+    // hold on another tab moved the glass there without going there. Touches
+    // reach the bar only once this has ruled out a hold: a tap or a drag
+    // still lands, a hold never does.
+    hold.delaysTouchesBegan = true
     bar.addGestureRecognizer(hold)
     attach(bar, to: host)
     tabBar = bar
@@ -194,6 +202,7 @@ final class NativeTabBar: NSObject, UITabBarDelegate, UIGestureRecognizerDelegat
       return
     }
     guard item.tag >= 0, item.tag < ids.count else { return }
+    shownItem = item
     channel?.invokeMethod("select", arguments: ["id": ids[item.tag]])
   }
 
@@ -204,14 +213,32 @@ final class NativeTabBar: NSObject, UITabBarDelegate, UIGestureRecognizerDelegat
     case .began:
       guard let bar = tabBar, !ids.isEmpty else { return }
       holding = true
-      selectedBeforeHold = bar.selectedItem
+      selectedBeforeHold = shownItem ?? bar.selectedItem
       let index = tabIndex(at: gesture.location(in: bar).x, in: bar)
       channel?.invokeMethod("hold", arguments: ["id": ids[index]])
     case .ended, .cancelled, .failed:
       holding = false
       holdEndedAt = Date()
+      restoreAfterHold()
     default:
       break
+    }
+  }
+
+  // On iOS 26 the bar picks a tab with gesture handlers of its own, which a
+  // hold can't hold back and which don't always report it, so the tab that
+  // was held could stay lit while its page never opened. Put the tab that
+  // was showing back now, and again once the bar's own slide has run.
+  private func restoreAfterHold() {
+    guard let before = selectedBeforeHold else { return }
+    let put = { [weak self] in
+      guard let bar = self?.tabBar, self?.holding == false,
+            bar.items?.contains(where: { $0 === before }) == true else { return }
+      if bar.selectedItem !== before { bar.selectedItem = before }
+    }
+    put()
+    for delay in [0.15, 0.45] {
+      DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: put)
     }
   }
 

@@ -108,17 +108,22 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
     final s = _sevenControls ? 56.0 : widget.playButtonSize;
     final iconSize = s * 0.49;
     final spinnerSize = s * 0.4;
+    // The same soft cover color as the played part of the chapter bar,
+    // made solid, with the icon in whichever of black or white reads on it.
+    final fill = Color.alphaBlend(widget.accent.withValues(alpha: 0.38), cs.surface);
+    final onFill = ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     if (expressiveNotifier.value) {
       return Pressable(
         onTap: onTap,
         child: ExpressivePlayShape(
           size: s,
           playing: playing,
-          color: cs.onSurface,
-          glow: widget.accent.withValues(alpha: 0.4),
+          color: fill,
           child: loading
-              ? SizedBox(width: spinnerSize, height: spinnerSize, child: AdaptiveSpinner(strokeWidth: 2, color: widget.accent))
-              : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: cs.surface),
+              ? SizedBox(width: spinnerSize, height: spinnerSize, child: AdaptiveSpinner(strokeWidth: 2, color: onFill))
+              : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: onFill),
         ),
       );
     }
@@ -128,14 +133,13 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
         width: s, height: s,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: cs.onSurface,
-          boxShadow: [BoxShadow(color: widget.accent.withValues(alpha: 0.4), blurRadius: 25, spreadRadius: -5)],
+          color: fill,
         ),
         child: loading
-            ? Center(child: SizedBox(width: spinnerSize, height: spinnerSize, child: AdaptiveSpinner(strokeWidth: 2, color: widget.accent)))
+            ? Center(child: SizedBox(width: spinnerSize, height: spinnerSize, child: AdaptiveSpinner(strokeWidth: 2, color: onFill)))
             : glassLook
-            ? Center(child: MorphingPlayIcon(playing: playing, size: iconSize, color: cs.surface))
-            : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: cs.surface),
+            ? Center(child: MorphingPlayIcon(playing: playing, size: iconSize, color: onFill))
+            : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: onFill),
       ),
     );
   }

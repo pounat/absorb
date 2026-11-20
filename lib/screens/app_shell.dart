@@ -66,7 +66,7 @@ import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../services/android_auto_service.dart';
 import '../services/carplay_service.dart';
-import '../widgets/expanded_card.dart';
+import '../widgets/absorbing_card.dart' show AbsorbingCard;
 import '../widgets/desktop_account_button.dart';
 import '../widgets/desktop_collapsible_sidebar.dart';
 import '../widgets/desktop_now_playing_bar.dart';
@@ -1049,9 +1049,8 @@ class _AppShellState extends State<AppShell>
     _syncPlayerOnScreen();
     final nav = Navigator.of(context, rootNavigator: true);
     await nav.push(
-      ExpandedCardRoute(
-        child: ExpandedCard(item: item, player: _player),
-      ),
+      AbsorbingCard.routeFromCard(itemId, _player.currentEpisodeId) ??
+          AbsorbingCard.fullScreenRoute(item, _player),
     );
     // Route was popped — expanded view closed
     _expandedIsOpen = false;
@@ -1941,9 +1940,11 @@ class _AppShellState extends State<AppShell>
   }
 
   void _onNavLongPress(double dx, int destCount) {
-    final width = MediaQuery.sizeOf(context).width;
+    // The tabs sit inside the safe area, clear of a landscape cutout.
+    final inset = MediaQuery.paddingOf(context);
+    final width = MediaQuery.sizeOf(context).width - inset.left - inset.right;
     if (width <= 0 || destCount <= 0) return;
-    final slot = (dx / (width / destCount)).floor().clamp(0, destCount - 1);
+    final slot = ((dx - inset.left) / (width / destCount)).floor().clamp(0, destCount - 1);
     HapticFeedback.mediumImpact();
     unawaited(_runNavHold(_tabForSlot(slot, destCount)));
   }

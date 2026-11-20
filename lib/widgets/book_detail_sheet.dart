@@ -833,9 +833,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
           child: Container(
             height: 240,
             width: _squareCovers ? 240 : null,
-            decoration: BoxDecoration(
+            decoration: OutsideShadowDecoration(
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4))],
+              shadow: BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4)),
             ),
             clipBehavior: Clip.antiAlias,
             child: _squareCovers
@@ -2481,9 +2481,9 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       if (_coverUrl != null) ...[
         Center(child: Container(
           height: 200,
-          decoration: BoxDecoration(
+          decoration: OutsideShadowDecoration(
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4))],
+            shadow: BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4)),
           ),
           clipBehavior: Clip.antiAlias,
           child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet,

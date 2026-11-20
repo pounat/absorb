@@ -3,6 +3,7 @@ import '../widgets/expressive.dart';
 import '../widgets/glass_look.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show Ticker, TickerCallback;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -244,6 +245,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     _cast.removeListener(_rebuild);
     PlayerSettings.settingsChanged.removeListener(_loadQueueMode);
     PlayerSettings.settingsChanged.removeListener(_loadSwipeStyle);
+    _frontMove.dispose();
     _pageController.dispose();
     _desktopQueueScrollController.dispose();
     super.dispose();
@@ -271,6 +273,236 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
   // Used during the slide-to-front animation so the user sees their book smoothly
   // slide to the beginning rather than the list instantly reordering underneath them.
   bool _suppressReorder = false;
+
+  // A book that starts playing travels up to the front of the row: it rides
+  // above the other cards, the ones it passes slide over a place to make
+  // room, and the row follows it there. Then the list takes its new order,
+  // with everything already where that puts it. The ticker keeps going when
+  // the full player covers the page, so the move is done behind it.
+  late final AnimationController _frontMove = AnimationController(
+    vsync: const _UncoveredTickerProvider(),
+    duration: const Duration(milliseconds: 560),
+  )
+    ..addListener(_followFrontMove)
+    ..addStatusListener((status) {
+      if (status == AnimationStatus.completed) _finishFrontMove();
+    });
+  String? _movingKey;
+  double _moveFromPage = 0;
+
+  double get _frontMoveT =>
+      _movingKey == null ? 0 : Curves.easeInOutCubic.transform(_frontMove.value);
+
+  /// The row's page right now, or null before it has been laid out.
+  double? get _livePage {
+    if (_pageController.hasClients &&
+        _pageController.positions.length == 1 &&
+        _pageController.position.haveDimensions) {
+      return _pageController.page ?? _pageController.initialPage.toDouble();
+    }
+    return null;
+  }
+
+  void _startFrontMove(String key, int fromIndex) {
+    if (_movingKey != null) {
+      // Another book started while one was still moving: that one lands
+      // first, then this one sets off.
+      _frontMove.stop();
+      _finishFrontMove(holdOrder: true);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToActiveCard());
+      return;
+    }
+    _movingKey = key;
+    _moveFromPage = _livePage ?? 0;
+    _frontMove.forward(from: 0);
+    setState(() {});
+  }
+
+  void _followFrontMove() {
+    if (_movingKey == null || _moveFromPage <= 0 || !_pageController.hasClients) return;
+    final pos = _pageController.position;
+    if (!pos.haveDimensions) return;
+    pos.jumpTo(_moveFromPage * (1 - _frontMoveT) * pos.viewportDimension * _pageController.viewportFraction);
+  }
+
+  void _finishFrontMove({bool holdOrder = false}) {
+    final key = _movingKey;
+    if (key == null) return;
+    _movingKey = null;
+    _suppressReorder = holdOrder;
+    if (!mounted) return;
+    context.read<LibraryProvider>().moveAbsorbingToFront(key);
+    if (_pageController.hasClients) _pageController.jumpToPage(0);
+    setState(() {});
+  }
+
+  /// The row of cards, with the card that is moving to the front riding
+  /// above it.
+  Widget _cardRow(List<Map<String, dynamic>> books, bool isPhoneLandscape) {
+    return LayoutBuilder(
+      builder: (context, viewport) {
+        final cardWidth = viewport.maxWidth * _pageController.viewportFraction;
+        final vPad = isPhoneLandscape
+            ? 0.0
+            : (viewport.maxHeight * 0.01).clamp(2.0, 16.0);
+        final hPad = isPhoneLandscape ? 0.0 : 4.0;
+        final motion = Listenable.merge([_pageController, _frontMove]);
+        final movingIdx = _movingKey == null
+            ? -1
+            : books.indexWhere((b) => _absorbingKey(b) == _movingKey);
+        final row = PageView.builder(
+          controller: _pageController,
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          // Keeps the cards just off screen built while the row is moving,
+          // so none of the ones sliding over appears late.
+          allowImplicitScrolling: movingIdx > 0,
+          physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+          itemCount: books.length,
+          itemBuilder: (_, i) {
+            if (i == movingIdx) return const SizedBox.expand();
+            return AnimatedBuilder(
+              animation: motion,
+              builder: (context, child) {
+                final shift = movingIdx > 0 && i < movingIdx ? _frontMoveT : 0.0;
+                final page = _livePage;
+                final card = _styleCard(
+                  rawDist: page == null ? 0 : page - (i + shift),
+                  cardWidth: cardWidth,
+                  hPad: hPad,
+                  vPad: vPad,
+                  child: child!,
+                );
+                return shift == 0
+                    ? card
+                    : Transform.translate(offset: Offset(shift * cardWidth, 0), child: card);
+              },
+              child: RepaintBoundary(
+                child: AbsorbingCard(
+                  key: _cardKey(_absorbingKey(books[i])),
+                  item: books[i],
+                  player: _player,
+                ),
+              ),
+            );
+          },
+        );
+        final moving = movingIdx > 0 ? books[movingIdx] : null;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(child: row),
+            if (moving != null)
+              AnimatedBuilder(
+                animation: motion,
+                builder: (context, child) {
+                  final at = movingIdx * (1 - _frontMoveT);
+                  final page = _livePage ?? at;
+                  return Positioned(
+                    left: (viewport.maxWidth - cardWidth) / 2 + (at - page) * cardWidth,
+                    top: 0,
+                    width: cardWidth,
+                    height: viewport.maxHeight,
+                    child: _styleCard(
+                      rawDist: page - at,
+                      cardWidth: cardWidth,
+                      hPad: hPad,
+                      vPad: vPad,
+                      child: child!,
+                    ),
+                  );
+                },
+                child: RepaintBoundary(
+                  child: AbsorbingCard(
+                    key: _cardKey(_absorbingKey(moving)),
+                    item: moving,
+                    player: _player,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// A card shaped for how far it is from the middle of the row, in the
+  /// chosen swipe style. [rawDist] is negative when it is to the right.
+  Widget _styleCard({
+    required double rawDist,
+    required double cardWidth,
+    required double hPad,
+    required double vPad,
+    required Widget child,
+  }) {
+    final distFromCenter = rawDist.abs();
+    final padding = EdgeInsets.symmetric(horizontal: hPad, vertical: vPad);
+    if (_swipeStyle == 'stack') {
+      // Stack: a card that has been passed stays put in the middle and sinks
+      // back a little, and the next one slides in from the side to land on
+      // top of it.
+      final under = rawDist.clamp(0.0, 2.0);
+      final sink = Curves.easeOut.transform(under.clamp(0.0, 1.0));
+      return Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..translate(under * cardWidth - sink * 10, sink * 6, 0.0)
+          ..scale(1 - 0.07 * sink, 1 - 0.07 * sink, 1.0),
+        child: Padding(
+          padding: padding,
+          child: Opacity(opacity: 1 - 0.35 * sink, child: child),
+        ),
+      );
+    }
+    if (_swipeStyle == 'carousel') {
+      // Carousel: a card leaving the middle narrows into a rounded sliver
+      // that shows its own centre, and the one arriving widens out of a
+      // sliver. The card is never squashed or laid out again: a window over
+      // it changes width.
+      final open = Curves.easeOut.transform((1.0 - distFromCenter).clamp(0.0, 1.0));
+      final full = cardWidth - hPad * 2;
+      final sliver = full * 0.22;
+      final width = sliver + (full - sliver) * open;
+      // Each card keeps to the edge nearest the middle, so neighbours stay
+      // side by side as they trade widths.
+      final alignment = rawDist > 0
+          ? Alignment.centerRight
+          : (rawDist < 0 ? Alignment.centerLeft : Alignment.center);
+      return Padding(
+        padding: padding,
+        child: Align(
+          alignment: alignment,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(softCardCorners ? 34 : 24),
+            child: SizedBox(
+              width: width,
+              height: double.infinity,
+              child: OverflowBox(minWidth: full, maxWidth: full, child: child),
+            ),
+          ),
+        ),
+      );
+    }
+    final double scaleX;
+    if (distFromCenter >= 1.0) {
+      scaleX = 0.85;
+    } else {
+      final t = Curves.easeOut.transform(1.0 - distFromCenter);
+      scaleX = 0.85 + (t * 0.15);
+    }
+    // Pull the card toward the middle by about half the space the squeeze
+    // frees up.
+    final freedSpace = cardWidth - cardWidth * scaleX;
+    final direction = rawDist > 0 ? 1.0 : (rawDist < 0 ? -1.0 : 0.0);
+    final translateX = direction * freedSpace * 0.45;
+    return Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..translate(translateX, 0.0, 0.0)
+        ..scale(scaleX, 1.0, 1.0),
+      child: Padding(padding: padding, child: child),
+    );
+  }
   bool _mergeLibraries = false;
   bool? _lastSeenHasBook;
   bool? _lastSeenIsPlaying;
@@ -318,12 +550,9 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
         // Persist so this item stays at front even if the app is killed
         _lastFinishedId = playingKey;
         ScopedPrefs.setString('absorbing_last_finished', playingKey);
-        // Suppress the list reorder if we're not already at page 0, so the
-        // animation slides the current view to the front instead of jumping.
-        final currentPage = _pageController.hasClients
-            ? (_pageController.page ?? 0).round()
-            : 0;
-        _suppressReorder = currentPage > 0;
+        // Hold the list order while the playing card travels to the front,
+        // so it moves there instead of popping into place.
+        _suppressReorder = _pageController.hasClients;
         if (!_suppressReorder) {
           // No animation needed — persist the move-to-front immediately.
           lib.moveAbsorbingToFront(playingKey);
@@ -359,10 +588,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
       lib.unblockFromAbsorbing(castKey);
       _lastFinishedId = castKey;
       ScopedPrefs.setString('absorbing_last_finished', castKey);
-      final currentPage = _pageController.hasClients
-          ? (_pageController.page ?? 0).round()
-          : 0;
-      _suppressReorder = currentPage > 0;
+      _suppressReorder = _pageController.hasClients;
       if (!_suppressReorder) {
         lib.moveAbsorbingToFront(castKey);
       }
@@ -408,7 +634,9 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     final lib = context.read<LibraryProvider>();
     final books = _getAbsorbingBooks(lib);
     final idx = books.indexWhere((b) => _absorbingKey(b) == playingKey);
-    if (idx >= 0 && _pageController.hasClients) {
+    if (idx > 0 && _suppressReorder && _pageController.hasClients) {
+      _startFrontMove(playingKey, idx);
+    } else if (idx >= 0 && _pageController.hasClients) {
       if (_suppressReorder) {
         // Animate from the current page to 0 while keeping the original list order.
         // After the animation lands at 0, release suppression so the list properly
@@ -1246,176 +1474,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
                                 );
                               },
                             )
-                          : PageView.builder(
-                              controller: _pageController,
-                              scrollDirection: Axis.horizontal,
-                              clipBehavior: Clip.none,
-                              physics: const PageScrollPhysics(
-                                parent: ClampingScrollPhysics(),
-                              ),
-                              itemCount: books.length,
-                              itemBuilder: (_, i) => LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final cardWidth = constraints.maxWidth;
-                                  final vPad = isPhoneLandscape
-                                      ? 0.0
-                                      : (constraints.maxHeight * 0.01).clamp(
-                                          2.0,
-                                          16.0,
-                                        );
-                                  final hPad = isPhoneLandscape ? 0.0 : 4.0;
-                                  return AnimatedBuilder(
-                                    animation: _pageController,
-                                    builder: (context, child) {
-                                      double distFromCenter = 0.0;
-                                      double rawDist = 0.0;
-                                      if (_pageController.hasClients &&
-                                          _pageController.positions.length ==
-                                              1 &&
-                                          _pageController
-                                              .position
-                                              .haveDimensions) {
-                                        final page =
-                                            _pageController.page ??
-                                            _pageController.initialPage
-                                                .toDouble();
-                                        rawDist =
-                                            page -
-                                            i; // negative = card is to the right
-                                        distFromCenter = rawDist.abs();
-                                      }
-                                      final padding = EdgeInsets.symmetric(
-                                        horizontal: hPad,
-                                        vertical: vPad,
-                                      );
-                                      if (_swipeStyle == 'stack') {
-                                        // Stack: a card that has been passed
-                                        // stays put in the middle and sinks
-                                        // back a little, and the next one
-                                        // slides in from the side to land on
-                                        // top of it.
-                                        final under = rawDist.clamp(0.0, 2.0);
-                                        final sink =
-                                            Curves.easeOut.transform(
-                                              under.clamp(0.0, 1.0),
-                                            );
-                                        return Transform(
-                                          alignment: Alignment.center,
-                                          transform: Matrix4.identity()
-                                            ..translate(
-                                              under * cardWidth - sink * 10,
-                                              sink * 6,
-                                              0.0,
-                                            )
-                                            ..scale(
-                                              1 - 0.07 * sink,
-                                              1 - 0.07 * sink,
-                                              1.0,
-                                            ),
-                                          child: Padding(
-                                            padding: padding,
-                                            child: Opacity(
-                                              opacity: 1 - 0.35 * sink,
-                                              child: child,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      if (_swipeStyle == 'carousel') {
-                                        // Carousel: a card leaving
-                                        // the middle narrows into a rounded
-                                        // sliver that shows its own centre,
-                                        // and the one arriving widens out of
-                                        // a sliver. The card is never
-                                        // squashed or laid out again: a
-                                        // window over it changes width.
-                                        final open = Curves.easeOut.transform(
-                                          (1.0 - distFromCenter).clamp(0.0, 1.0),
-                                        );
-                                        final full = cardWidth - hPad * 2;
-                                        final sliver = full * 0.22;
-                                        final width =
-                                            sliver + (full - sliver) * open;
-                                        // Each card keeps to the edge nearest
-                                        // the middle, so neighbours stay
-                                        // side by side as they trade widths.
-                                        final alignment = rawDist > 0
-                                            ? Alignment.centerRight
-                                            : (rawDist < 0
-                                                  ? Alignment.centerLeft
-                                                  : Alignment.center);
-                                        return Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: hPad,
-                                            vertical: vPad,
-                                          ),
-                                          child: Align(
-                                            alignment: alignment,
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    softCardCorners ? 34 : 24,
-                                                  ),
-                                              child: SizedBox(
-                                                width: width,
-                                                height: double.infinity,
-                                                child: OverflowBox(
-                                                  minWidth: full,
-                                                  maxWidth: full,
-                                                  child: child,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      final double scaleX;
-                                      if (distFromCenter >= 1.0) {
-                                        scaleX = 0.85;
-                                      } else {
-                                        // Use easeOut curve for smoother transition
-                                        final t = Curves.easeOut.transform(
-                                          1.0 - distFromCenter,
-                                        );
-                                        scaleX =
-                                            0.85 + (t * 0.15); // 0.85 → 1.0
-                                      }
-                                      // Calculate how much space the squeeze frees up, then translate toward center
-                                      final squeezedWidth = cardWidth * scaleX;
-                                      final freedSpace =
-                                          cardWidth - squeezedWidth;
-                                      // Pull card toward center by half the freed space
-                                      final direction = rawDist > 0
-                                          ? 1.0
-                                          : (rawDist < 0 ? -1.0 : 0.0);
-                                      final translateX =
-                                          direction * freedSpace * 0.45;
-
-                                      return Transform(
-                                        alignment: Alignment.center,
-                                        transform: Matrix4.identity()
-                                          ..translate(translateX, 0.0, 0.0)
-                                          ..scale(scaleX, 1.0, 1.0),
-                                        child: Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: hPad,
-                                            vertical: vPad,
-                                          ),
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    child: RepaintBoundary(
-                                      child: AbsorbingCard(
-                                        key: _cardKey(_absorbingKey(books[i])),
-                                        item: books[i],
-                                        player: _player,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
+                          : _cardRow(books, isPhoneLandscape),
                     ),
                   ],
                 );
@@ -3296,4 +3355,14 @@ class _DragHandleState extends State<_DragHandle>
       ),
     );
   }
+}
+
+/// Ticks even while the page is covered, unlike a State's own tickers, so a
+/// move started just before the full player opens over the page still
+/// finishes behind it.
+class _UncoveredTickerProvider implements TickerProvider {
+  const _UncoveredTickerProvider();
+
+  @override
+  Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
 }

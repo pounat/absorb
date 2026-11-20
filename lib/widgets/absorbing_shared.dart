@@ -461,3 +461,57 @@ class _WavePainter extends CustomPainter {
   @override
   bool shouldRepaint(_WavePainter old) => old.phase != phase;
 }
+
+/// A rounded box's drop shadow, drawn only outside the box. A plain
+/// [BoxShadow] is painted under the box too, and the box's smoothed edge
+/// picked up that dark color: a thin black rim around white covers.
+class OutsideShadowDecoration extends Decoration {
+  final BorderRadius borderRadius;
+  final BoxShadow shadow;
+
+  const OutsideShadowDecoration({required this.borderRadius, required this.shadow});
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _OutsideShadowPainter(this);
+
+  @override
+  Path getClipPath(Rect rect, TextDirection textDirection) =>
+      Path()..addRRect(borderRadius.toRRect(rect));
+
+  @override
+  bool operator ==(Object other) =>
+      other is OutsideShadowDecoration &&
+      other.borderRadius == borderRadius &&
+      other.shadow == shadow;
+
+  @override
+  int get hashCode => Object.hash(borderRadius, shadow);
+}
+
+class _OutsideShadowPainter extends BoxPainter {
+  final OutsideShadowDecoration decoration;
+  _OutsideShadowPainter(this.decoration);
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final size = configuration.size;
+    if (size == null || size.isEmpty) return;
+    final rect = offset & size;
+    final box = decoration.borderRadius.toRRect(rect);
+    final s = decoration.shadow;
+    final reach = s.blurRadius * 2 + s.spreadRadius.abs() + s.offset.distance;
+    canvas.save();
+    // A pixel of room past the box, so its smoothed edge sits on whatever is
+    // behind the box rather than on the shadow.
+    canvas.clipPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(rect.inflate(reach)),
+        Path()..addRRect(box.inflate(1)),
+      ),
+      doAntiAlias: false,
+    );
+    canvas.drawRRect(box.shift(s.offset).inflate(s.spreadRadius), s.toPaint());
+    canvas.restore();
+  }
+}
