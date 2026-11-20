@@ -1335,6 +1335,52 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sectionAppearance => '外观';
 
   @override
+  String get appIconLabel => 'App icon';
+
+  @override
+  String get appIconClassic => 'Classic';
+
+  @override
+  String get appIconAurora => 'Aurora';
+
+  @override
+  String get appIconLight => 'Light';
+
+  @override
+  String get appIconTeal => 'Teal';
+
+  @override
+  String get appIconBlue => 'Blue';
+
+  @override
+  String get appIconSky => 'Sky';
+
+  @override
+  String get appIconPurple => 'Purple';
+
+  @override
+  String get appIconPink => 'Pink';
+
+  @override
+  String get appIconRed => 'Red';
+
+  @override
+  String get appIconOrange => 'Orange';
+
+  @override
+  String get appIconYellow => 'Yellow';
+
+  @override
+  String get appIconGreen => 'Green';
+
+  @override
+  String get appIconFailed => 'Couldn\'t change the app icon';
+
+  @override
+  String get appIconAndroidNote =>
+      'Your launcher can take a moment to show the new icon, and an Absorb shortcut on the home screen may need adding back.';
+
+  @override
   String get languageLabel => '语言';
 
   @override
@@ -5785,6 +5831,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get adminUsersUsernameRequired => 'Username is required';
+
+  @override
+  String get adminUsersPickLibrary =>
+      'Pick at least one library, or turn on access to all libraries';
 
   @override
   String get adminUsersPasswordRequired => 'Password is required';
@@ -12796,6 +12846,74 @@ class AppLocalizationsZh extends AppLocalizations {
       'Couldn\'t change achievements on BookOrbit';
 
   @override
+  String get boLibraryVisibilityTitle => 'Library visibility';
+
+  @override
+  String get boLibraryVisibilityIntro =>
+      'Hide a library from any of these places. It stays in the library list, search and its own page. This is saved on your account, so the web app follows it too.';
+
+  @override
+  String get boLibraryVisibilityShelves => 'Shelves';
+
+  @override
+  String get boLibraryVisibilityShelvesDesc =>
+      'Continue Reading, Continue Listening, Up Next in Series and Discover Something New.';
+
+  @override
+  String get boLibraryVisibilitySeries => 'Series';
+
+  @override
+  String get boLibraryVisibilitySeriesDesc =>
+      'The Series page. A series split across libraries keeps the books from libraries still shown.';
+
+  @override
+  String get boLibraryVisibilityStats => 'Stats';
+
+  @override
+  String get boLibraryVisibilityStatsDesc =>
+      'Stats, reading history and Year in Review. Reading is still recorded, so showing the library again brings its numbers back.';
+
+  @override
+  String get boLibraryVisibilitySaveFailed =>
+      'Couldn\'t save library visibility';
+
+  @override
+  String get readAlongPaused => 'Paused';
+
+  @override
+  String get readAlongPausedHint =>
+      'It keeps its place and starts again once resumed.';
+
+  @override
+  String get readAlongPause => 'Pause';
+
+  @override
+  String get readAlongResume => 'Resume';
+
+  @override
+  String boQuickMatchStillRunning(int count) {
+    return 'Still matching on the server ($count)';
+  }
+
+  @override
+  String get boQuickMatchBusy =>
+      'The server already has too many matches waiting. Try again once some finish.';
+
+  @override
+  String get boNotifyStoryGuides => 'Story guides';
+
+  @override
+  String get boNotifyStoryGuidesDesc =>
+      'When a story guide you started building is ready or fails.';
+
+  @override
+  String get boNotifyBulkActions => 'Bulk actions';
+
+  @override
+  String get boNotifyBulkActionsDesc =>
+      'When a bulk action you started finishes after you left it, stops, or is cut short by a restart.';
+
+  @override
   String get boNotifyReadAlong => 'Read alongs';
 
   @override
@@ -14208,7 +14326,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get boAccountKeySessionSubtitle =>
-      'Password, sessions and keys are managed from a password sign-in';
+      'Changing your password or keys asks for a password sign-in first';
 
   @override
   String get boAccountKeyReadOnly =>
@@ -14479,6 +14597,48 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get boApiKeyErrorKeySession =>
       'Keys cannot be managed from a session that signed in with a key';
+
+  @override
+  String get boPasswordSessionTitle => 'Sign in to continue';
+
+  @override
+  String get boPasswordSessionBody =>
+      'BookOrbit doesn\'t let an API key do this. Sign in once and Absorb keeps it for next time.';
+
+  @override
+  String get boPasswordSessionSignIn => 'Sign in';
+
+  @override
+  String boPasswordSessionWith(String provider) {
+    return 'Sign in with $provider';
+  }
+
+  @override
+  String get boPasswordSessionWrongPassword => 'That password didn\'t work';
+
+  @override
+  String get boPasswordSessionOtherAccount => 'That\'s a different account';
+
+  @override
+  String get boPasswordSessionFailed => 'Couldn\'t sign in';
+
+  @override
+  String get boPasswordSessionNoMethods =>
+      'This server has no password or single sign-on to sign in with';
+
+  @override
+  String get boPasswordSessionUsed => 'Using your password sign-in';
+
+  @override
+  String boPasswordSessionUsedWith(String provider) {
+    return 'Using your $provider sign-in';
+  }
+
+  @override
+  String get boPasswordSessionNeeded => 'This needs a password sign-in';
+
+  @override
+  String get coverNotSavedYet => 'Tap Save to use this cover';
 
   @override
   String get boApiKeySettingsSaved => 'API key settings saved';

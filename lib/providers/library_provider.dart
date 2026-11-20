@@ -178,6 +178,7 @@ class LibraryProvider extends ChangeNotifier
         _selectedLibraryId = null;
         _personalizedSections = [];
         _series = [];
+        _forgetEbookSpotsInMemory();
         _progressMap = {};
         _localProgressOverrides.clear();
         _resetItems.clear();
@@ -334,6 +335,7 @@ class LibraryProvider extends ChangeNotifier
       _librariesFromCache = false;
       _personalizedSections = [];
       _series = [];
+      _forgetEbookSpotsInMemory();
       _progressMap = {};
       _localProgressOverrides.clear();
       _itemUpdatedAt.clear();

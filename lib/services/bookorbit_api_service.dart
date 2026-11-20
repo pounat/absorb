@@ -299,6 +299,152 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     );
   }
 
+  // BookOrbit keeps key management, password links and permission changes
+  // to a person who signed in, and refuses every API key there. Signed in
+  // with a key, those calls go through a password (or single sign-on)
+  // sign-in made just for them, kept so it is asked for once, not each time.
+  // The password itself is never kept, only the sign-in it made.
+
+  /// Asks for that sign-in; true once one has been saved. Set by the app.
+  static Future<bool> Function(BookOrbitApiService api)? askForPasswordSession;
+
+  /// Told the first time in a run that the kept sign-in stands in for the
+  /// key, with how it was made: null for a password, else the provider's name.
+  static void Function(String? via)? onPasswordSessionUsed;
+  static bool _passwordSessionNoted = false;
+  static Future<bool>? _askingForPasswordSession;
+
+  static const _passwordSessionKey = 'bo_password_session';
+  static const _passwordSessionZone = #boPasswordSession;
+  String? _psAccess;
+  String? _psRefresh;
+  DateTime? _psAt;
+  String? _psVia;
+  bool _psLoaded = false;
+
+  bool get _inPasswordSession => Zone.current[_passwordSessionZone] is String;
+
+  @override
+  Map<String, String> get _headers {
+    final token = Zone.current[_passwordSessionZone];
+    if (token is! String) return super._headers;
+    return {...customHeaders, 'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
+  }
+
+  /// A refused password sign-in says nothing about the key, so it must not
+  /// set off the check that signs a revoked key out.
+  @override
+  void _checkRevokedApiKey() {
+    if (_inPasswordSession) return;
+    super._checkRevokedApiKey();
+  }
+
+  Future<void> _loadPasswordSession() async {
+    if (_psLoaded) return;
+    _psLoaded = true;
+    try {
+      final raw = await ScopedPrefs.getString(_passwordSessionKey);
+      if (raw == null || raw.isEmpty) return;
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      _psAccess = m['access'] as String?;
+      _psRefresh = m['refresh'] as String?;
+      _psVia = m['via'] as String?;
+      final at = (m['at'] as num?)?.toInt();
+      _psAt = at == null ? null : DateTime.fromMillisecondsSinceEpoch(at);
+    } catch (e) {
+      debugPrint('[BookOrbit] kept password sign-in unreadable: $e');
+    }
+  }
+
+  /// Keeps a sign-in made for the routes a key can't use.
+  Future<void> savePasswordSession({required String access, String? refresh, String? via, bool keepVia = false}) async {
+    _psLoaded = true;
+    _psAccess = access;
+    _psRefresh = refresh ?? _psRefresh;
+    if (!keepVia) _psVia = via;
+    _psAt = DateTime.now();
+    await ScopedPrefs.setString(_passwordSessionKey, jsonEncode({
+      'access': _psAccess,
+      'refresh': _psRefresh,
+      'at': _psAt!.millisecondsSinceEpoch,
+      'via': _psVia,
+    }));
+  }
+
+  Future<void> clearPasswordSession() async {
+    _psLoaded = true;
+    _psAccess = null;
+    _psRefresh = null;
+    _psAt = null;
+    _psVia = null;
+    await ScopedPrefs.remove(_passwordSessionKey);
+  }
+
+  Future<String?> _renewPasswordSession() async {
+    final refresh = _psRefresh;
+    if (refresh == null) return null;
+    try {
+      final r = await _post(
+        Uri.parse('$_v1/auth/refresh'),
+        headers: _refreshHeaders(refresh),
+        body: _refreshBody(refresh),
+      ).timeout(_timeout);
+      if (r.statusCode != 200 && r.statusCode != 201) {
+        debugPrint('[BookOrbit] kept password sign-in could not be renewed: ${r.statusCode}');
+        if (r.statusCode == 401 || r.statusCode == 403) await clearPasswordSession();
+        return null;
+      }
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final access = data['accessToken'] as String?;
+      if (access == null) return null;
+      final cookie = _refreshCookie(r);
+      final next = data['refreshToken'] as String? ??
+          (cookie == null ? null : '$_webRefreshPrefix$cookie') ??
+          refresh;
+      await savePasswordSession(access: access, refresh: next, keepVia: true);
+      return access;
+    } catch (e) {
+      debugPrint('[BookOrbit] kept password sign-in renewal failed: $e');
+      return null;
+    }
+  }
+
+  /// The kept sign-in's access token, renewed first when it has been a while.
+  Future<String?> _passwordSessionAccess() async {
+    await _loadPasswordSession();
+    final at = _psAt;
+    if (_psAccess != null && at != null && DateTime.now().difference(at) < const Duration(minutes: 10)) {
+      return _psAccess;
+    }
+    return await _renewPasswordSession() ?? (_psRefresh == null ? _psAccess : null);
+  }
+
+  /// Runs [call] as the kept sign-in, asking for one when there is none or it
+  /// has run out. Throws [refused] when there is still none.
+  Future<T> _asPasswordSession<T>(Future<T> Function() call, Object refused) async {
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var access = await _passwordSessionAccess();
+      if (access == null) {
+        final ask = askForPasswordSession;
+        if (ask == null) throw refused;
+        final asking = _askingForPasswordSession ??= ask(this).whenComplete(() => _askingForPasswordSession = null);
+        if (!await asking) throw refused;
+        access = await _passwordSessionAccess();
+        if (access == null) throw refused;
+      } else if (!_passwordSessionNoted) {
+        _passwordSessionNoted = true;
+        onPasswordSessionUsed?.call(_psVia);
+      }
+      try {
+        return await runZoned(call, zoneValues: {_passwordSessionZone: access});
+      } on BookOrbitAdminError catch (e) {
+        if (e.status != 401) rethrow;
+        if (await _renewPasswordSession() == null) await clearPasswordSession();
+      }
+    }
+    throw refused;
+  }
+
   static String _deviceLabel() {
     final model = [ApiService.deviceManufacturer, ApiService.deviceModel]
         .where((s) => s.isNotEmpty)
@@ -655,6 +801,9 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     String username;
     try {
       username = '${(await _boGet('/auth/me') as Map<String, dynamic>)['username'] ?? ''}';
+      if (_accessToken.startsWith(boApiKeyPrefix)) {
+        return await _changePasswordFromKey(username, currentPassword, newPassword);
+      }
       await _boPost('/auth/change-password', {'currentPassword': currentPassword, 'newPassword': newPassword});
     } on _BoHttpError catch (e) {
       if (e.status == 401) return const PasswordChangeResult(PasswordChangeStatus.invalidPassword);
@@ -678,6 +827,46 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       await onTokensRefreshed?.call(_accessToken, _refreshToken);
     } else {
       debugPrint('[BookOrbit] password changed, but signing back in failed: $status');
+    }
+    return const PasswordChangeResult(PasswordChangeStatus.success);
+  }
+
+  /// Signed in with a key, which BookOrbit won't let change a password. The
+  /// current password typed in makes the sign-in that does it, and the new
+  /// one makes the kept password sign-in afterwards, since a change signs
+  /// every session out. The key stays the app's own sign-in throughout.
+  Future<PasswordChangeResult> _changePasswordFromKey(
+    String username,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    final (before, status) = await signIn(
+      serverUrl: _cleanBaseUrl,
+      username: username,
+      password: currentPassword,
+      customHeaders: customHeaders,
+    );
+    final access = (before?['user'] as Map?)?['accessToken'];
+    if (status == 401) return const PasswordChangeResult(PasswordChangeStatus.invalidPassword);
+    if (status != 200 || access is! String) return const PasswordChangeResult(PasswordChangeStatus.failed);
+    await runZoned(
+      () => _boPost('/auth/change-password', {'currentPassword': currentPassword, 'newPassword': newPassword}),
+      zoneValues: {_passwordSessionZone: access},
+    );
+    final (after, afterStatus) = await signIn(
+      serverUrl: _cleanBaseUrl,
+      username: username,
+      password: newPassword,
+      customHeaders: customHeaders,
+    );
+    final user = after?['user'];
+    if (afterStatus == 200 && user is Map && user['accessToken'] is String) {
+      await savePasswordSession(
+        access: user['accessToken'] as String,
+        refresh: user['refreshToken'] as String?,
+      );
+    } else {
+      await clearPasswordSession();
     }
     return const PasswordChangeResult(PasswordChangeStatus.success);
   }
@@ -3290,13 +3479,17 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// per book as it goes; [onProgress] hears how many are done. With
   /// [ignoreCache] every provider is asked again instead of reusing saved
   /// answers.
-  Future<({int matched, int failed})> quickMatchBooks(
+  ///
+  /// Since BookOrbit 3.9 the match is a job on the server: it carries on if
+  /// the stream drops or goes quiet (it waits behind another match of this
+  /// account's), so books not reported yet are [running], not failed.
+  Future<({int matched, int failed, int running})> quickMatchBooks(
     List<String> itemIds, {
     bool ignoreCache = false,
     void Function(int done, int total)? onProgress,
   }) async {
     final ids = itemIds.map(int.tryParse).whereType<int>().toList();
-    if (ids.isEmpty) return (matched: 0, failed: itemIds.length);
+    if (ids.isEmpty) return (matched: 0, failed: itemIds.length, running: 0);
     await _ensureFreshAccessToken();
     final request = http.Request('POST', _boUri('/books/bulk-refresh-metadata'))
       ..headers.addAll({..._headers, 'Accept': 'text/event-stream'})
@@ -3304,6 +3497,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final client = _httpClient ?? http.Client();
     var done = 0;
     var matched = 0;
+    var finished = false;
     try {
       final response = await client.send(request).timeout(const Duration(seconds: 30));
       if (response.statusCode != 200) {
@@ -3325,7 +3519,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         }
         if (event is! Map) continue;
         if (event['done'] == true) {
-          matched = (event['processed'] as num?)?.toInt() ?? matched;
+          finished = true;
           break;
         }
         final bookId = event['bookId'];
@@ -3343,13 +3537,18 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         onProgress?.call(done, ids.length);
       }
     } on TimeoutException {
-      debugPrint('[BookOrbit] Quick match stream stalled after $done of ${ids.length}');
+      debugPrint('[BookOrbit] Quick match stream went quiet after $done of ${ids.length}; the server carries on');
     } finally {
       if (_httpClient == null) client.close();
     }
     _recent.removeWhere((key, _) => key.startsWith('personalized:'));
-    // Books the server never reported on count as not matched.
-    return (matched: matched, failed: itemIds.length - matched);
+    final unreported = ids.length - done;
+    final unknownIds = itemIds.length - ids.length;
+    if (finished) {
+      // The server said it was done: anything it skipped didn't match.
+      return (matched: matched, failed: itemIds.length - matched, running: 0);
+    }
+    return (matched: matched, failed: done - matched + unknownIds, running: unreported);
   }
 
   Future<http.Response> _deleteBooks(List<String> ids, {required bool hard}) async {
@@ -5336,6 +5535,12 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       _readAlongCall('cancel $jobId', () => _boDelete('/read-aloud-jobs/$jobId'));
 
   /// Adds output waiting for review to the book as it is.
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> pauseReadAlong(String jobId) =>
+      _readAlongCall('pause $jobId', () => _boPost('/read-aloud-jobs/$jobId/pause', const <String, dynamic>{}));
+
+  Future<({ReadAlongJob? job, ReadAlongFailure? failure})> resumeReadAlong(String jobId) =>
+      _readAlongCall('resume $jobId', () => _boPost('/read-aloud-jobs/$jobId/resume', const <String, dynamic>{}));
+
   Future<({ReadAlongJob? job, ReadAlongFailure? failure})> publishReadAlong(String jobId) =>
       _readAlongCall('publish $jobId', () => _boPost('/read-aloud-jobs/$jobId/publish', const <String, dynamic>{}));
 
@@ -5767,6 +5972,15 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       }
       await prefs.setString(_sessionDevicesKey, jsonEncode(map));
     } catch (_) {}
+  }
+
+  /// Where a session came from, with the device's name when BookOrbit has
+  /// one (3.9 names KOReader devices): "KOReader on Kobo Libra".
+  static String _sessionSourceLabel(Map<String, dynamic> session) {
+    final source = _sourceLabel(session['source']);
+    final device = session['device'];
+    final name = device is Map ? (device['name'] ?? device['model']) : null;
+    return name is String && name.trim().isNotEmpty ? '$source on ${name.trim()}' : source;
   }
 
   static String _sourceLabel(Object? source) => switch (source) {
@@ -6515,6 +6729,46 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     return settings is Map ? Map<String, dynamic>.from(settings) : <String, dynamic>{};
   }
 
+  /// Where each library can be hidden from (BookOrbit 3.9): the reading
+  /// shelves, the Series page, and stats. Shared with the web app.
+  static const libraryVisibilityPlaces = ['shelves', 'series', 'stats'];
+
+  /// The libraries hidden from each place, by library id.
+  Future<Map<String, Set<String>>> libraryVisibility() async {
+    final settings = await _mySettings(fresh: true);
+    final hidden = (settings['libraryVisibility'] as Map?)?['hidden'];
+    return {
+      for (final place in libraryVisibilityPlaces)
+        place: {
+          if (hidden is Map && hidden[place] is List)
+            for (final id in hidden[place] as List)
+              if (id is num) '${id.toInt()}',
+        },
+    };
+  }
+
+  Future<bool> setLibraryVisibility(Map<String, Set<String>> hidden) async {
+    try {
+      await _boPatch('/users/me/settings', {
+        'settings': {
+          'libraryVisibility': {
+            'hidden': {
+              for (final place in libraryVisibilityPlaces)
+                place: [for (final id in hidden[place] ?? const <String>{}) ?int.tryParse(id)],
+            },
+          },
+        },
+      });
+      _recent.remove(_key('auth-me'));
+      _recent.removeWhere((key, _) => key.startsWith('personalized:'));
+      _forgetListeningStats();
+      return true;
+    } catch (e) {
+      debugPrint('[BookOrbit] Saving library visibility failed: $e');
+      return false;
+    }
+  }
+
   @override
   Future<bool> hasServerNotifications() async =>
       await _can('notification_access') && !_demoRestricted;
@@ -6889,7 +7143,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         'date': started == null
             ? null
             : '${started.year}-${started.month.toString().padLeft(2, '0')}-${started.day.toString().padLeft(2, '0')}',
-        'deviceInfo': ownDevice ?? {'clientName': _sourceLabel(s['source'])},
+        'deviceInfo': ownDevice ?? {'clientName': _sessionSourceLabel(s)},
         'mediaPlayer': s['source'] ?? 'web',
       };
     }).toList();

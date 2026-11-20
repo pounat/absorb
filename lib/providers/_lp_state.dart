@@ -50,6 +50,10 @@ mixin _StateMixin on ChangeNotifier {
   static const _progressShelvesFetchCooldown = Duration(seconds: 20);
   static const _rssHydrationCooldown = Duration(minutes: 10);
   Timer? _progressRefreshDebounce;
+  Timer? _ebookSpotsSaveTimer;
+  // Saved ebook places are only written once they have been read back, so
+  // an early save can't replace them with a half-built list.
+  bool _ebookSpotsLoaded = false;
   static const _progressDrivenShelfIds = <String>[
     'continue-listening',
     'continue-reading',
@@ -316,6 +320,18 @@ mixin _StateMixin on ChangeNotifier {
   void registerUpdatedAt(String id, int ts) {
     final cur = _itemUpdatedAt[id];
     if (cur == null || ts > cur) _itemUpdatedAt[id] = ts;
+    if (DownloadService().isDownloaded(id)) unawaited(_refreshSavedCover(id, ts));
+  }
+
+  /// A downloaded book shows its saved cover in Android Auto, on the watch
+  /// and in the playback notification; this keeps that copy current when the
+  /// cover changes on the server.
+  Future<void> _refreshSavedCover(String id, int ts) async {
+    final api = _api;
+    if (api == null || AppPlatform.lacksPhonePlugins) return;
+    if (!await DownloadService().refreshCoverIfStale(api, id, ts)) return;
+    AndroidAutoService.notifyItemUpdated(id, DateTime.now().millisecondsSinceEpoch);
+    AudioPlayerService().refreshArtwork(id);
   }
   /// Per-item "last changed on the server" tick, bumped on every socket
   /// item_updated. Widgets watch this to re-fetch when an item changes (e.g. an

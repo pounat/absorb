@@ -116,9 +116,10 @@ class AuthProvider extends ChangeNotifier {
   bool get bookOrbitSignedInWithKey =>
       isBookOrbit && (_userJson?['bookOrbit'] as Map?)?['authenticationMethod'] == 'api_key';
 
-  /// Whether the BookOrbit account may make API keys of its own.
+  /// Whether the BookOrbit account may make API keys of its own. Signed in
+  /// with a key, the keys screen asks for a password sign-in first.
   bool get bookOrbitCanMakeApiKeys {
-    if (!isBookOrbit || bookOrbitSignedInWithKey) return false;
+    if (!isBookOrbit) return false;
     final bo = _userJson?['bookOrbit'] as Map?;
     if (bo == null) return false;
     if (bo['isSuperuser'] == true) return true;

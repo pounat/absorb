@@ -329,6 +329,8 @@ IconData notificationCategoryIcon(String? category) => switch (category) {
       'achievements' => Icons.emoji_events_rounded,
       'podcasts' => Icons.podcasts_rounded,
       'readAloud' => Icons.record_voice_over_rounded,
+      'storyGuides' => Icons.auto_stories_rounded,
+      'bulkActions' => Icons.playlist_add_check_rounded,
       _ => Icons.notifications_rounded,
     };
 
@@ -494,6 +496,8 @@ class _NotificationSettingsSheetState extends State<NotificationSettingsSheet> {
         'email' => (l.boNotifyEmail, l.boNotifyEmailDesc),
         'achievements' => (l.boNotifyAchievements, l.boNotifyAchievementsDesc),
         'readAloud' => (l.boNotifyReadAlong, l.boNotifyReadAlongDesc),
+        'storyGuides' => (l.boNotifyStoryGuides, l.boNotifyStoryGuidesDesc),
+        'bulkActions' => (l.boNotifyBulkActions, l.boNotifyBulkActionsDesc),
         _ => (category, ''),
       };
 

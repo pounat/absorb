@@ -5,6 +5,15 @@ part of 'api_service.dart';
 extension BookOrbitAdminApi on BookOrbitApiService {
   Future<T> _admin<T>(Future<T> Function() call) async {
     try {
+      return await _adminOnce(call);
+    } on BookOrbitAdminError catch (e) {
+      if (e.code != 'API_KEY_ROUTE_FORBIDDEN' || _inPasswordSession) rethrow;
+      return _asPasswordSession(() => _adminOnce(call), e);
+    }
+  }
+
+  Future<T> _adminOnce<T>(Future<T> Function() call) async {
+    try {
       return await call();
     } on _BoHttpError catch (e) {
       throw BookOrbitAdminError(e.status, e.serverMessage, e.serverCode);

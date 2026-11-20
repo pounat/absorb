@@ -19,6 +19,8 @@ const Map<String, (String, NotificationSeverity)> _typeMeta = {
   'metadata_fetch_failed': ('metadata', _w),
   'book_dock_finalized': ('bookDock', _s),
   'book_dock_finalized_with_errors': ('bookDock', _w),
+  'book_dock_digest': ('bookDock', _s),
+  'book_dock_digest_needs_review': ('bookDock', _w),
   'book_request_submitted': ('bookRequests', _s),
   'book_request_approved': ('bookRequests', _s),
   'book_request_rejected': ('bookRequests', _w),
@@ -43,6 +45,12 @@ const Map<String, (String, NotificationSeverity)> _typeMeta = {
   'read_aloud_needs_review': ('readAloud', _w),
   'read_aloud_failed': ('readAloud', _e),
   'read_aloud_review_expiring': ('readAloud', _w),
+  'story_guide_ready': ('storyGuides', _s),
+  'story_guide_failed': ('storyGuides', _e),
+  'bulk_run_completed': ('bulkActions', _s),
+  'bulk_run_completed_with_errors': ('bulkActions', _w),
+  'bulk_run_failed': ('bulkActions', _e),
+  'bulk_run_interrupted': ('bulkActions', _w),
   'podcast_episode_published': ('podcasts', _s),
   'podcast_feed_unhealthy': ('podcasts', _w),
   'podcast_download_failed': ('podcasts', _e),
@@ -51,8 +59,8 @@ const Map<String, (String, NotificationSeverity)> _typeMeta = {
 /// The categories a user can switch, in BookOrbit's groups. Podcasts are
 /// left out the way BookOrbit leaves them out while its podcasts are off.
 const notificationCategoryGroups = <String, List<String>>{
-  'library': ['scanning', 'metadata', 'authorEnrichment'],
-  'files': ['fileWriteBack', 'fileRename', 'bulkRename', 'readAloud', 'migration'],
+  'library': ['scanning', 'metadata', 'authorEnrichment', 'bulkActions'],
+  'files': ['fileWriteBack', 'fileRename', 'bulkRename', 'readAloud', 'storyGuides', 'migration'],
   'integrations': ['bookDock', 'bookRequests', 'email'],
   'personal': ['achievements'],
 };

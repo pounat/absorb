@@ -247,7 +247,7 @@ class DesktopBatchActions {
       l.adminMatchingStarted(l.selectedCount(itemIds.length)),
       icon: Icons.auto_fix_high_rounded,
     );
-    final ({int matched, int failed}) result;
+    final ({int matched, int failed, int running}) result;
     try {
       result = await api.quickMatchBooks(
         itemIds,
@@ -259,7 +259,10 @@ class DesktopBatchActions {
       if (context.mounted) {
         showOverlayToast(
           context,
-          (e is BookOrbitAdminError ? e.message : null) ?? l.failedToUpdateMetadata,
+          // BookOrbit keeps at most ten matches waiting per account.
+          e is BookOrbitAdminError && e.status == 429
+              ? l.boQuickMatchBusy
+              : (e is BookOrbitAdminError ? e.message : null) ?? l.failedToUpdateMetadata,
           icon: Icons.error_outline_rounded,
         );
       }
@@ -269,6 +272,7 @@ class DesktopBatchActions {
     final summary = <String>[
       if (result.matched > 0) '${l.metadataUpdated} (${result.matched})',
       if (result.failed > 0) '${l.failedToUpdateMetadata} (${result.failed})',
+      if (result.running > 0) l.boQuickMatchStillRunning(result.running),
     ];
     showOverlayToast(
       context,

@@ -71,6 +71,9 @@ import '../l10n/app_localizations.dart';
 import '../utils/desktop_workspace.dart';
 import '../widgets/desktop_wheel_scroll_region.dart';
 import '../widgets/sign_in_again.dart';
+import '../services/app_icon_service.dart';
+import '../widgets/app_icon_picker.dart';
+import 'bookorbit_library_visibility_screen.dart';
 
 class _SettingsSectionDestination {
   final String id;
@@ -549,6 +552,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    AppIconService.load();
     _localServerController = TextEditingController();
     _loadSettings();
     WhatsNewPrompt.isEnabled().then((on) {
@@ -2358,6 +2362,49 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ),
+                    if (context.read<AuthProvider>().isBookOrbit) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      InkWell(
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const BookOrbitLibraryVisibilityScreen(),
+                        )),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(l.boLibraryVisibilityTitle, style: tt.titleSmall)),
+                              Icon(Icons.chevron_right_rounded,
+                                  color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (AppIconService.supported) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      InkWell(
+                        onTap: () => showAppIconPicker(context),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(l.appIconLabel, style: tt.titleSmall)),
+                              ValueListenableBuilder<String>(
+                                valueListenable: AppIconService.current,
+                                builder: (context, id, _) => Row(children: [
+                                  Text(appIconName(l, id),
+                                      style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                                  const SizedBox(width: 8),
+                                  AppIconPreview(option: appIconOption(id), size: 28),
+                                ]),
+                              ),
+                              Icon(Icons.chevron_right_rounded,
+                                  color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -5756,7 +5803,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                 ])),
               ]),
             ),
-          if ((!auth.isBookOrbit || auth.canChangeBookOrbitPassword) && !auth.bookOrbitSignedInWithKey) ...[
+          if (!auth.isBookOrbit || auth.canChangeBookOrbitPassword) ...[
           InkWell(
             onTap: () {
               Navigator.pop(ctx);

@@ -2520,6 +2520,96 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get sectionAppearance;
 
+  /// No description provided for @appIconLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'App icon'**
+  String get appIconLabel;
+
+  /// No description provided for @appIconClassic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get appIconClassic;
+
+  /// No description provided for @appIconAurora.
+  ///
+  /// In en, this message translates to:
+  /// **'Aurora'**
+  String get appIconAurora;
+
+  /// No description provided for @appIconLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get appIconLight;
+
+  /// No description provided for @appIconTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get appIconTeal;
+
+  /// No description provided for @appIconBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get appIconBlue;
+
+  /// No description provided for @appIconSky.
+  ///
+  /// In en, this message translates to:
+  /// **'Sky'**
+  String get appIconSky;
+
+  /// No description provided for @appIconPurple.
+  ///
+  /// In en, this message translates to:
+  /// **'Purple'**
+  String get appIconPurple;
+
+  /// No description provided for @appIconPink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get appIconPink;
+
+  /// No description provided for @appIconRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get appIconRed;
+
+  /// No description provided for @appIconOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get appIconOrange;
+
+  /// No description provided for @appIconYellow.
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow'**
+  String get appIconYellow;
+
+  /// No description provided for @appIconGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get appIconGreen;
+
+  /// No description provided for @appIconFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t change the app icon'**
+  String get appIconFailed;
+
+  /// No description provided for @appIconAndroidNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your launcher can take a moment to show the new icon, and an Absorb shortcut on the home screen may need adding back.'**
+  String get appIconAndroidNote;
+
   /// No description provided for @languageLabel.
   ///
   /// In en, this message translates to:
@@ -10341,6 +10431,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Username is required'**
   String get adminUsersUsernameRequired;
+
+  /// No description provided for @adminUsersPickLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick at least one library, or turn on access to all libraries'**
+  String get adminUsersPickLibrary;
 
   /// No description provided for @adminUsersPasswordRequired.
   ///
@@ -21893,6 +21989,120 @@ abstract class AppLocalizations {
   /// **'Couldn\'t change achievements on BookOrbit'**
   String get achievementsSwitchFailed;
 
+  /// No description provided for @boLibraryVisibilityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library visibility'**
+  String get boLibraryVisibilityTitle;
+
+  /// No description provided for @boLibraryVisibilityIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide a library from any of these places. It stays in the library list, search and its own page. This is saved on your account, so the web app follows it too.'**
+  String get boLibraryVisibilityIntro;
+
+  /// No description provided for @boLibraryVisibilityShelves.
+  ///
+  /// In en, this message translates to:
+  /// **'Shelves'**
+  String get boLibraryVisibilityShelves;
+
+  /// No description provided for @boLibraryVisibilityShelvesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Reading, Continue Listening, Up Next in Series and Discover Something New.'**
+  String get boLibraryVisibilityShelvesDesc;
+
+  /// No description provided for @boLibraryVisibilitySeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get boLibraryVisibilitySeries;
+
+  /// No description provided for @boLibraryVisibilitySeriesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The Series page. A series split across libraries keeps the books from libraries still shown.'**
+  String get boLibraryVisibilitySeriesDesc;
+
+  /// No description provided for @boLibraryVisibilityStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats'**
+  String get boLibraryVisibilityStats;
+
+  /// No description provided for @boLibraryVisibilityStatsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats, reading history and Year in Review. Reading is still recorded, so showing the library again brings its numbers back.'**
+  String get boLibraryVisibilityStatsDesc;
+
+  /// No description provided for @boLibraryVisibilitySaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save library visibility'**
+  String get boLibraryVisibilitySaveFailed;
+
+  /// No description provided for @readAlongPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get readAlongPaused;
+
+  /// No description provided for @readAlongPausedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'It keeps its place and starts again once resumed.'**
+  String get readAlongPausedHint;
+
+  /// No description provided for @readAlongPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get readAlongPause;
+
+  /// No description provided for @readAlongResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get readAlongResume;
+
+  /// No description provided for @boQuickMatchStillRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Still matching on the server ({count})'**
+  String boQuickMatchStillRunning(int count);
+
+  /// No description provided for @boQuickMatchBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The server already has too many matches waiting. Try again once some finish.'**
+  String get boQuickMatchBusy;
+
+  /// No description provided for @boNotifyStoryGuides.
+  ///
+  /// In en, this message translates to:
+  /// **'Story guides'**
+  String get boNotifyStoryGuides;
+
+  /// No description provided for @boNotifyStoryGuidesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'When a story guide you started building is ready or fails.'**
+  String get boNotifyStoryGuidesDesc;
+
+  /// No description provided for @boNotifyBulkActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Bulk actions'**
+  String get boNotifyBulkActions;
+
+  /// No description provided for @boNotifyBulkActionsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'When a bulk action you started finishes after you left it, stops, or is cut short by a restart.'**
+  String get boNotifyBulkActionsDesc;
+
   /// No description provided for @boNotifyReadAlong.
   ///
   /// In en, this message translates to:
@@ -24218,7 +24428,7 @@ abstract class AppLocalizations {
   /// No description provided for @boAccountKeySessionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Password, sessions and keys are managed from a password sign-in'**
+  /// **'Changing your password or keys asks for a password sign-in first'**
   String get boAccountKeySessionSubtitle;
 
   /// No description provided for @boAccountKeyReadOnly.
@@ -24646,6 +24856,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keys cannot be managed from a session that signed in with a key'**
   String get boApiKeyErrorKeySession;
+
+  /// No description provided for @boPasswordSessionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to continue'**
+  String get boPasswordSessionTitle;
+
+  /// No description provided for @boPasswordSessionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'BookOrbit doesn\'t let an API key do this. Sign in once and Absorb keeps it for next time.'**
+  String get boPasswordSessionBody;
+
+  /// No description provided for @boPasswordSessionSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get boPasswordSessionSignIn;
+
+  /// No description provided for @boPasswordSessionWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with {provider}'**
+  String boPasswordSessionWith(String provider);
+
+  /// No description provided for @boPasswordSessionWrongPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'That password didn\'t work'**
+  String get boPasswordSessionWrongPassword;
+
+  /// No description provided for @boPasswordSessionOtherAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s a different account'**
+  String get boPasswordSessionOtherAccount;
+
+  /// No description provided for @boPasswordSessionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t sign in'**
+  String get boPasswordSessionFailed;
+
+  /// No description provided for @boPasswordSessionNoMethods.
+  ///
+  /// In en, this message translates to:
+  /// **'This server has no password or single sign-on to sign in with'**
+  String get boPasswordSessionNoMethods;
+
+  /// No description provided for @boPasswordSessionUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Using your password sign-in'**
+  String get boPasswordSessionUsed;
+
+  /// No description provided for @boPasswordSessionUsedWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Using your {provider} sign-in'**
+  String boPasswordSessionUsedWith(String provider);
+
+  /// No description provided for @boPasswordSessionNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'This needs a password sign-in'**
+  String get boPasswordSessionNeeded;
+
+  /// No description provided for @coverNotSavedYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Save to use this cover'**
+  String get coverNotSavedYet;
 
   /// No description provided for @boApiKeySettingsSaved.
   ///

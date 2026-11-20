@@ -738,7 +738,66 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     // the item stayed marked reset, the reader couldn't see its own saved
     // page and started over on every open.
     _resetItems.remove(itemId);
+    _scheduleEbookSpotsSave();
     notifyListeners();
+  }
+
+  static const _ebookSpotsKey = 'ebook_spots';
+
+  /// Ebook places kept on the phone. Audio positions have their own local
+  /// copy, but an ebook place lived only in memory once the server had it,
+  /// so starting the app offline showed every ebook back at 0% and the
+  /// reader opened at the start.
+  void _scheduleEbookSpotsSave() {
+    if (!_ebookSpotsLoaded) return;
+    _ebookSpotsSaveTimer?.cancel();
+    _ebookSpotsSaveTimer = Timer(const Duration(seconds: 2), _saveEbookSpots);
+  }
+
+  void _forgetEbookSpotsInMemory() {
+    _ebookSpotsSaveTimer?.cancel();
+    _ebookSpotsSaveTimer = null;
+    _ebookSpotsLoaded = false;
+  }
+
+  Future<void> _saveEbookSpots() async {
+    _ebookSpotsSaveTimer = null;
+    if (!_ebookSpotsLoaded) return;
+    final spots = <String, Map<String, dynamic>>{};
+    for (final e in _progressMap.entries) {
+      final loc = e.value['ebookLocation'] as String?;
+      final prog = (e.value['ebookProgress'] as num?)?.toDouble() ?? 0;
+      if ((loc == null || loc.isEmpty) && prog <= 0) continue;
+      spots[e.key] = {'loc': loc, 'prog': prog};
+    }
+    await ScopedPrefs.setString(_ebookSpotsKey, jsonEncode(spots));
+  }
+
+  /// Only used when the server couldn't be reached at startup. Online, the
+  /// server's list is the truth, as it always was.
+  Future<void> _overlaySavedEbookSpots() async {
+    final raw = await ScopedPrefs.getString(_ebookSpotsKey);
+    var changed = false;
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final saved = jsonDecode(raw) as Map<String, dynamic>;
+        for (final e in saved.entries) {
+          final v = e.value;
+          if (v is! Map || _resetItems.contains(e.key)) continue;
+          final current = _progressMap[e.key];
+          if (current?['ebookLocation'] != null) continue;
+          _progressMap[e.key] = {
+            ...?current,
+            'ebookLocation': v['loc'],
+            'ebookProgress': ((v['prog'] as num?)?.toDouble() ?? 0).clamp(0.0, 1.0),
+          };
+          changed = true;
+        }
+      } catch (e) {
+        debugPrint('[Progress] saved ebook places unreadable: $e');
+      }
+    }
+    if (changed) notifyListeners();
   }
 
   double getEpisodeProgress(String itemId, String episodeId) {
@@ -992,6 +1051,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
   void clearProgressFor(String itemId) {
     _progressMap.remove(itemId);
     _localProgressOverrides.remove(itemId);
+    _scheduleEbookSpotsSave();
     notifyListeners();
   }
 
@@ -1025,10 +1085,12 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
     _localProgressOverrides.remove(itemId);
     _locallyFinishedItems.remove(itemId);
     _resetItems.add(itemId);
+    _scheduleEbookSpotsSave();
     notifyListeners();
   }
 
   void _buildProgressMap(AuthProvider auth) {
+    _forgetEbookSpotsInMemory();
     _progressMap = {};
     final progressList = auth.userJson?['mediaProgress'] as List<dynamic>?;
     if (progressList != null) {
@@ -1043,9 +1105,16 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
         }
       }
     }
+    unawaited(_overlayLocalEbookProgress(fromServer: progressList != null));
+  }
+
+  Future<void> _overlayLocalEbookProgress({required bool fromServer}) async {
+    if (!fromServer) await _overlaySavedEbookSpots();
     // Overlay queued-offline ebook positions (their PATCH never landed), so a
     // cold start can't resume the reader behind the last page read offline.
-    _overlayPendingEbookProgress();
+    await _overlayPendingEbookProgress();
+    _ebookSpotsLoaded = true;
+    if (fromServer) _scheduleEbookSpotsSave();
   }
 
   // Once overlaid here, the position lives in _progressMap like any local
@@ -1169,6 +1238,7 @@ mixin _CoreMixin on ChangeNotifier, _StateMixin {
           }
           (this as _AbsorbingMixin)
               ._pruneRemotelyFinishedBooks(_progressMap.keys);
+          _scheduleEbookSpotsSave();
       }
     } catch (_) {}
   }

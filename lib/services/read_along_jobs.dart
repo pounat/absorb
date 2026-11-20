@@ -84,6 +84,10 @@ class ReadAlongJob {
 
   /// Jobs ahead of this one while it waits.
   final int? queuePosition;
+
+  /// Set while a waiting job is held back (BookOrbit 3.9); it keeps its
+  /// place but nothing starts it until it is resumed.
+  final DateTime? pausedAt;
   final int? epubFileId;
   final List<int> audioFileIds;
   final String? language;
@@ -131,6 +135,7 @@ class ReadAlongJob {
     this.stageTotal,
     this.stageUnit,
     this.queuePosition,
+    this.pausedAt,
     this.epubFileId,
     this.audioFileIds = const [],
     this.language,
@@ -198,6 +203,7 @@ class ReadAlongJob {
       stageTotal: _int(detail?['total']),
       stageUnit: detail?['unit'] as String?,
       queuePosition: _int(json['queuePosition']),
+      pausedAt: _date(json['pausedAt']),
       epubFileId: _int(input['epubFileId']),
       audioFileIds: [for (final v in (input['audioFileIds'] as List? ?? const [])) ?_int(v)],
       language: input['language'] as String?,
@@ -245,6 +251,11 @@ class ReadAlongJob {
 
   /// Whether Cancel would still be taken: not once the file is being added.
   bool get canCancel => running && canManage && cancellable && !cancelRequested && stage != 'publishing';
+  bool get paused => queued && pausedAt != null;
+
+  /// Only a job still waiting its turn can be held back or let go again.
+  bool get canPause => queued && pausedAt == null && canManage && !cancelRequested;
+  bool get canResume => paused && canManage && !cancelRequested;
 }
 
 /// What the book's Create read along button shows.

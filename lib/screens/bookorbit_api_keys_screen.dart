@@ -493,10 +493,13 @@ class _Retry extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    final message = error is BookOrbitAdminError
-        ? (error as BookOrbitAdminError).status == 0
+    final e = error;
+    final message = e is BookOrbitAdminError
+        ? e.status == 0
             ? l.boAdminOffline
-            : (error as BookOrbitAdminError).message ?? l.boAdminFailed
+            : e.code == 'API_KEY_ROUTE_FORBIDDEN'
+                ? l.boPasswordSessionNeeded
+                : e.message ?? l.boAdminFailed
         : l.boAdminFailed;
     return Center(
       child: Padding(

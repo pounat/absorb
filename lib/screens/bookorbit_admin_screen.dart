@@ -158,7 +158,11 @@ void showBoAdminError(BuildContext context, Object error) {
   if (!context.mounted) return;
   final l = AppLocalizations.of(context)!;
   final message = error is BookOrbitAdminError
-      ? (error.status == 0 ? l.boAdminOffline : (error.message ?? l.boAdminFailed))
+      ? (error.status == 0
+          ? l.boAdminOffline
+          : error.code == 'API_KEY_ROUTE_FORBIDDEN'
+              ? l.boPasswordSessionNeeded
+              : (error.message ?? l.boAdminFailed))
       : l.boAdminFailed;
   showOverlayToast(context, message, icon: Icons.error_outline_rounded);
 }

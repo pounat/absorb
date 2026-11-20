@@ -1126,9 +1126,19 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     final username = _usernameCtrl.text.trim();
     if (username.isEmpty) { _snk(l.adminUsersUsernameRequired, icon: Icons.error_outline_rounded); return; }
     if (_isNew && _passwordCtrl.text.isEmpty) { _snk(l.adminUsersPasswordRequired, icon: Icons.error_outline_rounded); return; }
+    // Since Audiobookshelf 2.38 an empty list means no libraries at all,
+    // not every library.
+    if (!_accessAllLibraries && _selectedLibraries.isEmpty) {
+      _snk(l.adminUsersPickLibrary, icon: Icons.error_outline_rounded);
+      return;
+    }
     setState(() => _saving = true);
+    // Tag limits are only set in the web app; keep whatever the user has
+    // rather than lifting them on every save.
+    final oldPerms = widget.user?['permissions'] as Map<String, dynamic>?;
     final perms = {'download': _canDownload, 'update': _canUpdate, 'delete': _canDelete, 'upload': _canUpload,
-      'accessExplicitContent': _accessExplicit, 'accessAllLibraries': _accessAllLibraries, 'accessAllTags': true};
+      'accessExplicitContent': _accessExplicit, 'accessAllLibraries': _accessAllLibraries,
+      'accessAllTags': oldPerms?['accessAllTags'] as bool? ?? true};
     bool ok;
     if (_isNew) {
       final r = await api.createUser(username: username, password: _passwordCtrl.text, type: _type,
