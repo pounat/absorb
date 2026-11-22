@@ -23,6 +23,9 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
   private var widgetChannel: FlutterMethodChannel?
   private var volumeKeysChannel: FlutterMethodChannel?
   private var backgroundChannel: FlutterMethodChannel?
+  // Background time asked for by Dart (a token refresh), so iOS doesn't
+  // freeze the app before the server's answer arrives.
+  private var workTasks = Set<Int>()
   // New podcast episodes and release-day books, checked when iOS gives the
   // app background refresh time. Listed in Info.plist.
   private let episodeCheckTaskId = "com.barnabas.absorb.episodeNotifCheck"
@@ -297,6 +300,22 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
 
   /// The check runs in the app's own Dart code. On a cold background launch
   /// the message waits in the channel until Dart is listening.
+  private func beginWork() -> Int? {
+    var raw = 0
+    let id = UIApplication.shared.beginBackgroundTask(withName: "absorb.tokenRefresh") { [weak self] in
+      self?.endWork(raw)
+    }
+    if id == .invalid { return nil }
+    raw = id.rawValue
+    workTasks.insert(raw)
+    return raw
+  }
+
+  private func endWork(_ raw: Int) {
+    guard workTasks.remove(raw) != nil else { return }
+    UIApplication.shared.endBackgroundTask(UIBackgroundTaskIdentifier(rawValue: raw))
+  }
+
   private func runEpisodeCheck(_ task: BGAppRefreshTask) {
     scheduleEpisodeCheck(replacing: true)
     var done = false
@@ -477,7 +496,20 @@ let flutterEngine = FlutterEngine(name: "SharedEngine", project: nil, allowHeadl
     let background = FlutterMethodChannel(name: "com.barnabas.absorb/background",
                                           binaryMessenger: messenger)
     background.setMethodCallHandler { [weak self] call, result in
-      guard let self, call.method == "scheduleEpisodeCheck" else {
+      guard let self else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      if call.method == "beginWork" {
+        result(self.beginWork())
+        return
+      }
+      if call.method == "endWork" {
+        if let raw = call.arguments as? Int { self.endWork(raw) }
+        result(nil)
+        return
+      }
+      guard call.method == "scheduleEpisodeCheck" else {
         result(FlutterMethodNotImplemented)
         return
       }

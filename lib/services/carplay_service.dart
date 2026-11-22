@@ -30,6 +30,7 @@ class CarPlayService {
 
   bool _initialized = false;
   bool _connected = false;
+  bool get isConnected => _connected;
   DateTime? _lastRootBuilt;
   CPTabBarTemplate? _rootTemplate;
   Future<void>? _inFlightBuild;

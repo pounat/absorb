@@ -39,6 +39,10 @@ class EpisodeNotificationService {
   static const _iosChannel = MethodChannel('com.barnabas.absorb/background');
   static const _lastCheckKey = 'episodeNotifLastCheckMs';
 
+  /// True while iOS has woken the app for the episode check. iOS gives that
+  /// job its own time, so a token refresh inside it can finish.
+  static bool backgroundCheckRunning = false;
+
   static String notifiedKey(String showId) => 'notified_episodes_$showId';
 
   /// Record episodes as already announced without sending anything.
@@ -132,7 +136,12 @@ class EpisodeNotificationService {
     if (Platform.isIOS) {
       _iosChannel.setMethodCallHandler((call) async {
         if (call.method != 'runEpisodeCheck') return null;
-        return checkInApp();
+        backgroundCheckRunning = true;
+        try {
+          return await checkInApp();
+        } finally {
+          backgroundCheckRunning = false;
+        }
       });
     }
     final plugin = FlutterLocalNotificationsPlugin();

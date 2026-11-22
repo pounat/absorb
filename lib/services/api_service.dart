@@ -140,6 +140,8 @@ enum _RefreshOutcome {
   refreshed,
   rejected,
   transientFailure,
+  // Not tried: the app is frozen in the background and the answer could be lost.
+  held,
 }
 
 enum PasswordChangeStatus {
@@ -823,12 +825,21 @@ class ApiService {
       return _refreshCompleter!.future;
     }
 
+    if (holdRefreshForNow?.call() == true) {
+      debugPrint('[API] Token refresh held until the app is back: backgrounded with nothing playing');
+      return _RefreshOutcome.held;
+    }
+
     debugPrint(
       '[API] Token refresh start: access=${tokenFp(_accessToken)} '
       'refresh=${tokenFp(_refreshToken)}',
     );
     _refreshCompleter = Completer<_RefreshOutcome>();
     final mutationLock = await _acquireTokenMutationLock();
+    Object? backgroundWork;
+    try {
+      backgroundWork = await beginBackgroundWork?.call();
+    } catch (_) {}
     try {
       if (await _adoptPersistedTokens()) {
         _refreshCompleter!.complete(_RefreshOutcome.refreshed);
@@ -899,6 +910,7 @@ class ApiService {
     } finally {
       _refreshCompleter = null;
       _releaseTokenMutationLock(mutationLock);
+      if (backgroundWork != null) endBackgroundWork?.call(backgroundWork);
     }
   }
 
@@ -968,6 +980,8 @@ class ApiService {
       case _RefreshOutcome.rejected:
         _preflightCooldownUntil = null;
         onAuthExpired?.call();
+      case _RefreshOutcome.held:
+        break;
       case _RefreshOutcome.transientFailure:
         _preflightCooldownUntil = DateTime.now().add(_preflightCooldown);
         debugPrint(
@@ -2656,6 +2670,16 @@ class ApiService {
   /// The narration time of the page a narrated book was read to on another
   /// device, when that page is the newer place. Set by the app at start.
   static Future<double?> Function(String itemId, Map<String, dynamic> progress)? pageReadElsewhere;
+
+  /// iOS freezes a backgrounded app that isn't playing within seconds, often
+  /// with a refresh already sent. The server then retires the old refresh
+  /// token while the new pair never arrives, and after its ten minute grace
+  /// the next refresh signs the user out (GH #501). These are set by the app
+  /// on iOS: one asks for time to finish a refresh, the other says when a
+  /// refresh should wait for the app to come back instead.
+  static Future<Object?> Function()? beginBackgroundWork;
+  static void Function(Object? token)? endBackgroundWork;
+  static bool Function()? holdRefreshForNow;
 
   /// Audiobookshelf sees only the ebook in a narrated EPUB, so reading it in
   /// its web reader moves the page and leaves the audio behind. A newer page

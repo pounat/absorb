@@ -123,6 +123,29 @@ final ValueNotifier<ColorScheme?> coverSchemeNotifier = ValueNotifier(null);
 /// Checked dynamically by [_CertOverrides] when any HttpClient is created.
 bool trustAllCerts = false;
 
+/// Keeps iOS from freezing the app halfway through a token refresh, which
+/// loses the new pair and signs the user out later (GH #501).
+void _wireIosRefreshGuard() {
+  const channel = MethodChannel('com.barnabas.absorb/background');
+  ApiService.beginBackgroundWork = () async {
+    try {
+      return await channel.invokeMethod<int>('beginWork');
+    } catch (_) {
+      return null;
+    }
+  };
+  ApiService.endBackgroundWork = (token) {
+    channel.invokeMethod<void>('endWork', token).catchError((_) {});
+  };
+  ApiService.holdRefreshForNow = () {
+    final player = AudioPlayerService();
+    return player.isBackgrounded &&
+        !player.isPlaying &&
+        !CarPlayService().isConnected &&
+        !EpisodeNotificationService.backgroundCheckRunning;
+  };
+}
+
 /// Allows Dart's HTTP stack to trust user-installed / self-signed certificates.
 /// Android's network_security_config.xml only covers the native layer; Dart's
 /// BoringSSL ignores it, so we override badCertificateCallback globally.
@@ -230,6 +253,7 @@ void main(List<String> args) async {
   unawaited(AppIconService.load());
   BookOrbitApiService.keptNarration = NarrationService.instance.localOverlay;
   ApiService.pageReadElsewhere = NarrationService.pageReadElsewhere;
+  if (AppPlatform.isIOS) _wireIosRefreshGuard();
   try {
     await NarratedBooks.load().timeout(const Duration(seconds: 2));
   } catch (_) {}
