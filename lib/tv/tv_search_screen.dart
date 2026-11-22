@@ -147,6 +147,7 @@ class _TvSearchScreenState extends State<TvSearchScreen> {
                 focusNode: _field,
                 readOnly: !_editing,
                 showCursor: _editing,
+                enableInteractiveSelection: false,
                 textInputAction: TextInputAction.search,
                 style: tt.titleLarge,
                 decoration: InputDecoration(

@@ -101,6 +101,8 @@ class _RemoteTextFieldState extends State<RemoteTextField> {
         textCapitalization: widget.textCapitalization,
         readOnly: tv && !_editing,
         showCursor: tv ? _editing : null,
+        // No touch on a TV: without this a drag handle hangs under the cursor.
+        enableInteractiveSelection: !tv,
         onChanged: widget.onChanged,
         // On a TV the action key moves on once, below; left to itself the box
         // would also step to the next field.
