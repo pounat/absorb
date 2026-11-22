@@ -1996,8 +1996,8 @@ class SettingsScreenState extends State<SettingsScreen> {
     final destinations = <_SettingsSectionDestination>[
       _SettingsSectionDestination('General', Icons.settings_outlined, l.sectionGeneral),
       _SettingsSectionDestination('Appearance', Icons.palette_outlined, l.sectionAppearance),
-      _SettingsSectionDestination('Customize Stats', Icons.bar_chart_rounded, l.settingsCustomizeStats),
       _SettingsSectionDestination('Absorbing Cards', Icons.style_rounded, Wording.of(context).sectionAbsorbingCards),
+      _SettingsSectionDestination('Customize Stats', Icons.bar_chart_rounded, l.settingsCustomizeStats),
       _SettingsSectionDestination('Playback', Icons.play_circle_outline_rounded, l.sectionPlayback),
       _SettingsSectionDestination('Sleep Timer', Icons.bedtime_outlined, l.sectionSleepTimer),
       _SettingsSectionDestination('Library', Icons.auto_stories_outlined, l.sectionLibrary),
@@ -2329,21 +2329,21 @@ class SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── Customize Stats ──
-                SettingsSectionTile(
-                  key: _keyFor('Customize Stats'),
-                  icon: Icons.bar_chart_rounded,
-                  title: l.settingsCustomizeStats,
-                  onTap: () => _openSection('Customize Stats'),
-                ),
-                const SizedBox(height: 16),
-
                 // ── Absorbing Cards ──
                 SettingsSectionTile(
                   key: _keyFor('Absorbing Cards'),
                   icon: Icons.style_rounded,
                   title: Wording.of(context).sectionAbsorbingCards,
                   onTap: () => _openSection('Absorbing Cards'),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Customize Stats ──
+                SettingsSectionTile(
+                  key: _keyFor('Customize Stats'),
+                  icon: Icons.bar_chart_rounded,
+                  title: l.settingsCustomizeStats,
+                  onTap: () => _openSection('Customize Stats'),
                 ),
                 const SizedBox(height: 16),
 

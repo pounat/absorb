@@ -2526,7 +2526,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            l.absorbingNothingAbsorbingYet,
+            Wording.from(l).absorbingNothingAbsorbingYet,
             style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           ),
         ),
@@ -2559,7 +2559,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            l.absorbingNothingAbsorbingYet,
+            Wording.from(l).absorbingNothingAbsorbingYet,
             style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           ),
         ),
@@ -2608,7 +2608,7 @@ class _AbsorbingQueuePanelState extends State<_AbsorbingQueuePanel> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            l.absorbingNothingAbsorbingYet,
+            Wording.from(l).absorbingNothingAbsorbingYet,
             style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           ),
         ),
