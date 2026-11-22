@@ -370,6 +370,18 @@ class MainActivity : AudioServiceActivity() {
             }
             return true
         }
+        // On a TV a game controller's A is OK and B is Back, so it works on
+        // every screen the remote does (a Shield is often run by its controller).
+        val asRemote = when (event.keyCode) {
+            KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_DPAD_CENTER
+            KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BACK
+            else -> null
+        }
+        if (asRemote != null && packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+            return super.dispatchKeyEvent(KeyEvent(
+                event.downTime, event.eventTime, event.action, asRemote, event.repeatCount,
+                event.metaState, event.deviceId, event.scanCode, event.flags, event.source))
+        }
         return super.dispatchKeyEvent(event)
     }
 
