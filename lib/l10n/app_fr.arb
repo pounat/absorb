@@ -718,7 +718,6 @@
   "useColorEverywhereLabel": "Utiliser cette couleur partout",
   "useColorEverywhereSubtitle": "Colorer aussi les pages de détail des livres et la carte du lecteur avec ta couleur définie plutôt qu’avec la couverture de chaque livre",
   "flatBackgroundLabel": "Arrière-plan plat",
-  "flatBackgroundSubtitle": "Supprime le dégradé d’arrière‑plan. Noir pur en mode sombre pour les écrans OLED.",
   "einkModeLabel": "Mode encre électronique",
   "einkModeSubtitle": "Noir et blanc avec contraste élevé, sans animation, fait pour les écrans à encre électronique",
   "einkModeIntroBody": "Conçu pour les écrans d'encre électronique. L'application passe à un aspect noir et blanc plat avec un contraste élevé, les animations sont désactivées, la carte de lecture perd son arrière-plan et la connexion au serveur en direct reste désactivée pour économiser la batterie. La lecture et la progression continuent de se synchroniser normalement. Vos paramètres d'apparence sont conservés et sont réactivés lorsque vous désactivez cette fonction.",
