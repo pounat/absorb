@@ -404,7 +404,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                 padding: const EdgeInsets.only(left: 4, bottom: 8),
                                 child: Text(l.downloadsDownloading,
                                     style: tt.labelMedium?.copyWith(
-                                        color: cs.primary,
+                                        color: cs.onSurfaceVariant,
                                         fontWeight: FontWeight.w600)),
                               ),
                               for (final info in active)

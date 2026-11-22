@@ -5,6 +5,7 @@ import '../screens/library_screen.dart';
 import '../utils/app_platform.dart';
 import '../utils/read_status.dart';
 import '../services/server_backend.dart';
+import 'tints.dart';
 import 'adaptive_modal.dart';
 
 /// Which library tab the sort/filter sheet is being shown for.
@@ -188,7 +189,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(l.sort, style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w600, color: cs.primary)),
+                fontSize: 16, fontWeight: FontWeight.w600, color: cs.onSurface)),
             ),
           if (ModalSurface.isDesktopOf(context))
             Flexible(
@@ -264,7 +265,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                     onTap: widget.onSortDirectionToggled,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: cs.primary.withValues(alpha: Tints.soft), borderRadius: BorderRadius.circular(12)),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         Icon(widget.sortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, size: 14, color: cs.primary),
                         const SizedBox(width: 4),
@@ -285,18 +286,18 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
-                color: _collapseSeries ? cs.secondary.withValues(alpha: 0.12) : Colors.transparent,
+                color: _collapseSeries ? cs.primary.withValues(alpha: Tints.soft) : Colors.transparent,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(children: [
                 Icon(Icons.auto_stories_rounded, size: 20,
-                  color: _collapseSeries ? cs.secondary : cs.onSurfaceVariant),
+                  color: _collapseSeries ? cs.primary : cs.onSurfaceVariant),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(l.collapseSeries, style: TextStyle(
                     fontSize: 14,
                     fontWeight: _collapseSeries ? FontWeight.w600 : FontWeight.w400,
-                    color: _collapseSeries ? cs.secondary : cs.onSurface)),
+                    color: _collapseSeries ? cs.primary : cs.onSurface)),
                 ),
                 Switch(
                   value: _collapseSeries,
@@ -304,7 +305,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                     setState(() => _collapseSeries = v);
                     widget.onCollapseSeriesChanged(v);
                   },
-                  activeThumbColor: cs.secondary,
+                  activeThumbColor: cs.primary,
                 ),
               ]),
             ),
@@ -316,25 +317,25 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.08),
+                color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
               ),
               child: Row(children: [
-                Icon(Icons.auto_fix_high_rounded, size: 20, color: cs.primary),
+                Icon(Icons.auto_fix_high_rounded, size: 20, color: cs.onSurfaceVariant),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(l.adminMatchAll, style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600, color: cs.primary)),
+                        fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface)),
                       Text(l.librarySortFilterMatchAllAuthorsSubtitle, style: TextStyle(
                         fontSize: 11, color: cs.onSurfaceVariant)),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, size: 20, color: cs.primary),
+                Icon(Icons.chevron_right_rounded, size: 20, color: cs.onSurfaceVariant),
               ]),
             ),
           ),
@@ -365,25 +366,25 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.08),
+                color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
               ),
               child: Row(children: [
-                Icon(Icons.travel_explore_rounded, size: 20, color: cs.primary),
+                Icon(Icons.travel_explore_rounded, size: 20, color: cs.onSurfaceVariant),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(l.librarySortFilterUpcomingReleases, style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600, color: cs.primary)),
+                        fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface)),
                       Text(l.librarySortFilterUpcomingReleasesSubtitle, style: TextStyle(
                         fontSize: 11, color: cs.onSurfaceVariant)),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, size: 20, color: cs.primary),
+                Icon(Icons.chevron_right_rounded, size: 20, color: cs.onSurfaceVariant),
               ]),
             ),
           ),
@@ -404,23 +405,23 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: 0.08),
+            color: cs.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
           ),
           child: Row(children: [
-            Icon(icon, size: 20, color: cs.primary),
+            Icon(icon, size: 20, color: cs.onSurfaceVariant),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.primary)),
+                  Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface)),
                   Text(subtitle, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, size: 20, color: cs.primary),
+            Icon(Icons.chevron_right_rounded, size: 20, color: cs.onSurfaceVariant),
           ]),
         ),
       ),
@@ -558,7 +559,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
           final (filter, label, icon) = f;
           return SheetOption(
             icon: icon, label: label,
-            selected: filter == widget.currentFilter, selectedColor: cs.tertiary,
+            selected: filter == widget.currentFilter, selectedColor: cs.primary,
             onTap: () => widget.onFilterChanged(filter),
           );
         }),
@@ -635,7 +636,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
           icon: Icons.manage_search_rounded,
           label: l.missingMetadata,
           selected: widget.currentFilter == LibraryFilter.missingMetadata,
-          selectedColor: cs.tertiary,
+          selectedColor: cs.primary,
           trailing: Icon(
             _missingMetadataExpanded
                 ? Icons.expand_less_rounded
@@ -661,7 +662,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                   icon: Icons.error_outline_rounded,
                   label: missingMetadataFieldLabel(l, field),
                   selected: selected,
-                  selectedColor: cs.tertiary,
+                  selectedColor: cs.primary,
                   compact: true,
                   onTap: () => widget.onFilterChanged(
                     LibraryFilter.missingMetadata,
@@ -675,7 +676,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
           icon: Icons.category_rounded,
           label: l.genre,
           selected: widget.currentFilter == LibraryFilter.genre,
-          selectedColor: cs.tertiary,
+          selectedColor: cs.primary,
           trailing: Icon(_genreExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 20, color: cs.onSurfaceVariant),
           onTap: () => setState(() => _genreExpanded = !_genreExpanded),
         ),
@@ -689,7 +690,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                     final selected = widget.currentFilter == LibraryFilter.genre && widget.genreFilter == genre;
                     return SheetOption(
                       icon: Icons.label_outline_rounded, label: genre,
-                      selected: selected, selectedColor: cs.tertiary,
+                      selected: selected, selectedColor: cs.primary,
                       compact: true, marquee: true,
                       onTap: () => widget.onFilterChanged(LibraryFilter.genre, genre: genre),
                     );
@@ -699,7 +700,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
           icon: Icons.local_offer_rounded,
           label: l.tag,
           selected: widget.currentFilter == LibraryFilter.tag,
-          selectedColor: cs.tertiary,
+          selectedColor: cs.primary,
           trailing: Icon(_tagExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 20, color: cs.onSurfaceVariant),
           onTap: () => setState(() => _tagExpanded = !_tagExpanded),
         ),
@@ -713,7 +714,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                     final selected = widget.currentFilter == LibraryFilter.tag && widget.tagFilter == tag;
                     return SheetOption(
                       icon: Icons.local_offer_outlined, label: tag,
-                      selected: selected, selectedColor: cs.tertiary,
+                      selected: selected, selectedColor: cs.primary,
                       compact: true, marquee: true,
                       onTap: () => widget.onFilterChanged(LibraryFilter.tag, tag: tag),
                     );
@@ -776,7 +777,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
             icon: icon,
             label: label,
             selected: filter == widget.currentFilter,
-            selectedColor: cs.tertiary,
+            selectedColor: cs.primary,
             onTap: () => widget.onFilterChanged(filter),
           );
         }),
@@ -836,7 +837,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
         icon: Icons.auto_stories_rounded,
         label: l.libraryTabSeries,
         selected: widget.currentFilter == LibraryFilter.series,
-        selectedColor: cs.tertiary,
+        selectedColor: cs.primary,
         trailing: Icon(
           _seriesExpanded
               ? Icons.expand_less_rounded
@@ -860,7 +861,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                 icon: Icons.book_outlined,
                 label: name,
                 selected: selected,
-                selectedColor: cs.tertiary,
+                selectedColor: cs.primary,
                 compact: true,
                 marquee: true,
                 onTap: () => widget.onFilterChanged(
@@ -894,7 +895,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
         icon: icon,
         label: label,
         selected: widget.currentFilter == filter,
-        selectedColor: cs.tertiary,
+        selectedColor: cs.primary,
         trailing: Icon(
           expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
           size: 20,
@@ -919,7 +920,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                 icon: optionIcon,
                 label: shown,
                 selected: selected,
-                selectedColor: cs.tertiary,
+                selectedColor: cs.primary,
                 compact: true,
                 marquee: true,
                 onTap: () {
@@ -955,7 +956,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
         icon: icon,
         label: label,
         selected: widget.currentFilter == filter,
-        selectedColor: cs.tertiary,
+        selectedColor: cs.primary,
         trailing: Icon(
           expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
           size: 20,
@@ -977,7 +978,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
                 icon: Icons.label_outline_rounded,
                 label: name,
                 selected: selected,
-                selectedColor: cs.tertiary,
+                selectedColor: cs.primary,
                 compact: true,
                 marquee: true,
                 onTap: () => widget.onFilterChanged(
@@ -1034,7 +1035,7 @@ class _SortFilterSheetState extends State<SortFilterSheet> with SingleTickerProv
             icon: icon,
             label: label,
             selected: filter == widget.currentSeriesFilter,
-            selectedColor: cs.tertiary,
+            selectedColor: cs.primary,
             onTap: () => widget.onSeriesFilterChanged?.call(filter),
           );
         }),
@@ -1074,7 +1075,7 @@ class SheetOption extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 14, vertical: vPad),
         margin: EdgeInsets.only(bottom: compact ? 2 : 4),
         decoration: BoxDecoration(
-          color: selected ? selectedColor.withValues(alpha: 0.12) : Colors.transparent,
+          color: selected ? selectedColor.withValues(alpha: Tints.soft) : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(children: [

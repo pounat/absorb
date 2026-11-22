@@ -86,6 +86,7 @@ import '../services/settings_sync_service.dart';
 import '../services/update_checker_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/overlay_toast.dart';
+import '../widgets/tints.dart';
 import '../utils/app_platform.dart';
 import '../utils/desktop_workspace.dart';
 
@@ -1418,12 +1419,12 @@ class _AppShellState extends State<AppShell>
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: cs.primaryContainer,
+                  color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.graphic_eq_rounded,
-                  color: cs.onPrimaryContainer,
+                  color: cs.onSurface,
                 ),
               ),
         title: l.appTitle,
@@ -1530,7 +1531,7 @@ class _AppShellState extends State<AppShell>
                         Icon(
                           Icons.library_books_rounded,
                           size: 20,
-                          color: cs.primary,
+                          color: cs.onSurfaceVariant,
                         ),
                         if (extended) ...[
                           const SizedBox(width: 10),
@@ -1686,7 +1687,7 @@ class _AppShellState extends State<AppShell>
         child: Material(
           color: update == null
               ? Colors.transparent
-              : cs.primaryContainer.withValues(alpha: 0.45),
+              : cs.primary.withValues(alpha: Tints.soft),
           borderRadius: BorderRadius.circular(10),
           clipBehavior: Clip.antiAlias,
           child: InkWell(

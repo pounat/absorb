@@ -73,7 +73,7 @@ Future<bool> _showGlassToast(
   double? seconds,
 }) async {
   final cs = Theme.of(overlay.context).colorScheme;
-  final iconPng = icon == null ? null : await _toastIconPng(icon, cs.primary);
+  final iconPng = icon == null ? null : await _toastIconPng(icon, cs.onSurfaceVariant);
   return NativeTabBar.showToast(
     id: id,
     message: message,
@@ -250,7 +250,7 @@ class _LiveToast extends StatelessWidget {
               decoration: BoxDecoration(
                 color: cs.surface.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
               ),
               child: ValueListenableBuilder<({String message, IconData? icon})>(
                 valueListenable: value,
@@ -258,7 +258,7 @@ class _LiveToast extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (v.icon != null) ...[
-                      Icon(v.icon, size: 18, color: cs.primary),
+                      Icon(v.icon, size: 18, color: cs.onSurfaceVariant),
                       const SizedBox(width: 8),
                     ],
                     Flexible(
@@ -355,13 +355,13 @@ class _AnimatedToastState extends State<_AnimatedToast>
                         color: cs.surface.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                            color: cs.primary.withValues(alpha: 0.25)),
+                            color: cs.outlineVariant.withValues(alpha: 0.25)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (widget.icon != null) ...[
-                            Icon(widget.icon, size: 18, color: cs.primary),
+                            Icon(widget.icon, size: 18, color: cs.onSurfaceVariant),
                             const SizedBox(width: 8),
                           ],
                           Flexible(

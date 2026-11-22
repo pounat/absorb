@@ -24,7 +24,8 @@ import '../widgets/stats_charts.dart';
 import '../widgets/day_sessions_sheet.dart';
 import '../widgets/listening_session_card.dart';
 import '../widgets/overlay_toast.dart';
-import '../main.dart' show flatNotifier, gradientIntensityNotifier;
+import '../main.dart' show flatNotifier;
+import '../widgets/cover_glow.dart';
 import 'app_shell.dart';
 import '../l10n/app_localizations.dart';
 
@@ -275,9 +276,9 @@ class _StatsScreenState extends State<StatsScreen>
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.08),
+        color: cs.onSurface.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.18)),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
       ),
       child: Row(children: [
         Expanded(
@@ -289,13 +290,13 @@ class _StatsScreenState extends State<StatsScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.15),
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     Icons.calendar_today_rounded,
                     size: 16,
-                    color: cs.primary,
+                    color: cs.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -310,7 +311,7 @@ class _StatsScreenState extends State<StatsScreen>
                       const SizedBox(height: 2),
                       Text(_formatDuration(_selectedDaySeconds),
                           style: tt.bodySmall?.copyWith(
-                              color: cs.primary,
+                              color: cs.onSurface,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(
@@ -457,21 +458,9 @@ class _StatsScreenState extends State<StatsScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Container(
-        decoration: flatNotifier.value ? null : BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.0, 0.22, 0.72, 1.0],
-            colors: [
-              cs.primary.withValues(alpha: gradientIntensityNotifier.value),
-              cs.surface,
-              Color.lerp(cs.surface, Theme.of(context).scaffoldBackgroundColor, 0.55) ?? Theme.of(context).scaffoldBackgroundColor,
-              Theme.of(context).scaffoldBackgroundColor,
-            ],
-          ),
-        ),
-        child: SafeArea(
+      body: Stack(children: [
+        if (!flatNotifier.value) const Positioned.fill(child: CoverGlow()),
+        SafeArea(
           // Under the glass tab bar the stats scroll beneath it.
           bottom: !NativeTabBar.active.value,
           child: _isLoading
@@ -494,7 +483,7 @@ class _StatsScreenState extends State<StatsScreen>
                       ),
                     ),
         ),
-      ),
+      ]),
     );
   }
 
@@ -571,22 +560,17 @@ class _StatsScreenState extends State<StatsScreen>
         _sectionTitle(tt, cs, l.statsActivity),
         const SizedBox(height: 10),
         _responsiveStatsGrid([
-          _accentStatCard(
+          _statCard(
               tt,
               cs,
               Icons.local_fire_department_rounded,
-              Colors.orange,
               l.statsScreenStreakDays(streak),
               l.statsCurrentStreak),
-          _accentStatCard(tt, cs, Icons.emoji_events_rounded,
-              Colors.amber.shade600, l.statsScreenStreakDays(longestStreak), l.statsBestStreak),
-          _accentStatCard(tt, cs, Icons.menu_book_rounded,
-              Colors.green, '$_booksFinished', l.statsBooksFinished),
+          _statCard(tt, cs, Icons.emoji_events_rounded, l.statsScreenStreakDays(longestStreak), l.statsBestStreak),
+          _statCard(tt, cs, Icons.menu_book_rounded, '$_booksFinished', l.statsBooksFinished),
           if (_episodesFinished > 0)
-            _accentStatCard(tt, cs, Icons.podcasts_rounded,
-                Colors.purple, '$_episodesFinished', l.statsEpisodesFinished),
-          _accentStatCard(tt, cs, Icons.auto_stories_rounded,
-              Colors.teal, '$_booksFinishedThisYear', l.statsBooksThisYear,
+            _statCard(tt, cs, Icons.podcasts_rounded, '$_episodesFinished', l.statsEpisodesFinished),
+          _statCard(tt, cs, Icons.auto_stories_rounded, '$_booksFinishedThisYear', l.statsBooksThisYear,
               onTap: _booksFinishedThisYear > 0
                   ? () async {
                       await showFinishedBooksThisYearSheet(context);
@@ -598,17 +582,14 @@ class _StatsScreenState extends State<StatsScreen>
                     }
                   : null),
           if (_episodesFinishedThisYear > 0)
-            _accentStatCard(tt, cs, Icons.graphic_eq_rounded,
-                Colors.deepPurple, '$_episodesFinishedThisYear',
+            _statCard(tt, cs, Icons.graphic_eq_rounded, '$_episodesFinishedThisYear',
                 l.statsEpisodesThisYear),
-          _accentStatCard(tt, cs, Icons.calendar_today_rounded,
-              cs.primary, '$activeDays', l.statsDaysActive),
-          _accentStatCard(tt, cs, Icons.speed_rounded, cs.tertiary,
+          _statCard(tt, cs, Icons.calendar_today_rounded, '$activeDays', l.statsDaysActive),
+          _statCard(tt, cs, Icons.speed_rounded,
               _formatDuration(avgDaily), l.statsDailyAverage),
           if (_timeSavedSeconds >= 60)
             _WideStat(
-              child: _accentStatCard(tt, cs, Icons.fast_forward_rounded,
-                  Colors.cyan, _formatDuration(_timeSavedSeconds),
+              child: _statCard(tt, cs, Icons.fast_forward_rounded, _formatDuration(_timeSavedSeconds),
                   l.statsTimeSavedLabel,
                   subtitle: _timeSavedSince != null
                       ? l.statsTimeSavedSince(
@@ -1024,15 +1005,15 @@ class _StatsScreenState extends State<StatsScreen>
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.fromLTRB(12, 10, 4, 2),
       decoration: BoxDecoration(
-        color: cs.tertiary.withValues(alpha: 0.08),
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.tertiary.withValues(alpha: 0.2)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Icon(Icons.schedule_rounded, size: 18, color: cs.tertiary),
+            child: Icon(Icons.schedule_rounded, size: 18, color: cs.onSurfaceVariant),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1114,7 +1095,7 @@ class _StatsScreenState extends State<StatsScreen>
       decoration: _cardDeco(cs),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(l.statsBusiestAround(hourLabel(peak)),
-            style: tt.labelMedium?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+            style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         SizedBox(
           height: 80,
@@ -1170,7 +1151,7 @@ class _StatsScreenState extends State<StatsScreen>
       decoration: _cardDeco(cs),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(l.statsFinishedLast12(total),
-            style: tt.labelMedium?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+            style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         SizedBox(
           height: 96,
@@ -1196,7 +1177,7 @@ class _StatsScreenState extends State<StatsScreen>
                         borderRadius: BorderRadius.circular(4),
                         color: i == months.length - 1
                             ? cs.primary.withValues(alpha: 0.7)
-                            : Colors.green.withValues(alpha: months[i].count > 0 ? 0.45 : 0.12),
+                            : cs.onSurface.withValues(alpha: months[i].count > 0 ? 0.3 : 0.12),
                       ),
                     ),
                   ]),
@@ -1253,7 +1234,7 @@ class _StatsScreenState extends State<StatsScreen>
         for (final s in sorted) ...[
           const SizedBox(height: 10),
           Row(children: [
-            Icon(_sourceIcon(s['bucket']), size: 16, color: cs.primary.withValues(alpha: 0.7)),
+            Icon(_sourceIcon(s['bucket']), size: 16, color: cs.onSurfaceVariant),
             const SizedBox(width: 10),
             Expanded(
               child: Text(_sourceName(s['bucket']),
@@ -1397,42 +1378,33 @@ class _StatsScreenState extends State<StatsScreen>
       final l = AppLocalizations.of(context)!;
       if (readSeconds != null) {
         body.add(Row(children: [
-          Expanded(child: _accentStatCard(tt, cs, Icons.headphones_rounded,
-              cs.primary, _formatDuration(totalSeconds), 'Listened')),
+          Expanded(child: _statCard(tt, cs, Icons.headphones_rounded, _formatDuration(totalSeconds), 'Listened')),
           const SizedBox(width: 8),
-          Expanded(child: _accentStatCard(tt, cs, Icons.auto_stories_rounded,
-              Colors.teal, _formatDuration(readSeconds), l.statsYearRead)),
+          Expanded(child: _statCard(tt, cs, Icons.auto_stories_rounded, _formatDuration(readSeconds), l.statsYearRead)),
         ]));
         body.add(const SizedBox(height: 8));
         body.add(Row(children: [
-          Expanded(child: _accentStatCard(tt, cs, Icons.menu_book_rounded,
-              Colors.green, '$finished', 'Books finished')),
+          Expanded(child: _statCard(tt, cs, Icons.menu_book_rounded, '$finished', 'Books finished')),
           const SizedBox(width: 8),
-          Expanded(child: _accentStatCard(tt, cs, Icons.play_circle_outline_rounded,
-              cs.tertiary, '$sessions', 'Sessions')),
+          Expanded(child: _statCard(tt, cs, Icons.play_circle_outline_rounded, '$sessions', 'Sessions')),
         ]));
         body.add(const SizedBox(height: 8));
         body.add(Row(children: [
-          Expanded(child: _accentStatCard(tt, cs, Icons.calendar_today_rounded,
-              cs.primary, '${(d['bookOrbitActiveDays'] as num?)?.toInt() ?? 0}', l.statsDaysActive)),
+          Expanded(child: _statCard(tt, cs, Icons.calendar_today_rounded, '${(d['bookOrbitActiveDays'] as num?)?.toInt() ?? 0}', l.statsDaysActive)),
           const SizedBox(width: 8),
           const Expanded(child: SizedBox.shrink()),
         ]));
       } else {
         body.add(Row(children: [
-          Expanded(child: _accentStatCard(tt, cs, Icons.headphones_rounded,
-              cs.primary, _formatDuration(totalSeconds), 'Listened')),
+          Expanded(child: _statCard(tt, cs, Icons.headphones_rounded, _formatDuration(totalSeconds), 'Listened')),
           const SizedBox(width: 8),
-          Expanded(child: _accentStatCard(tt, cs, Icons.menu_book_rounded,
-              Colors.green, '$finished', 'Books finished')),
+          Expanded(child: _statCard(tt, cs, Icons.menu_book_rounded, '$finished', 'Books finished')),
         ]));
         body.add(const SizedBox(height: 8));
         body.add(Row(children: [
-          Expanded(child: _accentStatCard(tt, cs, Icons.play_circle_outline_rounded,
-              cs.tertiary, '$sessions', 'Sessions')),
+          Expanded(child: _statCard(tt, cs, Icons.play_circle_outline_rounded, '$sessions', 'Sessions')),
           const SizedBox(width: 8),
-          Expanded(child: _accentStatCard(tt, cs, Icons.library_books_rounded,
-              Colors.teal, '$listened', 'Books listened')),
+          Expanded(child: _statCard(tt, cs, Icons.library_books_rounded, '$listened', 'Books listened')),
         ]));
       }
       body.add(const SizedBox(height: 14));
@@ -1475,7 +1447,7 @@ class _StatsScreenState extends State<StatsScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       child: LayoutBuilder(builder: (context, c) => Row(children: [
-        Icon(icon, size: 18, color: cs.primary.withValues(alpha: 0.7)),
+        Icon(icon, size: 18, color: cs.onSurfaceVariant),
         const SizedBox(width: 12),
         // A long label gives way before it pushes the value off the card.
         ConstrainedBox(
@@ -1627,7 +1599,7 @@ class _StatsScreenState extends State<StatsScreen>
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Icon(Icons.auto_stories_rounded,
-                  size: 16, color: bookReached ? doneColor : cs.primary),
+                  size: 16, color: bookReached ? doneColor : cs.onSurfaceVariant),
               const SizedBox(width: 8),
               Expanded(
                   child: Text(l.statsBookChallengeTitle,
@@ -1689,15 +1661,8 @@ class _StatsScreenState extends State<StatsScreen>
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: flatNotifier.value ? null : LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            cs.primary.withValues(alpha: 0.08),
-            cs.primary.withValues(alpha: 0.02),
-          ],
-        ),
-        border: Border.all(color: cs.primary.withValues(alpha: flatNotifier.value ? 0.08 : 0.15)),
+        color: cs.onSurface.withValues(alpha: 0.03),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
       ),
       child: Column(children: [
         Text(label,
@@ -1781,31 +1746,27 @@ class _StatsScreenState extends State<StatsScreen>
     showOverlayToast(context, l.statsTimeSavedResetDone, icon: Icons.restart_alt_rounded);
   }
 
-  Widget _accentStatCard(TextTheme tt, ColorScheme cs, IconData icon,
-      Color accent, String value, String label,
+  Widget _statCard(TextTheme tt, ColorScheme cs, IconData icon,
+      String value, String label,
       {VoidCallback? onTap, String? subtitle, Widget? trailing}) {
     final isTappable = onTap != null;
     final card = Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       decoration: BoxDecoration(
-        color: isTappable
-            ? accent.withValues(alpha: 0.06)
-            : cs.onSurface.withValues(alpha: 0.04),
+        color: cs.onSurface.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: isTappable
-                ? accent.withValues(alpha: 0.25)
-                : cs.onSurface.withValues(alpha: 0.06)),
+            color: cs.onSurface.withValues(alpha: 0.06)),
       ),
       child: Row(children: [
         Container(
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.12),
+            color: cs.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: accent.withValues(alpha: 0.8), size: 18),
+          child: Icon(icon, color: cs.onSurfaceVariant, size: 18),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1822,13 +1783,13 @@ class _StatsScreenState extends State<StatsScreen>
             const SizedBox(height: 2),
             Text(subtitle,
                 style: tt.labelSmall?.copyWith(
-                    color: accent.withValues(alpha: 0.7), fontSize: 11)),
+                    color: cs.onSurfaceVariant, fontSize: 11)),
           ],
         ])),
         if (trailing != null) trailing,
         if (isTappable)
           Icon(Icons.chevron_right_rounded,
-              size: 20, color: accent.withValues(alpha: 0.7)),
+              size: 20, color: cs.onSurfaceVariant),
       ]),
     );
     if (!isTappable) return card;

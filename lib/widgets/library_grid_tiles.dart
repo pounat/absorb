@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'tints.dart';
 import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -271,7 +272,7 @@ class _GridBookTileState extends State<GridBookTile> {
                           decoration: BoxDecoration(
                             border: Border.all(color: cs.primary, width: 3),
                             borderRadius: BorderRadius.circular(10),
-                            color: cs.primary.withValues(alpha: 0.18),
+                            color: cs.primary.withValues(alpha: Tints.soft),
                           ),
                         ),
                       ),
@@ -505,19 +506,19 @@ class _StackedCovers extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: cs.primaryContainer,
+                          color: cs.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.auto_stories_rounded, size: 11, color: cs.onPrimaryContainer),
+                            Icon(Icons.auto_stories_rounded, size: 11, color: cs.onSurfaceVariant),
                             const SizedBox(width: 3),
                             Text(booksFinished > 0 && booksFinished < numBooks
                                 ? '$booksFinished/$numBooks'
                                 : '$numBooks',
                               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                                color: cs.onPrimaryContainer)),
+                                color: cs.onSurface)),
                           ],
                         ),
                       ),
@@ -869,11 +870,11 @@ class GridListTile extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer,
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(Icons.filter_alt_rounded,
-                      size: 14 * coverGridTextScale(context), color: cs.onPrimaryContainer),
+                      size: 14 * coverGridTextScale(context), color: cs.onSurfaceVariant),
                 ),
               ),
           ]),
@@ -989,7 +990,7 @@ class GridAuthorTile extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: cs.secondaryContainer,
+                    color: cs.surfaceContainerHighest,
                     border: selectionMode && isSelected
                         ? Border.all(color: cs.primary, width: 3)
                         : null,
@@ -1039,17 +1040,17 @@ class GridAuthorTile extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: cs.primaryContainer,
+                        color: cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_stories_rounded, size: 11, color: cs.onPrimaryContainer),
+                          Icon(Icons.auto_stories_rounded, size: 11, color: cs.onSurfaceVariant),
                           const SizedBox(width: 3),
                           Text('$numBooks',
                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                              color: cs.onPrimaryContainer)),
+                              color: cs.onSurface)),
                         ],
                       ),
                     ),
@@ -1097,7 +1098,7 @@ class GridAuthorTile extends StatelessWidget {
   Widget _placeholder(ColorScheme cs) {
     return Center(
       child: Icon(Icons.person_rounded,
-          size: 32, color: cs.onSecondaryContainer.withValues(alpha: 0.4)),
+          size: 32, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
     );
   }
 }
@@ -1129,7 +1130,7 @@ Future<void> showSeriesScanMenu(
         const SizedBox(height: 12),
         ListTile(
           leading: Icon(excluded ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-            color: cs.primary, size: 22),
+            color: cs.onSurfaceVariant, size: 22),
           title: Text(excluded ? l.seriesIncludeInScan : l.seriesExcludeFromScan,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
           dense: true, visualDensity: VisualDensity.compact,

@@ -15,6 +15,7 @@ import '../services/book_search_index.dart';
 import '../services/socket_service.dart';
 import '../services/download_service.dart';
 import '../services/audio_player_service.dart';
+import '../widgets/tints.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/library_picker_sheet.dart';
 import '../widgets/library_search_results.dart';
@@ -3559,7 +3560,7 @@ class LibraryScreenState extends State<LibraryScreen>
           decoration: BoxDecoration(
             color: cs.surface.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
           ),
           child: _podcastViewPillRow(cs, labels),
         ),
@@ -3597,7 +3598,7 @@ class LibraryScreenState extends State<LibraryScreen>
                   ),
                   decoration: BoxDecoration(
                     color: active
-                        ? cs.primary.withValues(alpha: 0.15)
+                        ? cs.primary.withValues(alpha: Tints.soft)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -3664,7 +3665,7 @@ class LibraryScreenState extends State<LibraryScreen>
               decoration: BoxDecoration(
                 color: cs.surface.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
               ),
               child: _tabPillRow(cs, labels),
             ),
@@ -3702,7 +3703,7 @@ class LibraryScreenState extends State<LibraryScreen>
                         ),
                         decoration: BoxDecoration(
                           color: active
-                              ? cs.primary.withValues(alpha: 0.15)
+                              ? cs.primary.withValues(alpha: Tints.soft)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -3777,9 +3778,9 @@ class LibraryScreenState extends State<LibraryScreen>
             decoration: BoxDecoration(
               color: cs.surface.withValues(alpha: 0.6),
               shape: BoxShape.circle,
-              border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+              border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
             ),
-            child: Icon(Icons.settings_rounded, size: 16, color: cs.primary),
+            child: Icon(Icons.settings_rounded, size: 16, color: cs.onSurfaceVariant),
           ),
         ),
       ),
@@ -3827,7 +3828,7 @@ class LibraryScreenState extends State<LibraryScreen>
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.tertiary.withValues(alpha: 0.12),
+                  color: cs.primary.withValues(alpha: Tints.soft),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -3836,7 +3837,7 @@ class LibraryScreenState extends State<LibraryScreen>
                     Icon(
                       Icons.filter_list_rounded,
                       size: 14,
-                      color: cs.tertiary,
+                      color: cs.primary,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -3844,13 +3845,13 @@ class LibraryScreenState extends State<LibraryScreen>
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: cs.tertiary,
+                        color: cs.primary,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
                     const SizedBox(width: 4),
-                    Icon(Icons.close_rounded, size: 14, color: cs.tertiary),
+                    Icon(Icons.close_rounded, size: 14, color: cs.primary),
                   ],
                 ),
               ),
@@ -3865,7 +3866,7 @@ class LibraryScreenState extends State<LibraryScreen>
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.tertiary.withValues(alpha: 0.12),
+                  color: cs.primary.withValues(alpha: Tints.soft),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -3874,7 +3875,7 @@ class LibraryScreenState extends State<LibraryScreen>
                     Icon(
                       Icons.filter_list_rounded,
                       size: 14,
-                      color: cs.tertiary,
+                      color: cs.primary,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -3882,13 +3883,13 @@ class LibraryScreenState extends State<LibraryScreen>
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: cs.tertiary,
+                        color: cs.primary,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
                     const SizedBox(width: 4),
-                    Icon(Icons.close_rounded, size: 14, color: cs.tertiary),
+                    Icon(Icons.close_rounded, size: 14, color: cs.primary),
                   ],
                 ),
               ),
@@ -4461,7 +4462,7 @@ class LibraryScreenState extends State<LibraryScreen>
                 isPodcast ? l.librarySearchShows : l.librarySearchBooks,
                 style: tt.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: cs.primary,
+                  color: cs.onSurface,
                 ),
               ),
             ),
@@ -4490,7 +4491,7 @@ class LibraryScreenState extends State<LibraryScreen>
             l.librarySearchEpisodes,
             style: tt.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: cs.primary,
+              color: cs.onSurface,
             ),
           ),
         ),
@@ -4517,7 +4518,7 @@ class LibraryScreenState extends State<LibraryScreen>
             l.librarySearchSeries,
             style: tt.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: cs.primary,
+              color: cs.onSurface,
             ),
           ),
         ),
@@ -4548,7 +4549,7 @@ class LibraryScreenState extends State<LibraryScreen>
             l.librarySearchAuthors,
             style: tt.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: cs.primary,
+              color: cs.onSurface,
             ),
           ),
         ),
@@ -4581,7 +4582,7 @@ class LibraryScreenState extends State<LibraryScreen>
             l.libraryTabNarrators,
             style: tt.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: cs.primary,
+              color: cs.onSurface,
             ),
           ),
         ),
@@ -4606,7 +4607,7 @@ class LibraryScreenState extends State<LibraryScreen>
             l.librarySearchGenres,
             style: tt.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: cs.primary,
+              color: cs.onSurface,
             ),
           ),
         ),
@@ -4635,7 +4636,7 @@ class LibraryScreenState extends State<LibraryScreen>
             l.librarySearchTags,
             style: tt.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: cs.primary,
+              color: cs.onSurface,
             ),
           ),
         ),

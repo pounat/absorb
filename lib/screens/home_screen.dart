@@ -48,6 +48,7 @@ import '../services/native_tab_bar.dart';
 import '../utils/app_platform.dart';
 import '../utils/media_card_gesture_policy.dart';
 import '../widgets/cover_glow.dart';
+import '../widgets/tints.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -418,7 +419,7 @@ class HomeScreenState extends State<HomeScreen>
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: cs.primary.withValues(alpha: 0.7)),
+                Icon(icon, size: 16, color: cs.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Text(
                   title,
@@ -1233,7 +1234,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
     final Color cardBgTop = bgHsl != null
         ? bgHsl.withLightness(isDark ? 0.19 : 0.95).toColor()
         : (isCurrentItem
-              ? cs.primary.withValues(alpha: 0.08)
+              ? cs.primary.withValues(alpha: Tints.faint)
               : cs.surfaceContainerHigh);
     final Color cardBgBottom = bgHsl != null
         ? bgHsl.withLightness(isDark ? 0.11 : 0.88).toColor()
@@ -1363,7 +1364,9 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: accent.withValues(alpha: 0.45),
+                            color: _accent == null
+                                ? Colors.black.withValues(alpha: 0.25)
+                                : accent.withValues(alpha: 0.45),
                             blurRadius: 14,
                             spreadRadius: -2,
                             offset: const Offset(0, 5),

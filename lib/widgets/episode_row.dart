@@ -187,7 +187,7 @@ class _EpisodeRowState extends State<EpisodeRow> {
                               if (!downloaded) return const SizedBox.shrink();
                               return Row(mainAxisSize: MainAxisSize.min, children: [
                                 const SizedBox(width: 6),
-                                Icon(Icons.download_done_rounded, size: 12, color: cs.primary.withValues(alpha: 0.6)),
+                                Icon(Icons.download_done_rounded, size: 12, color: cs.onSurfaceVariant),
                               ]);
                             },
                           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../screens/settings_search_index.dart';
+import 'tints.dart';
 import 'settings_tiles.dart';
 
 /// Filter and rank the search index for [query]. Every whitespace-separated
@@ -81,12 +82,12 @@ class SettingsSearchResults extends StatelessWidget {
             title: Text(e.title, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: e.extras.isEmpty
                 ? Text(e.sectionTitle,
-                    style: tt.bodySmall?.copyWith(color: cs.primary))
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))
                 : Text.rich(
                     TextSpan(children: [
                       TextSpan(
                           text: '${e.sectionTitle}  ·  ',
-                          style: TextStyle(color: cs.primary)),
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
                       TextSpan(text: e.extras.first),
                     ]),
                     maxLines: 2,
@@ -198,7 +199,7 @@ Future<void> highlightSettingInSection({
               opacity: opacity,
               child: Container(
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
+                  color: accent.withValues(alpha: Tints.soft),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                       color: accent.withValues(alpha: 0.55), width: 1.5),

@@ -229,7 +229,7 @@ class _HomeCustomizeSheetState extends State<HomeCustomizeSheet> {
             onTap: () => _showAddGenre(context, lib, cs, tt),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Icon(Icons.add_rounded, size: 24, color: cs.primary),
+              child: Icon(Icons.add_rounded, size: 24, color: cs.onSurfaceVariant),
             ),
           ),
           const SizedBox(width: 12),

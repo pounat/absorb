@@ -18,6 +18,7 @@ import 'episode_list_sheet.dart';
 import 'hover_cover_actions.dart';
 import '../utils/app_platform.dart';
 import '../utils/desktop_workspace.dart';
+import 'tints.dart';
 
 class BookCard extends StatelessWidget {
   final Map<String, dynamic> item;
@@ -114,7 +115,7 @@ class BookCard extends StatelessWidget {
                     ? Border.all(color: cs.primary, width: 3)
                     : null,
                 color: selected
-                    ? cs.primary.withValues(alpha: 0.18)
+                    ? cs.primary.withValues(alpha: Tints.soft)
                     : Colors.transparent,
               ),
             ),

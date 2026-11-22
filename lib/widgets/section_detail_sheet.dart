@@ -103,7 +103,7 @@ class _SectionDetailSheetState extends State<SectionDetailSheet> {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: Row(children: [
-          Icon(widget.icon, size: 20, color: cs.primary),
+          Icon(widget.icon, size: 20, color: cs.onSurfaceVariant),
           const SizedBox(width: 10),
           Expanded(
             child: Text(widget.title,
