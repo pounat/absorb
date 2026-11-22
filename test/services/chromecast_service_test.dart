@@ -181,13 +181,43 @@ void main() {
       )..setTestReconnecting(true);
       addTearDown(service.dispose);
 
-      await service.pauseNowOrOnReconnect();
+      final pauseResult = service.pauseNowOrOnReconnect();
       expect(pauseCalls, 0);
       expect(service.isReconnecting, isTrue);
 
       await service.completeTestReconnect();
+      expect(await pauseResult, isTrue);
       expect(pauseCalls, 1);
       expect(service.playbackState, CastPlaybackState.paused);
+    });
+
+    test('cancelled deferred pause is not sent after reconnect', () async {
+      var pauseCalls = 0;
+      final service = ChromecastService.forTesting(
+        pauseCommand: () async => pauseCalls++,
+      )..setTestReconnecting(true);
+      addTearDown(service.dispose);
+
+      final pauseResult = service.pauseNowOrOnReconnect();
+      service.cancelPendingSleepPause();
+      await service.completeTestReconnect();
+      expect(await pauseResult, isFalse);
+      expect(pauseCalls, 0);
+    });
+
+    test('late pause result does not overwrite a newer play command', () async {
+      final pending = Completer<void>();
+      final service = ChromecastService.forTesting(
+        pauseCommand: () => pending.future,
+        playCommand: () async {},
+      )..setTestReceiverState(CastPlaybackState.playing);
+      addTearDown(service.dispose);
+
+      final pauseResult = service.pauseNowOrOnReconnect();
+      await service.play();
+      pending.complete();
+      expect(await pauseResult, isFalse);
+      expect(service.isReceiverActive, isTrue);
     });
 
     test('paused Cast time-listened sync consumes no paused seconds', () {

@@ -86,6 +86,7 @@ class ChromecastService extends ChangeNotifier {
   Duration _castPosition = Duration.zero;
   DateTime? _lastCastPositionAdvanceAt;
   final CastPlaybackIntent _castPlaybackIntent = CastPlaybackIntent();
+  int _playbackCommand = 0;
   CastPlaybackState? _playbackStateBeforePause;
   Timer? _resumeIntentTimer;
   Timer? _bufferingLivenessTimer;
@@ -105,7 +106,7 @@ class ChromecastService extends ChangeNotifier {
   // Set when the sleep timer fires while a backstop reconnect is in flight,
   // so the pause it wanted to apply lands the instant we're back instead of
   // silently no-oping because nothing was connected at the time.
-  bool _pendingSleepPause = false;
+  Completer<bool>? _pendingSleepPause;
 
   // Multi-track fallback state (when queueLoadItems fails)
   List<dynamic>? _fallbackTracks;
@@ -312,11 +313,7 @@ class ChromecastService extends ChangeNotifier {
           if (!wasConnected || _castingItemId == null) {
             _rehydrateFromRemoteMedia();
           }
-          if (_pendingSleepPause) {
-            _pendingSleepPause = false;
-            debugPrint('[Cast] Applying the sleep-timer pause that was waiting on reconnect');
-            unawaited(pause());
-          }
+          unawaited(_applyPendingSleepPause());
         } else if (state == GoogleCastConnectState.disconnected) {
           debugPrint('[Cast] ✗ DISCONNECTED (scheduling grace ${_disconnectGrace.inSeconds}s before deciding to reconnect or wipe)');
           // Debounce: transient wifi/session blips can emit disconnected then
@@ -408,24 +405,29 @@ class ChromecastService extends ChangeNotifier {
     });
   }
 
-  /// Pauses the cast session now if connected, or - if a backstop reconnect
-  /// is in flight - remembers to pause the instant it succeeds instead of
-  /// silently doing nothing. True no-op only when there's no live or
-  /// recovering session left to pause.
-  Future<void> pauseNowOrOnReconnect() async {
-    if (isConnected) {
-      await pause();
-      return;
-    }
+  /// Reports the pause outcome, waiting for an ongoing reconnect if necessary.
+  Future<bool> pauseNowOrOnReconnect() async {
+    if (isConnected) return _pause();
     if (_reconnecting) {
-      debugPrint('[Cast] Sleep timer fired mid-reconnect - will pause once reconnected');
-      _pendingSleepPause = true;
-      return;
+      return (_pendingSleepPause ??= Completer<bool>()).future;
     }
-    debugPrint('[Cast] Sleep timer fired with no live or recovering cast session - nothing to pause');
+    return false;
+  }
+
+  Future<void> _applyPendingSleepPause() async {
+    final pending = _pendingSleepPause;
+    if (pending == null) return;
+    _pendingSleepPause = null;
+    pending.complete(await _pause());
+  }
+
+  void cancelPendingSleepPause() {
+    _pendingSleepPause?.complete(false);
+    _pendingSleepPause = null;
   }
 
   void _onDisconnected() {
+    _playbackCommand++;
     if (_castingItemId != null && _castPosition > Duration.zero) _saveProgressLocal();
 
     unawaited(_setForegroundService(false));
@@ -450,7 +452,7 @@ class ChromecastService extends ChangeNotifier {
     _reconnecting = false;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
-    _pendingSleepPause = false;
+    cancelPendingSleepPause();
 
     _onPlaybackStateChangedCallback?.call(false);
     notifyListeners();
@@ -719,10 +721,7 @@ class ChromecastService extends ChangeNotifier {
   Future<void> completeTestReconnect() async {
     _connectionState = CastConnectionState.connected;
     _reconnecting = false;
-    if (_pendingSleepPause) {
-      _pendingSleepPause = false;
-      await pause();
-    }
+    await _applyPendingSleepPause();
   }
 
   int _consumeTimeListened(DateTime now) {
@@ -1130,10 +1129,12 @@ class ChromecastService extends ChangeNotifier {
 
   Future<void> play() async {
     if (!isConnected) return;
+    final command = ++_playbackCommand;
     try {
       final playCommand = _playCommand;
       if (playCommand != null) await playCommand();
       else await GoogleCastRemoteMediaClient.instance.play();
+      if (!isConnected || command != _playbackCommand) return;
       _requestPlayIntent();
       _scheduleBufferingLivenessNotification();
       notifyListeners();
@@ -1147,11 +1148,17 @@ class ChromecastService extends ChangeNotifier {
     _lastSyncTime = DateTime.now();
   }
   Future<void> pause() async {
-    if (!isConnected) return;
+    await _pause();
+  }
+
+  Future<bool> _pause() async {
+    if (!isConnected) return false;
+    final command = ++_playbackCommand;
     try {
       final pauseCommand = _pauseCommand;
-      if (pauseCommand != null) await pauseCommand();
-      else await GoogleCastRemoteMediaClient.instance.pause();
+      await (pauseCommand ?? GoogleCastRemoteMediaClient.instance.pause)()
+          .timeout(const Duration(seconds: 10));
+      if (!isConnected || command != _playbackCommand) return false;
       final playbackStateBeforePause = _playbackState;
       _requestPauseIntent();
       _playbackStateBeforePause = playbackStateBeforePause;
@@ -1160,10 +1167,15 @@ class ChromecastService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('[Cast] pause error: $e');
-      return;
+      return false;
     }
-    await _saveProgressLocal();
-    await _syncProgressToServer();
+    try {
+      await _saveProgressLocal();
+      await _syncProgressToServer();
+    } catch (e) {
+      debugPrint('[Cast] Progress save after pause failed: $e');
+    }
+    return true;
   }
   Future<void> togglePlayPause() async { shouldPauseOnToggle ? await pause() : await play(); }
 
@@ -1435,6 +1447,8 @@ class ChromecastService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _playbackCommand++;
+    cancelPendingSleepPause();
     _sessionSub?.cancel();
     _mediaStatusSub?.cancel();
     _positionSub?.cancel();
