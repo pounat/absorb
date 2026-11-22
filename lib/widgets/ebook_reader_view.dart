@@ -66,6 +66,7 @@ import 'card_chapters_sheet.dart';
 import 'chromecast_button.dart';
 import 'equalizer_sheet.dart';
 import 'sleep_timer_sheet.dart';
+import 'remote_text_field.dart';
 
 typedef _ReaderAction = ({
   IconData icon,
@@ -2782,6 +2783,50 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     });
   }
 
+  Future<void> _removeBookmarkAnnotation(EbookAnnotation bm) async {
+    await _annotationService.delete(itemId: widget.itemId, annotationId: bm.id);
+    _annotations.removeWhere((a) => a.id == bm.id);
+    _updateBookmarkState();
+    if (mounted) setState(() {});
+  }
+
+  /// A TV's stand-ins for the Notes list's long-press (edit the note) and
+  /// swipe (delete), which a remote can't do. Deleting asks first, since a
+  /// stray OK is easy on a remote.
+  Widget _tvNoteActions(BuildContext sheet, EbookAnnotation a, Future<void> Function() remove) {
+    final l = AppLocalizations.of(sheet)!;
+    final cs = Theme.of(sheet).colorScheme;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      IconButton(
+        icon: const Icon(Icons.edit_note_rounded),
+        tooltip: l.editNote,
+        color: cs.onSurfaceVariant,
+        onPressed: () => _addNoteToAnnotation(a),
+      ),
+      IconButton(
+        icon: const Icon(Icons.delete_outline_rounded),
+        tooltip: l.delete,
+        color: cs.onSurfaceVariant,
+        onPressed: () async {
+          final yes = await showDialog<bool>(
+            context: sheet,
+            builder: (ctx) => AlertDialog(
+              title: Text(l.delete),
+              actions: [
+                TextButton(autofocus: true, onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
+                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.delete)),
+              ],
+            ),
+          );
+          if (yes != true || !sheet.mounted) return;
+          // The list in the sheet doesn't redraw for this; reopening shows it gone.
+          Navigator.pop(sheet);
+          await remove();
+        },
+      ),
+    ]);
+  }
+
   Future<void> _addNoteToAnnotation(EbookAnnotation annotation) async {
     final controller = TextEditingController(text: annotation.note ?? '');
     final l = AppLocalizations.of(context)!;
@@ -2790,7 +2835,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       builder: (ctx) => AlertDialog(
         title: Row(children: [
           Expanded(child: Text(l.readerNoteTitle)),
-          if ((annotation.selectedText ?? '').isNotEmpty)
+          if ((annotation.selectedText ?? '').isNotEmpty && !AppPlatform.isTv)
             IconButton(
               icon: const Icon(Icons.ios_share_rounded),
               tooltip: l.quoteShareTitle,
@@ -2800,7 +2845,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               },
             ),
         ]),
-        content: TextField(
+        content: RemoteTextField(
           controller: controller,
           maxLines: 5,
           autofocus: true,
@@ -7098,15 +7143,18 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                       ? Text(h.note!, maxLines: 1, overflow: TextOverflow.ellipsis,
                                           style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))
                                       : null,
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.ios_share_rounded, size: 18),
-                                    tooltip: AppLocalizations.of(ctx)!.quoteShareTitle,
-                                    color: cs.onSurfaceVariant,
-                                    onPressed: () {
-                                      Navigator.pop(ctx);
-                                      _shareHighlight(h);
-                                    },
-                                  ),
+                                  // A remote can't swipe or long-press: buttons for those, and no share sheet.
+                                  trailing: AppPlatform.isTv
+                                      ? _tvNoteActions(ctx, h, () => _removeHighlight(h))
+                                      : IconButton(
+                                          icon: const Icon(Icons.ios_share_rounded, size: 18),
+                                          tooltip: AppLocalizations.of(ctx)!.quoteShareTitle,
+                                          color: cs.onSurfaceVariant,
+                                          onPressed: () {
+                                            Navigator.pop(ctx);
+                                            _shareHighlight(h);
+                                          },
+                                        ),
                                   dense: true,
                                   onTap: () {
                                     Navigator.pop(ctx);
@@ -7138,16 +7186,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                   color: cs.error,
                                   child: Icon(Icons.delete_rounded, color: cs.onError),
                                 ),
-                                onDismissed: (_) async {
-                                  await _annotationService.delete(
-                                    itemId: widget.itemId,
-                                    annotationId: bm.id,
-                                  );
-                                  _annotations.removeWhere((a) => a.id == bm.id);
-                                  _updateBookmarkState();
-                                  if (mounted) setState(() {});
-                                },
+                                onDismissed: (_) => _removeBookmarkAnnotation(bm),
                                 child: ListTile(
+                                  trailing: AppPlatform.isTv
+                                      ? _tvNoteActions(ctx, bm, () => _removeBookmarkAnnotation(bm))
+                                      : null,
                                   leading: Icon(Icons.bookmark_rounded, color: cs.primary),
                                   title: Text(
                                     bm.note ?? AppLocalizations.of(ctx)!.readerBookmarkDefault,
@@ -8713,7 +8756,7 @@ class _EbookSearchScreenState extends State<_EbookSearchScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         titleSpacing: 0,
-        title: TextField(
+        title: RemoteTextField(
           controller: _controller,
           autofocus: true,
           textInputAction: TextInputAction.search,

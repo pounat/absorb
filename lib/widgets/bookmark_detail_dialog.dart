@@ -26,6 +26,7 @@ import 'clip_editor_sheet.dart';
 import 'overlay_toast.dart';
 import 'progress_dialog.dart';
 import 'quote_share_sheet.dart';
+import 'remote_text_field.dart';
 
 /// Result of [BookmarkDetailSheet]. [action] is 'jump' (caller should seek
 /// there) or 'saved' (stay put, refresh). [position] is the possibly-nudged
@@ -626,13 +627,13 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            TextField(
+            RemoteTextField(
               controller: _titleC,
               decoration: InputDecoration(
                   labelText: l.titleLabel, border: const OutlineInputBorder()),
             ),
             const SizedBox(height: 12),
-            TextField(
+            RemoteTextField(
               controller: _noteC,
               minLines: 3,
               maxLines: 8,
@@ -679,7 +680,8 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            if (!AppPlatform.lacksPhonePlugins) ...[
+            // A clip saves through the system's file screen, which TVs lack.
+            if (!AppPlatform.lacksPhonePlugins && !AppPlatform.isTv) ...[
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -700,15 +702,18 @@ class _BookmarkDetailSheetState extends State<BookmarkDetailSheet> {
                 ),
               ),
             ],
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.ios_share_rounded, size: 18),
-                label: Text(l.quoteShareTitle),
-                onPressed: _saving || _noteC.text.trim().isEmpty ? null : _shareNote,
+            // No share sheet on a TV.
+            if (!AppPlatform.isTv) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.ios_share_rounded, size: 18),
+                  label: Text(l.quoteShareTitle),
+                  onPressed: _saving || _noteC.text.trim().isEmpty ? null : _shareNote,
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

@@ -83,6 +83,12 @@ class _TvPlayerPanelState extends State<TvPlayerPanel> {
   }
 
   Map<String, dynamic>? get _ebookFile => _media['ebookFile'] as Map<String, dynamic>?;
+
+  // Only the EPUB reader works with a remote; PDF, comic and Kindle files are touch only.
+  bool get _epub {
+    final file = _ebookFile;
+    return file != null && ebookExtFromFile(file) == '.epub';
+  }
   bool get _narrated => _episodeId == null && (NarratedBooks.contains(_itemId) || _media['narration'] != null);
 
   Color get _accent => Theme.of(context).colorScheme.primary;
@@ -191,8 +197,8 @@ class _TvPlayerPanelState extends State<TvPlayerPanel> {
       if (chapters.isNotEmpty) wide(Icons.list_rounded, l.chapters, _chapters),
       CardBookmarkButtonInline(player: _player, accent: accent, isActive: active, itemId: _itemId, episodeId: _episodeId),
       wide(Icons.bedtime_rounded, l.tvNightMode, TvNightMode.start),
-      if (_ebookFile != null && _narrated) wide(Icons.auto_stories_rounded, l.readAlong, () => _read(along: true)),
-      if (_ebookFile != null) wide(Icons.menu_book_rounded, l.tvRead, _read),
+      if (_epub && _narrated) wide(Icons.auto_stories_rounded, l.readAlong, () => _read(along: true)),
+      if (_epub) wide(Icons.menu_book_rounded, l.tvRead, _read),
       // A podcast's page is the show with its episodes.
       wide(Icons.info_outline_rounded, _episodeId != null ? l.tvPodcastDetails : l.bookDetailsLabel,
           () => openTvBook(context, _full ?? widget.item)),

@@ -111,6 +111,12 @@ class _TvBookScreenState extends State<TvBookScreen> {
 
   Map<String, dynamic>? get _ebookFile => _item == null ? null : resolveEbookFile(_item);
 
+  // Only the EPUB reader works with a remote; PDF, comic and Kindle files are touch only.
+  bool get _epub {
+    final file = _ebookFile;
+    return file != null && ebookExtFromFile(file) == '.epub';
+  }
+
   bool get _narrated => NarratedBooks.contains(widget.itemId) || _media['narration'] != null;
 
   Future<void> _read({bool along = false}) async {
@@ -278,14 +284,14 @@ class _TvBookScreenState extends State<TvBookScreen> {
                                 ),
                               ),
                             ],
-                            if (_ebookFile != null && _narrated && !_lookingForNarration) ...[
+                            if (_epub && _narrated && !_lookingForNarration) ...[
                               TvPillButton(
                                 icon: Icons.auto_stories_rounded,
                                 label: l.readAlong,
                                 onSelect: () => _read(along: true),
                               ),
                             ],
-                            if (_ebookFile != null) ...[
+                            if (_epub) ...[
                               TvPillButton(
                                 icon: Icons.menu_book_rounded,
                                 label: l.tvRead,

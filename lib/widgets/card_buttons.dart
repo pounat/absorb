@@ -49,6 +49,7 @@ import 'notes_sheet.dart';
 import 'overlay_toast.dart';
 import 'sleep_timer_sheet.dart';
 import 'transcription_download_prompt.dart';
+import 'remote_text_field.dart';
 
 /// E-ink screens dither faint greys and cover-colored accents into noise, so
 /// the card controls bump to near-black when e-ink mode is on. Disabled stays
@@ -1170,8 +1171,11 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                     Icon(Icons.bookmark_outline_rounded, size: 48, color: cs.onSurface.withValues(alpha: 0.1)),
                     const SizedBox(height: 12),
                     Text(l.noBookmarksYet, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
-                    const SizedBox(height: 4),
-                    Text(l.longPressBookmarkHint, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.24), fontSize: 11)),
+                    // A remote has the Bookmark button's hold instead.
+                    if (!AppPlatform.isTv) ...[
+                      const SizedBox(height: 4),
+                      Text(l.longPressBookmarkHint, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.24), fontSize: 11)),
+                    ],
                   ]))
                 : ListView.builder(
                     controller: widget.scrollController, padding: const EdgeInsets.only(bottom: 24), itemCount: _bookmarks!.length,
@@ -1377,9 +1381,9 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
       content: SizedBox(
         width: double.maxFinite,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
+          RemoteTextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
           const SizedBox(height: 12),
-          TextField(
+          RemoteTextField(
             controller: noteC,
             minLines: 3,
             maxLines: 8,
