@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'remote_tap.dart';
 import '../l10n/app_localizations.dart';
 import '../services/audio_player_service.dart';
 import '../services/sleep_timer_service.dart';
@@ -164,7 +165,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 // Rewind on sleep
                 _buildRewindSection(accent, tt, l),
 
-                if (!AppPlatform.lacksPhonePlugins) ...[
+                if (!AppPlatform.lacksPhonePlugins && !AppPlatform.isTv) ...[
                   const SizedBox(height: 12),
                   Container(
                       height: 0.5,
@@ -284,7 +285,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
       Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
       const SizedBox(height: 12),
       _buildRewindSection(accent, tt, l),
-      if (!AppPlatform.lacksPhonePlugins) ...[
+      if (!AppPlatform.lacksPhonePlugins && !AppPlatform.isTv) ...[
         const SizedBox(height: 12),
         Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
         const SizedBox(height: 12),
@@ -469,7 +470,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     final cs = Theme.of(context).colorScheme;
     final selected = _tabIndex == index;
     return Expanded(
-      child: GestureDetector(
+      child: RemoteTap(
         onTap: () {
           setState(() => _tabIndex = index);
           PlayerSettings.setSleepTimerTab(index);
@@ -856,7 +857,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   Widget _circleButton(IconData icon, Color accent, VoidCallback? onTap) {
     final cs = Theme.of(context).colorScheme;
     final enabled = onTap != null;
-    return GestureDetector(
+    return RemoteTap(
       onTap: onTap,
       child: Container(
         width: 48,
@@ -881,7 +882,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   Widget _presetChip(
       Color accent, String label, bool active, VoidCallback onTap) {
     final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
+    return RemoteTap(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),

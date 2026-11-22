@@ -14688,4 +14688,273 @@ class AppLocalizationsZh extends AppLocalizations {
   String boApiKeyLinkFor(String name) {
     return 'Sign-in link for $name';
   }
+
+  @override
+  String get tvSignInTitle => 'Sign in from your phone';
+
+  @override
+  String get tvSignInStep1 => 'Point your phone\'s camera at this code';
+
+  @override
+  String get tvSignInStep2 => 'Tap Open in Absorb, then Sign in TV';
+
+  @override
+  String get tvSignInNeedsPhone =>
+      'Absorb on your phone needs to be signed in, on the same Wi-Fi as this TV.';
+
+  @override
+  String get tvSignInHere => 'Sign in on the TV instead';
+
+  @override
+  String get tvSignInNoNetwork =>
+      'This TV isn\'t on a network. Connect it to Wi-Fi to sign in from your phone.';
+
+  @override
+  String get tvSignInRetry => 'Try again';
+
+  @override
+  String get tvHomeEmpty =>
+      'Nothing to continue yet. Find something in Library or Search, and it shows up here.';
+
+  @override
+  String get signInTvTitle => 'Sign in your TV';
+
+  @override
+  String get signInTvKeyNote =>
+      'The TV gets its own API key named Absorb TV. You can remove it later under API Keys.';
+
+  @override
+  String get signInTvPasswordNote =>
+      'Type your password to sign the TV in. It goes straight to the TV and isn\'t kept on this phone.';
+
+  @override
+  String get signInTvButton => 'Sign in TV';
+
+  @override
+  String get signInTvDone => 'Your TV is signed in';
+
+  @override
+  String get signInTvNotSignedIn =>
+      'Sign in on this phone first, then scan the code on the TV again.';
+
+  @override
+  String get signInTvRefused =>
+      'The TV turned this down. Scan the code on the TV again.';
+
+  @override
+  String get signInTvBusy => 'The TV is already signing in';
+
+  @override
+  String get signInTvNoAnswer => 'The TV didn\'t answer';
+
+  @override
+  String get signInTvUnreachable =>
+      'Can\'t reach the TV. Check that this phone is on the same Wi-Fi.';
+
+  @override
+  String get signInTvFailed => 'The TV couldn\'t sign in';
+
+  @override
+  String get signInTvKeyFailed => 'Couldn\'t make a key for the TV';
+
+  @override
+  String get signInTvKeyName => 'Absorb TV';
+
+  @override
+  String signInTvAs(String server, String username) {
+    return '$server as $username';
+  }
+
+  @override
+  String get tvHome => 'Home';
+
+  @override
+  String get tvLibrary => 'Library';
+
+  @override
+  String get tvSearch => 'Search';
+
+  @override
+  String get tvLibraries => 'Libraries';
+
+  @override
+  String get tvSortAdded => 'Recently added';
+
+  @override
+  String get tvSortTitle => 'Title';
+
+  @override
+  String get tvSortAuthor => 'Author';
+
+  @override
+  String get tvNothingHere => 'Nothing here';
+
+  @override
+  String get tvSearchHint => 'Search this library';
+
+  @override
+  String get tvPlay => 'Play';
+
+  @override
+  String get tvContinue => 'Continue';
+
+  @override
+  String get tvNoAudio => 'No audio';
+
+  @override
+  String get tvSignedInAs => 'Signed in';
+
+  @override
+  String get tvSignOut => 'Sign out';
+
+  @override
+  String tvBookCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count books',
+      one: '1 book',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get tvNowPlayingHint => 'Hold OK to open';
+
+  @override
+  String get tvStartOver => 'Start over';
+
+  @override
+  String get tvFinished => 'Finished';
+
+  @override
+  String tvNarratedBy(String name) {
+    return 'Narrated by $name';
+  }
+
+  @override
+  String tvTimeLeft(String time) {
+    return '$time left';
+  }
+
+  @override
+  String get tvNightMode => 'Night mode';
+
+  @override
+  String get tvAccounts => 'Accounts';
+
+  @override
+  String get tvLayoutHint =>
+      'Hold OK to pick a button up, move it with up and down, then press OK to put it down';
+
+  @override
+  String get tvRead => 'Read';
+
+  @override
+  String get tvRefreshed => 'Up to date with the server';
+
+  @override
+  String get tvStop => 'Stop';
+
+  @override
+  String tvSignOutQuestion(String name) {
+    return 'Sign $name out on this TV?';
+  }
+
+  @override
+  String get tvBooks => 'Books';
+
+  @override
+  String get tvLists => 'Lists';
+
+  @override
+  String get tvMoreInSeries => 'More in series';
+
+  @override
+  String get tvPlayback => 'Playback';
+
+  @override
+  String tvSkipBack(int seconds) {
+    return 'Back ${seconds}s';
+  }
+
+  @override
+  String tvSkipForward(int seconds) {
+    return 'Forward ${seconds}s';
+  }
+
+  @override
+  String get tvSleep => 'Sleep';
+
+  @override
+  String get tvRewindOff => 'No rewind on resume';
+
+  @override
+  String get tvAutoSleepOn => 'Auto sleep timer on';
+
+  @override
+  String get tvAutoSleepOff => 'Auto sleep timer off';
+
+  @override
+  String get tvAutoNightOff => 'No night mode with sleep timer';
+
+  @override
+  String get tvAutoNightHint =>
+      'With a sleep timer running, night mode comes on once the remote has been still this long.';
+
+  @override
+  String tvDefaultSpeed(String speed) {
+    return 'Speed ${speed}x for new books';
+  }
+
+  @override
+  String tvRewindOnResume(int seconds) {
+    return 'Rewind ${seconds}s on resume';
+  }
+
+  @override
+  String tvSleepDefault(int minutes) {
+    return 'Sleep timer $minutes min';
+  }
+
+  @override
+  String tvAutoSleepFrom(String time) {
+    return 'From $time';
+  }
+
+  @override
+  String tvAutoSleepUntil(String time) {
+    return 'Until $time';
+  }
+
+  @override
+  String tvAutoNightAfter(int minutes) {
+    return 'Night mode after $minutes min';
+  }
+
+  @override
+  String get tvLoginTitle => 'Sign in on this TV';
+
+  @override
+  String get tvLoginServerHint => 'Server address, like 192.168.1.10:13378';
+
+  @override
+  String get tvLoginUsername => 'Username';
+
+  @override
+  String get tvLoginFillIn => 'Enter the server address and your username';
+
+  @override
+  String tvPodcastCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count podcasts',
+      one: '1 podcast',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get tvPodcastDetails => 'Podcast Details';
 }

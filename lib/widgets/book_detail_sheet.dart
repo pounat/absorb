@@ -22,6 +22,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
 import '../utils/cover_accent.dart';
+import '../tv/tv_book_screen.dart' show openTvBook;
 import '../utils/app_platform.dart';
 import '../utils/audible_url.dart';
 import '../utils/desktop_workspace.dart';
@@ -85,6 +86,10 @@ void showBookDetailSheet(
   String? sourceCollectionId,
   String? sourceCollectionName,
 }) {
+  if (AppPlatform.isTv) {
+    openTvBook(context, {'id': itemId});
+    return;
+  }
   showStackableSheet(
     context: context,
     useSafeArea: true,

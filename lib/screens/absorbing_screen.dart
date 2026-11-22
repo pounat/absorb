@@ -26,6 +26,7 @@ import '../widgets/collection_detail_sheet.dart';
 import '../widgets/episode_list_sheet.dart';
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
+import '../utils/absorbing_list.dart';
 import '../utils/desktop_workspace.dart';
 
 const double _kAbsorbingDesktopPanelRailWidth = 48;
@@ -705,205 +706,16 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     await lib.refresh();
   }
 
-  /// Derive the absorbing key for an item map: compound "itemId-episodeId" for
-  /// podcast episodes, plain "itemId" for books.
-  String _absorbingKey(Map<String, dynamic> item) {
-    // Explicit key stored by _updateAbsorbingCache
-    final explicit = item['_absorbingKey'] as String?;
-    if (explicit != null) return explicit;
-    final itemId = item['id'] as String? ?? '';
-    final re = item['recentEpisode'] as Map<String, dynamic>?;
-    final epId = re?['id'] as String?;
-    if (epId != null) return '$itemId-$epId';
-    return itemId;
-  }
+  String _absorbingKey(Map<String, dynamic> item) => absorbingKeyOf(item);
 
-  List<Map<String, dynamic>> _getAbsorbingBooks(LibraryProvider lib) {
-    final removes = lib.manualAbsorbRemoves;
-    final cache = lib.absorbingItemCache;
-
-    // Quick lookup of fresh data — only from the in-progress sections.
-    // For podcast episodes, key by compound "itemId-episodeId".
-    const allowedSections = {
-      'continue-listening',
-      'continue-series',
-      'downloaded-books',
-    };
-    final sectionLookup = <String, Map<String, dynamic>>{};
-    for (final section in lib.personalizedSections) {
-      final sectionId = section['id'] as String? ?? '';
-      if (!allowedSections.contains(sectionId)) continue;
-      for (final e in (section['entities'] as List<dynamic>? ?? [])) {
-        if (e is Map<String, dynamic>) {
-          final itemId = e['id'] as String?;
-          if (itemId == null) continue;
-          final re = e['recentEpisode'] as Map<String, dynamic>?;
-          final epId = re?['id'] as String?;
-          final key = epId != null ? '$itemId-$epId' : itemId;
-          sectionLookup[key] = e;
-        }
-      }
-    }
-
-    // Build list from the persisted local absorbing set.
-    // Books stay here even after the server removes them from continue-listening.
-    // absorbingBookIds now contains compound keys for podcast episodes.
-    final selectedLibraryId = lib.selectedLibraryId;
-    final items = <Map<String, dynamic>>[];
-    final skippedKeys = <String, String>{};
-    for (final key in lib.absorbingBookIds) {
-      if (removes.contains(key)) {
-        skippedKeys[key] = 'removed';
-        continue;
-      }
-      // Prefer fresh data from current library's sections
-      final fromSection = sectionLookup[key];
-      if (fromSection != null) {
-        items.add(fromSection);
-        continue;
-      }
-      // Cache fallback — include if it matches the current library (or merge is on)
-      final cached = cache[key];
-      if (cached != null) {
-        final itemLibId = cached['libraryId'] as String?;
-        final mediaType = cached['mediaType'] as String?;
-        final isPodItem = mediaType == 'podcast' || key.length > 36;
-        if (_mergeLibraries ||
-            selectedLibraryId == null ||
-            (itemLibId != null
-                ? itemLibId == selectedLibraryId
-                : isPodItem == lib.isPodcastLibrary)) {
-          items.add(cached);
-        } else {
-          skippedKeys[key] =
-              'wrong library (item=$itemLibId, selected=$selectedLibraryId)';
-        }
-      } else {
-        skippedKeys[key] = 'not in section or cache';
-      }
-    }
-    // Offline-only fallback: surface all downloads that aren't already in the
-    // absorbing list. Online we keep Absorbing focused on started/queued items;
-    // offline the user has no other way to reach unstarted downloads, so we
-    // merge them in. Started ones already appear via the absorbingBookIds path.
-    if (lib.isOffline) {
-      final seenKeys = items.map(_absorbingKey).toSet();
-      for (final section in lib.personalizedSections) {
-        if ((section['id'] as String?) != 'downloaded-books') continue;
-        for (final e in (section['entities'] as List<dynamic>? ?? [])) {
-          if (e is! Map<String, dynamic>) continue;
-          final itemId = e['id'] as String?;
-          if (itemId == null) continue;
-          final re = e['recentEpisode'] as Map<String, dynamic>?;
-          final epId = re?['id'] as String?;
-          final key = epId != null ? '$itemId-$epId' : itemId;
-          if (seenKeys.contains(key)) continue;
-          if (removes.contains(key)) continue;
-          items.add(e);
-          seenKeys.add(key);
-        }
-      }
-    }
-
-    // If the currently playing/casting item isn't in the list, add it at the front.
-    // For podcast episodes, match by compound key.
-    // Skip if the playing item belongs to a different library type.
-    final isPod = lib.isPodcastLibrary;
-
-    // Determine active item — local player takes priority, then Chromecast
-    String? activeId;
-    String? activeEpId;
-    String? activeTitle;
-    String? activeAuthor;
-    String? activeEpTitle;
-    double activeDuration = 0;
-    List<dynamic> activeChapters = [];
-
-    if (_player.hasBook && _player.currentItemId != null) {
-      activeId = _player.currentItemId;
-      activeEpId = _player.currentEpisodeId;
-      activeTitle = _player.currentTitle;
-      activeAuthor = _player.currentAuthor;
-      activeEpTitle = _player.currentEpisodeTitle;
-      activeDuration = _player.totalDuration;
-      activeChapters = _player.chapters;
-    } else if (_cast.isCasting && _cast.castingItemId != null) {
-      activeId = _cast.castingItemId;
-      activeTitle = _cast.castingTitle;
-      activeAuthor = _cast.castingAuthor;
-      activeDuration = _cast.castingDuration;
-      activeChapters = _cast.castingChapters;
-    }
-
-    if (activeId != null) {
-      final activeIsPodcast = activeEpId != null;
-      // Only show if the active item matches the current library type (or merge is on)
-      if (_mergeLibraries || activeIsPodcast == isPod) {
-        final activeKey = activeEpId != null
-            ? '$activeId-$activeEpId'
-            : activeId;
-
-        final existingIdx = items.indexWhere(
-          (b) => _absorbingKey(b) == activeKey,
-        );
-        // Only pull the active item to the top while it's actually playing.
-        // When paused, leave the queue order alone so a freshly-queued
-        // "beginning" episode stays first instead of being bumped to 2nd.
-        final activePlaying = _player.hasBook
-            ? _player.isPlaying
-            : _cast.isCasting;
-        if (!_suppressReorder && existingIdx > 0 && activePlaying) {
-          final item = items.removeAt(existingIdx);
-          items.insert(0, item);
-        } else if (existingIdx < 0) {
-          // Synthesize entry for the currently active item
-          final entry = <String, dynamic>{
-            'id': activeId,
-            'media': {
-              'metadata': {'title': activeTitle, 'authorName': activeAuthor},
-              'duration': activeDuration,
-              'chapters': activeChapters,
-            },
-          };
-          if (activeEpId != null) {
-            entry['recentEpisode'] = {
-              'id': activeEpId,
-              'title': activeEpTitle ?? activeTitle,
-              'duration': activeDuration,
-            };
-            entry['_absorbingKey'] = activeKey;
-          }
-          items.insert(0, entry);
-        }
-      }
-    }
-
-    // When nothing is playing, keep the last-finished item at the front
-    // Only if it matches the current library type
-    if (!_player.hasBook &&
-        !_cast.isCasting &&
-        _lastFinishedId != null &&
-        !removes.contains(_lastFinishedId)) {
-      // Compound podcast keys are "uuid-uuid" (>36 chars); plain book UUIDs are 36.
-      final finishedIsPodcast = _lastFinishedId!.length > 36;
-      if (_mergeLibraries || finishedIsPodcast == isPod) {
-        final finishedIdx = items.indexWhere(
-          (b) => _absorbingKey(b) == _lastFinishedId,
-        );
-        // Don't pull the last-finished item over a brand-new "beginning"
-        // episode that's deliberately sitting at the top.
-        final freshOnTop =
-            items.isNotEmpty &&
-            _absorbingKey(items[0]) == lib.freshQueuedFrontKey;
-        if (finishedIdx > 0 && !freshOnTop) {
-          final item = items.removeAt(finishedIdx);
-          items.insert(0, item);
-        }
-      }
-    }
-
-    return items;
-  }
+  List<Map<String, dynamic>> _getAbsorbingBooks(LibraryProvider lib) => buildAbsorbingList(
+        lib,
+        player: _player,
+        cast: _cast,
+        mergeLibraries: _mergeLibraries,
+        suppressReorder: _suppressReorder,
+        lastFinishedId: _lastFinishedId,
+      );
 
   @override
   Widget build(BuildContext context) {

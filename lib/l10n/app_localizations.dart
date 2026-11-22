@@ -25012,6 +25012,444 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign-in link for {name}'**
   String boApiKeyLinkFor(String name);
+
+  /// No description provided for @tvSignInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in from your phone'**
+  String get tvSignInTitle;
+
+  /// No description provided for @tvSignInStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'Point your phone\'s camera at this code'**
+  String get tvSignInStep1;
+
+  /// No description provided for @tvSignInStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Open in Absorb, then Sign in TV'**
+  String get tvSignInStep2;
+
+  /// No description provided for @tvSignInNeedsPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Absorb on your phone needs to be signed in, on the same Wi-Fi as this TV.'**
+  String get tvSignInNeedsPhone;
+
+  /// No description provided for @tvSignInHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in on the TV instead'**
+  String get tvSignInHere;
+
+  /// No description provided for @tvSignInNoNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'This TV isn\'t on a network. Connect it to Wi-Fi to sign in from your phone.'**
+  String get tvSignInNoNetwork;
+
+  /// No description provided for @tvSignInRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get tvSignInRetry;
+
+  /// No description provided for @tvHomeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to continue yet. Find something in Library or Search, and it shows up here.'**
+  String get tvHomeEmpty;
+
+  /// No description provided for @signInTvTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in your TV'**
+  String get signInTvTitle;
+
+  /// No description provided for @signInTvKeyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV gets its own API key named Absorb TV. You can remove it later under API Keys.'**
+  String get signInTvKeyNote;
+
+  /// No description provided for @signInTvPasswordNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your password to sign the TV in. It goes straight to the TV and isn\'t kept on this phone.'**
+  String get signInTvPasswordNote;
+
+  /// No description provided for @signInTvButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in TV'**
+  String get signInTvButton;
+
+  /// No description provided for @signInTvDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Your TV is signed in'**
+  String get signInTvDone;
+
+  /// No description provided for @signInTvNotSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in on this phone first, then scan the code on the TV again.'**
+  String get signInTvNotSignedIn;
+
+  /// No description provided for @signInTvRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV turned this down. Scan the code on the TV again.'**
+  String get signInTvRefused;
+
+  /// No description provided for @signInTvBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV is already signing in'**
+  String get signInTvBusy;
+
+  /// No description provided for @signInTvNoAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV didn\'t answer'**
+  String get signInTvNoAnswer;
+
+  /// No description provided for @signInTvUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the TV. Check that this phone is on the same Wi-Fi.'**
+  String get signInTvUnreachable;
+
+  /// No description provided for @signInTvFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV couldn\'t sign in'**
+  String get signInTvFailed;
+
+  /// No description provided for @signInTvKeyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t make a key for the TV'**
+  String get signInTvKeyFailed;
+
+  /// No description provided for @signInTvKeyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Absorb TV'**
+  String get signInTvKeyName;
+
+  /// No description provided for @signInTvAs.
+  ///
+  /// In en, this message translates to:
+  /// **'{server} as {username}'**
+  String signInTvAs(String server, String username);
+
+  /// No description provided for @tvHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get tvHome;
+
+  /// No description provided for @tvLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get tvLibrary;
+
+  /// No description provided for @tvSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get tvSearch;
+
+  /// No description provided for @tvLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'Libraries'**
+  String get tvLibraries;
+
+  /// No description provided for @tvSortAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get tvSortAdded;
+
+  /// No description provided for @tvSortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get tvSortTitle;
+
+  /// No description provided for @tvSortAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get tvSortAuthor;
+
+  /// No description provided for @tvNothingHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here'**
+  String get tvNothingHere;
+
+  /// No description provided for @tvSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search this library'**
+  String get tvSearchHint;
+
+  /// No description provided for @tvPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get tvPlay;
+
+  /// No description provided for @tvContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get tvContinue;
+
+  /// No description provided for @tvNoAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio'**
+  String get tvNoAudio;
+
+  /// No description provided for @tvSignedInAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in'**
+  String get tvSignedInAs;
+
+  /// No description provided for @tvSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get tvSignOut;
+
+  /// No description provided for @tvBookCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 book} other{{count} books}}'**
+  String tvBookCount(int count);
+
+  /// No description provided for @tvNowPlayingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold OK to open'**
+  String get tvNowPlayingHint;
+
+  /// No description provided for @tvStartOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Start over'**
+  String get tvStartOver;
+
+  /// No description provided for @tvFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get tvFinished;
+
+  /// No description provided for @tvNarratedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrated by {name}'**
+  String tvNarratedBy(String name);
+
+  /// No description provided for @tvTimeLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} left'**
+  String tvTimeLeft(String time);
+
+  /// No description provided for @tvNightMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Night mode'**
+  String get tvNightMode;
+
+  /// No description provided for @tvAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get tvAccounts;
+
+  /// No description provided for @tvLayoutHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold OK to pick a button up, move it with up and down, then press OK to put it down'**
+  String get tvLayoutHint;
+
+  /// No description provided for @tvRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get tvRead;
+
+  /// No description provided for @tvRefreshed.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date with the server'**
+  String get tvRefreshed;
+
+  /// No description provided for @tvStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get tvStop;
+
+  /// No description provided for @tvSignOutQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign {name} out on this TV?'**
+  String tvSignOutQuestion(String name);
+
+  /// No description provided for @tvBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Books'**
+  String get tvBooks;
+
+  /// No description provided for @tvLists.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists'**
+  String get tvLists;
+
+  /// No description provided for @tvMoreInSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'More in series'**
+  String get tvMoreInSeries;
+
+  /// No description provided for @tvPlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback'**
+  String get tvPlayback;
+
+  /// No description provided for @tvSkipBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back {seconds}s'**
+  String tvSkipBack(int seconds);
+
+  /// No description provided for @tvSkipForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward {seconds}s'**
+  String tvSkipForward(int seconds);
+
+  /// No description provided for @tvSleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep'**
+  String get tvSleep;
+
+  /// No description provided for @tvRewindOff.
+  ///
+  /// In en, this message translates to:
+  /// **'No rewind on resume'**
+  String get tvRewindOff;
+
+  /// No description provided for @tvAutoSleepOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto sleep timer on'**
+  String get tvAutoSleepOn;
+
+  /// No description provided for @tvAutoSleepOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto sleep timer off'**
+  String get tvAutoSleepOff;
+
+  /// No description provided for @tvAutoNightOff.
+  ///
+  /// In en, this message translates to:
+  /// **'No night mode with sleep timer'**
+  String get tvAutoNightOff;
+
+  /// No description provided for @tvAutoNightHint.
+  ///
+  /// In en, this message translates to:
+  /// **'With a sleep timer running, night mode comes on once the remote has been still this long.'**
+  String get tvAutoNightHint;
+
+  /// No description provided for @tvDefaultSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed {speed}x for new books'**
+  String tvDefaultSpeed(String speed);
+
+  /// No description provided for @tvRewindOnResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind {seconds}s on resume'**
+  String tvRewindOnResume(int seconds);
+
+  /// No description provided for @tvSleepDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer {minutes} min'**
+  String tvSleepDefault(int minutes);
+
+  /// No description provided for @tvAutoSleepFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From {time}'**
+  String tvAutoSleepFrom(String time);
+
+  /// No description provided for @tvAutoSleepUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Until {time}'**
+  String tvAutoSleepUntil(String time);
+
+  /// No description provided for @tvAutoNightAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Night mode after {minutes} min'**
+  String tvAutoNightAfter(int minutes);
+
+  /// No description provided for @tvLoginTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in on this TV'**
+  String get tvLoginTitle;
+
+  /// No description provided for @tvLoginServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address, like 192.168.1.10:13378'**
+  String get tvLoginServerHint;
+
+  /// No description provided for @tvLoginUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get tvLoginUsername;
+
+  /// No description provided for @tvLoginFillIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the server address and your username'**
+  String get tvLoginFillIn;
+
+  /// No description provided for @tvPodcastCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 podcast} other{{count} podcasts}}'**
+  String tvPodcastCount(int count);
+
+  /// No description provided for @tvPodcastDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Podcast Details'**
+  String get tvPodcastDetails;
 }
 
 class _AppLocalizationsDelegate

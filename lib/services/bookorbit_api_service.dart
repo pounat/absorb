@@ -182,7 +182,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// Names Absorb on the highlights and sessions it saves, on servers that
   /// show it. Older ones refuse a field they don't know.
   Future<Map<String, String>> _clientName() async =>
-      (await _features()).contains('client-name') ? const {'clientName': 'Absorb'} : const {};
+      (await _features()).contains('client-name') ? {'clientName': ApiService.clientName} : const {};
 
   Future<Set<String>> _features() async {
     final origin = ApiService._originOf(_cleanBaseUrl) ?? _cleanBaseUrl;
@@ -6587,7 +6587,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final out = <String, Map<String, String>>{};
     try {
       final prefs = await SharedPreferences.getInstance();
-      for (final (key, client) in [(_sessionDevicesKey, 'Absorb'), (_watchSessionsKey, 'AbsorbWear')]) {
+      for (final (key, client) in [(_sessionDevicesKey, ApiService.clientName), (_watchSessionsKey, 'AbsorbWear')]) {
         final raw = prefs.getString(key);
         if (raw == null) continue;
         for (final e in (jsonDecode(raw) as Map<String, dynamic>).entries) {

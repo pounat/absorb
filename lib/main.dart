@@ -43,6 +43,13 @@ import 'services/windows_media_controls.dart';
 import 'services/log_service.dart';
 import 'services/quick_actions_service.dart';
 import 'services/setup_link_service.dart';
+import 'services/tv_pairing.dart';
+import 'screens/sign_in_tv_screen.dart';
+import 'tv/tv_focus_ring.dart';
+import 'tv/tv_pip.dart';
+import 'tv/tv_shell.dart';
+import 'tv/tv_pair_screen.dart';
+import 'widgets/overlay_toast.dart';
 import 'services/wording.dart';
 import 'utils/app_platform.dart';
 import 'screens/login_screen.dart';
@@ -214,8 +221,9 @@ Future<void> applyAppearanceFromPrefs() async {
   applyThemeMode(await PlayerSettings.getThemeMode());
   applyFlatBackground(await PlayerSettings.getFlatBackground());
   applyEinkModeTheme(await PlayerSettings.getEinkMode());
-  expressiveNotifier.value =
-      AppPlatform.isAndroid && await PlayerSettings.getMaterialExpressive();
+  // A TV has only the Expressive look.
+  expressiveNotifier.value = AppPlatform.isTv ||
+      (AppPlatform.isAndroid && await PlayerSettings.getMaterialExpressive());
   applyColorSource(await PlayerSettings.getColorSource());
   applyManualSeed(await PlayerSettings.getManualSeedColor());
   applyGradientIntensity(await PlayerSettings.getGradientIntensity());
@@ -273,6 +281,18 @@ void main(List<String> args) async {
     await applyOrientationLock().timeout(const Duration(seconds: 2));
   } catch (_) {}
 
+  // Known before the first frame: the app is laid out for a remote from the
+  // start on a TV.
+  if (AppPlatform.isAndroid) {
+    try {
+      final info = await DeviceInfoPlugin().androidInfo.timeout(const Duration(seconds: 2));
+      AppPlatform.isTv = info.systemFeatures.contains('android.software.leanback');
+    } catch (_) {}
+    // A TV has only the remote, so focus always shows, not only after the
+    // first key press as Flutter assumes.
+    if (AppPlatform.isTv) FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
+  }
+
   // Load saved theme preference so we render the correct theme immediately
   try {
     var savedTheme = await PlayerSettings.getThemeMode();
@@ -285,8 +305,9 @@ void main(List<String> args) async {
     applyThemeMode(savedTheme);
     flatNotifier.value = await PlayerSettings.getFlatBackground();
     applyEinkModeTheme(await PlayerSettings.getEinkMode());
-    expressiveNotifier.value =
-        AppPlatform.isAndroid && await PlayerSettings.getMaterialExpressive();
+    // A TV has only the Expressive look.
+    expressiveNotifier.value = AppPlatform.isTv ||
+        (AppPlatform.isAndroid && await PlayerSettings.getMaterialExpressive());
     colorSourceNotifier.value = await PlayerSettings.getColorSource();
     manualSeedNotifier.value = Color(await PlayerSettings.getManualSeedColor());
     gradientIntensityNotifier.value = await PlayerSettings.getGradientIntensity();
@@ -507,6 +528,33 @@ class AbsorbApp extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               scrollBehavior:
                   AppPlatform.lacksPhonePlugins ? const _AppScrollBehavior() : null,
+              // On a TV the arrows move between controls; a slider only takes
+              // them after OK, instead of keeping every arrow once reached.
+              // Material's focus highlight is a faint wash, invisible from
+              // the couch; a TV gets a strong one.
+              builder: AppPlatform.isTv
+                  ? (context, child) {
+                      final theme = Theme.of(context);
+                      return MediaQuery(
+                        data: MediaQuery.of(context).copyWith(navigationMode: NavigationMode.directional),
+                        child: Theme(
+                          data: theme.copyWith(focusColor: theme.colorScheme.onSurface.withValues(alpha: 0.32)),
+                          // The ring over everything shows where the remote is
+                          // on every standard control, sheets and dialogs too.
+                          // In the corner window it shows only the cover;
+                          // the app stays as it was underneath.
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: TvPip.inPip,
+                            builder: (context, pip, _) => Stack(children: [
+                              Offstage(offstage: pip, child: TickerMode(enabled: !pip, child: child!)),
+                              if (!pip) const TvFocusRing(),
+                              if (pip) const Positioned.fill(child: TvPipView()),
+                            ]),
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
               locale: overrideLocale,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
@@ -700,6 +748,10 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   void _queueSetupLink(Uri uri) {
+    if (TvPairLink.isTvLink(uri)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openTvLink(uri));
+      return;
+    }
     if (!SetupLinkService.isSetupLink(uri)) return;
     if (_pendingSetupLink == uri || _activeSetupLink == uri) return;
     _pendingSetupLink = uri;
@@ -732,6 +784,24 @@ class _AuthGateState extends State<AuthGate> {
     await handleSetupLinkLogin(context, link);
   }
 
+  /// A TV's QR code, passed on by its page: sign that TV in to this account.
+  void _openTvLink(Uri uri) {
+    if (!mounted) return;
+    final link = TvPairLink.parse(uri);
+    final l = AppLocalizations.of(context)!;
+    if (link == null) {
+      showOverlayToast(context, l.setupLinkInvalid, icon: Icons.error_outline_rounded);
+      return;
+    }
+    if (!context.read<AuthProvider>().isAuthenticated) {
+      showOverlayToast(context, l.signInTvNotSignedIn, icon: Icons.tv_off_rounded);
+      return;
+    }
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(builder: (_) => SignInTvScreen(link: link)),
+    );
+  }
+
   Future<void> _initServices() async {
     // Load device info before log service so the log header has the real
     // app version and device model instead of fallback values.
@@ -742,6 +812,7 @@ class _AuthGateState extends State<AuthGate> {
         ApiService.deviceManufacturer = info.manufacturer;
         ApiService.deviceModel = info.model;
         ApiService.deviceSdkInt = info.version.sdkInt;
+        AppPlatform.isTv = info.systemFeatures.contains('android.software.leanback');
       } else if (AppPlatform.isIOS) {
         final info = await DeviceInfoPlugin().iosInfo;
         ApiService.deviceManufacturer = 'Apple';
@@ -781,8 +852,9 @@ class _AuthGateState extends State<AuthGate> {
     applyThemeMode(scopedTheme);
     flatNotifier.value = await PlayerSettings.getFlatBackground();
     applyEinkModeTheme(await PlayerSettings.getEinkMode());
-    expressiveNotifier.value =
-        AppPlatform.isAndroid && await PlayerSettings.getMaterialExpressive();
+    // A TV has only the Expressive look.
+    expressiveNotifier.value = AppPlatform.isTv ||
+        (AppPlatform.isAndroid && await PlayerSettings.getMaterialExpressive());
     colorSourceNotifier.value = await PlayerSettings.getColorSource();
     manualSeedNotifier.value = Color(await PlayerSettings.getManualSeedColor());
     gradientIntensityNotifier.value = await PlayerSettings.getGradientIntensity();
@@ -804,7 +876,10 @@ class _AuthGateState extends State<AuthGate> {
     } catch (_) {}
     // Background new-episode notifications: re-register the periodic job
     // (self-healing after OEM kills) and wire up notification taps.
-    if (!AppPlatform.lacksPhonePlugins) {
+    // A TV skips the phone-only extras below: episode alerts, the
+    // notification prompt, casting, Android Auto, home screen widgets and
+    // app icon shortcuts. Nothing on it would use them.
+    if (!AppPlatform.lacksPhonePlugins && !AppPlatform.isTv) {
       EpisodeNotificationService.syncRegistration();
       EpisodeNotificationService.initTapHandling();
     }
@@ -870,7 +945,7 @@ class _AuthGateState extends State<AuthGate> {
     }
     debugPrint('[Init] AudioPlayerService done (${sw.elapsedMilliseconds}ms)');
 
-    if (!AppPlatform.lacksPhonePlugins) {
+    if (!AppPlatform.lacksPhonePlugins && !AppPlatform.isTv) {
       try {
         await Permission.notification.request();
       } catch (e) {
@@ -879,7 +954,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     // Initialize Chromecast (Android only)
-    if (AppPlatform.isAndroid) {
+    if (AppPlatform.isAndroid && !AppPlatform.isTv) {
       try {
         await ChromecastService().init();
       } catch (e) {
@@ -900,7 +975,7 @@ class _AuthGateState extends State<AuthGate> {
       // Watch for settings changes and pull the synced copy on the way in.
       await SettingsSyncService().startIfEnabled();
       unawaited(SettingsSyncService().onAppForegrounded());
-      if (AppPlatform.isAndroid) {
+      if (AppPlatform.isAndroid && !AppPlatform.isTv) {
         // Pre-populate Android Auto browse tree in background.
         Future.microtask(() => AndroidAutoService().refresh());
       }
@@ -908,7 +983,7 @@ class _AuthGateState extends State<AuthGate> {
         // Initialize CarPlay browse tree.
         CarPlayService().init();
       }
-      if (AppPlatform.isMobile) {
+      if (AppPlatform.isMobile && !AppPlatform.isTv) {
         // Initialize homescreen widget
         await HomeWidgetService().init();
       }
@@ -922,7 +997,7 @@ class _AuthGateState extends State<AuthGate> {
       // (so we get real UIKit system icon types like `.play`, `.search`).
       // Depends on AudioPlayerService + HomeWidgetService so they're ready
       // when the shortcut handler fires.
-      if (!AppPlatform.lacksPhonePlugins) await QuickActionsService().init();
+      if (!AppPlatform.lacksPhonePlugins && !AppPlatform.isTv) await QuickActionsService().init();
     } catch (e) {
       debugPrint('[Init] Service init failed: $e');
     }
@@ -940,6 +1015,12 @@ class _AuthGateState extends State<AuthGate> {
 
     if (auth.isLoading) {
       return const AuthLoadingScreen();
+    }
+
+    if (AppPlatform.isTv) {
+      return auth.isAuthenticated
+          ? TvShell(key: ValueKey(UserAccountService().activeScopeKey))
+          : const TvPairScreen();
     }
 
     if (auth.isAuthenticated || auth.isSignedOut) {

@@ -49,6 +49,8 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
       return l.findInEbook;
     case 'lyrics':
       return l.lyricsMode;
+    case 'night':
+      return l.tvNightMode;
   }
   return def.label;
 }
@@ -68,6 +70,19 @@ final Set<String> _hiddenButtons = {
     'equalizer',
   },
   if (AppPlatform.isWeb) 'ebook',
+  if (!AppPlatform.isTv) 'night',
+  // On a TV: no casting from it, no car, nothing to type or read, nowhere
+  // to keep downloads, and night mode stands in for keep screen on.
+  if (AppPlatform.isTv) ...{
+    'cast',
+    'airplay',
+    'car',
+    'download',
+    'equalizer',
+    'notes',
+    'wake',
+    'findinebook',
+  },
 };
 
 const _allCardButtons = [
@@ -88,6 +103,7 @@ const _allCardButtons = [
   CardButtonDef('ebook', 'Read', Icons.menu_book_rounded),
   CardButtonDef('findinebook', 'Find position in ebook', Icons.manage_search_rounded),
   CardButtonDef('lyrics', 'Live transcript', Icons.subtitles_rounded),
+  CardButtonDef('night', 'Night mode', Icons.bedtime_rounded),
 ];
 
 /// Card buttons filtered for the current platform.

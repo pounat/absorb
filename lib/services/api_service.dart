@@ -28,6 +28,7 @@ import 'server_notifications.dart';
 import 'server_backend.dart';
 import 'socket_service.dart';
 import '../models/auth_session.dart';
+import '../utils/app_platform.dart';
 import '../utils/server_url.dart';
 import '../utils/percent_escapes.dart';
 
@@ -2227,10 +2228,21 @@ class ApiService {
   /// Expose clean base URL for audio player to build URLs
   String get cleanBaseUrl => _cleanBaseUrl;
 
+  /// The name sessions carry on the server. The TV and desktop apps say so,
+  /// the way the watch sends "Absorb Wear", so session lists can show which
+  /// one played.
+  static String get clientName {
+    if (AppPlatform.isTv) return 'Absorb TV';
+    if (AppPlatform.isWindows) return 'Absorb Windows';
+    if (AppPlatform.isMacOS) return 'Absorb Mac';
+    if (AppPlatform.isLinux) return 'Absorb Linux';
+    return 'Absorb';
+  }
+
   /// The device descriptor ABS attaches to playback sessions. Shared by the
   /// /play session calls and the client-owned local-session calls.
   Map<String, dynamic> get _deviceInfo => {
-        'clientName': 'Absorb',
+        'clientName': clientName,
         'clientVersion': appVersion,
         'deviceId': deviceId,
         'deviceName': '${deviceManufacturer.isNotEmpty ? "$deviceManufacturer " : ""}$deviceModel'.trim(),

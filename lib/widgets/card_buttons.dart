@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../tv/tv_focus_ring.dart';
+import 'remote_ok.dart';
+import 'remote_tap.dart';
 import 'glass_look.dart';
 import 'expressive.dart';
 import 'package:flutter/services.dart';
@@ -24,11 +27,14 @@ import '../services/narrated_books.dart';
 import '../services/scoped_prefs.dart';
 import '../services/screen_wake.dart';
 import '../services/sleep_timer_service.dart';
+import '../utils/app_platform.dart';
 import '../utils/episode_key.dart';
 import 'absorb_slider.dart';
 import 'absorbing_shared.dart';
 import 'adaptive_modal.dart';
 import 'book_detail_sheet.dart';
+import '../tv/tv_book_screen.dart' show openTvBook;
+import '../tv/tv_night_mode.dart';
 import 'bookmark_detail_dialog.dart';
 import 'card_button_config.dart';
 import 'card_chapters_sheet.dart';
@@ -73,13 +79,57 @@ class Pressable extends StatefulWidget {
   final VoidCallback? onLongPress;
   final HitTestBehavior? behavior;
   final Widget child;
-  const Pressable({super.key, this.onTap, this.onLongPress, this.behavior, required this.child});
+
+  /// On a TV, the remote's focus lands here; the card hands the play button
+  /// one so the full player opens with it picked.
+  final FocusNode? focusNode;
+
+  /// A round button: the remote's outline is a circle.
+  final bool focusCircle;
+  const Pressable({super.key, this.onTap, this.onLongPress, this.behavior, this.focusNode, this.focusCircle = false, required this.child});
   @override State<Pressable> createState() => _PressableState();
 }
 
 class _PressableState extends State<Pressable> {
   bool _pressed = false;
+  bool _focused = false;
   DateTime? _pressedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final body = _body(context);
+    if (!AppPlatform.isTv) return body;
+    final onTap = widget.onTap;
+    final edge = BorderSide(color: Theme.of(context).colorScheme.onSurface, width: 3);
+    final ShapeBorder outline = widget.focusCircle
+        ? CircleBorder(side: edge)
+        : RoundedRectangleBorder(borderRadius: cardButtonCorners(context, 14), side: edge);
+    return RemoteOk(
+      onPress: onTap,
+      onHold: widget.onLongPress,
+      onDown: onTap == null ? null : _press,
+      onUp: onTap == null ? null : _release,
+      child: TvDrawsOwnFocus(
+      child: FocusableActionDetector(
+      focusNode: widget.focusNode,
+      enabled: onTap != null,
+      onShowFocusHighlight: (v) => setState(() => _focused = v),
+      child: AnimatedScale(
+        scale: _focused ? 1.06 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: ShapeDecoration(
+            shape: _focused ? outline : const RoundedRectangleBorder(),
+            color: _focused ? Colors.white.withValues(alpha: 0.08) : null,
+          ),
+          child: body,
+        ),
+      ),
+      ),
+      ),
+    );
+  }
 
   void _press() {
     _pressedAt = DateTime.now();
@@ -102,8 +152,7 @@ class _PressableState extends State<Pressable> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _body(BuildContext context) {
     if (expressiveNotifier.value && !MediaQuery.disableAnimationsOf(context)) {
       // Squashes flat and wide under the finger, then springs back past its
       // resting size before settling.
@@ -844,6 +893,8 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
         const SizedBox(height: 4),
         Text('${_speed.toStringAsFixed(2)}x', style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: widget.accent)),
         const SizedBox(height: 12),
+        // About taps and long presses, so not on a TV.
+        if (!AppPlatform.isTv)
         const FeatureHint(
           prefKey: 'hint_speed_presets',
           message: 'Tap + to save the current speed as a preset. Long-press a chip to remove it.',
@@ -853,7 +904,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
           ..._presets.map((s) {
             final a = (_speed - s).abs() < 0.01;
             final canRemove = _presets.length > 1;
-            return GestureDetector(
+            return RemoteTap(
               onTap: () => _setSpeed(s),
               onLongPress: canRemove ? () => _removePreset(s) : null,
               child: AnimatedContainer(
@@ -865,7 +916,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
               ),
             );
           }),
-          GestureDetector(
+          RemoteTap(
             onTap: _addCurrentAsPreset,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -880,7 +931,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
         ]),
         const SizedBox(height: 16),
         Row(children: [
-          GestureDetector(
+          RemoteTap(
             onTap: () => _setSpeed(_speed - 0.05),
             child: Container(
               width: 36, height: 36,
@@ -889,7 +940,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
             ),
           ),
           Expanded(child: AbsorbSlider(value: _speed, min: 0.5, max: 5.0, divisions: 90, activeColor: widget.accent, onChanged: _setSpeed)),
-          GestureDetector(
+          RemoteTap(
             onTap: () => _setSpeed(_speed + 0.05),
             child: Container(
               width: 36, height: 36,
@@ -1000,7 +1051,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
 
   Widget _tab(String label, bool selected, VoidCallback onTap) {
     final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
+    return RemoteTap(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1069,7 +1120,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
         Padding(padding: const EdgeInsets.symmetric(vertical: 12),
           child: Container(width: 40, height: 4, decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(children: [
-          if (_onHighlights) const SizedBox(width: 36) else GestureDetector(
+          if (_onHighlights) const SizedBox(width: 36) else RemoteTap(
             onTap: () {
               final next = _sort == 'newest' ? 'position'
                   : _sort == 'position' ? 'position_desc'
@@ -1103,7 +1154,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
             _tab(l.bookmarksTabHighlights, _onHighlights, () => setState(() => _onHighlights = true)),
           ],
           const Spacer(),
-          if (_onHighlights) const SizedBox(width: 36) else GestureDetector(onTap: () => _addBookmark(), child: Container(
+          if (_onHighlights) const SizedBox(width: 36) else RemoteTap(onTap: () => _addBookmark(), child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(color: widget.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
             child: Icon(Icons.add_rounded, color: widget.accent, size: 20),
@@ -1458,7 +1509,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                   Container(width: 40, height: 4, decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2))),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: GestureDetector(
+                    child: RemoteTap(
                       onTap: () => setState(() => _editing = true),
                       child: Padding(
                         padding: const EdgeInsets.all(8),
@@ -1563,6 +1614,11 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                 ),
               ]),
             ),
+            if (AppPlatform.isTv)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: Text(l.tvLayoutHint, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              ),
             const SizedBox(height: 4),
             Flexible(
               child: ReorderableListView.builder(
@@ -1587,7 +1643,44 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                 // swallowing the drop zone, and keeps the section header from dragging along
                 // with the first hidden item.
                 itemCount: _order.length + 1,
-                onReorder: (oldIdx, newIdx) {
+                onReorder: _reorder,
+                itemBuilder: (context, i) => _editRow(context, i, cs, tt, l),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // On a TV, where nothing can be dragged: OK picks a button up, up and down
+  // move it a place at a time (across the line into or out of the menu
+  // too), and OK puts it down.
+  final _rowFocus = <String, FocusNode>{};
+  String? _carrying;
+  // The hold that picked a button up ends with a release; that one doesn't
+  // put it straight back down.
+  String? _justPicked;
+
+  @override
+  void dispose() {
+    for (final n in _rowFocus.values) {
+      n.dispose();
+    }
+    super.dispose();
+  }
+
+  void _step(int i, int dir) {
+    final id = _carrying;
+    if (id == null) return;
+    final last = _order.length; // the divider adds one slot
+    if (dir < 0 && i == 0) return;
+    if (dir > 0 && i >= last) return;
+    _reorder(i, dir < 0 ? i - 1 : i + 2);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _rowFocus[id]?.requestFocus());
+  }
+
+  void _reorder(int oldIdx, int newIdx) {
                   // Divider is not draggable, so oldIdx should never equal _visibleCount.
                   if (oldIdx == _visibleCount) return;
                   if (newIdx > oldIdx) newIdx--;
@@ -1621,8 +1714,9 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                       ..addAll(combined);
                     _visibleCount = newVisible;
                   });
-                },
-                itemBuilder: (context, i) {
+  }
+
+  Widget _editRow(BuildContext context, int i, ColorScheme cs, TextTheme tt, AppLocalizations l) {
                   // Divider slot - rendered as its own non-draggable list item.
                   if (i == _visibleCount) {
                     return Padding(
@@ -1647,15 +1741,21 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                   if (def == null && !isMore) return SizedBox.shrink(key: ValueKey(id));
 
                   final isOnCard = orderIdx < _visibleCount;
+                  final carried = _carrying == id;
 
-                  return Padding(
-                    key: ValueKey(id),
+                  final row = Padding(
+                    key: AppPlatform.isTv ? null : ValueKey(id),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: isOnCard ? widget.accent.withValues(alpha: 0.08) : Colors.transparent,
+                        color: carried
+                            ? widget.accent.withValues(alpha: 0.3)
+                            : isOnCard ? widget.accent.withValues(alpha: 0.08) : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
+                        border: AppPlatform.isTv && (_rowFocus[id]?.hasFocus ?? false)
+                            ? Border.all(color: cs.onSurface, width: 2)
+                            : null,
                       ),
                       child: Row(children: [
                         Icon(
@@ -1675,20 +1775,46 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                             padding: const EdgeInsets.only(right: 8),
                             child: Text('${orderIdx + 1}', style: tt.labelSmall?.copyWith(color: widget.accent, fontWeight: FontWeight.w700)),
                           ),
-                        ReorderableDragStartListener(
-                          index: i,
-                          child: Icon(Icons.drag_handle_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.3)),
-                        ),
+                        if (AppPlatform.isTv)
+                          Icon(carried ? Icons.unfold_more_rounded : Icons.drag_handle_rounded,
+                              size: 20, color: carried ? widget.accent : cs.onSurface.withValues(alpha: 0.3))
+                        else
+                          ReorderableDragStartListener(
+                            index: i,
+                            child: Icon(Icons.drag_handle_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.3)),
+                          ),
                       ]),
                     ),
                   );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+                  if (!AppPlatform.isTv) return row;
+                  return Focus(
+                    key: ValueKey(id),
+                    focusNode: _rowFocus.putIfAbsent(id, () => FocusNode(debugLabel: 'layout $id')),
+                    onFocusChange: (has) => setState(() {
+                      if (!has && _carrying == id) _carrying = null;
+                    }),
+                    onKeyEvent: (_, event) {
+                      final k = event.logicalKey;
+                      if (RemoteOk.isOk(k)) {
+                        // Hold picks it up; a press puts it down.
+                        if (event is KeyRepeatEvent && !carried && _carrying == null) {
+                          setState(() => _carrying = id);
+                        } else if (event is KeyUpEvent && carried && _justPicked != id) {
+                          setState(() => _carrying = null);
+                        }
+                        if (event is KeyRepeatEvent) _justPicked = id;
+                        if (event is KeyUpEvent) _justPicked = null;
+                        return KeyEventResult.handled;
+                      }
+                      if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+                      if (carried && (k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.arrowDown)) {
+                        _step(i, k == LogicalKeyboardKey.arrowUp ? -1 : 1);
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: row,
+                  );
   }
 }
 
@@ -1785,8 +1911,16 @@ class CardActionDelegate {
   }
 
   /// The saved button order, less what this book has no use for.
-  List<String> get _shownOrder =>
-      _narratedEbook ? buttonOrder.where((id) => id != 'findinebook').toList() : buttonOrder;
+  List<String> get _shownOrder {
+    final narrated = _narratedEbook;
+    return buttonOrder.where((id) {
+      if (narrated && id == 'findinebook') return false;
+      // A TV can't make a transcript, so read along shows only for a book
+      // whose EPUB carries its own narration timings.
+      if (AppPlatform.isTv && id == 'lyrics') return narrated && _readAlongInstead;
+      return true;
+    }).toList();
+  }
 
   /// Which episode the bookmark surfaces belong to. A card that knows its own
   /// episode wins; an active podcast card falls back to what is playing.
@@ -2141,6 +2275,12 @@ class CardActionDelegate {
             onTap: () => toggleKeepScreenOn(context),
           ),
         );
+      case 'night':
+        return CardWideButton(
+          icon: Icons.bedtime_rounded, label: l.tvNightMode,
+          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          onTap: TvNightMode.start,
+        );
       case 'notes':
         return CardWideButton(
           icon: Icons.note_rounded, label: l.notes,
@@ -2302,6 +2442,11 @@ class CardActionDelegate {
           accent: accent,
           active: wakeOn,
           onTap: () { Navigator.pop(ctx); toggleKeepScreenOn(context); },
+        );
+      case 'night':
+        return MoreMenuItem(
+          icon: Icons.bedtime_rounded, label: l.tvNightMode, accent: accent,
+          onTap: () { Navigator.pop(ctx); TvNightMode.start(); },
         );
       case 'notes':
         return MoreMenuItem(
@@ -2540,6 +2685,10 @@ class CardActionDelegate {
   }
 
   Future<void> _openDetails() async {
+    if (AppPlatform.isTv) {
+      openTvBook(context, {...item, 'id': itemId});
+      return;
+    }
     if (episodeId != null || isPodcastEpisode) {
       final episode = await _resolveEpisode();
       if (context.mounted) EpisodeDetailSheet.show(context, item, episode);

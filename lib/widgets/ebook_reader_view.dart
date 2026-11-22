@@ -53,6 +53,7 @@ import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
 import 'page_curl.dart';
 import 'reader_tap_zones.dart';
+import 'remote_tap.dart';
 import 'transcription_download_prompt.dart';
 import 'narration_download_dialog.dart';
 import 'progress_dialog.dart';
@@ -183,6 +184,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   bool _readingAudioWasOn = false;
   double _audioTotal = 0;
   bool _showControls = false;
+  // Where the remote's keys land: page turns, and OK for the controls.
+  final _keysFocus = FocusNode(debugLabel: 'reader keys');
+  // The controls bar: OK on a TV puts the remote straight in it, since from
+  // the page, which fills the screen, no control lies in any direction.
+  final _controlsScope = FocusScopeNode(debugLabel: 'reader controls');
   List<EpubChapter> _chapters = [];
   double _progress = 0;
   // epub.js reports a usable page percentage only after its CFI location index
@@ -381,6 +387,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // the chapter's words per page.
   bool _autoScroll = false;
   double _autoScrollWpm = 250;
+  Timer? _speedSaveTimer;
   bool _autoScrollPaused = false;
   LiveOverlayToast? _speedToast;
   int _marginV = 16; // top + bottom
@@ -1126,7 +1133,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   Future<void> _loadSettings() async {
-    _fontSize = await ScopedPrefs.getInt(_kFontSize) ?? 16;
+    _fontSize = await ScopedPrefs.getInt(_kFontSize) ?? (AppPlatform.isTv ? 26 : 16);
     _lineHeight = await ScopedPrefs.getDouble(_kLineHeight) ?? 1.4;
     _alignLeft = await ScopedPrefs.getBool(_kAlignLeft) ?? false;
     final legacyMargin = await ScopedPrefs.getInt(_kMargin) ?? 16;
@@ -1135,9 +1142,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final si = (await ScopedPrefs.getInt(_kSpread) ?? 0).clamp(0, 2);
     _spread = _spreadModes[si];
     final prefs = await SharedPreferences.getInstance();
-    _scroll = prefs.getBool(_kScroll) ?? false;
+    // A TV pages, never scrolls (the text blinks as the web view scrolls), and
+    // turns with a slide: a drawn turn is too much for its graphics to show.
+    _scroll = !AppPlatform.isTv && (prefs.getBool(_kScroll) ?? false);
     final turn = prefs.getString(_kTurnStyle);
     if (turn == 'none' || kDrawnTurnStyles.contains(turn)) _turnStyle = turn!;
+    if (AppPlatform.isTv && kDrawnTurnStyles.contains(_turnStyle)) _turnStyle = 'slide';
     _controlsHideAfter = prefs.getInt(_kControlsHide) ?? 5;
     _tapZones = await ReaderTapZones.load();
     _paragraphSpacing = await ScopedPrefs.getDouble(_kParagraphSpacing) ?? -1;
@@ -1333,7 +1343,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   /// sheet open over the reader or the tap zone editor keeps them up.
   void _armControlsHide() {
     _controlsHideTimer?.cancel();
-    if (!_showControls || _controlsHideAfter <= 0) return;
+    if (!_showControls || _controlsHideAfter <= 0 || AppPlatform.isTv) return;
     _controlsHideTimer = Timer(Duration(seconds: _controlsHideAfter), () {
       if (!mounted || !_showControls) return;
       if (_editingTapZones || !(ModalRoute.of(context)?.isCurrent ?? true)) {
@@ -1566,6 +1576,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   @override
   void dispose() {
+    _keysFocus.dispose();
+    _controlsScope.dispose();
     _sentenceAutoTimer?.cancel();
     _sentenceSyncTimer?.cancel();
     _narrationSpotTimer?.cancel();
@@ -1609,6 +1621,18 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     _wakeScreenAgain();
     setState(() => _showControls = !_showControls);
     _armControlsHide();
+    if (AppPlatform.isTv) {
+      if (!_showControls) {
+        _keysFocus.requestFocus();
+      } else {
+        // After the bar can take focus again, onto its first button.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_showControls) return;
+          _controlsScope.requestFocus();
+          _controlsScope.nextFocus();
+        });
+      }
+    }
   }
 
   DateTime _lastReaderTap = DateTime.fromMillisecondsSinceEpoch(0);
@@ -2592,7 +2616,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 runSpacing: 12,
                 children: [
                   for (final c in HighlightColor.values)
-                    GestureDetector(
+                    RemoteTap(radius: 999, 
                       onTap: () {
                         Navigator.pop(ctx);
                         _changeHighlightColor(annotation, c);
@@ -3152,6 +3176,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 ),
                 const SizedBox(height: 12),
 
+                if (!AppPlatform.isTv)
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(l.readerScrollMode, style: tt.bodyMedium),
@@ -3299,7 +3324,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final style in const ['none', 'slide', ...kDrawnTurnStyles])
+                    for (final style in AppPlatform.isTv ? const ['none', 'slide'] : const ['none', 'slide', ...kDrawnTurnStyles])
                       ChoiceChip(
                         label: Text(_turnStyleLabel(l, style)),
                         selected: _turnStyle == style,
@@ -3315,6 +3340,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   ],
                 ),
                 const SizedBox(height: 4),
+                // No taps on a TV, so no tap zones.
+                if (!AppPlatform.isTv)
                 InkWell(
                   borderRadius: BorderRadius.circular(8),
                   // A scrolling book shows the controls on any tap.
@@ -3508,7 +3535,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   ],
                   Wrap(spacing: 10, runSpacing: 10, children: [
                     for (final c in PlayerSettings.readAlongPalette)
-                      GestureDetector(
+                      RemoteTap(radius: 999, 
                         onTap: () async {
                           setSheetState(() => sheetRaColor = c);
                           await PlayerSettings.setReadAlongColor(c);
@@ -3700,6 +3727,35 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     );
   }
 
+  /// The remote's way to set auto scroll speed, in place of the drag.
+  void _nudgeAutoScroll(double delta) {
+    final wpm = (_autoScrollWpm + delta).clamp(_autoScrollMin, _autoScrollMax);
+    if (wpm == _autoScrollWpm) return;
+    setState(() => _autoScrollWpm = wpm);
+    _epubController?.autoScrollSpeed(wpm);
+    final l = AppLocalizations.of(context)!;
+    final label = l.readerSentenceWpmValue(wpm.round());
+    _speedToast ??= LiveOverlayToast.show(context, label, icon: Icons.speed_rounded);
+    _speedToast?.update(label, icon: Icons.speed_rounded);
+    _speedSaveTimer?.cancel();
+    _speedSaveTimer = Timer(const Duration(milliseconds: 1200), () {
+      _speedToast?.dismiss();
+      _speedToast = null;
+      PlayerSettings.setEreaderAutoScrollWpm(_autoScrollWpm);
+    });
+  }
+
+  void _pauseAutoScroll(bool paused) {
+    setState(() => _autoScrollPaused = paused);
+    _epubController?.autoScrollPause(paused);
+    final l = AppLocalizations.of(context)!;
+    showOverlayToast(
+      context,
+      paused ? l.readerAutoScrollPaused : l.readerAutoScrollResumed,
+      icon: paused ? Icons.pause_rounded : Icons.play_arrow_rounded,
+    );
+  }
+
   Future<void> _toggleAutoScroll() async {
     if (!_autoScroll && _sentenceMode) await _updateSentenceMode(false);
     if (_autoScroll) {
@@ -3733,7 +3789,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   Widget _themeSwatch(_ReaderPalette p, bool selected, VoidCallback onTap, ColorScheme cs) {
-    return GestureDetector(
+    return RemoteTap(radius: 999, 
       onTap: onTap,
       child: Container(
         width: 40,
@@ -6009,7 +6065,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         final label = ms == 0
             ? '0'
             : '${ms > 0 ? '+' : '-'}${(ms.abs() / 1000).toStringAsFixed(2)}s';
-        Widget button(IconData icon, int delta) => GestureDetector(
+        Widget button(IconData icon, int delta) => RemoteTap(
               behavior: HitTestBehavior.opaque,
               onTap: () => svc.nudgeOffset(delta),
               child: Padding(
@@ -7310,6 +7366,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   }
 
   Widget _buildViewerArea(Widget viewer) {
+    if (AppPlatform.isTv) viewer = ExcludeFocus(child: viewer);
     final frozen = _frozenViewerPadding();
     // With the bar pinned above the page, the bar already clears the cutout.
     final padding = _pinTop ? frozen.copyWith(top: 0) : frozen;
@@ -7601,10 +7658,11 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         'speed',
         'sleep',
         'bookmarks',
-        'equalizer',
-        AppPlatform.isIOS ? 'airplay' : 'cast',
+        // Hidden on a TV, as on the player card.
+        if (!AppPlatform.isTv) 'equalizer',
+        if (!AppPlatform.isTv) AppPlatform.isIOS ? 'airplay' : 'cast',
         'details',
-        'download',
+        if (!AppPlatform.isTv) 'download',
       ];
 
   // A choice restored from the other platform may not exist on this one.
@@ -8324,6 +8382,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               duration: const Duration(milliseconds: 200),
               child: IgnorePointer(
                 ignoring: !_showControls,
+                child: ExcludeFocus(
+                excluding: AppPlatform.isTv && !_showControls,
                 child: _controlsTouchGuard(Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -8341,7 +8401,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                     bottom: false,
                     child: _buildTopBarContent(fg, fgDim, accent),
                   ),
-                )),
+                ))),
               ),
             ),
 
@@ -8353,6 +8413,10 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
               duration: const Duration(milliseconds: 200),
               child: IgnorePointer(
                 ignoring: !_showControls,
+                child: ExcludeFocus(
+                excluding: AppPlatform.isTv && !_showControls,
+                child: FocusScope(
+                node: _controlsScope,
                 child: _controlsTouchGuard(Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -8400,7 +8464,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                       ),
                     ),
                   ),
-                )),
+                )))),
               ),
             ),
           ),
@@ -8494,11 +8558,28 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
       );
     // Keys land here when the Flutter side of the reader has focus (after a
     // tap on an overlay button, say); the web view handles its own.
-    return Focus(
-      autofocus: AppPlatform.lacksPhonePlugins,
+    final reader = Focus(
+      focusNode: _keysFocus,
+      autofocus: AppPlatform.lacksPhonePlugins || AppPlatform.isTv,
       onKeyEvent: (node, event) {
         if (!node.hasPrimaryFocus || event is KeyUpEvent) return KeyEventResult.ignored;
         final key = event.logicalKey;
+        // Auto scroll on a TV: up and down set the speed, OK pauses.
+        if (AppPlatform.isTv && _autoScroll) {
+          if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown) {
+            _nudgeAutoScroll(key == LogicalKeyboardKey.arrowUp ? 25 : -25);
+            return KeyEventResult.handled;
+          }
+          if (event is KeyDownEvent && (key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.enter)) {
+            _pauseAutoScroll(!_autoScrollPaused);
+            return KeyEventResult.handled;
+          }
+        }
+        if (AppPlatform.isTv && event is KeyDownEvent &&
+            (key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.enter)) {
+          _toggleControls();
+          return KeyEventResult.handled;
+        }
         final forward = key == LogicalKeyboardKey.arrowRight ||
             (!_scroll && (key == LogicalKeyboardKey.pageDown || key == LogicalKeyboardKey.space));
         final back = key == LogicalKeyboardKey.arrowLeft ||
@@ -8508,6 +8589,24 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         return KeyEventResult.handled;
       },
       child: _wrap(viewerBody, bg),
+    );
+    if (!AppPlatform.isTv) return reader;
+    // On a TV, Back puts the controls away before it closes the book, and
+    // the remote goes back to turning pages.
+    return PopScope(
+      canPop: !_showControls && !_autoScroll,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_showControls) {
+          setState(() => _showControls = false);
+          _keysFocus.requestFocus();
+        } else if (_autoScroll) {
+          _toggleAutoScroll();
+          showOverlayToast(context, AppLocalizations.of(context)!.readerAutoScrollStopped,
+              icon: Icons.stop_circle_outlined);
+        }
+      },
+      child: reader,
     );
   }
 }

@@ -13,6 +13,10 @@ abstract final class AppPlatform {
   static bool get isDesktop => isMacOS || isWindows || isLinux;
   static bool get isMobile => isAndroid || isIOS;
 
+  /// An Android TV or Google TV, driven by a remote. Set at startup from the
+  /// device's features, before the first screen is chosen.
+  static bool isTv = false;
+
   /// The phone's plugins - audio engine, downloads, widgets, car, cast,
   /// notifications - exist on Android and iOS only. The browser and, for now,
   /// the desktop OSes run without them and take the web code paths.

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
@@ -82,7 +83,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             engineBornHeadless = !(context instanceof Activity);
             // XXX: The constructor triggers onAttachedToEngine so this variable doesn't help us.
             // Maybe need a boolean flag to tell us we're currently loading the main flutter engine.
-            flutterEngine = new FlutterEngine(context.getApplicationContext());
+            // Absorb: a TV draws with Skia. Impeller mis-draws fades on TV GPUs
+            // and stalls; phones keep it.
+            final boolean tv = context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+            flutterEngine = new FlutterEngine(context.getApplicationContext(),
+                    tv ? new String[] {"--enable-impeller=false"} : null);
             String initialRoute = null;
             if (context instanceof FlutterActivity) {
                 final FlutterActivity activity = (FlutterActivity)context;

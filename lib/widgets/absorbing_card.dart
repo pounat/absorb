@@ -28,6 +28,7 @@ import 'card_buttons.dart';
 import 'expressive.dart';
 import '../services/chromecast_service.dart';
 import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme;
+import '../utils/app_platform.dart';
 import '../utils/desktop_workspace.dart';
 import 'stable_cached_network_image.dart';
 
@@ -152,11 +153,14 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   bool _moreInline = false;
   bool _rectangleCovers = false;
   bool _coverPlayButton = false;
-  String _cardBackground = 'blurred';
+  // TVs get the plain cover color: the blurred cover is too much for their
+  // graphics to move smoothly.
+  String _cardBackground = AppPlatform.isTv ? 'solid' : 'blurred';
   bool _speedAdjustedTime = true;
   double _progressTextScale = 1.0; // elapsed/remaining/percent text size (GH #230)
   double _savedSpeed = 1.0; // per-book or default speed for inactive display
   final ValueNotifier<bool> _edgeBarExpanded = ValueNotifier(false);
+  final FocusNode _tvPlayFocus = FocusNode(debugLabel: 'card play');
   String? _lastRenderLogSig;
   int? _lastChapterDataSignature;
 
@@ -351,6 +355,12 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     DownloadService().addListener(_onDownloadChanged);
     PlayerSettings.settingsChanged.addListener(_reloadButtonOrder);
     _reloadButtonOrder();
+    if (AppPlatform.isTv && _fullScreen) {
+      // Opened as the player on its own: the remote starts on play.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _tvPlayFocus.requestFocus();
+      });
+    }
     _registerShown();
     if (_fullScreen) {
       // Shown as the full player on its own, it follows playback the same
@@ -426,6 +436,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
       if (mounted && v != _progressTextScale) setState(() => _progressTextScale = v);
     });
     PlayerSettings.getCardBackground().then((v) {
+      if (AppPlatform.isTv) return;
       if (mounted && v != _cardBackground) setState(() => _cardBackground = v);
     });
     _loadSavedSpeed();
@@ -614,6 +625,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   void dispose() {
     _unregisterShown();
     _removeGrowEntry();
+    _tvPlayFocus.dispose();
     _grow.dispose();
     _liftTick.dispose();
     widget.player.removeListener(_onPlaybackMoved);
@@ -1301,6 +1313,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                     itemId: _itemId,
                     showPlayButton: !_coverPlayButton,
                     libraryId: _resolveLibraryId(),
+                    playFocusNode: _tvPlayFocus,
                   ),
                 );
 
@@ -1774,7 +1787,17 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     // the now-playing surface itself.
     if (isDesktopWorkspace(context) || _fullScreen || _route != null) return;
     final route = _openLiftRoute();
-    if (route != null) Navigator.of(this.context, rootNavigator: true).push(route);
+    if (route == null) return;
+    Navigator.of(this.context, rootNavigator: true).push(route);
+    if (AppPlatform.isTv) {
+      // The remote starts on play once the card has grown.
+      void focusPlay(AnimationStatus status) {
+        if (status != AnimationStatus.completed) return;
+        route.animation?.removeStatusListener(focusPlay);
+        if (mounted) _tvPlayFocus.requestFocus();
+      }
+      route.animation?.addStatusListener(focusPlay);
+    }
   }
 
   bool _startGrow() {
