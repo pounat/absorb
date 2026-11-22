@@ -15056,4 +15056,90 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tvPodcastDetails => 'Podcast Details';
+
+  @override
+  String get settingsGroupSpeed => 'Speed';
+
+  @override
+  String get settingsGroupSkipping => 'Skipping';
+
+  @override
+  String get settingsGroupRewind => 'Rewind on resume';
+
+  @override
+  String playbackSummary(String speed, int back, int forward) {
+    return '${speed}x, skip back ${back}s, forward ${forward}s';
+  }
+
+  @override
+  String get settingsGroupApp => 'App';
+
+  @override
+  String get settingsGroupLook => 'Look';
+
+  @override
+  String get settingsGroupColor => 'Color';
+
+  @override
+  String get settingsGroupCoversAndText => 'Covers and text';
+
+  @override
+  String get settingsGroupGoals => 'Goals';
+
+  @override
+  String get settingsGroupCharts => 'Charts';
+
+  @override
+  String get settingsGroupPlayer => 'Player';
+
+  @override
+  String get settingsGroupQueue => 'Queue';
+
+  @override
+  String get settingsGroupLockScreen => 'Notification and lock screen';
+
+  @override
+  String get settingsGroupSorting => 'Sorting';
+
+  @override
+  String get settingsGroupSleepTriggers => 'Shake and buttons';
+
+  @override
+  String get settingsGroupSleepEnd => 'When the timer ends';
+
+  @override
+  String get settingsGroupSleepSchedule => 'Schedule';
+
+  @override
+  String get settingsGroupDownloading => 'Downloading';
+
+  @override
+  String get settingsGroupAutoDownloads => 'Automatic downloads';
+
+  @override
+  String get settingsGroupStorage => 'Storage';
+
+  @override
+  String get settingsGroupBrowsing => 'Browsing';
+
+  @override
+  String get settingsGroupBadges => 'Badges and buttons';
+
+  @override
+  String get settingsGroupLibraries => 'Libraries';
+
+  @override
+  String get settingsGroupHelp => 'Help';
+
+  @override
+  String get settingsGroupContact => 'Get in touch';
+
+  @override
+  String get settingsGroupLogs => 'Logs';
+
+  @override
+  String get settingsGroupConnection => 'Connection';
+
+  @override
+  String get settingsGroupTools => 'Tools';
 }

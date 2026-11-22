@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../screens/settings_search_index.dart';
-import 'collapsible_section.dart';
+import 'settings_tiles.dart';
 
 /// Filter and rank the search index for [query]. Every whitespace-separated
 /// word must appear somewhere in the entry (title, subtitles, or section
@@ -146,6 +146,8 @@ Future<void> highlightSettingInSection({
     final w = a.widget;
     if (w is SwitchListTile ||
         w is ListTile ||
+        w is SettingsTile ||
+        w is SettingsSliderTile ||
         w is CheckboxListTile ||
         w is RadioListTile) {
       target = a.renderObject ?? target;
@@ -154,7 +156,7 @@ Future<void> highlightSettingInSection({
     }
     // Stop climbing once we leave the section - keeps a missing tile
     // ancestor from selecting something huge.
-    return w is! CollapsibleSection;
+    return w is! SettingsGroup;
   });
   final box = target;
   if (box is! RenderBox || !box.attached) return;

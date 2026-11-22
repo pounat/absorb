@@ -25450,6 +25450,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Podcast Details'**
   String get tvPodcastDetails;
+
+  /// No description provided for @settingsGroupSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get settingsGroupSpeed;
+
+  /// No description provided for @settingsGroupSkipping.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipping'**
+  String get settingsGroupSkipping;
+
+  /// No description provided for @settingsGroupRewind.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind on resume'**
+  String get settingsGroupRewind;
+
+  /// No description provided for @playbackSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{speed}x, skip back {back}s, forward {forward}s'**
+  String playbackSummary(String speed, int back, int forward);
+
+  /// No description provided for @settingsGroupApp.
+  ///
+  /// In en, this message translates to:
+  /// **'App'**
+  String get settingsGroupApp;
+
+  /// No description provided for @settingsGroupLook.
+  ///
+  /// In en, this message translates to:
+  /// **'Look'**
+  String get settingsGroupLook;
+
+  /// No description provided for @settingsGroupColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get settingsGroupColor;
+
+  /// No description provided for @settingsGroupCoversAndText.
+  ///
+  /// In en, this message translates to:
+  /// **'Covers and text'**
+  String get settingsGroupCoversAndText;
+
+  /// No description provided for @settingsGroupGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get settingsGroupGoals;
+
+  /// No description provided for @settingsGroupCharts.
+  ///
+  /// In en, this message translates to:
+  /// **'Charts'**
+  String get settingsGroupCharts;
+
+  /// No description provided for @settingsGroupPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Player'**
+  String get settingsGroupPlayer;
+
+  /// No description provided for @settingsGroupQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get settingsGroupQueue;
+
+  /// No description provided for @settingsGroupLockScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification and lock screen'**
+  String get settingsGroupLockScreen;
+
+  /// No description provided for @settingsGroupSorting.
+  ///
+  /// In en, this message translates to:
+  /// **'Sorting'**
+  String get settingsGroupSorting;
+
+  /// No description provided for @settingsGroupSleepTriggers.
+  ///
+  /// In en, this message translates to:
+  /// **'Shake and buttons'**
+  String get settingsGroupSleepTriggers;
+
+  /// No description provided for @settingsGroupSleepEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'When the timer ends'**
+  String get settingsGroupSleepEnd;
+
+  /// No description provided for @settingsGroupSleepSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get settingsGroupSleepSchedule;
+
+  /// No description provided for @settingsGroupDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get settingsGroupDownloading;
+
+  /// No description provided for @settingsGroupAutoDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic downloads'**
+  String get settingsGroupAutoDownloads;
+
+  /// No description provided for @settingsGroupStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage'**
+  String get settingsGroupStorage;
+
+  /// No description provided for @settingsGroupBrowsing.
+  ///
+  /// In en, this message translates to:
+  /// **'Browsing'**
+  String get settingsGroupBrowsing;
+
+  /// No description provided for @settingsGroupBadges.
+  ///
+  /// In en, this message translates to:
+  /// **'Badges and buttons'**
+  String get settingsGroupBadges;
+
+  /// No description provided for @settingsGroupLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'Libraries'**
+  String get settingsGroupLibraries;
+
+  /// No description provided for @settingsGroupHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Help'**
+  String get settingsGroupHelp;
+
+  /// No description provided for @settingsGroupContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Get in touch'**
+  String get settingsGroupContact;
+
+  /// No description provided for @settingsGroupLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get settingsGroupLogs;
+
+  /// No description provided for @settingsGroupConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection'**
+  String get settingsGroupConnection;
+
+  /// No description provided for @settingsGroupTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get settingsGroupTools;
 }
 
 class _AppLocalizationsDelegate
