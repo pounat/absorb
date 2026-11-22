@@ -286,6 +286,13 @@ class ApiService {
 
   final Duration _refreshRetryDelay;
 
+  /// Set once the app has finished starting. Until then a stalled token
+  /// renewal would hold the splash screen, so it gives up after 15s; after,
+  /// a slow server gets longer, since a reply thrown away can cost the whole
+  /// session (BookOrbit ends it when a used renewal token comes back more
+  /// than 30s later).
+  static bool appReady = false;
+
   // Each ApiService instance already deduplicates its own refreshes. This lock
   // also serializes token rotation across the short-lived instances created by
   // providers, widgets, and the background browse service.
@@ -849,13 +856,18 @@ class ApiService {
       for (var attempt = 0; attempt < 2; attempt++) {
         final refreshTokenSent = _refreshToken;
         if (refreshTokenSent == null) break;
+        var timedOut = false;
 
         try {
           // Timeout is load-bearing: this is awaited from tryRestoreSession via
           // the 401-retry path, and a stalled response here would otherwise hold
-          // the splash screen forever.
-          final response = await _sendRefresh(refreshTokenSent)
-              .timeout(const Duration(seconds: 15));
+          // the splash screen forever. Once the app is open, the first try
+          // stops at 25s so the second still goes out inside BookOrbit's 30s,
+          // where it hands back the same new pair if the first one landed.
+          final timeout = !appReady
+              ? const Duration(seconds: 15)
+              : Duration(seconds: attempt == 0 ? 25 : 30);
+          final response = await _sendRefresh(refreshTokenSent).timeout(timeout);
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -893,11 +905,13 @@ class ApiService {
 
           debugPrint('[API] Token refresh failed: ${response.statusCode}');
         } catch (e) {
+          timedOut = e is TimeoutException;
           debugPrint('[API] Token refresh error: $e');
         }
 
         if (attempt == 0) {
-          await Future<void>.delayed(_refreshRetryDelay);
+          // After a timeout the clock on that 30s is already running: no wait.
+          if (!(timedOut && appReady)) await Future<void>.delayed(_refreshRetryDelay);
           if (await _adoptPersistedTokens()) {
             _refreshCompleter!.complete(_RefreshOutcome.refreshed);
             return _RefreshOutcome.refreshed;

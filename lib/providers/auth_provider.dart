@@ -712,6 +712,7 @@ class AuthProvider extends ChangeNotifier {
     debugPrint(
       '[Auth] tryRestoreSession done, isAuthenticated=$isAuthenticated (${sw.elapsedMilliseconds}ms)',
     );
+    ApiService.appReady = true;
     if (isAuthenticated) {
       try {
         await apiService?.ensureMediaReady();
