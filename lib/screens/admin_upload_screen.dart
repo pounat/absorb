@@ -895,13 +895,13 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.12),
+                  color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   _isPodcast ? l.libMediaPodcast : l.libMediaBook,
                   style: tt.labelMedium?.copyWith(
-                    color: cs.primary,
+                    color: cs.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -945,12 +945,12 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
             Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
               decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.1),
+                color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.library_add_rounded, size: 18, color: cs.primary),
+                  Icon(Icons.library_add_rounded, size: 18, color: cs.onSurfaceVariant),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -1218,7 +1218,7 @@ class _AdminUploadScreenState extends State<AdminUploadScreen> {
                       _isPrimaryFile(file)
                           ? Icons.audio_file_rounded
                           : Icons.description_outlined,
-                      color: cs.primary,
+                      color: cs.onSurfaceVariant,
                       size: 20,
                     ),
                     const SizedBox(width: 10),

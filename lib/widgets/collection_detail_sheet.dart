@@ -338,7 +338,7 @@ class _CollectionDetailSheetState extends State<CollectionDetailSheet> {
                 isSmartScope
                     ? scopeIconData((collection['bookOrbit'] as Map?)?['icon'] as String?)
                     : Icons.collections_bookmark_rounded,
-                size: 20, color: cs.primary),
+                size: 20, color: cs.onSurfaceVariant),
             const SizedBox(width: 8),
             Expanded(
               child: Text(name, style: tt.titleMedium?.copyWith(

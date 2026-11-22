@@ -168,7 +168,7 @@ class _TranscriptionSettingsScreenState
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.lock_outline_rounded, size: 18, color: cs.primary),
+                            Icon(Icons.lock_outline_rounded, size: 18, color: cs.onSurfaceVariant),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -183,7 +183,7 @@ class _TranscriptionSettingsScreenState
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.record_voice_over_rounded, size: 18, color: cs.primary),
+                            Icon(Icons.record_voice_over_rounded, size: 18, color: cs.onSurfaceVariant),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -219,7 +219,7 @@ class _TranscriptionSettingsScreenState
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                   child: Text(l.transcriptionModelSection,
-                      style: tt.titleSmall?.copyWith(color: cs.primary)),
+                      style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
                 ),
                 _modelTile(
                   size: TranscriptionModelSize.tiny,
@@ -257,7 +257,7 @@ class _TranscriptionSettingsScreenState
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                   child: Text(l.lyricsDisplaySection,
-                      style: tt.titleSmall?.copyWith(color: cs.primary)),
+                      style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -270,7 +270,7 @@ class _TranscriptionSettingsScreenState
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.battery_alert_rounded, size: 18, color: cs.primary),
+                        Icon(Icons.battery_alert_rounded, size: 18, color: cs.onSurfaceVariant),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(

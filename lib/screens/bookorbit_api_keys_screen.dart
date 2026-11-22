@@ -400,7 +400,7 @@ class _KeyTile extends StatelessWidget {
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 2, 12, 0),
-            child: Icon(faded ? Icons.key_off_rounded : Icons.vpn_key_rounded, color: faded ? dim : cs.primary),
+            child: Icon(faded ? Icons.key_off_rounded : Icons.vpn_key_rounded, color: faded ? dim : cs.onSurfaceVariant),
           ),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -409,7 +409,7 @@ class _KeyTile extends StatelessWidget {
               Text(k.masked, style: tt.bodySmall?.copyWith(color: dim, fontFamily: 'monospace')),
               const SizedBox(height: 6),
               Wrap(spacing: 6, runSpacing: 4, children: [
-                _Badge(k.write ? l.boApiKeyAccessWrite : l.boApiKeyAccessRead, k.write ? cs.tertiary : dim),
+                _Badge(k.write ? l.boApiKeyAccessWrite : l.boApiKeyAccessRead, k.write ? cs.primary : dim),
                 if (k.admin) _Badge(l.boApiKeyAdminBadge, cs.error),
                 if (k.state == BoApiKeyState.expiring) _Badge(l.boApiKeyExpiringBadge, Colors.orange),
                 if (k.state == BoApiKeyState.expired) _Badge(l.boApiKeyExpiredBadge, dim),
@@ -471,7 +471,7 @@ class _Notice extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: cs.secondaryContainer.withValues(alpha: 0.5),
+          color: cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(children: [
@@ -603,7 +603,7 @@ Future<BoApiKeyRequest?> showBoApiKeyCreateSheet(
                 onChanged: (_) => setSheet(() {}),
               ),
               const SizedBox(height: 8),
-              Text(l.boApiKeyAccess, style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+              Text(l.boApiKeyAccess, style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               SegmentedButton<bool>(
                 segments: [
@@ -618,7 +618,7 @@ Future<BoApiKeyRequest?> showBoApiKeyCreateSheet(
               Text(write ? l.boApiKeyAccessWriteHint : l.boApiKeyAccessReadHint,
                   style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
               const SizedBox(height: 16),
-              Text(l.boApiKeyExpires, style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+              Text(l.boApiKeyExpires, style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Wrap(spacing: 8, runSpacing: 4, children: [
                 for (final c in choices)
@@ -647,7 +647,7 @@ Future<BoApiKeyRequest?> showBoApiKeyCreateSheet(
                 ),
               ],
               const SizedBox(height: 12),
-              Text(l.boApiKeyPermissions, style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+              Text(l.boApiKeyPermissions, style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
               Text(admin ? l.boApiKeyAdminHasAll : l.boApiKeyPermissionsHint,
                   style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -664,7 +664,7 @@ Future<BoApiKeyRequest?> showBoApiKeyCreateSheet(
                       ),
               if (!admin && libraries.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text(l.boApiKeyLibraries, style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+                Text(l.boApiKeyLibraries, style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(l.boApiKeyAllLibraries),

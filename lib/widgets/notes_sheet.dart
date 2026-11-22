@@ -203,7 +203,7 @@ class _NotesSheetState extends State<NotesSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
             child: Row(children: [
-              Icon(Icons.note_rounded, color: widget.accent, size: 22),
+              Icon(Icons.note_rounded, color: cs.onSurfaceVariant, size: 22),
               const SizedBox(width: 10),
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,7 +368,7 @@ class _NoteCard extends StatelessWidget {
                   h3: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                   code: tt.bodySmall?.copyWith(
                     fontFamily: 'monospace',
-                    color: accent,
+                    color: cs.onSurface,
                     backgroundColor: cs.surfaceContainerHighest,
                   ),
                   codeblockDecoration: BoxDecoration(
@@ -376,7 +376,7 @@ class _NoteCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   blockquoteDecoration: BoxDecoration(
-                    border: Border(left: BorderSide(color: accent, width: 3)),
+                    border: Border(left: BorderSide(color: cs.outlineVariant, width: 3)),
                   ),
                   blockquotePadding: const EdgeInsets.only(left: 12),
                   listBullet: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
@@ -534,7 +534,7 @@ class _NoteEditorState extends State<_NoteEditor> {
                                 h3: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                                 code: tt.bodySmall?.copyWith(
                                   fontFamily: 'monospace',
-                                  color: widget.accent,
+                                  color: cs.onSurface,
                                   backgroundColor: cs.surfaceContainerHighest,
                                 ),
                                 codeblockDecoration: BoxDecoration(
@@ -542,7 +542,7 @@ class _NoteEditorState extends State<_NoteEditor> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 blockquoteDecoration: BoxDecoration(
-                                  border: Border(left: BorderSide(color: widget.accent, width: 3)),
+                                  border: Border(left: BorderSide(color: cs.outlineVariant, width: 3)),
                                 ),
                                 blockquotePadding: const EdgeInsets.only(left: 12),
                                 listBullet: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),

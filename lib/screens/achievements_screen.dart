@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../services/achievements.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/book_detail_sheet.dart' show showBookDetailSheet;
+import '../widgets/tints.dart';
 
 /// The account's BookOrbit achievements: what is earned, what is close, and
 /// how to get the rest, grouped the way BookOrbit's web app groups them.
@@ -135,19 +136,15 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [cs.primary.withValues(alpha: 0.14), cs.primary.withValues(alpha: 0.04)],
-          ),
-          border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+          color: cs.surfaceContainerHigh,
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
         ),
         child: Row(children: [
           Container(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14)),
-            child: Icon(Icons.emoji_events_rounded, color: cs.primary, size: 26),
+            decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(14)),
+            child: Icon(Icons.emoji_events_rounded, color: cs.onSurface, size: 26),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -160,7 +157,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                 child: LinearProgressIndicator(
                   value: share,
                   minHeight: 6,
-                  backgroundColor: cs.primary.withValues(alpha: 0.12),
+                  backgroundColor: cs.primary.withValues(alpha: Tints.soft),
                 ),
               ),
             ]),
@@ -648,7 +645,7 @@ class AchievementDetailSheet extends StatelessWidget {
             const SizedBox(height: 16),
             Center(
               child: Text(l.achievementsAllTiers,
-                  style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w700)),
+                  style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w700)),
             ),
           ] else if (!secret && next?.progress != null) ...[
             const SizedBox(height: 18),
@@ -682,7 +679,7 @@ class AchievementDetailSheet extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Icon(hintView.blocked ? Icons.info_outline_rounded : Icons.lightbulb_outline_rounded,
-                      size: 18, color: hintView.blocked ? cs.onSurfaceVariant : cs.primary),
+                      size: 18, color: hintView.blocked ? cs.onSurfaceVariant : cs.onSurfaceVariant),
                   const SizedBox(width: 10),
                   Expanded(child: Text(hintView.text, style: tt.bodyMedium)),
                 ]),

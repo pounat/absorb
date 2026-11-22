@@ -20,6 +20,7 @@ import 'overlay_toast.dart';
 import 'rmab_book_detail_sheet.dart';
 import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey;
 import 'stackable_sheet.dart';
+import 'tints.dart';
 
 /// Show a bottom sheet with Audible series discovery results.
 /// Shows missing books and upcoming releases for a series.
@@ -199,7 +200,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
         if (canAddToUpcoming)
           ListTile(
             leading: Icon(Icons.event_available_rounded,
-                color: cs.primary, size: 22),
+                color: cs.onSurfaceVariant, size: 22),
             title: Text(l.audibleSeriesAddToUpcoming,
                 style: const TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w500)),
@@ -213,7 +214,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
         if (showRequest)
           ListTile(
             leading: Icon(Icons.menu_book_rounded,
-                color: cs.primary, size: 22),
+                color: cs.onSurfaceVariant, size: 22),
             title: Text(_serverRequests ? l.breqRequest : l.rmabRequestCta,
                 style: const TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w500)),
@@ -311,7 +312,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
             const SizedBox(width: 48),
             Expanded(
               child: Column(children: [
-                Icon(Icons.travel_explore_rounded, size: 20, color: cs.primary),
+                Icon(Icons.travel_explore_rounded, size: 20, color: cs.onSurfaceVariant),
                 const SizedBox(height: 4),
                 Text(widget.seriesName,
                   maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -380,7 +381,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
             const SizedBox(height: 80),
             Icon(
               _filter == 1 ? Icons.event_available_rounded : Icons.check_circle_outline_rounded,
-              size: 48, color: cs.primary.withValues(alpha: 0.5)),
+              size: 48, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
             const SizedBox(height: 12),
             Center(child: Text(
               _filter == 0 ? l.audibleSeriesCompleteSeries
@@ -407,7 +408,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.06),
+          color: selected ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: selected ? cs.primary.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.1)),
         ),
@@ -606,7 +607,7 @@ Future<String?> showAudibleRegionPicker(BuildContext context, {required String c
                 onTap: () => Navigator.pop(ctx, e.key),
                 child: Container(height: 40,
                   decoration: BoxDecoration(
-                    color: e.key == currentRegion ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.06),
+                    color: e.key == currentRegion ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: e.key == currentRegion ? cs.primary.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.1)),
                   ),
@@ -659,12 +660,12 @@ void showAudibleBookMenu(BuildContext context, {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(_formatBookDate(releaseDate),
-              style: tt.bodySmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+              style: tt.bodySmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
           ),
         const SizedBox(height: 12),
         if (asin.isNotEmpty)
           ListTile(
-            leading: Icon(Icons.open_in_new_rounded, color: cs.primary, size: 22),
+            leading: Icon(Icons.open_in_new_rounded, color: cs.onSurfaceVariant, size: 22),
             title: Text(l.audibleSeriesOpenOnAudible, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             dense: true, visualDensity: VisualDensity.compact,
             onTap: () {
@@ -674,7 +675,7 @@ void showAudibleBookMenu(BuildContext context, {
           ),
         if (isFutureRelease)
           ListTile(
-            leading: Icon(Icons.calendar_month_rounded, color: cs.primary, size: 22),
+            leading: Icon(Icons.calendar_month_rounded, color: cs.onSurfaceVariant, size: 22),
             title: Text(l.audibleSeriesAddToCalendar, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             dense: true, visualDensity: VisualDensity.compact,
             onTap: () {

@@ -50,6 +50,7 @@ import 'overlay_toast.dart';
 import 'sleep_timer_sheet.dart';
 import 'transcription_download_prompt.dart';
 import 'remote_text_field.dart';
+import 'tints.dart';
 
 /// E-ink screens dither faint greys and cover-colored accents into noise, so
 /// the card controls bump to near-black when e-ink mode is on. Disabled stays
@@ -886,13 +887,13 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     return Container(
       padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + navBarPad),
       decoration: BoxDecoration(color: Theme.of(context).bottomSheetTheme.backgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1))),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 20),
         Text(l.playbackSpeed, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
-        Text('${_speed.toStringAsFixed(2)}x', style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: widget.accent)),
+        Text('${_speed.toStringAsFixed(2)}x', style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
         const SizedBox(height: 12),
         // About taps and long presses, so not on a TV.
         if (!AppPlatform.isTv)
@@ -1057,7 +1058,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? widget.accent.withValues(alpha: 0.15) : Colors.transparent,
+          color: selected ? widget.accent.withValues(alpha: Tints.soft) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(label, style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -1115,7 +1116,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: Column(children: [
         Padding(padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1229,7 +1230,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
-                              child: Icon(Icons.bookmark_rounded, size: 20, color: widget.accent),
+                              child: Icon(Icons.bookmark_rounded, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                             const SizedBox(width: 12),
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1499,7 +1500,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: SafeArea(
         child: Padding(
@@ -1553,7 +1554,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: SafeArea(
         child: Column(
@@ -1588,7 +1589,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                   label: Text(l.cardIconsOnlyChip, style: const TextStyle(fontSize: 12)),
                   selected: _iconsOnly,
                   onSelected: (v) { setState(() => _iconsOnly = v); PlayerSettings.setCardIconsOnly(v); },
-                  selectedColor: widget.accent.withValues(alpha: 0.2),
+                  selectedColor: widget.accent.withValues(alpha: Tints.strong),
                   checkmarkColor: widget.accent,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -1612,7 +1613,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                     });
                     PlayerSettings.setCardMoreInline(v);
                   },
-                  selectedColor: widget.accent.withValues(alpha: 0.2),
+                  selectedColor: widget.accent.withValues(alpha: Tints.strong),
                   checkmarkColor: widget.accent,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -2898,7 +2899,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: Column(children: [
         Padding(
@@ -3051,7 +3052,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
             leading: Icon(
               historyIcon(event.type),
               size: 18,
-              color: widget.accent.withValues(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(
                 alpha: isAdvancedEvent ? 0.45 : 0.7,
               ),
             ),
@@ -3327,7 +3328,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
       child: Text(
         label,
         style: widget.tt.labelSmall?.copyWith(
-          color: widget.accent.withValues(alpha: 0.6),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),

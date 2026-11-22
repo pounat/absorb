@@ -8,6 +8,7 @@ import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import 'absorbing_shared.dart';
 import 'adaptive_modal.dart';
+import 'tints.dart';
 
 void showChaptersSheet({
   required BuildContext context,
@@ -58,7 +59,7 @@ void showChaptersSheet({
           color: Theme.of(context).bottomSheetTheme.backgroundColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border(
-            top: BorderSide(color: accent.withValues(alpha: 0.2), width: 1),
+            top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1),
           ),
         ),
         child: Column(
@@ -177,7 +178,7 @@ class CardChaptersList extends StatelessWidget {
             return ListTile(
               dense: true,
               selected: isCurrent,
-              selectedTileColor: accent.withValues(alpha: 0.1),
+              selectedTileColor: accent.withValues(alpha: Tints.faint),
               leading: SizedBox(
                 width: 28,
                 child: isFinished

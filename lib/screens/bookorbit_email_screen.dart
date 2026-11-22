@@ -298,7 +298,7 @@ class _BookOrbitEmailScreenState extends State<BookOrbitEmailScreen> with Single
         for (final d in s.devices)
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-            leading: Icon(boDeviceIcon(d.deviceType), color: cs.primary),
+            leading: Icon(boDeviceIcon(d.deviceType), color: cs.onSurfaceVariant),
             title: Text(d.name, style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
             subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(d.email, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -307,7 +307,7 @@ class _BookOrbitEmailScreenState extends State<BookOrbitEmailScreen> with Single
                   boDeviceLabel(l, d.deviceType),
                   if (d.preferredFormat != null) d.preferredFormat!.toUpperCase(),
                 ].join(' · '),
-                style: tt.labelSmall?.copyWith(color: cs.primary),
+                style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
               ),
               if (d.lastSend?.status == 'failed')
                 Text(l.boEmailLastSendFailed, style: tt.labelSmall?.copyWith(color: cs.error)),
@@ -321,7 +321,7 @@ class _BookOrbitEmailScreenState extends State<BookOrbitEmailScreen> with Single
         for (final g in s.groups)
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-            leading: Icon(Icons.groups_rounded, color: cs.primary),
+            leading: Icon(Icons.groups_rounded, color: cs.onSurfaceVariant),
             title: Text(g.name, style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
             subtitle: Text(l.boEmailGroupMemberCount(g.members.length),
                 style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -350,7 +350,7 @@ class _BookOrbitEmailScreenState extends State<BookOrbitEmailScreen> with Single
         for (final server in s.servers)
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-            leading: Icon(Icons.dns_rounded, color: cs.primary),
+            leading: Icon(Icons.dns_rounded, color: cs.onSurfaceVariant),
             title: Text(server.name, style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
             subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('${server.host}:${server.port}', style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -392,7 +392,7 @@ class _BookOrbitEmailScreenState extends State<BookOrbitEmailScreen> with Single
         for (final t in s.templates)
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-            leading: Icon(Icons.article_outlined, color: cs.primary),
+            leading: Icon(Icons.article_outlined, color: cs.onSurfaceVariant),
             title: Text(t.name, style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
             subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(t.subject, maxLines: 1, overflow: TextOverflow.ellipsis,

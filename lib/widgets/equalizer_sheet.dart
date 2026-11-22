@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/equalizer_service.dart';
 import 'adaptive_modal.dart';
+import 'tints.dart';
 
 /// Show the equalizer & audio enhancements bottom sheet.
 ///
@@ -315,7 +316,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: Column(
         children: [
@@ -332,7 +333,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                Icon(Icons.equalizer_rounded, size: 22, color: accent),
+                Icon(Icons.equalizer_rounded, size: 22, color: cs.onSurfaceVariant),
                 const SizedBox(width: 10),
                 Text(l.audioEnhancements, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
                 const Spacer(),
@@ -357,7 +358,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _eq.perItem ? accent.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.04),
+                  color: _eq.perItem ? accent.withValues(alpha: Tints.faint) : cs.onSurface.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: _eq.perItem ? accent.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08)),
                 ),
@@ -406,7 +407,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                         duration: const Duration(milliseconds: 150),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isActive ? accent.withValues(alpha: 0.2) : cs.onSurface.withValues(alpha: 0.06),
+                          color: isActive ? accent.withValues(alpha: Tints.strong) : cs.onSurface.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isActive ? accent.withValues(alpha: 0.5) : cs.onSurface.withValues(alpha: 0.1),
@@ -440,7 +441,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.2),
+                          color: accent.withValues(alpha: Tints.strong),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: accent.withValues(alpha: 0.5)),
                         ),
@@ -717,7 +718,7 @@ class _PitchRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.graphic_eq_rounded, size: 18, color: accent.withValues(alpha: 0.7)),
+          Icon(Icons.graphic_eq_rounded, size: 18, color: cs.onSurfaceVariant),
           const SizedBox(width: 10),
           SizedBox(
             width: 72,

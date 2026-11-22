@@ -22,6 +22,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/duration_format.dart';
 import '../utils/app_platform.dart';
 import '../utils/share_origin.dart';
+import '../widgets/tints.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   final List<dynamic> users;
@@ -394,13 +395,13 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
               Expanded(child: AbsorbPageHeader(title: _username, padding: EdgeInsets.zero)),
               if (!_isRoot)
                 IconButton(
-                  icon: Icon(Icons.ios_share_rounded, color: cs.primary.withValues(alpha: 0.7), size: 20),
+                  icon: Icon(Icons.ios_share_rounded, color: cs.onSurfaceVariant, size: 20),
                   tooltip: l.adminCreateSetupFile,
                   onPressed: _exportSetupFile,
                 ),
               if (!_isRoot)
                 IconButton(
-                  icon: Icon(Icons.edit_rounded, color: cs.primary.withValues(alpha: 0.7), size: 20),
+                  icon: Icon(Icons.edit_rounded, color: cs.onSurfaceVariant, size: 20),
                   tooltip: l.adminUsersEditUserTooltip,
                   onPressed: _showEditor,
                 ),
@@ -427,10 +428,10 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: _isRoot ? Colors.amber.withValues(alpha: 0.12) : cs.primary.withValues(alpha: 0.1),
+                  color: _isRoot ? Colors.amber.withValues(alpha: 0.12) : cs.onSurface.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(4)),
                 child: Text(_userType, style: tt.labelSmall?.copyWith(
-                  color: _isRoot ? Colors.amber : cs.primary, fontSize: 9, fontWeight: FontWeight.w600)),
+                  color: _isRoot ? Colors.amber : cs.onSurfaceVariant, fontSize: 9, fontWeight: FontWeight.w600)),
               ),
             ]),
           ),
@@ -438,7 +439,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
               child: Row(children: [
-                _summaryChip(cs, tt, '$inProgress', l.inProgress, cs.primary),
+                _summaryChip(cs, tt, '$inProgress', l.inProgress, cs.onSurface),
                 const SizedBox(width: 10),
                 _summaryChip(cs, tt, '$finished', l.finished, Colors.green),
                 const SizedBox(width: 10),
@@ -782,8 +783,8 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
 
   Widget _coverFallback(ColorScheme cs) => Container(
     width: 44, height: 44,
-    decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-    child: Icon(Icons.auto_stories_rounded, size: 18, color: cs.primary.withValues(alpha: 0.3)),
+    decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(8)),
+    child: Icon(Icons.auto_stories_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
   );
 
   void _showEditor() {
@@ -1047,7 +1048,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: sel ? cs.primary.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.03),
+                      color: sel ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: sel ? cs.primary.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.06))),
                     child: Row(children: [
@@ -1101,7 +1102,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     return Expanded(child: GestureDetector(onTap: () => setState(() => _type = type),
       child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: on ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.03),
+          color: on ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: on ? cs.primary.withValues(alpha: 0.4) : cs.onSurface.withValues(alpha: 0.06))),
         child: Column(children: [

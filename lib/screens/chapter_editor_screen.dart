@@ -17,6 +17,7 @@ import '../services/download_service.dart';
 import '../services/remote_audio_slice.dart';
 import '../services/transcription_service.dart';
 import '../widgets/overlay_toast.dart';
+import '../widgets/tints.dart';
 
 /// Mutable working copy of one chapter. [uid] is a stable identity that
 /// survives reindexing/add/remove (used for controllers + locks); [id] is the
@@ -1542,7 +1543,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
                     alignment: Alignment.center,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.10),
+                      color: cs.primary.withValues(alpha: Tints.faint),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -1617,7 +1618,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
       margin: const EdgeInsets.only(left: 4, right: 4, top: 10),
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 12),
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.08),
+        color: cs.primary.withValues(alpha: Tints.faint),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2400,7 +2401,7 @@ class _FindStartSheetState extends State<_FindStartSheet> {
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(color: cs.primary, width: 1.5))
           : null,
-      tileColor: best ? cs.primary.withValues(alpha: 0.06) : null,
+      tileColor: best ? cs.primary.withValues(alpha: Tints.faint) : null,
       leading: IconButton(
         icon: Icon(Icons.play_circle_outline_rounded, color: cs.primary),
         tooltip: l.preview,
@@ -2416,7 +2417,7 @@ class _FindStartSheetState extends State<_FindStartSheet> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: (strong ? cs.primary : cs.onSurface).withValues(alpha: strong ? 0.15 : 0.08),
+              color: (strong ? cs.primary : cs.onSurface).withValues(alpha: strong ? Tints.soft : Tints.faint),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(strong ? l.chapterFindStartStrong : l.chapterFindStartMaybe,

@@ -452,16 +452,16 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.08),
+                  color: cs.onSurface.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+                  border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
                 ),
                 child: Row(children: [
-                  Icon(Icons.podcasts_rounded, size: 16, color: cs.primary.withValues(alpha: 0.7)),
+                  Icon(Icons.podcasts_rounded, size: 16, color: cs.onSurfaceVariant),
                   const SizedBox(width: 8),
                   Expanded(child: Text(l.allEpisodes,
-                    style: tt.bodySmall?.copyWith(color: cs.primary.withValues(alpha: 0.9), fontWeight: FontWeight.w500))),
-                  Icon(Icons.chevron_right_rounded, size: 18, color: cs.primary.withValues(alpha: 0.5)),
+                    style: tt.bodySmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w500))),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                 ]),
               ),
             ),

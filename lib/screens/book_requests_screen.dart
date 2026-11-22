@@ -321,7 +321,7 @@ Future<({Map<String, int?> libraries, String note})?> showBookRequestSheet(
                   if (authors.isNotEmpty)
                     Text(authors.join(', '), style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                   const SizedBox(height: 6),
-                  _tag(_kindLabel(l, pair ? 'both' : kinds.single), cs.primary),
+                  _tag(_kindLabel(l, pair ? 'both' : kinds.single), cs.onSurfaceVariant),
                 ]),
               ),
             ]),
@@ -1464,7 +1464,7 @@ class _RequestListState extends State<_RequestList> with AutomaticKeepAliveClien
               for (final a in actions)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(a.icon, color: a.danger ? cs.error : cs.primary),
+                  leading: Icon(a.icon, color: a.danger ? cs.error : cs.onSurfaceVariant),
                   title: Text(a.label, style: TextStyle(color: a.danger ? cs.error : null)),
                   onTap: () {
                     Navigator.pop(ctx);

@@ -27,6 +27,7 @@ import 'stackable_sheet.dart';
 import 'episode_row.dart';
 import 'action_pill.dart';
 import 'adaptive_modal.dart';
+import 'tints.dart';
 export 'episode_detail_sheet.dart';
 
 /// Bottom sheet that shows a podcast's episode list.
@@ -1136,7 +1137,7 @@ class _EpisodeListSheetState extends State<EpisodeListSheet> {
       constraints: const BoxConstraints(maxWidth: 200),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: highlight ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.06),
+        color: highlight ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: highlight ? cs.primary.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.08))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [

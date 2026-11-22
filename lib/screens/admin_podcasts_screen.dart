@@ -16,6 +16,7 @@ import '../widgets/overlay_toast.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/desktop_workspace.dart';
 import '../utils/duration_format.dart';
+import '../widgets/tints.dart';
 
 /// Opens the podcast lookup used by the admin podcast manager.
 ///
@@ -219,7 +220,7 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
                   if (author.isNotEmpty) ...[const SizedBox(height: 2),
                     Text(author, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6)), maxLines: 1, overflow: TextOverflow.ellipsis)],
                   const SizedBox(height: 4),
-                  Text(l.adminPodcastsEpisodesCount(numEps), style: tt.labelSmall?.copyWith(color: cs.primary.withValues(alpha: 0.7), fontSize: 11)),
+                  Text(l.adminPodcastsEpisodesCount(numEps), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right_rounded, color: cs.onSurface.withValues(alpha: 0.15)),
               ]),
@@ -239,8 +240,8 @@ class _AdminPodcastsScreenState extends State<AdminPodcastsScreen> {
   }
 
   Widget _coverPlaceholder(ColorScheme cs) => Container(width: 56, height: 56,
-    decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-    child: Icon(Icons.podcasts_rounded, color: cs.primary.withValues(alpha: 0.4)));
+    decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
+    child: Icon(Icons.podcasts_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.6)));
 
   // ─── Search Sheet ───────────────────────────────────────────
 
@@ -509,7 +510,7 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: selected ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.04),
+                    color: selected ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: selected ? cs.primary.withValues(alpha: 0.4) : cs.onSurface.withValues(alpha: 0.06)),
                   ),
@@ -574,7 +575,7 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
                                   Text(artist, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6), fontSize: 11),
                                     maxLines: 1, overflow: TextOverflow.ellipsis)],
                                 if (category.isNotEmpty) ...[const SizedBox(height: 2),
-                                  Text(category, style: tt.labelSmall?.copyWith(color: cs.primary.withValues(alpha: 0.5), fontSize: 10))],
+                                  Text(category, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.7), fontSize: 10))],
                               ])),
                               const SizedBox(width: 8),
                               if (isLoading)
@@ -701,7 +702,7 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
                         ],
                         if (genres != null && genres.isNotEmpty) ...[
                           const SizedBox(height: 3),
-                          Text(genres.take(3).join(', '), style: tt.labelSmall?.copyWith(color: cs.primary.withValues(alpha: 0.5), fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(genres.take(3).join(', '), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.7), fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ],
                     ),
@@ -719,8 +720,8 @@ class _PodcastSearchSheetState extends State<_PodcastSearchSheet> {
 
   Widget _ph(ColorScheme cs) => Container(
     width: 50, height: 50,
-    decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-    child: Icon(Icons.podcasts_rounded, color: cs.primary.withValues(alpha: 0.4), size: 22),
+    decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
+    child: Icon(Icons.podcasts_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.6), size: 22),
   );
 
 }
@@ -870,10 +871,10 @@ class _PodcastPreviewScreenState extends State<_PodcastPreviewScreen> {
                         children: _genres.map((g) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: cs.primary.withValues(alpha: 0.1),
+                            color: cs.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(g.toString(), style: tt.labelSmall?.copyWith(color: cs.primary, fontSize: 11)),
+                          child: Text(g.toString(), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11)),
                         )).toList(),
                       ),
                     ),
@@ -984,8 +985,8 @@ class _PodcastPreviewScreenState extends State<_PodcastPreviewScreen> {
 
   Widget _coverPlaceholder(ColorScheme cs) => Container(
     width: 160, height: 160,
-    decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
-    child: Icon(Icons.podcasts_rounded, color: cs.primary.withValues(alpha: 0.3), size: 48),
+    decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(16)),
+    child: Icon(Icons.podcasts_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.5), size: 48),
   );
 
   void _msg(String s, {IconData? icon}) =>
@@ -1361,15 +1362,15 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
               child: Image.network(coverUrl, width: 72, height: 72, fit: BoxFit.cover,
                 headers: auth.apiService?.mediaHeaders ?? {},
                 errorBuilder: (_, __, ___) => Container(width: 72, height: 72,
-                  decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                  child: Icon(Icons.podcasts_rounded, color: cs.primary.withValues(alpha: 0.4), size: 28)))),
+                  decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.podcasts_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.6), size: 28)))),
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface), maxLines: 2, overflow: TextOverflow.ellipsis),
               if (author.isNotEmpty) ...[const SizedBox(height: 2),
                 Text(author, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6)))],
               const SizedBox(height: 6),
-              Text(l.adminPodcastsDownloadedCount(_episodes.length), style: tt.labelSmall?.copyWith(color: cs.primary.withValues(alpha: 0.7), fontSize: 11)),
+              Text(l.adminPodcastsDownloadedCount(_episodes.length), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 11)),
             ])),
           ])),
 
@@ -1682,7 +1683,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 15, color: cs.primary),
+          Icon(icon, size: 15, color: cs.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(label, style: tt.labelSmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
         ]),
@@ -1726,7 +1727,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: selected ? cs.primary.withValues(alpha: 0.12) : cs.surfaceContainerHigh,
+                  color: selected ? cs.primary.withValues(alpha: Tints.soft) : cs.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
                   border: selected ? Border.all(color: cs.primary.withValues(alpha: 0.3)) : null,
                 ),
@@ -1788,7 +1789,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
                   decoration: BoxDecoration(
                     color: cs.primary,
                     borderRadius: BorderRadius.circular(14),
-                    boxShadow: [BoxShadow(color: cs.primary.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4))],
                   ),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(Icons.download_rounded, size: 18, color: cs.onPrimary),
@@ -1881,7 +1882,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _checkLimit == n ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.04),
+                      color: _checkLimit == n ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: _checkLimit == n ? cs.primary.withValues(alpha: 0.4) : cs.onSurface.withValues(alpha: 0.06)),
                     ),
@@ -1921,7 +1922,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: cs.primary.withValues(alpha: Tints.soft), borderRadius: BorderRadius.circular(10)),
                 child: Center(child: Text(l.adminPodcastsCheckAndDownload, style: tt.bodySmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w700))),
               ),
             ),
@@ -2160,7 +2161,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.15),
+                      color: cs.primary.withValues(alpha: Tints.soft),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: cs.primary.withValues(alpha: 0.4)),
                     ),
@@ -2297,7 +2298,7 @@ class _PodcastDetailScreenState extends State<_PodcastDetailScreen> with SingleT
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.05),
+          color: selected ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: selected ? cs.primary.withValues(alpha: 0.4) : cs.onSurface.withValues(alpha: 0.08)),
         ),
@@ -2799,7 +2800,7 @@ class _PodcastMatchSheetState extends State<_PodcastMatchSheet> {
                                             maxLines: 1, overflow: TextOverflow.ellipsis)],
                                         if (genres != null && genres.isNotEmpty) ...[const SizedBox(height: 3),
                                           Text(genres.take(3).join(', '), style: tt.labelSmall?.copyWith(
-                                            color: cs.primary.withValues(alpha: 0.5), fontSize: 10))],
+                                            color: cs.onSurfaceVariant.withValues(alpha: 0.7), fontSize: 10))],
                                       ])),
                                       const SizedBox(width: 8),
                                       Icon(Icons.check_circle_outline_rounded, color: cs.primary.withValues(alpha: 0.4)),
@@ -2817,7 +2818,7 @@ class _PodcastMatchSheetState extends State<_PodcastMatchSheet> {
 
   Widget _ph(ColorScheme cs) => Container(
     width: 56, height: 56,
-    decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-    child: Icon(Icons.podcasts_rounded, color: cs.primary.withValues(alpha: 0.4), size: 22),
+    decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
+    child: Icon(Icons.podcasts_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.6), size: 22),
   );
 }

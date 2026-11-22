@@ -423,7 +423,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
               color: cs.primary,
             ),
           ] else ...[
-            Icon(Icons.playlist_play_rounded, size: 20, color: cs.primary),
+            Icon(Icons.playlist_play_rounded, size: 20, color: cs.onSurfaceVariant),
             const SizedBox(width: 8),
             Expanded(
               child: Text(name, style: tt.titleMedium?.copyWith(

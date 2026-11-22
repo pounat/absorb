@@ -952,7 +952,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
   BoxDecoration _cardDeco(ColorScheme cs) => BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(16));
 
   Widget _stat(TextTheme tt, ColorScheme cs, IconData ic, String v, String l) => Expanded(child: Column(children: [
-    Icon(ic, size: 18, color: cs.primary.withValues(alpha: 0.6)), const SizedBox(height: 6),
+    Icon(ic, size: 18, color: cs.onSurfaceVariant), const SizedBox(height: 6),
     Text(v, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)), const SizedBox(height: 2),
     Text(l, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6), fontSize: 10)),
   ]));
@@ -963,7 +963,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(14)),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         if (loading) SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
-        else Icon(ic, size: 16, color: cs.primary),
+        else Icon(ic, size: 16, color: cs.onSurfaceVariant),
         const SizedBox(width: 8),
         Text(l, style: tt.labelMedium?.copyWith(color: loading ? cs.onSurface.withValues(alpha: 0.24) : cs.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w600)),
       ])));
@@ -973,7 +973,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: _cardDeco(cs),
       child: Row(children: [
-        Icon(icon, color: cs.primary, size: 22), const SizedBox(width: 14),
+        Icon(icon, color: cs.onSurfaceVariant, size: 22), const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
           Text(subtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
@@ -993,7 +993,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
         child: Row(children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Icon(Icons.menu_book_rounded, color: cs.primary, size: 22),
+            child: Icon(Icons.menu_book_rounded, color: cs.onSurfaceVariant, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1065,12 +1065,12 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       child: Container(padding: const EdgeInsets.all(16), decoration: _cardDeco(cs),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Icon(mediaType == 'podcast' ? Icons.podcasts_rounded : Icons.auto_stories_rounded, size: 20, color: cs.primary),
+            Icon(mediaType == 'podcast' ? Icons.podcasts_rounded : Icons.auto_stories_rounded, size: 20, color: cs.onSurfaceVariant),
             const SizedBox(width: 10),
             Expanded(child: Text(name, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface))),
             Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(mediaType, style: tt.labelSmall?.copyWith(color: cs.primary, fontSize: 10, fontWeight: FontWeight.w600))),
+              decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
+              child: Text(mediaType, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 10, fontWeight: FontWeight.w600))),
           ]),
           const SizedBox(height: 12),
           Row(children: [
@@ -1134,7 +1134,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
         border: Border.all(color: cs.onSurface.withValues(alpha: 0.06))),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         if (loading) SizedBox(width: 14, height: 14, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
-        else Icon(ic, size: 14, color: cs.primary.withValues(alpha: 0.7)),
+        else Icon(ic, size: 14, color: cs.onSurfaceVariant),
         const SizedBox(width: 6),
         Text(l, style: tt.labelSmall?.copyWith(color: loading ? cs.onSurface.withValues(alpha: 0.24) : cs.onSurface.withValues(alpha: 0.54), fontWeight: FontWeight.w600, fontSize: 11)),
       ])));

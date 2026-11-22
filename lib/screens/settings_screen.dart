@@ -2832,7 +2832,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
-    return [
+    final groups = <Widget>[
       SettingsGroup(
         label: l.settingsGroupLook,
         children: [
@@ -2853,7 +2853,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ButtonSegment(value: 'system', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.themeAuto, maxLines: 1))),
                     ],
                     selected: {_themeMode},
-                    onSelectionChanged: _loaded ? (selected) {
+                    onSelectionChanged: _loaded && !_einkMode ? (selected) {
                       final mode = selected.first;
                       setState(() => _themeMode = mode);
                       PlayerSettings.setThemeMode(mode);
@@ -3102,6 +3102,13 @@ class SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    ];
+    if (!_einkMode) return groups;
+    // E-ink mode picks the colors and drops the glow itself, so those two
+    // groups have nothing to change while it is on.
+    return [
+      for (var i = 0; i < groups.length; i++)
+        i == 1 || i == 2 ? IgnorePointer(child: Opacity(opacity: 0.4, child: groups[i])) : groups[i],
     ];
   }
 

@@ -1670,7 +1670,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
                       if (sequence != null && sequence.isNotEmpty)
-                        Text(l.bookNumber(sequence), style: tt.labelSmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+                        Text(l.bookNumber(sequence), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
                       Text(bookTitle, maxLines: 2, overflow: TextOverflow.ellipsis,
                         style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
                       if (authorName.isNotEmpty) ...[

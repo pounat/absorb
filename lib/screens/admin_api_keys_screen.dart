@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/adaptive_modal.dart';
 import '../widgets/overlay_toast.dart';
+import '../widgets/tints.dart';
 
 class AdminApiKeysScreen extends StatefulWidget {
   final List<dynamic> users;
@@ -259,7 +260,7 @@ class _ApiKeyEditorSheetState extends State<_ApiKeyEditorSheet> {
                 child: AnimatedContainer(duration: const Duration(milliseconds: 150),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: on ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.03),
+                    color: on ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: on ? cs.primary.withValues(alpha: 0.4) : cs.onSurface.withValues(alpha: 0.06))),
                   child: Text(uname, style: tt.labelMedium?.copyWith(
@@ -276,7 +277,7 @@ class _ApiKeyEditorSheetState extends State<_ApiKeyEditorSheet> {
                 child: AnimatedContainer(duration: const Duration(milliseconds: 150),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: on ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.03),
+                    color: on ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: on ? cs.primary.withValues(alpha: 0.4) : cs.onSurface.withValues(alpha: 0.06))),
                   child: Text(expiryLabels[i], style: tt.labelMedium?.copyWith(
