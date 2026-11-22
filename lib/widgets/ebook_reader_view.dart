@@ -190,6 +190,9 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   // The controls bar: OK on a TV puts the remote straight in it, since from
   // the page, which fills the screen, no control lies in any direction.
   final _controlsScope = FocusScopeNode(debugLabel: 'reader controls');
+  // Back and search at the top. Up off the controls goes here and down comes
+  // back; left to itself the remote would pick the page, as it fills the screen.
+  final _topBarScope = FocusScopeNode(debugLabel: 'reader top bar');
   List<EpubChapter> _chapters = [];
   double _progress = 0;
   // epub.js reports a usable page percentage only after its CFI location index
@@ -1579,6 +1582,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   void dispose() {
     _keysFocus.dispose();
     _controlsScope.dispose();
+    _topBarScope.dispose();
     _sentenceAutoTimer?.cancel();
     _sentenceSyncTimer?.cancel();
     _narrationSpotTimer?.cancel();
@@ -1634,6 +1638,34 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         });
       }
     }
+  }
+
+  /// Back into [scope] where the remote last was, or onto its first control.
+  void _focusInto(FocusScopeNode scope) {
+    final last = scope.focusedChild;
+    if (last != null) {
+      last.requestFocus();
+    } else {
+      scope.requestFocus();
+      scope.nextFocus();
+    }
+  }
+
+  KeyEventResult _controlsKey(FocusNode _, KeyEvent event) {
+    if (event is KeyUpEvent || event.logicalKey != LogicalKeyboardKey.arrowUp) return KeyEventResult.ignored;
+    final at = FocusManager.instance.primaryFocus;
+    if (at == null || !at.focusInDirection(TraversalDirection.up)) _focusInto(_topBarScope);
+    return KeyEventResult.handled;
+  }
+
+  KeyEventResult _topBarKey(FocusNode _, KeyEvent event) {
+    if (event is KeyUpEvent || event.logicalKey != LogicalKeyboardKey.arrowDown) return KeyEventResult.ignored;
+    if (_showControls) {
+      _focusInto(_controlsScope);
+    } else {
+      _keysFocus.requestFocus();
+    }
+    return KeyEventResult.handled;
   }
 
   DateTime _lastReaderTap = DateTime.fromMillisecondsSinceEpoch(0);
@@ -7264,7 +7296,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
     final percent = chapterOnly
         ? (_chapterPageTotal > 0 ? '${(chapterProgress * 100).round()}%' : '')
         : '${(bookProgress * 100).toStringAsFixed(1)}%';
-    return Padding(
+    final content = Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -7329,6 +7361,8 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         ],
       ),
     );
+    if (!AppPlatform.isTv) return content;
+    return FocusScope(node: _topBarScope, onKeyEvent: _topBarKey, child: content);
   }
 
   Widget _topBarDetails(Color fgDim, String percent) {
@@ -8460,6 +8494,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                 excluding: AppPlatform.isTv && !_showControls,
                 child: FocusScope(
                 node: _controlsScope,
+                onKeyEvent: AppPlatform.isTv ? _controlsKey : null,
                 child: _controlsTouchGuard(Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
