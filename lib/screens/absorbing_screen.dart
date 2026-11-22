@@ -15,7 +15,7 @@ import '../services/queue_download_policy.dart';
 import '../services/scoped_prefs.dart';
 import '../widgets/absorb_page_header.dart';
 import '../main.dart'
-    show flatNotifier, gradientIntensityNotifier, rootNavigatorKey;
+    show flatNotifier, rootNavigatorKey;
 import '../widgets/absorbing_card.dart';
 import '../widgets/card_chapters_sheet.dart';
 import '../widgets/offline_status_icon.dart';
@@ -28,6 +28,7 @@ import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../utils/absorbing_list.dart';
 import '../utils/desktop_workspace.dart';
+import '../widgets/cover_glow.dart';
 
 const double _kAbsorbingDesktopPanelRailWidth = 48;
 const double _kAbsorbingDesktopPanelDividerWidth = 1;
@@ -726,7 +727,6 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
-    final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     final lib = context.watch<LibraryProvider>();
     final mq = MediaQuery.of(context);
     final isTablet = mq.size.shortestSide >= 600;
@@ -799,27 +799,7 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
       body: Stack(
         children: [
           if (!flatNotifier.value)
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.22, 0.72, 1.0],
-                      colors: [
-                        cs.primary.withValues(
-                          alpha: gradientIntensityNotifier.value,
-                        ),
-                        cs.surface,
-                        lowerFade,
-                        scaffoldBg,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            const Positioned.fill(child: CoverGlow()),
           SafeArea(
             child: Builder(
               builder: (context) {

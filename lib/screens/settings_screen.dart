@@ -45,7 +45,7 @@ import '../services/settings_sync_service.dart';
 import '../screens/change_password_screen.dart';
 import '../screens/auth_sessions_screen.dart';
 import '../screens/transcription_settings_screen.dart';
-import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyTrueCoverColors, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
+import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyTrueCoverColors, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
 import '../services/native_tab_bar.dart';
 import '../widgets/expressive.dart';
@@ -74,6 +74,7 @@ import '../widgets/sign_in_again.dart';
 import '../services/app_icon_service.dart';
 import '../widgets/app_icon_picker.dart';
 import 'bookorbit_library_visibility_screen.dart';
+import '../widgets/cover_glow.dart';
 
 class _SettingsSectionDestination {
   final String id;
@@ -2001,20 +2002,18 @@ class SettingsScreenState extends State<SettingsScreen> {
       _SettingsSectionDestination('Advanced', Icons.tune_rounded, l.sectionAdvanced),
     ];
     return Scaffold(
-      body: Container(
-        decoration: flatNotifier.value ? null : BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.0, 0.35, 1.0],
-            colors: [
-              cs.primary.withValues(alpha: gradientIntensityNotifier.value),
-              Theme.of(context).scaffoldBackgroundColor,
-              Theme.of(context).scaffoldBackgroundColor,
-            ],
-          ),
-        ),
-        child: SafeArea(
+      body: Stack(
+        children: [
+          if (!flatNotifier.value)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _settingsScrollController,
+                builder: (context, _) => CoverGlow(
+                  scrolled: _settingsScrollController.hasClients ? _settingsScrollController.offset : 0,
+                ),
+              ),
+            ),
+          SafeArea(
         // Under the glass tab bar the settings scroll beneath it.
         bottom: !NativeTabBar.active.value,
         child: _SettingsAdaptiveFrame(
@@ -2587,6 +2586,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       ),
       ),
       ),
+        ],
       ),
     );
   }

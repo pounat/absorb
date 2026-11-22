@@ -19,7 +19,7 @@ import '../widgets/absorb_page_header.dart';
 import '../widgets/library_picker_sheet.dart';
 import '../widgets/library_search_results.dart';
 import '../widgets/podcast_episode_feed.dart';
-import '../main.dart' show flatNotifier, gradientIntensityNotifier;
+import '../main.dart' show flatNotifier;
 import '../widgets/library_sort_filter_sheet.dart';
 import '../widgets/desktop_batch_actions.dart';
 import '../widgets/desktop_cover_size_control.dart';
@@ -53,6 +53,7 @@ import '../services/user_account_service.dart';
 import '../l10n/app_localizations.dart';
 import 'smart_scope_editor_screen.dart';
 import '../widgets/new_list_flow.dart';
+import '../widgets/cover_glow.dart';
 
 /// Responsive grid column count based on available width and the cover size
 /// setting; scales up on tablets/iPads.
@@ -2975,7 +2976,6 @@ class LibraryScreenState extends State<LibraryScreen>
     // workspace pins its header and has no floating pill.
     _revealDriver.setEnabled(!desktopWorkspace);
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
-    final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     // Watch LibraryProvider so this screen rebuilds when the active library
     // or its data changes; the actual lib object is consumed inside
     // _buildHeaderSliver via context.watch.
@@ -3119,23 +3119,7 @@ class LibraryScreenState extends State<LibraryScreen>
               child: SizedBox(
                 height: MediaQuery.of(context).size.height,
                 width: double.infinity,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.22, 0.72, 1.0],
-                      colors: [
-                        cs.primary.withValues(
-                          alpha: gradientIntensityNotifier.value,
-                        ),
-                        cs.surface,
-                        lowerFade,
-                        scaffoldBg,
-                      ],
-                    ),
-                  ),
-                ),
+                child: const CoverGlow(),
               ),
             ),
           SafeArea(
@@ -3269,7 +3253,6 @@ class LibraryScreenState extends State<LibraryScreen>
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
-    final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     final lib = context.watch<LibraryProvider>();
     final allLibraries = lib.libraries;
     final hasMultipleLibraries = allLibraries.length > 1;
@@ -3303,24 +3286,7 @@ class LibraryScreenState extends State<LibraryScreen>
                 child: SizedBox(
                   height: screenH,
                   width: double.infinity,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: scaffoldBg,
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        stops: const [0.0, 0.22, 0.72, 1.0],
-                        colors: [
-                          cs.primary.withValues(
-                            alpha: gradientIntensityNotifier.value,
-                          ),
-                          cs.surface,
-                          lowerFade,
-                          scaffoldBg,
-                        ],
-                      ),
-                    ),
-                  ),
+                  child: ColoredBox(color: scaffoldBg, child: const CoverGlow()),
                 ),
               ),
             ),

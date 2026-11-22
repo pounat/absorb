@@ -28,7 +28,7 @@ import '../widgets/shimmer.dart';
 import '../widgets/book_detail_sheet.dart';
 import '../widgets/card_buttons.dart';
 import '../widgets/episode_list_sheet.dart';
-import '../main.dart' show flatNotifier, gradientIntensityNotifier;
+import '../main.dart' show flatNotifier;
 import '../widgets/home_customize_sheet.dart';
 import '../widgets/playlist_detail_sheet.dart';
 import '../widgets/collection_detail_sheet.dart';
@@ -47,6 +47,7 @@ import '../utils/duration_format.dart';
 import '../services/native_tab_bar.dart';
 import '../utils/app_platform.dart';
 import '../utils/media_card_gesture_policy.dart';
+import '../widgets/cover_glow.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -518,7 +519,6 @@ class HomeScreenState extends State<HomeScreen>
     final glassNav = NativeTabBar.active.value;
     _revealDriver.setEnabled(!desktop);
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
-    final lowerFade = Color.lerp(cs.surface, scaffoldBg, 0.55) ?? scaffoldBg;
     final lib = context.watch<LibraryProvider>();
     final auth = context.watch<AuthProvider>();
     final selectionAvailable = desktop && !lib.isOffline;
@@ -558,25 +558,18 @@ class HomeScreenState extends State<HomeScreen>
 
     return Scaffold(
       backgroundColor: scaffoldBg,
-      body: Container(
-        decoration: flatNotifier.value
-            ? null
-            : BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.22, 0.72, 1.0],
-                  colors: [
-                    cs.primary.withValues(
-                      alpha: gradientIntensityNotifier.value,
-                    ),
-                    cs.surface,
-                    lowerFade,
-                    scaffoldBg,
-                  ],
+      body: Stack(
+        children: [
+          if (!flatNotifier.value)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _scrollController,
+                builder: (context, _) => CoverGlow(
+                  scrolled: _scrollController.hasClients ? _scrollController.offset : 0,
                 ),
               ),
-        child: SafeArea(
+            ),
+          SafeArea(
           // Under the glass tab bar the shelves scroll beneath it.
           bottom: !glassNav,
           child: NotificationListener<ScrollNotification>(
@@ -961,6 +954,7 @@ class HomeScreenState extends State<HomeScreen>
             ),
           ),
         ),
+        ],
       ),
       floatingActionButton: !desktop
           ? null
