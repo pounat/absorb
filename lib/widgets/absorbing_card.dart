@@ -70,6 +70,10 @@ class AbsorbingCard extends StatefulWidget {
   final AbsorbingCardPresentation presentation;
   final bool? spaciousDesktopLayout;
   final ValueChanged<AbsorbingChapterData>? onChapterDataChanged;
+
+  /// A copy shown in Settings to look at, not the book's card on the
+  /// Absorbing page: it never stands in for that one.
+  final bool preview;
   const AbsorbingCard({
     super.key,
     required this.item,
@@ -77,6 +81,7 @@ class AbsorbingCard extends StatefulWidget {
     this.presentation = AbsorbingCardPresentation.card,
     this.spaciousDesktopLayout,
     this.onChapterDataChanged,
+    this.preview = false,
   });
 
   @override
@@ -402,7 +407,13 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
   }
 
+  String _buttonFill = PlayerSettings.cardButtonFill;
+
   void _reloadButtonOrder() {
+    // The buttons read the fill themselves; the card only has to redraw them.
+    if (mounted && PlayerSettings.cardButtonFill != _buttonFill) {
+      setState(() => _buttonFill = PlayerSettings.cardButtonFill);
+    }
     PlayerSettings.getCardButtonOrder().then((o) {
       if (mounted && o.join(',') != _buttonOrder.join(',')) setState(() => _buttonOrder = o);
     });
@@ -1671,7 +1682,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     final key = _shownKey;
     if (key == _registeredKey) return;
     _unregisterShown();
-    if (widget.presentation != AbsorbingCardPresentation.card) return;
+    if (widget.presentation != AbsorbingCardPresentation.card || widget.preview) return;
     AbsorbingCard._shown[key] = this;
     _registeredKey = key;
   }

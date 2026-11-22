@@ -15211,4 +15211,37 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get trueCoverColorsSubtitle =>
       'Keep each book\'s color close to its cover instead of softening it';
+
+  @override
+  String get sectionGeneral => 'General';
+
+  @override
+  String get settingsGroupGlow => 'Glow';
+
+  @override
+  String get glowStrengthLabel => 'Glow strength';
+
+  @override
+  String get appColorLabel => 'App color';
+
+  @override
+  String get appColorSoftCover => 'Soft cover';
+
+  @override
+  String get appColorTrueCover => 'True cover';
+
+  @override
+  String get appColorMine => 'My color';
+
+  @override
+  String get appColorSoftCoverDescription =>
+      'Follows the cover of the playing book, toned down';
+
+  @override
+  String get appColorTrueCoverDescription =>
+      'Follows the cover of the playing book, close to its real color';
+
+  @override
+  String get appColorMineDescription =>
+      'One color you pick, whatever is playing';
 }

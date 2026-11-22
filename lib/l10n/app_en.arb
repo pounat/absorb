@@ -728,7 +728,7 @@
   "useColorEverywhereLabel": "Use this color everywhere",
   "useColorEverywhereSubtitle": "Also color book detail pages and the player card with your set color instead of each book's cover",
   "flatBackgroundLabel": "Flat background",
-  "flatBackgroundSubtitle": "Remove the background gradient. Pure black in dark mode for OLED screens.",
+  "flatBackgroundSubtitle": "No glow behind the pages. Pure black in dark mode for OLED screens.",
   "einkModeLabel": "E-ink mode",
   "einkModeSubtitle": "High-contrast black and white with no animations, made for e-ink screens",
   "einkModeIntroBody": "Made for e-ink screens. The app switches to a flat black-and-white look with high contrast, animations are turned off, the playing card loses its background, and the live server connection stays off to save battery. Playback and progress still sync normally. Your appearance settings are kept and come back when you turn this off.",
@@ -7812,5 +7812,15 @@
   "settingsGroupConnection": "Connection",
   "settingsGroupTools": "Tools",
   "trueCoverColorsLabel": "True cover colors",
-  "trueCoverColorsSubtitle": "Keep each book's color close to its cover instead of softening it"
+  "trueCoverColorsSubtitle": "Keep each book's color close to its cover instead of softening it",
+  "sectionGeneral": "General",
+  "settingsGroupGlow": "Glow",
+  "glowStrengthLabel": "Glow strength",
+  "appColorLabel": "App color",
+  "appColorSoftCover": "Soft cover",
+  "appColorTrueCover": "True cover",
+  "appColorMine": "My color",
+  "appColorSoftCoverDescription": "Follows the cover of the playing book, toned down",
+  "appColorTrueCoverDescription": "Follows the cover of the playing book, close to its real color",
+  "appColorMineDescription": "One color you pick, whatever is playing"
 }

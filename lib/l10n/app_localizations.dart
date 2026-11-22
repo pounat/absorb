@@ -2733,7 +2733,7 @@ abstract class AppLocalizations {
   /// No description provided for @flatBackgroundSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Remove the background gradient. Pure black in dark mode for OLED screens.'**
+  /// **'No glow behind the pages. Pure black in dark mode for OLED screens.'**
   String get flatBackgroundSubtitle;
 
   /// No description provided for @einkModeLabel.
@@ -25630,6 +25630,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep each book\'s color close to its cover instead of softening it'**
   String get trueCoverColorsSubtitle;
+
+  /// No description provided for @sectionGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get sectionGeneral;
+
+  /// No description provided for @settingsGroupGlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Glow'**
+  String get settingsGroupGlow;
+
+  /// No description provided for @glowStrengthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Glow strength'**
+  String get glowStrengthLabel;
+
+  /// No description provided for @appColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'App color'**
+  String get appColorLabel;
+
+  /// No description provided for @appColorSoftCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft cover'**
+  String get appColorSoftCover;
+
+  /// No description provided for @appColorTrueCover.
+  ///
+  /// In en, this message translates to:
+  /// **'True cover'**
+  String get appColorTrueCover;
+
+  /// No description provided for @appColorMine.
+  ///
+  /// In en, this message translates to:
+  /// **'My color'**
+  String get appColorMine;
+
+  /// No description provided for @appColorSoftCoverDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows the cover of the playing book, toned down'**
+  String get appColorSoftCoverDescription;
+
+  /// No description provided for @appColorTrueCoverDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows the cover of the playing book, close to its real color'**
+  String get appColorTrueCoverDescription;
+
+  /// No description provided for @appColorMineDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'One color you pick, whatever is playing'**
+  String get appColorMineDescription;
 }
 
 class _AppLocalizationsDelegate

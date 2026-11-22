@@ -16,24 +16,23 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
   final w = Wording.of(context);
   return [
     // ── Appearance ──
-    SettingSearchEntry('Appearance', l.sectionAppearance, l.languageLabel, [l.languageSystemDefault]),
+    SettingSearchEntry('General', l.sectionGeneral, l.languageLabel, [l.languageSystemDefault]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.themeLabel, [l.themeDark, l.themeLight, l.themeAuto]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.flatBackgroundLabel, [l.flatBackgroundSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.einkModeLabel, [l.einkModeSubtitle]),
-    SettingSearchEntry('Appearance', l.sectionAppearance, l.backgroundIntensityLabel, const []),
-    SettingSearchEntry('Appearance', l.sectionAppearance, l.colorSourceLabel, [l.colorSourceDynamic, l.colorSourceManual, l.colorSourceManualDescription, l.colorSourceCoverDescription, l.colorSourceCustom]),
+    SettingSearchEntry('Appearance', l.sectionAppearance, l.glowStrengthLabel, const []),
+    SettingSearchEntry('Appearance', l.sectionAppearance, l.appColorLabel, [l.appColorSoftCover, l.appColorTrueCover, l.appColorMine, l.appColorSoftCoverDescription, l.appColorTrueCoverDescription, l.appColorMineDescription, l.colorSourceCustom]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.useColorEverywhereLabel, [l.useColorEverywhereSubtitle]),
-    SettingSearchEntry('Appearance', l.sectionAppearance, l.trueCoverColorsLabel, [l.trueCoverColorsSubtitle]),
-    SettingSearchEntry('Appearance', l.sectionAppearance, l.startScreenLabel, [l.startScreenSubtitle, l.startScreenHome, l.startScreenLibrary, w.startScreenAbsorb, l.startScreenStats]),
+    SettingSearchEntry('General', l.sectionGeneral, l.startScreenLabel, [l.startScreenSubtitle, l.startScreenHome, l.startScreenLibrary, w.startScreenAbsorb, l.startScreenStats]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.progressTextSize, const []),
-    SettingSearchEntry('Appearance', l.sectionAppearance, l.disablePageFade, [l.disablePageFadeOnSubtitle, l.disablePageFadeOffSubtitle]),
+    SettingSearchEntry('General', l.sectionGeneral, l.disablePageFade, [l.disablePageFadeOnSubtitle, l.disablePageFadeOffSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.showSubtitles, [l.showSubtitlesOnSubtitle, l.showSubtitlesOffSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.rectangleBookCovers, [l.rectangleBookCoversOnSubtitle, l.rectangleBookCoversOffSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.coverSize, [l.coverSizeSubtitle, l.coverSizeSmall, l.coverSizeMedium, l.coverSizeLarge]),
     SettingSearchEntry('Absorbing Cards', w.sectionAbsorbingCards, l.cardButtonFill, [l.cardButtonFillSubtitle, l.cardButtonFillClear, l.cardButtonFillSubtle, l.cardButtonFillSolid]),
-    SettingSearchEntry('Appearance', l.sectionAppearance, 'Classic wording', const ['Using "Play", "Now Playing", "Finished"', 'Using "Absorb", "Absorbing", "Fully Absorbed"']),
+    SettingSearchEntry('General', l.sectionGeneral, 'Classic wording', const ['Using "Play", "Now Playing", "Finished"', 'Using "Absorb", "Absorbing", "Fully Absorbed"']),
     if (!(AppPlatform.isIOS && MediaQuery.sizeOf(context).shortestSide >= 600))
-      SettingSearchEntry('Appearance', l.sectionAppearance, 'Lock rotation', const ['Screen stays in portrait', 'Screen can rotate with the device']),
+      SettingSearchEntry('General', l.sectionGeneral, 'Lock rotation', const ['Screen stays in portrait', 'Screen can rotate with the device']),
 
     // ── Customize Stats ──
     SettingSearchEntry('Customize Stats', l.settingsCustomizeStats, l.settingsStatsTab, [l.settingsStatsTabDesc, l.settingsOpenStats]),

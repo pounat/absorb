@@ -75,6 +75,8 @@ import '../services/app_icon_service.dart';
 import '../widgets/app_icon_picker.dart';
 import 'bookorbit_library_visibility_screen.dart';
 import '../widgets/cover_glow.dart';
+import '../widgets/appearance_preview.dart';
+import '../widgets/absorbing_card_preview.dart';
 
 class _SettingsSectionDestination {
   final String id;
@@ -472,7 +474,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             Badge(
               isLabelVisible: dot,
               smallSize: 8,
-              child: Icon(icon, color: cs.primary, size: 22),
+              child: Icon(icon, color: cs.onSurfaceVariant, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1992,6 +1994,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     // Media controls, downloads and permissions are phone matters; the rest
     // is what the desktop sidebar lists.
     final destinations = <_SettingsSectionDestination>[
+      _SettingsSectionDestination('General', Icons.settings_outlined, l.sectionGeneral),
       _SettingsSectionDestination('Appearance', Icons.palette_outlined, l.sectionAppearance),
       _SettingsSectionDestination('Customize Stats', Icons.bar_chart_rounded, l.settingsCustomizeStats),
       _SettingsSectionDestination('Absorbing Cards', Icons.style_rounded, Wording.of(context).sectionAbsorbingCards),
@@ -2086,10 +2089,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        gradient: flatNotifier.value ? null : LinearGradient(
-                          colors: [cs.primaryContainer, cs.tertiaryContainer],
-                        ),
-                        color: flatNotifier.value ? cs.surfaceContainerHigh : null,
+                        color: cs.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -2124,24 +2124,17 @@ class SettingsScreenState extends State<SettingsScreen> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(18),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            cs.primary.withValues(alpha: 0.12),
-                            cs.primary.withValues(alpha: 0.04),
-                          ],
-                        ),
-                        border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+                        color: cs.surfaceContainerHigh,
+                        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
                       ),
                       child: Row(children: [
                         Container(
                           width: 40, height: 40,
                           decoration: BoxDecoration(
-                            color: cs.primary.withValues(alpha: 0.15),
+                            color: cs.onSurface.withValues(alpha: 0.06),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.person_rounded, size: 22, color: cs.primary),
+                          child: Icon(Icons.person_rounded, size: 22, color: cs.onSurface),
                         ),
                         const SizedBox(width: 14),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2155,11 +2148,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: auth.isRoot ? Colors.amber.withValues(alpha: 0.12) : cs.primary.withValues(alpha: 0.12),
+                                  color: auth.isRoot ? Colors.amber.withValues(alpha: 0.12) : cs.onSurface.withValues(alpha: 0.06),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(auth.isRoot ? l.root : l.admin, style: tt.labelSmall?.copyWith(
-                                  color: auth.isRoot ? Colors.amber : cs.primary, fontWeight: FontWeight.w600, fontSize: 9)),
+                                  color: auth.isRoot ? Colors.amber : cs.onSurfaceVariant, fontWeight: FontWeight.w600, fontSize: 9)),
                               ),
                             ],
                           ]),
@@ -2174,7 +2167,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                               style: tt.labelSmall?.copyWith(color: cs.error, fontWeight: FontWeight.w600)),
                           ],
                         ])),
-                        Icon(Icons.chevron_right_rounded, size: 20, color: cs.primary.withValues(alpha: 0.5)),
+                        Icon(Icons.chevron_right_rounded, size: 20, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                       ]),
                     ),
                   ),
@@ -2241,7 +2234,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           child: Row(
                             children: [
-                              Icon(Icons.admin_panel_settings_rounded, color: cs.primary, size: 22),
+                              Icon(Icons.admin_panel_settings_rounded, color: cs.onSurfaceVariant, size: 22),
                               const SizedBox(width: 14),
                               Expanded(child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2285,7 +2278,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           child: Row(
                             children: [
-                              Icon(Icons.admin_panel_settings_rounded, color: cs.primary, size: 22),
+                              Icon(Icons.admin_panel_settings_rounded, color: cs.onSurfaceVariant, size: 22),
                               const SizedBox(width: 14),
                               Expanded(child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2314,12 +2307,24 @@ class SettingsScreenState extends State<SettingsScreen> {
 
                 const SizedBox(height: 20),
 
+                // ── General ──
+                SettingsSectionTile(
+                  key: _keyFor('General'),
+                  icon: Icons.settings_outlined,
+                  title: l.sectionGeneral,
+                  summary: _languageDisplayName(_language, l),
+                  onTap: () => _openSection('General'),
+                ),
+                const SizedBox(height: 16),
+
                 // ── Appearance ──
                 SettingsSectionTile(
                   key: _keyFor('Appearance'),
                   icon: Icons.palette_outlined,
                   title: l.sectionAppearance,
-                  summary: switch (_themeMode) { 'light' => l.themeLight, 'system' => l.themeAuto, _ => l.themeDark },
+                  summary: _einkMode
+                      ? l.einkModeLabel
+                      : '${switch (_themeMode) { 'light' => l.themeLight, 'system' => l.themeAuto, _ => l.themeDark }}, ${_appColorName(l)}',
                   onTap: () => _openSection('Appearance'),
                 ),
                 const SizedBox(height: 16),
@@ -2478,7 +2483,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     color: cs.surfaceContainerHigh,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     child: ListTile(
-                      leading: Icon(Icons.cloud_sync_rounded, color: cs.primary),
+                      leading: Icon(Icons.cloud_sync_rounded, color: cs.onSurfaceVariant),
                       title: Text(l.backupAndSync),
                       subtitle: Text(_backupSyncStatus(l),
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -2508,7 +2513,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     color: cs.surfaceContainerHigh,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     child: ListTile(
-                      leading: Icon(Icons.bookmarks_rounded, color: cs.primary),
+                      leading: Icon(Icons.bookmarks_rounded, color: cs.onSurfaceVariant),
                       title: Text(l.allBookmarks),
                       subtitle: Text(l.allBookmarksSubtitle,
                         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -2598,6 +2603,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   (String, List<Widget> Function(BuildContext))? _sectionPage(String id) {
     final l = AppLocalizations.of(context)!;
     return switch (id) {
+      'General' => (l.sectionGeneral, _generalGroups),
       'Appearance' => (l.sectionAppearance, _appearanceGroups),
       'Customize Stats' => (l.settingsCustomizeStats, _statsGroups),
       'Absorbing Cards' => (Wording.of(context).sectionAbsorbingCards, _absorbingCardsGroups),
@@ -2630,6 +2636,12 @@ class SettingsScreenState extends State<SettingsScreen> {
             context,
             SettingsPage(
               title: title,
+              pinned: switch (id) {
+                'Appearance' => const AppearancePreview(),
+                'Absorbing Cards' => const AbsorbingCardPreview(),
+                _ => null,
+              },
+              pinnedHeight: id == 'Absorbing Cards' ? AbsorbingCardPreview.height : AppearancePreview.height,
               child: ListenableBuilder(
                 listenable: _rev,
                 builder: (pageContext, _) => Column(key: body, children: groups(pageContext)),
@@ -2647,7 +2659,30 @@ class SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  List<Widget> _appearanceGroups(BuildContext context) {
+  /// The three color choices as one pick: the playing book's cover toned
+  /// down, the cover as it is, or a color chosen here.
+  String get _appColor => _colorSource == 'manual' ? 'mine' : (_trueCoverColors ? 'true' : 'soft');
+
+  void _setAppColor(String choice) {
+    final source = choice == 'mine' ? 'manual' : 'dynamic';
+    setState(() {
+      _colorSource = source;
+      if (choice != 'mine') _trueCoverColors = choice == 'true';
+    });
+    PlayerSettings.setColorSource(source);
+    applyColorSource(source);
+    if (choice == 'mine') return;
+    PlayerSettings.setTrueCoverColors(choice == 'true');
+    applyTrueCoverColors(choice == 'true');
+  }
+
+  String _appColorName(AppLocalizations l) => switch (_appColor) {
+        'mine' => l.appColorMine,
+        'true' => l.appColorTrueCover,
+        _ => l.appColorSoftCover,
+      };
+
+  List<Widget> _generalGroups(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
@@ -2790,6 +2825,14 @@ class SettingsScreenState extends State<SettingsScreen> {
           ],
         ],
       ),
+    ];
+  }
+
+  List<Widget> _appearanceGroups(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final l = AppLocalizations.of(context)!;
+    return [
       SettingsGroup(
         label: l.settingsGroupLook,
         children: [
@@ -2824,36 +2867,6 @@ class SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          SettingsSwitchTile(
-            title: l.flatBackgroundLabel,
-            subtitle: l.flatBackgroundSubtitle,
-            value: _flatBackground,
-            onChanged: _loaded ? (v) {
-              setState(() => _flatBackground = v);
-              PlayerSettings.setFlatBackground(v);
-              applyFlatBackground(v);
-            } : null,
-          ),
-          if (!_flatBackground)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l.backgroundIntensityLabel, style: tt.bodyMedium),
-                  Slider(
-                    value: _gradientIntensity.clamp(0.0, 0.45),
-                    min: 0.0,
-                    max: 0.45,
-                    onChanged: _loaded ? (v) {
-                      setState(() => _gradientIntensity = v);
-                      applyGradientIntensity(v);
-                    } : null,
-                    onChangeEnd: (v) => PlayerSettings.setGradientIntensity(v),
-                  ),
-                ],
-              ),
-            ),
           if (AppPlatform.isAndroid)
             SettingsSwitchTile(
               title: l.materialExpressiveLabel,
@@ -2875,39 +2888,6 @@ class SettingsScreenState extends State<SettingsScreen> {
                 PlayerSettings.setLiquidGlassNav(v);
               } : null,
             ),
-          SettingsSwitchTile(
-            title: l.einkModeLabel,
-            subtitle: l.einkModeSubtitle,
-            value: _einkMode,
-            onChanged: _loaded ? (v) async {
-              if (v) {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text(l.einkModeLabel),
-                    content: Text(l.einkModeIntroBody),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: Text(l.cancel),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: Text(l.einkModeIntroConfirm),
-                      ),
-                    ],
-                  ),
-                );
-                if (ok != true || !mounted) return;
-              }
-              setState(() => _einkMode = v);
-              PlayerSettings.setEinkMode(v);
-              applyEinkModeTheme(v);
-              if (mounted) {
-                context.read<LibraryProvider>().applyEinkMode(v);
-              }
-            } : null,
-          ),
         ],
       ),
       SettingsGroup(
@@ -2918,23 +2898,19 @@ class SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l.colorSourceLabel, style: tt.titleSmall),
+                Text(l.appColorLabel, style: tt.titleSmall),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: SegmentedButton<String>(
                     showSelectedIcon: false,
                     segments: [
-                      ButtonSegment(value: 'dynamic', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.colorSourceDynamic, maxLines: 1))),
-                      ButtonSegment(value: 'manual', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.colorSourceManual, maxLines: 1))),
+                      ButtonSegment(value: 'soft', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.appColorSoftCover, maxLines: 1))),
+                      ButtonSegment(value: 'true', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.appColorTrueCover, maxLines: 1))),
+                      ButtonSegment(value: 'mine', label: FittedBox(fit: BoxFit.scaleDown, child: Text(l.appColorMine, maxLines: 1))),
                     ],
-                    selected: {_colorSource},
-                    onSelectionChanged: _loaded ? (selected) {
-                      final src = selected.first;
-                      setState(() => _colorSource = src);
-                      PlayerSettings.setColorSource(src);
-                      applyColorSource(src);
-                    } : null,
+                    selected: {_appColor},
+                    onSelectionChanged: _loaded ? (selected) => _setAppColor(selected.first) : null,
                     style: const ButtonStyle(
                       visualDensity: VisualDensity.compact,
                     ),
@@ -2942,7 +2918,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _colorSource == 'manual' ? l.colorSourceManualDescription : l.colorSourceCoverDescription,
+                  switch (_appColor) {
+                    'mine' => l.appColorMineDescription,
+                    'true' => l.appColorTrueCoverDescription,
+                    _ => l.appColorSoftCoverDescription,
+                  },
                   style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                 ),
                 if (_colorSource == 'manual') ...[
@@ -2952,17 +2932,6 @@ class SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          if (_colorSource != 'manual')
-            SettingsSwitchTile(
-              title: l.trueCoverColorsLabel,
-              subtitle: l.trueCoverColorsSubtitle,
-              value: _trueCoverColors,
-              onChanged: _loaded ? (v) {
-                setState(() => _trueCoverColors = v);
-                PlayerSettings.setTrueCoverColors(v);
-                applyTrueCoverColors(v);
-              } : null,
-            ),
           if (_colorSource == 'manual')
             SettingsSwitchTile(
               title: l.useColorEverywhereLabel,
@@ -2973,6 +2942,38 @@ class SettingsScreenState extends State<SettingsScreen> {
                 PlayerSettings.setUseColorEverywhere(v);
                 applyUseColorEverywhere(v);
               } : null,
+            ),
+        ],
+      ),
+      SettingsGroup(
+        label: l.settingsGroupGlow,
+        children: [
+          SettingsSwitchTile(
+            title: l.flatBackgroundLabel,
+            subtitle: l.flatBackgroundSubtitle,
+            value: _flatBackground,
+            onChanged: _loaded ? (v) {
+              setState(() => _flatBackground = v);
+              PlayerSettings.setFlatBackground(v);
+              applyFlatBackground(v);
+            } : null,
+          ),
+          if (!_flatBackground)
+            SettingsSliderTile(
+              title: l.glowStrengthLabel,
+              value: _gradientIntensity <= 0
+                  ? l.off
+                  : '${(_gradientIntensity.clamp(0.0, 0.45) / 0.45 * 100).round()}%',
+              slider: Slider(
+                value: _gradientIntensity.clamp(0.0, 0.45),
+                min: 0.0,
+                max: 0.45,
+                onChanged: _loaded ? (v) {
+                  setState(() => _gradientIntensity = v);
+                  applyGradientIntensity(v);
+                } : null,
+                onChangeEnd: (v) => PlayerSettings.setGradientIntensity(v),
+              ),
             ),
         ],
       ),
@@ -3060,6 +3061,43 @@ class SettingsScreenState extends State<SettingsScreen> {
             onChanged: _loaded ? (v) {
               setState(() => _showSubtitles = v);
               PlayerSettings.setShowSubtitles(v);
+            } : null,
+          ),
+        ],
+      ),
+      SettingsGroup(
+        children: [
+          SettingsSwitchTile(
+            title: l.einkModeLabel,
+            subtitle: l.einkModeSubtitle,
+            value: _einkMode,
+            onChanged: _loaded ? (v) async {
+              if (v) {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text(l.einkModeLabel),
+                    content: Text(l.einkModeIntroBody),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: Text(l.cancel),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: Text(l.einkModeIntroConfirm),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok != true || !mounted) return;
+              }
+              setState(() => _einkMode = v);
+              PlayerSettings.setEinkMode(v);
+              applyEinkModeTheme(v);
+              if (mounted) {
+                context.read<LibraryProvider>().applyEinkMode(v);
+              }
             } : null,
           ),
         ],
@@ -3884,7 +3922,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Text(l.shakeSensitivity, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
                     Text(_shakeSensitivityLabel(l, _shakeSensitivity),
-                      style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                      style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
                   ],
                 ),
               ),
@@ -3945,7 +3983,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(l.sleepAddAmount, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
                   Text(l.shakeAddsValue(_shakeAddMinutes),
-                    style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                    style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
                 ],
               ),
             ),
@@ -4120,7 +4158,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             SettingsTile(
               title: l.windowStart,
               trailing: Text(_autoSleepSettings.startLabel,
-                style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
               onTap: () async {
                 final picked = await showTimePicker(
                   context: context,
@@ -4138,7 +4176,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             SettingsTile(
               title: l.windowEnd,
               trailing: Text(_autoSleepSettings.endLabel,
-                style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
               onTap: () async {
                 final picked = await showTimePicker(
                   context: context,
@@ -4175,7 +4213,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Text(l.timerDuration, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
                     Text(l.shakeAddsValue(_autoSleepSettings.durationMinutes),
-                      style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.primary)),
+                      style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
                   ],
                 ),
               ),
@@ -4346,7 +4384,7 @@ class SettingsScreenState extends State<SettingsScreen> {
         children: [
           if (!AppPlatform.isIOS && _canPickDownloadLocation)
           ListTile(
-            leading: Icon(Icons.folder_outlined, color: cs.primary),
+            leading: Icon(Icons.folder_outlined, color: cs.onSurfaceVariant),
             title: Text(l.downloadLocation),
             subtitle: Text(
               _downloadLocationLabel,
@@ -4636,7 +4674,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Text(l.currentLibrarySkipBack, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
                     Text(l.secondsValue(_curLibSkipBack.toString()), style: tt.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600, color: cs.primary)),
+                        fontWeight: FontWeight.w600, color: cs.onSurface)),
                   ],
                 ),
               ),
@@ -4656,7 +4694,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Text(l.currentLibrarySkipForward, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
                     Text(l.secondsValue(_curLibSkipForward.toString()), style: tt.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600, color: cs.primary)),
+                        fontWeight: FontWeight.w600, color: cs.onSurface)),
                   ],
                 ),
               ),
@@ -4689,7 +4727,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Text(l.currentLibrarySpeed, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
                     Text(l.speedValue(_curLibSpeed.toStringAsFixed(2)), style: tt.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600, color: cs.primary)),
+                        fontWeight: FontWeight.w600, color: cs.onSurface)),
                   ],
                 ),
               ),
@@ -5388,7 +5426,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           Text(isSkipped ? '→ ${l.rewindNoRewind}' : '→ ${l.rewindSeconds(rewind.toStringAsFixed(1))}',
             style: tt.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: isSkipped ? cs.onSurfaceVariant.withValues(alpha: 0.3) : cs.primary)),
+                color: isSkipped ? cs.onSurfaceVariant.withValues(alpha: 0.3) : cs.onSurface)),
         ],
       ),
     );
@@ -5436,12 +5474,12 @@ class SettingsScreenState extends State<SettingsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: cs.primaryContainer.withValues(alpha: 0.15),
+                color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
               ),
               child: Row(children: [
-                Icon(Icons.folder_rounded, color: cs.primary, size: 20),
+                Icon(Icons.folder_rounded, color: cs.onSurfaceVariant, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -5449,7 +5487,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Text(l.currentLocation,
                         style: tt.labelSmall?.copyWith(
-                          color: cs.primary, fontWeight: FontWeight.w600)),
+                          color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(_downloadLocationLabel,
                         style: tt.bodySmall?.copyWith(color: cs.onSurface),
@@ -6096,7 +6134,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(2)))),
         const SizedBox(height: 8),
         ListTile(
-          leading: Icon(Icons.dns_rounded, color: cs.primary),
+          leading: Icon(Icons.dns_rounded, color: cs.onSurfaceVariant),
           title: Text(l.editServerConnectionAction),
           onTap: () { Navigator.pop(ctx); _editServerConnection(context, account); }),
         ListTile(

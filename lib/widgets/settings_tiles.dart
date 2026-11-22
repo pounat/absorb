@@ -43,10 +43,10 @@ class SettingsSectionTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.14),
+                  color: cs.onSurface.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: cs.primary, size: 22),
+                child: Icon(icon, color: cs.onSurface, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -77,25 +77,65 @@ class SettingsSectionTile extends StatelessWidget {
 }
 
 /// A section opened as its own page, with a big title that shrinks into the
-/// bar as the page scrolls.
+/// bar as the page scrolls. [pinned] stays under the bar while the rest
+/// scrolls, on screens tall enough to spare the room.
 class SettingsPage extends StatelessWidget {
   final String title;
   final Widget child;
+  final Widget? pinned;
+  final double pinnedHeight;
 
-  const SettingsPage({super.key, required this.title, required this.child});
+  const SettingsPage({
+    super.key,
+    required this.title,
+    required this.child,
+    this.pinned,
+    this.pinnedHeight = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final pinned = this.pinned;
+    final roomToPin = MediaQuery.sizeOf(context).height - pinnedHeight >= 440;
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(title: Text(title)),
+          if (pinned != null && roomToPin)
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _PinnedHeader(
+                height: pinnedHeight,
+                child: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor, child: pinned),
+              ),
+            )
+          else if (pinned != null)
+            SliverToBoxAdapter(child: SizedBox(height: pinnedHeight, child: pinned)),
           SliverToBoxAdapter(child: child),
           SliverToBoxAdapter(child: SizedBox(height: 32 + MediaQuery.paddingOf(context).bottom)),
         ],
       ),
     );
   }
+}
+
+class _PinnedHeader extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Widget child;
+
+  const _PinnedHeader({required this.height, required this.child});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+
+  @override
+  bool shouldRebuild(_PinnedHeader old) => old.height != height || old.child != child;
 }
 
 /// Related settings kept together under a small label. Each row is its own
@@ -126,7 +166,7 @@ class SettingsGroup extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               child: Text(
                 label!,
-                style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w700),
+                style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w700),
               ),
             ),
           for (var i = 0; i < n; i++)
@@ -290,10 +330,10 @@ class SettingsSliderTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.14),
+                  color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(value, style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w700)),
+                child: Text(value, style: tt.labelLarge?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
