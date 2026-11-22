@@ -39,6 +39,7 @@ object AudioWindowExtractor {
         startSeconds: Double,
         durationSeconds: Double,
         outPath: String,
+        headers: Map<String, String> = emptyMap(),
     ): Boolean {
         // An MP3 can't be seeked accurately (see [Mp3Slicer]), so cut the window
         // out by frame count first and decode that instead. Anything else - an
@@ -51,6 +52,7 @@ object AudioWindowExtractor {
                 sliced?.startSeconds ?: startSeconds,
                 durationSeconds,
                 outPath,
+                headers,
             )
         } finally {
             sliced?.temp?.delete()
@@ -63,6 +65,7 @@ object AudioWindowExtractor {
         startSeconds: Double,
         durationSeconds: Double,
         outPath: String,
+        headers: Map<String, String>,
     ): Boolean {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
@@ -71,6 +74,9 @@ object AudioWindowExtractor {
             // which only the context overload can open - same as AudioClipExporter.
             if (sourcePath.startsWith("content://")) {
                 extractor.setDataSource(context, Uri.parse(sourcePath), null)
+            } else if (headers.isNotEmpty() && sourcePath.startsWith("http")) {
+                // A streamed book behind a proxy that wants its own header.
+                extractor.setDataSource(sourcePath, headers)
             } else {
                 extractor.setDataSource(sourcePath)
             }

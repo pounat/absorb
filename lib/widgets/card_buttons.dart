@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import '../tv/tv_focus_ring.dart';
+import 'remote_ok.dart';
+import 'remote_tap.dart';
+import 'glass_look.dart';
+import 'expressive.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -13,20 +18,28 @@ import '../services/audio_player_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
+import '../services/ebook_annotation_service.dart';
 import '../services/lyrics_service.dart';
 import '../services/transcription_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/playback_history_service.dart';
+import '../services/narrated_books.dart';
 import '../services/scoped_prefs.dart';
+import '../services/screen_wake.dart';
 import '../services/sleep_timer_service.dart';
+import '../utils/app_platform.dart';
 import '../utils/episode_key.dart';
 import 'absorb_slider.dart';
 import 'absorbing_shared.dart';
+import 'adaptive_modal.dart';
 import 'book_detail_sheet.dart';
+import '../tv/tv_book_screen.dart' show openTvBook;
+import '../tv/tv_night_mode.dart';
 import 'bookmark_detail_dialog.dart';
 import 'card_button_config.dart';
 import 'card_chapters_sheet.dart';
 import 'chromecast_button.dart';
+import 'ebook_router.dart';
 import 'episode_detail_sheet.dart';
 import 'episode_list_sheet.dart';
 import 'equalizer_sheet.dart';
@@ -36,6 +49,8 @@ import 'notes_sheet.dart';
 import 'overlay_toast.dart';
 import 'sleep_timer_sheet.dart';
 import 'transcription_download_prompt.dart';
+import 'remote_text_field.dart';
+import 'tints.dart';
 
 /// E-ink screens dither faint greys and cover-colored accents into noise, so
 /// the card controls bump to near-black when e-ink mode is on. Disabled stays
@@ -45,21 +60,145 @@ Color _inkAccent(Color accent) =>
 double _inkAlpha(double normal, double eink) =>
     PlayerSettings.einkMode ? eink : normal;
 
+/// A card button's fill under the Button background setting. Subtle is the
+/// tint at the given strength; Solid lays it over an opaque surface.
+Color _buttonFill(ColorScheme cs, Color tint, double normal, double eink, {bool neutral = false}) =>
+    switch (PlayerSettings.cardButtonFill) {
+      'clear' => Colors.transparent,
+      'solid' => neutral
+          ? cs.surfaceContainerHighest
+          : Color.alphaBlend(tint.withValues(alpha: 0.2), cs.surfaceContainerHighest),
+      _ => tint.withValues(alpha: _inkAlpha(normal, eink)),
+    };
+
+/// A card button's edge; Clear drops it with the fill.
+Color _buttonEdge(Color tint, double normal, double eink) =>
+    PlayerSettings.cardButtonFill == 'clear' ? Colors.transparent : tint.withValues(alpha: _inkAlpha(normal, eink));
+
 /// Wrapper that gives any child a press-down opacity+scale effect.
 class Pressable extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final HitTestBehavior? behavior;
   final Widget child;
-  const Pressable({super.key, this.onTap, this.onLongPress, this.behavior, required this.child});
+
+  /// On a TV, the remote's focus lands here; the card hands the play button
+  /// one so the full player opens with it picked.
+  final FocusNode? focusNode;
+
+  /// A round button: the remote's outline is a circle.
+  final bool focusCircle;
+  const Pressable({super.key, this.onTap, this.onLongPress, this.behavior, this.focusNode, this.focusCircle = false, required this.child});
   @override State<Pressable> createState() => _PressableState();
 }
 
 class _PressableState extends State<Pressable> {
   bool _pressed = false;
+  bool _focused = false;
+  DateTime? _pressedAt;
 
   @override
   Widget build(BuildContext context) {
+    final body = _body(context);
+    if (!AppPlatform.isTv) return body;
+    final onTap = widget.onTap;
+    final edge = BorderSide(color: Theme.of(context).colorScheme.onSurface, width: 3);
+    final ShapeBorder outline = widget.focusCircle
+        ? CircleBorder(side: edge)
+        : RoundedRectangleBorder(borderRadius: cardButtonCorners(context, 14), side: edge);
+    return RemoteOk(
+      onPress: onTap,
+      onHold: widget.onLongPress,
+      onDown: onTap == null ? null : _press,
+      onUp: onTap == null ? null : _release,
+      child: TvDrawsOwnFocus(
+      child: FocusableActionDetector(
+      focusNode: widget.focusNode,
+      enabled: onTap != null,
+      onShowFocusHighlight: (v) => setState(() => _focused = v),
+      child: AnimatedScale(
+        scale: _focused ? 1.06 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: ShapeDecoration(
+            shape: _focused ? outline : const RoundedRectangleBorder(),
+            color: _focused ? Colors.white.withValues(alpha: 0.08) : null,
+          ),
+          child: body,
+        ),
+      ),
+      ),
+      ),
+    );
+  }
+
+  void _press() {
+    _pressedAt = DateTime.now();
+    setState(() => _pressed = true);
+  }
+
+  // A quick tap lets go before the squish has shown, so the Expressive look
+  // holds it for a moment first.
+  void _release() {
+    final since = _pressedAt == null
+        ? const Duration(seconds: 1)
+        : DateTime.now().difference(_pressedAt!);
+    const hold = Duration(milliseconds: 90);
+    if (!(expressiveNotifier.value || glassLook) || since >= hold) {
+      setState(() => _pressed = false);
+      return;
+    }
+    Future.delayed(hold - since, () {
+      if (mounted) setState(() => _pressed = false);
+    });
+  }
+
+  Widget _body(BuildContext context) {
+    if (expressiveNotifier.value && !MediaQuery.disableAnimationsOf(context)) {
+      // Squashes flat and wide under the finger, then springs back past its
+      // resting size before settling.
+      return GestureDetector(
+        behavior: widget.behavior,
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        onTapDown: (_) => _press(),
+        onTapUp: (_) => _release(),
+        onTapCancel: _release,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(end: _pressed ? 1.0 : 0.0),
+          duration: Duration(milliseconds: _pressed ? 90 : 520),
+          curve: _pressed ? Curves.easeOut : Curves.elasticOut,
+          builder: (context, t, child) => Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.diagonal3Values(1 + 0.08 * t, 1 - 0.14 * t, 1),
+            child: Opacity(opacity: (1 - 0.25 * t).clamp(0.0, 1.0), child: child),
+          ),
+          child: widget.child,
+        ),
+      );
+    }
+    if (glassLook && !MediaQuery.disableAnimationsOf(context)) {
+      // iOS glass: the button dips under the finger and springs back.
+      return GestureDetector(
+        behavior: widget.behavior,
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        onTapDown: (_) => _press(),
+        onTapUp: (_) => _release(),
+        onTapCancel: _release,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(end: _pressed ? 1.0 : 0.0),
+          duration: Duration(milliseconds: _pressed ? 90 : 480),
+          curve: _pressed ? Curves.easeOut : Curves.elasticOut,
+          builder: (context, t, child) => Transform.scale(
+            scale: 1 - 0.1 * t,
+            child: Opacity(opacity: (1 - 0.2 * t).clamp(0.0, 1.0), child: child),
+          ),
+          child: widget.child,
+        ),
+      );
+    }
     return GestureDetector(
       behavior: widget.behavior,
       onTap: widget.onTap,
@@ -81,6 +220,25 @@ class _PressableState extends State<Pressable> {
 }
 
 /// Show a toast when the user taps a button that requires active playback.
+/// The card's Keep screen on button: holds the screen while the player is up,
+/// until the app is closed. With the Settings switch on, the button switches
+/// it off for this run only; the next launch follows Settings again.
+void toggleKeepScreenOn(BuildContext context) {
+  final l = AppLocalizations.of(context)!;
+  if (PlayerScreenWake.always) {
+    final off = !PlayerScreenWake.sessionOff.value;
+    PlayerScreenWake.sessionOff.value = off;
+    showOverlayToast(context,
+        off ? l.keepScreenOnOffUntilRestart : l.keepScreenOnUntilClosed,
+        icon: off ? Icons.lightbulb_outline_rounded : Icons.lightbulb_rounded);
+    return;
+  }
+  final on = !PlayerScreenWake.sessionOn.value;
+  PlayerScreenWake.sessionOn.value = on;
+  showOverlayToast(context, on ? l.keepScreenOnUntilClosed : l.keepScreenOnOff,
+      icon: on ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded);
+}
+
 void showInactiveToast(BuildContext context) {
   final l = AppLocalizations.of(context)!;
   showOverlayToast(context, l.startPlayingSomethingFirst,
@@ -135,13 +293,13 @@ class CardWideButton extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
           color: highlighted
-              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-              : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
-          borderRadius: BorderRadius.circular(radius),
+              ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+              : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
+          borderRadius: cardButtonCorners(context, radius, round: highlighted),
           border: Border.all(
               color: highlighted
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
         ),
         child: showIconOnly
           ? Center(child: Icon(icon, size: iconSize, color: fgColor))
@@ -166,6 +324,9 @@ class MoreMenuItem extends StatelessWidget {
   final String label;
   final Color accent;
   final bool enabled;
+  // A toggle that is currently on: the pill lights up in the accent so the
+  // state shows before you press it.
+  final bool active;
   final VoidCallback onTap;
 
   const MoreMenuItem({
@@ -173,10 +334,12 @@ class MoreMenuItem extends StatelessWidget {
     required this.icon, required this.label,
     required this.accent, required this.onTap,
     this.enabled = true,
+    this.active = false,
   });
 
   @override Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ink = _inkAccent(accent);
     // Grid pill: centered icon over a short label, fills its (fixed-height)
     // grid cell. Matches the book menu's quick-actions pills. The loose
     // Flexible lets a long label ellipsise inside the cell at big font scales.
@@ -185,21 +348,28 @@ class MoreMenuItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHigh,
+          color: active ? ink.withValues(alpha: _inkAlpha(0.18, 0.0)) : cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+          border: Border.all(
+            color: active
+                ? ink.withValues(alpha: _inkAlpha(0.6, 1.0))
+                : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55)),
+            width: active ? 1.5 : 1,
+          ),
         ),
         child: Column(mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(icon, size: 22, color: enabled
-              ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.85, 1.0))
+              ? ink.withValues(alpha: _inkAlpha(active ? 1.0 : 0.85, 1.0))
               : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))),
           const SizedBox(height: 7),
           Flexible(child: Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: enabled
-                  ? cs.onSurface.withValues(alpha: _inkAlpha(0.85, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85)),
-              fontSize: 11, fontWeight: FontWeight.w500, height: 1.15))),
+              color: !enabled
+                  ? cs.onSurface.withValues(alpha: _inkAlpha(0.24, 0.85))
+                  : active
+                      ? ink
+                      : cs.onSurface.withValues(alpha: _inkAlpha(0.85, 1.0)),
+              fontSize: 11, fontWeight: active ? FontWeight.w700 : FontWeight.w500, height: 1.15))),
         ]),
       ),
     );
@@ -238,10 +408,11 @@ class CardSleepButtonInline extends StatelessWidget {
           label = l.timer;
         }
 
-        final h = compact ? 30.0 : (large ? 48.0 : 36.0);
+        // Same height as the other buttons: icon, padding and border.
+        final h = compact ? 31.0 : (large ? 50.0 : 38.0);
         final iconSz = compact ? 13.0 : (large ? 20.0 : 16.0);
         final fontSize = compact ? 10.0 : (large ? (active && isTime ? 15.0 : 14.0) : (active && isTime ? 13.0 : 12.0));
-        final radius = compact ? 10.0 : (large ? 16.0 : 14.0);
+        final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
 
         return Pressable(
           onTap: isActive ? () {
@@ -252,12 +423,12 @@ class CardSleepButtonInline extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: active
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
-              borderRadius: BorderRadius.circular(radius),
+                  ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
+              borderRadius: cardButtonCorners(context, radius),
               border: Border.all(color: active
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: Stack(children: [
               if (active && isTime)
@@ -349,10 +520,11 @@ class CardDownloadButtonInline extends StatelessWidget {
           color = cs.onSurfaceVariant;
         }
 
-        final h = compact ? 30.0 : (large ? 48.0 : 36.0);
+        // Same height as the other buttons: icon, padding and border.
+        final h = compact ? 31.0 : (large ? 50.0 : 38.0);
         final iconSz = compact ? 13.0 : (large ? 20.0 : 16.0);
         final fontSize = compact ? 10.0 : (large ? 14.0 : 12.0);
-        final radius = compact ? 10.0 : (large ? 16.0 : 14.0);
+        final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
 
         return Pressable(
           onTap: () => _handleTap(context, dl),
@@ -361,12 +533,12 @@ class CardDownloadButtonInline extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: downloaded
-                  ? dlGreen.withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
-              borderRadius: BorderRadius.circular(radius),
+                  ? _buttonFill(cs, dlGreen, 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
+              borderRadius: cardButtonCorners(context, radius),
               border: Border.all(color: downloaded
-                  ? dlGreen.withValues(alpha: _inkAlpha(0.3, 0.9))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(dlGreen, 0.3, 0.9)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: Stack(children: [
               if (downloading)
@@ -491,9 +663,9 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: vPad),
         decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+          color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
+          borderRadius: cardButtonCorners(context, radius),
+          border: Border.all(color: _buttonEdge(cs.onSurface, 0.08, 0.55)),
         ),
         child: cp || widget.iconsOnly
           ? Center(child: Icon(Icons.bookmark_outline_rounded, size: iconSz, color: cs.onSurfaceVariant))
@@ -538,12 +710,10 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
   }
 
   void _showBookmarks(BuildContext context) {
-    showModalBottomSheet(
-      context: context, backgroundColor: Colors.transparent, isScrollControlled: true, useSafeArea: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
-        builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, episodeId: widget.episodeId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
-      ),
+    showAdaptiveSheetDialog(
+      context: context, widthClass: DialogWidthClass.action, backgroundColor: Colors.transparent, useSafeArea: true,
+      initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
+      builder: (ctx, sc) => SimpleBookmarkSheet(itemId: widget.itemId, episodeId: widget.episodeId, player: widget.player, accent: widget.accent, scrollController: sc, onChanged: _loadCount),
     );
   }
 }
@@ -557,7 +727,8 @@ class CardSpeedButtonInline extends StatefulWidget {
   final bool compact;
   final bool iconsOnly;
   final String? itemId;
-  const CardSpeedButtonInline({super.key, required this.player, required this.accent, required this.isActive, this.large = false, this.compact = false, this.iconsOnly = false, this.itemId});
+  final String? libraryId;
+  const CardSpeedButtonInline({super.key, required this.player, required this.accent, required this.isActive, this.large = false, this.compact = false, this.iconsOnly = false, this.itemId, this.libraryId});
 
   @override State<CardSpeedButtonInline> createState() => _CardSpeedButtonInlineState();
 }
@@ -581,17 +752,18 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
   Future<void> _loadSavedSpeed() async {
     if (widget.itemId == null) return;
     final bookSpeed = await PlayerSettings.getBookSpeed(widget.itemId!);
-    final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+    final speed = bookSpeed ?? await PlayerSettings.defaultSpeedFor(libraryId: widget.libraryId);
     if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
   }
 
   @override Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final cast = ChromecastService();
-    final h = widget.compact ? 30.0 : (widget.large ? 48.0 : 36.0);
+    // Same height as the other buttons: icon, padding and border.
+    final h = widget.compact ? 31.0 : (widget.large ? 50.0 : 38.0);
     final iconSz = widget.compact ? 13.0 : (widget.large ? 20.0 : 16.0);
     final fontSize = widget.compact ? 10.0 : (widget.large ? 15.0 : 13.0);
-    final radius = widget.compact ? 10.0 : (widget.large ? 16.0 : 14.0);
+    final radius = widget.compact ? 10.0 : (widget.large ? 14.0 : 12.0);
     return ListenableBuilder(
       listenable: Listenable.merge([cast, widget.player]),
       builder: (context, _) {
@@ -620,16 +792,16 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
         }
         return Pressable(
           onTap: () {
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent,
+            showAdaptiveActionMenu(context: context, backgroundColor: Colors.transparent,
               useSafeArea: true,
-              builder: (ctx) => CardSpeedSheet(player: widget.player, accent: widget.accent, itemId: widget.itemId));
+              builder: (ctx) => CardSpeedSheet(player: widget.player, accent: widget.accent, itemId: widget.itemId, libraryId: widget.libraryId));
           },
           child: Container(
             height: h,
             decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
-              borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+              color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
+              borderRadius: cardButtonCorners(context, radius),
+              border: Border.all(color: _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: content,
           ),
@@ -642,8 +814,8 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
 // ─── SPEED SHEET ─────────────────────────────────────────────
 
 class CardSpeedSheet extends StatefulWidget {
-  final AudioPlayerService player; final Color accent; final String? itemId;
-  const CardSpeedSheet({super.key, required this.player, required this.accent, this.itemId});
+  final AudioPlayerService player; final Color accent; final String? itemId; final String? libraryId;
+  const CardSpeedSheet({super.key, required this.player, required this.accent, this.itemId, this.libraryId});
   @override State<CardSpeedSheet> createState() => _CardSpeedSheetState();
 }
 
@@ -690,7 +862,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
   Future<void> _loadSavedSpeed() async {
     if (widget.itemId == null) return;
     final bookSpeed = await PlayerSettings.getBookSpeed(widget.itemId!);
-    final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+    final speed = bookSpeed ?? await PlayerSettings.defaultSpeedFor(libraryId: widget.libraryId);
     if (mounted) setState(() => _speed = (speed * 20).round() / 20.0);
   }
   void _setSpeed(double v) {
@@ -715,14 +887,16 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     return Container(
       padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + navBarPad),
       decoration: BoxDecoration(color: Theme.of(context).bottomSheetTheme.backgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1))),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 20),
         Text(l.playbackSpeed, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
-        Text('${_speed.toStringAsFixed(2)}x', style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: widget.accent)),
+        Text('${_speed.toStringAsFixed(2)}x', style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
         const SizedBox(height: 12),
+        // About taps and long presses, so not on a TV.
+        if (!AppPlatform.isTv)
         const FeatureHint(
           prefKey: 'hint_speed_presets',
           message: 'Tap + to save the current speed as a preset. Long-press a chip to remove it.',
@@ -732,7 +906,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
           ..._presets.map((s) {
             final a = (_speed - s).abs() < 0.01;
             final canRemove = _presets.length > 1;
-            return GestureDetector(
+            return RemoteTap(
               onTap: () => _setSpeed(s),
               onLongPress: canRemove ? () => _removePreset(s) : null,
               child: AnimatedContainer(
@@ -744,7 +918,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
               ),
             );
           }),
-          GestureDetector(
+          RemoteTap(
             onTap: _addCurrentAsPreset,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -759,7 +933,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
         ]),
         const SizedBox(height: 16),
         Row(children: [
-          GestureDetector(
+          RemoteTap(
             onTap: () => _setSpeed(_speed - 0.05),
             child: Container(
               width: 36, height: 36,
@@ -768,7 +942,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
             ),
           ),
           Expanded(child: AbsorbSlider(value: _speed, min: 0.5, max: 5.0, divisions: 90, activeColor: widget.accent, onChanged: _setSpeed)),
-          GestureDetector(
+          RemoteTap(
             onTap: () => _setSpeed(_speed + 0.05),
             child: Container(
               width: 36, height: 36,
@@ -793,7 +967,9 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
 
 class SimpleBookmarkSheet extends StatefulWidget {
   final String itemId; final String? episodeId; final AudioPlayerService player; final Color accent; final ScrollController scrollController; final VoidCallback onChanged;
-  const SimpleBookmarkSheet({super.key, required this.itemId, this.episodeId, required this.player, required this.accent, required this.scrollController, required this.onChanged});
+  /// Off inside the reader, which lists its own highlights.
+  final bool showHighlights;
+  const SimpleBookmarkSheet({super.key, required this.itemId, this.episodeId, required this.player, required this.accent, required this.scrollController, required this.onChanged, this.showHighlights = true});
 
   /// Storage key: 'showId-episodeId' for a podcast episode, the item id for a
   /// book. [itemId] stays the library item for anything the server answers.
@@ -803,17 +979,24 @@ class SimpleBookmarkSheet extends StatefulWidget {
 
 class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
   List<Bookmark>? _bookmarks;
+  // The book's ebook highlights, for a book with an ebook beside its audio or
+  // one that reads itself aloud.
+  List<EbookAnnotation> _highlights = const [];
+  bool _onHighlights = false;
   String _sort = 'newest';
   bool _speedAdjustedTime = true;
   double _savedSpeed = 1.0;
   @override void initState() {
     super.initState();
     _loadSort();
+    if (widget.showHighlights && widget.episodeId == null) _loadHighlights();
     PlayerSettings.getSpeedAdjustedTime().then((v) {
       if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
     });
     PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
-      final speed = s ?? await PlayerSettings.getDefaultSpeed();
+      final speed = s ??
+          await PlayerSettings.defaultSpeedFor(
+              libraryId: context.read<LibraryProvider>().libraryIdOf(widget.itemId, episodeId: widget.episodeId));
       if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
     });
   }
@@ -851,6 +1034,80 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
     widget.onChanged();
   }
 
+  Future<void> _loadHighlights() async {
+    final all = await EbookAnnotationService().getAnnotations(widget.itemId);
+    final highlights = all.where((a) => a.type == AnnotationType.highlight).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    if (!mounted) return;
+    setState(() {
+      _highlights = highlights;
+      if (highlights.isEmpty) _onHighlights = false;
+    });
+  }
+
+  Future<void> _openHighlight(EbookAnnotation highlight) async {
+    await openHighlightInReader(context, itemId: widget.itemId, cfi: highlight.cfi);
+    // Highlights added, recolored or removed while reading.
+    if (mounted) await _loadHighlights();
+  }
+
+  Widget _tab(String label, bool selected, VoidCallback onTap) {
+    final cs = Theme.of(context).colorScheme;
+    return RemoteTap(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? widget.accent.withValues(alpha: Tints.soft) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(label, style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: selected ? widget.accent : cs.onSurfaceVariant,
+        )),
+      ),
+    );
+  }
+
+  Widget _highlightList(TextTheme tt, ColorScheme cs, AppLocalizations l) => ListView.builder(
+    controller: widget.scrollController, padding: const EdgeInsets.only(bottom: 24), itemCount: _highlights.length,
+    itemBuilder: (ctx, i) {
+      final h = _highlights[i];
+      final hex = (h.color ?? HighlightColor.yellow).hex;
+      final created = h.createdAt;
+      final date = l.backupDateFormat(created.month, created.day, created.year);
+      final chapter = h.chapter;
+      final meta = chapter != null && chapter.isNotEmpty ? l.highlightsMeta(chapter, date) : date;
+      final hasNote = h.note != null && h.note!.isNotEmpty;
+      return InkWell(
+        onTap: () => _openHighlight(h),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Container(
+            padding: const EdgeInsets.only(left: 10),
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(color: Color(int.parse('FF${hex.substring(1)}', radix: 16)), width: 3)),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(h.selectedText ?? '', maxLines: 4, overflow: TextOverflow.ellipsis, style: tt.bodyMedium),
+              if (hasNote) ...[
+                const SizedBox(height: 4),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(Icons.sticky_note_2_outlined, size: 14, color: cs.onSurfaceVariant.withValues(alpha: 0.7)),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(h.note!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))),
+                ]),
+              ],
+              const SizedBox(height: 4),
+              Text(meta, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+            ]),
+          ),
+        ),
+      );
+    },
+  );
+
   @override Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
@@ -859,13 +1116,13 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: Column(children: [
         Padding(padding: const EdgeInsets.symmetric(vertical: 12),
           child: Container(width: 40, height: 4, decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2)))),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(children: [
-          GestureDetector(
+          if (_onHighlights) const SizedBox(width: 36) else RemoteTap(
             onTap: () {
               final next = _sort == 'newest' ? 'position'
                   : _sort == 'position' ? 'position_desc'
@@ -891,24 +1148,35 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
             ),
           ),
           const Spacer(),
-          Text(l.bookmarks, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          if (_highlights.isEmpty)
+            Text(l.bookmarks, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600))
+          else ...[
+            _tab(l.bookmarksTabBookmarks, !_onHighlights, () => setState(() => _onHighlights = false)),
+            const SizedBox(width: 6),
+            _tab(l.bookmarksTabHighlights, _onHighlights, () => setState(() => _onHighlights = true)),
+          ],
           const Spacer(),
-          GestureDetector(onTap: () => _addBookmark(), child: Container(
+          if (_onHighlights) const SizedBox(width: 36) else RemoteTap(onTap: () => _addBookmark(), child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(color: widget.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
             child: Icon(Icons.add_rounded, color: widget.accent, size: 20),
           )),
         ])),
         const SizedBox(height: 8),
-        Expanded(child: _bookmarks == null
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+        Expanded(child: _onHighlights
+            ? _highlightList(tt, cs, l)
+            : _bookmarks == null
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : _bookmarks!.isEmpty
                 ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.bookmark_outline_rounded, size: 48, color: cs.onSurface.withValues(alpha: 0.1)),
                     const SizedBox(height: 12),
                     Text(l.noBookmarksYet, style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
-                    const SizedBox(height: 4),
-                    Text(l.longPressBookmarkHint, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.24), fontSize: 11)),
+                    // A remote has the Bookmark button's hold instead.
+                    if (!AppPlatform.isTv) ...[
+                      const SizedBox(height: 4),
+                      Text(l.longPressBookmarkHint, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.24), fontSize: 11)),
+                    ],
                   ]))
                 : ListView.builder(
                     controller: widget.scrollController, padding: const EdgeInsets.only(bottom: 24), itemCount: _bookmarks!.length,
@@ -917,7 +1185,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                       final hasNote = bm.note != null && bm.note!.isNotEmpty;
                       return InkWell(
                         onTap: () async {
-                          final result = await showModalBottomSheet<BookmarkDetailResult>(
+                          final result = await showAdaptiveActionMenu<BookmarkDetailResult>(
                             context: ctx,
                             isScrollControlled: true,
                             showDragHandle: true,
@@ -962,7 +1230,7 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
                           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
-                              child: Icon(Icons.bookmark_rounded, size: 20, color: widget.accent),
+                              child: Icon(Icons.bookmark_rounded, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                             const SizedBox(width: 12),
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1114,9 +1382,9 @@ class _SimpleBookmarkSheetState extends State<SimpleBookmarkSheet> {
       content: SizedBox(
         width: double.maxFinite,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
+          RemoteTextField(controller: titleC, autofocus: true, decoration: InputDecoration(labelText: l.titleLabel, border: const OutlineInputBorder())),
           const SizedBox(height: 12),
-          TextField(
+          RemoteTextField(
             controller: noteC,
             minLines: 3,
             maxLines: 8,
@@ -1232,7 +1500,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: SafeArea(
         child: Padding(
@@ -1246,7 +1514,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                   Container(width: 40, height: 4, decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(2))),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: GestureDetector(
+                    child: RemoteTap(
                       onTap: () => setState(() => _editing = true),
                       child: Padding(
                         padding: const EdgeInsets.all(8),
@@ -1286,7 +1554,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: SafeArea(
         child: Column(
@@ -1321,7 +1589,7 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                   label: Text(l.cardIconsOnlyChip, style: const TextStyle(fontSize: 12)),
                   selected: _iconsOnly,
                   onSelected: (v) { setState(() => _iconsOnly = v); PlayerSettings.setCardIconsOnly(v); },
-                  selectedColor: widget.accent.withValues(alpha: 0.2),
+                  selectedColor: widget.accent.withValues(alpha: Tints.strong),
                   checkmarkColor: widget.accent,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -1345,12 +1613,17 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                     });
                     PlayerSettings.setCardMoreInline(v);
                   },
-                  selectedColor: widget.accent.withValues(alpha: 0.2),
+                  selectedColor: widget.accent.withValues(alpha: Tints.strong),
                   checkmarkColor: widget.accent,
                   visualDensity: VisualDensity.compact,
                 ),
               ]),
             ),
+            if (AppPlatform.isTv)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: Text(l.tvLayoutHint, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              ),
             const SizedBox(height: 4),
             Flexible(
               child: ReorderableListView.builder(
@@ -1375,7 +1648,44 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                 // swallowing the drop zone, and keeps the section header from dragging along
                 // with the first hidden item.
                 itemCount: _order.length + 1,
-                onReorder: (oldIdx, newIdx) {
+                onReorder: _reorder,
+                itemBuilder: (context, i) => _editRow(context, i, cs, tt, l),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // On a TV, where nothing can be dragged: OK picks a button up, up and down
+  // move it a place at a time (across the line into or out of the menu
+  // too), and OK puts it down.
+  final _rowFocus = <String, FocusNode>{};
+  String? _carrying;
+  // The hold that picked a button up ends with a release; that one doesn't
+  // put it straight back down.
+  String? _justPicked;
+
+  @override
+  void dispose() {
+    for (final n in _rowFocus.values) {
+      n.dispose();
+    }
+    super.dispose();
+  }
+
+  void _step(int i, int dir) {
+    final id = _carrying;
+    if (id == null) return;
+    final last = _order.length; // the divider adds one slot
+    if (dir < 0 && i == 0) return;
+    if (dir > 0 && i >= last) return;
+    _reorder(i, dir < 0 ? i - 1 : i + 2);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _rowFocus[id]?.requestFocus());
+  }
+
+  void _reorder(int oldIdx, int newIdx) {
                   // Divider is not draggable, so oldIdx should never equal _visibleCount.
                   if (oldIdx == _visibleCount) return;
                   if (newIdx > oldIdx) newIdx--;
@@ -1409,8 +1719,9 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                       ..addAll(combined);
                     _visibleCount = newVisible;
                   });
-                },
-                itemBuilder: (context, i) {
+  }
+
+  Widget _editRow(BuildContext context, int i, ColorScheme cs, TextTheme tt, AppLocalizations l) {
                   // Divider slot - rendered as its own non-draggable list item.
                   if (i == _visibleCount) {
                     return Padding(
@@ -1435,15 +1746,21 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                   if (def == null && !isMore) return SizedBox.shrink(key: ValueKey(id));
 
                   final isOnCard = orderIdx < _visibleCount;
+                  final carried = _carrying == id;
 
-                  return Padding(
-                    key: ValueKey(id),
+                  final row = Padding(
+                    key: AppPlatform.isTv ? null : ValueKey(id),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: isOnCard ? widget.accent.withValues(alpha: 0.08) : Colors.transparent,
+                        color: carried
+                            ? widget.accent.withValues(alpha: 0.3)
+                            : isOnCard ? widget.accent.withValues(alpha: 0.08) : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
+                        border: AppPlatform.isTv && (_rowFocus[id]?.hasFocus ?? false)
+                            ? Border.all(color: cs.onSurface, width: 2)
+                            : null,
                       ),
                       child: Row(children: [
                         Icon(
@@ -1463,20 +1780,46 @@ class _MoreMenuSheetState extends State<MoreMenuSheet> {
                             padding: const EdgeInsets.only(right: 8),
                             child: Text('${orderIdx + 1}', style: tt.labelSmall?.copyWith(color: widget.accent, fontWeight: FontWeight.w700)),
                           ),
-                        ReorderableDragStartListener(
-                          index: i,
-                          child: Icon(Icons.drag_handle_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.3)),
-                        ),
+                        if (AppPlatform.isTv)
+                          Icon(carried ? Icons.unfold_more_rounded : Icons.drag_handle_rounded,
+                              size: 20, color: carried ? widget.accent : cs.onSurface.withValues(alpha: 0.3))
+                        else
+                          ReorderableDragStartListener(
+                            index: i,
+                            child: Icon(Icons.drag_handle_rounded, size: 20, color: cs.onSurface.withValues(alpha: 0.3)),
+                          ),
                       ]),
                     ),
                   );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+                  if (!AppPlatform.isTv) return row;
+                  return Focus(
+                    key: ValueKey(id),
+                    focusNode: _rowFocus.putIfAbsent(id, () => FocusNode(debugLabel: 'layout $id')),
+                    onFocusChange: (has) => setState(() {
+                      if (!has && _carrying == id) _carrying = null;
+                    }),
+                    onKeyEvent: (_, event) {
+                      final k = event.logicalKey;
+                      if (RemoteOk.isOk(k)) {
+                        // Hold picks it up; a press puts it down.
+                        if (event is KeyRepeatEvent && !carried && _carrying == null) {
+                          setState(() => _carrying = id);
+                        } else if (event is KeyUpEvent && carried && _justPicked != id) {
+                          setState(() => _carrying = null);
+                        }
+                        if (event is KeyRepeatEvent) _justPicked = id;
+                        if (event is KeyUpEvent) _justPicked = null;
+                        return KeyEventResult.handled;
+                      }
+                      if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+                      if (carried && (k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.arrowDown)) {
+                        _step(i, k == LogicalKeyboardKey.arrowUp ? -1 : 1);
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: row,
+                  );
   }
 }
 
@@ -1491,6 +1834,7 @@ class CardActionDelegate {
   final Map<String, dynamic> item;
   final String itemId;
   final String? episodeId;
+  final String? libraryId;
   final bool isPodcastEpisode;
   final String title;
   final String? author;
@@ -1508,6 +1852,7 @@ class CardActionDelegate {
   final bool iconsOnly;
   final bool moreInline;
   final List<String> buttonOrder;
+  final bool showChaptersAction;
   final VoidCallback removeFromAbsorbing;
   final VoidCallback? onRemoveExtra;
   final void Function(List<String>, int) onReorder;
@@ -1525,6 +1870,7 @@ class CardActionDelegate {
     required this.item,
     required this.itemId,
     this.episodeId,
+    this.libraryId,
     this.isPodcastEpisode = false,
     required this.title,
     this.author,
@@ -1542,6 +1888,7 @@ class CardActionDelegate {
     this.iconsOnly = false,
     this.moreInline = false,
     required this.buttonOrder,
+    this.showChaptersAction = true,
     required this.removeFromAbsorbing,
     this.onRemoveExtra,
     required this.onReorder,
@@ -1556,6 +1903,29 @@ class CardActionDelegate {
       isEbookEpub && episodeId == null && onReadAlongTap != null;
 
   Map<String, dynamic> get _media => item['media'] as Map<String, dynamic>? ?? {};
+
+  /// A book whose audio is its EPUB's narration: Read already opens on the
+  /// sentence being heard, so Find in ebook would be the same button twice.
+  bool get _narratedEbook {
+    if (episodeId != null) return false;
+    if (NarratedBooks.contains(itemId) || _media['narration'] != null) return true;
+    // A BookOrbit card's book can arrive without its files; the narration
+    // looked up when it played or opened says so either way.
+    final api = context.read<AuthProvider>().apiService;
+    return api is BookOrbitApiService && api.knownNarrated(itemId);
+  }
+
+  /// The saved button order, less what this book has no use for.
+  List<String> get _shownOrder {
+    final narrated = _narratedEbook;
+    return buttonOrder.where((id) {
+      if (narrated && id == 'findinebook') return false;
+      // A TV can't make a transcript, so read along shows only for a book
+      // whose EPUB carries its own narration timings.
+      if (AppPlatform.isTv && id == 'lyrics') return narrated && _readAlongInstead;
+      return true;
+    }).toList();
+  }
 
   /// Which episode the bookmark surfaces belong to. A card that knows its own
   /// episode wins; an active podcast card falls back to what is playing.
@@ -1656,9 +2026,29 @@ class CardActionDelegate {
     7: [3, 4], 8: [4, 4], 9: [3, 3, 3],
   };
 
-  List<Widget> buildButtonGrid(Color accent, TextTheme tt) {
+  static List<int> _balancedRows(int count, int maxPerRow) {
+    final rowCount = (count / maxPerRow).ceil();
+    final baseSize = count ~/ rowCount;
+    final largerRows = count % rowCount;
+    return <int>[
+      for (int row = 0; row < rowCount; row++)
+        row < rowCount - largerRows ? baseSize : baseSize + 1,
+    ];
+  }
+
+  List<Widget> buildButtonGrid(
+    Color accent,
+    TextTheme tt, {
+    bool showAll = false,
+  }) {
     final count = visibleButtonCount;
-    final ids = buttonOrder.take(count).toList();
+    final order = _shownOrder;
+    final ids = order
+        .take(showAll ? order.length : count)
+        .where((id) => !showAll || id != '_more')
+        .where((id) => !showAll || buttonDefById(id) != null)
+        .where((id) => showChaptersAction || id != 'chapters')
+        .toList();
     final n = ids.length;
     if (n == 0) return [];
 
@@ -1666,7 +2056,9 @@ class CardActionDelegate {
     final short = iconsOnly || n >= 3;
 
     final table = iconsOnly ? _iconRows : _labelRows;
-    final rowSizes = table[n] ?? _labelRows[n] ?? [n];
+    final rowSizes = showAll
+        ? _balancedRows(n, iconsOnly ? 5 : 3)
+        : table[n] ?? _labelRows[n] ?? [n];
 
     final rows = <Widget>[];
     int offset = 0;
@@ -1676,14 +2068,31 @@ class CardActionDelegate {
       final rowSlots = ids.sublist(offset, (offset + rowLen).clamp(0, n));
       offset += rowLen;
 
-      Widget row = Row(children: [
-        for (int c = 0; c < rowSlots.length; c++) ...[
-          if (c > 0) const SizedBox(width: 8),
-          Expanded(child: rowSlots[c] == '_more'
-              ? _buildInlineMoreButton(accent, compact: compact, short: short)
-              : buildCardButton(rowSlots[c], accent, tt, compact: compact, short: short, iconsOnly: iconsOnly)),
-        ],
-      ]);
+      final slots = [
+        for (int c = 0; c < rowSlots.length; c++)
+          KeyedSubtree(
+            key: ValueKey('card-action-${rowSlots[c]}'),
+            child: rowSlots[c] == '_more'
+                ? _buildInlineMoreButton(
+                    accent,
+                    compact: compact,
+                    short: short,
+                  )
+                : buildCardButton(
+                    rowSlots[c],
+                    accent,
+                    tt,
+                    compact: compact,
+                    short: short,
+                    iconsOnly: iconsOnly,
+                  ),
+          ),
+      ];
+      // The row's buttons join up into one connected group, everywhere. Only
+      // the Expressive look has the one under the finger widen.
+      Widget row = slots.length > 1
+          ? ExpressiveButtonRow(widen: expressiveNotifier.value, children: slots)
+          : Row(children: [Expanded(child: slots.first)]);
 
       // Center single-button rows at 1/3 width
       if (rowSlots.length == 1 && n == 1) {
@@ -1699,14 +2108,17 @@ class CardActionDelegate {
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
     final large = MediaQuery.sizeOf(context).height > 700;
-    final h = compact ? 30.0 : (large ? 48.0 : 36.0);
+    // Same height as the other buttons: icon, padding and border.
+        final h = compact ? 31.0 : (large ? 50.0 : 38.0);
     final iconSz = compact ? 13.0 : (large ? 20.0 : 16.0);
     final fontSize = compact ? 10.0 : (large ? 13.0 : 11.0);
     final vPad = compact ? 8.0 : (large ? 14.0 : 10.0);
     final radius = compact ? 10.0 : (large ? 14.0 : 12.0);
     return ListenableBuilder(
       listenable: ChromecastService(),
-      builder: (_, __) {
+      // This builder's own context sits in the row's slot; the card's context
+      // doesn't, so More came out with every corner rounded.
+      builder: (slotContext, __) {
         final castActive = ChromecastService().isCasting &&
             !buttonOrder.take(visibleCount).contains('cast');
         final iconColor = castActive ? accent : cs.onSurfaceVariant;
@@ -1718,12 +2130,12 @@ class CardActionDelegate {
             padding: EdgeInsets.symmetric(vertical: vPad),
             decoration: BoxDecoration(
               color: castActive
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.1, 0.12))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.06, 0.03)),
-              borderRadius: BorderRadius.circular(radius),
+                  ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
+                  : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
+              borderRadius: cardButtonCorners(slotContext, radius),
               border: Border.all(color: castActive
-                  ? _inkAccent(accent).withValues(alpha: _inkAlpha(0.3, 1.0))
-                  : cs.onSurface.withValues(alpha: _inkAlpha(0.08, 0.55))),
+                  ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
+                  : _buttonEdge(cs.onSurface, 0.08, 0.55)),
             ),
             child: iconsOnly
               ? Center(child: Icon(moreIcon, size: iconSz, color: iconColor))
@@ -1766,7 +2178,7 @@ class CardActionDelegate {
         return CardWideButton(
           icon: Icons.speed_rounded, label: l.speed,
           accent: accent, isActive: isPlaybackActive, large: large, compact: compact, iconsOnly: iconsOnly,
-          child: CardSpeedButtonInline(player: player, accent: accent, isActive: isActive, large: large, compact: compact, iconsOnly: iconsOnly, itemId: itemId),
+          child: CardSpeedButtonInline(player: player, accent: accent, isActive: isActive, large: large, compact: compact, iconsOnly: iconsOnly, itemId: itemId, libraryId: libraryId),
         );
       case 'sleep':
         return CardWideButton(
@@ -1857,6 +2269,23 @@ class CardActionDelegate {
           accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
           onTap: () => openCarMode(context),
         );
+      case 'wake':
+        return ValueListenableBuilder<bool>(
+          valueListenable: PlayerScreenWake.wanted,
+          builder: (_, on, __) => CardWideButton(
+            icon: on ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded,
+            label: l.keepScreenOn,
+            accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+            highlighted: on,
+            onTap: () => toggleKeepScreenOn(context),
+          ),
+        );
+      case 'night':
+        return CardWideButton(
+          icon: Icons.bedtime_rounded, label: l.tvNightMode,
+          accent: accent, isActive: true, alwaysEnabled: true, large: large, compact: compact, iconsOnly: iconsOnly,
+          onTap: TvNightMode.start,
+        );
       case 'notes':
         return CardWideButton(
           icon: Icons.note_rounded, label: l.notes,
@@ -1931,8 +2360,8 @@ class CardActionDelegate {
           enabled: true,
           onTap: () {
             Navigator.pop(ctx);
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent, useSafeArea: true,
-              builder: (_) => CardSpeedSheet(player: player, accent: accent, itemId: itemId));
+            showAdaptiveActionMenu(context: context, backgroundColor: Colors.transparent, useSafeArea: true,
+              builder: (_) => CardSpeedSheet(player: player, accent: accent, itemId: itemId, libraryId: libraryId));
           },
         );
       case 'sleep':
@@ -1950,11 +2379,9 @@ class CardActionDelegate {
           enabled: isPlaybackActive,
           onTap: () {
             Navigator.pop(ctx);
-            showModalBottomSheet(context: context, backgroundColor: Colors.transparent, isScrollControlled: true, useSafeArea: true,
-              builder: (_) => DraggableScrollableSheet(
-                initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
-                builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, episodeId: _bookmarkEpisodeId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
-              ),
+            showAdaptiveSheetDialog(context: context, widthClass: DialogWidthClass.action, backgroundColor: Colors.transparent, useSafeArea: true,
+              initialChildSize: 0.6, minChildSize: 0.05, snap: true, maxChildSize: 0.9, expand: false,
+              builder: (_, sc) => SimpleBookmarkSheet(itemId: itemId, episodeId: _bookmarkEpisodeId, player: player, accent: accent, scrollController: sc, onChanged: () {}),
             );
           },
         );
@@ -2011,6 +2438,20 @@ class CardActionDelegate {
         return MoreMenuItem(
           icon: Icons.directions_car_rounded, label: l.carModeTitle, accent: accent,
           onTap: () { Navigator.pop(ctx); openCarMode(context); },
+        );
+      case 'wake':
+        final wakeOn = PlayerScreenWake.wanted.value;
+        return MoreMenuItem(
+          icon: wakeOn ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded,
+          label: wakeOn ? l.keepScreenOnActive : l.keepScreenOn,
+          accent: accent,
+          active: wakeOn,
+          onTap: () { Navigator.pop(ctx); toggleKeepScreenOn(context); },
+        );
+      case 'night':
+        return MoreMenuItem(
+          icon: Icons.bedtime_rounded, label: l.tvNightMode, accent: accent,
+          onTap: () { Navigator.pop(ctx); TvNightMode.start(); },
         );
       case 'notes':
         return MoreMenuItem(
@@ -2116,9 +2557,14 @@ class CardActionDelegate {
 
   void showMoreMenu(Color accent, TextTheme tt) {
     final count = visibleButtonCount;
-    final overflowIds = buttonOrder.skip(count).where((id) => id != '_more').toList();
-    showModalBottomSheet(
+    final overflowIds = _shownOrder
+        .skip(count)
+        .where((id) => id != '_more' && (showChaptersAction || id != 'chapters'))
+        .toList();
+    showAdaptiveActionMenu(
       context: context,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => MoreMenuSheet(
@@ -2166,7 +2612,7 @@ class CardActionDelegate {
     final auth = ctx.read<AuthProvider>();
     final api = auth.apiService;
     if (cast.isCasting && cast.castingItemId == itemId) {
-      showModalBottomSheet(
+      showAdaptiveActionMenu(
         context: ctx,
         backgroundColor: Theme.of(ctx).bottomSheetTheme.backgroundColor,
         shape: const RoundedRectangleBorder(
@@ -2180,6 +2626,7 @@ class CardActionDelegate {
           api: api, itemId: itemId, title: title, author: author ?? '',
           coverUrl: coverUrl, totalDuration: duration, chapters: chapters,
           episodeId: episodeId ?? player.currentEpisodeId,
+          libraryId: libraryId,
         );
       }
     } else {
@@ -2243,6 +2690,10 @@ class CardActionDelegate {
   }
 
   Future<void> _openDetails() async {
+    if (AppPlatform.isTv) {
+      openTvBook(context, {...item, 'id': itemId});
+      return;
+    }
     if (episodeId != null || isPodcastEpisode) {
       final episode = await _resolveEpisode();
       if (context.mounted) EpisodeDetailSheet.show(context, item, episode);
@@ -2300,29 +2751,27 @@ void showPlaybackHistorySheet(
           (episodeId == null ||
               resolvedPlayer.currentEpisodeId == episodeId));
   final theme = Theme.of(context);
-  showModalBottomSheet(
+  showAdaptiveSheetDialog(
     context: context,
-    isScrollControlled: true,
+    widthClass: DialogWidthClass.action,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.6,
-      minChildSize: 0.05,
-      snap: true,
-      maxChildSize: 0.9,
-      builder: (_, scrollController) => _PlaybackHistoryBody(
-        itemId: itemId,
-        episodeId: episodeId,
-        api: context.read<AuthProvider>().apiService,
-        accent: accent ?? theme.colorScheme.primary,
-        tt: textTheme ?? theme.textTheme,
-        isActive: resolvedIsActive,
-        player: resolvedPlayer,
-        parentCtx: context,
-        scrollController: scrollController,
-        initialTab: initialTab,
-      ),
+    expand: false,
+    initialChildSize: 0.6,
+    minChildSize: 0.05,
+    snap: true,
+    maxChildSize: 0.9,
+    builder: (_, scrollController) => _PlaybackHistoryBody(
+      itemId: itemId,
+      episodeId: episodeId,
+      api: context.read<AuthProvider>().apiService,
+      accent: accent ?? theme.colorScheme.primary,
+      tt: textTheme ?? theme.textTheme,
+      isActive: resolvedIsActive,
+      player: resolvedPlayer,
+      parentCtx: context,
+      scrollController: scrollController,
+      initialTab: initialTab,
     ),
   );
 }
@@ -2381,7 +2830,9 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
       if (mounted && v != _speedAdjustedTime) setState(() => _speedAdjustedTime = v);
     });
     PlayerSettings.getBookSpeed(widget.itemId).then((s) async {
-      final speed = s ?? await PlayerSettings.getDefaultSpeed();
+      final speed = s ??
+          await PlayerSettings.defaultSpeedFor(
+              libraryId: context.read<LibraryProvider>().libraryIdOf(widget.itemId, episodeId: widget.episodeId));
       if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
     });
     _selectedTab = widget.initialTab.index;
@@ -2448,7 +2899,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
       decoration: BoxDecoration(
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: widget.accent.withValues(alpha: 0.2), width: 1)),
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2), width: 1)),
       ),
       child: Column(children: [
         Padding(
@@ -2563,7 +3014,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
       builder: (futureContext, snapshot) {
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: AdaptiveSpinner(strokeWidth: 2),
           );
         }
         final all = snapshot.data!;
@@ -2601,7 +3052,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
             leading: Icon(
               historyIcon(event.type),
               size: 18,
-              color: widget.accent.withValues(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(
                 alpha: isAdvancedEvent ? 0.45 : 0.7,
               ),
             ),
@@ -2654,14 +3105,14 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
   Widget _buildServerHistory(AppLocalizations l, ColorScheme cs) {
     final future = _serverFuture;
     if (future == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     return FutureBuilder<List<Map<String, dynamic>>?>(
       future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: AdaptiveSpinner(strokeWidth: 2),
           );
         }
         final sessions = snapshot.data;
@@ -2675,14 +3126,31 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
             showRetry: widget.api != null,
           );
         }
+        final add = widget.episodeId == null
+            ? Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    onPressed: _addSession,
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: Text(l.sessionAdd),
+                  ),
+                ),
+              )
+            : null;
         if (sessions.isEmpty) {
-          return _serverMessage(l.historyNoServerSessions, l, cs);
+          return Column(children: [
+            if (add != null) Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 0), child: add),
+            Expanded(child: _serverMessage(l.historyNoServerSessions, l, cs)),
+          ]);
         }
 
         return ListView(
           controller: widget.scrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
+            ?add,
             for (final session in sessions)
               ListeningSessionCard(
                 session: session,
@@ -2694,11 +3162,112 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
     );
   }
 
+  /// Logs listening done away from the app, to catch a book's listening
+  /// time up on the server.
+  Future<void> _addSession() async {
+    final api = widget.api;
+    if (api == null) return;
+    final l = AppLocalizations.of(context)!;
+    final now = DateTime.now();
+    var day = DateTime(now.year, now.month, now.day);
+    var start = TimeOfDay.fromDateTime(now.subtract(const Duration(hours: 1)));
+    final hoursCtrl = TextEditingController(text: '1');
+    final minutesCtrl = TextEditingController(text: '0');
+    String two(int v) => v.toString().padLeft(2, '0');
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialog) => AlertDialog(
+          scrollable: true,
+          title: Text(l.sessionAdd),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(l.statsScreenListened, style: Theme.of(dialogCtx).textTheme.labelLarge),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: hoursCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: l.statsHoursUnit, border: const OutlineInputBorder()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: minutesCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: l.statsMinutesUnit, border: const OutlineInputBorder()),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Text(l.sessionDayLabel, style: Theme.of(dialogCtx).textTheme.bodyMedium),
+              const Spacer(),
+              TextButton.icon(
+                icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                label: Text('${day.year}-${two(day.month)}-${two(day.day)}'),
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: dialogCtx,
+                    initialDate: day,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) setDialog(() => day = DateTime(picked.year, picked.month, picked.day));
+                },
+              ),
+            ]),
+            Row(children: [
+              Text(l.sessionStartLabel, style: Theme.of(dialogCtx).textTheme.bodyMedium),
+              const Spacer(),
+              TextButton.icon(
+                icon: const Icon(Icons.schedule_rounded, size: 16),
+                label: Text(start.format(dialogCtx)),
+                onPressed: () async {
+                  final picked = await showTimePicker(context: dialogCtx, initialTime: start);
+                  if (picked != null) setDialog(() => start = picked);
+                },
+              ),
+            ]),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text(l.cancel)),
+            FilledButton(onPressed: () => Navigator.pop(dialogCtx, true), child: Text(l.save)),
+          ],
+        ),
+      ),
+    );
+    final h = int.tryParse(hoursCtrl.text.trim()) ?? 0;
+    final m = int.tryParse(minutesCtrl.text.trim()) ?? 0;
+    hoursCtrl.dispose();
+    minutesCtrl.dispose();
+    final seconds = (h < 0 ? 0 : h) * 3600 + (m < 0 ? 0 : m) * 60;
+    if (saved != true || !mounted || seconds <= 0) return;
+
+    var startedAt = DateTime(day.year, day.month, day.day, start.hour, start.minute);
+    final latest = DateTime.now().subtract(Duration(seconds: seconds));
+    if (startedAt.isAfter(latest)) startedAt = latest;
+    final ok = await api.addListeningSession(itemId: widget.itemId, startedAt: startedAt, seconds: seconds);
+    if (!mounted) return;
+    showOverlayToast(
+      context,
+      ok ? l.sessionAdded : l.sessionAddFailed,
+      icon: ok ? Icons.check_rounded : Icons.error_outline_rounded,
+    );
+    if (ok) setState(() => _serverFuture = _fetchServerSessions());
+  }
+
   Future<void> _showServerSessionDetails(
     Map<String, dynamic> session,
   ) async {
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showAdaptiveActionMenu<bool>(
       context: context,
+      desktopWidth: 520,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SessionDetailsSheet(
@@ -2759,7 +3328,7 @@ class _PlaybackHistorySheetBodyState extends State<_PlaybackHistoryBody>
       child: Text(
         label,
         style: widget.tt.labelSmall?.copyWith(
-          color: widget.accent.withValues(alpha: 0.6),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),

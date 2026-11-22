@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -6,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/notes_service.dart';
+import 'adaptive_modal.dart';
 import '../utils/share_origin.dart';
 
 /// Bottom sheet displaying notes for a library item.
@@ -28,23 +30,20 @@ class NotesSheet extends StatefulWidget {
     required String itemTitle,
     required Color accent,
   }) {
-    showModalBottomSheet(
+    showAdaptiveSheetDialog(
       context: context,
-      isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.05,
-        snap: true,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scrollController) => NotesSheet(
-          itemId: itemId,
-          itemTitle: itemTitle,
-          accent: accent,
-          scrollController: scrollController,
-        ),
+      initialChildSize: 0.75,
+      minChildSize: 0.05,
+      snap: true,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollController) => NotesSheet(
+        itemId: itemId,
+        itemTitle: itemTitle,
+        accent: accent,
+        scrollController: scrollController,
       ),
     );
   }
@@ -105,7 +104,7 @@ class _NotesSheetState extends State<NotesSheet> {
   Future<void> _exportNotes(BuildContext context) async {
     final cs = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context)!;
-    final format = await showModalBottomSheet<String>(
+    final format = await showAdaptiveActionMenu<String>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -169,7 +168,7 @@ class _NotesSheetState extends State<NotesSheet> {
   }
 
   Future<_NoteEditResult?> _showEditor(BuildContext context, {String title = '', String body = ''}) {
-    return showModalBottomSheet<_NoteEditResult>(
+    return showAdaptiveActionMenu<_NoteEditResult>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -204,7 +203,7 @@ class _NotesSheetState extends State<NotesSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
             child: Row(children: [
-              Icon(Icons.note_rounded, color: widget.accent, size: 22),
+              Icon(Icons.note_rounded, color: cs.onSurfaceVariant, size: 22),
               const SizedBox(width: 10),
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +232,7 @@ class _NotesSheetState extends State<NotesSheet> {
             child: _isLoading
                 ? ListView(controller: widget.scrollController, children: const [
                     SizedBox(height: 80),
-                    Center(child: CircularProgressIndicator()),
+                    Center(child: AdaptiveSpinner()),
                   ])
                 : _notes.isEmpty
                     ? ListView(controller: widget.scrollController, children: [
@@ -369,7 +368,7 @@ class _NoteCard extends StatelessWidget {
                   h3: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                   code: tt.bodySmall?.copyWith(
                     fontFamily: 'monospace',
-                    color: accent,
+                    color: cs.onSurface,
                     backgroundColor: cs.surfaceContainerHighest,
                   ),
                   codeblockDecoration: BoxDecoration(
@@ -377,7 +376,7 @@ class _NoteCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   blockquoteDecoration: BoxDecoration(
-                    border: Border(left: BorderSide(color: accent, width: 3)),
+                    border: Border(left: BorderSide(color: cs.outlineVariant, width: 3)),
                   ),
                   blockquotePadding: const EdgeInsets.only(left: 12),
                   listBullet: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
@@ -535,7 +534,7 @@ class _NoteEditorState extends State<_NoteEditor> {
                                 h3: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                                 code: tt.bodySmall?.copyWith(
                                   fontFamily: 'monospace',
-                                  color: widget.accent,
+                                  color: cs.onSurface,
                                   backgroundColor: cs.surfaceContainerHighest,
                                 ),
                                 codeblockDecoration: BoxDecoration(
@@ -543,7 +542,7 @@ class _NoteEditorState extends State<_NoteEditor> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 blockquoteDecoration: BoxDecoration(
-                                  border: Border(left: BorderSide(color: widget.accent, width: 3)),
+                                  border: Border(left: BorderSide(color: cs.outlineVariant, width: 3)),
                                 ),
                                 blockquotePadding: const EdgeInsets.only(left: 12),
                                 listBullet: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),

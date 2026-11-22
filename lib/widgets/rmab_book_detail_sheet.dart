@@ -1,4 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'expressive.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -263,7 +266,7 @@ class _Cover extends StatelessWidget {
                 child: Icon(Icons.menu_book_rounded,
                     color: cs.onSurfaceVariant, size: 36),
               )
-            : CachedNetworkImage(
+            : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                 imageUrl: url!,
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(color: cs.surfaceContainerHighest),
@@ -461,7 +464,7 @@ class _RequestButton extends StatelessWidget {
             ? SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(
+                child: AdaptiveSpinner(
                   strokeWidth: 2,
                   color: cs.onPrimary,
                 ),

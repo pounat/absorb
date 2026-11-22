@@ -22,7 +22,8 @@ ProgressiveAudioSourceOptions? mp3ExtractorOptions() =>
 
 /// Build the right AudioSource for a downloaded track. Content URIs play via
 /// AudioSource.uri (media3's ContentDataSource opens them through the persisted
-/// SAF permission); filesystem paths play via AudioSource.file.
-AudioSource localAudioSource(String pathOrUri) => isContentUri(pathOrUri)
+/// SAF permission); filesystem paths play via AudioSource.file. A narration
+/// streamed out of its EPUB comes as a loopback http URL.
+AudioSource localAudioSource(String pathOrUri) => isContentUri(pathOrUri) || pathOrUri.startsWith('http://')
     ? AudioSource.uri(Uri.parse(pathOrUri), options: mp3ExtractorOptions())
     : AudioSource.file(pathOrUri, options: mp3ExtractorOptions());

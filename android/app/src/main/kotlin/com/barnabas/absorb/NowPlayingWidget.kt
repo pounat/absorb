@@ -105,9 +105,9 @@ class NowPlayingWidget : AppWidgetProvider() {
             val widgetData = HomeWidgetPlugin.getData(context)
             val views = RemoteViews(context.packageName, R.layout.now_playing_widget)
 
-            // OnePlus launchers add their own generous widget padding,
-            // so zero ours out to avoid double-padding.
-            if (Build.MANUFACTURER.equals("OnePlus", ignoreCase = true)) {
+            // OnePlus and Nothing launchers add their own generous widget
+            // padding, so zero ours out to avoid double-padding.
+            if (Build.MANUFACTURER.lowercase() in setOf("oneplus", "nothing")) {
                 views.setViewPadding(R.id.widget_outer, 0, 0, 0, 0)
             }
 

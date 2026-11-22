@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'native_ios_audio_player.dart';
+import '../utils/app_platform.dart';
 
 // Re-export just_audio's data types so consumers don't need a second import.
 export 'package:just_audio/just_audio.dart'
@@ -25,7 +25,7 @@ class AudioPlayer {
     bool useProxyForRequestHeaders = true,
     ja.AudioLoadConfiguration? audioLoadConfiguration,
   }) {
-    if (Platform.isIOS) {
+    if (AppPlatform.isIOS) {
       _native = NativeIosAudioPlayer();
     } else {
       _ja = ja.AudioPlayer(
@@ -145,6 +145,10 @@ class AudioPlayer {
       _isNative ? _native!.setVolume(volume) : _ja!.setVolume(volume);
   Future<void> setSkipSilenceEnabled(bool enabled) =>
       _isNative ? _native!.setSkipSilenceEnabled(enabled) : _ja!.setSkipSilenceEnabled(enabled);
+  // The native iOS engine ties pitch to speed, so only ExoPlayer takes it.
+  Future<void> setPitch(double pitch) async {
+    if (!_isNative) await _ja!.setPitch(pitch);
+  }
   Future<Duration?> setAsset(String asset) =>
       _isNative ? _native!.setAsset(asset) : _ja!.setAsset(asset);
   Future<void> dispose() =>
@@ -156,5 +160,10 @@ class AudioPlayer {
     // Forward to just_audio's static. Native iOS engine ignores this and
     // uses default AVPlayer caching; acceptable for the experimental flag.
     await ja.AudioPlayer.configureStreamingCache(sizeInMB);
+  }
+
+  static Future<void> clearStreamingCache() async {
+    if (AppPlatform.isIOS) return;
+    await ja.AudioPlayer.clearStreamingCache();
   }
 }

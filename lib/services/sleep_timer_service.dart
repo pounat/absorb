@@ -200,6 +200,33 @@ class SleepTimerService extends ChangeNotifier {
     _timer?.cancel();
     _wasPlaying = _isPlaybackActive;
     _scheduleNextTick();
+    _player.removeListener(_onPlayerChanged);
+    _player.addListener(_onPlayerChanged);
+  }
+
+  // The tick only samples playback every second, or every five in the
+  // background, so a quick pause and play between two ticks never showed up
+  // as a resume and the timer did not reset (GH #415). The player's own
+  // change events catch every one.
+  bool _resumeResetInFlight = false;
+
+  void _onPlayerChanged() {
+    if (_mode != SleepTimerMode.time) return;
+    final playing = _isPlaybackActive;
+    if (!playing) {
+      _wasPlaying = false;
+      return;
+    }
+    if (_wasPlaying || _resumeResetInFlight) return;
+    _wasPlaying = true;
+    _resumeResetInFlight = true;
+    PlayerSettings.getResetSleepOnPause().then((reset) {
+      _resumeResetInFlight = false;
+      if (!reset || _mode != SleepTimerMode.time) return;
+      _resetToFull();
+      debugPrint('[SleepTimer] Reset to ${_initialDuration.inMinutes}m on resume');
+      onToast?.call('Sleep timer reset: ${_initialDuration.inMinutes}m');
+    });
   }
 
   void _scheduleNextTick() {
@@ -560,6 +587,60 @@ class SleepTimerService extends ChangeNotifier {
     }
   }
 
+  /// The most the rewind reaches back for time spent asleep before the
+  /// watch noticed.
+  static const _maxAsleepRewind = Duration(minutes: 30);
+
+  /// The watch saw its wearer fall asleep at [since]. When the watch paused
+  /// its own player this is only noted. Otherwise the book playing here is
+  /// paused the way the timer does it and rewound by the usual sleep rewind
+  /// plus the time asleep, and playing again soon undoes the rewind as
+  /// after the timer.
+  Future<void> watchSaysAsleep({DateTime? since, required bool handledOnWatch}) async {
+    final asleepFor = since == null ? Duration.zero : DateTime.now().difference(since);
+    final when = since == null
+        ? 'an unknown time'
+        : '${since.hour.toString().padLeft(2, '0')}:${since.minute.toString().padLeft(2, '0')}';
+    if (handledOnWatch) {
+      debugPrint('[SleepTimer] Watch says asleep since $when and paused itself');
+      return;
+    }
+    if (_isTriggeringSleep) return;
+    final pauseRequested = !_cast.isCastEngaged && _player.isPauseRequested;
+    if (!_isPlaybackActive || pauseRequested) {
+      debugPrint('[SleepTimer] Watch says asleep since $when, nothing playing here');
+      return;
+    }
+    final extra = asleepFor.isNegative
+        ? Duration.zero
+        : (asleepFor > _maxAsleepRewind ? _maxAsleepRewind : asleepFor);
+    _isTriggeringSleep = true;
+    debugPrint('[SleepTimer] Watch says asleep since $when (${asleepFor.inMinutes} min ago) - pausing playback');
+    try {
+      if (_cast.isCastEngaged) {
+        await _cast.pauseNowOrOnReconnect();
+      } else {
+        await _player.pause();
+        if (_isFadingOut) _player.setVolume(_fadeStartVolume);
+        final rewindSeconds =
+            await PlayerSettings.getEffectiveSleepRewindSeconds(_player.currentItemId) + extra.inSeconds;
+        if (rewindSeconds > 0) {
+          final from = _player.position;
+          await _player.sleepTimerRewind(rewindSeconds);
+          _sleepRewoundAt = DateTime.now();
+          _sleepRewoundItemId = _player.currentItemId;
+          _sleepRewoundFrom = from;
+          _sleepRewoundTo = _player.position;
+          debugPrint('[SleepTimer] Rewound ${rewindSeconds}s, ${extra.inSeconds}s of it for the time asleep');
+        }
+      }
+      _isFadingOut = false;
+      cancel();
+    } finally {
+      _isTriggeringSleep = false;
+    }
+  }
+
   /// Position to jump back to when playback resumes soon after a sleep rewind,
   /// or null if there's nothing to undo. Consumed on read, so it only ever
   /// applies once.
@@ -607,6 +688,7 @@ class SleepTimerService extends ChangeNotifier {
     _isFadingOut = false;
     _timer?.cancel();
     _timer = null;
+    _player.removeListener(_onPlayerChanged);
     _positionSub?.cancel();
     _positionSub = null;
     if (_accelSub != null) debugPrint('[SleepTimer] Accelerometer stream stopped');

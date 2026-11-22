@@ -1,7 +1,11 @@
 package com.barnabas.absorb
 
+import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.util.Rational
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.net.Uri
@@ -9,8 +13,6 @@ import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.io.FileInputStream
-import android.media.audiofx.BassBoost
-import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
 import android.os.Build
 import android.os.Bundle
@@ -25,6 +27,7 @@ import android.view.WindowManager
 import com.ryanheise.audioservice.AudioService
 import com.ryanheise.audioservice.AudioServiceActivity
 import com.ryanheise.audioservice.AudioServicePlugin
+import com.ryanheise.just_audio.EqController
 import com.ryanheise.just_audio.GainController
 import com.ryanheise.just_audio.MonoController
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
@@ -42,19 +45,14 @@ class MainActivity : AudioServiceActivity() {
     private var volumeKeysChannel: MethodChannel? = null
     private var watchVolumeKeys = false
 
-    private var equalizer: Equalizer? = null
-    private var bassBoost: BassBoost? = null
+    // The band EQ, bass boost and loudness run inside the player's audio sink
+    // (EqAudioProcessor, GainAudioProcessor), not as session effects, so they
+    // survive the activity and work on phones whose effect stack is broken.
+    // Only the virtualizer is still a session effect.
     private var virtualizer: Virtualizer? = null
     private var currentSessionId: Int = 0
     private var eqEnabled: Boolean = false
-    // Loudness is sample gain in the player's audio sink (GainAudioProcessor),
-    // not a session effect, so it survives the activity and effect teardown.
     private var eqLoudnessGainMb: Int = 0
-    // Some devices (e.g. older Samsung on Android 9) have a broken audio-effect
-    // HAL that fails to initialize. Constructing AudioEffects against it during
-    // playback can crash the process natively, which Kotlin can't catch. Once
-    // init proves the engine is unavailable, skip attaching native effects.
-    private var effectsAvailable: Boolean = true
 
     // Android brings a task back from a dead process by recreating its root
     // activity with the intent that first created it. When that was the
@@ -93,8 +91,68 @@ class MainActivity : AudioServiceActivity() {
         return super.provideFlutterEngine(context)
     }
 
+    // TV picture-in-picture: Home while a book plays shrinks the app into
+    // the corner window showing the cover. Never on phones.
+    private var autoPip = false
+    private var pipChannel: MethodChannel? = null
+
+    private fun canPip(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) &&
+            packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+    private fun enterPip(): Boolean {
+        if (!canPip() || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        return try {
+            enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(Rational(1, 1)).build())
+        } catch (e: Exception) {
+            Log.w("Absorb", "picture-in-picture refused: ${e.message}")
+            false
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (autoPip) enterPip()
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        pipChannel?.invokeMethod("pipChanged", isInPictureInPictureMode)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        pipChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.barnabas.absorb/tv_pip").also {
+            it.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setAutoPip" -> {
+                        autoPip = call.arguments == true && canPip()
+                        result.success(autoPip)
+                    }
+                    "enter" -> result.success(enterPip())
+                    else -> result.notImplemented()
+                }
+            }
+        }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.barnabas.absorb/app_icon")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "get" -> result.success(AppIcons.current(this))
+                    "enableShortcuts" -> {
+                        AppIcons.enableShortcuts(this, call.argument<List<String>>("ids") ?: emptyList())
+                        result.success(true)
+                    }
+                    "set" -> {
+                        val id = call.argument<String>("icon") ?: "classic"
+                        if (AppIcons.set(this, id)) result.success(id)
+                        else result.error("ICON", "Could not switch to $id", null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
@@ -106,6 +164,11 @@ class MainActivity : AudioServiceActivity() {
 
                     "isBluetoothAudioConnected" -> {
                         result.success(isBluetoothAudioConnected())
+                    }
+                    // 0 normal, 1 ringing, 2 in a call, 3 in a VoIP call.
+                    "audioMode" -> {
+                        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                        result.success(am.mode)
                     }
                     "init" -> handleInit(result)
                     "attachSession" -> {
@@ -189,6 +252,30 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
 
+        // The phone's time zone, and how far another one (the zone BookOrbit
+        // counts days in) is from UTC right now, so the Stats screen can say
+        // when the two split days differently.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.time_zone")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "compare" -> {
+                        val now = System.currentTimeMillis()
+                        val here = java.util.TimeZone.getDefault()
+                        val otherId = call.argument<String>("other")
+                        // getTimeZone falls back to GMT for a name it doesn't know.
+                        val other = otherId
+                            ?.takeIf { java.util.TimeZone.getAvailableIDs().contains(it) }
+                            ?.let { java.util.TimeZone.getTimeZone(it) }
+                        result.success(mapOf(
+                            "id" to here.id,
+                            "offsetSeconds" to here.getOffset(now) / 1000,
+                            "otherOffsetSeconds" to other?.getOffset(now)?.div(1000),
+                        ))
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.absorb.clip")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -208,12 +295,13 @@ class MainActivity : AudioServiceActivity() {
                         val outPath = call.argument<String>("outPath")
                         val startSeconds = call.argument<Double>("startSeconds") ?: 0.0
                         val durationSeconds = call.argument<Double>("durationSeconds") ?: 0.0
+                        val headers = call.argument<Map<String, String>>("headers") ?: emptyMap()
                         if (sourcePath == null || outPath == null) {
                             result.error("ARGS", "sourcePath and outPath are required", null)
                         } else {
                             Thread {
                                 val ok = try {
-                                    AudioWindowExtractor.extractWav(applicationContext, sourcePath, startSeconds, durationSeconds, outPath)
+                                    AudioWindowExtractor.extractWav(applicationContext, sourcePath, startSeconds, durationSeconds, outPath, headers)
                                 } catch (e: Exception) {
                                     Log.e(TAG, "extractWav crashed: ${e.message}")
                                     false
@@ -281,6 +369,18 @@ class MainActivity : AudioServiceActivity() {
                     if (event.keyCode == KeyEvent.KEYCODE_PAGE_UP) "up" else "down")
             }
             return true
+        }
+        // On a TV a game controller's A is OK and B is Back, so it works on
+        // every screen the remote does (a Shield is often run by its controller).
+        val asRemote = when (event.keyCode) {
+            KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_DPAD_CENTER
+            KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BACK
+            else -> null
+        }
+        if (asRemote != null && packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+            return super.dispatchKeyEvent(KeyEvent(
+                event.downTime, event.eventTime, event.action, asRemote, event.repeatCount,
+                event.metaState, event.deviceId, event.scanCode, event.flags, event.source))
         }
         return super.dispatchKeyEvent(event)
     }
@@ -364,51 +464,26 @@ class MainActivity : AudioServiceActivity() {
     }
 
     private fun handleInit(result: MethodChannel.Result) {
-        try {
-            val tempEq = Equalizer(0, 0)
-            val numBands = tempEq.numberOfBands.toInt()
-            val frequencies = mutableListOf<Int>()
-            for (i in 0 until numBands) {
-                frequencies.add(tempEq.getCenterFreq(i.toShort()) / 1000)
-            }
-            val bandRange = tempEq.bandLevelRange
-            val minLevel = bandRange[0] / 100.0
-            val maxLevel = bandRange[1] / 100.0
-            tempEq.release()
-
-            effectsAvailable = true
-            Log.d(TAG, "init: $numBands bands, frequencies=$frequencies, range=[$minLevel, $maxLevel]dB")
-            result.success(mapOf(
-                "bands" to numBands,
-                "frequencies" to frequencies,
-                "minLevel" to minLevel,
-                "maxLevel" to maxLevel
-            ))
-        } catch (e: Exception) {
-            effectsAvailable = false
-            Log.d(TAG, "EQ probe deferred until playback: ${e.message}")
-            result.success(mapOf(
-                "bands" to 5,
-                "frequencies" to listOf(60, 230, 910, 3600, 14000),
-                "minLevel" to -15.0,
-                "maxLevel" to 15.0,
-                "deferred" to true
-            ))
-        }
+        // The bands live in the player's audio sink and are the same on every
+        // phone, so there is nothing to probe.
+        result.success(mapOf(
+            "bands" to EqController.BANDS,
+            "frequencies" to EqController.BAND_HZ.toList(),
+            "minLevel" to -15.0,
+            "maxLevel" to 15.0
+        ))
     }
 
     private fun handleAttachSession(sessionId: Int, result: MethodChannel.Result) {
         try {
-            Log.d(TAG, "attachSession: $sessionId (previous: $currentSessionId, haveEffects=${equalizer != null})")
+            Log.d(TAG, "attachSession: $sessionId (previous: $currentSessionId, haveVirtualizer=${virtualizer != null})")
             // ExoPlayer reuses one audio session id across books. Re-attaching to
-            // the SAME live session must reuse the effects already bound to it —
-            // building a second Equalizer/BassBoost/etc. on that session without
-            // releasing the old ones leaks native effects every book switch and
-            // can cost our instance control of the engine, so EQ silently stops
-            // affecting the sound until the process restarts. Only tear down and
-            // rebuild when the session actually changed. Dart re-pushes the band /
-            // enabled / effect values right after this call in either case.
-            if (sessionId != 0 && sessionId == currentSessionId && equalizer != null) {
+            // the SAME live session must reuse the effect already bound to it:
+            // building a second Virtualizer on that session without releasing
+            // the old one leaks native effects every book switch. Only tear down
+            // and rebuild when the session actually changed. Dart re-pushes the
+            // effect values right after this call in either case.
+            if (sessionId != 0 && sessionId == currentSessionId && virtualizer != null) {
                 result.success(true)
                 return
             }
@@ -420,29 +495,6 @@ class MainActivity : AudioServiceActivity() {
                 return
             }
 
-            // init() probes Equalizer(0, 0) on the global output mix, which some
-            // devices/HAL states reject with a catchable Error -3 right after a
-            // process start (e.g. just after an app update) — which used to leave
-            // effectsAvailable=false and EQ silent until a force-restart. A real
-            // per-session effect usually still works, so build it here regardless
-            // of the probe result and let this construction decide availability.
-            // (A device that hard-crashes on construction would have crashed at
-            // init already, so reaching this point means construction is catch-safe.)
-            try {
-                equalizer = Equalizer(0, sessionId).apply { enabled = false }
-                effectsAvailable = true
-            } catch (e: Exception) {
-                effectsAvailable = false
-                equalizer = null
-                Log.w(TAG, "attachSession: Equalizer unavailable on session $sessionId: ${e.message}")
-                result.success(true)
-                return
-            }
-            bassBoost = try {
-                BassBoost(0, sessionId).apply { enabled = false }
-            } catch (e: Exception) {
-                Log.w(TAG, "BassBoost not supported: ${e.message}"); null
-            }
             virtualizer = try {
                 Virtualizer(0, sessionId).apply { enabled = false }
             } catch (e: Exception) {
@@ -462,7 +514,7 @@ class MainActivity : AudioServiceActivity() {
             // loudness are independent and track their own values, so they
             // keep working with the equalizer off.
             eqEnabled = enabled
-            equalizer?.enabled = enabled
+            EqController.setEnabled(enabled)
             result.success(true)
         } catch (e: Exception) {
             result.error("EQ_ERROR", e.message, null)
@@ -471,7 +523,7 @@ class MainActivity : AudioServiceActivity() {
 
     private fun handleSetBand(band: Int, level: Int, result: MethodChannel.Result) {
         try {
-            equalizer?.setBandLevel(band.toShort(), level.toShort())
+            EqController.setBandMb(band, level)
             result.success(true)
         } catch (e: Exception) {
             result.error("EQ_ERROR", e.message, null)
@@ -480,10 +532,7 @@ class MainActivity : AudioServiceActivity() {
 
     private fun handleSetBassBoost(strength: Int, result: MethodChannel.Result) {
         try {
-            val s = strength.toShort().coerceIn(0, 1000)
-            bassBoost?.setStrength(s)
-            // Independent of the band-EQ master: on when there's something to do.
-            bassBoost?.enabled = s > 0
+            EqController.setBassStrength(strength)
             result.success(true)
         } catch (e: Exception) {
             result.error("EQ_ERROR", e.message, null)
@@ -512,13 +561,8 @@ class MainActivity : AudioServiceActivity() {
     }
 
     private fun releaseEffects() {
-        try { equalizer?.release() } catch (_: Exception) {}
-        try { bassBoost?.release() } catch (_: Exception) {}
         try { virtualizer?.release() } catch (_: Exception) {}
-        equalizer = null
-        bassBoost = null
         virtualizer = null
-        eqEnabled = false
     }
 
     private fun isBluetoothAudioConnected(): Boolean {

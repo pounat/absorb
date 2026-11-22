@@ -1,7 +1,7 @@
 name: absorb
 description: An Audiobookshelf Client
 publish_to: 'none'
-version: 1.11.1+286
+version: 1.15.1+311
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -25,6 +25,11 @@ dependencies:
   
   # Image caching
   cached_network_image: ^3.3.0
+  # Covers for the Windows media overlay come out of the image cache.
+  flutter_cache_manager: ^3.4.1
+  # For ImageRenderMethodForWeb: web covers decode through Flutter instead of
+  # borrowing <img> elements the browser can empty (they drew black).
+  cached_network_image_platform_interface: ^4.1.1
 
   # Audio playback
   just_audio:
@@ -32,6 +37,12 @@ dependencies:
     
   audio_service:
     path: packages/audio_service
+
+  # Windows has no just_audio engine of its own; this plays through libmpv.
+  # Vendored so a seek into another track lands at its spot, not the top.
+  just_audio_media_kit:
+    path: packages/just_audio_media_kit
+  media_kit_libs_windows_audio: ^1.0.9
 
   # On-device bookmark transcription (Whisper, opt-in). No ffmpeg companion:
   # we feed it 16kHz mono WAV produced by native decoders (MediaCodec / AVAssetReader).
@@ -43,6 +54,8 @@ dependencies:
 
   # Reading EPUB text without a WebView (transcript ebook cross-reference).
   archive: ^4.0.9
+  html: ^0.15.4
+  xml: ^6.5.0
 
   # CarPlay - vendored copy of 1.2.11 with a patched image loader (downsampled +
   # cached list thumbnails) so large browse lists don't run CarPlay out of memory.
@@ -81,6 +94,9 @@ dependencies:
   crypto: ^3.0.3
   url_launcher: ^6.2.5
   flutter_web_auth_2: ^5.0.1
+  # flutter_web_auth_2's sign-in window on Windows and Linux; main hands
+  # it the run that draws that window's title bar.
+  desktop_webview_window: ^0.2.3
 
   # Pausing for interruptions
   audio_session: ^0.1.21
@@ -125,15 +141,26 @@ dependencies:
   # foliate-js host for MOBI/AZW3/FB2/CBZ (already transitive via the epub
   # viewer; pinned direct so the bridge API is a declared dependency)
   flutter_inappwebview: ^6.0.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
   flutter_launcher_icons: ^0.14.3
+  # scripts/make_app_icons.dart draws the app icon colors with it.
+  image: ^4.8.0
   change_app_package_name: ^1.5.0
   rename_app: ^1.6.5
   mocktail: ^1.0.4
+
+dependency_overrides:
+  audio_service_web:
+    path: packages/audio_service_web
+  # Vendored for a null-pointer fix in its JavaScript handler reply, which
+  # crashed the Windows app whenever the reader loaded a book.
+  flutter_inappwebview_windows:
+    path: packages/flutter_inappwebview_windows
 
 flutter:
   generate: true
@@ -144,6 +171,9 @@ flutter:
     - assets/foliate/
     - assets/foliate/foliate-js/
     - assets/foliate/foliate-js/vendor/
+  shaders:
+    - shaders/page_curl.frag
+    - shaders/page_ripple.frag
   fonts:
     - family: NotoSansJP
       fonts:

@@ -1,0 +1,40 @@
+FROM debian:bookworm-slim AS build
+
+ARG FLUTTER_VERSION=3.44.0
+
+ENV PATH="/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin:${PATH}" \
+    PUB_CACHE=/tmp/pub-cache
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        unzip \
+        xz-utils \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl --fail --location --silent --show-error \
+        "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+        | tar --extract --xz --directory /opt \
+    && git config --global --add safe.directory /opt/flutter \
+    && flutter config --enable-web \
+    && flutter precache --web
+
+WORKDIR /src
+COPY . .
+
+RUN flutter pub get \
+    && flutter build web \
+        --release \
+        --base-href /absorb/ \
+        --no-web-resources-cdn \
+        --no-wasm-dry-run
+
+FROM nginx:1.28-alpine
+
+ENV ABS_UPSTREAM=http://audiobookshelf:80
+
+COPY deploy/nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build /src/build/web /usr/share/nginx/html/absorb
+
+EXPOSE 80

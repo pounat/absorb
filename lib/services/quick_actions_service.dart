@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:quick_actions/quick_actions.dart';
 
 import '../main.dart' show rootNavigatorKey;
@@ -66,7 +67,26 @@ class QuickActionsService {
     // setShortcutItems only supports templateImageName (bundled PNGs), so
     // calling it here would replace our nice system icons with nothing.
     if (!Platform.isAndroid) return;
+    await publish();
+  }
 
+  static const _appIconChannel = MethodChannel('com.barnabas.absorb/app_icon');
+
+  /// Puts the long-press shortcuts on the home screen entry showing now.
+  /// Changing the app icon swaps that entry, and Android drops the
+  /// shortcuts made under the old one, so this runs again after a switch.
+  Future<void> publish() async {
+    if (!Platform.isAndroid) return;
+    // A pinned shortcut left disabled (made by an older build, or under an
+    // icon since switched away from) can't be updated, and that failed the
+    // whole set, so they go back on first.
+    try {
+      await _appIconChannel.invokeMethod('enableShortcuts', {
+        'ids': const [_typeContinue, _typeDownloads, _typeSearch, _typeBookmarks],
+      });
+    } catch (e) {
+      debugPrint('[QuickActions] turning shortcuts back on failed: $e');
+    }
     try {
       await _quickActions.setShortcutItems(const <ShortcutItem>[
         ShortcutItem(

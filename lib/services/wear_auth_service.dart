@@ -32,11 +32,13 @@ class WearAuthService {
     required bool isLegacyToken,
     Map<String, String> customHeaders = const {},
     bool supportsTokenReturn = false,
+    String backend = 'abs',
   }) async {
     if (!_supported) return;
     try {
       await _channel.invokeMethod<void>('publish', {
         'serverUrl': serverUrl,
+        'backend': backend,
         'accessToken': accessToken,
         'refreshToken': refreshToken,
         'username': username,

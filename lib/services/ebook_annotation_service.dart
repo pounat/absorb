@@ -6,13 +6,19 @@ import 'settings_sync_service.dart';
 /// Types of ebook annotations.
 enum AnnotationType { highlight, bookmark }
 
-/// Highlight color presets.
+/// Highlight colors: BookOrbit's ten, so a highlight keeps its color there
+/// and in every reader it syncs with.
 enum HighlightColor {
-  yellow('#FFEB3B'),
-  green('#66BB6A'),
-  blue('#42A5F5'),
-  pink('#EC407A'),
-  orange('#FFA726');
+  yellow('#FACC15'),
+  green('#4ADE80'),
+  blue('#38BDF8'),
+  pink('#F472B6'),
+  orange('#FB923C'),
+  red('#F87171'),
+  olive('#84CC16'),
+  cyan('#22D3EE'),
+  purple('#C084FC'),
+  gray('#9CA3AF');
 
   final String hex;
   const HighlightColor(this.hex);
@@ -31,6 +37,10 @@ class EbookAnnotation {
   /// reopening the book.
   final String? chapter;
   final DateTime createdAt;
+  /// The annotation's id on the server, for the ones also kept there (a
+  /// picture EPUB's bookmarks and any book's highlights on BookOrbit). Null
+  /// when it lives only here.
+  String? serverId;
 
   EbookAnnotation({
     required this.id,
@@ -40,6 +50,7 @@ class EbookAnnotation {
     this.color,
     this.note,
     this.chapter,
+    this.serverId,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -51,6 +62,7 @@ class EbookAnnotation {
         if (color != null) 'color': color!.name,
         if (note != null && note!.isNotEmpty) 'note': note,
         if (chapter != null && chapter!.isNotEmpty) 'ch': chapter,
+        if (serverId != null) 'sid': serverId,
         'ts': createdAt.millisecondsSinceEpoch,
       };
 
@@ -65,6 +77,7 @@ class EbookAnnotation {
           : null,
       note: json['note'] as String?,
       chapter: json['ch'] as String?,
+      serverId: json['sid'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['ts'] as int),
     );
   }
@@ -94,6 +107,8 @@ class EbookAnnotationService {
   EbookAnnotationService._();
 
   static const _keyPrefix = 'ebook_annotations_';
+  // Highlight deletes and edits made here that the server hasn't had yet.
+  static const _pendingPrefix = 'ebook_highlight_sync_';
 
   // Two annotations made in the same millisecond used to share an id, which
   // made them one row to anything that works by id - selecting, deleting,
@@ -158,7 +173,7 @@ class EbookAnnotationService {
     SettingsSyncService().noteLocalChange();
   }
 
-  /// Add a highlight.
+  /// Add a highlight. [fromServer] is one brought in from the server.
   Future<EbookAnnotation> addHighlight({
     required String itemId,
     required String cfi,
@@ -166,6 +181,9 @@ class EbookAnnotationService {
     HighlightColor color = HighlightColor.yellow,
     String? note,
     String? chapter,
+    String? serverId,
+    DateTime? createdAt,
+    bool fromServer = false,
   }) async {
     final annotation = EbookAnnotation(
       id: _newId(),
@@ -175,6 +193,8 @@ class EbookAnnotationService {
       color: color,
       note: note,
       chapter: chapter,
+      serverId: serverId,
+      createdAt: createdAt,
     );
     final annotations = await getAnnotations(itemId);
     annotations.insert(0, annotation);
@@ -189,6 +209,7 @@ class EbookAnnotationService {
     required String cfi,
     String? note,
     String? chapter,
+    String? serverId,
   }) async {
     final annotation = EbookAnnotation(
       id: _newId(),
@@ -196,6 +217,7 @@ class EbookAnnotationService {
       cfi: cfi,
       note: note,
       chapter: chapter,
+      serverId: serverId,
     );
     final annotations = await getAnnotations(itemId);
     annotations.insert(0, annotation);
@@ -204,40 +226,106 @@ class EbookAnnotationService {
     return annotation;
   }
 
-  /// Update a note on an annotation.
+  /// Change a highlight's color. [fromServer] is a change brought in from
+  /// the server, which has nothing to send back.
   Future<void> updateColor({
     required String itemId,
     required String annotationId,
     required HighlightColor color,
+    bool fromServer = false,
   }) async {
     final annotations = await getAnnotations(itemId);
     final idx = annotations.indexWhere((a) => a.id == annotationId);
     if (idx == -1) return;
     annotations[idx].color = color;
     await _save(itemId, annotations);
+    if (!fromServer) await _noteServerChange(itemId, annotations[idx], deleted: false);
   }
 
   Future<void> updateNote({
     required String itemId,
     required String annotationId,
     required String? note,
+    bool fromServer = false,
   }) async {
     final annotations = await getAnnotations(itemId);
     final idx = annotations.indexWhere((a) => a.id == annotationId);
     if (idx == -1) return;
     annotations[idx].note = note;
     await _save(itemId, annotations);
+    if (!fromServer) await _noteServerChange(itemId, annotations[idx], deleted: false);
   }
 
-  /// Delete an annotation.
+  Future<void> setServerId({
+    required String itemId,
+    required String annotationId,
+    required String serverId,
+  }) async {
+    final annotations = await getAnnotations(itemId);
+    final idx = annotations.indexWhere((a) => a.id == annotationId);
+    if (idx == -1) return;
+    annotations[idx].serverId = serverId;
+    await _save(itemId, annotations);
+  }
+
+  /// Delete an annotation. [fromServer] is one already gone from the server.
   Future<void> delete({
     required String itemId,
     required String annotationId,
+    bool fromServer = false,
   }) async {
     final annotations = await getAnnotations(itemId);
+    final gone = annotations.where((a) => a.id == annotationId).firstOrNull;
     annotations.removeWhere((a) => a.id == annotationId);
     await _save(itemId, annotations);
+    if (gone != null && !fromServer) await _noteServerChange(itemId, gone, deleted: true);
     debugPrint('[EbookAnnotations] Deleted annotation $annotationId');
+  }
+
+  /// Highlight deletes and edits made here that the server hasn't had, by
+  /// server id. A delete waiting here also keeps the next sync from bringing
+  /// the highlight back.
+  Future<({Set<String> deletes, Set<String> edits})> pendingServerChanges(String itemId) async {
+    final raw = await ScopedPrefs.getString('$_pendingPrefix$itemId');
+    if (raw == null) return (deletes: <String>{}, edits: <String>{});
+    try {
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      return (
+        deletes: {for (final v in (j['delete'] as List? ?? const [])) '$v'},
+        edits: {for (final v in (j['edit'] as List? ?? const [])) '$v'},
+      );
+    } catch (_) {
+      return (deletes: <String>{}, edits: <String>{});
+    }
+  }
+
+  Future<void> _savePending(String itemId, Set<String> deletes, Set<String> edits) async {
+    final key = '$_pendingPrefix$itemId';
+    if (deletes.isEmpty && edits.isEmpty) {
+      await ScopedPrefs.remove(key);
+    } else {
+      await ScopedPrefs.setString(key, jsonEncode({'delete': deletes.toList(), 'edit': edits.toList()}));
+    }
+  }
+
+  Future<void> _noteServerChange(String itemId, EbookAnnotation a, {required bool deleted}) async {
+    final id = a.serverId;
+    if (a.type != AnnotationType.highlight || id == null) return;
+    final p = await pendingServerChanges(itemId);
+    if (deleted) {
+      p.deletes.add(id);
+      p.edits.remove(id);
+    } else {
+      p.edits.add(id);
+    }
+    await _savePending(itemId, p.deletes, p.edits);
+  }
+
+  /// The server has the change made here to the highlight [serverId].
+  Future<void> serverChangeDone(String itemId, String serverId) async {
+    final p = await pendingServerChanges(itemId);
+    if (!p.deletes.remove(serverId) && !p.edits.remove(serverId)) return;
+    await _savePending(itemId, p.deletes, p.edits);
   }
 
   /// Check if a bookmark exists at the given CFI.

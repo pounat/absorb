@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'expressive.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -369,7 +372,7 @@ class _RmabConfigSheetState extends State<_RmabConfigSheet> {
     if (_loadingPrefs) {
       return const SizedBox(
         height: 220,
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: AdaptiveSpinner()),
       );
     }
     if (_wasConfigured) {
@@ -736,7 +739,7 @@ class _SetupForm extends StatelessWidget {
                   ? SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(
+                      child: AdaptiveSpinner(
                         strokeWidth: 2,
                         color: cs.onPrimary,
                       ),
@@ -943,7 +946,7 @@ class _MyRequestsTabState extends State<_MyRequestsTab>
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
         children: const [
-          Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          Center(child: AdaptiveSpinner(strokeWidth: 2)),
         ],
       );
     }
@@ -1056,7 +1059,7 @@ class _RequestRow extends StatelessWidget {
                             child: Icon(Icons.menu_book_rounded,
                                 color: cs.onSurfaceVariant, size: 20),
                           )
-                        : CachedNetworkImage(
+                        : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                             imageUrl: book.coverArtUrl!,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(
@@ -1164,7 +1167,7 @@ class _RequestDetailSheet extends StatelessWidget {
                         child: Icon(Icons.menu_book_rounded,
                             color: cs.onSurfaceVariant, size: 28),
                       )
-                    : CachedNetworkImage(
+                    : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                         imageUrl: book.coverArtUrl!,
                         fit: BoxFit.cover,
                         placeholder: (_, __) => Container(

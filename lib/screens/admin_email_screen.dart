@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -303,7 +304,7 @@ class _AdminEmailScreenState extends State<AdminEmailScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : Column(children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
@@ -396,7 +397,7 @@ class _AdminEmailScreenState extends State<AdminEmailScreen> {
                                 onPressed: _testing || _saving ? null : _test,
                                 icon: _testing
                                   ? const SizedBox(width: 14, height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2))
+                                      child: AdaptiveSpinner(strokeWidth: 2))
                                   : const Icon(Icons.send_rounded, size: 16),
                                 label: Text(l.smtpSendTest))),
                               const SizedBox(width: 12),
@@ -404,7 +405,7 @@ class _AdminEmailScreenState extends State<AdminEmailScreen> {
                                 onPressed: _saving || _testing ? null : _save,
                                 icon: _saving
                                   ? SizedBox(width: 14, height: 14,
-                                      child: CircularProgressIndicator(
+                                      child: AdaptiveSpinner(
                                           strokeWidth: 2, color: cs.onPrimary))
                                   : const Icon(Icons.save_rounded, size: 16),
                                 label: Text(l.smtpSaveSettings))),

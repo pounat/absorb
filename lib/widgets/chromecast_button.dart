@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
 import '../l10n/app_localizations.dart';
 import '../services/chromecast_service.dart';
 import '../services/api_service.dart';
+import '../services/server_backend.dart';
+import 'adaptive_modal.dart';
+import 'overlay_toast.dart';
 
 /// Shows a device picker. If castAfter params are provided, automatically
 /// casts the book after connecting to the selected device.
@@ -17,8 +21,15 @@ void showCastDevicePicker(
   List<dynamic>? chapters,
   String? episodeId,
 }) {
+  // A Cast receiver fetches media itself and can't send the Bearer header
+  // BookOrbit needs.
+  if (ServerBackend.active.isBookOrbit) {
+    showOverlayToast(context, AppLocalizations.of(context)!.castNotAvailableBookOrbit,
+        icon: Icons.cast_rounded);
+    return;
+  }
   final cast = ChromecastService();
-  showModalBottomSheet(
+  showAdaptiveActionMenu(
     context: context,
     backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
     shape: const RoundedRectangleBorder(
@@ -47,7 +58,7 @@ void showCastDevicePicker(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant)),
+                          SizedBox(width: 24, height: 24, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurfaceVariant)),
                           const SizedBox(height: 12),
                           Text(l.searchingForCastDevices, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
                         ],

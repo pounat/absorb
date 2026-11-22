@@ -1,10 +1,16 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../services/player_settings.dart';
+import '../services/progress_sync_service.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
 import '../services/wording.dart';
@@ -16,6 +22,7 @@ import '../screens/app_shell.dart';
 import 'add_books_search_sheet.dart';
 import 'book_detail_sheet.dart';
 import 'books_sheet_shared.dart' show coverGridCount;
+import '../utils/up_next.dart';
 import 'editable_sheet_item.dart';
 import 'episode_list_sheet.dart';
 import 'stackable_sheet.dart';
@@ -51,9 +58,30 @@ class PlaylistDetailSheet extends StatefulWidget {
 class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
   bool _editing = false;
   bool _gridView = false;
+  bool _viewKnown = false;
+  bool _didAutoScroll = false;
   List<Map<String, dynamic>>? _editItems;
   final Set<String> _selectedKeys = {}; // "libraryItemId" or "libraryItemId-episodeId"
   bool _isBatchUpdating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Same list or grid choice as the Home section sheets, so the view you
+    // picked last time comes back instead of the list every time.
+    PlayerSettings.getSectionGridView().then((v) {
+      if (!mounted) return;
+      setState(() {
+        _gridView = v;
+        _viewKnown = true;
+      });
+    });
+  }
+
+  void _toggleGridView() {
+    setState(() => _gridView = !_gridView);
+    PlayerSettings.setSectionGridView(_gridView);
+  }
 
   /// Find episode data from the playlist item's top-level 'episode' field,
   /// or from the library item's media.episodes array as fallback.
@@ -134,8 +162,11 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
 
       if (episodeId != null) {
         if (finished) {
-          await api.updateEpisodeProgress(libraryItemId, episodeId,
+          final pushed = await api.updateEpisodeProgress(libraryItemId, episodeId,
             currentTime: duration, duration: duration, isFinished: true);
+          if (!pushed) {
+            await ProgressSyncService().saveFinishedOffline('$libraryItemId-$episodeId', duration);
+          }
           lib.markFinishedLocally('$libraryItemId-$episodeId', skipAutoAdvance: true);
         } else {
           final pd = lib.getProgressData('$libraryItemId-$episodeId');
@@ -146,7 +177,11 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         }
       } else {
         if (finished) {
-          await api.markFinished(libraryItemId, duration);
+          try {
+            await api.markFinished(libraryItemId, duration);
+          } catch (_) {
+            await ProgressSyncService().saveFinishedOffline(libraryItemId, duration);
+          }
           lib.markFinishedLocally(libraryItemId, skipAutoAdvance: true);
         } else {
           final pd = lib.getProgressData(libraryItemId);
@@ -339,6 +374,22 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
 
     final name = playlist['name'] as String? ?? l.playlistDetailDefaultName;
     final items = (playlist['items'] as List<dynamic>?) ?? [];
+
+    // Opens on the item after the last one finished, the way a series does.
+    if (_viewKnown && !_didAutoScroll && !_editing && items.isNotEmpty) {
+      _didAutoScroll = true;
+      final up = upNextIndex(lib, [
+        for (final it in items.cast<Map<String, dynamic>>())
+          it['episodeId'] != null
+              ? '${it['libraryItemId']}-${it['episodeId']}'
+              : (it['libraryItemId'] as String? ?? ''),
+      ]);
+      if (up != null) {
+        scrollSheetToIndex(widget.scrollController, up,
+            columns: _gridView ? coverGridCount(context) : 1,
+            width: MediaQuery.sizeOf(context).width);
+      }
+    }
     // The add-books search only finds books, so hide it for podcast playlists.
     final isPodcastPlaylist = lib.libraries
             .cast<Map<String, dynamic>>()
@@ -372,7 +423,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
               color: cs.primary,
             ),
           ] else ...[
-            Icon(Icons.playlist_play_rounded, size: 20, color: cs.primary),
+            Icon(Icons.playlist_play_rounded, size: 20, color: cs.onSurfaceVariant),
             const SizedBox(width: 8),
             Expanded(
               child: Text(name, style: tt.titleMedium?.copyWith(
@@ -396,7 +447,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                   : l.turnAutoDownloadOn),
             _headerIconButton(cs,
               _gridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
-              () => setState(() => _gridView = !_gridView)),
+              _toggleGridView),
             _headerIconButton(cs, Icons.edit_rounded, () => _startEdit(items),
               tooltip: l.edit),
           ],
@@ -425,7 +476,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
           ),
           child: _isBatchUpdating
               ? Center(child: SizedBox(width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary)))
+                  child: AdaptiveSpinner(strokeWidth: 2, color: cs.primary)))
               : _selectedKeys.isNotEmpty
                   ? Row(children: [
                   Expanded(child: FilledButton.tonalIcon(
@@ -603,6 +654,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         final progressKey = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
         final progress = lib.getProgress(progressKey);
         final isFinished = lib.getProgressData(progressKey)?['isFinished'] == true;
+        final isSkimmed = lib.getProgressData(progressKey)?['skimmed'] == true;
         final isDownloaded = DownloadService().isDownloaded(progressKey);
 
         String? episodeTitle;
@@ -621,12 +673,9 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                   icon: Icons.add_circle_outline_rounded,
                   color: cs.primary,
                   onTrigger: () async {
-                    await lib.addToAbsorbingQueue(progressKey);
-                    lib.absorbingItemCache[progressKey] = Map<String, dynamic>.from(libraryItem);
-                    HapticFeedback.mediumImpact();
-                    if (context.mounted) {
-                      showOverlayToast(context, Wording.of(context).playlistDetailAddedToAbsorbing(episodeTitle ?? title), icon: Icons.add_circle_outline_rounded);
-                    }
+                    await addToAbsorbingWithPicker(context, progressKey,
+                        item: libraryItem,
+                        addedToast: Wording.of(context).playlistDetailAddedToAbsorbing(episodeTitle ?? title));
                   },
                 ),
           child: Padding(
@@ -650,7 +699,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                               ? (coverUrl.startsWith('/')
                                   ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) => _placeholder(cs))
-                                  : CachedNetworkImage(
+                                  : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                       imageUrl: coverUrl, fit: BoxFit.cover,
                                       httpHeaders: lib.mediaHeaders,
                                       placeholder: (_, __) => _placeholder(cs),
@@ -671,7 +720,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                         if (isFinished || isDownloaded)
                           Positioned(
                             left: 0, right: 0, bottom: 0,
-                            child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                            child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                           ),
                       ]),
                     ),
@@ -731,6 +780,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
         final progressKey = episodeId != null ? '$libraryItemId-$episodeId' : libraryItemId;
         final progress = lib.getProgress(progressKey);
         final isFinished = lib.getProgressData(progressKey)?['isFinished'] == true;
+        final isSkimmed = lib.getProgressData(progressKey)?['skimmed'] == true;
         final isDownloaded = DownloadService().isDownloaded(progressKey);
 
         String? episodeTitle;
@@ -753,7 +803,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                           ? (coverUrl.startsWith('/')
                               ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => _placeholder(cs))
-                              : CachedNetworkImage(
+                              : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                   imageUrl: coverUrl, fit: BoxFit.cover,
                                   httpHeaders: lib.mediaHeaders,
                                   placeholder: (_, __) => _placeholder(cs),
@@ -786,7 +836,7 @@ class _PlaylistDetailSheetState extends State<PlaylistDetailSheet> {
                     if (isFinished || isDownloaded)
                       Positioned(
                         left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                       ),
                   ]),
                 ),

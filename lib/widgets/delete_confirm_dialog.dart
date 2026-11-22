@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/player_settings.dart';
+import '../services/server_backend.dart';
 
 /// What the user picked in [showDeleteConfirmDialog]. [hardDelete] true means
 /// the server wipes the files on disk too (`?hard=1`), false means it only
@@ -22,7 +23,10 @@ Future<DeleteChoice?> showDeleteConfirmDialog(
   required String message,
   String? confirmLabel,
 }) async {
-  final initial = await PlayerSettings.getDeleteFromFileSystem();
+  // BookOrbit always removes the files with the book, so there is no choice
+  // to offer, only the warning.
+  final filesAlwaysGo = ServerBackend.active.isBookOrbit;
+  final initial = filesAlwaysGo || await PlayerSettings.getDeleteFromFileSystem();
   if (!context.mounted) return null;
   final l = AppLocalizations.of(context)!;
   final choice = await showDialog<DeleteChoice>(
@@ -41,7 +45,7 @@ Future<DeleteChoice?> showDeleteConfirmDialog(
             children: [
               Text(message),
               const SizedBox(height: 8),
-              InkWell(
+              if (!filesAlwaysGo) InkWell(
                 onTap: () => setLocal(() => hard = !hard),
                 borderRadius: BorderRadius.circular(10),
                 child: Row(children: [
@@ -81,7 +85,7 @@ Future<DeleteChoice?> showDeleteConfirmDialog(
       );
     },
   );
-  if (choice != null) {
+  if (choice != null && !filesAlwaysGo) {
     await PlayerSettings.setDeleteFromFileSystem(choice.hardDelete);
   }
   return choice;

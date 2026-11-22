@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -11,6 +14,7 @@ import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import '../services/download_service.dart';
 import '../services/scoped_prefs.dart';
+import '../utils/app_platform.dart';
 import 'card_buttons.dart' show showErrorToast;
 import 'episode_list_sheet.dart';
 import 'episode_row.dart';
@@ -425,7 +429,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       child: url == null
           ? placeholder
           // Downloaded shows resolve to a local file path.
-          : url.startsWith('/')
+          : !AppPlatform.lacksPhonePlugins && url.startsWith('/')
           ? Image.file(
               File(url),
               width: 48,
@@ -433,7 +437,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => placeholder,
             )
-          : CachedNetworkImage(
+          : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
               imageUrl: url,
               httpHeaders: lib.mediaHeaders,
               width: 48,
@@ -454,7 +458,8 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
       _filter,
       progress: progress,
       finished: finished,
-      downloaded: DownloadService().isDownloaded('$showId-$epId'),
+      downloaded: !AppPlatform.lacksPhonePlugins &&
+          DownloadService().isDownloaded('$showId-$epId'),
       subscribed: lib.isPodcastSubscribed(showId),
     );
   }
@@ -481,6 +486,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
         totalDuration: duration,
         chapters: chapters,
         episodeId: episodeId,
+        libraryId: widget.libraryId,
       );
       return;
     }
@@ -506,6 +512,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
   }
 
   Future<void> _downloadEpisode(Map<String, dynamic> ep) async {
+    if (AppPlatform.lacksPhonePlugins) return;
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return;
     final showId = _showIdOf(ep);
@@ -568,7 +575,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
     // Shelf mode renders from its own state - don't let the recent-feed's
     // initial load or error blank an already-loaded shelf.
     if (_loading && !_isShelfFilter) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AdaptiveSpinner());
     }
     if (_error != null && _episodes.isEmpty && !_isShelfFilter) {
       return Center(
@@ -612,7 +619,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                         ('unplayed', l.filterUnplayed),
                         ('inprogress', l.inProgress),
                         ('finished', l.filterFinished),
-                        ('downloaded', l.downloaded),
+                        if (!AppPlatform.lacksPhonePlugins) ('downloaded', l.downloaded),
                       ]) ...[
                         ChoiceChip(
                           label: Text(label),
@@ -631,7 +638,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
           if (_isShelfFilter && _shelfLoading && _shelfEpisodes.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: AdaptiveSpinner()),
             )
           else if (filtered.isEmpty)
             SliverFillRemaining(
@@ -657,7 +664,7 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                       child: SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AdaptiveSpinner(strokeWidth: 2),
                       ),
                     ),
                   );
@@ -678,11 +685,13 @@ class _PodcastEpisodeFeedState extends State<PodcastEpisodeFeed> {
                     color: cs.primary,
                     onTrigger: () => _toggleFinished(ep),
                   ),
-                  onEndToStart: SwipeActionSpec(
-                    icon: Icons.download_rounded,
-                    color: cs.secondary,
-                    onTrigger: () => _downloadEpisode(ep),
-                  ),
+                  onEndToStart: AppPlatform.lacksPhonePlugins
+                      ? null
+                      : SwipeActionSpec(
+                          icon: Icons.download_rounded,
+                          color: cs.secondary,
+                          onTrigger: () => _downloadEpisode(ep),
+                        ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [

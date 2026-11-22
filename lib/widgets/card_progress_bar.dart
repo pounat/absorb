@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
@@ -23,11 +24,14 @@ class CardDualProgressBar extends StatefulWidget {
   final int totalChapters;
   final String? itemId;
   final bool compact;
+  /// Show the book percentage (desktop now playing pane) in the time row.
+  final bool showBookPercentage;
   /// Render the book percentage centered in the book bar's own time row
   /// (between elapsed and remaining) instead of the caller stacking a
   /// separate percent line above - saves a row on the full screen player.
   final bool showCenterPercent;
-  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showCenterPercent = false});
+  final String? libraryId;
+  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showBookPercentage = false, this.showCenterPercent = false, this.libraryId});
   @override State<CardDualProgressBar> createState() => _CardDualProgressBarState();
 }
 
@@ -80,7 +84,8 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
   Future<void> _loadSavedSpeed() async {
     final itemId = widget.itemId;
     final bookSpeed = itemId != null ? await PlayerSettings.getBookSpeed(itemId) : null;
-    final speed = bookSpeed ?? await PlayerSettings.getDefaultSpeed();
+    final speed = bookSpeed ??
+        await PlayerSettings.defaultSpeedFor(libraryId: widget.libraryId);
     if (mounted && speed != _savedSpeed) setState(() => _savedSpeed = speed);
   }
 
@@ -338,6 +343,17 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
         final bookRemaining = (totalDur - posS) / speedDiv;
         final chapterRemaining = (chapterDur - chapterPos) / speedDiv;
         final chapterElapsed = chapterPos / speedDiv;
+        final displayedBookProgress =
+            (_bookDragValue ?? bookProgress).clamp(0.0, 1.0);
+        final bookPercentageLabel = l.percentComplete(
+          (displayedBookProgress * 100).toStringAsFixed(1),
+        );
+        final bookPercentageStyle = tt.labelSmall?.copyWith(
+          color: cs.onSurfaceVariant,
+          fontSize: 11 * _progressTextScale,
+          fontWeight: FontWeight.w600,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        );
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -369,6 +385,12 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
                   ),
                   if (_bookDragValue != null && _bookScrubSpeed < 1.0)
                     Text(_scrubSpeedLabel(l, _bookScrubSpeed), style: tt.labelSmall?.copyWith(color: widget.accent, fontSize: 11, fontWeight: FontWeight.w500))
+                  else if (widget.showBookPercentage)
+                    Text(
+                      bookPercentageLabel,
+                      key: const ValueKey('desktop-current-percent'),
+                      style: bookPercentageStyle,
+                    )
                   else if (widget.showCenterPercent)
                     Text('${(( _bookDragValue ?? bookProgress) * 100).clamp(0, 100).toStringAsFixed(1)}%', style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 12 * _progressTextScale, fontWeight: FontWeight.w600, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
                 ],
@@ -386,6 +408,14 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
                 const SizedBox(width: 8),
                 Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(value: bookProgress, minHeight: 3, backgroundColor: cs.onSurface.withValues(alpha: 0.08), valueColor: AlwaysStoppedAnimation(widget.accent.withValues(alpha: 0.5))))),
+                if (widget.showBookPercentage) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    bookPercentageLabel,
+                    key: const ValueKey('desktop-current-percent'),
+                    style: bookPercentageStyle,
+                  ),
+                ],
                 const SizedBox(width: 8),
                 Text('-${_fmt(_bookDragValue != null ? (1.0 - _bookDragValue!) * totalDur / speedDiv : bookRemaining)}', style: tt.labelSmall?.copyWith(color: _bookDragValue != null ? cs.onSurface.withValues(alpha: 0.6) : cs.onSurface.withValues(alpha: 0.5), fontSize: 11 * _progressTextScale, fontWeight: FontWeight.w500, shadows: [Shadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.5), blurRadius: 3)])),
               ]),
@@ -520,6 +550,11 @@ class ChapterPillPainter extends CustomPainter {
     final radius = h / 2;
     final p = progress.clamp(0.0, 1.0);
 
+    if (expressiveNotifier.value) {
+      _paintExpressive(canvas, w, h, p);
+      return;
+    }
+
     // Pill shape
     final pillRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(0, 0, w, h),
@@ -621,6 +656,49 @@ class ChapterPillPainter extends CustomPainter {
         canvas.drawCircle(center, 5.5, Paint()..color = accent);
       }
     }
+  }
+
+  // The current Material slider: the played and unplayed parts are separate
+  // pieces with a gap either side of a tall bar handle, and the handle
+  // narrows while it is being dragged.
+  void _paintExpressive(Canvas canvas, double w, double h, double p) {
+    const gap = 5.0;
+    const tight = Radius.circular(3);
+    final big = Radius.circular(h / 2);
+    final handleW = isDragging ? 2.5 : 5.0;
+    final x = (p * w).clamp(handleW / 2, w - handleW / 2);
+
+    final playedRight = x - handleW / 2 - gap;
+    if (playedRight > 10) {
+      canvas.drawRRect(
+        RRect.fromLTRBAndCorners(0, 0, playedRight, h,
+            topLeft: big, bottomLeft: big, topRight: tight, bottomRight: tight),
+        Paint()..color = accent.withValues(alpha: isDragging ? 0.5 : 0.38),
+      );
+    }
+    final restLeft = x + handleW / 2 + gap;
+    if (w - restLeft > 2) {
+      canvas.drawRRect(
+        RRect.fromLTRBAndCorners(restLeft, 0, w, h,
+            topLeft: tight, bottomLeft: tight, topRight: big, bottomRight: big),
+        Paint()..color = backgroundColor,
+      );
+      // The stop mark at the far end of the track.
+      if (w - restLeft > h) {
+        canvas.drawCircle(
+          Offset(w - h / 2, h / 2),
+          2,
+          Paint()..color = accent.withValues(alpha: 0.7),
+        );
+      }
+    }
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(x, h / 2), width: handleW, height: h),
+        Radius.circular(handleW / 2),
+      ),
+      Paint()..color = accent.withValues(alpha: isPlaying || isDragging ? 0.95 : 0.7),
+    );
   }
 
   @override

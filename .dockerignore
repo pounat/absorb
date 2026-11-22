@@ -1,0 +1,11 @@
+.dart_tool
+.git
+.github
+.idea
+battery-reports
+build
+coverage
+screenshots
+test
+*.iml
+*.log

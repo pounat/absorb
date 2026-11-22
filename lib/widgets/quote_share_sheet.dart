@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'dart:math' show min;
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -138,7 +141,7 @@ class _QuoteShareSheetState extends State<_QuoteShareSheet> {
       final file = File(url);
       if (file.existsSync()) provider = FileImage(file);
     } else {
-      provider = CachedNetworkImageProvider(url, headers: widget.mediaHeaders);
+      provider = CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: widget.mediaHeaders);
     }
     if (provider == null) {
       setState(() => _coverSettled = true);
@@ -330,7 +333,7 @@ class _QuoteShareSheetState extends State<_QuoteShareSheet> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: AdaptiveSpinner(strokeWidth: 2))
                     : const Icon(Icons.ios_share_rounded, size: 18),
                 label: Text(l.quoteShareAction),
                 onPressed: _busy || !_coverSettled ? null : _share,

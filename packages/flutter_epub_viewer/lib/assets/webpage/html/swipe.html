@@ -19,6 +19,17 @@
         -webkit-justify-content: center;
       }
 
+      /* Absorb patch: examples.css gives the body a min-height of 800px, so a
+         shorter page (landscape, or under a pinned top bar) was taller than
+         the screen and could be dragged up and down. The book scrolls inside
+         epub.js's own container, never the page itself. */
+      html,
+      body {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+      }
+
       #viewer {
         width: 100%;
         height: 100%;
@@ -28,6 +39,22 @@
         /* padding: 10px 10px 0px 10px; */
         margin: 5px auto;
         background: white;
+      }
+
+      /* Absorb patch: in scroll mode epub.js shifts the scroll itself when it
+         adds the chapter above (manager counter()). Chrome's scroll anchoring
+         made the same shift on top, so scrolling up across a chapter jumped
+         the page down by that chapter's height. */
+      .epub-container {
+        overflow-anchor: none;
+      }
+
+      /* Absorb patch: scroll mode only moves up and down. A drag that drifted
+         sideways nudged the text to the side. */
+      body.absorb-scrolled,
+      body.absorb-scrolled .epub-container {
+        overflow-x: hidden !important;
+        touch-action: pan-y;
       }
 
       #viewerNext {
@@ -45,12 +72,34 @@
       #blindLine {
         display: none;
         position: fixed;
-        height: 2px;
+        height: 14px;
         /* above the blind and the touch pad - nothing should cover it */
         z-index: 4;
         pointer-events: none;
+        overflow: hidden;
         background: rgba(150, 150, 150, 0.9);
-        box-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
+      }
+
+      /* A glint travelling along the edge, so the eye finds it moving. */
+      #blindLine::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 30%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--blindBg, #fff), transparent);
+        opacity: 0.75;
+        animation: blindGlint 2.2s linear infinite;
+      }
+
+      #blindLine.still::after {
+        display: none;
+      }
+
+      @keyframes blindGlint {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(334%); }
       }
 
       #autoScrollTouch {

@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
 import '../providers/auth_provider.dart';
@@ -238,7 +240,7 @@ class _StackedCovers extends StatelessWidget {
       return Image.file(File(url), fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _placeholder());
     }
-    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: url, fit: BoxFit.cover,
         httpHeaders: mediaHeaders, placeholder: (_, __) => _placeholder(),
         errorWidget: (_, __, ___) => _placeholder());
   }

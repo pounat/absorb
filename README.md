@@ -76,7 +76,7 @@ Absorb is translated by the community on [Crowdin](https://crowdin.com/project/a
 
 ### Google Play
 
-Open testing is live - [join the open beta on Google Play](https://play.google.com/store/apps/details?id=com.barnabas.absorb). Open testing and production releases match GitHub full releases. Internal testing (alpha) matches GitHub pre-releases - join the [Discord](https://discord.gg/dW4Y4zCxRp) to request access to the internal track.
+Open testing is live - [join the open beta on Google Play](https://play.google.com/store/apps/details?id=com.barnabas.absorb). Open testing and production releases match GitHub full releases. Internal testing (alpha) matches GitHub pre-releases - join the [Discord](https://discord.gg/vkEg8w7RUd) to request access to the internal track.
 
 ### App Store
 

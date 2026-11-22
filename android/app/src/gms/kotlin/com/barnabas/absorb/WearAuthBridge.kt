@@ -47,6 +47,7 @@ object WearAuthBridge {
         isLegacyToken: Boolean,
         customHeaders: Map<String, String> = emptyMap(),
         supportsTokenReturn: Boolean = false,
+        backend: String = "abs",
     ) {
         scope.launch {
             try {
@@ -64,6 +65,7 @@ object WearAuthBridge {
                     put("customHeaders", headersJson)
                     put("source", "phone")
                     put("supportsTokenReturn", supportsTokenReturn)
+                    put("backend", backend)
                     put("issuedAt", now)
                 }.toString()
 

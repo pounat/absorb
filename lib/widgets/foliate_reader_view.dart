@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -12,6 +13,7 @@ import '../services/ebook_cache.dart';
 import '../services/progress_sync_service.dart';
 import '../services/foliate_book_server.dart';
 import '../services/volume_key_service.dart';
+import 'adaptive_modal.dart';
 
 /// A table-of-contents entry from foliate-js.
 class _TocItem {
@@ -295,26 +297,73 @@ class _FoliateReaderViewState extends State<FoliateReaderView> with WidgetsBindi
 
   void _showToc() {
     final cs = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    Widget header(BuildContext ctx, {required bool showClose}) => Padding(
+      padding: showClose
+          ? const EdgeInsets.fromLTRB(16, 8, 8, 8)
+          : const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              AppLocalizations.of(ctx)!.readerChapters,
+              style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface,
+              ),
+            ),
+          ),
+          if (showClose)
+            IconButton(
+              tooltip: MaterialLocalizations.of(ctx).closeButtonTooltip,
+              onPressed: () => Navigator.pop(ctx),
+              icon: const Icon(Icons.close_rounded),
+            ),
+        ],
+      ),
+    );
+
+    showAdaptiveActionMenu<void>(
       context: context,
       backgroundColor: cs.surface,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(AppLocalizations.of(ctx)!.readerChapters,
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600, color: cs.onSurface)),
+      builder: (ctx) {
+        if (!ModalSurface.isDesktopOf(ctx)) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                header(ctx, showClose: false),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: _tocTiles(_toc, ctx, 0),
+                  ),
+                ),
+              ],
             ),
-            Flexible(child: ListView(shrinkWrap: true, children: _tocTiles(_toc, ctx, 0))),
-          ],
-        ),
-      ),
+          );
+        }
+        return AdaptiveDraggableScrollableSheet(
+          expand: false,
+          builder: (_, scrollController) => SafeArea(
+            child: Column(
+              children: [
+                header(ctx, showClose: true),
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    children: _tocTiles(_toc, ctx, 0),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -350,7 +399,7 @@ class _FoliateReaderViewState extends State<FoliateReaderView> with WidgetsBindi
 
     Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const Center(child: AdaptiveSpinner());
     } else if (_error != null || _port == 0) {
       body = Center(
         child: Padding(

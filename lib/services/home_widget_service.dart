@@ -7,15 +7,24 @@ import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../main.dart' show rootNavigatorKey;
+import '../providers/library_provider.dart';
 
 import 'audio_player_service.dart';
 import 'api_service.dart';
+import 'bookorbit_media_proxy.dart';
+import 'server_backend.dart';
 import 'download_service.dart';
 import 'progress_sync_service.dart';
 import 'scoped_prefs.dart';
 import 'user_account_service.dart';
 import 'wear_player_service.dart';
+import 'sleep_timer_service.dart';
+import 'android_auto_service.dart';
+import 'app_icon_service.dart';
 
 const String _androidWidgetName = 'NowPlayingWidget';
 const String _androidWidgetCompactName = 'NowPlayingWidgetCompact';
@@ -132,9 +141,11 @@ class HomeWidgetService {
 
     final player = AudioPlayerService();
     player.addListener(_onPlayerChanged);
+    SleepTimerService().addListener(_onSleepChanged);
 
     // Listen for widget click actions (e.g. play/pause button)
     _clickSub = HomeWidget.widgetClicked.listen(_onWidgetClicked);
+    WearPlayerService.instance.listen();
 
     // Check if the app was cold-started from a widget tap
     final launchUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
@@ -202,6 +213,22 @@ class HomeWidgetService {
     final duration = (local['duration'] as num?)?.toDouble() ?? 0;
     final currentTime = (local['currentTime'] as num?)?.toDouble() ?? 0;
     return duration > 0 && currentTime >= duration - 1.0;
+  }
+
+  /// Whether the server holds the last-played item as finished. The phone
+  /// only knows a book is done when it finished here, so one finished on
+  /// another device or marked finished on the server still read as something
+  /// to resume. Offline, slow or no record reads as not finished and leaves
+  /// the local answer standing.
+  static Future<bool> finishedOnServer(
+    Future<Map<String, dynamic>?> Function() fetch, {
+    Duration wait = const Duration(seconds: 3),
+  }) async {
+    try {
+      return lastPlayedIsFinished(await fetch().timeout(wait));
+    } catch (_) {
+      return false;
+    }
   }
 
   /// The stash readers/writers below can run before [init] (the boot-time
@@ -281,6 +308,7 @@ class HomeWidgetService {
     _pendingUpdate?.cancel();
     _clickSub?.cancel();
     AudioPlayerService().removeListener(_onPlayerChanged);
+    SleepTimerService().removeListener(_onSleepChanged);
   }
 
   void _onWidgetClicked(Uri? uri) {
@@ -306,9 +334,28 @@ class HomeWidgetService {
           final episodeId = (rawEpisode == null || rawEpisode.isEmpty)
               ? null
               : rawEpisode;
+          final position = double.tryParse(uri.queryParameters['position'] ?? '');
           if (itemId != null && itemId.isNotEmpty) {
-            _handlePlayItem(itemId, episodeId);
+            _handlePlayItem(
+              itemId,
+              episodeId,
+              position: position != null && position.isFinite && position > 0 ? position : null,
+            );
           }
+          break;
+        case '/next_chapter':
+        case '/prev_chapter':
+        case '/bookmark':
+        case '/stop':
+        case '/sleep':
+        case '/seek':
+        case '/speed':
+          // The watch asked while the app was down, so it was started with
+          // the request in its launch URI.
+          WearCommands.handle(
+            uri.path.substring(1),
+            Map<String, dynamic>.from(uri.queryParameters),
+          );
           break;
       }
     }
@@ -321,6 +368,33 @@ class HomeWidgetService {
   /// a media button press hits the service before the UI has bootstrapped
   /// the current item).
   Future<void> resumeLastPlayedIfAvailable() => _handlePlayPause();
+
+  /// When [itemId]'s cover last changed, as best this phone knows: the
+  /// newest of the server's last change to the book, the saved cover file,
+  /// and a refresh this run. The watch uses it to stop showing a cover it
+  /// kept from before.
+  int _coverVersion(String itemId) {
+    var version = AndroidAutoService.coverTsFor(itemId) ?? 0;
+    final context = rootNavigatorKey.currentContext;
+    if (context != null) {
+      try {
+        final updated = Provider.of<LibraryProvider>(context, listen: false).itemUpdatedAt(itemId);
+        if (updated != null && updated > version) version = updated;
+      } catch (_) {}
+    }
+    final path = DownloadService().getInfo(itemId).localCoverPath;
+    if (path != null && path.isNotEmpty) {
+      try {
+        final saved = File(path).lastModifiedSync().millisecondsSinceEpoch;
+        if (saved > version) version = saved;
+      } catch (_) {}
+    }
+    return version;
+  }
+
+  /// The watch picked a book to play on this phone.
+  Future<void> playItemFromWatch(String itemId, String? episodeId, {double? position}) =>
+      _handlePlayItem(itemId, episodeId, position: position);
 
   void _handleSkipBack() {
     final player = AudioPlayerService();
@@ -339,10 +413,12 @@ class HomeWidgetService {
   /// Start playback of a specific item. Used by the watch's Continue
   /// Listening tap → WearPlayerCommandListenerService → /play_item URI.
   /// Always plays (no toggle path) — the watch already chose which book
-  /// it wants and the user expects an immediate switch.
-  Future<void> _handlePlayItem(String itemId, String? episodeId) async {
+  /// it wants and the user expects an immediate switch. A [position] is
+  /// where the watch was in it, so the phone carries on from there instead
+  /// of from its own or the server's older spot.
+  Future<void> _handlePlayItem(String itemId, String? episodeId, {double? position}) async {
     debugPrint(
-      '[HomeWidget] _handlePlayItem itemId=$itemId episodeId=$episodeId',
+      '[HomeWidget] _handlePlayItem itemId=$itemId episodeId=$episodeId position=$position',
     );
     final player = AudioPlayerService();
 
@@ -366,7 +442,8 @@ class HomeWidgetService {
       } catch (_) {}
     }
 
-    final api = ApiService(
+    final api = ApiService.forSession(
+      backend: ServerBackend.loadActive(prefs),
       baseUrl: serverUrl,
       token: token,
       refreshToken: refreshToken,
@@ -382,6 +459,7 @@ class HomeWidgetService {
             username: username,
           ),
     );
+    await api.ensureMediaReady();
 
     try {
       final fullItem = await api.getLibraryItem(itemId);
@@ -416,6 +494,8 @@ class HomeWidgetService {
           coverUrl: coverUrl,
           totalDuration: epDuration,
           chapters: const [],
+          startTime: position ?? 0,
+          forceStartTime: position != null,
           episodeId: episodeId,
           episodeTitle: epTitle,
           libraryId: fullItem['libraryId'] as String?,
@@ -429,6 +509,8 @@ class HomeWidgetService {
           coverUrl: coverUrl,
           totalDuration: duration,
           chapters: chapters,
+          startTime: position ?? 0,
+          forceStartTime: position != null,
           libraryId: fullItem['libraryId'] as String?,
         );
       }
@@ -488,6 +570,16 @@ class HomeWidgetService {
       '[HomeWidget] play_pause: api=${api != null}',
     );
     if (api == null) return;
+
+    // A car that sends play as it connects then started a book finished
+    // elsewhere from the top, and the first sync un-finished it.
+    if (await finishedOnServer(() => api.getItemProgress(progressKey))) {
+      debugPrint(
+        '[HomeWidget] play_pause: last played $progressKey is finished on '
+        'the server - nothing to resume',
+      );
+      return;
+    }
 
     try {
       // A downloaded item needs nothing from the server to start: the download
@@ -576,7 +668,8 @@ class HomeWidgetService {
         );
       } catch (_) {}
     }
-    return ApiService(
+    return ApiService.forSession(
+      backend: ServerBackend.loadActive(prefs),
       baseUrl: serverUrl,
       token: token,
       refreshToken: refreshToken,
@@ -650,6 +743,27 @@ class HomeWidgetService {
     }
     _scheduleUpdate();
   }
+
+  // The timer ticks every second and the watch counts down by itself, so
+  // only a timer set, added to, cancelled or down another minute goes out.
+  String? _sleepSig;
+
+  void _onSleepChanged() {
+    final sleep = SleepTimerService();
+    final sig = switch (sleep.mode) {
+      SleepTimerMode.time => 'time:${sleep.timeRemaining.inMinutes}',
+      SleepTimerMode.chapters => 'chapters:${sleep.chaptersRemaining}',
+      SleepTimerMode.episodes => 'episodes',
+      SleepTimerMode.off => null,
+    };
+    if (sig == _sleepSig) return;
+    _sleepSig = sig;
+    _onPlayerChanged();
+  }
+
+  /// Sends the watch the current state again, for a change it should see
+  /// right away even with nothing playing, such as a new app icon.
+  void republishToWatch() => _scheduleUpdate();
 
   /// Schedule an update on the next microtask so we never do async work
   /// inside the synchronous ChangeNotifier callback.
@@ -781,7 +895,17 @@ class HomeWidgetService {
     }
 
     await _updateAllWidgets();
-    _pushToWear(player, hasBook, skipBack, skipForward);
+    final rewind = await AutoRewindSettings.load();
+    final skipBarrier = await PlayerSettings.getSkipChapterBarrier();
+    final speedAdjusted = await PlayerSettings.getSpeedAdjustedTime();
+    final sleepAddMinutes = await PlayerSettings.getShakeAddMinutes();
+    final speedPresets = await PlayerSettings.getSpeedPresets();
+    // The app's colour, picked or taken from the playing cover, so the
+    // watch can wear it too.
+    final themeColor = await PlayerSettings.getColorSource() == 'manual'
+        ? await PlayerSettings.getManualSeedColor()
+        : (await PlayerSettings.getCoverSeedColor() ?? 0xFF7C6FBF);
+    _pushToWear(player, hasBook, skipBack, skipForward, rewind, skipBarrier, speedAdjusted, sleepAddMinutes, speedPresets, themeColor);
   }
 
   /// Mirror the same snapshot we just wrote to the home widget to the
@@ -792,9 +916,37 @@ class HomeWidgetService {
     bool hasBook,
     int skipBack,
     int skipForward,
+    AutoRewindSettings rewind,
+    bool skipChapterBarrier,
+    bool speedAdjustedTime,
+    int sleepAddMinutes,
+    List<double> speedPresets,
+    int themeColor,
   ) {
     if (!Platform.isAndroid) return;
     final chapterTitle = player.currentChapter?['title'] as String?;
+    final chapters = hasBook ? player.chapters : const <dynamic>[];
+    var chapterIndex = -1;
+    if (hasBook && chapters.isNotEmpty) {
+      final posS = player.position.inMilliseconds / 1000.0;
+      for (var i = chapters.length - 1; i >= 0; i--) {
+        final start = ((chapters[i] as Map)['start'] as num?)?.toDouble() ?? 0;
+        if (posS >= start) {
+          chapterIndex = i;
+          break;
+        }
+      }
+    }
+    final sleep = SleepTimerService();
+    final sleepMode = switch (sleep.mode) {
+      SleepTimerMode.time => 'time',
+      SleepTimerMode.chapters => 'chapters',
+      SleepTimerMode.episodes => 'episodes',
+      SleepTimerMode.off => null,
+    };
+    WearPlayerService.instance.publishChapters(hasBook ? player.currentItemId : null, chapters);
+    WearPlayerService.instance.publishBookmarks(
+        hasBook && player.currentEpisodeId == null ? player.currentItemId : null);
     WearPlayerService.instance.publish(
       hasBook: hasBook,
       itemId: hasBook ? player.currentItemId : null,
@@ -807,6 +959,28 @@ class HomeWidgetService {
       speed: player.speed.toDouble(),
       skipBackSec: skipBack,
       skipForwardSec: skipForward,
+      chapterStartMs: hasBook ? (player.currentChapterStart * 1000).round() : 0,
+      chapterEndMs: hasBook ? (player.currentChapterEnd * 1000).round() : 0,
+      autoRewindEnabled: rewind.enabled,
+      autoRewindMinSec: rewind.minRewind,
+      autoRewindMaxSec: rewind.maxRewind,
+      autoRewindDelaySec: rewind.activationDelay,
+      autoRewindChapterBarrier: rewind.chapterBarrier,
+      autoRewindSessionStart: rewind.sessionStartRewind,
+      skipChapterBarrier: skipChapterBarrier,
+      speedAdjustedTime: speedAdjustedTime,
+      chapterIndex: chapterIndex,
+      chapterCount: chapters.length,
+      sleepMode: sleepMode,
+      sleepAddMinutes: sleepAddMinutes,
+      speedPresets: speedPresets,
+      sleepEndsAtMs: sleep.mode == SleepTimerMode.time
+          ? DateTime.now().millisecondsSinceEpoch + sleep.timeRemaining.inMilliseconds
+          : 0,
+      sleepChaptersLeft: sleep.mode == SleepTimerMode.chapters ? sleep.chaptersRemaining : 0,
+      themeColor: themeColor,
+      coverVersion: hasBook && player.currentItemId != null ? _coverVersion(player.currentItemId!) : 0,
+      appIcon: AppIconService.supported ? AppIconService.current.value : null,
     );
   }
 
@@ -903,8 +1077,11 @@ class HomeWidgetService {
     // via the widget without their server progress falling behind.
     final api = player.currentApi;
     if (api != null) {
+      // The native core only knows the Audiobookshelf progress endpoint. With
+      // no token it skips the push, and the app syncs on its next start.
       await HomeWidget.saveWidgetData<String>('np_server_url', api.baseUrl);
-      await HomeWidget.saveWidgetData<String>('np_api_token', api.token);
+      await HomeWidget.saveWidgetData<String>(
+          'np_api_token', api.isBookOrbit ? '' : api.token);
     }
 
     // EQ-enabled flag in the app group so a cold widget-launch (engine never
@@ -1127,11 +1304,13 @@ class HomeWidgetService {
       final localReachable = await ApiService.pingServer(
         localUrl,
         customHeaders: headers,
+        backend: ServerBackend.loadActive(prefs),
       ).timeout(const Duration(seconds: 3), onTimeout: () => false);
       if (localReachable) baseUrl = localUrl;
     }
 
-    return ApiService(
+    return ApiService.forSession(
+      backend: ServerBackend.loadActive(prefs),
       baseUrl: baseUrl,
       token: token,
       refreshToken: refreshToken,
@@ -1146,7 +1325,7 @@ class HomeWidgetService {
             serverUrl: remoteUrl,
             username: username,
           ),
-    );
+    ).withMediaReady();
   }
 
   Map<String, dynamic> _extractDailyMap(Map<String, dynamic>? stats) {
@@ -1268,10 +1447,14 @@ class HomeWidgetService {
           // Ask for a bigger one just for the widget file. The Kotlin side caps
           // what it actually hands to RemoteViews, so this only improves the
           // source it has to work from.
-          final widgetCoverUrl = coverUrl.replaceAllMapped(
+          var widgetCoverUrl = coverUrl.replaceAllMapped(
             RegExp(r'([?&])width=\d+'),
             (m) => '${m[1]}width=$_widgetCoverWidth',
           );
+          if (BookOrbitMediaProxy.instance.owns(widgetCoverUrl)) {
+            await BookOrbitMediaProxy.instance.ensureRunning();
+            widgetCoverUrl = widgetCoverUrl.replaceFirst('/thumbnail?', '/cover?');
+          }
           final response = await http
               .get(Uri.parse(widgetCoverUrl))
               .timeout(const Duration(seconds: 10));
@@ -1331,8 +1514,8 @@ class HomeWidgetService {
 
   void _startProgressTimer() {
     if (_progressTimer?.isActive == true) return;
-    _progressTimer = Timer.periodic(const Duration(seconds: 120), (_) {
-      if (_backgrounded) {
+    _progressTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (_backgrounded && !Platform.isAndroid) {
         // Off-screen, widget reloads are budgeted by iOS and pointless, but
         // the np_* stash must keep tracking background playback: it is what
         // the cold-launch Now Playing primer and the post-kill resume read.
@@ -1344,6 +1527,13 @@ class HomeWidgetService {
           return;
         }
         _stashPlaybackStateForNativeCore(player);
+        return;
+      }
+      // On Android the home screen is in view exactly while the app is in
+      // the background, and a widget update is cheap, so the text that moves
+      // (time left, percent, chapter) keeps up by the minute there.
+      if (_backgrounded && !AudioPlayerService().isPlaying) {
+        _stopProgressTimer();
         return;
       }
       _scheduleUpdate();

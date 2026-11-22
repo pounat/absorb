@@ -100,6 +100,8 @@ class WhisperController {
         time: totalDuration,
         transcription: result.response,
         language: result.language,
+        backend: result.backend,
+        log: result.log,
       );
     } catch (e) {
       debugPrint(e.toString());

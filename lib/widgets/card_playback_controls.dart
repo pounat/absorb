@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'glass_look.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import 'card_buttons.dart';
+import 'expressive.dart';
 
 // ─── PLAYBACK CONTROLS (card version) ───────────────────────
 
@@ -15,7 +17,8 @@ class CardPlaybackControls extends StatefulWidget {
   final bool showPlayButton;
   final double playButtonSize;
   final String? libraryId;
-  const CardPlaybackControls({super.key, required this.player, required this.accent, required this.isActive, required this.isStarting, required this.onStart, this.itemId, this.showPlayButton = false, this.playButtonSize = 65, this.libraryId});
+  final FocusNode? playFocusNode;
+  const CardPlaybackControls({super.key, required this.player, required this.accent, required this.isActive, required this.isStarting, required this.onStart, this.itemId, this.showPlayButton = false, this.playButtonSize = 65, this.libraryId, this.playFocusNode});
   @override State<CardPlaybackControls> createState() => _CardPlaybackControlsState();
 }
 
@@ -87,7 +90,7 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
     final cast = ChromecastService();
 
     return ListenableBuilder(
-      listenable: Listenable.merge([cast, widget.player]),
+      listenable: Listenable.merge([cast, widget.player, expressiveNotifier]),
       builder: (context, _) {
         // Check if we're casting this specific book
         final castItemId = widget.itemId ?? widget.player.currentItemId;
@@ -106,18 +109,40 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
     final s = _sevenControls ? 56.0 : widget.playButtonSize;
     final iconSize = s * 0.49;
     final spinnerSize = s * 0.4;
-    return Pressable(
+    // The same soft cover color as the played part of the chapter bar,
+    // made solid, with the icon in whichever of black or white reads on it.
+    final fill = Color.alphaBlend(widget.accent.withValues(alpha: 0.38), cs.surface);
+    final onFill = ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+    if (expressiveNotifier.value) {
+      return Pressable(focusCircle: true, 
+        onTap: onTap,
+        focusNode: widget.playFocusNode,
+        child: ExpressivePlayShape(
+          size: s,
+          playing: playing,
+          color: fill,
+          child: loading
+              ? SizedBox(width: spinnerSize, height: spinnerSize, child: AdaptiveSpinner(strokeWidth: 2, color: onFill))
+              : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: onFill),
+        ),
+      );
+    }
+    return Pressable(focusCircle: true, 
       onTap: onTap,
+      focusNode: widget.playFocusNode,
       child: Container(
         width: s, height: s,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: cs.onSurface,
-          boxShadow: [BoxShadow(color: widget.accent.withValues(alpha: 0.4), blurRadius: 25, spreadRadius: -5)],
+          color: fill,
         ),
         child: loading
-            ? Center(child: SizedBox(width: spinnerSize, height: spinnerSize, child: CircularProgressIndicator(strokeWidth: 2, color: widget.accent)))
-            : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: cs.surface),
+            ? Center(child: SizedBox(width: spinnerSize, height: spinnerSize, child: AdaptiveSpinner(strokeWidth: 2, color: onFill)))
+            : glassLook
+            ? Center(child: MorphingPlayIcon(playing: playing, size: iconSize, color: onFill))
+            : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: iconSize, color: onFill),
       ),
     );
   }
@@ -133,35 +158,35 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Flexible(child: Pressable(
+        Flexible(child: Pressable(focusCircle: true, 
           onTap: cast.skipToPreviousChapter,
-          child: SizedBox(width: chBox, height: chBox, child: Center(
+          child: ExpressiveControlBox(soft: false, width: chBox, height: chBox, child: Center(
             child: Icon(Icons.skip_previous_rounded, size: chIcon, color: cs.onSurfaceVariant),
           )),
         )),
         if (_longSkip)
-          Flexible(child: Pressable(
+          Flexible(child: Pressable(focusCircle: true, 
             onTap: () => cast.skipBackward(_longBackSkip),
             child: SizedBox(width: 48, height: skBox, child: Center(child: _longSkipIcon(_longBackSkip, false))),
           )),
-        Flexible(child: Pressable(
+        Flexible(child: Pressable(focusCircle: true, 
           onTap: () => cast.skipBackward(_backSkip),
-          child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, size: skIcon))),
+          child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, size: skIcon))),
         )),
         if (widget.showPlayButton)
           Flexible(child: _playPauseButton(cs, playing: cast.isReceiverActive, loading: false, onTap: cast.togglePlayPause)),
-        Flexible(child: Pressable(
+        Flexible(child: Pressable(focusCircle: true, 
           onTap: () => cast.skipForward(_forwardSkip),
-          child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, size: skIcon))),
+          child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, size: skIcon))),
         )),
         if (_longSkip)
-          Flexible(child: Pressable(
+          Flexible(child: Pressable(focusCircle: true, 
             onTap: () => cast.skipForward(_longForwardSkip),
             child: SizedBox(width: 48, height: skBox, child: Center(child: _longSkipIcon(_longForwardSkip, true))),
           )),
-        Flexible(child: Pressable(
+        Flexible(child: Pressable(focusCircle: true, 
           onTap: cast.skipToNextChapter,
-          child: SizedBox(width: chBox, height: chBox, child: Center(
+          child: ExpressiveControlBox(soft: false, width: chBox, height: chBox, child: Center(
             child: Icon(Icons.skip_next_rounded, size: chIcon, color: cs.onSurfaceVariant),
           )),
         )),
@@ -181,36 +206,36 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Flexible(child: Pressable(
+        Flexible(child: Pressable(focusCircle: true, 
           onTap: widget.isActive ? widget.player.skipToPreviousChapter : null,
-          child: SizedBox(width: chBox, height: chBox, child: Center(
+          child: ExpressiveControlBox(soft: false, width: chBox, height: chBox, child: Center(
             child: Icon(Icons.skip_previous_rounded, size: chIcon, color: widget.isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.12)),
           )),
         )),
         if (_longSkip)
-          Flexible(child: Pressable(
+          Flexible(child: Pressable(focusCircle: true, 
             onTap: widget.isActive ? () => widget.player.skipBackward(_longBackSkip) : null,
             child: SizedBox(width: 48, height: skBox, child: Center(child: _longSkipIcon(_longBackSkip, false, active: widget.isActive))),
           )),
-        Flexible(child: Pressable(
+        Flexible(child: Pressable(focusCircle: true, 
           onTap: widget.isActive ? () => widget.player.skipBackward(_backSkip) : null,
-          child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, active: widget.isActive, size: skIcon))),
+          child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, active: widget.isActive, size: skIcon))),
         )),
         if (widget.showPlayButton)
           Flexible(child: _playPauseButton(cs, playing: widget.isActive && widget.player.isPlaying, loading: loading,
             onTap: widget.isActive ? () => widget.player.togglePlayPause(fromUi: true) : widget.onStart)),
-        Flexible(child: Pressable(
+        Flexible(child: Pressable(focusCircle: true, 
           onTap: widget.isActive ? () => widget.player.skipForward(_forwardSkip) : null,
-          child: SizedBox(width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, active: widget.isActive, size: skIcon))),
+          child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, active: widget.isActive, size: skIcon))),
         )),
         if (_longSkip)
-          Flexible(child: Pressable(
+          Flexible(child: Pressable(focusCircle: true, 
             onTap: widget.isActive ? () => widget.player.skipForward(_longForwardSkip) : null,
             child: SizedBox(width: 48, height: skBox, child: Center(child: _longSkipIcon(_longForwardSkip, true, active: widget.isActive))),
           )),
-        Flexible(child: Pressable(
+        Flexible(child: Pressable(focusCircle: true, 
           onTap: widget.isActive ? widget.player.skipToNextChapter : null,
-          child: SizedBox(width: chBox, height: chBox, child: Center(
+          child: ExpressiveControlBox(soft: false, width: chBox, height: chBox, child: Center(
             child: Icon(Icons.skip_next_rounded, size: chIcon, color: widget.isActive ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.12)),
           )),
         )),

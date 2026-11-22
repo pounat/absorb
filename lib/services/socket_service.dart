@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'player_settings.dart';
+import 'server_backend.dart';
 
 class SocketService {
   static const authorChangeEvents = <String>[
@@ -18,6 +19,39 @@ class SocketService {
   String? _token;
   String? _serverUrl;
   DateTime? _connectedAt;
+
+  /// Set by the app: gets a new access token, which comes back through
+  /// [updateToken]. True once there is one.
+  Future<bool> Function()? onTokenExpired;
+  bool _askedForToken = false;
+
+  void _onAuthFailed(dynamic data) {
+    final message = data is Map ? data['message'] : null;
+    // Audiobookshelf 2.37 says when it's only the token's age. The socket
+    // stays open, so a new token signs it in again; once per sign-in.
+    final refresh = onTokenExpired;
+    if (message == 'Token expired' && refresh != null && !_askedForToken) {
+      _askedForToken = true;
+      debugPrint('[Socket] Token expired - getting a new one');
+      refresh().then((ok) {
+        if (ok) return;
+        debugPrint('[Socket] No new token - leaving live updates off');
+        disconnect();
+      }, onError: (Object e) {
+        debugPrint('[Socket] New token failed: $e');
+        disconnect();
+      });
+      return;
+    }
+    debugPrint('[Socket] Auth failed${message is String ? ': $message' : ''}');
+    disconnect();
+  }
+
+  @visibleForTesting
+  void debugAuthFailed(Object? data) => _onAuthFailed(data);
+
+  @visibleForTesting
+  void debugAuthenticated() => _askedForToken = false;
 
   bool get isConnected => _socket?.connected ?? false;
   bool get hasSocket => _socket != null;
@@ -276,6 +310,21 @@ class SocketService {
     }
   }
 
+  /// An item change made by this app on a server with no socket (BookOrbit),
+  /// sent to the same listeners the socket's item_updated reaches.
+  void emitLocalItemUpdated(Map<String, dynamic> item) {
+    onItemUpdated?.call(item);
+    _emitItemUpdated(item);
+    _emitItemsChanged();
+  }
+
+  /// The item_removed counterpart of [emitLocalItemUpdated].
+  void emitLocalItemRemoved(Map<String, dynamic> item) {
+    onItemRemoved?.call(item);
+    _emitItemRemoved(item);
+    _emitItemsChanged();
+  }
+
   // Removal fan-out with payload ({id, ...}), alongside the single-slot
   // onItemRemoved owned by the library provider.
   final List<void Function(Map<String, dynamic>)> _itemRemovedListeners = [];
@@ -331,6 +380,10 @@ class SocketService {
   void connect(String serverUrl, String token, {Map<String, String> customHeaders = const {}}) {
     if (_socket != null) disconnect();
 
+    // BookOrbit has its own socket namespaces and no progress events, so
+    // its accounts run on the refresh timers instead.
+    if (ServerBackend.active.isBookOrbit) return;
+
     _token = token;
     _serverUrl = serverUrl;
     _customHeaders = customHeaders;
@@ -355,21 +408,19 @@ class SocketService {
 
       _socket!.on('init', (_) {
         debugPrint('[Socket] Authenticated - user is online');
+        _askedForToken = false;
         _syncServerLogSubscription();
         onAuthenticated?.call();
       });
 
-      _socket!.on('auth_failed', (_) {
-        debugPrint('[Socket] Auth failed');
-        disconnect();
-      });
+      _socket!.on('auth_failed', _onAuthFailed);
 
       // Cross-device progress sync
       _socket!.on('user_item_progress_updated', (data) {
         if (data is Map<String, dynamic>) {
           final patch = data['data'] as Map<String, dynamic>?;
           if (patch != null) {
-            onProgressUpdated?.call(patch);
+            onProgressUpdated?.call(_withSession(patch, data));
           }
         }
       });
@@ -503,6 +554,14 @@ class SocketService {
   }
 
   /// Disconnect and tear down the socket, clearing all callbacks.
+  /// The progress row with the server session that sent it, when there was
+  /// one, so this phone can tell its own syncs echoed back from another
+  /// device's.
+  static Map<String, dynamic> _withSession(Map<String, dynamic> patch, Map<String, dynamic> event) {
+    final session = event['sessionId'];
+    return session is String ? {...patch, 'fromSession': session} : patch;
+  }
+
   void disconnect() {
     _socket?.dispose();
     _socket = null;
@@ -546,6 +605,7 @@ class SocketService {
   /// Reconnect after a soft disconnect, reusing saved credentials.
   void softReconnect() {
     if (_socket != null) return; // already connected
+    if (ServerBackend.active.isBookOrbit) return;
     if (PlayerSettings.einkMode) return;
     final url = _serverUrl;
     final token = _token;
@@ -563,19 +623,17 @@ class SocketService {
 
       _socket!.on('init', (_) {
         debugPrint('[Socket] Authenticated - user is online');
+        _askedForToken = false;
         _syncServerLogSubscription();
         onAuthenticated?.call();
       });
 
-      _socket!.on('auth_failed', (_) {
-        debugPrint('[Socket] Auth failed');
-        disconnect();
-      });
+      _socket!.on('auth_failed', _onAuthFailed);
 
       _socket!.on('user_item_progress_updated', (data) {
         if (data is Map<String, dynamic>) {
           final patch = data['data'] as Map<String, dynamic>?;
-          if (patch != null) onProgressUpdated?.call(patch);
+          if (patch != null) onProgressUpdated?.call(_withSession(patch, data));
         }
       });
 

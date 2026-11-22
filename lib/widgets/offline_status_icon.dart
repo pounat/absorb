@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../utils/app_platform.dart';
 import 'overlay_toast.dart';
+import 'sign_in_again.dart';
 
 /// Cloud icon in page headers showing online/offline state.
 ///
@@ -17,12 +20,27 @@ class OfflineStatusIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppPlatform.lacksPhonePlugins) return const SizedBox.shrink();
     final lib = context.watch<LibraryProvider>();
     final auth = context.watch<AuthProvider>();
     final l = AppLocalizations.of(context)!;
     final offline = lib.isOffline;
     final reconnecting = lib.isReconnecting;
     final onLocal = !offline && auth.useLocalServer;
+    if (auth.isSignedOut) {
+      return Semantics(
+        button: true,
+        label: l.signedOutTapToSignIn,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => openSignInAgain(context),
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Icon(Icons.cloud_off_rounded, size: 20, color: Colors.redAccent),
+          ),
+        ),
+      );
+    }
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: reconnecting
@@ -46,7 +64,7 @@ class OfflineStatusIcon extends StatelessWidget {
           child: reconnecting
               ? const Padding(
                   padding: EdgeInsets.all(1),
-                  child: CircularProgressIndicator(
+                  child: AdaptiveSpinner(
                     strokeWidth: 2,
                     color: Colors.orange,
                   ),

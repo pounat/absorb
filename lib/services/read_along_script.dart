@@ -224,9 +224,13 @@ const String _body = r'''
   // "e.g." and "U.S." stay inside one sentence.
   RA.isTerm = function(raw, i) {
     var ch = raw[i];
-    if (ch !== '.' && ch !== '!' && ch !== '?') return false;
+    var dash = ch === '\u2014';
+    if (ch !== '.' && ch !== '!' && ch !== '?' && ch !== '\u2026' && !dash) return false;
     var j = i + 1;
     while (j < raw.length && '"\'”’)]'.indexOf(raw[j]) !== -1) j++;
+    // An em dash only ends a sentence when it closes a quote at the end of
+    // the paragraph; mid-sentence dashes stay inside it.
+    if (dash) return j > i + 1 && (j >= raw.length || raw[j] === '\n');
     return j >= raw.length || /\s/.test(raw[j]);
   };
 
@@ -237,11 +241,16 @@ const String _body = r'''
   /// flow lays pages out sideways, scrolled flow downwards; whichever axis
   /// the page actually overflows on decides.
   RA.visibleEl = function(el) {
+    try {
+      if (!el) return { v: true, dir: 0 };
+      return RA.visibleRect(el.ownerDocument, el.getBoundingClientRect());
+    } catch (e) { return { v: true, dir: 0 }; }
+  };
+
+  RA.visibleRect = function(doc, rect) {
     var out = { v: true, dir: 0 };
     try {
-      if (!el) return out;
-      var doc = el.ownerDocument, win = doc.defaultView;
-      var rect = el.getBoundingClientRect();
+      var win = doc.defaultView;
       if (!rect || (rect.width === 0 && rect.height === 0)) return out;
       // The section's iframe holds every page of the section side by side
       // (or the whole scroll), so a rect inside it says nothing on its own.
@@ -299,11 +308,67 @@ const String _body = r'''
         var vis = RA.visibleEl(group[0]);
         out.visible = vis.v;
         out.dir = vis.dir;
+        out.seen = true;
         out.x = vis.x; out.w = vis.w;
         if (!vis.v) out.cfi = RA.cfiFor(st.contents, group[0], group[group.length - 1]);
       }
     } catch (e) {}
     return JSON.stringify(out);
+  };
+
+  // Where the voice is inside the sentence, painting nothing: following by
+  // sentence lights the whole sentence, but the page still has to turn when
+  // the words being heard have run onto the next one.
+  RA.heard = function(i) {
+    if (!RA.cur) return JSON.stringify({ held: false });
+    var out = { held: true, visible: true, dir: 0 };
+    try {
+      var st = RA.cur;
+      var ranges = st.wordRanges;
+      if (!ranges || !ranges.length || i < 0) return JSON.stringify(out);
+      var flat = [];
+      for (var a = 0; a < st.spans.length; a++) {
+        for (var b = 0; b < st.spans[a].length; b++) flat.push(st.spans[a][b]);
+      }
+      if (!flat.length || !flat[0].isConnected) return JSON.stringify({ held: false });
+      var k = Math.min(i + (st.wordFirst || 0), ranges.length - 1);
+      var r = RA.rangeInSpans(st.doc, flat, ranges[k][0] - st.sStart, ranges[k][1] - st.sStart);
+      if (!r) return JSON.stringify(out);
+      var vis = RA.visibleRect(st.doc, r.getBoundingClientRect());
+      out.visible = vis.v;
+      out.dir = vis.dir;
+      out.seen = true;
+      out.x = vis.x; out.w = vis.w;
+      if (!vis.v) out.cfi = RA.cfiFor(st.contents, flat[0], flat[flat.length - 1]);
+    } catch (e) {}
+    return JSON.stringify(out);
+  };
+
+  // A range over [a, b) of the text inside [spans], counted from the first
+  // character of the first span.
+  RA.rangeInSpans = function(doc, spans, a, b) {
+    var nodes = [];
+    for (var i = 0; i < spans.length; i++) {
+      var tw = doc.createTreeWalker(spans[i], NodeFilter.SHOW_TEXT, null, false), n;
+      while (n = tw.nextNode()) nodes.push(n);
+    }
+    if (!nodes.length) return null;
+    var at = 0, sp = null, ep = null;
+    for (var j = 0; j < nodes.length; j++) {
+      var len = nodes[j].textContent.length;
+      if (!sp && a < at + len) sp = { node: nodes[j], offset: Math.max(0, a - at) };
+      if (b <= at + len) { ep = { node: nodes[j], offset: Math.max(0, b - at) }; break; }
+      at += len;
+    }
+    if (!sp) return null;
+    if (!ep) {
+      var last = nodes[nodes.length - 1];
+      ep = { node: last, offset: last.textContent.length };
+    }
+    var r = doc.createRange();
+    r.setStart(sp.node, sp.offset);
+    r.setEnd(ep.node, ep.offset);
+    return r;
   };
 
   RA.clearDoc = function(doc) {
@@ -348,6 +413,46 @@ const String _body = r'''
     }
   };
 
+  /// A CFI for the sentence lit now, when its section is still loaded.
+  RA.curCfi = function() {
+    try {
+      var st = RA.cur;
+      if (!st || !st.spans.length) return '';
+      var first = null, last = null;
+      for (var a = 0; a < st.spans.length; a++) {
+        var g = st.spans[a];
+        if (!g || !g.length) continue;
+        if (!first) first = g[0];
+        last = g[g.length - 1];
+      }
+      if (!first || !first.isConnected) return '';
+      return RA.cfiFor(st.contents, first, last);
+    } catch (e) { return ''; }
+  };
+
+  /// Whether the last text of the lit sentence's section is on screen or
+  /// already behind it, so the next page belongs to the next section.
+  RA.atSectionEnd = function() {
+    try {
+      if (!RA.cur || !RA.cur.doc || !RA.cur.doc.body) return true;
+      var doc = RA.cur.doc;
+      var tw = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
+      var last = null, n;
+      while ((n = tw.nextNode())) {
+        var pe = n.parentElement, tag = pe && pe.tagName ? pe.tagName.toLowerCase() : '';
+        if (tag === 'script' || tag === 'style') continue;
+        if (/\S/.test(n.textContent)) last = n;
+      }
+      if (!last) return true;
+      var t = last.textContent, e = t.length;
+      while (e > 0 && /\s/.test(t[e - 1])) e--;
+      var r = doc.createRange();
+      r.setStart(last, Math.max(0, e - 1));
+      r.setEnd(last, e);
+      return RA.visibleRect(doc, r.getBoundingClientRect()).dir <= 0;
+    } catch (e2) { return true; }
+  };
+
   /// Find [needle] in the rendered pages, snap it out to sentence bounds, and
   /// paint it. Returns whether it was found, whether it sits on the visible
   /// page (and which way it lies otherwise), and how many words the matched
@@ -382,8 +487,30 @@ const String _body = r'''
           }
         }
         if (pos === -1) pos = hay.indexOf(q);
-        if (pos === -1) continue;
-        var rs = idx[pos], reEnd = idx[pos + q.length - 1] + 1;
+        var rs = -1, reEnd = -1;
+        if (pos !== -1) {
+          rs = idx[pos];
+          reEnd = idx[pos + q.length - 1] + 1;
+        } else {
+          // Book text can carry a space where a tag sat ("Kermit .”" for
+          // <i>Kermit</i>.”), so look again with the spaces taken out.
+          var sq = q.replace(/ /g, '');
+          if (sq.length < 8) continue;
+          var sh = [], sIdx = [];
+          for (var z = 0; z < hay.length; z++) {
+            if (hay[z] !== ' ') { sh.push(hay[z]); sIdx.push(idx[z]); }
+          }
+          var sHay = sh.join(''), spos = -1;
+          if (typeof minOffset === 'number' && minOffset >= 0) {
+            for (var y = 0; y < sIdx.length; y++) {
+              if (sIdx[y] >= minOffset) { spos = sHay.indexOf(sq, y); break; }
+            }
+          }
+          if (spos === -1) spos = sHay.indexOf(sq);
+          if (spos === -1) continue;
+          rs = sIdx[spos];
+          reEnd = sIdx[spos + sq.length - 1] + 1;
+        }
         // Snap the span to full sentence boundaries: Whisper segments cut
         // wherever they like, and mid-sentence spans read as glitches. A whole
         // sentence is also stable - consecutive segments inside one sentence
@@ -436,18 +563,22 @@ const String _body = r'''
           map = RA.nodeMap(doc);
         }
         RA.style(doc);
-        var spans = [];
+        var spans = [], wordRanges = null, wordFirst = 0;
         if (wordMode && words.length) {
           for (var wk = words.length - 1; wk >= 0; wk--) {
             spans[wk] = RA.wrap(doc, map, words[wk][0], words[wk][1], 'absorb-ra-w');
           }
         } else {
+          // The words are kept so the voice can still be placed in the lit sentence.
+          wordRanges = words;
+          wordFirst = first;
           spans = [RA.wrap(doc, map, sStart, sEnd, 'absorb-ra-s')];
           words = [[sStart, sEnd]];
           first = 0;
         }
         RA.cur = { doc: doc, contents: c, sStart: sStart, sEnd: sEnd, words: words,
-                   first: first, spans: spans, painted: -2 };
+                   first: first, spans: spans, painted: -2,
+                   wordRanges: wordRanges, wordFirst: wordFirst };
         // Where the sentence sits is judged from the spans themselves, now
         // that they are in the page.
         try {
@@ -459,6 +590,7 @@ const String _body = r'''
             var vis = RA.visibleEl(flat[0]);
             out.visible = vis.v;
             out.dir = vis.dir;
+            out.seen = true;
             out.cfi = vis.v ? '' : RA.cfiFor(c, flat[0], flat[flat.length - 1]);
           }
         } catch (e1) {}

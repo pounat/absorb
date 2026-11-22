@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'api_service.dart';
+import 'download_service.dart';
 import 'scoped_prefs.dart';
 import 'sync_logic.dart';
 
@@ -69,12 +70,27 @@ class ProgressSyncService {
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     };
     await ScopedPrefs.setString('progress_$itemId', jsonEncode(data));
+    if (_staysOnPhone(itemId)) return;
 
     final pendingList = await ScopedPrefs.getStringList('pending_syncs');
     if (!pendingList.contains(itemId)) {
       pendingList.add(itemId);
       await ScopedPrefs.setStringList('pending_syncs', pendingList);
     }
+  }
+
+  /// Keep a finish the server could not be told about (a work firewall, say)
+  /// so the next flush delivers it.
+  Future<void> saveFinishedOffline(String itemId, double duration) async {
+    final existing = await getLocal(itemId);
+    debugPrint('[Sync] Finished $itemId offline - queued for the next sync');
+    await saveLocal(
+      itemId: itemId,
+      currentTime: duration,
+      duration: duration,
+      speed: (existing?['speed'] as num?)?.toDouble() ?? 1.0,
+      isFinished: true,
+    );
   }
 
   /// Cache server-known progress locally without marking it as a pending sync.
@@ -187,6 +203,10 @@ class ProgressSyncService {
     return localDuration;
   }
 
+  /// Another account's download keeps its place on this phone only: the
+  /// server signed in now can have a different book under the same id.
+  bool _staysOnPhone(String itemId) => DownloadService().isFromOtherAccount(itemId);
+
   /// Sync a single item to the server. Returns true if synced.
   Future<bool> syncToServer({
     required ApiService api,
@@ -197,6 +217,7 @@ class ProgressSyncService {
       debugPrint('[Sync] Skipped — offline');
       return false;
     }
+    if (_staysOnPhone(itemId)) return true;
 
     final data = await getLocal(itemId);
     if (data == null) {
@@ -261,7 +282,14 @@ class ProgressSyncService {
       final pendingList = List<String>.from(
           await ScopedPrefs.getStringList('pending_syncs'));
 
-      if (pendingList.isEmpty) return;
+      if (pendingList.isEmpty) {
+        // Nothing to listen-sync, but reading and offline listening time
+        // still wait on this flush; returning here left them queued and the
+        // retry below rescheduling for nothing.
+        await _flushOfflineListeningTimeInternal(api: api);
+        await _flushPendingEbookProgress(api);
+        return;
+      }
       pendingAtStart = pendingList.length;
 
       final batch = pendingList.take(maxItems).toList();
@@ -269,7 +297,7 @@ class ProgressSyncService {
 
       for (final itemId in batch) {
         final data = await getLocal(itemId);
-        if (data == null) {
+        if (data == null || _staysOnPhone(itemId)) {
           final updated = await ScopedPrefs.getStringList('pending_syncs');
           updated.remove(itemId);
           await ScopedPrefs.setStringList('pending_syncs', updated);
@@ -468,7 +496,15 @@ class ProgressSyncService {
     final ok = _isOnline &&
         await api.updateEbookProgress(itemId,
             ebookLocation: location, ebookProgress: progress);
+    debugPrint('[Sync] ebook spot for $itemId ${ok ? 'saved' : 'not saved'}'
+        '${api.lastEbookProgressStatus == null ? '' : ' status=${api.lastEbookProgressStatus}'}'
+        ' pct=${(progress * 100).toStringAsFixed(2)} at $location');
     if (ok) {
+      await _removePendingEbook(itemId);
+      return;
+    }
+    if (_isOnline && api.lastEbookProgressStatus == 404) {
+      debugPrint('[Sync] Not queueing the ebook position for $itemId: the server has no such book');
       await _removePendingEbook(itemId);
       return;
     }
@@ -495,6 +531,10 @@ class ProgressSyncService {
     }
   }
 
+  /// Forget a queued position the server has since moved past, so the retry
+  /// can't put the older place back.
+  Future<void> dropPendingEbookProgress(String itemId) => _removePendingEbook(itemId);
+
   Future<void> _removePendingEbook(String itemId) async {
     final pending = await getPendingEbookProgress();
     if (pending.remove(itemId) == null) return;
@@ -517,6 +557,11 @@ class ProgressSyncService {
       if (ok) {
         await _removePendingEbook(entry.key);
         _consecutiveFailures = 0;
+      } else if (api.lastEbookProgressStatus == 404) {
+        // Another server's download read here, or a book since deleted: this
+        // server will never take it, and retrying held up the rest.
+        debugPrint('[Sync] Dropping the queued ebook position for ${entry.key}: the server has no such book');
+        await _removePendingEbook(entry.key);
       } else {
         // Server unreachable - let the existing backoff schedule the retry.
         _consecutiveFailures++;

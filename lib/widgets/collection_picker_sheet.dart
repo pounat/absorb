@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import 'adaptive_modal.dart';
 import 'overlay_toast.dart';
 
 class CollectionPickerSheet extends StatefulWidget {
@@ -13,7 +16,7 @@ class CollectionPickerSheet extends StatefulWidget {
   });
 
   static void show(BuildContext context, String libraryItemId) {
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
@@ -75,7 +78,14 @@ class _CollectionPickerSheetState extends State<CollectionPickerSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final lib = context.watch<LibraryProvider>();
-    final collections = lib.collections;
+    // A BookOrbit collection only takes books from its owner, and a Smart
+    // Scope takes none: its rules pick its books.
+    final collections = context.read<AuthProvider>().isBookOrbit
+        ? lib.collections.where((c) {
+            final bo = (c as Map)['bookOrbit'] as Map?;
+            return bo?['isOwner'] == true && bo?['smartScope'] != true;
+          }).toList()
+        : lib.collections;
     final l = AppLocalizations.of(context)!;
 
     return SafeArea(
@@ -125,7 +135,7 @@ class _CollectionPickerSheetState extends State<CollectionPickerSheet> {
                     ? const SizedBox(width: 36, height: 36,
                         child: Padding(
                           padding: EdgeInsets.all(8),
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AdaptiveSpinner(strokeWidth: 2),
                         ))
                     : IconButton(
                         icon: Icon(Icons.check_rounded, color: cs.primary),

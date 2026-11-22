@@ -1,0 +1,13 @@
+services:
+  absorb-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: absorb-web:browser-workspace
+    environment:
+      ABS_UPSTREAM: ${ABS_UPSTREAM:-http://host.docker.internal:13378}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${ABSORB_WEB_PORT:-8080}:80"
+    restart: unless-stopped

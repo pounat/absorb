@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'player_settings.dart';
 import 'scoped_prefs.dart';
+import 'server_backend.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/series_number_match.dart';
 import '../main.dart' show rootNavigatorKey;
 
 /// Result for a single series that has upcoming or recently released books.
@@ -439,6 +441,9 @@ class UpcomingReleasesService extends ChangeNotifier {
   static const _cacheTimeKey = 'upcomingReleasesCacheTime';
   static const _cacheRegionKey = 'upcomingReleasesCacheRegion';
   static const _scanStateKey = 'upcomingReleasesScanState';
+  // Bumped when series ASIN resolution changes enough that parked series
+  // deserve another try (2: BookOrbit book records).
+  static const _resolverVersion = 2;
   static const _missingCacheKey = 'upcomingReleasesMissingCache';
   static const _missingCacheTimeKey = 'upcomingReleasesMissingCacheTime';
   static const _missingCacheRegionKey = 'upcomingReleasesMissingCacheRegion';
@@ -494,9 +499,15 @@ class UpcomingReleasesService extends ChangeNotifier {
       if ((data['region'] as String? ?? '') != _region) return;
       _scanStateLibraryId = data['libraryId'] as String? ?? '';
       final series = data['series'] as Map<String, dynamic>? ?? {};
+      // Before BookOrbit book records were read for ASINs, every BookOrbit
+      // series failed to match and got parked. Forget those once so the next
+      // scan tries them again.
+      final dropUnmatched = ServerBackend.active.isBookOrbit &&
+          ((data['resolverVersion'] as num?)?.toInt() ?? 1) < _resolverVersion;
       for (final e in series.entries) {
         final entry = _SeriesScanEntry.fromJson(
             Map<String, dynamic>.from(e.value as Map));
+        if (dropUnmatched && entry.asin.isEmpty) continue;
         _scanState[e.key] = entry;
         // Only seed resolved ASINs - unresolvable series get another
         // resolution attempt once their recheck interval elapses.
@@ -518,6 +529,7 @@ class UpcomingReleasesService extends ChangeNotifier {
     try {
       final data = {
         'region': _region,
+        'resolverVersion': _resolverVersion,
         'libraryId': _scanStateLibraryId,
         'skipped': _persistedSkipped.map((s) => s.toJson()).toList(),
         if (_lastReport != null) 'lastReport': _lastReport!.toJson(),
@@ -823,7 +835,7 @@ class UpcomingReleasesService extends ChangeNotifier {
     if (cachedAsin != null) {
       audibleAsin = cachedAsin;
     } else {
-      final (resolved, concluded) = await _resolveSeriesAsin(books, seriesName, gen);
+      final (resolved, concluded) = await _resolveSeriesAsin(api, books, seriesName, gen);
       if (_generation != gen) return null;
       audibleAsin = resolved;
       _asinCache[seriesId] = audibleAsin ?? '';
@@ -852,16 +864,19 @@ class UpcomingReleasesService extends ChangeNotifier {
 
     if (audibleAsin == null || audibleAsin.isEmpty) return null;
 
-    // Collect owned title variants and ASINs from library books
+    // Collect owned title variants, ASINs and series numbers from library books
     final ownedTitles = <String>{};
     final ownedAsins = <String>{};
+    final ownedNumbers = SeriesNumberOwnership();
     for (final b in books) {
       if (b is! Map<String, dynamic>) continue;
       final media = b['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
-      ownedTitles.addAll(_titleVariants(metadata['title'] as String? ?? ''));
+      final title = metadata['title'] as String? ?? '';
+      ownedTitles.addAll(_titleVariants(title));
       final asin = metadata['asin'] as String? ?? '';
       if (asin.isNotEmpty) ownedAsins.add(asin);
+      ownedNumbers.add(librarySeriesNumber(metadata, seriesId), title, asin);
     }
 
     // Get all books in the series from Audible
@@ -904,7 +919,8 @@ class UpcomingReleasesService extends ChangeNotifier {
             .where((b) =>
                 !_ignoredAsins.contains(b['asin'] as String? ?? '') &&
                 !_isUpcoming(b) &&
-                !_isOwnedBook(b, ownedTitles, ownedAsins))
+                !_isOwnedBook(b, ownedTitles, ownedAsins,
+                    numbers: ownedNumbers, listing: allBooks))
             .map((b) => {...b, if (_isNewBook(b)) '_new': true})
             .toList();
         entry.missingComplete = missing.isEmpty;
@@ -934,7 +950,10 @@ class UpcomingReleasesService extends ChangeNotifier {
     for (final book in allBooks) {
       if (_isRecentRelease(book) || _isNewSinceLastScan(book, prevNewest)) {
         if (_ignoredAsins.contains(book['asin'] as String? ?? '')) continue;
-        if (_isOwnedBook(book, ownedTitles, ownedAsins)) continue;
+        if (_isOwnedBook(book, ownedTitles, ownedAsins,
+            numbers: ownedNumbers, listing: allBooks)) {
+          continue;
+        }
         recent.add({...book, '_owned': false, if (_isNewBook(book)) '_new': true});
       }
     }
@@ -1495,8 +1514,10 @@ class UpcomingReleasesService extends ChangeNotifier {
   /// Audnexus answered (even with no series info) or there was nothing to
   /// try, false when every attempt died on a network error - only a
   /// concluded "no match" may be remembered as unresolvable.
-  Future<(String?, bool)> _resolveSeriesAsin(List<dynamic> books, String seriesName, int gen) async {
+  Future<(String?, bool)> _resolveSeriesAsin(
+      ApiService api, List<dynamic> books, String seriesName, int gen) async {
     int audnexusAttempts = 0;
+    int recordFetches = 0;
     var concluded = true;
     for (final book in books) {
       if (_generation != gen) return (null, false);
@@ -1504,7 +1525,22 @@ class UpcomingReleasesService extends ChangeNotifier {
 
       final media = book['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
-      final bookAsin = metadata['asin'] as String? ?? '';
+      var bookAsin = metadata['asin'] as String? ?? '';
+      // BookOrbit's series listings carry no ASIN, only the full book record
+      // does. A failed fetch leaves the series unconcluded so it isn't parked.
+      if (bookAsin.isEmpty && api.isBookOrbit && recordFetches < _maxAsinAttempts) {
+        recordFetches++;
+        final id = book['id']?.toString() ?? '';
+        final full = id.isEmpty ? null : await api.getLibraryItem(id);
+        if (_generation != gen) return (null, false);
+        if (full == null) {
+          concluded = false;
+          continue;
+        }
+        final fullMeta = (full['media'] as Map<String, dynamic>?)?['metadata'] as Map<String, dynamic>?;
+        bookAsin = fullMeta?['asin'] as String? ?? '';
+        if (bookAsin.isNotEmpty) metadata['asin'] = bookAsin;
+      }
       if (bookAsin.isEmpty) continue;
       if (audnexusAttempts >= _maxAsinAttempts) break;
       audnexusAttempts++;
@@ -1559,18 +1595,7 @@ class UpcomingReleasesService extends ChangeNotifier {
     return now.difference(date).inDays <= 30;
   }
 
-  static final _parenthetical = RegExp(r'\s*\([^)]*\)\s*');
-  static final _nonAlphaNum = RegExp(r'[^a-z0-9 ]');
-  static final _multiSpace = RegExp(r'\s+');
-
-  String _normalizeTitle(String title) {
-    return title
-        .toLowerCase()
-        .replaceAll(_parenthetical, ' ')
-        .replaceAll(_nonAlphaNum, ' ')
-        .replaceAll(_multiSpace, ' ')
-        .trim();
-  }
+  String _normalizeTitle(String title) => normalizeSeriesTitle(title);
 
   /// First author only - both sides join multiple authors with ', '.
   String _normalizeAuthor(String authors) => _normalizeTitle(authors.split(',').first);
@@ -1596,7 +1621,11 @@ class UpcomingReleasesService extends ChangeNotifier {
   /// from the series' own books; the library-wide index catches books owned
   /// outside that series bucket. Besides the plain title, the title+subtitle
   /// concatenation is tried, in case the library baked the subtitle in.
-  bool _isOwnedBook(Map<String, dynamic> book, Set<String> ownedTitles, Set<String> ownedAsins) {
+  /// Last, a series book can be owned by its number (see
+  /// [SeriesNumberOwnership]) when the series' books and its Audible
+  /// [listing] are given.
+  bool _isOwnedBook(Map<String, dynamic> book, Set<String> ownedTitles, Set<String> ownedAsins,
+      {SeriesNumberOwnership? numbers, List<Map<String, dynamic>>? listing}) {
     final asin = book['asin'] as String? ?? '';
     if (asin.isNotEmpty &&
         (ownedAsins.contains(asin) || _libraryOwnedAsins.contains(asin))) {
@@ -1607,20 +1636,22 @@ class UpcomingReleasesService extends ChangeNotifier {
       if (ownedAsins.contains(a) || _libraryOwnedAsins.contains(a)) return true;
     }
     final title = _normalizeTitle(book['title'] as String? ?? '');
-    if (title.isEmpty) return false;
-    final subtitle = book['subtitle'] as String? ?? '';
-    final withSub =
-        subtitle.isEmpty ? '' : _normalizeTitle('${book['title']} $subtitle');
-    if (ownedTitles.contains(title)) return true;
-    if (withSub.isNotEmpty && ownedTitles.contains(withSub)) return true;
-    final author = _normalizeAuthor(book['authors'] as String? ?? '');
-    if (author.isNotEmpty) {
-      if (_libraryOwnedTitleAuthor.contains('$title|$author')) return true;
-      if (withSub.isNotEmpty &&
-          _libraryOwnedTitleAuthor.contains('$withSub|$author')) {
-        return true;
+    if (title.isNotEmpty) {
+      final subtitle = book['subtitle'] as String? ?? '';
+      final withSub =
+          subtitle.isEmpty ? '' : _normalizeTitle('${book['title']} $subtitle');
+      if (ownedTitles.contains(title)) return true;
+      if (withSub.isNotEmpty && ownedTitles.contains(withSub)) return true;
+      final author = _normalizeAuthor(book['authors'] as String? ?? '');
+      if (author.isNotEmpty) {
+        if (_libraryOwnedTitleAuthor.contains('$title|$author')) return true;
+        if (withSub.isNotEmpty &&
+            _libraryOwnedTitleAuthor.contains('$withSub|$author')) {
+          return true;
+        }
       }
     }
+    if (numbers != null && listing != null) return numbers.owns(book, listing);
     return false;
   }
 

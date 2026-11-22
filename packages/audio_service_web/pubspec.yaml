@@ -1,0 +1,28 @@
+name: audio_service_web
+description: Web platform implementation of audio_service, vendored for Absorb.
+version: 0.1.4+absorb.1
+publish_to: none
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  audio_service_platform_interface: ^0.1.3
+  web: ">=0.5.1 <2.0.0"
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  plugin:
+    platforms:
+      web:
+        pluginClass: AudioServiceWeb
+        fileName: audio_service_web.dart

@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'expressive.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -237,14 +240,14 @@ class _RmabSearchSheetContentState extends State<_RmabSearchSheetContent> {
   Widget _buildBody(
       ColorScheme cs, TextTheme tt, AppLocalizations l) {
     if (_loadingPrefs) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AdaptiveSpinner(strokeWidth: 2));
     }
     if (_searching) {
       return ListView(
         controller: widget.scrollController,
         children: const [
           SizedBox(height: 80),
-          Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          Center(child: AdaptiveSpinner(strokeWidth: 2)),
         ],
       );
     }
@@ -359,7 +362,7 @@ class _RmabResultRow extends StatelessWidget {
                             child: Icon(Icons.menu_book_rounded,
                                 color: cs.onSurfaceVariant, size: 22),
                           )
-                        : CachedNetworkImage(
+                        : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                             imageUrl: book.coverArtUrl!,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(

@@ -1,9 +1,10 @@
 name: Windows Desktop Build
 
 # Builds the Windows desktop app from whichever branch the run is started on
-# and uploads the runner folder as a workflow artifact. Nothing is signed and
-# nothing goes to a release: download the zip from the run page, unpack it
-# anywhere and start absorb.exe.
+# and packs it into an installer (windows/installer/absorb.iss). Nothing is
+# signed and nothing goes to a release: download the artifact from the run
+# page and run the setup exe inside it. It installs per-user, adds a Start
+# menu entry and an uninstaller, and updates an existing install in place.
 
 on:
   workflow_dispatch:
@@ -31,12 +32,14 @@ jobs:
         shell: bash
         run: |
           full=$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*//' | tr -d '\r')
-          echo "name=absorb-${full/+/-}-windows" >> "$GITHUB_OUTPUT"
+          echo "name=absorb-${full/+/-}-windows-setup" >> "$GITHUB_OUTPUT"
+          # Inno wants a numeric version: 1.11.1+286 -> 1.11.1.286
+          echo "numeric=${full/+/.}" >> "$GITHUB_OUTPUT"
 
       - name: Build
         run: flutter build windows --release
 
-      # The runner folder needs the VC++ runtime next to the exe on machines
+      # The installed app needs the VC++ runtime next to the exe on machines
       # that never installed the redistributable.
       - name: Add the VC++ runtime DLLs
         shell: pwsh
@@ -50,9 +53,20 @@ jobs:
           }
           Get-ChildItem $out | Select-Object Name, Length
 
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=${{ steps.version.outputs.numeric }}" `
+            "/DOutputBase=${{ steps.version.outputs.name }}" `
+            windows\installer\absorb.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem build\installer | Select-Object Name, Length
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.version.outputs.name }}
-          path: build/windows/x64/runner/Release
+          path: build/installer/${{ steps.version.outputs.name }}.exe
           if-no-files-found: error
           retention-days: 14

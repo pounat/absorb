@@ -1,7 +1,9 @@
 package com.barnabas.absorb
 
 import android.app.Activity
+import android.content.Context
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
 /**
@@ -31,31 +33,7 @@ object PlatformIntegration {
                 }
             }
 
-        // Bridge ABS playback state to the watch so it can render Now
-        // Playing without making its own API calls.
-        MethodChannel(messenger, "com.barnabas.absorb/wear_player")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "publish" -> {
-                        WearPlayerBridge.publish(
-                            context = activity.applicationContext,
-                            hasBook = call.argument<Boolean>("hasBook") ?: false,
-                            itemId = call.argument<String>("itemId"),
-                            title = call.argument<String>("title"),
-                            author = call.argument<String>("author"),
-                            chapter = call.argument<String>("chapter"),
-                            isPlaying = call.argument<Boolean>("isPlaying") ?: false,
-                            positionMs = (call.argument<Number>("positionMs") ?: 0).toLong(),
-                            durationMs = (call.argument<Number>("durationMs") ?: 0).toLong(),
-                            speed = (call.argument<Number>("speed") ?: 1.0).toFloat(),
-                            skipBackSec = (call.argument<Number>("skipBackSec") ?: 10).toInt(),
-                            skipForwardSec = (call.argument<Number>("skipForwardSec") ?: 30).toInt(),
-                        )
-                        result.success(true)
-                    }
-                    else -> result.notImplemented()
-                }
-            }
+        registerWearPlayer(activity, messenger)
 
         // Bridge ABS auth state to the paired Wear OS app (AbsorbWear)
         // over the Google Play Services Wearable Data Layer.
@@ -84,11 +62,81 @@ object PlatformIntegration {
                             isLegacyToken = call.argument<Boolean>("isLegacyToken") ?: false,
                             customHeaders = headers,
                             supportsTokenReturn = call.argument<Boolean>("supportsTokenReturn") ?: false,
+                            backend = call.argument<String>("backend") ?: "abs",
                         )
                         result.success(true)
                     }
                     "clear" -> {
                         WearAuthBridge.clear(activity.applicationContext)
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /** The watch player channel, on the app's engine or on one booted in
+     *  the background for a watch request. */
+    fun registerWearPlayer(context: Context, messenger: BinaryMessenger) {
+        // Bridge ABS playback state to the watch so it can render Now
+        // Playing without making its own API calls.
+        val wearPlayer = MethodChannel(messenger, "com.barnabas.absorb/wear_player")
+        WearPlayerBridge.attach(wearPlayer, messenger)
+        wearPlayer
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "ready" -> result.success(WearPlayerBridge.ready(messenger))
+                    "publishChapters" -> {
+                        val itemId = call.argument<String>("itemId")
+                        val chapters = call.argument<String>("chapters")
+                        if (itemId != null && chapters != null) {
+                            WearPlayerBridge.publishChapters(context.applicationContext, itemId, chapters)
+                        }
+                        result.success(true)
+                    }
+                    "publishBookmarks" -> {
+                        val itemId = call.argument<String>("itemId")
+                        val bookmarks = call.argument<String>("bookmarks")
+                        if (itemId != null && bookmarks != null) {
+                            WearPlayerBridge.publishBookmarks(context.applicationContext, itemId, bookmarks)
+                        }
+                        result.success(true)
+                    }
+                    "publish" -> {
+                        WearPlayerBridge.publish(
+                            context = context.applicationContext,
+                            hasBook = call.argument<Boolean>("hasBook") ?: false,
+                            itemId = call.argument<String>("itemId"),
+                            title = call.argument<String>("title"),
+                            author = call.argument<String>("author"),
+                            chapter = call.argument<String>("chapter"),
+                            isPlaying = call.argument<Boolean>("isPlaying") ?: false,
+                            positionMs = (call.argument<Number>("positionMs") ?: 0).toLong(),
+                            durationMs = (call.argument<Number>("durationMs") ?: 0).toLong(),
+                            speed = (call.argument<Number>("speed") ?: 1.0).toFloat(),
+                            skipBackSec = (call.argument<Number>("skipBackSec") ?: 10).toInt(),
+                            skipForwardSec = (call.argument<Number>("skipForwardSec") ?: 30).toInt(),
+                            chapterStartMs = (call.argument<Number>("chapterStartMs") ?: 0).toLong(),
+                            chapterEndMs = (call.argument<Number>("chapterEndMs") ?: 0).toLong(),
+                            autoRewindEnabled = call.argument<Boolean>("autoRewindEnabled") ?: true,
+                            autoRewindMinSec = (call.argument<Number>("autoRewindMinSec") ?: 1.0).toDouble(),
+                            autoRewindMaxSec = (call.argument<Number>("autoRewindMaxSec") ?: 30.0).toDouble(),
+                            autoRewindDelaySec = (call.argument<Number>("autoRewindDelaySec") ?: 0.0).toDouble(),
+                            autoRewindChapterBarrier = call.argument<Boolean>("autoRewindChapterBarrier") ?: false,
+                            autoRewindSessionStart = call.argument<Boolean>("autoRewindSessionStart") ?: false,
+                            skipChapterBarrier = call.argument<Boolean>("skipChapterBarrier") ?: true,
+                            speedAdjustedTime = call.argument<Boolean>("speedAdjustedTime") ?: true,
+                            chapterIndex = (call.argument<Number>("chapterIndex") ?: -1).toInt(),
+                            chapterCount = (call.argument<Number>("chapterCount") ?: 0).toInt(),
+                            sleepMode = call.argument<String>("sleepMode"),
+                            sleepEndsAtMs = (call.argument<Number>("sleepEndsAtMs") ?: 0).toLong(),
+                            sleepChaptersLeft = (call.argument<Number>("sleepChaptersLeft") ?: 0).toInt(),
+                            sleepAddMinutes = (call.argument<Number>("sleepAddMinutes") ?: 5).toInt(),
+                            speedPresets = call.argument<List<Number>>("speedPresets")?.map { it.toFloat() } ?: emptyList(),
+                            themeColor = (call.argument<Number>("themeColor") ?: 0).toLong(),
+                            coverVersion = (call.argument<Number>("coverVersion") ?: 0).toLong(),
+                            appIcon = call.argument<String>("appIcon"),
+                        )
                         result.success(true)
                     }
                     else -> result.notImplemented()

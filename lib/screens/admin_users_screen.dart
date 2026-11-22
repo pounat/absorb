@@ -1,6 +1,9 @@
 import 'dart:convert';
+import '../widgets/expressive.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +22,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/duration_format.dart';
 import '../utils/app_platform.dart';
 import '../utils/share_origin.dart';
+import '../widgets/tints.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   final List<dynamic> users;
@@ -391,13 +395,13 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
               Expanded(child: AbsorbPageHeader(title: _username, padding: EdgeInsets.zero)),
               if (!_isRoot)
                 IconButton(
-                  icon: Icon(Icons.ios_share_rounded, color: cs.primary.withValues(alpha: 0.7), size: 20),
+                  icon: Icon(Icons.ios_share_rounded, color: cs.onSurfaceVariant, size: 20),
                   tooltip: l.adminCreateSetupFile,
                   onPressed: _exportSetupFile,
                 ),
               if (!_isRoot)
                 IconButton(
-                  icon: Icon(Icons.edit_rounded, color: cs.primary.withValues(alpha: 0.7), size: 20),
+                  icon: Icon(Icons.edit_rounded, color: cs.onSurfaceVariant, size: 20),
                   tooltip: l.adminUsersEditUserTooltip,
                   onPressed: _showEditor,
                 ),
@@ -424,10 +428,10 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: _isRoot ? Colors.amber.withValues(alpha: 0.12) : cs.primary.withValues(alpha: 0.1),
+                  color: _isRoot ? Colors.amber.withValues(alpha: 0.12) : cs.onSurface.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(4)),
                 child: Text(_userType, style: tt.labelSmall?.copyWith(
-                  color: _isRoot ? Colors.amber : cs.primary, fontSize: 9, fontWeight: FontWeight.w600)),
+                  color: _isRoot ? Colors.amber : cs.onSurfaceVariant, fontSize: 9, fontWeight: FontWeight.w600)),
               ),
             ]),
           ),
@@ -435,7 +439,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
               child: Row(children: [
-                _summaryChip(cs, tt, '$inProgress', l.inProgress, cs.primary),
+                _summaryChip(cs, tt, '$inProgress', l.inProgress, cs.onSurface),
                 const SizedBox(width: 10),
                 _summaryChip(cs, tt, '$finished', l.finished, Colors.green),
                 const SizedBox(width: 10),
@@ -444,7 +448,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
             ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: _progressItems.isEmpty && _sessions.isEmpty
@@ -485,7 +489,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
                                 Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 24),
                                   child: Center(child: SizedBox(width: 16, height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.2)))),
+                                    child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.2)))),
                                 )
                               else if (_sessions.isNotEmpty) ...[
                                 Padding(
@@ -508,7 +512,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
                                         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                                           if (_loadingMoreSessions)
                                             SizedBox(width: 12, height: 12,
-                                              child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.3)))
+                                              child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.3)))
                                           else
                                             Icon(Icons.expand_more_rounded, size: 14, color: cs.onSurface.withValues(alpha: 0.4)),
                                           const SizedBox(width: 6),
@@ -549,7 +553,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
                                         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                                           if (_fetchingMore)
                                             SizedBox(width: 14, height: 14,
-                                              child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.3)))
+                                              child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurface.withValues(alpha: 0.3)))
                                           else
                                             Icon(Icons.expand_more_rounded, size: 16, color: cs.onSurface.withValues(alpha: 0.4)),
                                           const SizedBox(width: 8),
@@ -696,7 +700,7 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
 
     final deviceInfo = s['deviceInfo'] as Map<String, dynamic>? ?? {};
     final clientName = deviceInfo['clientName'] as String? ?? deviceInfo['deviceName'] as String? ?? '';
-    final isAbsorb = clientName.toLowerCase().contains('absorb');
+    final isAbsorb = absorbClientOf(clientName) != null;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
@@ -716,9 +720,8 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
-              child: isAbsorb
-                  ? AbsorbWaveIcon(size: 16, color: Colors.tealAccent.withValues(alpha: 0.7))
-                  : Icon(_clientIcon(clientName), size: 15, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+              child: absorbClientIcon(clientName, size: 16, color: Colors.tealAccent.withValues(alpha: 0.7)) ??
+                  Icon(_clientIcon(clientName), size: 15, color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
             ),
           ),
           const SizedBox(width: 10),
@@ -780,8 +783,8 @@ class _UserDetailScreenState extends State<_UserDetailScreen> {
 
   Widget _coverFallback(ColorScheme cs) => Container(
     width: 44, height: 44,
-    decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-    child: Icon(Icons.auto_stories_rounded, size: 18, color: cs.primary.withValues(alpha: 0.3)),
+    decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(8)),
+    child: Icon(Icons.auto_stories_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
   );
 
   void _showEditor() {
@@ -1045,7 +1048,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: sel ? cs.primary.withValues(alpha: 0.1) : cs.onSurface.withValues(alpha: 0.03),
+                      color: sel ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: sel ? cs.primary.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.06))),
                     child: Row(children: [
@@ -1062,7 +1065,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
               SizedBox(width: double.infinity, child: OutlinedButton.icon(
                 onPressed: _unlinking ? null : _unlinkOpenID,
                 icon: _unlinking
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.error))
+                  ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.error))
                   : Icon(Icons.link_off_rounded, size: 18, color: cs.error),
                 label: Text(l.adminUsersUnlinkOpenId, style: TextStyle(color: cs.error, fontWeight: FontWeight.w600)),
                 style: OutlinedButton.styleFrom(
@@ -1077,7 +1080,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             onPressed: _saving ? null : _save,
             style: FilledButton.styleFrom(backgroundColor: cs.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             child: _saving
-              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+              ? SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
               : Text(_isNew ? l.adminUsersCreateUser : l.adminUsersSaveChanges, style: TextStyle(fontWeight: FontWeight.w700, color: cs.onPrimary)),
           ))),
       ]));
@@ -1099,7 +1102,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     return Expanded(child: GestureDetector(onTap: () => setState(() => _type = type),
       child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: on ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.03),
+          color: on ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: on ? cs.primary.withValues(alpha: 0.4) : cs.onSurface.withValues(alpha: 0.06))),
         child: Column(children: [
@@ -1120,9 +1123,19 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     final username = _usernameCtrl.text.trim();
     if (username.isEmpty) { _snk(l.adminUsersUsernameRequired, icon: Icons.error_outline_rounded); return; }
     if (_isNew && _passwordCtrl.text.isEmpty) { _snk(l.adminUsersPasswordRequired, icon: Icons.error_outline_rounded); return; }
+    // Since Audiobookshelf 2.38 an empty list means no libraries at all,
+    // not every library.
+    if (!_accessAllLibraries && _selectedLibraries.isEmpty) {
+      _snk(l.adminUsersPickLibrary, icon: Icons.error_outline_rounded);
+      return;
+    }
     setState(() => _saving = true);
+    // Tag limits are only set in the web app; keep whatever the user has
+    // rather than lifting them on every save.
+    final oldPerms = widget.user?['permissions'] as Map<String, dynamic>?;
     final perms = {'download': _canDownload, 'update': _canUpdate, 'delete': _canDelete, 'upload': _canUpload,
-      'accessExplicitContent': _accessExplicit, 'accessAllLibraries': _accessAllLibraries, 'accessAllTags': true};
+      'accessExplicitContent': _accessExplicit, 'accessAllLibraries': _accessAllLibraries,
+      'accessAllTags': oldPerms?['accessAllTags'] as bool? ?? true};
     bool ok;
     if (_isNew) {
       final r = await api.createUser(username: username, password: _passwordCtrl.text, type: _type,
@@ -1339,7 +1352,7 @@ class _AdminSessionDetailsSheet extends StatelessWidget {
                         height: 88,
                         color: cs.onSurface.withValues(alpha: 0.06),
                         child: coverUrl != null
-                            ? CachedNetworkImage(
+                            ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                 imageUrl: coverUrl,
                                 fit: BoxFit.cover,
                                 errorWidget: (_, __, ___) => Icon(

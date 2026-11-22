@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/expressive.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/player_settings.dart';
@@ -29,6 +30,7 @@ class _TranscriptionSettingsScreenState
   double _lyricsFontSize = 16;
   int _lyricsMaxLines = 3;
   bool _lyricsFullCover = true;
+  bool _syncReadingListening = false;
   String _readAlongMode = 'word';
   int _readAlongColor = PlayerSettings.defaultReadAlongColor;
   final Map<TranscriptionModelSize, bool> _downloaded = {};
@@ -48,6 +50,7 @@ class _TranscriptionSettingsScreenState
     _lyricsMaxLines = await PlayerSettings.getLyricsMaxLines();
     _lyricsFullCover = await PlayerSettings.getLyricsFullCover();
     _readAlongMode = await PlayerSettings.getReadAlongMode();
+    _syncReadingListening = await PlayerSettings.getSyncReadingListening();
     _readAlongColor = await PlayerSettings.getReadAlongColor();
     for (final s in TranscriptionModelSize.values) {
       _downloaded[s] = await TranscriptionService.instance.isModelDownloaded(s);
@@ -141,7 +144,7 @@ class _TranscriptionSettingsScreenState
         title: Text(l.transcriptionTitle),
       ),
       body: !_loaded
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : ListView(
               children: [
                 SwitchListTile(
@@ -165,7 +168,7 @@ class _TranscriptionSettingsScreenState
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.lock_outline_rounded, size: 18, color: cs.primary),
+                            Icon(Icons.lock_outline_rounded, size: 18, color: cs.onSurfaceVariant),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -180,7 +183,7 @@ class _TranscriptionSettingsScreenState
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.record_voice_over_rounded, size: 18, color: cs.primary),
+                            Icon(Icons.record_voice_over_rounded, size: 18, color: cs.onSurfaceVariant),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -216,7 +219,7 @@ class _TranscriptionSettingsScreenState
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                   child: Text(l.transcriptionModelSection,
-                      style: tt.titleSmall?.copyWith(color: cs.primary)),
+                      style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
                 ),
                 _modelTile(
                   size: TranscriptionModelSize.tiny,
@@ -254,7 +257,7 @@ class _TranscriptionSettingsScreenState
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                   child: Text(l.lyricsDisplaySection,
-                      style: tt.titleSmall?.copyWith(color: cs.primary)),
+                      style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -267,7 +270,7 @@ class _TranscriptionSettingsScreenState
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.battery_alert_rounded, size: 18, color: cs.primary),
+                        Icon(Icons.battery_alert_rounded, size: 18, color: cs.onSurfaceVariant),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -327,6 +330,17 @@ class _TranscriptionSettingsScreenState
                       await LyricsService.instance.reloadDisplayPrefs();
                     },
                   ),
+                ),
+                SwitchListTile(
+                  title: Text(l.syncReadingListening),
+                  subtitle: Text(l.syncReadingListeningHint,
+                      style: tt.bodySmall
+                          ?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+                  value: _syncReadingListening,
+                  onChanged: (v) async {
+                    setState(() => _syncReadingListening = v);
+                    await PlayerSettings.setSyncReadingListening(v);
+                  },
                 ),
                 ListTile(
                   title: Text(l.readAlongFollow),

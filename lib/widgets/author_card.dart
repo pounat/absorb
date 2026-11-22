@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -23,7 +25,11 @@ class AuthorCard extends StatelessWidget {
     final authorId = author['id'] as String? ?? '';
 
     String? imageUrl;
-    if (authorId.isNotEmpty && auth.apiService != null) {
+    // Only authors with a photo get a request: the server answers 404 for
+    // the rest, and a burst of those reads as probing to fail2ban and
+    // CrowdSec in front of it (GH #418).
+    final hasPhoto = (author['imagePath'] as String?)?.isNotEmpty == true;
+    if (authorId.isNotEmpty && hasPhoto && auth.apiService != null) {
       final ts = (author['updatedAt'] as num?)?.toInt();
       imageUrl = auth.apiService!.getAuthorImageUrl(authorId, updatedAt: ts);
     }
@@ -50,7 +56,7 @@ class AuthorCard extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: imageUrl != null
-                ? CachedNetworkImage(
+                ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                     imageUrl: imageUrl,
                     fit: BoxFit.cover,
                     httpHeaders: headers,

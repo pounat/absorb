@@ -1,17 +1,26 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/player_settings.dart';
 import '../services/rmab_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/upcoming_releases_service.dart';
+import '../utils/app_platform.dart';
+import '../utils/series_number_match.dart';
+import 'adaptive_modal.dart';
+import 'audible_book_request.dart';
 import 'overlay_toast.dart';
 import 'rmab_book_detail_sheet.dart';
 import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey;
 import 'stackable_sheet.dart';
+import 'tints.dart';
 
 /// Show a bottom sheet with Audible series discovery results.
 /// Shows missing books and upcoming releases for a series.
@@ -20,6 +29,7 @@ void showAudibleSeriesSheet(BuildContext context, {
   required String seriesAsin,
   required Set<String> ownedTitles,
   required Set<String> ownedAsins,
+  SeriesNumberOwnership? ownedNumbers,
 }) {
   showStackableSheet(
     context: context,
@@ -29,6 +39,7 @@ void showAudibleSeriesSheet(BuildContext context, {
       seriesAsin: seriesAsin,
       ownedTitles: ownedTitles,
       ownedAsins: ownedAsins,
+      ownedNumbers: ownedNumbers,
       scrollController: scrollController,
     ),
   );
@@ -39,6 +50,9 @@ class AudibleSeriesSheet extends StatefulWidget {
   final String seriesAsin;
   final Set<String> ownedTitles;
   final Set<String> ownedAsins;
+  /// The series' library books by number, for owning an entry whose title
+  /// and ASIN don't match (another edition, or no ASINs from the server).
+  final SeriesNumberOwnership? ownedNumbers;
   final ScrollController scrollController;
 
   const AudibleSeriesSheet({
@@ -47,6 +61,7 @@ class AudibleSeriesSheet extends StatefulWidget {
     required this.seriesAsin,
     required this.ownedTitles,
     required this.ownedAsins,
+    this.ownedNumbers,
     required this.scrollController,
   });
 
@@ -61,6 +76,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
   int _filter = 0; // 0 = missing, 1 = upcoming, 2 = all
   late String _region;
   bool _rmabConfigured = false;
+  bool _serverRequests = false;
 
   @override
   void initState() {
@@ -68,6 +84,12 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
     _region = ApiService.debugRegion;
     _loadRegionAndFetch();
     _loadRmabConfigured();
+    _loadServerRequests();
+  }
+
+  Future<void> _loadServerRequests() async {
+    final ok = await canRequestAudibleBooks(context.read<AuthProvider>().apiService);
+    if (mounted && ok) setState(() => _serverRequests = true);
   }
 
   Future<void> _loadRmabConfigured() async {
@@ -116,18 +138,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
     }
   }
 
-  static final _parenthetical = RegExp(r'\s*\([^)]*\)\s*');
-  static final _nonAlphaNum = RegExp(r'[^a-z0-9 ]');
-  static final _multiSpace = RegExp(r'\s+');
-
-  String _normalizeTitle(String title) {
-    return title
-        .toLowerCase()
-        .replaceAll(_parenthetical, ' ')
-        .replaceAll(_nonAlphaNum, ' ')
-        .replaceAll(_multiSpace, ' ')
-        .trim();
-  }
+  String _normalizeTitle(String title) => normalizeSeriesTitle(title);
 
   bool _isOwned(Map<String, dynamic> book) {
     final asin = book['asin'] as String? ?? '';
@@ -153,7 +164,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
         return true;
       }
     }
-    return false;
+    return widget.ownedNumbers?.owns(book, _allBooks) ?? false;
   }
 
   bool _isUpcoming(Map<String, dynamic> book) {
@@ -174,9 +185,9 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
   }) {
     final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    // Surface the RMAB Request action only for missing-but-released books,
-    // and only when the user has RMAB configured.
-    final showRequest = _rmabConfigured && !owned && !upcoming;
+    // Request only missing-but-released books, from BookOrbit when this
+    // account can ask it, otherwise from ReadMeABook when that's set up.
+    final showRequest = (_serverRequests || _rmabConfigured) && !owned && !upcoming;
     // Let upcoming or recently-released books be pushed onto the upcoming page
     // without rescanning the whole library.
     final canAddToUpcoming = upcoming || _isRecent(book);
@@ -189,7 +200,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
         if (canAddToUpcoming)
           ListTile(
             leading: Icon(Icons.event_available_rounded,
-                color: cs.primary, size: 22),
+                color: cs.onSurfaceVariant, size: 22),
             title: Text(l.audibleSeriesAddToUpcoming,
                 style: const TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w500)),
@@ -203,14 +214,19 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
         if (showRequest)
           ListTile(
             leading: Icon(Icons.menu_book_rounded,
-                color: cs.primary, size: 22),
-            title: Text(l.rmabRequestCta,
+                color: cs.onSurfaceVariant, size: 22),
+            title: Text(_serverRequests ? l.breqRequest : l.rmabRequestCta,
                 style: const TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w500)),
             dense: true,
             visualDensity: VisualDensity.compact,
             onTap: () {
               Navigator.pop(context);
+              final api = context.read<AuthProvider>().apiService;
+              if (_serverRequests && api != null) {
+                requestAudibleBooks(context, api, [(book: book, seriesName: widget.seriesName)]);
+                return;
+              }
               final asin = book['asin'] as String? ?? '';
               final title = book['title'] as String? ?? '';
               debugPrint(
@@ -296,7 +312,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
             const SizedBox(width: 48),
             Expanded(
               child: Column(children: [
-                Icon(Icons.travel_explore_rounded, size: 20, color: cs.primary),
+                Icon(Icons.travel_explore_rounded, size: 20, color: cs.onSurfaceVariant),
                 const SizedBox(height: 4),
                 Text(widget.seriesName,
                   maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -351,7 +367,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
         if (_isLoading)
           Expanded(child: ListView(controller: widget.scrollController, children: [
             const SizedBox(height: 80),
-            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            const Center(child: AdaptiveSpinner(strokeWidth: 2)),
             const SizedBox(height: 12),
             Center(child: Text(l.audibleSeriesSearching, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4)))),
           ]))
@@ -365,7 +381,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
             const SizedBox(height: 80),
             Icon(
               _filter == 1 ? Icons.event_available_rounded : Icons.check_circle_outline_rounded,
-              size: 48, color: cs.primary.withValues(alpha: 0.5)),
+              size: 48, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
             const SizedBox(height: 12),
             Center(child: Text(
               _filter == 0 ? l.audibleSeriesCompleteSeries
@@ -392,7 +408,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.06),
+          color: selected ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: selected ? cs.primary.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.1)),
         ),
@@ -443,7 +459,7 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
                 child: Stack(children: [
                   Positioned.fill(
                     child: coverUrl.isNotEmpty
-                        ? CachedNetworkImage(
+                        ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                             imageUrl: coverUrl, fit: BoxFit.cover,
                             placeholder: (_, __) => _placeholder(cs),
                             errorWidget: (_, __, ___) => _placeholder(cs))
@@ -561,13 +577,14 @@ Future<String?> showAudibleRegionPicker(BuildContext context, {required String c
   final cs = Theme.of(context).colorScheme;
   final tt = Theme.of(context).textTheme;
   final l = AppLocalizations.of(context)!;
-  return showModalBottomSheet<String>(
+  return showAdaptiveActionMenu<String>(
     context: context,
     backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     isScrollControlled: true,
+    desktopScrollWrap: false,
     constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
     builder: (ctx) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -590,7 +607,7 @@ Future<String?> showAudibleRegionPicker(BuildContext context, {required String c
                 onTap: () => Navigator.pop(ctx, e.key),
                 child: Container(height: 40,
                   decoration: BoxDecoration(
-                    color: e.key == currentRegion ? cs.primary.withValues(alpha: 0.15) : cs.onSurface.withValues(alpha: 0.06),
+                    color: e.key == currentRegion ? cs.primary.withValues(alpha: Tints.soft) : cs.onSurface.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: e.key == currentRegion ? cs.primary.withValues(alpha: 0.3) : cs.onSurface.withValues(alpha: 0.1)),
                   ),
@@ -624,7 +641,7 @@ void showAudibleBookMenu(BuildContext context, {
   final isFutureRelease =
       releaseDateTime != null && releaseDateTime.isAfter(DateTime.now());
 
-  showModalBottomSheet(
+  showAdaptiveActionMenu(
     context: context,
     backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
     shape: const RoundedRectangleBorder(
@@ -643,12 +660,12 @@ void showAudibleBookMenu(BuildContext context, {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(_formatBookDate(releaseDate),
-              style: tt.bodySmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+              style: tt.bodySmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
           ),
         const SizedBox(height: 12),
         if (asin.isNotEmpty)
           ListTile(
-            leading: Icon(Icons.open_in_new_rounded, color: cs.primary, size: 22),
+            leading: Icon(Icons.open_in_new_rounded, color: cs.onSurfaceVariant, size: 22),
             title: Text(l.audibleSeriesOpenOnAudible, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             dense: true, visualDensity: VisualDensity.compact,
             onTap: () {
@@ -658,7 +675,7 @@ void showAudibleBookMenu(BuildContext context, {
           ),
         if (isFutureRelease)
           ListTile(
-            leading: Icon(Icons.calendar_month_rounded, color: cs.primary, size: 22),
+            leading: Icon(Icons.calendar_month_rounded, color: cs.onSurfaceVariant, size: 22),
             title: Text(l.audibleSeriesAddToCalendar, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             dense: true, visualDensity: VisualDensity.compact,
             onTap: () {
@@ -708,7 +725,7 @@ Future<void> _addToCalendar(BuildContext context, String title, String seriesNam
   final eventTitle = '$title - $seriesName';
   final description = l.audibleSeriesCalendarDescription(seriesName);
 
-  if (Platform.isAndroid) {
+  if (AppPlatform.isAndroid) {
     final begin = DateTime(date.year, date.month, date.day).millisecondsSinceEpoch;
     final end = DateTime(date.year, date.month, date.day, 23, 59).millisecondsSinceEpoch;
     final uri = Uri.parse(

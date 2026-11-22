@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
+import '../utils/app_platform.dart';
+import 'adaptive_modal.dart';
 
 void showTipsSheet(BuildContext context) {
   final cs = Theme.of(context).colorScheme;
   final tt = Theme.of(context).textTheme;
   final l = AppLocalizations.of(context)!;
   final w = Wording.of(context);
-  showModalBottomSheet(
-    context: context, isScrollControlled: true, useSafeArea: true,
+  showAdaptiveSheetDialog(
+    context: context, useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false, initialChildSize: 0.75, minChildSize: 0.05, maxChildSize: 0.95,
-      builder: (_, sc) => Container(
+    expand: false, initialChildSize: 0.75, minChildSize: 0.05, maxChildSize: 0.95,
+    builder: (_, sc) => Container(
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -91,11 +92,12 @@ void showTipsSheet(BuildContext context) {
               title: w.tipsSheetQuickAddAbsorbingTitle,
               desc: w.tipsSheetQuickAddAbsorbingDesc,
             ),
-            _tipCard(cs, tt,
-              icon: Icons.vibration_rounded,
-              title: l.tipsSheetShakeExtendSleepTitle,
-              desc: l.tipsSheetShakeExtendSleepDesc,
-            ),
+            if (!AppPlatform.lacksPhonePlugins)
+              _tipCard(cs, tt,
+                icon: Icons.vibration_rounded,
+                title: l.tipsSheetShakeExtendSleepTitle,
+                desc: l.tipsSheetShakeExtendSleepDesc,
+              ),
             _tipCard(cs, tt,
               icon: Icons.auto_stories_rounded,
               title: l.tipsSheetSeriesNavigationTitle,
@@ -131,21 +133,23 @@ void showTipsSheet(BuildContext context) {
               title: l.tipsSheetSeriesQueueModeTitle,
               desc: l.tipsSheetSeriesQueueModeDesc,
             ),
-            _tipCard(cs, tt,
-              icon: Icons.airplanemode_active_rounded,
-              title: l.tipsSheetOfflineModeTitle,
-              desc: l.tipsSheetOfflineModeDesc,
-            ),
+            if (!AppPlatform.lacksPhonePlugins)
+              _tipCard(cs, tt,
+                icon: Icons.cloud_off_rounded,
+                title: l.tipsSheetOfflineModeTitle,
+                desc: l.tipsSheetOfflineModeDesc,
+              ),
             _tipCard(cs, tt,
               icon: Icons.upcoming_rounded,
               title: l.tipsSheetUpcomingReleasesTitle,
               desc: l.tipsSheetUpcomingReleasesDesc,
             ),
-            _tipCard(cs, tt,
-              icon: Icons.equalizer_rounded,
-              title: l.tipsSheetPerBookEqTitle,
-              desc: l.tipsSheetPerBookEqDesc,
-            ),
+            if (!AppPlatform.lacksPhonePlugins)
+              _tipCard(cs, tt,
+                icon: Icons.equalizer_rounded,
+                title: l.tipsSheetPerBookEqTitle,
+                desc: l.tipsSheetPerBookEqDesc,
+              ),
             _tipCard(cs, tt,
               icon: Icons.speed_rounded,
               title: l.tipsSheetPerBookSpeedTitle,
@@ -161,11 +165,12 @@ void showTipsSheet(BuildContext context) {
               title: l.tipsSheetSleepFadeChimeTitle,
               desc: l.tipsSheetSleepFadeChimeDesc,
             ),
-            _tipCard(cs, tt,
-              icon: Icons.directions_car_rounded,
-              title: l.tipsSheetCarModeTitle,
-              desc: l.tipsSheetCarModeDesc,
-            ),
+            if (!AppPlatform.lacksPhonePlugins)
+              _tipCard(cs, tt,
+                icon: Icons.directions_car_rounded,
+                title: l.tipsSheetCarModeTitle,
+                desc: l.tipsSheetCarModeDesc,
+              ),
             _tipCard(cs, tt,
               icon: Icons.search_rounded,
               title: l.tipsSheetAudibleSeriesTitle,
@@ -174,7 +179,6 @@ void showTipsSheet(BuildContext context) {
           ],
         ),
       ),
-    ),
   );
 }
 

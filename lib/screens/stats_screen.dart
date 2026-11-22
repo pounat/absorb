@@ -1,26 +1,39 @@
+import 'dart:async';
+import '../services/native_tab_bar.dart';
+import '../widgets/expressive.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
+import '../services/device_time_zone.dart';
 import '../services/scoped_prefs.dart';
 import '../services/user_account_service.dart';
+import '../utils/desktop_workspace.dart';
 import '../widgets/absorb_page_header.dart';
+import '../widgets/adaptive_modal.dart';
 import '../widgets/finished_books_this_year_sheet.dart';
 import '../widgets/stats_charts.dart';
 import '../widgets/day_sessions_sheet.dart';
 import '../widgets/listening_session_card.dart';
 import '../widgets/overlay_toast.dart';
-import '../main.dart' show flatNotifier, gradientIntensityNotifier;
+import '../main.dart' show flatNotifier;
+import '../widgets/cover_glow.dart';
 import 'app_shell.dart';
 import '../l10n/app_localizations.dart';
 
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({super.key});
+  /// Opened as a page of its own, with no tab to come back through, so the
+  /// header carries a back arrow.
+  final bool pushed;
+  const StatsScreen({super.key, this.pushed = false});
   @override
   State<StatsScreen> createState() => _StatsScreenState();
 }
@@ -54,12 +67,21 @@ class _StatsScreenState extends State<StatsScreen>
   Map<String, dynamic>? _yirData;
   bool _yirLoading = false;
   int? _yirLoadedYear;
+  // BookOrbit keeps listening and reading apart: 'all', 'listening' or
+  // 'reading'.
+  String _media = 'all';
+  static const _kMedia = 'stats_media';
+  ({String server, String phone})? _zoneMismatch;
+  String? _zoneChecked;
+  bool _zoneSaving = false;
+  static const _kZoneDismissed = 'stats_zone_note_dismissed';
   late AnimationController _animController;
 
   // Recent sessions stays out of the reorderable sections: it loads more as
   // you scroll, so anything placed under it would never be reachable.
   static const _defaultSectionOrder = [
-    'hero', 'goals', 'periods', 'activity', 'chart', 'heatmap', 'dayofweek', 'top', 'yearreview',
+    'hero', 'goals', 'periods', 'activity', 'chart', 'heatmap', 'dayofweek', 'timeofday', 'top',
+    'finished', 'sources', 'habits', 'yearreview',
   ];
 
   static const _monthNames = [
@@ -85,6 +107,44 @@ class _StatsScreenState extends State<StatsScreen>
     PlayerSettings.settingsChanged.addListener(_onSettingsChanged);
     _loadStats();
     _loadGoalSettings();
+    SharedPreferences.getInstance().then((prefs) {
+      final media = prefs.getString(_kMedia);
+      if (mounted && media != null && media != _media) setState(() => _media = media);
+    });
+  }
+
+  void _setMedia(String media) {
+    if (media == _media) return;
+    setState(() {
+      _media = media;
+      _selectedDayKey = null;
+      _selectedSection = null;
+    });
+    _animController
+      ..reset()
+      ..forward();
+    SharedPreferences.getInstance().then((prefs) => prefs.setString(_kMedia, media));
+  }
+
+  /// The days the screen counts. On BookOrbit that is listening, reading or
+  /// both, as picked at the top; elsewhere whatever the server sent.
+  Map<String, dynamic> _countedDays(Map<String, dynamic> stats) {
+    final bo = stats['bookOrbit'];
+    if (bo is Map) {
+      final picked = switch (_media) {
+        'listening' => bo['listenDays'],
+        'reading' => bo['readDays'],
+        _ => null,
+      };
+      if (picked is Map<String, dynamic>) return picked;
+    }
+    return _extractDailyMap(stats);
+  }
+
+  int get _bookGoalOrServer {
+    if (_bookGoal > 0) return _bookGoal;
+    final bo = _stats?['bookOrbit'];
+    return bo is Map ? (bo['goalBooks'] as num?)?.toInt() ?? 0 : 0;
   }
 
   @override
@@ -216,9 +276,9 @@ class _StatsScreenState extends State<StatsScreen>
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.08),
+        color: cs.onSurface.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.18)),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
       ),
       child: Row(children: [
         Expanded(
@@ -230,13 +290,13 @@ class _StatsScreenState extends State<StatsScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.15),
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     Icons.calendar_today_rounded,
                     size: 16,
-                    color: cs.primary,
+                    color: cs.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -251,7 +311,7 @@ class _StatsScreenState extends State<StatsScreen>
                       const SizedBox(height: 2),
                       Text(_formatDuration(_selectedDaySeconds),
                           style: tt.bodySmall?.copyWith(
-                              color: cs.primary,
+                              color: cs.onSurface,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(
@@ -355,6 +415,7 @@ class _StatsScreenState extends State<StatsScreen>
       prefs.setString(statsCacheKey, jsonEncode(stats));
     }
 
+    if (stats != null) unawaited(_checkTimeZone(stats));
     if (mounted) {
       setState(() {
         _stats = stats ?? _stats; // keep cached if network failed
@@ -397,24 +458,14 @@ class _StatsScreenState extends State<StatsScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Container(
-        decoration: flatNotifier.value ? null : BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.0, 0.22, 0.72, 1.0],
-            colors: [
-              cs.primary.withValues(alpha: gradientIntensityNotifier.value),
-              cs.surface,
-              Color.lerp(cs.surface, Theme.of(context).scaffoldBackgroundColor, 0.55) ?? Theme.of(context).scaffoldBackgroundColor,
-              Theme.of(context).scaffoldBackgroundColor,
-            ],
-          ),
-        ),
-        child: SafeArea(
+      body: Stack(children: [
+        if (!flatNotifier.value) const Positioned.fill(child: CoverGlow()),
+        SafeArea(
+          // Under the glass tab bar the stats scroll beneath it.
+          bottom: !NativeTabBar.active.value,
           child: _isLoading
               ? Center(
-                  child: CircularProgressIndicator(
+                  child: AdaptiveSpinner(
                       strokeWidth: 2,
                       color: cs.onSurface.withValues(alpha: 0.24)))
               : _stats == null
@@ -432,7 +483,7 @@ class _StatsScreenState extends State<StatsScreen>
                       ),
                     ),
         ),
-      ),
+      ]),
     );
   }
 
@@ -456,8 +507,16 @@ class _StatsScreenState extends State<StatsScreen>
   }
 
   Widget _buildContent(ColorScheme cs, TextTheme tt, AppLocalizations l) {
-    final totalSeconds = _safeNum(_stats!['totalTime']);
-    final dailyMap = _extractDailyMap(_stats!);
+    final bo = _stats!['bookOrbit'] as Map<String, dynamic>?;
+    final dailyMap = _countedDays(_stats!);
+    final totalSeconds = bo != null
+        ? dailyMap.values.fold<double>(0, (sum, v) => sum + _safeNum(v))
+        : _safeNum(_stats!['totalTime']);
+    final hourValues = bo == null ? const <double>[] : _hourValues(bo['hours'] as List<dynamic>? ?? const []);
+    final finishedMonths = bo == null ? const <({DateTime month, int count})>[] : _finishedMonths(bo);
+    final sources = (bo?['sources'] as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>().toList();
+    final habits = bo == null ? const <Widget>[] : _habitRows(cs, tt, l, bo);
+    final genres = (bo?['genres'] as List<dynamic>? ?? const []).whereType<Map>().take(5).toList();
     final today = _todaySeconds(dailyMap);
     final thisWeek = _weekSeconds(dailyMap);
     final thisMonth = _monthSeconds(dailyMap);
@@ -478,11 +537,11 @@ class _StatsScreenState extends State<StatsScreen>
 
     final sections = <String, List<Widget>>{
       'hero': [
-        _heroStat(tt, cs, l, totalSeconds),
+        _heroStat(tt, cs, l, totalSeconds, bookOrbit: bo != null),
         const SizedBox(height: 16),
       ],
       'goals': [
-        if (_goalMinutes.values.any((m) => m > 0) || _bookGoal > 0) ...[
+        if (_goalMinutes.values.any((m) => m > 0) || _bookGoalOrServer > 0) ...[
           _goalCard(cs, tt, l, today, thisWeek, thisMonth),
           const SizedBox(height: 16),
         ],
@@ -500,84 +559,50 @@ class _StatsScreenState extends State<StatsScreen>
       'activity': [
         _sectionTitle(tt, cs, l.statsActivity),
         const SizedBox(height: 10),
-        Row(children: [
-          Expanded(
-              child: _accentStatCard(
-                  tt,
-                  cs,
-                  Icons.local_fire_department_rounded,
-                  Colors.orange,
-                  l.statsScreenStreakDays(streak),
-                  l.statsCurrentStreak)),
-          const SizedBox(width: 8),
-          Expanded(
-              child: _accentStatCard(tt, cs, Icons.emoji_events_rounded,
-                  Colors.amber.shade600, l.statsScreenStreakDays(longestStreak), l.statsBestStreak)),
+        _responsiveStatsGrid([
+          _statCard(
+              tt,
+              cs,
+              Icons.local_fire_department_rounded,
+              l.statsScreenStreakDays(streak),
+              l.statsCurrentStreak),
+          _statCard(tt, cs, Icons.emoji_events_rounded, l.statsScreenStreakDays(longestStreak), l.statsBestStreak),
+          _statCard(tt, cs, Icons.menu_book_rounded, '$_booksFinished', l.statsBooksFinished),
+          if (_episodesFinished > 0)
+            _statCard(tt, cs, Icons.podcasts_rounded, '$_episodesFinished', l.statsEpisodesFinished),
+          _statCard(tt, cs, Icons.auto_stories_rounded, '$_booksFinishedThisYear', l.statsBooksThisYear,
+              onTap: _booksFinishedThisYear > 0
+                  ? () async {
+                      await showFinishedBooksThisYearSheet(context);
+                      if (mounted) {
+                        setState(() => _booksFinishedThisYear = context
+                            .read<LibraryProvider>()
+                            .finishedBooksThisYearCount);
+                      }
+                    }
+                  : null),
+          if (_episodesFinishedThisYear > 0)
+            _statCard(tt, cs, Icons.graphic_eq_rounded, '$_episodesFinishedThisYear',
+                l.statsEpisodesThisYear),
+          _statCard(tt, cs, Icons.calendar_today_rounded, '$activeDays', l.statsDaysActive),
+          _statCard(tt, cs, Icons.speed_rounded,
+              _formatDuration(avgDaily), l.statsDailyAverage),
+          if (_timeSavedSeconds >= 60)
+            _WideStat(
+              child: _statCard(tt, cs, Icons.fast_forward_rounded, _formatDuration(_timeSavedSeconds),
+                  l.statsTimeSavedLabel,
+                  subtitle: _timeSavedSince != null
+                      ? l.statsTimeSavedSince(
+                          MaterialLocalizations.of(context).formatMediumDate(_timeSavedSince!))
+                      : null,
+                  trailing: IconButton(
+                    icon: Icon(Icons.restart_alt_rounded,
+                        size: 20, color: cs.onSurfaceVariant),
+                    tooltip: l.statsTimeSavedReset,
+                    onPressed: _confirmResetTimeSaved,
+                  )),
+            ),
         ]),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(
-              child: _accentStatCard(tt, cs, Icons.menu_book_rounded,
-                  Colors.green, '$_booksFinished', l.statsBooksFinished)),
-          if (_episodesFinished > 0) ...[
-            const SizedBox(width: 8),
-            Expanded(
-                child: _accentStatCard(tt, cs, Icons.podcasts_rounded,
-                    Colors.purple, '$_episodesFinished', l.statsEpisodesFinished)),
-          ],
-        ]),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(
-              child: _accentStatCard(tt, cs, Icons.auto_stories_rounded,
-                  Colors.teal, '$_booksFinishedThisYear', l.statsBooksThisYear,
-                  onTap: _booksFinishedThisYear > 0
-                      ? () async {
-                          await showFinishedBooksThisYearSheet(context);
-                          if (mounted) {
-                            setState(() => _booksFinishedThisYear = context
-                                .read<LibraryProvider>()
-                                .finishedBooksThisYearCount);
-                          }
-                        }
-                      : null)),
-          if (_episodesFinishedThisYear > 0) ...[
-            const SizedBox(width: 8),
-            Expanded(
-                child: _accentStatCard(tt, cs, Icons.graphic_eq_rounded,
-                    Colors.deepPurple, '$_episodesFinishedThisYear',
-                    l.statsEpisodesThisYear)),
-          ],
-        ]),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(
-              child: _accentStatCard(tt, cs, Icons.calendar_today_rounded,
-                  cs.primary, '$activeDays', l.statsDaysActive)),
-          const SizedBox(width: 8),
-          Expanded(
-              child: _accentStatCard(tt, cs, Icons.speed_rounded, cs.tertiary,
-                  _formatDuration(avgDaily), l.statsDailyAverage)),
-        ]),
-        if (_timeSavedSeconds >= 60) ...[
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-                child: _accentStatCard(tt, cs, Icons.fast_forward_rounded,
-                    Colors.cyan, _formatDuration(_timeSavedSeconds),
-                    l.statsTimeSavedLabel,
-                    subtitle: _timeSavedSince != null
-                        ? l.statsTimeSavedSince(
-                            MaterialLocalizations.of(context).formatMediumDate(_timeSavedSince!))
-                        : null,
-                    trailing: IconButton(
-                      icon: Icon(Icons.restart_alt_rounded,
-                          size: 20, color: cs.onSurfaceVariant),
-                      tooltip: l.statsTimeSavedReset,
-                      onPressed: _confirmResetTimeSaved,
-                    ))),
-          ]),
-        ],
         const SizedBox(height: 28),
       ],
       'chart': [
@@ -601,11 +626,54 @@ class _StatsScreenState extends State<StatsScreen>
         _dayOfWeekChart(cs, tt, l, dailyMap),
         const SizedBox(height: 28),
       ],
+      'timeofday': [
+        if (hourValues.any((v) => v > 0)) ...[
+          _sectionTitle(tt, cs, l.statsTimeOfDay),
+          const SizedBox(height: 10),
+          _timeOfDayChart(cs, tt, l, hourValues),
+          const SizedBox(height: 28),
+        ],
+      ],
       'top': [
         if (topItems.isNotEmpty) ...[
-          _sectionTitle(tt, cs, l.statsMostListened),
+          // BookOrbit's per-book totals take in reading as well.
+          _sectionTitle(tt, cs, bo != null ? l.statsTopBooks : l.statsMostListened),
           const SizedBox(height: 10),
-          ...topItems.map((item) => _topItemCard(tt, cs, l, item)),
+          _responsiveTwoColumnList(
+            topItems.map((item) => _topItemCard(tt, cs, l, item)).toList(),
+          ),
+          SizedBox(height: genres.isEmpty ? 28 : 14),
+        ],
+        if (genres.isNotEmpty) ...[
+          _yirTopList(cs, tt, l.statsTopGenres, genres, 'genre'),
+          const SizedBox(height: 14),
+        ],
+      ],
+      'finished': [
+        if (finishedMonths.any((m) => m.count > 0)) ...[
+          _sectionTitle(tt, cs, l.statsFinishedByMonth),
+          const SizedBox(height: 10),
+          _finishedChart(cs, tt, l, finishedMonths),
+          const SizedBox(height: 28),
+        ],
+      ],
+      'sources': [
+        if (sources.isNotEmpty) ...[
+          _sectionTitle(tt, cs, l.statsWhereTitle),
+          const SizedBox(height: 10),
+          _sourcesCard(cs, tt, l, sources),
+          const SizedBox(height: 28),
+        ],
+      ],
+      'habits': [
+        if (habits.isNotEmpty) ...[
+          _sectionTitle(tt, cs, l.statsHabits),
+          const SizedBox(height: 10),
+          Container(
+            decoration: _cardDeco(cs),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(children: habits),
+          ),
           const SizedBox(height: 28),
         ],
       ],
@@ -617,36 +685,118 @@ class _StatsScreenState extends State<StatsScreen>
       ..._defaultSectionOrder.where((id) => !_statsOrder.contains(id)),
     ];
 
-    return ListView(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-      children: [
-        AbsorbPageHeader(
-          title: l.statsTitle,
-          padding: const EdgeInsets.only(top: 12),
-        ),
-        const SizedBox(height: 24),
-        for (final id in order)
-          if (!_statsHidden.contains(id)) ...sections[id]!,
-        if (_sessions.isNotEmpty) ...[
-          _sectionTitle(tt, cs, l.statsRecentSessions),
-          const SizedBox(height: 10),
-          ..._buildSessions(),
-          if (_isLoadingMoreSessions)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: cs.onSurface.withValues(alpha: 0.24)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+        final desktopWorkspace = isDesktopWorkspace(context);
+        final horizontalPadding = isWide ? 32.0 : 20.0;
+        return ListView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            0,
+            horizontalPadding,
+            32 +
+                (NativeTabBar.active.value
+                    ? MediaQuery.paddingOf(context).bottom
+                    : 0),
+          ),
+          children: [
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1180),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (widget.pushed)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Transform.translate(
+                          offset: const Offset(-12, 0),
+                          child: const BackButton(),
+                        ),
+                      ),
+                    AbsorbPageHeader(
+                      title: l.statsTitle,
+                      showBranding: !desktopWorkspace,
+                      padding: EdgeInsets.only(top: isWide ? 24 : 12),
+                    ),
+                    const SizedBox(height: 24),
+                    if (bo != null) _mediaPicker(cs, tt, l, bo),
+                    for (final id in order)
+                      if (!_statsHidden.contains(id)) ...sections[id]!,
+                    if (_sessions.isNotEmpty) ...[
+                      _sectionTitle(tt, cs, l.statsRecentSessions),
+                      const SizedBox(height: 10),
+                      _responsiveTwoColumnList(_buildSessions()),
+                      if (_isLoadingMoreSessions)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: AdaptiveSpinner(
+                                  strokeWidth: 2,
+                                  color: cs.onSurface.withValues(alpha: 0.24)),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
                 ),
               ),
             ),
-        ],
-      ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _responsiveStatsGrid(List<Widget> cards) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1080
+            ? 4
+            : constraints.maxWidth >= 900
+                ? 3
+                : 2;
+        const spacing = 12.0;
+        final cardWidth =
+            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+        // A card with more to say than a number and a label takes two
+        // columns, which on a phone is the whole row.
+        final wideWidth = columns > 2 ? cardWidth * 2 + spacing : constraints.maxWidth;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final card in cards)
+              SizedBox(width: card is _WideStat ? wideWidth : cardWidth, child: card),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _responsiveTwoColumnList(List<Widget> cards) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 900) {
+          return Column(children: cards);
+        }
+        const spacing = 12.0;
+        final cardWidth = (constraints.maxWidth - spacing) / 2;
+        return Wrap(
+          spacing: spacing,
+          children: [
+            for (final card in cards)
+              SizedBox(width: cardWidth, child: card),
+          ],
+        );
+      },
     );
   }
 
@@ -808,6 +958,332 @@ class _StatsScreenState extends State<StatsScreen>
     );
   }
 
+  /// BookOrbit splits days at midnight in the account's time zone (UTC until
+  /// someone sets it), so when that differs from the phone's, time late in
+  /// the day lands on another day here. Checked once per zone BookOrbit
+  /// reports.
+  Future<void> _checkTimeZone(Map<String, dynamic>? stats) async {
+    final server = (stats?['bookOrbit'] as Map?)?['timezone'] as String?;
+    if (server == null || server.isEmpty || server == _zoneChecked) return;
+    _zoneChecked = server;
+    final phone = await DeviceTimeZone.compare(server);
+    final dismissed = (await SharedPreferences.getInstance()).getString(_kZoneDismissed);
+    if (!mounted) return;
+    final show = phone != null && phone.differs && dismissed != '$server|${phone.id}';
+    setState(() => _zoneMismatch = show ? (server: server, phone: phone.id) : null);
+  }
+
+  Future<void> _dismissZoneNote() async {
+    final z = _zoneMismatch;
+    if (z == null) return;
+    setState(() => _zoneMismatch = null);
+    (await SharedPreferences.getInstance()).setString(_kZoneDismissed, '${z.server}|${z.phone}');
+  }
+
+  Future<void> _usePhoneZone(String zone) async {
+    final api = context.read<AuthProvider>().apiService;
+    if (api == null) return;
+    final l = AppLocalizations.of(context)!;
+    setState(() => _zoneSaving = true);
+    final ok = await api.setAccountTimeZone(zone);
+    if (!mounted) return;
+    setState(() {
+      _zoneSaving = false;
+      if (ok) _zoneMismatch = null;
+    });
+    if (!ok) {
+      showOverlayToast(context, l.statsZoneFailed, icon: Icons.error_outline_rounded);
+      return;
+    }
+    showOverlayToast(context, l.statsZoneSaved(zone), icon: Icons.schedule_rounded);
+    setState(() => _isLoading = true);
+    await _loadStats();
+  }
+
+  Widget _zoneNote(ColorScheme cs, TextTheme tt, AppLocalizations l, ({String server, String phone}) z) {
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 4, 2),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(Icons.schedule_rounded, size: 18, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(l.statsZoneMismatch(z.server, z.phone),
+                style: tt.bodySmall?.copyWith(color: cs.onSurface)),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            icon: Icon(Icons.close_rounded, size: 18, color: cs.onSurfaceVariant),
+            onPressed: _dismissZoneNote,
+          ),
+        ]),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _zoneSaving ? null : () => _usePhoneZone(z.phone),
+            child: _zoneSaving
+                ? const SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2))
+                : Text(l.statsZoneUse(z.phone)),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _mediaPicker(ColorScheme cs, TextTheme tt, AppLocalizations l, Map<String, dynamic> bo) {
+    final zone = _zoneMismatch;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        SegmentedButton<String>(
+          segments: [
+            ButtonSegment(value: 'all', label: Text(l.statsMediaAll)),
+            ButtonSegment(
+                value: 'listening',
+                icon: const Icon(Icons.headphones_rounded, size: 16),
+                label: Text(l.statsMediaListening)),
+            ButtonSegment(
+                value: 'reading',
+                icon: const Icon(Icons.menu_book_rounded, size: 16),
+                label: Text(l.statsMediaReading)),
+          ],
+          selected: {_media},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => _setMedia(s.first),
+        ),
+        if (zone != null) _zoneNote(cs, tt, l, zone),
+      ]),
+    );
+  }
+
+  /// Time per hour of the day over the last year, for what is picked at the
+  /// top.
+  List<double> _hourValues(List<dynamic> hours) {
+    final values = List<double>.filled(24, 0);
+    for (final h in hours.whereType<Map>()) {
+      final i = (h['hour'] as num?)?.toInt();
+      if (i == null || i < 0 || i > 23) continue;
+      values[i] = switch (_media) {
+        'listening' => _safeNum(h['listening']),
+        'reading' => _safeNum(h['reading']),
+        _ => _safeNum(h['listening']) + _safeNum(h['reading']),
+      };
+    }
+    return values;
+  }
+
+  Widget _timeOfDayChart(ColorScheme cs, TextTheme tt, AppLocalizations l, List<double> values) {
+    final maxVal = values.fold(0.0, max);
+    final peak = values.indexOf(maxVal);
+    final anim = _animValue.value;
+    final ml = MaterialLocalizations.of(context);
+    final h24 = MediaQuery.of(context).alwaysUse24HourFormat;
+    String hourLabel(int h) =>
+        ml.formatTimeOfDay(TimeOfDay(hour: h, minute: 0), alwaysUse24HourFormat: h24);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+      decoration: _cardDeco(cs),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(l.statsBusiestAround(hourLabel(peak)),
+            style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 80,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            for (var i = 0; i < 24; i++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                  child: Container(
+                    height: max((values[i] / maxVal * anim).clamp(0.0, 1.0) * 80, values[i] > 0 ? 3 : 2),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(2),
+                      color: i == peak
+                          ? cs.primary.withValues(alpha: 0.7)
+                          : cs.onSurface.withValues(alpha: 0.12),
+                    ),
+                  ),
+                ),
+              ),
+          ]),
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          for (final h in const [0, 6, 12, 18])
+            Expanded(
+              child: Text(hourLabel(h),
+                  style: TextStyle(color: cs.onSurface.withValues(alpha: 0.3), fontSize: 10)),
+            ),
+        ]),
+      ]),
+    );
+  }
+
+  /// The last twelve months, this one last, with the books finished in each.
+  List<({DateTime month, int count})> _finishedMonths(Map<String, dynamic> bo) {
+    final counts = <String, int>{};
+    for (final m in (bo['finishedMonths'] as List<dynamic>? ?? const []).whereType<Map>()) {
+      counts['${m['year']}-${m['month']}'] = (m['count'] as num?)?.toInt() ?? 0;
+    }
+    final now = DateTime.now();
+    ({DateTime month, int count}) entry(DateTime d) => (month: d, count: counts['${d.year}-${d.month}'] ?? 0);
+    return [for (var i = 11; i >= 0; i--) entry(DateTime(now.year, now.month - i))];
+  }
+
+  Widget _finishedChart(ColorScheme cs, TextTheme tt, AppLocalizations l,
+      List<({DateTime month, int count})> months) {
+    final maxCount = months.fold(0, (a, m) => max(a, m.count));
+    final total = months.fold(0, (a, m) => a + m.count);
+    final anim = _animValue.value;
+    final locale = Localizations.localeOf(context).toString();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+      decoration: _cardDeco(cs),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(l.statsFinishedLast12(total),
+            style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 96,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            for (var i = 0; i < months.length; i++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    if (months[i].count > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text('${months[i].count}',
+                            style: TextStyle(
+                                color: cs.onSurface.withValues(alpha: 0.45),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    Container(
+                      height: max((months[i].count / max(maxCount, 1) * anim).clamp(0.0, 1.0) * 70,
+                          months[i].count > 0 ? 4 : 2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: i == months.length - 1
+                            ? cs.primary.withValues(alpha: 0.7)
+                            : cs.onSurface.withValues(alpha: months[i].count > 0 ? 0.3 : 0.12),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+          ]),
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          for (var i = 0; i < months.length; i++)
+            Expanded(
+              child: Text(DateFormat.MMM(locale).format(months[i].month),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                  style: TextStyle(
+                      color: i == months.length - 1
+                          ? cs.primary.withValues(alpha: 0.8)
+                          : cs.onSurface.withValues(alpha: 0.3),
+                      fontSize: 9)),
+            ),
+        ]),
+      ]),
+    );
+  }
+
+  static String _sourceName(Object? bucket) => switch (bucket) {
+        'android' => 'Android',
+        'ios' => 'iOS',
+        'watchos' => 'Apple Watch',
+        'koreader' => 'KOReader',
+        'kobo' => 'Kobo',
+        _ => 'BookOrbit',
+      };
+
+  static IconData _sourceIcon(Object? bucket) => switch (bucket) {
+        'android' => Icons.phone_android_rounded,
+        'ios' => Icons.phone_iphone_rounded,
+        'watchos' => Icons.watch_rounded,
+        'koreader' || 'kobo' => Icons.chrome_reader_mode_rounded,
+        _ => Icons.language_rounded,
+      };
+
+  Widget _sourcesCard(ColorScheme cs, TextTheme tt, AppLocalizations l, List<Map<String, dynamic>> sources) {
+    final sorted = [...sources]..sort((a, b) => _safeNum(b['time']).compareTo(_safeNum(a['time'])));
+    final total = sorted.fold(0.0, (a, s) => a + _safeNum(s['time']));
+    final anim = _animValue.value;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: _cardDeco(cs),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(l.statsLast12Months,
+            style: tt.labelSmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.35))),
+        for (final s in sorted) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            Icon(_sourceIcon(s['bucket']), size: 16, color: cs.onSurfaceVariant),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(_sourceName(s['bucket']),
+                  style: tt.bodySmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
+            ),
+            Text(_formatDuration(_safeNum(s['time'])),
+                style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+          ]),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: total > 0 ? _safeNum(s['time']) / total * anim : 0,
+              minHeight: 6,
+              backgroundColor: cs.onSurface.withValues(alpha: 0.06),
+              valueColor: AlwaysStoppedAnimation(cs.primary.withValues(alpha: 0.6)),
+            ),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  List<Widget> _habitRows(ColorScheme cs, TextTheme tt, AppLocalizations l, Map<String, dynamic> bo) {
+    num? n(String key) => bo[key] as num?;
+    final session = switch (_media) {
+      'listening' => n('medianListen'),
+      'reading' => n('medianRead'),
+      _ => n('medianSession'),
+    };
+    String percent(num v) => '${v.toStringAsFixed(v < 10 ? 1 : 0)}%';
+    return [
+      if (session != null && session > 0)
+        _yirRow(cs, tt, Icons.timer_outlined, l.statsTypicalSession, _formatDuration(session.toDouble())),
+      if (_media == 'all' && n('medianProgress') != null && n('medianProgress')! > 0)
+        _yirRow(cs, tt, Icons.trending_up_rounded, l.statsProgressPerSession, percent(n('medianProgress')!)),
+      if (n('medianDaysToFinish') != null)
+        _yirRow(cs, tt, Icons.flag_outlined, l.statsTimeToFinish,
+            l.statsDayCount(n('medianDaysToFinish')!.round())),
+      if ((n('started') ?? 0) > 0) ...[
+        _yirRow(cs, tt, Icons.play_arrow_rounded, l.statsBooksStarted, '${n('started')}'),
+        if (n('inProgress') != null)
+          _yirRow(cs, tt, Icons.auto_stories_outlined, l.statsBooksInProgress, '${n('inProgress')}'),
+        if (n('meanProgress') != null)
+          _yirRow(cs, tt, Icons.donut_large_rounded, l.statsAverageProgress, percent(n('meanProgress')!)),
+      ],
+    ];
+  }
+
   // --- SECTION TITLE ---
 
   Widget _sectionTitle(TextTheme tt, ColorScheme cs, String title) {
@@ -858,7 +1334,7 @@ class _StatsScreenState extends State<StatsScreen>
     if (_yirLoading) {
       body.add(const Padding(
         padding: EdgeInsets.symmetric(vertical: 28),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: AdaptiveSpinner()),
       ));
     } else if (d == null || (totalSeconds <= 0 && sessions == 0 && finished == 0)) {
       body.add(Container(
@@ -882,7 +1358,7 @@ class _StatsScreenState extends State<StatsScreen>
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) => ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: CachedNetworkImage(
+              child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                 imageUrl: api.getCoverUrl(coverIds[i], width: 120),
                 width: 64,
                 height: 64,
@@ -896,21 +1372,41 @@ class _StatsScreenState extends State<StatsScreen>
         body.add(const SizedBox(height: 14));
       }
 
-      body.add(Row(children: [
-        Expanded(child: _accentStatCard(tt, cs, Icons.headphones_rounded,
-            cs.primary, _formatDuration(totalSeconds), 'Listened')),
-        const SizedBox(width: 8),
-        Expanded(child: _accentStatCard(tt, cs, Icons.menu_book_rounded,
-            Colors.green, '$finished', 'Books finished')),
-      ]));
-      body.add(const SizedBox(height: 8));
-      body.add(Row(children: [
-        Expanded(child: _accentStatCard(tt, cs, Icons.play_circle_outline_rounded,
-            cs.tertiary, '$sessions', 'Sessions')),
-        const SizedBox(width: 8),
-        Expanded(child: _accentStatCard(tt, cs, Icons.library_books_rounded,
-            Colors.teal, '$listened', 'Books listened')),
-      ]));
+      // BookOrbit sends reading time and active days in place of the books
+      // listened, which it doesn't keep by year.
+      final readSeconds = (d['bookOrbitReadingTime'] as num?)?.toDouble();
+      final l = AppLocalizations.of(context)!;
+      if (readSeconds != null) {
+        body.add(Row(children: [
+          Expanded(child: _statCard(tt, cs, Icons.headphones_rounded, _formatDuration(totalSeconds), 'Listened')),
+          const SizedBox(width: 8),
+          Expanded(child: _statCard(tt, cs, Icons.auto_stories_rounded, _formatDuration(readSeconds), l.statsYearRead)),
+        ]));
+        body.add(const SizedBox(height: 8));
+        body.add(Row(children: [
+          Expanded(child: _statCard(tt, cs, Icons.menu_book_rounded, '$finished', 'Books finished')),
+          const SizedBox(width: 8),
+          Expanded(child: _statCard(tt, cs, Icons.play_circle_outline_rounded, '$sessions', 'Sessions')),
+        ]));
+        body.add(const SizedBox(height: 8));
+        body.add(Row(children: [
+          Expanded(child: _statCard(tt, cs, Icons.calendar_today_rounded, '${(d['bookOrbitActiveDays'] as num?)?.toInt() ?? 0}', l.statsDaysActive)),
+          const SizedBox(width: 8),
+          const Expanded(child: SizedBox.shrink()),
+        ]));
+      } else {
+        body.add(Row(children: [
+          Expanded(child: _statCard(tt, cs, Icons.headphones_rounded, _formatDuration(totalSeconds), 'Listened')),
+          const SizedBox(width: 8),
+          Expanded(child: _statCard(tt, cs, Icons.menu_book_rounded, '$finished', 'Books finished')),
+        ]));
+        body.add(const SizedBox(height: 8));
+        body.add(Row(children: [
+          Expanded(child: _statCard(tt, cs, Icons.play_circle_outline_rounded, '$sessions', 'Sessions')),
+          const SizedBox(width: 8),
+          Expanded(child: _statCard(tt, cs, Icons.library_books_rounded, '$listened', 'Books listened')),
+        ]));
+      }
       body.add(const SizedBox(height: 14));
 
       final highlights = <Widget>[];
@@ -950,10 +1446,17 @@ class _StatsScreenState extends State<StatsScreen>
   Widget _yirRow(ColorScheme cs, TextTheme tt, IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      child: Row(children: [
-        Icon(icon, size: 18, color: cs.primary.withValues(alpha: 0.7)),
+      child: LayoutBuilder(builder: (context, c) => Row(children: [
+        Icon(icon, size: 18, color: cs.onSurfaceVariant),
         const SizedBox(width: 12),
-        Text(label, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+        // A long label gives way before it pushes the value off the card.
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: c.maxWidth * 0.55),
+          child: Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(value,
@@ -962,7 +1465,7 @@ class _StatsScreenState extends State<StatsScreen>
               overflow: TextOverflow.ellipsis,
               style: tt.bodyMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
         ),
-      ]),
+      ])),
     );
   }
 
@@ -1055,7 +1558,9 @@ class _StatsScreenState extends State<StatsScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final doneColor = isDark ? Colors.greenAccent[400]! : Colors.green.shade700;
 
-    final hasBookGoal = _bookGoal > 0;
+    // Absorb's own book goal, or the yearly goal set in BookOrbit.
+    final bookGoal = _bookGoalOrServer;
+    final hasBookGoal = bookGoal > 0;
 
     final elapsed = {'daily': today, 'weekly': thisWeek, 'monthly': thisMonth};
     final activeGoals = [
@@ -1067,14 +1572,14 @@ class _StatsScreenState extends State<StatsScreen>
     final ringSize = activeGoals.length > 1 ? 44.0 : 56.0;
 
     final double bookProgress =
-        hasBookGoal ? (_booksFinishedThisYear / _bookGoal).clamp(0.0, 1.0).toDouble() : 0.0;
-    final bookReached = hasBookGoal && _booksFinishedThisYear >= _bookGoal;
+        hasBookGoal ? (_booksFinishedThisYear / bookGoal).clamp(0.0, 1.0).toDouble() : 0.0;
+    final bookReached = hasBookGoal && _booksFinishedThisYear >= bookGoal;
     final now = DateTime.now();
     final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays + 1;
     final daysInYear =
         DateTime(now.year, 12, 31).difference(DateTime(now.year, 1, 1)).inDays + 1;
     final projectedBooks = (_booksFinishedThisYear * daysInYear / dayOfYear).round();
-    final onTrack = projectedBooks >= _bookGoal;
+    final onTrack = projectedBooks >= bookGoal;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1094,14 +1599,14 @@ class _StatsScreenState extends State<StatsScreen>
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Icon(Icons.auto_stories_rounded,
-                  size: 16, color: bookReached ? doneColor : cs.primary),
+                  size: 16, color: bookReached ? doneColor : cs.onSurfaceVariant),
               const SizedBox(width: 8),
               Expanded(
                   child: Text(l.statsBookChallengeTitle,
                       style: tt.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface))),
               Text(
-                l.statsBookChallengeProgress(_booksFinishedThisYear, _bookGoal),
+                l.statsBookChallengeProgress(_booksFinishedThisYear, bookGoal),
                 style: tt.bodySmall
                     ?.copyWith(color: bookReached ? doneColor : cs.onSurfaceVariant),
               ),
@@ -1138,7 +1643,16 @@ class _StatsScreenState extends State<StatsScreen>
 
   // --- HERO STAT ---
 
-  Widget _heroStat(TextTheme tt, ColorScheme cs, AppLocalizations l, double totalSeconds) {
+  Widget _heroStat(TextTheme tt, ColorScheme cs, AppLocalizations l, double totalSeconds,
+      {bool bookOrbit = false}) {
+    final audioOnly = !bookOrbit || _media == 'listening';
+    final label = !bookOrbit
+        ? l.statsTotalListeningTime
+        : switch (_media) {
+            'listening' => l.statsTotalListeningTime,
+            'reading' => l.statsTotalReadingTime,
+            _ => l.statsTotalTime,
+          };
     final hours = (totalSeconds / 3600).floor();
     final minutes = ((totalSeconds % 3600) / 60).floor();
     final anim = _animValue.value;
@@ -1147,18 +1661,11 @@ class _StatsScreenState extends State<StatsScreen>
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: flatNotifier.value ? null : LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            cs.primary.withValues(alpha: 0.08),
-            cs.primary.withValues(alpha: 0.02),
-          ],
-        ),
-        border: Border.all(color: cs.primary.withValues(alpha: flatNotifier.value ? 0.08 : 0.15)),
+        color: cs.onSurface.withValues(alpha: 0.03),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
       ),
       child: Column(children: [
-        Text(l.statsTotalListeningTime,
+        Text(label,
             style: tt.labelSmall?.copyWith(
               color: cs.onSurface.withValues(alpha: 0.35),
               letterSpacing: 2,
@@ -1197,18 +1704,21 @@ class _StatsScreenState extends State<StatsScreen>
           ],
         ),
         const SizedBox(height: 10),
-        Text(_daysEquivalent(totalSeconds, l),
+        Text(_daysEquivalent(totalSeconds, l, audio: audioOnly),
             style: tt.bodySmall
                 ?.copyWith(color: cs.onSurface.withValues(alpha: 0.25))),
       ]),
     );
   }
 
-  String _daysEquivalent(double seconds, AppLocalizations l) {
+  String _daysEquivalent(double seconds, AppLocalizations l, {bool audio = true}) {
     final days = seconds / 86400;
-    if (days >= 1) return l.statsDaysOfAudio(days.toStringAsFixed(1));
-    final hours = seconds / 3600;
-    return l.statsHoursOfAudio(hours.toStringAsFixed(1));
+    if (days >= 1) {
+      final d = days.toStringAsFixed(1);
+      return audio ? l.statsDaysOfAudio(d) : l.statsDaysOfTime(d);
+    }
+    final hours = (seconds / 3600).toStringAsFixed(1);
+    return audio ? l.statsHoursOfAudio(hours) : l.statsHoursOfTime(hours);
   }
 
   // --- ACCENT STAT CARD ---
@@ -1236,31 +1746,27 @@ class _StatsScreenState extends State<StatsScreen>
     showOverlayToast(context, l.statsTimeSavedResetDone, icon: Icons.restart_alt_rounded);
   }
 
-  Widget _accentStatCard(TextTheme tt, ColorScheme cs, IconData icon,
-      Color accent, String value, String label,
+  Widget _statCard(TextTheme tt, ColorScheme cs, IconData icon,
+      String value, String label,
       {VoidCallback? onTap, String? subtitle, Widget? trailing}) {
     final isTappable = onTap != null;
     final card = Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       decoration: BoxDecoration(
-        color: isTappable
-            ? accent.withValues(alpha: 0.06)
-            : cs.onSurface.withValues(alpha: 0.04),
+        color: cs.onSurface.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: isTappable
-                ? accent.withValues(alpha: 0.25)
-                : cs.onSurface.withValues(alpha: 0.06)),
+            color: cs.onSurface.withValues(alpha: 0.06)),
       ),
       child: Row(children: [
         Container(
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.12),
+            color: cs.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: accent.withValues(alpha: 0.8), size: 18),
+          child: Icon(icon, color: cs.onSurfaceVariant, size: 18),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1277,13 +1783,13 @@ class _StatsScreenState extends State<StatsScreen>
             const SizedBox(height: 2),
             Text(subtitle,
                 style: tt.labelSmall?.copyWith(
-                    color: accent.withValues(alpha: 0.7), fontSize: 11)),
+                    color: cs.onSurfaceVariant, fontSize: 11)),
           ],
         ])),
         if (trailing != null) trailing,
         if (isTappable)
           Icon(Icons.chevron_right_rounded,
-              size: 20, color: accent.withValues(alpha: 0.7)),
+              size: 20, color: cs.onSurfaceVariant),
       ]),
     );
     if (!isTappable) return card;
@@ -1526,6 +2032,8 @@ class _StatsScreenState extends State<StatsScreen>
   Future<List<Map<String, dynamic>>> _loadSessionsForDay(DateTime day) async {
     final api = context.read<AuthProvider>().apiService;
     if (api == null) return const [];
+    final byDay = await api.getListeningSessionsForDay(day);
+    if (byDay != null) return byDay;
 
     const pageSize = 100;
     final target = DateTime(day.year, day.month, day.day);
@@ -1574,10 +2082,12 @@ class _StatsScreenState extends State<StatsScreen>
   }
 
   Future<void> _showDaySessions(DateTime day) async {
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showAdaptiveActionMenu<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       builder: (_) => DaySessionsSheet(
         initialDate: day,
         loadSessions: _loadSessionsForDay,
@@ -1597,10 +2107,12 @@ class _StatsScreenState extends State<StatsScreen>
     Map<String, dynamic> s, {
     bool refreshStats = true,
   }) async {
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showAdaptiveActionMenu<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      desktopWidth: 520,
+      desktopScrollWrap: false,
       builder: (_) => SessionDetailsSheet(session: s),
     );
     if (changed == true && mounted && refreshStats) {
@@ -1781,6 +2293,15 @@ class _DayData {
       {required this.label, required this.fullLabel, required this.seconds});
 }
 
+/// A stat card the grid lays out two columns wide.
+class _WideStat extends StatelessWidget {
+  final Widget child;
+  const _WideStat({required this.child});
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
 class _TopItem {
   final String title;
   final String author;
@@ -1823,6 +2344,9 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
   Future<void> _editSession() async {
     final l = AppLocalizations.of(context)!;
     final s = widget.session;
+    // BookOrbit sessions are logged without an end point (one moves a book's
+    // read status there), so only their length and day change.
+    final withEnd = !context.read<AuthProvider>().isBookOrbit;
     final origListening = _n(s['timeListening']).round();
     final origCurrent = _n(s['currentTime']).round();
     final origUpdatedMs = s['updatedAt'] is num
@@ -1876,6 +2400,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
                       border: const OutlineInputBorder()),
                 )),
               ]),
+              if (withEnd) ...[
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerLeft,
@@ -1926,6 +2451,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
                   color: Theme.of(dialogCtx).colorScheme.onSurfaceVariant,
                 ),
               ),
+              ],
               const SizedBox(height: 12),
               Row(children: [
                 Text(l.sessionDayLabel,
@@ -2047,7 +2573,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
       return;
     }
     setState(() => _saving = true);
-    final ok = await api.deleteListeningSession(id);
+    final ok = await api.deleteListeningSession(id, itemId: widget.session['libraryItemId'] as String?);
     if (!mounted) return;
     if (ok) {
       showOverlayToast(context, l.sessionDeleted, icon: Icons.delete_outline_rounded);
@@ -2256,7 +2782,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
           ? const SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2))
+              child: AdaptiveSpinner(strokeWidth: 2))
           : Icon(icon),
       label: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2287,6 +2813,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
+    final desktopMode = ModalSurface.isDesktopOf(context);
     final s = widget.session;
 
     final meta = s['mediaMetadata'] as Map<String, dynamic>? ?? {};
@@ -2328,7 +2855,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
     final lib = context.read<LibraryProvider>();
     final coverUrl = itemId != null ? lib.getCoverUrl(itemId) : null;
 
-    return DraggableScrollableSheet(
+    return AdaptiveDraggableScrollableSheet(
       initialChildSize: 0.7,
       minChildSize: 0.4,
       maxChildSize: 0.95,
@@ -2337,20 +2864,37 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
         return Container(
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: desktopMode
+                ? BorderRadius.zero
+                : const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 10, bottom: 4),
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
+            if (desktopMode)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                  child: IconButton(
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
             Expanded(
               child: ListView(
                 controller: scrollController,
@@ -2364,7 +2908,7 @@ class SessionDetailsSheetState extends State<SessionDetailsSheet> {
                         height: 88,
                         color: cs.onSurface.withValues(alpha: 0.06),
                         child: coverUrl != null
-                            ? CachedNetworkImage(
+                            ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                 imageUrl: coverUrl,
                                 fit: BoxFit.cover,
                                 errorWidget: (_, __, ___) => Icon(

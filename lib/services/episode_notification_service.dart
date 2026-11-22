@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -9,24 +12,36 @@ import 'package:workmanager/workmanager.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../screens/server_notifications_screen.dart';
 import '../screens/upcoming_releases_screen.dart';
 import '../widgets/episode_list_sheet.dart';
 import 'api_service.dart';
+import 'server_backend.dart';
+import 'server_notifications.dart';
 import 'download_service.dart';
 import 'player_settings.dart';
 import 'scoped_prefs.dart';
 import 'user_account_service.dart';
 import 'package:provider/provider.dart';
 
-/// Background new-episode notifications (Android). A WorkManager periodic job
+/// Background new-episode notifications. On Android a WorkManager periodic job
 /// polls the subscribed shows and notifies about episodes it hasn't notified
-/// about before. The job keeps its own last-seen state (notified_episodes_*),
+/// about before. On iOS the system's background refresh wakes the app and the
+/// check runs in the app itself, as it also does while the app is alive in
+/// the background (playing a book). The job keeps its own last-seen state (notified_episodes_*),
 /// separate from known_episodes_* - that one drives the in-app absorbing-queue
 /// insertion and auto-download and must keep seeing "new" episodes when the
 /// app next opens.
 class EpisodeNotificationService {
   static const _uniqueName = 'com.barnabas.absorb.episodeNotifCheck';
   static const channelId = 'new_episodes';
+  static const bookOrbitChannelId = 'bookorbit_notifications';
+  static const _iosChannel = MethodChannel('com.barnabas.absorb/background');
+  static const _lastCheckKey = 'episodeNotifLastCheckMs';
+
+  /// True while iOS has woken the app for the episode check. iOS gives that
+  /// job its own time, so a token refresh inside it can finish.
+  static bool backgroundCheckRunning = false;
 
   static String notifiedKey(String showId) => 'notified_episodes_$showId';
 
@@ -81,6 +96,17 @@ class EpisodeNotificationService {
   /// Register/cancel the periodic job to match the setting. Called on app
   /// start (self-healing after OEM kills) and when the setting changes.
   static Future<void> syncRegistration() async {
+    if (Platform.isIOS) {
+      try {
+        final minutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
+        await _iosChannel.invokeMethod('scheduleEpisodeCheck', {'minutes': minutes});
+        _IosBackgroundTimer.instance.sync(minutes > 0);
+        debugPrint('[EpisodeNotif] iOS background refresh ${minutes > 0 ? 'asked for every ${minutes}m' : 'off'}');
+      } catch (e) {
+        debugPrint('[EpisodeNotif] iOS syncRegistration failed: $e');
+      }
+      return;
+    }
     if (!Platform.isAndroid) return;
     try {
       final minutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
@@ -106,11 +132,28 @@ class EpisodeNotificationService {
   /// Foreground notification-tap wiring. Safe to call once at startup; also
   /// resolves a cold start launched from a notification.
   static Future<void> initTapHandling() async {
-    if (!Platform.isAndroid) return;
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (Platform.isIOS) {
+      _iosChannel.setMethodCallHandler((call) async {
+        if (call.method != 'runEpisodeCheck') return null;
+        backgroundCheckRunning = true;
+        try {
+          return await checkInApp();
+        } finally {
+          backgroundCheckRunning = false;
+        }
+      });
+    }
     final plugin = FlutterLocalNotificationsPlugin();
     await plugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('drawable/ic_notification'),
+        // Permission is asked when the user turns notifications on, not here.
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
       ),
       onDidReceiveNotificationResponse: (resp) => _handleTap(resp.payload),
     );
@@ -120,8 +163,55 @@ class EpisodeNotificationService {
     }
   }
 
+  /// Asks iOS to allow notifications. True when they are allowed.
+  static Future<bool> requestIosPermission() async {
+    if (!Platform.isIOS) return true;
+    final ios = FlutterLocalNotificationsPlugin()
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    return await ios?.requestPermissions(alert: true, sound: true) ?? false;
+  }
+
+  /// The check, run in the app itself (iOS): when the system's background
+  /// refresh wakes it, or while it is alive in the background. Only once the
+  /// chosen interval has passed since the last one. Episodes are left for the
+  /// in-app catch-up to download when the app is next opened.
+  static Future<bool> checkInApp() async {
+    try {
+      final minutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
+      if (minutes <= 0) return false;
+      final prefs = await SharedPreferences.getInstance();
+      final last = prefs.getInt(_lastCheckKey) ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      // A little slack so a wake-up just short of the interval still counts.
+      if (now - last < Duration(minutes: minutes).inMilliseconds * 0.9) return false;
+      await prefs.setInt(_lastCheckKey, now);
+      debugPrint('[EpisodeNotif] checking in the app');
+      await _checkAndNotify(inApp: true);
+      return true;
+    } catch (e) {
+      debugPrint('[EpisodeNotif] in-app check failed: $e');
+      return false;
+    }
+  }
+
   /// Open the show's episode list once the app (navigator + session) is up.
   static Future<void> _handleTap(String? payload) async {
+    if (payload == 'bonotif') {
+      // A BookOrbit notification: open the server's notification list.
+      for (var i = 0; i < 60; i++) {
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          try {
+            if (ctx.read<AuthProvider>().apiService != null) {
+              Navigator.push(ctx, MaterialPageRoute(builder: (_) => const ServerNotificationsScreen()));
+              return;
+            }
+          } catch (_) {}
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      return;
+    }
     if (payload == 'upcoming') {
       // Release-day notification: open the upcoming releases page.
       for (var i = 0; i < 60; i++) {
@@ -177,21 +267,27 @@ void episodeNotifDispatcher() {
   });
 }
 
-Future<void> _checkAndNotify() async {
+/// [inApp] runs it in the app's own engine (iOS), where the preferences and
+/// the account are already loaded and downloads are left to the app.
+Future<void> _checkAndNotify({bool inApp = false}) async {
   // WorkManager uses a separate Flutter engine whose SharedPreferences cache
   // can lag behind writes from earlier workers or the foreground app.
-  await EpisodeNotificationService.prepareBackgroundPreferences();
+  if (!inApp) await EpisodeNotificationService.prepareBackgroundPreferences();
 
   // Purely local, so it runs before the subscribed-podcasts early return.
   await _checkReleaseDayNotifs();
 
   final subscribed = await ScopedPrefs.getStringList('subscribed_podcasts');
-  if (subscribed.isEmpty) return;
+  final backend = ServerBackend.loadActive(await SharedPreferences.getInstance());
+  if (subscribed.isEmpty && !backend.isBookOrbit) return;
 
   final api = await _buildApiService();
   if (api == null) return;
 
   final plugin = FlutterLocalNotificationsPlugin();
+  if (api.isBookOrbit) await _checkServerNotifications(api, plugin);
+  if (subscribed.isEmpty) return;
+
   const channel = AndroidNotificationChannel(
     EpisodeNotificationService.channelId,
     'New episodes',
@@ -250,11 +346,13 @@ Future<void> _checkAndNotify() async {
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
           ),
+          iOS: DarwinNotificationDetails(threadIdentifier: 'new_episodes'),
         ),
         payload: 'show:$showId',
       );
 
       await ScopedPrefs.setStringList(key, [...seen, ...fresh.map((e) => e['id'] as String)]);
+      if (inApp) continue;
 
       // Start the downloads now so the episodes are ready when the app next
       // opens - same auto-download behavior as the in-app catch-up (WiFi-only
@@ -285,6 +383,85 @@ Future<void> _checkAndNotify() async {
     } catch (e) {
       debugPrint('[EpisodeNotif] check failed for $showId: $e');
     }
+  }
+}
+
+/// Phone notifications for what BookOrbit's own notification list got since
+/// the last check: book requests, finished imports and the like. The first
+/// check only notes the time, so an old backlog never floods the phone, and
+/// anything already read on the server stays quiet.
+Future<void> _checkServerNotifications(ApiService api, FlutterLocalNotificationsPlugin plugin) async {
+  const key = 'bookorbit_notified_through';
+  try {
+    if (!await api.hasServerNotifications()) {
+      debugPrint('[EpisodeNotif] BookOrbit notifications: none for this account');
+      return;
+    }
+    final page = await api.serverNotifications(limit: 30);
+    if (page == null) {
+      debugPrint('[EpisodeNotif] BookOrbit notifications: list not read');
+      return;
+    }
+    final through = await ScopedPrefs.getInt(key);
+    if (through == null) {
+      await ScopedPrefs.setInt(key, DateTime.now().millisecondsSinceEpoch);
+      debugPrint('[EpisodeNotif] BookOrbit notifications: first check, ${page.items.length} listed, noting the time');
+      return;
+    }
+    int at(ServerNotification n) => n.when?.millisecondsSinceEpoch ?? 0;
+    final fresh = page.items.where((n) => !n.read && at(n) > through).toList()
+      ..sort((a, b) => at(a).compareTo(at(b)));
+    debugPrint('[EpisodeNotif] BookOrbit notifications: ${page.items.length} listed, '
+        '${fresh.length} new since ${DateTime.fromMillisecondsSinceEpoch(through)}');
+    if (fresh.isEmpty) return;
+
+    const channelName = 'BookOrbit notifications';
+    const channelDescription = 'What your BookOrbit server tells you about: requests, imports and more';
+    const channel = AndroidNotificationChannel(
+      EpisodeNotificationService.bookOrbitChannelId,
+      channelName,
+      description: channelDescription,
+      importance: Importance.defaultImportance,
+    );
+    await plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        EpisodeNotificationService.bookOrbitChannelId,
+        channelName,
+        channelDescription: channelDescription,
+        icon: 'drawable/ic_notification',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+      ),
+      iOS: DarwinNotificationDetails(threadIdentifier: 'bookorbit_notifications'),
+    );
+    // At most five on their own; the rest fold into one line.
+    final shown = fresh.length > 5 ? fresh.sublist(fresh.length - 4) : fresh;
+    final folded = fresh.length - shown.length;
+    for (final n in shown) {
+      final body = n.message ?? '';
+      await plugin.show(
+        0x424F0000 | (n.id & 0xFFFF),
+        n.title.isEmpty ? 'BookOrbit' : n.title,
+        n.count > 1 ? '$body (${n.count}x)'.trim() : body,
+        details,
+        payload: 'bonotif',
+      );
+    }
+    if (folded > 0) {
+      await plugin.show(0x424FFFFF, 'BookOrbit', '$folded more notifications', details, payload: 'bonotif');
+    }
+    var newest = through;
+    for (final n in fresh) {
+      if (at(n) > newest) newest = at(n);
+    }
+    await ScopedPrefs.setInt(key, newest);
+    debugPrint('[EpisodeNotif] BookOrbit notifications: shown ${shown.length}, folded $folded, '
+        'now through ${DateTime.fromMillisecondsSinceEpoch(newest)}');
+  } catch (e) {
+    debugPrint('[EpisodeNotif] BookOrbit notifications check failed: $e');
   }
 }
 
@@ -349,6 +526,7 @@ Future<void> _checkReleaseDayNotifs() async {
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
           ),
+          iOS: DarwinNotificationDetails(threadIdentifier: 'release_day'),
         ),
         payload: 'upcoming',
       );
@@ -361,6 +539,46 @@ Future<void> _checkReleaseDayNotifs() async {
     debugPrint('[EpisodeNotif] release-day notified: ${due.length}');
   } catch (e) {
     debugPrint('[EpisodeNotif] release-day check failed: $e');
+  }
+}
+
+/// While the app is alive in the background on iOS (playing a book), runs
+/// the check once it is due. iOS's own background refresh comes when the
+/// system chooses, and a suspended app runs no timers, so this only adds
+/// checks while Absorb is running anyway.
+class _IosBackgroundTimer with WidgetsBindingObserver {
+  _IosBackgroundTimer._();
+  static final instance = _IosBackgroundTimer._();
+
+  bool _on = false;
+  bool _observing = false;
+  Timer? _timer;
+
+  void sync(bool on) {
+    _on = on;
+    if (on && !_observing) {
+      WidgetsBinding.instance.addObserver(this);
+      _observing = true;
+    } else if (!on && _observing) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observing = false;
+    }
+    if (!on) _stop();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_on) return;
+    if (state == AppLifecycleState.paused) {
+      _timer ??= Timer.periodic(const Duration(minutes: 15), (_) => EpisodeNotificationService.checkInApp());
+    } else if (state == AppLifecycleState.resumed) {
+      _stop();
+    }
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
   }
 }
 
@@ -388,12 +606,14 @@ Future<ApiService?> _buildApiService() async {
   final localEnabled = await PlayerSettings.getLocalServerEnabled();
   final localUrl = await PlayerSettings.getLocalServerUrl();
   if (localEnabled && localUrl.isNotEmpty) {
-    final localReachable = await ApiService.pingServer(localUrl, customHeaders: headers)
+    final localReachable = await ApiService.pingServer(localUrl,
+            customHeaders: headers, backend: ServerBackend.loadActive(prefs))
         .timeout(const Duration(seconds: 3), onTimeout: () => false);
     if (localReachable) baseUrl = localUrl;
   }
 
-  return ApiService(
+  return ApiService.forSession(
+    backend: ServerBackend.loadActive(prefs),
     baseUrl: baseUrl,
     token: token,
     refreshToken: refreshToken,
@@ -408,5 +628,5 @@ Future<ApiService?> _buildApiService() async {
           serverUrl: remoteUrl,
           username: username,
         ),
-  );
+  ).withMediaReady();
 }

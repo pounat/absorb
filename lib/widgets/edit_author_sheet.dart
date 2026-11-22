@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'expressive.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -285,7 +288,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
             Text(l.editAuthor, style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const Spacer(),
             if (_saving || _matching)
-              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 20, height: 20, child: AdaptiveSpinner(strokeWidth: 2)),
           ]),
         ),
         const SizedBox(height: 8),
@@ -315,6 +318,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
   // ─── Quick Match Tab ────────────────────────────────────────
 
   Widget _buildQuickMatchTab(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    final bookOrbit = context.read<AuthProvider>().isBookOrbit;
     return ListView(
       controller: widget.scrollController,
       padding: EdgeInsets.fromLTRB(20, 16, 20, 32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
@@ -324,7 +328,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
         _searchField(_searchCtrl, l.authorName, Icons.person_rounded, cs, tt),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(
+          if (bookOrbit) const Spacer() else Expanded(
             child: Container(
               height: 44,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -355,7 +359,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
             child: FilledButton.icon(
               onPressed: _matching ? null : _runMatch,
               icon: _matching
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                  ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                   : const Icon(Icons.search_rounded, size: 18),
               label: Text(l.quickMatch),
               style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -407,7 +411,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
               ClipOval(
                 child: SizedBox(
                   width: 60, height: 60,
-                  child: CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover,
+                  child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: imageUrl, fit: BoxFit.cover,
                     httpHeaders: headers,
                     placeholder: (_, __) => Container(color: cs.surfaceContainerHighest),
                     errorWidget: (_, __, ___) => Container(color: cs.surfaceContainerHighest,
@@ -465,6 +469,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
   // ─── Custom Tab ─────────────────────────────────────────────
 
   Widget _buildCustomTab(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    final bookOrbit = context.read<AuthProvider>().isBookOrbit;
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
@@ -473,7 +478,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
           FilledButton.icon(
             onPressed: _saving ? null : _saveCustom,
             icon: _saving
-                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                 : const Icon(Icons.check_rounded, size: 18),
             label: Text(l.save),
             style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -486,7 +491,7 @@ class _EditAuthorContentState extends State<_EditAuthorContent>
           padding: EdgeInsets.fromLTRB(20, 0, 20, 32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
           children: [
             _field(l.authorName, _nameCtrl, tt),
-            _field(l.asinLabel, _asinCtrl, tt),
+            if (!bookOrbit) _field(l.asinLabel, _asinCtrl, tt),
             _field(l.descriptionLabel, _descCtrl, tt, maxLines: 6),
             const SizedBox(height: 12),
             Text(l.authorImage, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),

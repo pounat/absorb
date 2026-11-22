@@ -1,3 +1,5 @@
+import '../utils/app_platform.dart';
+import '../widgets/expressive.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -216,7 +218,7 @@ class _BackupSyncScreenState extends State<BackupSyncScreen> {
 
       if (result != null) {
         // Desktop platforms need manual file write; mobile writes via bytes param
-        if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        if (AppPlatform.isWindows || AppPlatform.isLinux || AppPlatform.isMacOS) {
           await File(result).writeAsString(jsonStr);
         }
         if (mounted) {
@@ -331,6 +333,7 @@ class _BackupSyncScreenState extends State<BackupSyncScreen> {
       if (settings?['manualSeedColor'] is int) applyManualSeed(settings!['manualSeedColor'] as int);
       if (settings?['gradientIntensity'] is num) applyGradientIntensity((settings!['gradientIntensity'] as num).toDouble());
       if (settings?['useColorEverywhere'] is bool) applyUseColorEverywhere(settings!['useColorEverywhere'] as bool);
+      if (settings?['trueCoverColors'] is bool) applyTrueCoverColors(settings!['trueCoverColors'] as bool);
       await applyOrientationLock();
 
       // The provider caches these lists in memory at account load, so without
@@ -448,7 +451,7 @@ class _BackupSyncScreenState extends State<BackupSyncScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l.backupAndSync)),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [

@@ -7,9 +7,14 @@ import '../services/download_service.dart';
 import 'absorbing_shared.dart';
 import 'book_card.dart';
 import 'author_card.dart';
+import 'hover_cover_actions.dart';
 import 'series_card.dart';
 import 'episode_list_sheet.dart';
 import 'books_sheet_shared.dart' show coverSizeScale;
+import '../utils/desktop_workspace.dart';
+import '../utils/app_platform.dart';
+import '../utils/media_card_gesture_policy.dart';
+import '../utils/up_next.dart';
 
 class HomeSection extends StatelessWidget {
   final String title;
@@ -19,6 +24,7 @@ class HomeSection extends StatelessWidget {
   final String sectionId;
   final VoidCallback? onTitleTap;
   final double coverAspectRatio;
+  final double desktopScale;
   final bool showSubtitles;
   final bool selectionMode;
   final Set<String> selectedItemIds;
@@ -33,6 +39,7 @@ class HomeSection extends StatelessWidget {
     required this.sectionId,
     this.onTitleTap,
     this.coverAspectRatio = 1.0,
+    this.desktopScale = 1.2,
     this.showSubtitles = false,
     this.selectionMode = false,
     this.selectedItemIds = const {},
@@ -60,38 +67,70 @@ class HomeSection extends StatelessWidget {
         ? null
         : _collectionNameFromTitle(title);
 
-    // Check if any entities have recentEpisode (podcast episode sections)
-    final hasEpisodeEntities = !isEpisodeSection && entities.isNotEmpty &&
-        entities.first is Map<String, dynamic> &&
-        (entities.first as Map<String, dynamic>)['recentEpisode'] != null;
-    final effectiveEpisode = isEpisodeSection || hasEpisodeEntities;
+    // A shelf of nothing but episodes keeps the episode layout. The Downloads
+    // shelf can mix episodes with books, and then it is sized for the books
+    // so their covers follow the cover size and the author line fits.
+    final onlyEpisodeEntities = !isEpisodeSection && entities.isNotEmpty &&
+        entities.every((e) =>
+            e is Map<String, dynamic> && e['recentEpisode'] != null);
+    final effectiveEpisode = isEpisodeSection || onlyEpisodeEntities;
 
     final bool isRectCover = coverAspectRatio < 1.0;
+    final desktop = isDesktopWorkspace(context);
+    final scale = desktop ? desktopScale : 1.0;
     // Book and series covers follow the cover size setting like the library
     // grid does; the wide continue card, authors and episodes keep their size.
     final bool coverCard =
         !isContinueListening && !effectiveEpisode && !isAuthorSection;
-    final double cardWidth = isContinueListening
-        ? 300
-        : isAuthorSection
-            ? 120
-            : coverCard
-                ? 140 * coverSizeScale()
-                : 140;
+    final double cardWidth = (isContinueListening
+            ? 300
+            : isAuthorSection
+                ? 120
+                : coverCard
+                    ? 140 * coverSizeScale()
+                    : 140) *
+        scale;
     // Book cards grow by a line when subtitles are on; author and episode
     // cards have no subtitle to show, so they stay as they are.
     final bool subtitleLine =
         showSubtitles && !isContinueListening && !effectiveEpisode && !isAuthorSection;
-    final double cardHeight =
-        (isContinueListening
-                ? 120
-                : effectiveEpisode
-                    ? 200
-                    : isAuthorSection
-                        ? 170
-                        : (isRectCover ? 260 : 200) +
-                            (cardWidth - 140) / coverAspectRatio) +
-            (subtitleLine ? 18 : 0);
+    // The text under a cover card is measured from the theme and the system
+    // font size, so the author line is never cut off when the title wraps or
+    // a subtitle is shown.
+    final scaler = MediaQuery.textScalerOf(context);
+    double lineHeight(TextStyle? style) =>
+        scaler.scale((style?.fontSize ?? 12) * (style?.height ?? 1.4));
+    final double textBlock = 6 +
+        lineHeight(tt.labelMedium) * (isRectCover ? 1 : 2) +
+        lineHeight(tt.labelSmall) * (subtitleLine ? 2 : 1) +
+        6;
+    final double cardHeight = isContinueListening
+        ? 120 * scale
+        : effectiveEpisode
+            ? 200 * scale
+            : isAuthorSection
+                ? 170 * scale
+                : cardWidth / coverAspectRatio + textBlock;
+
+    // A collection or playlist row starts on the last book finished, with
+    // the one after it beside it, rather than back at the first.
+    var startIndex = 0;
+    if (isPlaylistSection || isCollectionSection) {
+      final lib = context.read<LibraryProvider>();
+      final keys = <String>[];
+      for (final e in entities) {
+        if (e is! Map<String, dynamic>) {
+          keys.add('');
+          continue;
+        }
+        final inner = e['libraryItem'] as Map<String, dynamic>?;
+        final id = (e['libraryItemId'] ?? inner?['id'] ?? e['id']) as String? ?? '';
+        final episodeId = e['episodeId'] as String?;
+        keys.add(episodeId != null ? '$id-$episodeId' : id);
+      }
+      final up = upNextIndex(lib, keys);
+      if (up != null) startIndex = up - 1;
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -101,12 +140,18 @@ class HomeSection extends StatelessWidget {
           // Section header
           GestureDetector(
             onTap: onTitleTap,
-            behavior: onTitleTap != null ? HitTestBehavior.opaque : HitTestBehavior.deferToChild,
+            behavior: onTitleTap != null
+                ? HitTestBehavior.opaque
+                : HitTestBehavior.deferToChild,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  Icon(icon, size: 16, color: cs.primary.withValues(alpha: 0.7)),
+                  Icon(
+                    icon,
+                    size: 16,
+                    color: cs.primary.withValues(alpha: 0.7),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     title,
@@ -118,8 +163,11 @@ class HomeSection extends StatelessWidget {
                   ),
                   if (onTitleTap != null) ...[
                     const SizedBox(width: 4),
-                    Icon(Icons.chevron_right_rounded, size: 16,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                    ),
                   ],
                   const SizedBox(width: 12),
                   Expanded(
@@ -137,9 +185,11 @@ class HomeSection extends StatelessWidget {
           // Snap-scrolling horizontal list
           SizedBox(
             height: cardHeight,
-            child: _SnapScrollList(
+            child: SnapScrollList(
               cardWidth: cardWidth,
+              desktop: desktop,
               itemCount: entities.length,
+              initialIndex: startIndex,
               itemBuilder: (context, index) {
                 var entity = entities[index];
                 String? sourcePlaylistEpisodeId;
@@ -168,11 +218,14 @@ class HomeSection extends StatelessWidget {
                 if (isSeriesSection) {
                   return SizedBox(
                     width: cardWidth,
-                    child: SeriesCard(series: entity, coverAspectRatio: coverAspectRatio),
+                    child: SeriesCard(
+                      series: entity,
+                      coverAspectRatio: coverAspectRatio,
+                    ),
                   );
                 }
 
-                // Podcast episode sections — show cover with episode title overlay
+                // Podcast episode sections - show cover with episode title overlay
                 if (isEpisodeSection && entity is Map<String, dynamic>) {
                   return SizedBox(
                     width: cardWidth,
@@ -203,7 +256,9 @@ class HomeSection extends StatelessWidget {
                     showProgress: isContinueListening,
                     showSubtitle: subtitleLine,
                     isWide: isContinueListening,
-                    coverAspectRatio: isContinueListening ? 1.0 : coverAspectRatio,
+                    coverAspectRatio: isContinueListening
+                        ? 1.0
+                        : coverAspectRatio,
                     sourcePlaylistId: sourcePlaylistId,
                     sourcePlaylistEpisodeId: sourcePlaylistEpisodeId,
                     sourceCollectionId: sourceCollectionId,
@@ -235,34 +290,72 @@ class HomeSection extends StatelessWidget {
   }
 
   String _collectionNameFromTitle(String value) {
-    const prefix = 'Server Collection - ';
-    return value.startsWith(prefix) ? value.substring(prefix.length) : value;
+    for (final prefix in const ['Server Collection - ', 'Smart Scope - ', 'Collection - ']) {
+      if (value.startsWith(prefix)) return value.substring(prefix.length);
+    }
+    return value;
   }
 }
 
-/// A horizontal scrolling list with smooth snap-to-card behavior.
-class _SnapScrollList extends StatefulWidget {
+/// A horizontal scrolling list with smooth snap-to-card behavior. On the
+/// desktop workspace it adds hover paging arrows and clamping physics.
+class SnapScrollList extends StatefulWidget {
   final double cardWidth;
+  final bool desktop;
   final int itemCount;
+  /// The card the list starts on, so a shelf can open part way along.
+  final int initialIndex;
   final Widget Function(BuildContext, int) itemBuilder;
 
-  const _SnapScrollList({
+  const SnapScrollList({
+    super.key,
     required this.cardWidth,
+    this.desktop = false,
     required this.itemCount,
+    this.initialIndex = 0,
     required this.itemBuilder,
   });
 
   @override
-  State<_SnapScrollList> createState() => _SnapScrollListState();
+  State<SnapScrollList> createState() => SnapScrollListState();
 }
 
-class _SnapScrollListState extends State<_SnapScrollList> {
+class SnapScrollListState extends State<SnapScrollList> {
   late final ScrollController _controller;
+  bool _hovering = false;
+  bool _canPageBack = false;
+  bool _canPageForward = false;
+
+  double get _itemExtent => widget.cardWidth + 12;
+
+  /// Where the list was last put for its starting card. While it still
+  /// rests there, a new starting card moves it again; once a finger has
+  /// scrolled it, it stays where the finger left it.
+  double _restOffset = 0;
 
   @override
   void initState() {
     super.initState();
     _controller = ScrollController();
+    _controller.addListener(_updateArrows);
+    _goToStart();
+  }
+
+  /// Puts the starting card at the left edge once the list has laid out.
+  /// Progress often lands after the first rows are built, so this also runs
+  /// when the starting card changes.
+  void _goToStart() {
+    if (widget.initialIndex <= 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.hasClients) return;
+      if ((_controller.offset - _restOffset).abs() > 1) return;
+      final maxExtent = _controller.position.maxScrollExtent;
+      var offset = widget.initialIndex * _itemExtent;
+      if (offset > maxExtent - _itemExtent) offset = maxExtent;
+      _restOffset = offset.clamp(0.0, maxExtent);
+      _controller.jumpTo(_restOffset);
+      _updateArrows();
+    });
   }
 
   @override
@@ -272,10 +365,103 @@ class _SnapScrollListState extends State<_SnapScrollList> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final itemExtent = widget.cardWidth + 12;
+  void didUpdateWidget(covariant SnapScrollList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex) _goToStart();
+    if (oldWidget.cardWidth == widget.cardWidth || !_controller.hasClients) {
+      return;
+    }
+    final oldExtent = oldWidget.cardWidth + 12;
+    final itemIndex = oldExtent <= 0 ? 0.0 : _controller.offset / oldExtent;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.hasClients) return;
+      final nextOffset = (itemIndex * _itemExtent).clamp(
+        0.0,
+        _controller.position.maxScrollExtent,
+      );
+      _controller.jumpTo(nextOffset);
+      _updateArrows();
+    });
+  }
 
-    return NotificationListener<ScrollEndNotification>(
+  void _updateArrows() {
+    if (!widget.desktop || !_controller.hasClients) return;
+    final canBack = _controller.offset > 1;
+    final canForward =
+        _controller.offset < _controller.position.maxScrollExtent - 1;
+    if (canBack != _canPageBack || canForward != _canPageForward) {
+      setState(() {
+        _canPageBack = canBack;
+        _canPageForward = canForward;
+      });
+    }
+  }
+
+  void _page(int direction) {
+    if (!_controller.hasClients) return;
+    final viewport = _controller.position.viewportDimension;
+    final cardsPerPage = (viewport ~/ _itemExtent).clamp(1, 50);
+    final step = cardsPerPage * _itemExtent;
+    final raw = _controller.offset + direction * step;
+    final maxExtent = _controller.position.maxScrollExtent;
+    var target = ((raw / _itemExtent).round() * _itemExtent).clamp(
+      0.0,
+      maxExtent,
+    );
+    if (target > maxExtent - _itemExtent) {
+      target = direction > 0 ? maxExtent : target;
+    }
+    _controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _arrow({required bool forward}) {
+    final cs = Theme.of(context).colorScheme;
+    final visible = _hovering && (forward ? _canPageForward : _canPageBack);
+    return Positioned(
+      left: forward ? null : 4,
+      right: forward ? 4 : null,
+      top: 0,
+      bottom: 0,
+      child: Center(
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: const Duration(milliseconds: 120),
+          child: IgnorePointer(
+            ignoring: !visible,
+            child: Material(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.9),
+              shape: const CircleBorder(),
+              elevation: 2,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _page(forward ? 1 : -1),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    forward
+                        ? Icons.chevron_right_rounded
+                        : Icons.chevron_left_rounded,
+                    size: 24,
+                    color: cs.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final itemExtent = _itemExtent;
+
+    final list = NotificationListener<ScrollEndNotification>(
       onNotification: (notification) {
         final maxExtent = _controller.position.maxScrollExtent;
         final offset = _controller.offset;
@@ -311,10 +497,29 @@ class _SnapScrollListState extends State<_SnapScrollList> {
         controller: _controller,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        physics: const BouncingScrollPhysics(),
+        physics: widget.desktop
+            ? const ClampingScrollPhysics()
+            : const BouncingScrollPhysics(),
         itemCount: widget.itemCount,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: widget.itemBuilder,
+      ),
+    );
+
+    if (!widget.desktop) return list;
+    // Arrow visibility depends on maxScrollExtent, which only exists after
+    // the first layout; refresh once attached.
+    if (!_controller.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _updateArrows());
+    }
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _hovering = true);
+        _updateArrows();
+      },
+      onExit: (_) => setState(() => _hovering = false),
+      child: Stack(
+        children: [list, _arrow(forward: false), _arrow(forward: true)],
       ),
     );
   }
@@ -326,16 +531,14 @@ class _EpisodeCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final String? sourcePlaylistId;
 
-  const _EpisodeCard({
-    required this.item,
-    this.sourcePlaylistId,
-  });
+  const _EpisodeCard({required this.item, this.sourcePlaylistId});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final lib = context.watch<LibraryProvider>();
+    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.lacksPhonePlugins);
 
     final itemId = item['id'] as String? ?? '';
     final media = item['media'] as Map<String, dynamic>? ?? {};
@@ -348,150 +551,207 @@ class _EpisodeCard extends StatelessWidget {
     final episode = item['recentEpisode'] as Map<String, dynamic>?;
     final episodeTitle = episode?['title'] as String? ?? showTitle;
     final episodeId = episode?['id'] as String?;
-    final progress = episodeId != null ? lib.getEpisodeProgress(itemId, episodeId) : 0.0;
-    final isFinished = episodeId != null && lib.getEpisodeProgressData(itemId, episodeId)?['isFinished'] == true;
-    final isDownloaded = episodeId != null && DownloadService().isDownloaded('$itemId-$episodeId');
+    final progress = episodeId != null
+        ? lib.getEpisodeProgress(itemId, episodeId)
+        : 0.0;
+    final isFinished =
+        episodeId != null &&
+        lib.getEpisodeProgressData(itemId, episodeId)?['isFinished'] == true;
+    final isDownloaded =
+        episodeId != null &&
+        DownloadService().isDownloaded('$itemId-$episodeId');
 
-    return GestureDetector(
-      onTap: () {
-        if (episode != null) {
-          EpisodeDetailSheet.show(
-            context,
-            item,
-            episode,
-            sourcePlaylistId: sourcePlaylistId,
-          );
-        } else {
-          EpisodeListSheet.show(
-            context,
-            item,
-            sourcePlaylistId: sourcePlaylistId,
-          );
-        }
-      },
-      // Long-press an episode card for its quick-actions sheet (shows stay as-is).
-      onLongPress: episode == null ? null
+    return HoverCoverActions(
+      onMenu: episode == null
+          ? null
           : () => EpisodeDetailSheet.showQuick(
+              context,
+              item,
+              episode,
+              sourcePlaylistId: sourcePlaylistId,
+            ),
+      child: GestureDetector(
+        onTap: () {
+          if (episode != null) {
+            EpisodeDetailSheet.show(
+              context,
+              item,
+              episode,
+              sourcePlaylistId: sourcePlaylistId,
+            );
+          } else {
+            EpisodeListSheet.show(
+              context,
+              item,
+              sourcePlaylistId: sourcePlaylistId,
+            );
+          }
+        },
+        // Long-press an episode card for its quick-actions sheet (shows stay as-is).
+        onLongPress: episode == null || !gesturePolicy.allowsLongPressShortcuts
+            ? null
+            : () => EpisodeDetailSheet.showQuick(
                 context,
                 item,
                 episode,
                 sourcePlaylistId: sourcePlaylistId,
               ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Square cover
-          AspectRatio(
-            aspectRatio: 1,
-            child: Card(
-              elevation: 0,
-              margin: EdgeInsets.zero,
-              color: cs.surfaceContainerHigh,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (coverUrl != null)
-                    coverUrl.startsWith('/')
-                        ? BlurPaddedCover(
-                            blurChild: Image.file(File(coverUrl), fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-                            child: Image.file(File(coverUrl), fit: BoxFit.contain,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Square cover
+            AspectRatio(
+              aspectRatio: 1,
+              child: Card(
+                elevation: 0,
+                margin: EdgeInsets.zero,
+                color: cs.surfaceContainerHigh,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (coverUrl != null)
+                      coverUrl.startsWith('/')
+                          ? BlurPaddedCover(
+                              blurChild: Image.file(
+                                File(coverUrl),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.shrink(),
+                              ),
+                              child: Image.file(
+                                File(coverUrl),
+                                fit: BoxFit.contain,
                                 errorBuilder: (_, __, ___) => Container(
                                   color: cs.surfaceContainerHigh,
-                                  child: Icon(Icons.podcasts_rounded, size: 32,
-                                    color: cs.onSurfaceVariant.withValues(alpha: 0.3)))))
-                        : BlurPaddedCover(
-                            blurChild: Image.network(coverUrl, fit: BoxFit.cover,
+                                  child: Icon(
+                                    Icons.podcasts_rounded,
+                                    size: 32,
+                                    color: cs.onSurfaceVariant.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : BlurPaddedCover(
+                              blurChild: Image.network(
+                                coverUrl,
+                                fit: BoxFit.cover,
                                 headers: lib.mediaHeaders,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-                            child: Image.network(coverUrl, fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.shrink(),
+                              ),
+                              child: Image.network(
+                                coverUrl,
+                                fit: BoxFit.contain,
                                 headers: lib.mediaHeaders,
                                 errorBuilder: (_, __, ___) => Container(
                                   color: cs.surfaceContainerHigh,
-                                  child: Icon(Icons.podcasts_rounded, size: 32,
-                                    color: cs.onSurfaceVariant.withValues(alpha: 0.3)))))
-                  else
-                    Container(
-                      color: cs.surfaceContainerHigh,
-                      child: Icon(Icons.podcasts_rounded, size: 32,
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
-                    ),
-                  // Progress bar
-                  if (progress > 0 && !isFinished)
-                    Positioned(
-                      left: 0, right: 0, bottom: 0,
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                        child: LinearProgressIndicator(
-                          value: progress.clamp(0, 1),
-                          minHeight: 3,
-                          backgroundColor: Colors.transparent,
-                          valueColor: AlwaysStoppedAnimation(cs.primary),
+                                  child: Icon(
+                                    Icons.podcasts_rounded,
+                                    size: 32,
+                                    color: cs.onSurfaceVariant.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                    else
+                      Container(
+                        color: cs.surfaceContainerHigh,
+                        child: Icon(
+                          Icons.podcasts_rounded,
+                          size: 32,
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                         ),
                       ),
-                    ),
-                  // Finished / downloaded badge
-                  if (isFinished || isDownloaded)
-                    Positioned(
-                      left: 0, right: 0, bottom: 0,
-                      child: CoverStateBadges(
-                        isDownloaded: isDownloaded,
-                        isFinished: isFinished,
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                      ),
-                    ),
-                  // Subscribed bell
-                  if (isSubscribed)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
+                    // Progress bar
+                    if (progress > 0 && !isFinished)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(12),
+                          ),
+                          child: LinearProgressIndicator(
+                            value: progress.clamp(0, 1),
+                            minHeight: 3,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation(cs.primary),
+                          ),
                         ),
-                        child: const Icon(Icons.notifications_rounded,
-                            size: 11, color: Colors.white),
                       ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          // Episode title
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text(
-              episodeTitle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: tt.labelMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: cs.onSurface,
-              ),
-            ),
-          ),
-          // Show name
-          if (showTitle.isNotEmpty && episode != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Text(
-                showTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: tt.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
+                    // Finished / downloaded badge
+                    if (isFinished || isDownloaded)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: CoverStateBadges(
+                          isDownloaded: isDownloaded,
+                          isFinished: isFinished,
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(12),
+                          ),
+                        ),
+                      ),
+                    // Subscribed bell
+                    if (isSubscribed)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.notifications_rounded,
+                            size: 11,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
-        ],
+            const SizedBox(height: 6),
+            // Episode title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Text(
+                episodeTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: tt.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurface,
+                ),
+              ),
+            ),
+            // Show name
+            if (showTitle.isNotEmpty && episode != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Text(
+                  showTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

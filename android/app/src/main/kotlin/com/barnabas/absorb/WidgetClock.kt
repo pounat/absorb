@@ -33,6 +33,20 @@ internal object WidgetClock {
     // Android's own cell-size formula: 70dp per cell, 30dp inter-cell gap.
     fun cellsFor(dp: Int): Int = if (dp <= 0) 1 else (dp + 30) / 70
 
+    // Launcher rows are not one size: a 1-row widget is ~121dp on the Pixel,
+    // ~102dp on One UI and under 90dp on Nothing and OnePlus launchers. A
+    // row-height widget below this gets the tightened one-line layout, or
+    // the play pill is cut off at the bottom.
+    const val SHORT_ROW_MAX_HEIGHT_DP = 95
+
+    /// Portrait height in dp from the widget options (MAX_HEIGHT is the
+    /// portrait figure; fall back to the landscape one when it is missing).
+    fun portraitHeightDp(options: android.os.Bundle): Int {
+        val max = options.getInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+        if (max > 0) return max
+        return options.getInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+    }
+
     // widget_has_book / widget_title are stashed prefs that outlive the app
     // process, so they still read true after a swipe-close. Routing a tap
     // through the MediaSession broadcast in that state is a dead end -

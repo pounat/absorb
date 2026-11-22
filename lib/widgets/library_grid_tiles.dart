@@ -1,20 +1,30 @@
 import 'dart:io';
+import 'tints.dart';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import 'cover_badges.dart';
+import '../services/narrated_books.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/ebook_cache.dart';
 import 'absorbing_shared.dart';
 import 'book_detail_sheet.dart';
 import 'books_sheet_shared.dart' show coverGridTextScale, coverGridDecodeWidth;
 import 'episode_list_sheet.dart';
+import 'hover_cover_actions.dart';
 import '../services/upcoming_releases_service.dart';
 import 'series_books_sheet.dart';
 import 'author_books_sheet.dart';
+import '../utils/app_platform.dart';
+import '../utils/media_card_gesture_policy.dart';
+import '../utils/desktop_workspace.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // Grid book tile (cover + title + author)
@@ -75,16 +85,41 @@ class _GridBookTileState extends State<GridBookTile> {
     final title = metadata['title'] as String? ?? l.unknown;
     final subtitle = metadata['subtitle'] as String? ?? '';
     final author = metadata['authorName'] as String? ?? '';
-    final coverUrl = lib.getCoverUrl(itemId);
+    // The 400 thumbnail blurs on desktop and web tiles, and on any tile past
+    // 400 physical pixels: ask for the big cover there. Phones keep the
+    // thumbnail, which is sharp at their tile size and a fraction of the
+    // download.
+    final bigCover = AppPlatform.lacksPhonePlugins ||
+        coverGridDecodeWidth(context) > 400;
+    final coverUrl = lib.getCoverUrl(itemId, width: bigCover ? 800 : 400);
     final progress = lib.getProgress(itemId);
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final isDownloaded = _dl.isDownloaded(itemId);
+    final hasEbook = PlayerSettings.showEbookBadge && hasEbookFile(widget.item);
+    final readAlong = hasEbook && hasReadAlongEbook(widget.item);
     final isFinished = lib.getProgressData(itemId)?['isFinished'] == true;
+    final isSkimmed = lib.getProgressData(itemId)?['skimmed'] == true;
     final isSubscribed = lib.isPodcastLibrary && lib.isPodcastSubscribed(itemId);
     final unfinishedCount =
         lib.isPodcastLibrary ? lib.getUnfinishedEpisodeCount(widget.item) : 0;
 
-    return GestureDetector(
+    final gesturePolicy = MediaCardGesturePolicy(isWeb: AppPlatform.lacksPhonePlugins);
+    final canEdit = itemId.isNotEmpty &&
+        !lib.isPodcastLibrary &&
+        !lib.isOffline &&
+        isDesktopWorkspace(context) &&
+        (context.watch<AuthProvider?>()?.canUpdateMetadata ?? false);
+    // Desktop hover actions. Once select mode is on the tile draws its own
+    // check, so the hover circle is only the way in: clicking it starts
+    // select mode with this book picked, like the home rows.
+    return HoverCoverActions(
+      onMenu: (!widget.selectionMode && itemId.isNotEmpty && !lib.isPodcastLibrary)
+          ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
+          : null,
+      editItemId: canEdit && !widget.selectionMode ? itemId : null,
+      selectionMode: widget.selectionMode,
+      onSelectionToggle: widget.selectionMode ? null : widget.onSelectionToggle,
+      child: GestureDetector(
       // opaque so taps on the blank space below the title (the tile's tall
       // aspect ratio leaves a gap when the Column children stop short)
       // still trigger the onTap. Without this, taps in that blank strip
@@ -107,7 +142,10 @@ class _GridBookTileState extends State<GridBookTile> {
       // Selection mode owns the gesture instead, so a long-press can't fire a
       // sheet over a grid the user is ticking through.
       onLongPress:
-          (!widget.selectionMode && itemId.isNotEmpty && !lib.isPodcastLibrary)
+          (!widget.selectionMode &&
+              gesturePolicy.allowsLongPressShortcuts &&
+              itemId.isNotEmpty &&
+              !lib.isPodcastLibrary)
           ? () => showQuickActionsSheet(context, itemId, initialItem: widget.item)
           : null,
       child: Column(
@@ -194,6 +232,12 @@ class _GridBookTileState extends State<GridBookTile> {
                       ),
                     ),
 
+                  if (hasEbook && !widget.selectionMode)
+                    Positioned(
+                      top: widget.sequenceBadge != null ? 24 : 4, left: 4,
+                      child: EbookCoverBadge(readAlong: readAlong),
+                    ),
+
                   // Sequence badge
                   if (widget.sequenceBadge != null)
                     Positioned(
@@ -216,6 +260,7 @@ class _GridBookTileState extends State<GridBookTile> {
                       child: CoverStateBadges(
                         isDownloaded: isDownloaded,
                         isFinished: isFinished,
+                        isSkimmed: isSkimmed,
                       ),
                     ),
 
@@ -227,7 +272,7 @@ class _GridBookTileState extends State<GridBookTile> {
                           decoration: BoxDecoration(
                             border: Border.all(color: cs.primary, width: 3),
                             borderRadius: BorderRadius.circular(10),
-                            color: cs.primary.withValues(alpha: 0.18),
+                            color: cs.primary.withValues(alpha: Tints.soft),
                           ),
                         ),
                       ),
@@ -297,20 +342,35 @@ class _GridBookTileState extends State<GridBookTile> {
             ),
         ],
       ),
+      ),
     );
   }
 
-  Widget _blurCover(String coverUrl, Map<String, String> headers, ColorScheme cs, double aspectRatio, String title, String author) {
+  Widget _blurCover(
+    String coverUrl,
+    Map<String, String> headers,
+    ColorScheme cs,
+    double aspectRatio,
+    String title,
+    String author,
+  ) {
     final placeholder = CoverPlaceholder(title: title, author: author);
     final isSquare = (aspectRatio - 1.0).abs() < 0.01;
-    final decodeWidth = coverGridDecodeWidth(context);
+    // Decode at the width the grid actually gave the tile. The desktop grid
+    // sizes tiles by a zoomable extent, not the phone column count, so the
+    // phone estimate came out small and the cover was stretched to fit.
+    return LayoutBuilder(builder: (context, constraints) {
+    final tileWidth = constraints.maxWidth;
+    final decodeWidth = tileWidth.isFinite && tileWidth > 0
+        ? (tileWidth * MediaQuery.devicePixelRatioOf(context)).round()
+        : coverGridDecodeWidth(context);
     if (!isSquare) {
       if (coverUrl.startsWith('/')) {
         return Image.file(File(coverUrl), fit: BoxFit.cover,
             cacheWidth: decodeWidth,
             errorBuilder: (_, __, ___) => placeholder);
       }
-      return CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
+      return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: coverUrl, fit: BoxFit.cover,
           httpHeaders: headers, memCacheWidth: decodeWidth,
           placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder);
@@ -330,15 +390,16 @@ class _GridBookTileState extends State<GridBookTile> {
       ]);
     }
     return Stack(fit: StackFit.expand, children: [
-      CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
+      CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: coverUrl, fit: BoxFit.cover,
           httpHeaders: headers, memCacheWidth: 32,
           errorWidget: (_, __, ___) => const SizedBox.shrink()),
       Container(color: Colors.black.withValues(alpha: 0.15)),
-      CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.contain,
+      CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: coverUrl, fit: BoxFit.contain,
           httpHeaders: headers, memCacheWidth: decodeWidth,
           placeholder: (_, __) => placeholder,
           errorWidget: (_, __, ___) => placeholder),
     ]);
+    });
   }
 }
 
@@ -445,19 +506,19 @@ class _StackedCovers extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: cs.primaryContainer,
+                          color: cs.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.auto_stories_rounded, size: 11, color: cs.onPrimaryContainer),
+                            Icon(Icons.auto_stories_rounded, size: 11, color: cs.onSurfaceVariant),
                             const SizedBox(width: 3),
                             Text(booksFinished > 0 && booksFinished < numBooks
                                 ? '$booksFinished/$numBooks'
                                 : '$numBooks',
                               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                                color: cs.onPrimaryContainer)),
+                                color: cs.onSurface)),
                           ],
                         ),
                       ),
@@ -482,7 +543,7 @@ class _StackedCovers extends StatelessWidget {
           cacheWidth: decodeWidth,
           errorBuilder: (_, __, ___) => _placeholder());
     }
-    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: url, fit: BoxFit.cover,
         httpHeaders: mediaHeaders, memCacheWidth: decodeWidth,
         placeholder: (_, __) => _placeholder(),
         errorWidget: (_, __, ___) => _placeholder());
@@ -505,7 +566,11 @@ class _StackedCovers extends StatelessWidget {
 class GridSeriesTile extends StatelessWidget {
   final Map<String, dynamic> item;
   final double coverAspectRatio;
-  const GridSeriesTile({super.key, required this.item, this.coverAspectRatio = 1.0});
+  const GridSeriesTile({
+    super.key,
+    required this.item,
+    this.coverAspectRatio = 1.0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -515,23 +580,24 @@ class GridSeriesTile extends StatelessWidget {
     final lib = context.watch<LibraryProvider>();
     final auth = context.read<AuthProvider>();
 
-    final collapsedSeries = item['collapsedSeries'] as Map<String, dynamic>? ?? {};
-    final seriesName = collapsedSeries['name'] as String? ?? l.libraryGridTilesUnknownSeries;
+    final collapsedSeries =
+        item['collapsedSeries'] as Map<String, dynamic>? ?? {};
+    final seriesName =
+        collapsedSeries['name'] as String? ?? l.libraryGridTilesUnknownSeries;
     final seriesId = collapsedSeries['id'] as String? ?? '';
     final media = item['media'] as Map<String, dynamic>? ?? {};
     final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
     final author = metadata['authorName'] as String? ?? '';
 
     // Gather up to 4 cover URLs from libraryItemIds
-    final itemIds = (collapsedSeries['libraryItemIds'] as List<dynamic>?)
-        ?.map((e) => e as String)
-        .toList() ?? [item['id'] as String? ?? ''];
+    final itemIds =
+        (collapsedSeries['libraryItemIds'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
+        [item['id'] as String? ?? ''];
     final rawNumBooks = collapsedSeries['numBooks'] as int? ?? 0;
     final numBooks = rawNumBooks > 0 ? rawNumBooks : itemIds.length;
-    final coverUrls = itemIds
-        .take(4)
-        .map((id) => lib.getCoverUrl(id))
-        .toList();
+    final coverUrls = itemIds.take(4).map((id) => lib.getCoverUrl(id)).toList();
 
     // Calculate series progress
     double totalProgress = 0;
@@ -545,7 +611,9 @@ class GridSeriesTile extends StatelessWidget {
         totalProgress += lib.getProgress(id);
       }
     }
-    final seriesProgress = itemIds.isNotEmpty ? totalProgress / itemIds.length : 0.0;
+    final seriesProgress = itemIds.isNotEmpty
+        ? totalProgress / itemIds.length
+        : 0.0;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -613,7 +681,12 @@ class GridSeriesTileDirect extends StatelessWidget {
   final Map<String, dynamic> series;
   final double coverAspectRatio;
   final String? parentSeriesId;
-  const GridSeriesTileDirect({super.key, required this.series, this.coverAspectRatio = 1.0, this.parentSeriesId});
+  const GridSeriesTileDirect({
+    super.key,
+    required this.series,
+    this.coverAspectRatio = 1.0,
+    this.parentSeriesId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -623,7 +696,8 @@ class GridSeriesTileDirect extends StatelessWidget {
     final lib = context.watch<LibraryProvider>();
     final auth = context.read<AuthProvider>();
 
-    final seriesName = series['name'] as String? ?? l.libraryGridTilesUnknownSeries;
+    final seriesName =
+        series['name'] as String? ?? l.libraryGridTilesUnknownSeries;
     final seriesId = series['id'] as String? ?? '';
     final books = series['books'] as List<dynamic>? ?? [];
     // Some servers send the series list without the books, carrying only
@@ -735,6 +809,8 @@ class GridListTile extends StatelessWidget {
   final List<String> bookIds;
   final int count;
   final bool isPlaylist;
+  /// A BookOrbit Smart Scope: its books come from saved rules, not picks.
+  final bool isSmartScope;
   final double coverAspectRatio;
   final VoidCallback onTap;
 
@@ -745,6 +821,7 @@ class GridListTile extends StatelessWidget {
     required this.count,
     required this.isPlaylist,
     required this.onTap,
+    this.isSmartScope = false,
     this.coverAspectRatio = 1.0,
   });
 
@@ -776,22 +853,40 @@ class GridListTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StackedCovers(
-            coverUrls: coverUrls.isEmpty ? const [null] : coverUrls,
-            numBooks: count,
-            mediaHeaders: lib.mediaHeaders,
-            cs: cs,
-            seriesProgress: progress,
-            booksFinished: finished,
-            coverAspectRatio: coverAspectRatio,
-          ),
+          Stack(children: [
+            _StackedCovers(
+              coverUrls: coverUrls.isEmpty ? const [null] : coverUrls,
+              numBooks: count,
+              mediaHeaders: lib.mediaHeaders,
+              cs: cs,
+              seriesProgress: progress,
+              booksFinished: finished,
+              coverAspectRatio: coverAspectRatio,
+            ),
+            if (isSmartScope)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.filter_alt_rounded,
+                      size: 14 * coverGridTextScale(context), color: cs.onSurfaceVariant),
+                ),
+              ),
+          ]),
           const SizedBox(height: 5),
           Row(
             children: [
               Icon(
                   isPlaylist
                       ? Icons.playlist_play_rounded
-                      : Icons.collections_bookmark_rounded,
+                      : isSmartScope
+                          ? Icons.filter_alt_rounded
+                          : Icons.collections_bookmark_rounded,
                   size: 12 * coverGridTextScale(context),
                   color: cs.onSurfaceVariant),
               const SizedBox(width: 3),
@@ -812,7 +907,9 @@ class GridListTile extends StatelessWidget {
           Text(
             isPlaylist
                 ? l.playlistDetailItemCount(count)
-                : l.collectionDetailBookCount(count),
+                : isSmartScope
+                    ? l.smartScopeBookCount(count)
+                    : l.collectionDetailBookCount(count),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: tt.labelSmall?.copyWith(
@@ -856,7 +953,11 @@ class GridAuthorTile extends StatelessWidget {
     final numBooks = author['numBooks'] as int? ?? 0;
 
     String? imageUrl;
-    if (authorId.isNotEmpty && auth.apiService != null) {
+    // Only authors with a photo get a request: the server answers 404 for
+    // the rest, and a burst of those reads as probing to fail2ban and
+    // CrowdSec in front of it (GH #418).
+    final hasPhoto = (author['imagePath'] as String?)?.isNotEmpty == true;
+    if (authorId.isNotEmpty && hasPhoto && auth.apiService != null) {
       final ts = (author['updatedAt'] as num?)?.toInt();
       imageUrl = auth.apiService!.getAuthorImageUrl(authorId, updatedAt: ts);
     }
@@ -889,7 +990,7 @@ class GridAuthorTile extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: cs.secondaryContainer,
+                    color: cs.surfaceContainerHighest,
                     border: selectionMode && isSelected
                         ? Border.all(color: cs.primary, width: 3)
                         : null,
@@ -900,7 +1001,7 @@ class GridAuthorTile extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   child: imageUrl != null
                       ? ClipOval(
-                          child: CachedNetworkImage(
+                          child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
                             httpHeaders: headers,
@@ -939,17 +1040,17 @@ class GridAuthorTile extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: cs.primaryContainer,
+                        color: cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_stories_rounded, size: 11, color: cs.onPrimaryContainer),
+                          Icon(Icons.auto_stories_rounded, size: 11, color: cs.onSurfaceVariant),
                           const SizedBox(width: 3),
                           Text('$numBooks',
                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                              color: cs.onPrimaryContainer)),
+                              color: cs.onSurface)),
                         ],
                       ),
                     ),
@@ -965,7 +1066,7 @@ class GridAuthorTile extends StatelessWidget {
                         child: SizedBox(
                           width: 22,
                           height: 22,
-                          child: CircularProgressIndicator(
+                          child: AdaptiveSpinner(
                             strokeWidth: 2,
                             color: Colors.white,
                           ),
@@ -997,7 +1098,7 @@ class GridAuthorTile extends StatelessWidget {
   Widget _placeholder(ColorScheme cs) {
     return Center(
       child: Icon(Icons.person_rounded,
-          size: 32, color: cs.onSecondaryContainer.withValues(alpha: 0.4)),
+          size: 32, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
     );
   }
 }
@@ -1029,7 +1130,7 @@ Future<void> showSeriesScanMenu(
         const SizedBox(height: 12),
         ListTile(
           leading: Icon(excluded ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-            color: cs.primary, size: 22),
+            color: cs.onSurfaceVariant, size: 22),
           title: Text(excluded ? l.seriesIncludeInScan : l.seriesExcludeFromScan,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
           dense: true, visualDensity: VisualDensity.compact,

@@ -1,7 +1,9 @@
 import 'dart:async';
+import '../widgets/expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../services/scoped_prefs.dart';
 import '../services/server_task_tracker.dart';
 import '../services/socket_service.dart';
@@ -20,6 +22,7 @@ import 'admin_missing_items_screen.dart';
 import 'admin_email_screen.dart';
 import 'admin_api_keys_screen.dart';
 import 'admin_libraries_screen.dart';
+import 'admin_auth_settings_screen.dart';
 import 'admin_server_settings_screen.dart';
 import 'admin_server_logs_screen.dart';
 import 'admin_stats_screen.dart';
@@ -152,8 +155,16 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
 
   void _startTaskRefreshTimer() {
     _taskRefreshTimer?.cancel();
+    DateTime? last;
     _taskRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      unawaited(_refreshServerTasks());
+      // Socket events carry task changes; poll fast only while one runs or
+      // the socket is down, otherwise catch up once a minute.
+      final due = last == null ||
+          DateTime.now().difference(last!) >= const Duration(minutes: 1);
+      if (_taskTracker.runningCount > 0 || !SocketService().isConnected || due) {
+        last = DateTime.now();
+        unawaited(_refreshServerTasks());
+      }
     });
   }
 
@@ -180,14 +191,32 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
   Future<void> _refreshIssueCounts() async {
     final api = context.read<AuthProvider>().apiService;
     if (api == null || !mounted) return;
-    for (final lib in _libraries) {
-      final id = lib['id'] as String? ?? '';
-      if (id.isEmpty) continue;
-      _libraryIssues[id] = await api.getIssueItemCount(id);
-      if (!mounted) return;
-    }
-    setState(() {});
+    await Future.wait([
+      for (final id in _libraryIds)
+        api.getIssueItemCount(id).then((count) {
+          if (mounted) setState(() => _libraryIssues[id] = count);
+        }),
+    ]);
   }
+
+  Iterable<String> get _libraryIds => _libraries
+      .map((lib) => lib['id'] as String? ?? '')
+      .where((id) => id.isNotEmpty);
+
+  // Only the library cards use these, so the page shows first and each card
+  // fills in when its numbers arrive.
+  Future<void> _loadLibraryCounts(ApiService api) => Future.wait([
+        for (final id in _libraryIds)
+          Future.wait([api.getLibraryStats(id), api.getIssueItemCount(id)])
+              .then((r) {
+            if (!mounted) return;
+            setState(() {
+              final stats = r[0] as Map<String, dynamic>?;
+              if (stats != null) _libraryStats[id] = stats;
+              _libraryIssues[id] = r[1] as int;
+            });
+          }),
+      ]);
 
   Future<void> _loadAll() async {
     final usersGeneration = _desktopUsersDirtyGeneration;
@@ -210,16 +239,6 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     _sessions = futures[4];
     _serverVersion = context.read<AuthProvider>().serverVersion;
 
-    for (final lib in _libraries) {
-      final id = lib['id'] as String? ?? '';
-      if (id.isNotEmpty) {
-        final stats = await api.getLibraryStats(id);
-        if (!mounted) return;
-        if (stats != null) _libraryStats[id] = stats;
-        _libraryIssues[id] = await api.getIssueItemCount(id);
-        if (!mounted) return;
-      }
-    }
     _rmabBaseUrl = await ScopedPrefs.getString(kRmabBaseUrlKey);
     if (!mounted) return;
     _rmabApiToken = await ScopedPrefs.getString(kRmabApiTokenKey);
@@ -238,6 +257,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       _loading = false;
     });
     _leaveUnavailablePodcastSection();
+    await _loadLibraryCounts(api);
   }
 
   bool get _hasRmab =>
@@ -266,7 +286,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : DesktopPageBody(
                 child: RefreshIndicator(
                 onRefresh: _loadAll,
@@ -411,6 +431,16 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
                         ),
                         const SizedBox(height: 10),
                         _navButton(cs, tt,
+                          icon: Icons.lock_person_rounded,
+                          label: l.adminAuthentication,
+                          subtitle: l.adminAuthenticationSubtitle,
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => const AdminAuthSettingsScreen()));
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _navButton(cs, tt,
                           icon: Icons.description_outlined,
                           label: 'Server logs',
                           subtitle: l.sendLogsSubtitle,
@@ -485,6 +515,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       AdminSectionDestination('api-keys', Icons.vpn_key_rounded, l.adminApiKeys),
       AdminSectionDestination('libraries', Icons.library_books_rounded, l.adminLibrariesManage),
       AdminSectionDestination('server-settings', Icons.tune_rounded, l.adminServerSettings),
+      AdminSectionDestination('authentication', Icons.lock_person_rounded, l.adminAuthentication),
       const AdminSectionDestination('logs', Icons.description_outlined, 'Server logs'),
       AdminSectionDestination('stats', Icons.bar_chart_rounded, l.adminStats),
       AdminSectionDestination('sessions', Icons.history_rounded, l.adminAllSessions),
@@ -494,7 +525,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            ? const Center(child: AdaptiveSpinner(strokeWidth: 2))
             : PopScope(
                 canPop: !_desktopNavigatorCanPop,
                 onPopInvokedWithResult: (didPop, result) {
@@ -864,7 +895,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: AdaptiveSpinner(strokeWidth: 2),
             ),
           );
         }
@@ -901,6 +932,8 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
         return AdminLibrariesScreen(libraries: _libraries);
       case 'server-settings':
         return const AdminServerSettingsScreen();
+      case 'authentication':
+        return const AdminAuthSettingsScreen();
       case 'logs':
         return const AdminServerLogsScreen();
       case 'stats':
@@ -919,7 +952,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
   BoxDecoration _cardDeco(ColorScheme cs) => BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(16));
 
   Widget _stat(TextTheme tt, ColorScheme cs, IconData ic, String v, String l) => Expanded(child: Column(children: [
-    Icon(ic, size: 18, color: cs.primary.withValues(alpha: 0.6)), const SizedBox(height: 6),
+    Icon(ic, size: 18, color: cs.onSurfaceVariant), const SizedBox(height: 6),
     Text(v, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)), const SizedBox(height: 2),
     Text(l, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6), fontSize: 10)),
   ]));
@@ -929,8 +962,8 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(14)),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        if (loading) SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
-        else Icon(ic, size: 16, color: cs.primary),
+        if (loading) SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
+        else Icon(ic, size: 16, color: cs.onSurfaceVariant),
         const SizedBox(width: 8),
         Text(l, style: tt.labelMedium?.copyWith(color: loading ? cs.onSurface.withValues(alpha: 0.24) : cs.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w600)),
       ])));
@@ -940,7 +973,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: _cardDeco(cs),
       child: Row(children: [
-        Icon(icon, color: cs.primary, size: 22), const SizedBox(width: 14),
+        Icon(icon, color: cs.onSurfaceVariant, size: 22), const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
           Text(subtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.6))),
@@ -960,7 +993,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
         child: Row(children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Icon(Icons.menu_book_rounded, color: cs.primary, size: 22),
+            child: Icon(Icons.menu_book_rounded, color: cs.onSurfaceVariant, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1019,7 +1052,7 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
     final mediaType = lib['mediaType'] as String? ?? 'book';
     final folders = (lib['folders'] as List?)?.length ?? 0;
     final stats = _libraryStats[id];
-    final totalItems = stats?['totalItems'] ?? 0;
+    final totalItems = stats?['totalItems'] ?? '-';
     final totalSize = stats?['totalSize'] as num?;
     final totalDur = stats?['totalDuration'] as num?;
     final isScanning = _scanningLibraries.contains(id) ||
@@ -1032,12 +1065,12 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       child: Container(padding: const EdgeInsets.all(16), decoration: _cardDeco(cs),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Icon(mediaType == 'podcast' ? Icons.podcasts_rounded : Icons.auto_stories_rounded, size: 20, color: cs.primary),
+            Icon(mediaType == 'podcast' ? Icons.podcasts_rounded : Icons.auto_stories_rounded, size: 20, color: cs.onSurfaceVariant),
             const SizedBox(width: 10),
             Expanded(child: Text(name, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface))),
             Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(mediaType, style: tt.labelSmall?.copyWith(color: cs.primary, fontSize: 10, fontWeight: FontWeight.w600))),
+              decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
+              child: Text(mediaType, style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontSize: 10, fontWeight: FontWeight.w600))),
           ]),
           const SizedBox(height: 12),
           Row(children: [
@@ -1100,8 +1133,8 @@ class _AdminScreenState extends State<AdminScreen> with WidgetsBindingObserver {
       decoration: BoxDecoration(color: cs.onSurface.withValues(alpha: 0.04), borderRadius: BorderRadius.circular(10),
         border: Border.all(color: cs.onSurface.withValues(alpha: 0.06))),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        if (loading) SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
-        else Icon(ic, size: 14, color: cs.primary.withValues(alpha: 0.7)),
+        if (loading) SizedBox(width: 14, height: 14, child: AdaptiveSpinner(strokeWidth: 1.5, color: cs.onSurfaceVariant.withValues(alpha: 0.5)))
+        else Icon(ic, size: 14, color: cs.onSurfaceVariant),
         const SizedBox(width: 6),
         Text(l, style: tt.labelSmall?.copyWith(color: loading ? cs.onSurface.withValues(alpha: 0.24) : cs.onSurface.withValues(alpha: 0.54), fontWeight: FontWeight.w600, fontSize: 11)),
       ])));

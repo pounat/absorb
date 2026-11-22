@@ -72,6 +72,47 @@ class LyricsService extends ChangeNotifier {
   String? _epubItemId; // itemId to look for a cached EPUB under (books only)
   Timer? _tick;
   bool _working = false;
+
+  // Stretches already transcribed that added nothing to the runway: silence,
+  // music, or a first line the store dropped as overlapping the line before,
+  // leaving the next one past its gap tolerance. The store keeps no empty
+  // lines, so without these the loop would ask for the same window forever.
+  final Map<String, List<({double start, double end})>> _holes = {};
+
+  /// How far the runway reaches from [pos], stepping over [_holes].
+  double _coveredUntil(String key, double pos) => coveredPastHoles(
+        pos,
+        _holes[key] ?? const [],
+        (from) => TranscriptLineStore.instance.coveredUntil(key, from),
+      );
+
+  /// [coveredFrom] is the store's coverage from a point; a hole that starts
+  /// where coverage ends carries it on to the hole's end and beyond.
+  @visibleForTesting
+  static double coveredPastHoles(
+    double pos,
+    List<({double start, double end})> holes,
+    double Function(double from) coveredFrom,
+  ) {
+    var covered = coveredFrom(pos);
+    var moved = true;
+    while (moved) {
+      moved = false;
+      for (final h in holes) {
+        if (h.start <= covered + 0.5 && h.end > covered) {
+          covered = coveredFrom(h.end);
+          moved = true;
+        }
+      }
+    }
+    return covered;
+  }
+
+  void _markHole(String key, double start, double window) {
+    (_holes[key] ??= []).add((start: start, end: start + window));
+    debugPrint('[Lyrics] the window at ${start.toStringAsFixed(1)}s added '
+        'nothing to the runway - moving past it');
+  }
   TranscriptLine? _current;
   bool _transcribingVisible = false;
   bool _pastCoverage = false;
@@ -173,14 +214,14 @@ class LyricsService extends ChangeNotifier {
       _watching = true;
       WidgetsBinding.instance.addObserver(_lifecycle);
     }
-    await _refreshRoute();
+    await refreshRoute();
     await reloadDisplayPrefs();
     await TranscriptLineStore.instance.hydrate(key);
     _tick?.cancel();
     _tick = Timer.periodic(const Duration(milliseconds: 200), (_) => _onTick());
     notifyListeners();
     final pos = AudioPlayerService().position.inMilliseconds / 1000.0;
-    final covered = TranscriptLineStore.instance.coveredUntil(key, pos);
+    final covered = _coveredUntil(key, pos);
     debugPrint('[Lyrics] enabled for $key (epub lookup: ${_epubItemId != null}, '
         'saved runway ${(covered - pos).clamp(0, double.infinity).toStringAsFixed(0)}s '
         'from pos ${pos.toStringAsFixed(0)}s)');
@@ -283,9 +324,9 @@ class LyricsService extends ChangeNotifier {
       return;
     }
     final pos = AudioPlayerService().position.inMilliseconds / 1000.0;
-    if (++_routeTick % 25 == 0) _refreshRoute();
+    if (++_routeTick % 25 == 0) refreshRoute();
     final speed = AudioPlayerService().speed;
-    final covered = TranscriptLineStore.instance.coveredUntil(key, pos);
+    final covered = _coveredUntil(key, pos);
     final lead = covered - pos;
     _pastCoverage = lead <= 0.5;
 
@@ -376,8 +417,9 @@ class LyricsService extends ChangeNotifier {
 
   /// Re-read which output is in use and load that output's offset. Cheap
   /// enough to run every few seconds, which is how a headphone connection
-  /// mid-listen gets picked up.
-  Future<void> _refreshRoute() async {
+  /// mid-listen gets picked up. The reader's narration read along calls it
+  /// too, since it follows the same offset without the transcript running.
+  Future<void> refreshRoute() async {
     final bt = await AudioPlayerService.isBluetoothAudioConnected();
     if (_routeLoaded && bt == onBluetooth) return;
     onBluetooth = bt;
@@ -512,6 +554,7 @@ class LyricsService extends ChangeNotifier {
       debugPrint('[Lyrics] behind the playhead, aiming '
           '${(start - pos).toStringAsFixed(1)}s ahead');
     }
+    final window = _rate == null ? 12.0 : _chunkSeconds;
     try {
       // With the book's EPUB cached, every word gets replaced by the book's
       // own, so tiny is enough and its speed is what keeps the transcript
@@ -523,7 +566,7 @@ class LyricsService extends ChangeNotifier {
       // few seconds; full windows take over from there.
       final out = await _chunker!.transcribeInto(
         start: start,
-        windowSeconds: _rate == null ? 12.0 : _chunkSeconds,
+        windowSeconds: window,
         preferAccuracy: !_forceFastModel,
       );
       // A chunk can outlive its session - whisper can't be interrupted, so a
@@ -537,14 +580,13 @@ class LyricsService extends ChangeNotifier {
         debugPrint('[Lyrics] chunk at ${start.toStringAsFixed(1)}s: '
             '${out.lines} lines, exact=${out.exact}');
       }
+      if (_coveredUntil(key, start) < start + 1) _markHole(key, start, window);
     } on TranscriptionException catch (e) {
       if (!_on || key != _key) return;
       if (e.kind == TranscriptionError.empty) {
         // Silence or music: mark the stretch covered so the loop moves past
         // it instead of retrying the same window forever.
-        await TranscriptLineStore.instance.addLines(key, [
-          TranscriptLine(start, start + _chunkSeconds, ' '),
-        ]);
+        _markHole(key, start, window);
       } else if (e.kind == TranscriptionError.extractFailed &&
           dur > 0 &&
           start + _chunkSeconds >= dur - 1) {

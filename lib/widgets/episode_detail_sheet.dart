@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../services/wording.dart';
 import '../providers/library_provider.dart';
@@ -14,12 +16,15 @@ import '../providers/auth_provider.dart';
 import 'card_buttons.dart';
 import 'html_description.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'playlist_picker_sheet.dart';
 import 'action_pill.dart';
+import 'adaptive_modal.dart';
 import '../main.dart' show rootNavigatorKey;
 import 'stackable_sheet.dart';
 import 'episode_list_sheet.dart';
 import '../utils/duration_format.dart';
+import '../utils/app_platform.dart';
 
 class EpisodeDetailSheet extends StatefulWidget {
   static final Set<String> _openEpisodeKeys = <String>{};
@@ -155,6 +160,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
         api: api, itemId: _itemId, title: _episodeTitle, author: _showTitle,
         coverUrl: api.getCoverUrl(_itemId), totalDuration: _duration, chapters: _chapters,
         episodeId: _episodeId,
+        libraryId: widget.podcastItem['libraryId'] as String?,
       );
       if (mounted) Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
       return;
@@ -197,6 +203,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
   }
 
   Future<void> _download() async {
+    if (AppPlatform.lacksPhonePlugins) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -273,12 +280,13 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
         );
         if (confirmed != true) return;
         // Mark finished — update server then local state for instant UI
-        await api.updateEpisodeProgress(
+        final pushed = await api.updateEpisodeProgress(
           _itemId, _episodeId,
           currentTime: _duration,
           duration: _duration,
           isFinished: true,
         );
+        if (!pushed) await ProgressSyncService().saveFinishedOffline(key, _duration);
         lib.markFinishedLocally(key, skipAutoAdvance: true);
         if (mounted) {
           showOverlayToast(
@@ -401,8 +409,10 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
 
             // Download + Finished row
             Row(children: [
-              Expanded(child: _downloadCell(cs, l, dlKey)),
-              const SizedBox(width: 8),
+              if (!AppPlatform.lacksPhonePlugins) ...[
+                Expanded(child: _downloadCell(cs, l, dlKey)),
+                const SizedBox(width: 8),
+              ],
               Expanded(child: _finishedCell(cs, isFinished)),
               const SizedBox(width: 8),
               GestureDetector(
@@ -442,16 +452,16 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.08),
+                  color: cs.onSurface.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+                  border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
                 ),
                 child: Row(children: [
-                  Icon(Icons.podcasts_rounded, size: 16, color: cs.primary.withValues(alpha: 0.7)),
+                  Icon(Icons.podcasts_rounded, size: 16, color: cs.onSurfaceVariant),
                   const SizedBox(width: 8),
                   Expanded(child: Text(l.allEpisodes,
-                    style: tt.bodySmall?.copyWith(color: cs.primary.withValues(alpha: 0.9), fontWeight: FontWeight.w500))),
-                  Icon(Icons.chevron_right_rounded, size: 18, color: cs.primary.withValues(alpha: 0.5)),
+                    style: tt.bodySmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w500))),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
                 ]),
               ),
             ),
@@ -514,7 +524,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       if (coverUrl != null)
         Positioned.fill(
           child: RepaintBoundary(
-            child: CachedNetworkImage(
+            child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
               imageUrl: coverUrl, fit: BoxFit.cover,
               httpHeaders: lib.mediaHeaders,
               imageBuilder: (_, p) => ImageFiltered(
@@ -665,8 +675,10 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
       _playButton(cs, tt, l, progress, isFinished),
       const SizedBox(height: 10),
       Row(children: [
-        Expanded(child: _downloadCell(cs, l, dlKey)),
-        const SizedBox(width: 8),
+        if (!AppPlatform.lacksPhonePlugins) ...[
+          Expanded(child: _downloadCell(cs, l, dlKey)),
+          const SizedBox(width: 8),
+        ],
         Expanded(child: _finishedCell(cs, isFinished)),
       ]),
       const SizedBox(height: 18),
@@ -698,18 +710,12 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
               );
             }
           } else {
-            await lib.addToAbsorbingQueue(dlKey);
-            final cached = Map<String, dynamic>.from(widget.podcastItem);
-            cached['recentEpisode'] = Map<String, dynamic>.from(widget.episode);
-            cached['_absorbingKey'] = dlKey;
-            lib.absorbingItemCache[dlKey] = cached;
-            if (context.mounted) {
-              showOverlayToast(
-                context,
-                Wording.of(context).addedToAbsorbing,
-                icon: Icons.add_circle_outline_rounded,
-              );
-            }
+            await addToAbsorbingWithPicker(context, dlKey,
+                item: {
+                  ...widget.podcastItem,
+                  'recentEpisode': Map<String, dynamic>.from(widget.episode),
+                },
+                addedToast: Wording.of(context).addedToAbsorbing);
           }
         }),
       if (!lib.isOffline)
@@ -758,7 +764,7 @@ class _EpisodeDetailSheetState extends State<EpisodeDetailSheet> {
 
   void _showMoreSheet(BuildContext context, LibraryProvider lib, String dlKey, double progress, bool isFinished) {
     final cs = Theme.of(context).colorScheme;
-    showModalBottomSheet(
+    showAdaptiveActionMenu(
       context: context,
       backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(

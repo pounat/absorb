@@ -171,6 +171,12 @@ dependencies {
         "com.google.android.gms:play-services-cast-framework:21.5.0",
         "com.google.android.gms:play-services-wearable:19.0.0",
         "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0",
+        // Opens the watch app on the watch when the phone starts playing.
+        // Its result is a Guava ListenableFuture; Guava already ships in
+        // the app at runtime (same version), this only puts it on the
+        // compile classpath.
+        "androidx.wear:wear-remote-interactions:1.2.0",
+        "com.google.guava:guava:33.3.1-android",
     )
     gmsImpl.forEach {
         add("githubImplementation", it)

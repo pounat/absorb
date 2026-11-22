@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'remote_tap.dart';
 import '../l10n/app_localizations.dart';
 import '../services/audio_player_service.dart';
 import '../services/sleep_timer_service.dart';
+import '../utils/app_platform.dart';
+import 'adaptive_modal.dart';
+import 'tints.dart';
 
 // ─── SHARED SLEEP TIMER SHEET ─────────────────────────────────
 void showSleepTimerSheet(BuildContext context, Color accent) {
-  showModalBottomSheet(
+  showAdaptiveActionMenu(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
@@ -102,7 +106,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border(
                 top:
-                    BorderSide(color: accent.withValues(alpha: 0.2), width: 1)),
+                    BorderSide(color: cs.outlineVariant.withValues(alpha: 0.2), width: 1)),
           ),
           child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -162,13 +166,14 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 // Rewind on sleep
                 _buildRewindSection(accent, tt, l),
 
-                const SizedBox(height: 12),
-                Container(
-                    height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
-                const SizedBox(height: 12),
-
-                // Shake toggle
-                _buildShakeToggle(accent, tt, l),
+                if (!AppPlatform.lacksPhonePlugins && !AppPlatform.isTv) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                      height: 0.5,
+                      color: cs.onSurface.withValues(alpha: 0.08)),
+                  const SizedBox(height: 12),
+                  _buildShakeToggle(accent, tt, l),
+                ],
               ],
             ]),
           ),
@@ -281,10 +286,12 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
       Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
       const SizedBox(height: 12),
       _buildRewindSection(accent, tt, l),
-      const SizedBox(height: 12),
-      Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
-      const SizedBox(height: 12),
-      _buildShakeToggle(accent, tt, l),
+      if (!AppPlatform.lacksPhonePlugins && !AppPlatform.isTv) ...[
+        const SizedBox(height: 12),
+        Container(height: 0.5, color: cs.onSurface.withValues(alpha: 0.08)),
+        const SizedBox(height: 12),
+        _buildShakeToggle(accent, tt, l),
+      ],
     ]);
   }
 
@@ -404,7 +411,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         const SizedBox(height: 4),
         Text(_formatWallClock(endTime),
             style: TextStyle(
-                color: accent,
+                color: cs.onSurface,
                 fontSize: 36,
                 fontWeight: FontWeight.w700,
                 fontFeatures: const [FontFeature.tabularFigures()])),
@@ -464,7 +471,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     final cs = Theme.of(context).colorScheme;
     final selected = _tabIndex == index;
     return Expanded(
-      child: GestureDetector(
+      child: RemoteTap(
         onTap: () {
           setState(() => _tabIndex = index);
           PlayerSettings.setSleepTimerTab(index);
@@ -474,7 +481,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color:
-                selected ? accent.withValues(alpha: 0.2) : Colors.transparent,
+                selected ? accent.withValues(alpha: Tints.strong) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -499,7 +506,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
       // Custom slider
       Text(l.minutesValue(_customMinutes.round()),
           style: TextStyle(
-              color: accent,
+              color: cs.onSurface,
               fontSize: 28,
               fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()])),
@@ -574,7 +581,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     return Column(children: [
       Text(l.sleepTimerSheetChaptersValue(_customChapters),
           style: TextStyle(
-              color: accent, fontSize: 28, fontWeight: FontWeight.w700)),
+              color: cs.onSurface, fontSize: 28, fontWeight: FontWeight.w700)),
       const SizedBox(height: 16),
       // Chapter count selector
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -636,7 +643,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     final cs = Theme.of(context).colorScheme;
     return Column(children: [
       Icon(Icons.podcasts_outlined,
-          size: 40, color: accent.withValues(alpha: 0.5)),
+          size: 40, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
       const SizedBox(height: 16),
       // Stops at the end of the current episode (no counter — episodes only roll
       // forward when a queue mode is feeding the next one).
@@ -819,7 +826,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 Text(l.minutesValue(_shakeAddMinutes),
                     style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: accent,
+                        color: cs.onSurface,
                         fontSize: 12)),
               ],
             ),
@@ -851,14 +858,14 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   Widget _circleButton(IconData icon, Color accent, VoidCallback? onTap) {
     final cs = Theme.of(context).colorScheme;
     final enabled = onTap != null;
-    return GestureDetector(
+    return RemoteTap(
       onTap: onTap,
       child: Container(
         width: 48,
         height: 48,
         decoration: BoxDecoration(
           color: enabled
-              ? accent.withValues(alpha: 0.15)
+              ? accent.withValues(alpha: Tints.soft)
               : cs.onSurface.withValues(alpha: 0.04),
           shape: BoxShape.circle,
           border: Border.all(
@@ -876,14 +883,14 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   Widget _presetChip(
       Color accent, String label, bool active, VoidCallback onTap) {
     final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
+    return RemoteTap(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: active
-                ? accent.withValues(alpha: 0.2)
+                ? accent.withValues(alpha: Tints.strong)
                 : cs.onSurface.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(

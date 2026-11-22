@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_epub_viewer/src/epub_metadata.dart';
 import 'package:flutter_epub_viewer/src/models/epub_display_settings.dart';
@@ -37,6 +38,14 @@ class EpubController {
   next() {
     checkEpubLoaded();
     webViewController?.evaluateJavascript(source: 'next()');
+  }
+
+  /// How a page turns: "none", "slide" (the page moves sideways and follows
+  /// a finger dragging it) or "curl" (the app draws it; the page turns at
+  /// once and leaves sideways drags alone).
+  Future<void> setTurnStyle(String style) async {
+    await webViewController?.evaluateJavascript(
+        source: 'window.setTurnStyle && setTurnStyle(${jsonEncode(style)})');
   }
 
   ///Moves to previous page in epub view
@@ -112,12 +121,17 @@ class EpubController {
 
     ///Opacity of the highlight
     double opacity = 0.3,
+
+    ///Absorb: a blend mode, which also draws at [opacity] as given
+    String? blend,
   }) {
     var colorHex = color.toHex();
     var opacityString = opacity.toString();
     checkEpubLoaded();
     webViewController?.evaluateJavascript(
-      source: 'addHighlight("$cfi", "$colorHex", "$opacityString")',
+      source: blend == null
+          ? 'addHighlight("$cfi", "$colorHex", "$opacityString")'
+          : 'addHighlightStyled("$cfi", "$colorHex", "$opacityString", "$blend")',
     );
   }
 
@@ -167,14 +181,14 @@ class EpubController {
   /// next page is revealed top-down over the current one; the text itself
   /// never moves. Returns whether the blind actually started - it can't
   /// before the book is displayed.
-  Future<bool> autoScrollStart({double speed = 40}) async {
-    final r = await webViewController?.evaluateJavascript(source: 'autoScrollStart($speed)');
+  Future<bool> autoScrollStart({double wpm = 250, bool eink = false}) async {
+    final r = await webViewController?.evaluateJavascript(source: 'autoScrollStart($wpm, $eink)');
     return r == true || r == 1 || r == 'true';
   }
 
   /// Change the blind's descent speed while it is running.
-  Future<void> autoScrollSpeed(double speed) async {
-    await webViewController?.evaluateJavascript(source: 'autoScrollSpeed($speed)');
+  Future<void> autoScrollSpeed(double wpm) async {
+    await webViewController?.evaluateJavascript(source: 'autoScrollSpeed($wpm)');
   }
 
   /// Hold the blind where it is without tearing it down.

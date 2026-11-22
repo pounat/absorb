@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:palette_generator/palette_generator.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../utils/cover_accent.dart';
 import 'overlay_toast.dart';
+import 'absorb_placement.dart';
 import 'swipe_action.dart';
 import 'card_buttons.dart' show showErrorToast;
 import '../main.dart' show rootNavigatorKey;
@@ -17,6 +20,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/download_service.dart';
+import '../services/narrated_books.dart';
 import 'book_detail_sheet.dart';
 import 'library_grid_tiles.dart';
 import 'episode_list_sheet.dart';
@@ -24,9 +28,12 @@ import 'stackable_sheet.dart';
 import '../services/upcoming_releases_service.dart';
 import 'audible_series_sheet.dart';
 import 'action_pill.dart';
+import 'adaptive_modal.dart';
 import 'books_sheet_shared.dart';
 import '../services/api_service.dart';
 import '../utils/duration_format.dart';
+import '../utils/app_platform.dart';
+import '../utils/series_number_match.dart';
 
 /// Show a bottom sheet with all books in a series, sorted by sequence.
 /// Can be called from any screen.
@@ -123,11 +130,16 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final brightness = Theme.of(context).brightness;
     final ImageProvider provider = url.startsWith('/')
         ? FileImage(File(url))
-        : CachedNetworkImageProvider(url, headers: context.read<LibraryProvider>().mediaHeaders);
-    PaletteGenerator.fromImageProvider(provider, maximumColorCount: 16).then((palette) {
-      final seed = accentFromCoverPalette(palette);
+        : CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: context.read<LibraryProvider>().mediaHeaders);
+    final known = CoverAccents.known(url);
+    if (known != null) {
+      _coverScheme = schemeFromCover(known, brightness);
+      if (mounted) setState(() {});
+      return;
+    }
+    CoverAccents.seed(url, provider).then((seed) {
       if (seed == null || !mounted) return;
-      setState(() => _coverScheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness));
+      setState(() => _coverScheme = schemeFromCover(seed, brightness));
     }).catchError((e) {
       debugPrint('[SeriesSheet] palette failed: $e');
     });
@@ -836,11 +848,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       final bookId = book['id'] as String? ?? '';
       if (bookId.isEmpty) continue;
       if (lib.getProgressData(bookId)?['isFinished'] == true) continue;
-      final media = book['media'] as Map<String, dynamic>? ?? {};
-      final duration = (media['duration'] is num)
-          ? (media['duration'] as num).toDouble()
-          : 0.0;
-      await api.markFinished(bookId, duration);
+      await api.markFinished(bookId, _lengthOf(book));
       lib.markFinishedLocally(bookId, skipRefresh: true, skipAutoAdvance: true);
       lib.removeFromAbsorbing(bookId);
     }
@@ -863,11 +871,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       final bookId = book['id'] as String? ?? '';
       if (bookId.isEmpty) continue;
       if (lib.getProgressData(bookId)?['isFinished'] != true) continue;
-      final media = book['media'] as Map<String, dynamic>? ?? {};
-      final duration = (media['duration'] is num)
-          ? (media['duration'] as num).toDouble()
-          : 0.0;
-      await api.markNotFinished(bookId, currentTime: 0, duration: duration);
+      await api.markNotFinished(bookId, currentTime: 0, duration: _lengthOf(book));
       await lib.markNotFinishedLocally(bookId);
       lib.clearAbsorbingBlock(bookId);
     }
@@ -893,9 +897,10 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     );
     if (proceed != true || !mounted) return;
 
-    // Collect owned titles and ASINs for cross-referencing
+    // Collect owned titles, ASINs and series numbers for cross-referencing
     final ownedTitles = <String>{};
     final ownedAsins = <String>{};
+    final ownedNumbers = SeriesNumberOwnership();
     for (final book in _books) {
       final media = book['media'] as Map<String, dynamic>? ?? {};
       final metadata = media['metadata'] as Map<String, dynamic>? ?? {};
@@ -903,6 +908,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       final asin = metadata['asin'] as String? ?? '';
       if (title.isNotEmpty) ownedTitles.add(title);
       if (asin.isNotEmpty) ownedAsins.add(asin);
+      ownedNumbers.add(_getRawSequence(book), title, asin);
     }
 
     // Try to get a series ASIN from one of the books via Audnexus
@@ -969,6 +975,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       seriesAsin: seriesAsin,
       ownedTitles: ownedTitles,
       ownedAsins: ownedAsins,
+      ownedNumbers: ownedNumbers,
     );
   }
 
@@ -1037,7 +1044,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final url = lib.getCoverUrl(bookId);
     if (url == null || url.isEmpty) return const ColoredBox(color: Colors.black26);
     if (url.startsWith('/')) return Image.file(File(url), fit: BoxFit.cover);
-    return CachedNetworkImage(
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
       imageUrl: url,
       httpHeaders: lib.mediaHeaders,
       fit: BoxFit.cover,
@@ -1159,7 +1166,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       return SizedBox(
         height: 34,
         child: Center(child: SizedBox(width: 18, height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2, color: accent))),
+            child: AdaptiveSpinner(strokeWidth: 2, color: accent))),
       );
     }
     final items = _actionPills(context);
@@ -1205,7 +1212,8 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     for (final book in _books) {
       if (dl.isDownloaded(book['id'] as String? ?? '')) downloaded++;
     }
-    final allDownloaded = downloaded == _books.length;
+    // Nothing downloads in a browser, so neither download pill shows there.
+    final allDownloaded = AppPlatform.lacksPhonePlugins || downloaded == _books.length;
     final hasSeriesId = widget.seriesId != null && widget.seriesId!.isNotEmpty;
     return [
                 // Only once the up next book is past the first few rows.
@@ -1214,7 +1222,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                     icon: Icons.keyboard_double_arrow_down_rounded,
                     label: l.seriesJumpToUpNext,
                     onTap: _jumpToUpNext),
-                if (hasSeriesId)
+                if (!AppPlatform.lacksPhonePlugins && hasSeriesId)
                   ActionPillData(
                     icon: _autoDownloadEnabled ? Icons.downloading_rounded : Icons.download_outlined,
                     label: _autoDownloadEnabled ? l.turnAutoDownloadOff : l.turnAutoDownloadOn,
@@ -1262,7 +1270,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                       if (confirmed == true) _markAllFinished();
                     }
                   }),
-                if (hasSeriesId)
+                if (!AppPlatform.lacksPhonePlugins && hasSeriesId)
                   ActionPillData(
                     icon: _scanExcluded ? Icons.visibility_rounded : Icons.visibility_off_rounded,
                     label: _scanExcluded ? l.seriesIncludeInScan : l.seriesExcludeFromScan,
@@ -1277,6 +1285,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
   }
 
   Future<void> _downloadAll() async {
+    if (AppPlatform.lacksPhonePlugins) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
@@ -1343,8 +1352,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     double listenedDuration = 0;
     for (final book in _books) {
       final bookId = book['id'] as String? ?? '';
-      final media = book['media'] as Map<String, dynamic>? ?? {};
-      final dur = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
+      final dur = _lengthOf(book);
       final prog = lib.getProgress(bookId);
       totalDuration += dur;
       listenedDuration += dur * prog;
@@ -1393,17 +1401,20 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
       child: Column(children: [
         const SizedBox(height: 12),
-        Center(
-          child: Container(
-            width: 32,
-            height: 4,
-            decoration: BoxDecoration(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(2),
+        // A desktop dialog has nothing to drag.
+        if (!ModalSurface.isDesktopOf(context)) ...[
+          Center(
+            child: Container(
+              width: 32,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
+        ],
         if (_books.isNotEmpty) _coverStrip(lib, accent, nextUp),
         const SizedBox(height: 10),
         Text(widget.seriesName,
@@ -1442,7 +1453,9 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: ModalSurface.isDesktopOf(context)
+            ? BorderRadius.zero
+            : const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: ListenableBuilder(
         listenable: DownloadService(),
@@ -1479,7 +1492,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                 ),
               ),
             if (_isLoading && _books.isEmpty)
-              fill(const CircularProgressIndicator())
+              fill(const AdaptiveSpinner())
             else if (_books.isEmpty && _loadFailed)
               fill(Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(l.failedToLoad,
@@ -1500,7 +1513,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                   style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)))
             else if (_collapseSeries && !_subSeriesLoaded)
               fill(Column(mainAxisSize: MainAxisSize.min, children: [
-                const CircularProgressIndicator(strokeWidth: 2),
+                const AdaptiveSpinner(strokeWidth: 2),
                 const SizedBox(height: 12),
                 Text(l.seriesBooksLoadingSubSeries, style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.4))),
               ]))
@@ -1549,14 +1562,21 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
     final bookTitle = metadata['title'] as String? ?? l.unknown;
     final authorName = metadata['authorName'] as String? ?? '';
     final sequence = _getSequenceString(book);
-    final duration = (media['duration'] is num) ? (media['duration'] as num).toDouble() : 0.0;
+    final duration = _lengthOf(book);
 
     final isExplicit = PlayerSettings.showExplicitBadge && metadata['explicit'] == true;
     final progress = lib.getProgress(bookId);
     final isFinished = lib.getProgressData(bookId)?['isFinished'] == true;
-    final isDownloaded = DownloadService().isDownloaded(bookId);
-    final isDownloading = DownloadService().isDownloading(bookId);
-    final downloadPct = (DownloadService().downloadProgress(bookId) * 100).clamp(0, 100).round();
+    final isSkimmed = lib.getProgressData(bookId)?['skimmed'] == true;
+    final isDownloaded =
+        !AppPlatform.lacksPhonePlugins && DownloadService().isDownloaded(bookId);
+    final isDownloading =
+        !AppPlatform.lacksPhonePlugins && DownloadService().isDownloading(bookId);
+    final downloadPct = AppPlatform.lacksPhonePlugins
+        ? 0
+        : (DownloadService().downloadProgress(bookId) * 100)
+            .clamp(0, 100)
+            .round();
     final coverUrl = lib.getCoverUrl(bookId);
     final isOnAbsorbing = lib.isOnAbsorbingList(bookId);
 
@@ -1570,12 +1590,9 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                 icon: Icons.add_circle_outline_rounded,
                 color: cs.primary,
                 onTrigger: () async {
-                  await lib.addToAbsorbingQueue(bookId);
-                  lib.absorbingItemCache[bookId] = Map<String, dynamic>.from(book);
-                  if (context.mounted) {
-                    HapticFeedback.mediumImpact();
-                    showOverlayToast(context, Wording.of(context).episodeListAddedToAbsorbing(bookTitle), icon: Icons.add_circle_outline_rounded);
-                  }
+                  await addToAbsorbingWithPicker(context, bookId,
+                      item: book,
+                      addedToast: Wording.of(context).episodeListAddedToAbsorbing(bookTitle));
                 },
               ),
         child: Card(
@@ -1602,10 +1619,10 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                   child: Stack(children: [
                     Positioned.fill(
                       child: coverUrl != null
-                          ? (coverUrl.startsWith('/')
+                          ? (!AppPlatform.lacksPhonePlugins && coverUrl.startsWith('/')
                               ? Image.file(File(coverUrl), fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => _placeholder(cs))
-                              : CachedNetworkImage(
+                              : CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
                                   imageUrl: coverUrl, fit: BoxFit.cover,
                                   httpHeaders: lib.mediaHeaders,
                                   placeholder: (_, __) => _placeholder(cs),
@@ -1644,7 +1661,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                       ),
                     if (isFinished || isDownloaded)
                       Positioned(left: 0, right: 0, bottom: 0,
-                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished),
+                        child: CoverStateBadges(isDownloaded: isDownloaded, isFinished: isFinished, isSkimmed: isSkimmed),
                       ),
                   ]),
                 ),
@@ -1653,7 +1670,7 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
                       if (sequence != null && sequence.isNotEmpty)
-                        Text(l.bookNumber(sequence), style: tt.labelSmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+                        Text(l.bookNumber(sequence), style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
                       Text(bookTitle, maxLines: 2, overflow: TextOverflow.ellipsis,
                         style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
                       if (authorName.isNotEmpty) ...[
@@ -1685,6 +1702,17 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         ),
       ),
     );
+  }
+
+  /// How long [book] plays for. An Audiobookshelf row says nothing about an
+  /// EPUB that reads itself aloud, so the length this phone found when it
+  /// looked inside the file stands in.
+  double _lengthOf(Map<String, dynamic> book) {
+    final media = book['media'] as Map<String, dynamic>? ?? const {};
+    final listed = (media['duration'] as num?)?.toDouble() ?? 0.0;
+    if (listed > 0) return listed;
+    final id = book['id'];
+    return id is String ? NarratedBooks.duration(id) ?? 0.0 : 0.0;
   }
 
   Widget _placeholder(ColorScheme cs) {

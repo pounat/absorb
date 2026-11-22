@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/chromecast_service.dart';
 import '../services/wording.dart';
+import '../utils/app_platform.dart';
 
 class CardButtonDef {
   final String id;
@@ -39,6 +39,8 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
       return l.carModeTitle;
     case 'notes':
       return l.notes;
+    case 'wake':
+      return l.keepScreenOn;
     case 'download':
       return l.download;
     case 'ebook':
@@ -47,6 +49,8 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
       return l.findInEbook;
     case 'lyrics':
       return l.lyricsMode;
+    case 'night':
+      return l.tvNightMode;
   }
   return def.label;
 }
@@ -56,10 +60,29 @@ String localizedCardButtonLabel(AppLocalizations l, CardButtonDef def) {
 /// - F-Droid (GMS-free): Chromecast needs Google Play Services, so the stub
 ///   service reports castSupported=false and the button is dropped entirely.
 final Set<String> _hiddenButtons = {
-  if (Platform.isIOS) 'cast',
+  if (AppPlatform.lacksPhonePlugins || AppPlatform.isIOS) 'cast',
   if (!ChromecastService.castSupported) 'cast',
   // AirPlay is iOS-only (Chromecast covers Android).
-  if (!Platform.isIOS) 'airplay',
+  if (AppPlatform.lacksPhonePlugins || !AppPlatform.isIOS) 'airplay',
+  if (AppPlatform.lacksPhonePlugins) ...{
+    'car',
+    'download',
+    'equalizer',
+  },
+  if (AppPlatform.isWeb) 'ebook',
+  if (!AppPlatform.isTv) 'night',
+  // On a TV: no casting from it, no car, nothing to type or read, nowhere
+  // to keep downloads, and night mode stands in for keep screen on.
+  if (AppPlatform.isTv) ...{
+    'cast',
+    'airplay',
+    'car',
+    'download',
+    'equalizer',
+    'notes',
+    'wake',
+    'findinebook',
+  },
 };
 
 const _allCardButtons = [
@@ -75,10 +98,12 @@ const _allCardButtons = [
   CardButtonDef('remove', 'Remove from Absorbing', Icons.remove_circle_outline_rounded),
   CardButtonDef('car', 'Car Mode', Icons.directions_car_rounded),
   CardButtonDef('notes', 'Notes', Icons.note_rounded),
+  CardButtonDef('wake', 'Keep screen on', Icons.lightbulb_outline_rounded),
   CardButtonDef('download', 'Download', Icons.download_outlined),
   CardButtonDef('ebook', 'Read', Icons.menu_book_rounded),
   CardButtonDef('findinebook', 'Find position in ebook', Icons.manage_search_rounded),
   CardButtonDef('lyrics', 'Live transcript', Icons.subtitles_rounded),
+  CardButtonDef('night', 'Night mode', Icons.bedtime_rounded),
 ];
 
 /// Card buttons filtered for the current platform.

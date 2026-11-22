@@ -7,17 +7,17 @@ import '../l10n/app_localizations.dart';
 /// couple of essential gestures. Kept short on purpose - the previous version
 /// was a long modal sheet that users tended to dismiss without reading.
 class WelcomeSheet {
-  static const _prefKey = 'has_seen_welcome';
+  static const prefKey = 'has_seen_welcome';
 
   static Future<void> showIfNeeded(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_prefKey) == true) return;
-    await prefs.setBool(_prefKey, true);
+    if (prefs.getBool(prefKey) == true) return;
+    await prefs.setBool(prefKey, true);
     if (!context.mounted) return;
     // Small delay so the app finishes its initial layout first
     await Future.delayed(const Duration(milliseconds: 800));
     if (!context.mounted) return;
-    showDialog<void>(
+    await showDialog<void>(
       context: context,
       builder: (_) => const _WelcomeDialog(),
     );

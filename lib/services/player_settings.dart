@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'narrated_books.dart';
 import 'scoped_prefs.dart';
 import '../widgets/card_button_config.dart';
 
@@ -20,9 +21,12 @@ class AutoRewindSettings {
   final bool enabled;
   final double minRewind;
   final double maxRewind;
-  final double activationDelay; // seconds — how long pause must be before rewind kicks in
-  final bool chapterBarrier; // don't rewind past the start of the current chapter
-  final bool sessionStartRewind; // rewind by maxRewind when starting a new session
+  final double
+  activationDelay; // seconds — how long pause must be before rewind kicks in
+  final bool
+  chapterBarrier; // don't rewind past the start of the current chapter
+  final bool
+  sessionStartRewind; // rewind by maxRewind when starting a new session
 
   const AutoRewindSettings({
     this.enabled = true,
@@ -39,8 +43,10 @@ class AutoRewindSettings {
       minRewind: await ScopedPrefs.getDouble('autoRewind_min') ?? 1.0,
       maxRewind: await ScopedPrefs.getDouble('autoRewind_max') ?? 30.0,
       activationDelay: await ScopedPrefs.getDouble('autoRewind_delay') ?? 0.0,
-      chapterBarrier: await ScopedPrefs.getBool('autoRewind_chapterBarrier') ?? false,
-      sessionStartRewind: await ScopedPrefs.getBool('autoRewind_sessionStart') ?? false,
+      chapterBarrier:
+          await ScopedPrefs.getBool('autoRewind_chapterBarrier') ?? false,
+      sessionStartRewind:
+          await ScopedPrefs.getBool('autoRewind_sessionStart') ?? false,
     );
   }
 
@@ -94,6 +100,7 @@ class PlayerSettings {
     // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
     settingsChanged.notifyListeners();
   }
+
   /// Public trigger for external callers that save settings directly.
   static void notifySettingsChanged() => _notify();
 
@@ -114,7 +121,11 @@ class PlayerSettings {
     return defaultValue;
   }
 
-  static Future<void> _set<T>(String key, T value, {bool notify = false}) async {
+  static Future<void> _set<T>(
+    String key,
+    T value, {
+    bool notify = false,
+  }) async {
     if (value is bool) {
       await ScopedPrefs.setBool(key, value);
     } else if (value is int) {
@@ -130,9 +141,41 @@ class PlayerSettings {
   // ── General settings ──
 
   static Future<double> getDefaultSpeed() => _get('defaultSpeed', 1.0);
-  static Future<void> setDefaultSpeed(double speed) => _set('defaultSpeed', speed);
+  static Future<void> setDefaultSpeed(double speed) =>
+      _set('defaultSpeed', speed);
 
-  static const List<double> defaultSpeedPresets = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5];
+  /// Per-library default speed: a library (podcasts, say) can start its items
+  /// at its own speed instead of the global default. null = no override.
+  static Future<double?> getSpeedOverride(String libraryId) =>
+      ScopedPrefs.getDouble('speedOverride_$libraryId');
+
+  static Future<void> setSpeedOverride(String libraryId, double? speed) async {
+    if (speed == null) {
+      await ScopedPrefs.remove('speedOverride_$libraryId');
+    } else {
+      await ScopedPrefs.setDouble('speedOverride_$libraryId', speed);
+    }
+    _notify();
+  }
+
+  /// The speed a book or episode starts at before it has one of its own.
+  static Future<double> defaultSpeedFor({String? libraryId}) async {
+    if (libraryId != null && libraryId.isNotEmpty) {
+      final override = await getSpeedOverride(libraryId);
+      if (override != null) return override;
+    }
+    return getDefaultSpeed();
+  }
+
+  static const List<double> defaultSpeedPresets = [
+    0.75,
+    1.0,
+    1.25,
+    1.5,
+    1.75,
+    2.0,
+    2.5,
+  ];
 
   static Future<List<double>> getSpeedPresets() async {
     final raw = await _get('speedPresets', '');
@@ -149,7 +192,11 @@ class PlayerSettings {
 
   static Future<void> setSpeedPresets(List<double> presets) async {
     final sorted = [...presets]..sort();
-    await _set('speedPresets', sorted.map((s) => s.toStringAsFixed(2)).join(','), notify: true);
+    await _set(
+      'speedPresets',
+      sorted.map((s) => s.toStringAsFixed(2)).join(','),
+      notify: true,
+    );
   }
 
   static Future<void> resetSpeedPresets() async {
@@ -159,56 +206,88 @@ class PlayerSettings {
   /// Audible region override for Find Missing Books (e.g. "us", "uk", "de").
   /// Empty string means use device locale.
   static Future<String> getAudibleRegion() => _get('audibleRegion', '');
-  static Future<void> setAudibleRegion(String value) => _set('audibleRegion', value);
+  static Future<void> setAudibleRegion(String value) =>
+      _set('audibleRegion', value);
 
   /// Font-size multiplier for the elapsed/remaining/percent text on the player
   /// card (GH #230, accessibility). 1.0 = default.
-  static Future<double> getProgressTextScale() => _get('progressTextScale', 1.0);
+  static Future<double> getProgressTextScale() =>
+      _get('progressTextScale', 1.0);
   static Future<void> setProgressTextScale(double v) =>
       _set('progressTextScale', v, notify: true);
 
-  static Future<bool> getUpcomingReleasesSortByDate() => _get('upcomingReleasesSortByDate', false);
-  static Future<void> setUpcomingReleasesSortByDate(bool value) => _set('upcomingReleasesSortByDate', value);
+  static Future<bool> getUpcomingReleasesSortByDate() =>
+      _get('upcomingReleasesSortByDate', false);
+  static Future<void> setUpcomingReleasesSortByDate(bool value) =>
+      _set('upcomingReleasesSortByDate', value);
 
   /// Years without a new release before the upcoming-releases scan considers
   /// a series finished and stops checking it every time (0 = never skip).
-  static Future<int> getUpcomingFinishedAfterYears() => _get('upcomingFinishedAfterYears', 3);
-  static Future<void> setUpcomingFinishedAfterYears(int value) => _set('upcomingFinishedAfterYears', value);
+  static Future<int> getUpcomingFinishedAfterYears() =>
+      _get('upcomingFinishedAfterYears', 3);
+  static Future<void> setUpcomingFinishedAfterYears(int value) =>
+      _set('upcomingFinishedAfterYears', value);
 
   /// Last state of the "delete files from the server" checkbox in the delete
   /// confirm. Starts ticked and remembers what you picked, same as the web UI
   /// (which keeps `softDeleteDefault` in localStorage).
-  static Future<bool> getDeleteFromFileSystem() => _get('deleteFromFileSystem', true);
-  static Future<void> setDeleteFromFileSystem(bool value) => _set('deleteFromFileSystem', value);
+  static Future<bool> getDeleteFromFileSystem() =>
+      _get('deleteFromFileSystem', true);
+  static Future<void> setDeleteFromFileSystem(bool value) =>
+      _set('deleteFromFileSystem', value);
 
-  static Future<bool> getWifiOnlyDownloads() => _get('wifiOnlyDownloads', false);
-  static Future<void> setWifiOnlyDownloads(bool value) => _set('wifiOnlyDownloads', value);
+  static Future<bool> getWifiOnlyDownloads() =>
+      _get('wifiOnlyDownloads', false);
+  static Future<void> setWifiOnlyDownloads(bool value) =>
+      _set('wifiOnlyDownloads', value);
 
-  static Future<int> getRollingDownloadCount() => _get('rollingDownloadCount', 3);
-  static Future<void> setRollingDownloadCount(int value) => _set('rollingDownloadCount', value);
+  static Future<int> getRollingDownloadCount() =>
+      _get('rollingDownloadCount', 3);
+  static Future<void> setRollingDownloadCount(int value) =>
+      _set('rollingDownloadCount', value);
 
-  static Future<bool> getRollingDownloadDeleteFinished() => _get('rollingDownloadDeleteFinished', false);
-  static Future<void> setRollingDownloadDeleteFinished(bool value) => _set('rollingDownloadDeleteFinished', value);
+  static Future<bool> getRollingDownloadDeleteFinished() =>
+      _get('rollingDownloadDeleteFinished', false);
+  static Future<void> setRollingDownloadDeleteFinished(bool value) =>
+      _set('rollingDownloadDeleteFinished', value);
 
-  static Future<bool> getQueueAutoDownload() => _get('queueAutoDownload', false);
-  static Future<void> setQueueAutoDownload(bool value) => _set('queueAutoDownload', value);
+  static Future<bool> getQueueAutoDownload() =>
+      _get('queueAutoDownload', false);
+  static Future<void> setQueueAutoDownload(bool value) =>
+      _set('queueAutoDownload', value);
 
-  static Future<bool> getAutoDownloadOnStream() => _get('autoDownloadOnStream', false);
-  static Future<void> setAutoDownloadOnStream(bool value) => _set('autoDownloadOnStream', value);
+  static Future<bool> getAutoDownloadOnStream() =>
+      _get('autoDownloadOnStream', false);
+  static Future<void> setAutoDownloadOnStream(bool value) =>
+      _set('autoDownloadOnStream', value);
 
   /// When on, starting a book that's part of a series automatically turns on
   /// series auto-download for that series (the same per-series toggle shown in
   /// the series sheet). Default off.
-  static Future<bool> getAutoSeriesDownloadDefault() => _get('autoSeriesDownloadDefault', false);
-  static Future<void> setAutoSeriesDownloadDefault(bool value) => _set('autoSeriesDownloadDefault', value);
+  static Future<bool> getAutoSeriesDownloadDefault() =>
+      _get('autoSeriesDownloadDefault', false);
+  static Future<void> setAutoSeriesDownloadDefault(bool value) =>
+      _set('autoSeriesDownloadDefault', value);
 
   /// Bookmark sort: 'newest' (default) or 'position'
   static Future<String> getBookmarkSort() => _get('bookmarkSort', 'newest');
-  static Future<void> setBookmarkSort(String value) => _set('bookmarkSort', value);
+  static Future<void> setBookmarkSort(String value) =>
+      _set('bookmarkSort', value);
 
   // On-device bookmark transcription (Whisper, opt-in). Stored globally
   // (raw SharedPreferences, not per-account) because the downloaded Whisper
   // model is shared across every profile on the device.
+
+  /// Moves the ebook to where listening stopped, and the audiobook to where
+  /// reading stopped, for books with both (transcription does the finding).
+  static Future<bool> getSyncReadingListening() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('syncReadingListening') ?? false;
+  }
+  static Future<void> setSyncReadingListening(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('syncReadingListening', value);
+  }
 
   static Future<bool> getTranscriptionEnabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -230,16 +309,6 @@ class PlayerSettings {
     await prefs.setInt('transcriptionWindowSeconds', value);
   }
 
-  /// Replace a bookmark transcript with the ebook's exact text when a
-  /// confident match is found (only offered when the book has an EPUB).
-  static Future<bool> getTranscriptionUseEbookText() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('transcriptionUseEbookText') ?? true;
-  }
-  static Future<void> setTranscriptionUseEbookText(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('transcriptionUseEbookText', value);
-  }
 
   /// Live transcript overlay: line font size and how many lines may wrap.
   static Future<double> getLyricsFontSize() async {
@@ -340,26 +409,56 @@ class PlayerSettings {
   // the tab-driven library flips and the Absorbing tab must keep showing the
   // playing item from either tab.
   static Future<bool> getMergeAbsorbingLibraries() async =>
-      await _get('mergeAbsorbingLibraries', false) || await getPodcastTabEnabled();
+      await _get('mergeAbsorbingLibraries', false) ||
+      await getPodcastTabEnabled();
+
   /// The stored toggle value, without the Podcasts-tab implication. For the
   /// settings UI and backups - exporting the effective value would bake
   /// merge=true into a restore permanently.
-  static Future<bool> getMergeAbsorbingLibrariesRaw() => _get('mergeAbsorbingLibraries', false);
-  static Future<void> setMergeAbsorbingLibraries(bool value) => _set('mergeAbsorbingLibraries', value);
+  static Future<bool> getMergeAbsorbingLibrariesRaw() =>
+      _get('mergeAbsorbingLibraries', false);
+  static Future<void> setMergeAbsorbingLibraries(bool value) =>
+      _set('mergeAbsorbingLibraries', value);
 
   // Dedicated bottom-nav Podcasts tab (pinned to one podcast library).
-  static Future<bool> getPodcastTabEnabled() => _get('podcastTabEnabled', false);
-  static Future<void> setPodcastTabEnabled(bool value) => _set('podcastTabEnabled', value, notify: true);
-  static Future<String> getPodcastTabLibraryId() => _get('podcastTabLibraryId', '');
-  static Future<void> setPodcastTabLibraryId(String value) => _set('podcastTabLibraryId', value, notify: true);
+  static Future<bool> getPodcastTabEnabled() =>
+      _get('podcastTabEnabled', false);
+  static Future<void> setPodcastTabEnabled(bool value) =>
+      _set('podcastTabEnabled', value, notify: true);
+  static Future<String> getPodcastTabLibraryId() =>
+      _get('podcastTabLibraryId', '');
+  static Future<void> setPodcastTabLibraryId(String value) =>
+      _set('podcastTabLibraryId', value, notify: true);
+
+  // The Stats tab can leave the bottom bar to make room on a small phone;
+  // the page stays reachable from Settings and the hold menu.
+  static Future<bool> getStatsTabShown() => _get('statsTabShown', true);
+  static Future<void> setStatsTabShown(bool value) =>
+      _set('statsTabShown', value, notify: true);
+
+  // iOS 26: swap the bottom bar for a native Liquid Glass tab bar.
+  static Future<bool> getLiquidGlassNav() => _get('liquidGlassNav', false);
+  static Future<void> setLiquidGlassNav(bool value) =>
+      _set('liquidGlassNav', value, notify: true);
+
+  // Android: Material 3 Expressive shapes in the tab bar, play button and
+  // switches.
+  static Future<bool> getMaterialExpressive() =>
+      _get('materialExpressive', false);
+  static Future<void> setMaterialExpressive(bool value) =>
+      _set('materialExpressive', value, notify: true);
 
   // Background new-episode notification checks, in minutes (0 = off).
   // WorkManager's floor for periodic jobs is 15 minutes.
-  static Future<int> getEpisodeNotifIntervalMinutes() => _get('episodeNotifIntervalMinutes', 0);
-  static Future<void> setEpisodeNotifIntervalMinutes(int value) => _set('episodeNotifIntervalMinutes', value, notify: true);
+  static Future<int> getEpisodeNotifIntervalMinutes() =>
+      _get('episodeNotifIntervalMinutes', 0);
+  static Future<void> setEpisodeNotifIntervalMinutes(int value) =>
+      _set('episodeNotifIntervalMinutes', value, notify: true);
 
-  static Future<int> getMaxConcurrentDownloads() => _get('maxConcurrentDownloads', 1);
-  static Future<void> setMaxConcurrentDownloads(int value) => _set('maxConcurrentDownloads', value);
+  static Future<int> getMaxConcurrentDownloads() =>
+      _get('maxConcurrentDownloads', 1);
+  static Future<void> setMaxConcurrentDownloads(int value) =>
+      _set('maxConcurrentDownloads', value);
 
   // ── Stats page ──
   /// Listening goal periods, in the order they're shown.
@@ -371,19 +470,19 @@ class PlayerSettings {
   /// Target used when a period is first switched on, so the goal card starts
   /// somewhere sensible instead of at 0%.
   static int defaultStatsGoalMinutes(String period) => switch (period) {
-        'weekly' => 7 * 60,
-        'monthly' => 30 * 60,
-        _ => 60,
-      };
+    'weekly' => 7 * 60,
+    'monthly' => 30 * 60,
+    _ => 60,
+  };
 
   /// The most a period's target can be: all the time that period holds. These
   /// match the rolling windows the stats page actually sums (7 and 30 days
   /// back from today), not calendar weeks or months.
   static int maxStatsGoalMinutes(String period) => switch (period) {
-        'weekly' => 7 * 24 * 60,
-        'monthly' => 30 * 24 * 60,
-        _ => 24 * 60,
-      };
+    'weekly' => 7 * 24 * 60,
+    'monthly' => 30 * 24 * 60,
+    _ => 24 * 60,
+  };
 
   /// Target listening minutes for one goal period, or 0 when that goal is
   /// switched off. All three periods can be on at once. The target survives
@@ -401,7 +500,10 @@ class PlayerSettings {
       await _set(_statsGoalOnKey(period), false, notify: true);
       return;
     }
-    await _set(_statsGoalKey(period), minutes.clamp(1, maxStatsGoalMinutes(period)));
+    await _set(
+      _statsGoalKey(period),
+      minutes.clamp(1, maxStatsGoalMinutes(period)),
+    );
     await _set(_statsGoalOnKey(period), true, notify: true);
   }
 
@@ -419,8 +521,10 @@ class PlayerSettings {
     final oldPeriod = await _get('stats_goal_type', 'off');
     if (statsGoalPeriods.contains(oldPeriod)) {
       final oldMinutes = await _get('stats_goal_minutes', 30);
-      await _set(_statsGoalKey(oldPeriod),
-          oldMinutes.clamp(1, maxStatsGoalMinutes(oldPeriod)));
+      await _set(
+        _statsGoalKey(oldPeriod),
+        oldMinutes.clamp(1, maxStatsGoalMinutes(oldPeriod)),
+      );
       await _set(_statsGoalOnKey(oldPeriod), true);
     }
     await _set('stats_goal_migrated', true);
@@ -429,15 +533,78 @@ class PlayerSettings {
   /// Territories that start the week on Sunday or Saturday, from CLDR.
   /// Everywhere else starts on Monday, which is most of the world.
   static const _sundayFirstCountries = {
-    'AG', 'AS', 'BD', 'BR', 'BS', 'BT', 'BW', 'BZ', 'CA', 'CN', 'CO', 'DM',
-    'DO', 'ET', 'GT', 'GU', 'HK', 'HN', 'ID', 'IL', 'IN', 'JM', 'JP', 'KE',
-    'KH', 'KR', 'LA', 'MH', 'MM', 'MO', 'MT', 'MX', 'MZ', 'NI', 'NP', 'PA',
-    'PE', 'PH', 'PK', 'PR', 'PY', 'SA', 'SG', 'SV', 'TH', 'TT', 'TW', 'UM',
-    'US', 'VE', 'VI', 'WS', 'YE', 'ZA', 'ZW',
+    'AG',
+    'AS',
+    'BD',
+    'BR',
+    'BS',
+    'BT',
+    'BW',
+    'BZ',
+    'CA',
+    'CN',
+    'CO',
+    'DM',
+    'DO',
+    'ET',
+    'GT',
+    'GU',
+    'HK',
+    'HN',
+    'ID',
+    'IL',
+    'IN',
+    'JM',
+    'JP',
+    'KE',
+    'KH',
+    'KR',
+    'LA',
+    'MH',
+    'MM',
+    'MO',
+    'MT',
+    'MX',
+    'MZ',
+    'NI',
+    'NP',
+    'PA',
+    'PE',
+    'PH',
+    'PK',
+    'PR',
+    'PY',
+    'SA',
+    'SG',
+    'SV',
+    'TH',
+    'TT',
+    'TW',
+    'UM',
+    'US',
+    'VE',
+    'VI',
+    'WS',
+    'YE',
+    'ZA',
+    'ZW',
   };
   static const _saturdayFirstCountries = {
-    'AE', 'AF', 'BH', 'DJ', 'DZ', 'EG', 'IQ', 'IR', 'JO', 'KW', 'LY', 'OM',
-    'QA', 'SD', 'SY',
+    'AE',
+    'AF',
+    'BH',
+    'DJ',
+    'DZ',
+    'EG',
+    'IQ',
+    'IR',
+    'JO',
+    'KW',
+    'LY',
+    'OM',
+    'QA',
+    'SD',
+    'SY',
   };
 
   /// Day the stats week starts on: 0 = Sunday, 1 = Monday, 6 = Saturday. Same
@@ -447,7 +614,8 @@ class PlayerSettings {
   /// setting - the language picker stores a bare language code with no region,
   /// so an English UI would otherwise report Sunday for the whole world.
   static int defaultStatsWeekStart() {
-    final country = ui.PlatformDispatcher.instance.locale.countryCode?.toUpperCase();
+    final country = ui.PlatformDispatcher.instance.locale.countryCode
+        ?.toUpperCase();
     if (country == null) return 1;
     if (_sundayFirstCountries.contains(country)) return 0;
     if (_saturdayFirstCountries.contains(country)) return 6;
@@ -461,7 +629,8 @@ class PlayerSettings {
 
   /// Yearly book-challenge target. 0 = off.
   static Future<int> getStatsBookGoal() => _get('stats_book_goal', 0);
-  static Future<void> setStatsBookGoal(int value) => _set('stats_book_goal', value, notify: true);
+  static Future<void> setStatsBookGoal(int value) =>
+      _set('stats_book_goal', value, notify: true);
 
   /// Wall-clock seconds saved by listening above 1x. Banked live by the
   /// player as listening time accrues; read-only here.
@@ -489,20 +658,25 @@ class PlayerSettings {
     final v = await _get('stats_chart_style', 'bar');
     return v == 'heatmap' ? 'bar' : v;
   }
-  static Future<void> setStatsChartStyle(String value) => _set('stats_chart_style', value, notify: true);
+
+  static Future<void> setStatsChartStyle(String value) =>
+      _set('stats_chart_style', value, notify: true);
 
   /// Days covered by the bar/line chart: 7 or 30. The heatmap is always a year.
   static Future<int> getStatsChartRange() => _get('stats_chart_range', 7);
-  static Future<void> setStatsChartRange(int value) => _set('stats_chart_range', value, notify: true);
+  static Future<void> setStatsChartRange(int value) =>
+      _set('stats_chart_range', value, notify: true);
 
   /// Stats page section layout (ids ordered / hidden), per account.
-  static Future<List<String>> getStatsSectionOrder() => ScopedPrefs.getStringList('stats_section_order');
+  static Future<List<String>> getStatsSectionOrder() =>
+      ScopedPrefs.getStringList('stats_section_order');
   static Future<void> setStatsSectionOrder(List<String> order) async {
     await ScopedPrefs.setStringList('stats_section_order', order);
     _notify();
   }
 
-  static Future<List<String>> getStatsHiddenSections() => ScopedPrefs.getStringList('stats_hidden_sections');
+  static Future<List<String>> getStatsHiddenSections() =>
+      ScopedPrefs.getStringList('stats_hidden_sections');
   static Future<void> setStatsHiddenSections(List<String> hidden) async {
     await ScopedPrefs.setStringList('stats_hidden_sections', hidden);
     _notify();
@@ -517,10 +691,26 @@ class PlayerSettings {
     final value = await ScopedPrefs.getString('bookQueueMode');
     return value ?? await getQueueMode();
   }
-  static Future<void> setBookQueueMode(String value) =>
-      _serializeQueueModeMutation(
-        () => _set('bookQueueMode', value, notify: true),
-      );
+
+  static Future<void> setBookQueueMode(String value) {
+    debugPrint('[Queue] Book queue mode -> $value');
+    return _serializeQueueModeMutation(() async {
+      await _set('bookQueueMode', value, notify: true);
+      await _endQueueSourceSuspension(value);
+    });
+  }
+
+  /// Set while a playlist or collection queue was turned off by playing
+  /// something outside it. Only then does playing one of its items bring
+  /// the queue back; a mode picked by hand ends that, while the playlist or
+  /// collection stays remembered for the queue manager's chip.
+  static Future<bool> isQueueSourceSuspended() =>
+      _get('queueSourceSuspended', false);
+
+  static Future<void> _endQueueSourceSuspension(String value) async {
+    if (value == 'playlist' || value == 'collection') return;
+    await ScopedPrefs.remove('queueSourceSuspended');
+  }
 
   static Future<bool> getShowUpNextLabel() => _get('showUpNextLabel', true);
   static Future<void> setShowUpNextLabel(bool value) =>
@@ -530,10 +720,14 @@ class PlayerSettings {
     final value = await ScopedPrefs.getString('podcastQueueMode');
     return value ?? await getQueueMode();
   }
-  static Future<void> setPodcastQueueMode(String value) =>
-      _serializeQueueModeMutation(
-        () => _set('podcastQueueMode', value, notify: true),
-      );
+
+  static Future<void> setPodcastQueueMode(String value) {
+    debugPrint('[Queue] Podcast queue mode -> $value');
+    return _serializeQueueModeMutation(() async {
+      await _set('podcastQueueMode', value, notify: true);
+      await _endQueueSourceSuspension(value);
+    });
+  }
 
   /// Per-show podcast auto-advance direction: 'oldest_first' (default) or
   /// 'newest_first'. Stored under a raw (un-scoped) key because the advance
@@ -542,6 +736,7 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('podcast_advance_dir_$showId') ?? 'oldest_first';
   }
+
   static Future<void> setPodcastAdvanceDir(String showId, String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('podcast_advance_dir_$showId', value);
@@ -555,7 +750,11 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('podcast_new_ep_pos_$showId') ?? 'start';
   }
-  static Future<void> setPodcastNewEpisodePosition(String showId, String value) async {
+
+  static Future<void> setPodcastNewEpisodePosition(
+    String showId,
+    String value,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('podcast_new_ep_pos_$showId', value);
     _notify();
@@ -566,6 +765,7 @@ class PlayerSettings {
     final s = await ScopedPrefs.getString('queuePlaylistId');
     return (s == null || s.isEmpty) ? null : s;
   }
+
   static Future<void> setQueuePlaylistId(String? id) =>
       _serializeQueueModeMutation(() async {
         if (id == null || id.isEmpty) {
@@ -584,7 +784,28 @@ class PlayerSettings {
         await ScopedPrefs.setString('bookQueueMode', 'playlist');
         await ScopedPrefs.setString('podcastQueueMode', 'playlist');
         await ScopedPrefs.setString('queuePlaylistId', playlistId);
+        // Playlist mode replaces any collection queue, remembered or active.
+        await ScopedPrefs.remove('queueCollectionId');
+        await ScopedPrefs.remove('queueCollectionName');
+        await ScopedPrefs.remove('queueSourceSuspended');
         _notify();
+      });
+
+  /// Playing something outside the active playlist turns the queue off for
+  /// it but keeps the playlist remembered, so playing one of its items
+  /// again picks the queue back up and the queue manager still offers it.
+  static Future<bool> suspendQueueModePlaylistIfActive(String playlistId) =>
+      _serializeQueueModeMutation(() async {
+        if (await getBookQueueMode() != 'playlist' ||
+            await getPodcastQueueMode() != 'playlist' ||
+            await getQueuePlaylistId() != playlistId) {
+          return false;
+        }
+        await ScopedPrefs.setString('bookQueueMode', 'off');
+        await ScopedPrefs.setString('podcastQueueMode', 'off');
+        await ScopedPrefs.setBool('queueSourceSuspended', true);
+        _notify();
+        return true;
       });
 
   /// Exit playlist queue mode: both modes back to 'off' and active playlist cleared.
@@ -623,18 +844,21 @@ class PlayerSettings {
   static Future<String?> getQueueCollectionName() =>
       ScopedPrefs.getString('queueCollectionName');
 
-  static Future<void> setQueueModeCollection(String collectionId, String name) =>
-      _serializeQueueModeMutation(() async {
-        await ScopedPrefs.setString('bookQueueMode', 'collection');
-        await ScopedPrefs.setString('queueCollectionId', collectionId);
-        await ScopedPrefs.setString('queueCollectionName', name);
-        // Collection mode replaces any active playlist queue.
-        await ScopedPrefs.remove('queuePlaylistId');
-        if ((await ScopedPrefs.getString('podcastQueueMode')) == 'playlist') {
-          await ScopedPrefs.setString('podcastQueueMode', 'off');
-        }
-        _notify();
-      });
+  static Future<void> setQueueModeCollection(
+    String collectionId,
+    String name,
+  ) => _serializeQueueModeMutation(() async {
+    await ScopedPrefs.setString('bookQueueMode', 'collection');
+    await ScopedPrefs.setString('queueCollectionId', collectionId);
+    await ScopedPrefs.setString('queueCollectionName', name);
+    // Collection mode replaces any active playlist queue.
+    await ScopedPrefs.remove('queuePlaylistId');
+    if ((await ScopedPrefs.getString('podcastQueueMode')) == 'playlist') {
+      await ScopedPrefs.setString('podcastQueueMode', 'off');
+    }
+    await ScopedPrefs.remove('queueSourceSuspended');
+    _notify();
+  });
 
   static Future<void> clearQueueModeCollection() =>
       _serializeQueueModeMutation(() async {
@@ -642,6 +866,19 @@ class PlayerSettings {
         await ScopedPrefs.remove('queueCollectionId');
         await ScopedPrefs.remove('queueCollectionName');
         _notify();
+      });
+
+  /// Like [suspendQueueModePlaylistIfActive], for a collection queue.
+  static Future<bool> suspendQueueModeCollectionIfActive(String collectionId) =>
+      _serializeQueueModeMutation(() async {
+        if (await getBookQueueMode() != 'collection' ||
+            await getQueueCollectionId() != collectionId) {
+          return false;
+        }
+        await ScopedPrefs.setString('bookQueueMode', 'off');
+        await ScopedPrefs.setBool('queueSourceSuspended', true);
+        _notify();
+        return true;
       });
 
   static Future<bool> clearQueueModeCollectionIfActive(String collectionId) =>
@@ -660,38 +897,40 @@ class PlayerSettings {
   /// Snapshot of the queue-mode settings, taken before a play activates a
   /// playlist/collection queue so a failed play can put them back.
   static Future<QueueModeSnapshot> queueModeSnapshot() async => (
-        bookMode: await getBookQueueMode(),
-        podcastMode: await getPodcastQueueMode(),
-        playlistId: await ScopedPrefs.getString('queuePlaylistId'),
-        collectionId: await ScopedPrefs.getString('queueCollectionId'),
-        collectionName: await ScopedPrefs.getString('queueCollectionName'),
-      );
+    bookMode: await getBookQueueMode(),
+    podcastMode: await getPodcastQueueMode(),
+    playlistId: await ScopedPrefs.getString('queuePlaylistId'),
+    collectionId: await ScopedPrefs.getString('queueCollectionId'),
+    collectionName: await ScopedPrefs.getString('queueCollectionName'),
+  );
 
   /// Restore a [queueModeSnapshot] if the given playlist queue is still the
   /// active one - same guard as [clearQueueModePlaylistIfActive], so a mode
   /// the user changed again in the meantime is left alone.
   static Future<bool> restoreQueueModeIfPlaylistActive(
-          String playlistId, QueueModeSnapshot snapshot) =>
-      _serializeQueueModeMutation(() async {
-        if (await getBookQueueMode() != 'playlist' ||
-            await getPodcastQueueMode() != 'playlist' ||
-            await getQueuePlaylistId() != playlistId) {
-          return false;
-        }
-        await _applyQueueModeSnapshot(snapshot);
-        return true;
-      });
+    String playlistId,
+    QueueModeSnapshot snapshot,
+  ) => _serializeQueueModeMutation(() async {
+    if (await getBookQueueMode() != 'playlist' ||
+        await getPodcastQueueMode() != 'playlist' ||
+        await getQueuePlaylistId() != playlistId) {
+      return false;
+    }
+    await _applyQueueModeSnapshot(snapshot);
+    return true;
+  });
 
   static Future<bool> restoreQueueModeIfCollectionActive(
-          String collectionId, QueueModeSnapshot snapshot) =>
-      _serializeQueueModeMutation(() async {
-        if (await getBookQueueMode() != 'collection' ||
-            await getQueueCollectionId() != collectionId) {
-          return false;
-        }
-        await _applyQueueModeSnapshot(snapshot);
-        return true;
-      });
+    String collectionId,
+    QueueModeSnapshot snapshot,
+  ) => _serializeQueueModeMutation(() async {
+    if (await getBookQueueMode() != 'collection' ||
+        await getQueueCollectionId() != collectionId) {
+      return false;
+    }
+    await _applyQueueModeSnapshot(snapshot);
+    return true;
+  });
 
   static Future<void> _applyQueueModeSnapshot(QueueModeSnapshot s) async {
     Future<void> put(String key, String? value) => value == null
@@ -710,7 +949,10 @@ class PlayerSettings {
     if (await ScopedPrefs.containsKey('queueMode')) return;
     final autoBook = await ScopedPrefs.getBool('autoPlayNextBook') ?? false;
     final autoPod = await ScopedPrefs.getBool('autoPlayNextPodcast') ?? false;
-    await ScopedPrefs.setString('queueMode', (autoBook || autoPod) ? 'auto_next' : 'off');
+    await ScopedPrefs.setString(
+      'queueMode',
+      (autoBook || autoPod) ? 'auto_next' : 'off',
+    );
   }
 
   /// One-time migration from the unified queueMode to per-type book/podcast modes.
@@ -723,13 +965,18 @@ class PlayerSettings {
 
   // Legacy getters kept for backup service compatibility
   static Future<bool> getAutoPlayNextBook() => _get('autoPlayNextBook', false);
-  static Future<void> setAutoPlayNextBook(bool value) => _set('autoPlayNextBook', value);
+  static Future<void> setAutoPlayNextBook(bool value) =>
+      _set('autoPlayNextBook', value);
 
-  static Future<bool> getAutoPlayNextPodcast() => _get('autoPlayNextPodcast', false);
-  static Future<void> setAutoPlayNextPodcast(bool value) => _set('autoPlayNextPodcast', value);
+  static Future<bool> getAutoPlayNextPodcast() =>
+      _get('autoPlayNextPodcast', false);
+  static Future<void> setAutoPlayNextPodcast(bool value) =>
+      _set('autoPlayNextPodcast', value);
 
-  static Future<String> getWhenFinished() => _get('whenFinished', 'auto_remove');
-  static Future<void> setWhenFinished(String value) => _set('whenFinished', value);
+  static Future<String> getWhenFinished() =>
+      _get('whenFinished', 'auto_remove');
+  static Future<void> setWhenFinished(String value) =>
+      _set('whenFinished', value);
 
   // ── Player UI settings (notify listeners on change) ──
 
@@ -739,9 +986,7 @@ class PlayerSettings {
       if (mode.name == stored) return mode;
     }
     final legacyBookSlider = await _get('showBookSlider', false);
-    return legacyBookSlider
-        ? CardScrubberMode.both
-        : CardScrubberMode.chapter;
+    return legacyBookSlider ? CardScrubberMode.both : CardScrubberMode.chapter;
   }
 
   static Future<void> setCardScrubberMode(CardScrubberMode mode) async {
@@ -753,31 +998,42 @@ class PlayerSettings {
   static Future<bool> getShowBookSlider() async =>
       await getCardScrubberMode() == CardScrubberMode.both;
   static Future<void> setShowBookSlider(bool value) => setCardScrubberMode(
-        value ? CardScrubberMode.both : CardScrubberMode.chapter,
-      );
+    value ? CardScrubberMode.both : CardScrubberMode.chapter,
+  );
 
   static Future<bool> getSpeedAdjustedTime() => _get('speedAdjustedTime', true);
-  static Future<void> setSpeedAdjustedTime(bool value) => _set('speedAdjustedTime', value, notify: true);
+  static Future<void> setSpeedAdjustedTime(bool value) =>
+      _set('speedAdjustedTime', value, notify: true);
 
   static Future<int> getForwardSkip() => _get('forwardSkip', 30);
-  static Future<void> setForwardSkip(int seconds) => _set('forwardSkip', seconds, notify: true);
+  static Future<void> setForwardSkip(int seconds) =>
+      _set('forwardSkip', seconds, notify: true);
 
   static Future<int> getBackSkip() => _get('backSkip', 10);
-  static Future<void> setBackSkip(int seconds) => _set('backSkip', seconds, notify: true);
-  static Future<bool> getSkipChapterBarrier() => _get('skipChapterBarrier', true);
-  static Future<void> setSkipChapterBarrier(bool value) => _set('skipChapterBarrier', value);
+  static Future<void> setBackSkip(int seconds) =>
+      _set('backSkip', seconds, notify: true);
+  static Future<bool> getSkipChapterBarrier() =>
+      _get('skipChapterBarrier', true);
+  static Future<void> setSkipChapterBarrier(bool value) =>
+      _set('skipChapterBarrier', value);
 
   /// Per-library skip override: a library (podcast or book) can use its own
   /// forward/back amounts instead of the global ones. Both are set together;
   /// null = no override for that library.
-  static Future<({int forward, int back})?> getSkipOverride(String libraryId) async {
+  static Future<({int forward, int back})?> getSkipOverride(
+    String libraryId,
+  ) async {
     final fwd = await ScopedPrefs.getInt('skipOverrideForward_$libraryId');
     final back = await ScopedPrefs.getInt('skipOverrideBack_$libraryId');
     if (fwd == null || back == null) return null;
     return (forward: fwd, back: back);
   }
 
-  static Future<void> setSkipOverride(String libraryId, {int? forward, int? back}) async {
+  static Future<void> setSkipOverride(
+    String libraryId, {
+    int? forward,
+    int? back,
+  }) async {
     if (forward == null || back == null) {
       await ScopedPrefs.remove('skipOverrideForward_$libraryId');
       await ScopedPrefs.remove('skipOverrideBack_$libraryId');
@@ -807,11 +1063,14 @@ class PlayerSettings {
 
   // Optional second, bigger skip pair on the player card (GH #242).
   static Future<bool> getLongSkipButtons() => _get('longSkipButtons', false);
-  static Future<void> setLongSkipButtons(bool value) => _set('longSkipButtons', value, notify: true);
+  static Future<void> setLongSkipButtons(bool value) =>
+      _set('longSkipButtons', value, notify: true);
   static Future<int> getLongForwardSkip() => _get('longForwardSkip', 60);
-  static Future<void> setLongForwardSkip(int seconds) => _set('longForwardSkip', seconds, notify: true);
+  static Future<void> setLongForwardSkip(int seconds) =>
+      _set('longForwardSkip', seconds, notify: true);
   static Future<int> getLongBackSkip() => _get('longBackSkip', 60);
-  static Future<void> setLongBackSkip(int seconds) => _set('longBackSkip', seconds, notify: true);
+  static Future<void> setLongBackSkip(int seconds) =>
+      _set('longBackSkip', seconds, notify: true);
 
   /// Cached value for synchronous access in widget build methods.
   static bool showExplicitBadge = true;
@@ -819,6 +1078,13 @@ class PlayerSettings {
   static Future<void> setShowExplicitBadge(bool value) async {
     showExplicitBadge = value;
     await _set('showExplicitBadge', value);
+  }
+
+  static bool showEbookBadge = true;
+  static Future<bool> getShowEbookBadge() => _get('showEbookBadge', true);
+  static Future<void> setShowEbookBadge(bool value) async {
+    showEbookBadge = value;
+    await _set('showEbookBadge', value, notify: true);
   }
 
   /// Cached value for synchronous access when building audio sources.
@@ -829,26 +1095,64 @@ class PlayerSettings {
     await _set('mp3IndexSeeking', value);
   }
 
-  static Future<bool> getNotificationChapterProgress() => _get('notificationChapterProgress', false);
-  static Future<void> setNotificationChapterProgress(bool value) => _set('notificationChapterProgress', value, notify: true);
+  static Future<bool> getNotificationChapterProgress() =>
+      _get('notificationChapterProgress', false);
+  static Future<void> setNotificationChapterProgress(bool value) =>
+      _set('notificationChapterProgress', value, notify: true);
+
+  // Which pieces the media controls show on each line, as
+  // NowPlayingLayout JSON. Empty = the standard layout.
+  static Future<String> getNowPlayingLayout() => _get('nowPlayingLayout', '');
+  static Future<void> setNowPlayingLayout(String json) => _set('nowPlayingLayout', json, notify: true);
 
   // Android only: when true, the phone media controls show speed + bookmark in
   // the two extra slots instead of chapter skip. Android Auto shows all of them
   // either way; this just reorders which pair the phone "borrows".
-  static Future<bool> getMediaControlsSpeedBookmark() => _get('mediaControlsSpeedBookmark', false);
-  static Future<void> setMediaControlsSpeedBookmark(bool value) => _set('mediaControlsSpeedBookmark', value, notify: true);
+  static Future<bool> getMediaControlsSpeedBookmark() =>
+      _get('mediaControlsSpeedBookmark', false);
+  static Future<void> setMediaControlsSpeedBookmark(bool value) =>
+      _set('mediaControlsSpeedBookmark', value, notify: true);
 
   // Android only: lower the volume for brief focus interruptions instead of
   // pausing. Pausing remains the default.
-  static Future<bool> getDuckBriefInterruptions() => _get('duckBriefInterruptions', false);
+  static Future<bool> getDuckBriefInterruptions() =>
+      _get('duckBriefInterruptions', false);
   static Future<void> setDuckBriefInterruptions(bool value) =>
       _set('duckBriefInterruptions', value, notify: true);
+
+  // Android only: keep playing when another app starts its own audio, instead
+  // of stopping for it. Calls and navigation prompts still pause or duck.
+  static Future<bool> getKeepPlayingWithOtherApps() =>
+      _get('keepPlayingWithOtherApps', false);
+  static Future<void> setKeepPlayingWithOtherApps(bool value) =>
+      _set('keepPlayingWithOtherApps', value, notify: true);
 
   // GH #371: start the last played book when the car (Android Auto or
   // CarPlay) connects and nothing is loaded yet. The warm case (session
   // alive but paused) belongs to the car system's own resume behavior; this
   // covers the cold start where no session exists for it to resume.
   static Future<bool> getAutoplayOnCarConnect() => _get('autoplayOnCarConnect', false);
+  static Future<bool> getKeepScreenOnInPlayer() => _get('keepScreenOnPlayer', false);
+  static Future<void> setKeepScreenOnInPlayer(bool value) =>
+      _set('keepScreenOnPlayer', value, notify: true);
+  static Future<bool> getKeepScreenOnInCarMode() => _get('keepScreenOnCarMode', false);
+  static Future<void> setKeepScreenOnInCarMode(bool value) =>
+      _set('keepScreenOnCarMode', value, notify: true);
+
+  // Android Auto / CarPlay library browsing. Book sort is 'title', 'author' or
+  // 'added' (newest first); reverse flips whichever is picked. Podcast shows
+  // sort 'title' or 'added'.
+  static Future<String> getCarBookSort() => _get('carBookSort', 'title');
+  static Future<void> setCarBookSort(String value) => _set('carBookSort', value);
+  static Future<bool> getCarBookSortReverse() => _get('carBookSortReverse', false);
+  static Future<void> setCarBookSortReverse(bool value) =>
+      _set('carBookSortReverse', value);
+  static Future<String> getCarPodcastSort() => _get('carPodcastSort', 'title');
+  static Future<void> setCarPodcastSort(String value) => _set('carPodcastSort', value);
+  static Future<bool> getCarEpisodesOldestFirst() =>
+      _get('carEpisodesOldestFirst', false);
+  static Future<void> setCarEpisodesOldestFirst(bool value) =>
+      _set('carEpisodesOldestFirst', value);
   static Future<void> setAutoplayOnCarConnect(bool value) =>
       _set('autoplayOnCarConnect', value);
 
@@ -858,7 +1162,8 @@ class PlayerSettings {
   // action from the playback state (Android ACTION_SEEK_TO / iOS
   // changePlaybackPositionCommand). Default off.
   static Future<bool> getLockSeekBar() => _get('lockSeekBar', false);
-  static Future<void> setLockSeekBar(bool value) => _set('lockSeekBar', value, notify: true);
+  static Future<void> setLockSeekBar(bool value) =>
+      _set('lockSeekBar', value, notify: true);
 
   // ── Sleep timer settings ──
 
@@ -867,30 +1172,40 @@ class PlayerSettings {
   static Future<void> setShakeMode(String value) => _set('shakeMode', value);
 
   static Future<int> getShakeAddMinutes() => _get('shakeAddMinutes', 5);
-  static Future<void> setShakeAddMinutes(int minutes) => _set('shakeAddMinutes', minutes);
+  static Future<void> setShakeAddMinutes(int minutes) =>
+      _set('shakeAddMinutes', minutes);
 
   // 'veryLow', 'low', 'medium', 'high', 'veryHigh'
-  static Future<String> getShakeSensitivity() => _get('shakeSensitivity', 'medium');
-  static Future<void> setShakeSensitivity(String value) => _set('shakeSensitivity', value);
+  static Future<String> getShakeSensitivity() =>
+      _get('shakeSensitivity', 'medium');
+  static Future<void> setShakeSensitivity(String value) =>
+      _set('shakeSensitivity', value);
 
   /// Linear-acceleration threshold (m/s², gravity excluded) that a shake must
   /// exceed to be registered. Lower = more sensitive.
   static double shakeThresholdFor(String sensitivity) {
     switch (sensitivity) {
-      case 'veryHigh': return 8.0;
-      case 'high': return 13.0;
-      case 'low': return 23.0;
-      case 'veryLow': return 28.0;
+      case 'veryHigh':
+        return 8.0;
+      case 'high':
+        return 13.0;
+      case 'low':
+        return 23.0;
+      case 'veryLow':
+        return 28.0;
       case 'medium':
-      default: return 18.0;
+      default:
+        return 18.0;
     }
   }
 
   static Future<int> getSleepTimerMinutes() => _get('sleepTimerMinutes', 30);
-  static Future<void> setSleepTimerMinutes(int minutes) => _set('sleepTimerMinutes', minutes);
+  static Future<void> setSleepTimerMinutes(int minutes) =>
+      _set('sleepTimerMinutes', minutes);
 
   static Future<int> getSleepTimerChapters() => _get('sleepTimerChapters', 1);
-  static Future<void> setSleepTimerChapters(int chapters) => _set('sleepTimerChapters', chapters);
+  static Future<void> setSleepTimerChapters(int chapters) =>
+      _set('sleepTimerChapters', chapters);
 
   /// Media-button snooze during the sleep timer wind-down (GH #333):
   /// 'off' | 'addTime' | 'resetTimer'. A press inside the wind-down window
@@ -902,36 +1217,53 @@ class PlayerSettings {
   static Future<void> setResetSleepOnPause(bool value) => _set('resetSleepOnPause', value);
 
   static Future<bool> getSleepFadeOut() => _get('sleepFadeOut', true);
-  static Future<void> setSleepFadeOut(bool value) => _set('sleepFadeOut', value);
+  static Future<void> setSleepFadeOut(bool value) =>
+      _set('sleepFadeOut', value);
   static Future<int> getSleepFadeDuration() => _get('sleepFadeDuration', 30);
-  static Future<void> setSleepFadeDuration(int seconds) => _set('sleepFadeDuration', seconds);
+  static Future<void> setSleepFadeDuration(int seconds) =>
+      _set('sleepFadeDuration', seconds);
   static Future<bool> getSleepChime() => _get('sleepChime', false);
   static Future<void> setSleepChime(bool value) => _set('sleepChime', value);
   static Future<double> getSleepChimeVolume() => _get('sleepChimeVolume', 2.0);
-  static Future<void> setSleepChimeVolume(double value) => _set('sleepChimeVolume', value);
+  static Future<void> setSleepChimeVolume(double value) =>
+      _set('sleepChimeVolume', value);
 
   static Future<int> getSleepRewindSeconds() => _get('sleepRewindSeconds', 0);
-  static Future<void> setSleepRewindSeconds(int seconds) => _set('sleepRewindSeconds', seconds);
+  static Future<void> setSleepRewindSeconds(int seconds) =>
+      _set('sleepRewindSeconds', seconds);
   static Future<int> getSleepTimerTab() => _get('sleepTimerTab', 0);
   static Future<void> setSleepTimerTab(int tab) => _set('sleepTimerTab', tab);
 
   static Future<bool> getSheetGridView() => _get('sheetGridView', false);
-  static Future<void> setSheetGridView(bool value) => _set('sheetGridView', value);
-  static Future<bool> getSheetCollapseSeries() => _get('sheetCollapseSeries', true);
-  static Future<void> setSheetCollapseSeries(bool value) => _set('sheetCollapseSeries', value);
-  static Future<bool> getCollapseBookSeries() => _get('collapseBookSeries', false);
-  static Future<void> setCollapseBookSeries(bool value) => _set('collapseBookSeries', value);
+  static Future<void> setSheetGridView(bool value) =>
+      _set('sheetGridView', value);
+  static Future<bool> getSheetCollapseSeries() =>
+      _get('sheetCollapseSeries', true);
+  static Future<void> setSheetCollapseSeries(bool value) =>
+      _set('sheetCollapseSeries', value);
+  static Future<bool> getCollapseBookSeries() =>
+      _get('collapseBookSeries', false);
+  static Future<void> setCollapseBookSeries(bool value) =>
+      _set('collapseBookSeries', value);
 
   static Future<bool> getHideEbookOnly() => _get('hideEbookOnly', false);
-  static Future<void> setHideEbookOnly(bool value) => _set('hideEbookOnly', value, notify: true);
+  static Future<void> setHideEbookOnly(bool value) =>
+      _set('hideEbookOnly', value, notify: true);
+
+  /// Tapping a Continue Listening or Continue Reading card on Home opens its
+  /// details instead of picking up where it left off.
+  static Future<bool> getHomeCardsOpenDetails() => _get('homeCardsOpenDetails', false);
+  static Future<void> setHomeCardsOpenDetails(bool value) => _set('homeCardsOpenDetails', value, notify: true);
 
   static Future<bool> getCollapseSeries() => _get('collapseSeries', false);
-  static Future<void> setCollapseSeries(bool value) => _set('collapseSeries', value, notify: true);
+  static Future<void> setCollapseSeries(bool value) =>
+      _set('collapseSeries', value, notify: true);
 
   // ── Streaming cache ──
 
   /// 0 = disabled, > 0 = cache size in MB (LRU eviction)
-  static Future<int> getStreamingCacheSizeMb() => _get('streamingCacheSizeMb', 256);
+  static Future<int> getStreamingCacheSizeMb() =>
+      _get('streamingCacheSizeMb', 256);
   static Future<void> setStreamingCacheSizeMb(int value) async {
     debugPrint('[Settings] Streaming cache set to: $value MB');
     await _set('streamingCacheSizeMb', value);
@@ -946,20 +1278,57 @@ class PlayerSettings {
 
   // ── Library sort/filter persistence ──
 
-  static Future<String> getLibrarySort() => _get('librarySort', 'recentlyAdded');
-  static Future<void> setLibrarySort(String value) => _set('librarySort', value);
+  static const List<int> bookshelfCoverSizes = [
+    60,
+    80,
+    100,
+    120,
+    140,
+    160,
+    180,
+    200,
+    220,
+  ];
+
+  static int _snapBookshelfCoverSize(int value) {
+    var closest = bookshelfCoverSizes.first;
+    for (final size in bookshelfCoverSizes.skip(1)) {
+      if ((size - value).abs() < (closest - value).abs()) {
+        closest = size;
+      }
+    }
+    return closest;
+  }
+
+  static Future<int> getBookshelfCoverSize() async {
+    final value = await _get('bookshelfCoverSize', 120);
+    return _snapBookshelfCoverSize(value);
+  }
+
+  static Future<void> setBookshelfCoverSize(int value) =>
+      _set('bookshelfCoverSize', _snapBookshelfCoverSize(value), notify: true);
+
+  static Future<String> getLibrarySort() =>
+      _get('librarySort', 'recentlyAdded');
+  static Future<void> setLibrarySort(String value) =>
+      _set('librarySort', value);
 
   static Future<bool> getLibrarySortAsc() => _get('librarySortAsc', false);
-  static Future<void> setLibrarySortAsc(bool value) => _set('librarySortAsc', value);
+  static Future<void> setLibrarySortAsc(bool value) =>
+      _set('librarySortAsc', value);
 
   static Future<String> getLibraryFilter() => _get('libraryFilter', 'none');
-  static Future<void> setLibraryFilter(String value) => _set('libraryFilter', value);
+  static Future<void> setLibraryFilter(String value) =>
+      _set('libraryFilter', value);
 
-  static Future<String> getLibraryGenreFilter() => _get('libraryGenreFilter', '');
-  static Future<void> setLibraryGenreFilter(String? value) => _set('libraryGenreFilter', value ?? '');
+  static Future<String> getLibraryGenreFilter() =>
+      _get('libraryGenreFilter', '');
+  static Future<void> setLibraryGenreFilter(String? value) =>
+      _set('libraryGenreFilter', value ?? '');
 
   static Future<String> getLibraryTagFilter() => _get('libraryTagFilter', '');
-  static Future<void> setLibraryTagFilter(String? value) => _set('libraryTagFilter', value ?? '');
+  static Future<void> setLibraryTagFilter(String? value) =>
+      _set('libraryTagFilter', value ?? '');
 
   static Future<String> getLibraryMissingMetadataFilter() =>
       _get('libraryMissingMetadataFilter', '');
@@ -975,8 +1344,10 @@ class PlayerSettings {
   static Future<void> setLibraryFilterValueLabel(String? value) =>
       _set('libraryFilterValueLabel', value ?? '');
 
-  static Future<String> getLibrarySeriesFilter() => _get('librarySeriesFilter', 'none');
-  static Future<void> setLibrarySeriesFilter(String value) => _set('librarySeriesFilter', value);
+  static Future<String> getLibrarySeriesFilter() =>
+      _get('librarySeriesFilter', 'none');
+  static Future<void> setLibrarySeriesFilter(String value) =>
+      _set('librarySeriesFilter', value);
 
   static Future<int> getLibraryTab() => _get('libraryTab', 0);
   static Future<void> setLibraryTab(int value) => _set('libraryTab', value);
@@ -987,11 +1358,14 @@ class PlayerSettings {
 
   // ── Podcast library sort persistence ──
 
-  static Future<String> getPodcastSort() => _get('podcastSort', 'recentlyAdded');
-  static Future<void> setPodcastSort(String value) => _set('podcastSort', value);
+  static Future<String> getPodcastSort() =>
+      _get('podcastSort', 'recentlyAdded');
+  static Future<void> setPodcastSort(String value) =>
+      _set('podcastSort', value);
 
   static Future<bool> getPodcastSortAsc() => _get('podcastSortAsc', false);
-  static Future<void> setPodcastSortAsc(bool value) => _set('podcastSortAsc', value);
+  static Future<void> setPodcastSortAsc(bool value) =>
+      _set('podcastSortAsc', value);
 
   static Future<String> getPodcastFilter() => _get('podcastFilter', 'none');
   static Future<void> setPodcastFilter(String value) =>
@@ -1000,8 +1374,7 @@ class PlayerSettings {
       _get('podcastGenreFilter', '');
   static Future<void> setPodcastGenreFilter(String? value) =>
       _set('podcastGenreFilter', value ?? '');
-  static Future<String> getPodcastTagFilter() =>
-      _get('podcastTagFilter', '');
+  static Future<String> getPodcastTagFilter() => _get('podcastTagFilter', '');
   static Future<void> setPodcastTagFilter(String? value) =>
       _set('podcastTagFilter', value ?? '');
   static Future<String> getPodcastFilterValue() =>
@@ -1017,68 +1390,109 @@ class PlayerSettings {
   static Future<void> setSeriesSort(String value) => _set('seriesSort', value);
 
   static Future<bool> getSeriesSortAsc() => _get('seriesSortAsc', true);
-  static Future<void> setSeriesSortAsc(bool value) => _set('seriesSortAsc', value);
+  static Future<void> setSeriesSortAsc(bool value) =>
+      _set('seriesSortAsc', value);
 
   static Future<String> getListsSort() => _get('listsSort', 'alphabetical');
   static Future<void> setListsSort(String value) => _set('listsSort', value);
 
   static Future<bool> getListsSortAsc() => _get('listsSortAsc', true);
-  static Future<void> setListsSortAsc(bool value) => _set('listsSortAsc', value);
+  static Future<void> setListsSortAsc(bool value) =>
+      _set('listsSortAsc', value);
 
   static Future<String> getAuthorSort() => _get('authorSort', 'alphabetical');
   static Future<void> setAuthorSort(String value) => _set('authorSort', value);
 
   static Future<bool> getAuthorSortAsc() => _get('authorSortAsc', true);
-  static Future<void> setAuthorSortAsc(bool value) => _set('authorSortAsc', value);
+  static Future<void> setAuthorSortAsc(bool value) =>
+      _set('authorSortAsc', value);
 
-  static Future<String> getNarratorSort() => _get('narratorSort', 'alphabetical');
-  static Future<void> setNarratorSort(String value) => _set('narratorSort', value);
+  static Future<String> getNarratorSort() =>
+      _get('narratorSort', 'alphabetical');
+  static Future<void> setNarratorSort(String value) =>
+      _set('narratorSort', value);
 
   static Future<bool> getNarratorSortAsc() => _get('narratorSortAsc', true);
-  static Future<void> setNarratorSortAsc(bool value) => _set('narratorSortAsc', value);
+  static Future<void> setNarratorSortAsc(bool value) =>
+      _set('narratorSortAsc', value);
 
-  static Future<bool> getShowGoodreadsButton() => _get('showGoodreadsButton', false);
-  static Future<void> setShowGoodreadsButton(bool value) => _set('showGoodreadsButton', value);
+  static Future<bool> getShowGoodreadsButton() =>
+      _get('showGoodreadsButton', false);
+  static Future<void> setShowGoodreadsButton(bool value) =>
+      _set('showGoodreadsButton', value);
 
   static Future<bool> getLoggingEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('loggingEnabled') ?? false;
   }
+
   static Future<void> setLoggingEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('loggingEnabled', value);
   }
+  /// Whether the logging switch was ever set, by hand or from a backup.
+  static Future<bool> loggingChosen() async =>
+      (await SharedPreferences.getInstance()).containsKey('loggingEnabled');
 
   static Future<bool> getFullScreenPlayer() => _get('fullScreenPlayer', false);
-  static Future<void> setFullScreenPlayer(bool value) => _set('fullScreenPlayer', value);
+  static Future<void> setFullScreenPlayer(bool value) =>
+      _set('fullScreenPlayer', value);
+
+  // The Audible stars on the book detail sheet, and the lookup behind them.
+  static Future<bool> getShowAudibleRating() => _get('showAudibleRating', true);
+  static Future<void> setShowAudibleRating(bool value) =>
+      _set('showAudibleRating', value);
 
   // Ebook reader: turn pages with the volume keys. 'off' | 'normal'
   // (up = previous page, down = next, matching the ABS app) | 'mirrored'.
-  static Future<String> getEreaderVolumeNav() => _get('ereaderVolumeNav', 'off');
-  static Future<void> setEreaderVolumeNav(String value) => _set('ereaderVolumeNav', value, notify: true);
+  static Future<String> getEreaderVolumeNav() =>
+      _get('ereaderVolumeNav', 'off');
+  static Future<void> setEreaderVolumeNav(String value) =>
+      _set('ereaderVolumeNav', value, notify: true);
   // Keep turning pages with the volume keys even while audio is playing
   // (off = playing audio gives the keys back to system volume).
-  static Future<bool> getEreaderVolumeNavWhilePlaying() => _get('ereaderVolumeNavWhilePlaying', false);
-  static Future<void> setEreaderVolumeNavWhilePlaying(bool value) => _set('ereaderVolumeNavWhilePlaying', value, notify: true);
+  static Future<bool> getEreaderVolumeNavWhilePlaying() =>
+      _get('ereaderVolumeNavWhilePlaying', false);
+  static Future<void> setEreaderVolumeNavWhilePlaying(bool value) =>
+      _set('ereaderVolumeNavWhilePlaying', value, notify: true);
 
-  static Future<double> getEreaderAutoScrollSpeed() => _get('ereaderAutoScrollSpeed', 40.0);
-  static Future<void> setEreaderAutoScrollSpeed(double value) => _set('ereaderAutoScrollSpeed', value);
+  // Ebook reader: where the Translate button sends a selection. Empty means
+  // the first translator this device has (see TranslateService).
+  static Future<String> getEreaderTranslateWith() => _get('ereaderTranslateWith', '');
+  static Future<void> setEreaderTranslateWith(String value) => _set('ereaderTranslateWith', value);
+
+  static Future<double> getEreaderAutoScrollWpm() => _get('ereaderAutoScrollWpm', 250.0);
+  static Future<void> setEreaderAutoScrollWpm(double value) => _set('ereaderAutoScrollWpm', value);
   static Future<int> getEreaderAutoScrollSleepMinutes() => _get('ereaderAutoScrollSleepMinutes', 30);
   static Future<void> setEreaderAutoScrollSleepMinutes(int value) => _set('ereaderAutoScrollSleepMinutes', value);
 
   /// When on, the screen is locked to portrait (rotation disabled). Default off
   /// keeps the current behaviour where all orientations are allowed.
   static Future<bool> getLockPortrait() => _get('lockPortrait', false);
-  static Future<void> setLockPortrait(bool value) => _set('lockPortrait', value);
+  static Future<void> setLockPortrait(bool value) =>
+      _set('lockPortrait', value);
 
-  static Future<bool> getSnappyTransitions() => _get('snappyTransitions', false);
-  static Future<void> setSnappyTransitions(bool value) => _set('snappyTransitions', value);
+  static Future<bool> getSnappyTransitions() =>
+      _get('snappyTransitions', false);
+  static Future<void> setSnappyTransitions(bool value) =>
+      _set('snappyTransitions', value);
 
   static Future<bool> getClassicWording() => _get('classicWording', false);
-  static Future<void> setClassicWording(bool value) => _set('classicWording', value);
+  static Future<void> setClassicWording(bool value) =>
+      _set('classicWording', value);
 
   static Future<bool> getRectangleCovers() => _get('rectangleCovers', false);
-  static Future<void> setRectangleCovers(bool value) => _set('rectangleCovers', value, notify: true);
+  static Future<void> setRectangleCovers(bool value) =>
+      _set('rectangleCovers', value, notify: true);
+
+  /// How the player card's buttons are filled: 'clear' (no fill or edge),
+  /// 'subtle' (the long-standing look) or 'solid'. Cached for builders.
+  static String cardButtonFill = 'subtle';
+  static Future<String> getCardButtonFill() => _get('cardButtonFill', 'subtle');
+  static Future<void> setCardButtonFill(String value) async {
+    cardButtonFill = value;
+    await _set('cardButtonFill', value, notify: true);
+  }
 
   /// Cached value for synchronous access in grid builders.
   /// 'small' | 'medium' | 'large'; medium keeps the long-standing layout.
@@ -1097,7 +1511,10 @@ class PlayerSettings {
     return (v == 'rect' || v == 'square') ? v : null;
   }
 
-  static Future<void> setRectangleCoversOverride(String libraryId, String? value) async {
+  static Future<void> setRectangleCoversOverride(
+    String libraryId,
+    String? value,
+  ) async {
     if (value == null) {
       await ScopedPrefs.remove('rectangleCovers_$libraryId');
     } else {
@@ -1146,10 +1563,12 @@ class PlayerSettings {
   }
 
   static Future<bool> getSectionGridView() => _get('sectionGridView', false);
-  static Future<void> setSectionGridView(bool value) => _set('sectionGridView', value);
+  static Future<void> setSectionGridView(bool value) =>
+      _set('sectionGridView', value);
 
   static Future<bool> getCoverPlayButton() => _get('coverPlayButton', false);
-  static Future<void> setCoverPlayButton(bool value) => _set('coverPlayButton', value, notify: true);
+  static Future<void> setCoverPlayButton(bool value) =>
+      _set('coverPlayButton', value, notify: true);
 
   /// Absorbing-card background style: 'blurred' (cover blur, default), 'gradient'
   /// (gradient from the extracted cover colors), or 'off' (plain theme surface).
@@ -1162,12 +1581,19 @@ class PlayerSettings {
       _get('cardBackground', 'blurred');
   static Future<void> setCardBackground(String value) => _set('cardBackground', value, notify: true);
 
+  /// How the Absorbing cards move when swiped: 'classic' (side cards squeeze),
+  /// 'carousel' (they narrow into slivers) or 'stack' (new cards land on a
+  /// pile). Anything else is treated as classic.
+  static Future<String> getCardSwipeStyle() => _get('cardSwipeStyle', 'classic');
+  static Future<void> setCardSwipeStyle(String value) => _set('cardSwipeStyle', value, notify: true);
+
   // ── Self-signed certificates (global, not per-user) ──
 
   static Future<bool> getTrustAllCerts() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('trustAllCerts') ?? false;
   }
+
   static Future<void> setTrustAllCerts(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('trustAllCerts', value);
@@ -1179,6 +1605,7 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('includePreReleases') ?? false;
   }
+
   static Future<void> setIncludePreReleases(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('includePreReleases', value);
@@ -1186,15 +1613,18 @@ class PlayerSettings {
 
   // ── Local server ──
 
-  static Future<bool> getLocalServerEnabled() => _get('localServerEnabled', false);
-  static Future<void> setLocalServerEnabled(bool value) => _set('localServerEnabled', value);
+  static Future<bool> getLocalServerEnabled() =>
+      _get('localServerEnabled', false);
+  static Future<void> setLocalServerEnabled(bool value) =>
+      _set('localServerEnabled', value);
 
   static Future<String> getLocalServerUrl() => _get('localServerUrl', '');
-  static Future<void> setLocalServerUrl(String value) => _set('localServerUrl', value);
+  static Future<void> setLocalServerUrl(String value) =>
+      _set('localServerUrl', value);
 
   // ── Card button order ──
 
-  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'bookmarks', 'details', 'ebook', 'findinebook', 'lyrics', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'download'];
+  static const defaultButtonOrder = ['chapters', 'speed', 'sleep', 'night', 'bookmarks', 'details', 'ebook', 'findinebook', 'lyrics', 'equalizer', 'cast', 'airplay', 'history', 'remove', 'car', 'notes', 'wake', 'download'];
 
   static Future<List<String>> getCardButtonOrder() async {
     final stored = await ScopedPrefs.getStringList('card_button_order');
@@ -1204,7 +1634,9 @@ class PlayerSettings {
     }
     // Append any new buttons that were added since the user last saved their order
     final knownIds = allCardButtons.map((b) => b.id).toSet();
-    final result = stored.where((id) => knownIds.contains(id) || id == '_more').toList();
+    final result = stored
+        .where((id) => knownIds.contains(id) || id == '_more')
+        .toList();
     for (final b in allCardButtons) {
       if (!result.contains(b.id)) result.add(b.id);
     }
@@ -1241,23 +1673,38 @@ class PlayerSettings {
 
   static int _layoutToCount(String layout) {
     switch (layout) {
-      case 'compact': return 3;
-      case 'standard': return 4;
-      case 'row': return 5;
-      case 'expanded': return 6;
-      case 'full': return 9;
-      default: return 4;
+      case 'compact':
+        return 3;
+      case 'standard':
+        return 4;
+      case 'row':
+        return 5;
+      case 'expanded':
+        return 6;
+      case 'full':
+        return 9;
+      default:
+        return 4;
     }
   }
 
   static Future<bool> getCardIconsOnly() => _get('card_icons_only', false);
-  static Future<void> setCardIconsOnly(bool v) async { await _set('card_icons_only', v); _notify(); }
+  static Future<void> setCardIconsOnly(bool v) async {
+    await _set('card_icons_only', v);
+    _notify();
+  }
 
   static Future<bool> getCardSingleRow() => _get('card_single_row', false);
-  static Future<void> setCardSingleRow(bool v) async { await _set('card_single_row', v); _notify(); }
+  static Future<void> setCardSingleRow(bool v) async {
+    await _set('card_single_row', v);
+    _notify();
+  }
 
   static Future<bool> getCardMoreInline() => _get('card_more_inline', false);
-  static Future<void> setCardMoreInline(bool v) async { await _set('card_more_inline', v); _notify(); }
+  static Future<void> setCardMoreInline(bool v) async {
+    await _set('card_more_inline', v);
+    _notify();
+  }
 
   // ── Appearance ──
 
@@ -1272,6 +1719,7 @@ class PlayerSettings {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('language') ?? '';
   }
+
   static Future<void> setLanguage(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', value);
@@ -1281,7 +1729,8 @@ class PlayerSettings {
   /// 'manual' pins the app to [getManualSeedColor]. (Legacy values fall through
   /// to dynamic since only 'manual' is special-cased.)
   static Future<String> getColorSource() => _get('colorSource', 'dynamic');
-  static Future<void> setColorSource(String value) => _set('colorSource', value);
+  static Future<void> setColorSource(String value) =>
+      _set('colorSource', value);
 
   /// Whether the background gradient is removed (flat). In dark mode this also
   /// switches surfaces to pure black (OLED); in light mode to flat white.
@@ -1299,17 +1748,27 @@ class PlayerSettings {
   static Future<void> setEinkMode(bool v) => _set('einkMode', v);
 
   /// Seed color (ARGB int) used when [getColorSource] is 'manual'.
-  static Future<int> getManualSeedColor() => _get('manualSeedColor', 0xFF7C6FBF);
+  static Future<int> getManualSeedColor() =>
+      _get('manualSeedColor', 0xFF7C6FBF);
   static Future<void> setManualSeedColor(int v) => _set('manualSeedColor', v);
 
   /// Strength of the primary-tinted background gradient (top alpha, 0 = flat).
-  static Future<double> getGradientIntensity() => _get('gradientIntensity', 0.06);
-  static Future<void> setGradientIntensity(double v) => _set('gradientIntensity', v);
+  static Future<double> getGradientIntensity() =>
+      _get('gradientIntensity', 0.06);
+  static Future<void> setGradientIntensity(double v) =>
+      _set('gradientIntensity', v);
 
   /// When manual color is on, also apply it to per-book surfaces (detail sheets,
   /// absorbing card background) instead of each book's cover color.
-  static Future<bool> getUseColorEverywhere() => _get('useColorEverywhere', false);
-  static Future<void> setUseColorEverywhere(bool v) => _set('useColorEverywhere', v);
+  static Future<bool> getUseColorEverywhere() =>
+      _get('useColorEverywhere', false);
+  static Future<void> setUseColorEverywhere(bool v) =>
+      _set('useColorEverywhere', v);
+
+  /// Cover colors kept as close to the cover as the theme allows, instead of
+  /// the softer default.
+  static Future<bool> getTrueCoverColors() => _get('trueCoverColors', false);
+  static Future<void> setTrueCoverColors(bool v) => _set('trueCoverColors', v);
 
   /// Default start screen tab index: 0=Home, 1=Library, 2=Absorbing, 3=Stats, 4=Settings
   static Future<int> getStartScreen() => _get('startScreen', 2);
@@ -1317,15 +1776,22 @@ class PlayerSettings {
 
   /// Cached seed color from the last cover-art derivation, so we can show
   /// the correct color immediately on restart without waiting for the image.
-  static Future<int?> getCoverSeedColor() async => await ScopedPrefs.getInt('coverSeedColor');
-  static Future<void> setCoverSeedColor(int value) => _set('coverSeedColor', value);
+  static Future<int?> getCoverSeedColor() async =>
+      await ScopedPrefs.getInt('coverSeedColor');
+  static Future<void> setCoverSeedColor(int value) =>
+      _set('coverSeedColor', value);
 
   /// Check if an item has no audio content.
   /// For minified responses (library list), duration == 0 means no audio files.
   /// For full responses (detail sheet), we also check ebookFile + audioFiles.
-  static bool isEbookOnly(Map<String, dynamic> item) {
+  /// [countNarration] off asks about the server's own audio only, leaving
+  /// out an EPUB found to read itself aloud.
+  static bool isEbookOnly(Map<String, dynamic> item, {bool countNarration = true}) {
     // Podcasts are never eBook-only (minified podcasts lack duration/audioFiles)
     if ((item['mediaType'] as String?) == 'podcast') return false;
+    // BookOrbit Book Dock files have no tracks until they are filed.
+    if (item['bookDock'] != null) return false;
+    if (countNarration && NarratedBooks.contains(item['id'])) return false;
     final media = item['media'] as Map<String, dynamic>? ?? {};
     final duration = (media['duration'] as num?)?.toDouble() ?? 0;
     if (duration > 0) return false; // Has audio content
@@ -1335,7 +1801,8 @@ class PlayerSettings {
     final numAudioFiles = (media['numAudioFiles'] as num?)?.toInt() ?? 0;
     if ((audioFiles != null && audioFiles.isNotEmpty) ||
         (tracks != null && tracks.isNotEmpty) ||
-        numAudioFiles > 0) return false;
+        numAudioFiles > 0)
+      return false;
     return true; // No audio by any measure
   }
 

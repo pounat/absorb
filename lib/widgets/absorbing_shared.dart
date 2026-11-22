@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/download_service.dart';
 import '../services/playback_history_service.dart';
+import '../utils/app_platform.dart';
 import '../services/player_settings.dart';
 import 'overlay_toast.dart';
 
@@ -223,16 +224,26 @@ class DownloadWideButton extends StatefulWidget {
 }
 
 class _DownloadWideButtonState extends State<DownloadWideButton> {
-  final _dl = DownloadService();
+  DownloadService? _dl;
 
-  @override void initState() { super.initState(); _dl.addListener(_rebuild); }
-  @override void dispose() { _dl.removeListener(_rebuild); super.dispose(); }
+  @override void initState() {
+    super.initState();
+    if (!AppPlatform.lacksPhonePlugins) {
+      _dl = DownloadService()..addListener(_rebuild);
+    }
+  }
+  @override void dispose() {
+    _dl?.removeListener(_rebuild);
+    super.dispose();
+  }
   void _rebuild() { if (mounted) setState(() {}); }
 
   @override Widget build(BuildContext context) {
-    final downloading = _dl.isDownloading(widget.itemId);
-    final downloaded = _dl.isDownloaded(widget.itemId);
-    final progress = _dl.downloadProgress(widget.itemId);
+    final dl = _dl;
+    if (dl == null) return const SizedBox.shrink();
+    final downloading = dl.isDownloading(widget.itemId);
+    final downloaded = dl.isDownloaded(widget.itemId);
+    final progress = dl.downloadProgress(widget.itemId);
     final l = AppLocalizations.of(context)!;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -289,32 +300,103 @@ class _DownloadWideButtonState extends State<DownloadWideButton> {
   }
 
   void _handleTap(BuildContext context) async {
+    final dl = _dl;
+    if (dl == null) return;
     final auth = context.read<AuthProvider>();
     final api = auth.apiService;
     if (api == null) return;
     final l = AppLocalizations.of(context)!;
-    if (_dl.isDownloaded(widget.itemId)) {
+    if (dl.isDownloaded(widget.itemId)) {
+      final onPhone = await dl.onPhone(widget.itemId);
+      if (!context.mounted) return;
+      if (onPhone.audio && onPhone.ebookBytes != null && !onPhone.fromEbook) {
+        await _pickWhatToRemove(context, dl, onPhone);
+        return;
+      }
       showDialog(context: context, builder: (ctx) => AlertDialog(
         title: Text(l.removeDownloadQuestion),
         content: Text(l.removeDownloadContent),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
-          TextButton(onPressed: () {
-            _dl.deleteDownload(widget.itemId, byUser: true);
+          TextButton(onPressed: () async {
             Navigator.pop(ctx);
+            // A narrated EPUB's text and the audio taken out of it go together.
+            if (onPhone.fromEbook) await dl.deleteEbookCopy(widget.itemId);
+            await dl.deleteDownload(widget.itemId, byUser: true);
+            if (!context.mounted) return;
             showOverlayToast(context, l.downloadRemoved, icon: Icons.delete_outline_rounded);
           },
             child: Text(l.remove, style: const TextStyle(color: Colors.redAccent))),
         ],
       ));
-    } else if (_dl.isDownloading(widget.itemId)) {
-      _dl.cancelDownload(widget.itemId);
+    } else if (dl.isDownloading(widget.itemId)) {
+      dl.cancelDownload(widget.itemId);
     } else {
-      final error = await _dl.downloadItem(api: api, itemId: widget.itemId, title: widget.title, author: widget.author, coverUrl: widget.coverUrl, libraryId: context.read<LibraryProvider>().selectedLibraryId);
+      final error = await dl.downloadItem(api: api, itemId: widget.itemId, title: widget.title, author: widget.author, coverUrl: widget.coverUrl, libraryId: context.read<LibraryProvider>().selectedLibraryId);
       if (error != null && context.mounted) {
         showOverlayToast(context, error, icon: Icons.error_outline_rounded);
       }
     }
+  }
+
+  /// Both the audiobook and its ebook are on the phone: remove either or
+  /// both, everything picked to start with.
+  Future<void> _pickWhatToRemove(BuildContext context, DownloadService dl,
+      ({bool audio, int? audioBytes, int? ebookBytes, bool fromEbook}) onPhone) async {
+    final l = AppLocalizations.of(context)!;
+    String size(int? bytes) {
+      if (bytes == null) return '';
+      if (bytes < 1048576) return '${(bytes / 1024).ceil()} KB';
+      if (bytes < 1073741824) return '${(bytes / 1048576).toStringAsFixed(1)} MB';
+      return '${(bytes / 1073741824).toStringAsFixed(2)} GB';
+    }
+
+    var audio = true, ebook = true;
+    final remove = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text(l.removeDownloadQuestion),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(l.removeWhichDownload),
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: audio,
+              onChanged: (v) => setDialog(() => audio = v ?? false),
+              title: Text(l.fileInfoAudio),
+              subtitle: onPhone.audioBytes == null ? null : Text(size(onPhone.audioBytes)),
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: ebook,
+              onChanged: (v) => setDialog(() => ebook = v ?? false),
+              title: Text(l.fileInfoEbook),
+              subtitle: Text(size(onPhone.ebookBytes)),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
+            TextButton(
+              onPressed: audio || ebook ? () => Navigator.pop(ctx, true) : null,
+              child: Text(l.remove, style: TextStyle(color: audio || ebook ? Colors.redAccent : null)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (remove != true || !context.mounted) return;
+    if (audio && ebook) {
+      await dl.deleteEbookCopy(widget.itemId);
+      await dl.deleteDownload(widget.itemId, byUser: true);
+    } else if (audio) {
+      await dl.deleteAudioKeepEbook(widget.itemId);
+    } else {
+      await dl.deleteEbookCopy(widget.itemId);
+    }
+    if (!context.mounted) return;
+    showOverlayToast(context, audio ? l.downloadRemoved : l.ebookRemovedOffline,
+        icon: Icons.delete_outline_rounded);
   }
 }
 
@@ -378,4 +460,58 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WavePainter old) => old.phase != phase;
+}
+
+/// A rounded box's drop shadow, drawn only outside the box. A plain
+/// [BoxShadow] is painted under the box too, and the box's smoothed edge
+/// picked up that dark color: a thin black rim around white covers.
+class OutsideShadowDecoration extends Decoration {
+  final BorderRadius borderRadius;
+  final BoxShadow shadow;
+
+  const OutsideShadowDecoration({required this.borderRadius, required this.shadow});
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _OutsideShadowPainter(this);
+
+  @override
+  Path getClipPath(Rect rect, TextDirection textDirection) =>
+      Path()..addRRect(borderRadius.toRRect(rect));
+
+  @override
+  bool operator ==(Object other) =>
+      other is OutsideShadowDecoration &&
+      other.borderRadius == borderRadius &&
+      other.shadow == shadow;
+
+  @override
+  int get hashCode => Object.hash(borderRadius, shadow);
+}
+
+class _OutsideShadowPainter extends BoxPainter {
+  final OutsideShadowDecoration decoration;
+  _OutsideShadowPainter(this.decoration);
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final size = configuration.size;
+    if (size == null || size.isEmpty) return;
+    final rect = offset & size;
+    final box = decoration.borderRadius.toRRect(rect);
+    final s = decoration.shadow;
+    final reach = s.blurRadius * 2 + s.spreadRadius.abs() + s.offset.distance;
+    canvas.save();
+    // A pixel of room past the box, so its smoothed edge sits on whatever is
+    // behind the box rather than on the shadow.
+    canvas.clipPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(rect.inflate(reach)),
+        Path()..addRRect(box.inflate(1)),
+      ),
+      doAntiAlias: false,
+    );
+    canvas.drawRRect(box.shift(s.offset).inflate(s.spreadRadius), s.toPaint());
+    canvas.restore();
+  }
 }

@@ -30,6 +30,8 @@ class BackupService {
       'cardScrubberMode': (await PlayerSettings.getCardScrubberMode()).name,
       'showBookSlider': await PlayerSettings.getShowBookSlider(),
       'speedAdjustedTime': await PlayerSettings.getSpeedAdjustedTime(),
+      'keepScreenOnPlayer': await PlayerSettings.getKeepScreenOnInPlayer(),
+      'keepScreenOnCarMode': await PlayerSettings.getKeepScreenOnInCarMode(),
       'forwardSkip': await PlayerSettings.getForwardSkip(),
       'backSkip': await PlayerSettings.getBackSkip(),
       'longSkipButtons': await PlayerSettings.getLongSkipButtons(),
@@ -45,6 +47,7 @@ class BackupService {
       'sleepChime': await PlayerSettings.getSleepChime(),
       'sleepChimeVolume': await PlayerSettings.getSleepChimeVolume(),
       'hideEbookOnly': await PlayerSettings.getHideEbookOnly(),
+      'homeCardsOpenDetails': await PlayerSettings.getHomeCardsOpenDetails(),
       'collapseSeries': await PlayerSettings.getCollapseSeries(),
       'librarySort': await PlayerSettings.getLibrarySort(),
       'librarySortAsc': await PlayerSettings.getLibrarySortAsc(),
@@ -62,6 +65,7 @@ class BackupService {
       'queueAutoDownload': await PlayerSettings.getQueueAutoDownload(),
       'mergeAbsorbingLibraries': await PlayerSettings.getMergeAbsorbingLibrariesRaw(),
       'podcastTabEnabled': await PlayerSettings.getPodcastTabEnabled(),
+      'statsTabShown': await PlayerSettings.getStatsTabShown(),
       'podcastTabLibraryId': await PlayerSettings.getPodcastTabLibraryId(),
       'episodeNotifIntervalMinutes': await PlayerSettings.getEpisodeNotifIntervalMinutes(),
       'maxConcurrentDownloads': await PlayerSettings.getMaxConcurrentDownloads(),
@@ -70,10 +74,12 @@ class BackupService {
       'manualSeedColor': await PlayerSettings.getManualSeedColor(),
       'gradientIntensity': await PlayerSettings.getGradientIntensity(),
       'useColorEverywhere': await PlayerSettings.getUseColorEverywhere(),
+      'trueCoverColors': await PlayerSettings.getTrueCoverColors(),
       'snappyTransitions': await PlayerSettings.getSnappyTransitions(),
       'bookmarkSort': await PlayerSettings.getBookmarkSort(),
       'autoDownloadOnStream': await PlayerSettings.getAutoDownloadOnStream(),
       'notificationChapterProgress': await PlayerSettings.getNotificationChapterProgress(),
+      'nowPlayingLayout': await PlayerSettings.getNowPlayingLayout(),
       'sleepTimerMinutes': await PlayerSettings.getSleepTimerMinutes(),
       'sleepTimerChapters': await PlayerSettings.getSleepTimerChapters(),
       'streamingCacheSizeMb': await PlayerSettings.getStreamingCacheSizeMb(),
@@ -91,6 +97,7 @@ class BackupService {
       'cardMoreInline': await PlayerSettings.getCardMoreInline(),
       'rectangleCovers': await PlayerSettings.getRectangleCovers(),
       'coverSize': await PlayerSettings.getCoverSize(),
+      'cardButtonFill': await PlayerSettings.getCardButtonFill(),
       'coverPlayButton': await PlayerSettings.getCoverPlayButton(),
       'whenFinished': await PlayerSettings.getWhenFinished(),
       'sleepRewindSeconds': await PlayerSettings.getSleepRewindSeconds(),
@@ -109,6 +116,7 @@ class BackupService {
       'sectionGridView': await PlayerSettings.getSectionGridView(),
       'collapseBookSeries': await PlayerSettings.getCollapseBookSeries(),
       'showExplicitBadge': await PlayerSettings.getShowExplicitBadge(),
+      'showEbookBadge': await PlayerSettings.getShowEbookBadge(),
       'includePreReleases': await PlayerSettings.getIncludePreReleases(),
       'language': await PlayerSettings.getLanguage(),
       'showUpNextLabel': await PlayerSettings.getShowUpNextLabel(),
@@ -270,13 +278,14 @@ class BackupService {
         if (!key.startsWith(fullPrefix)) continue;
         final libraryId = key.substring(fullPrefix.length);
         final value = prefs.get(key);
-        if (value is! String && value is! int) continue;
+        if (value is! String && value is! int && value is! double) continue;
         librarySettings.putIfAbsent(libraryId, () => {})[field] = value;
       }
     }
     collectLibrarySetting('rectangleCovers_', 'coverShape');
     collectLibrarySetting('skipOverrideForward_', 'skipForward');
     collectLibrarySetting('skipOverrideBack_', 'skipBack');
+    collectLibrarySetting('speedOverride_', 'speed');
 
     // Per-item metadata overrides (scoped, keyed by itemId)
     final metadataOverrides = <String, String>{};
@@ -323,11 +332,13 @@ class BackupService {
     final ereader = <String, dynamic>{
       'fontSize': await ScopedPrefs.getInt('ereader_fontSize'),
       'lineHeight': await ScopedPrefs.getDouble('ereader_lineHeight'),
+      'alignLeft': await ScopedPrefs.getBool('ereader_alignLeft'),
       'marginH': await ScopedPrefs.getInt('ereader_margin_h'),
       'marginV': await ScopedPrefs.getInt('ereader_margin_v'),
       'spread': await ScopedPrefs.getInt('ereader_spread'),
       'theme': await ScopedPrefs.getString('ereader_theme'),
       'font': await ScopedPrefs.getString('ereader_font'),
+      'barAction': await ScopedPrefs.getString('ereader_bar_action'),
       'volumeNav': await PlayerSettings.getEreaderVolumeNav(),
       'volumeNavWhilePlaying': await PlayerSettings.getEreaderVolumeNavWhilePlaying(),
     };
@@ -534,6 +545,8 @@ class BackupService {
       await PlayerSettings.setShowBookSlider(s['showBookSlider'] as bool);
     }
     if (s['speedAdjustedTime'] != null) PlayerSettings.setSpeedAdjustedTime(s['speedAdjustedTime'] as bool);
+    if (s['keepScreenOnPlayer'] != null) PlayerSettings.setKeepScreenOnInPlayer(s['keepScreenOnPlayer'] as bool);
+    if (s['keepScreenOnCarMode'] != null) PlayerSettings.setKeepScreenOnInCarMode(s['keepScreenOnCarMode'] as bool);
     if (s['forwardSkip'] != null) PlayerSettings.setForwardSkip(s['forwardSkip'] as int);
     if (s['backSkip'] != null) PlayerSettings.setBackSkip(s['backSkip'] as int);
     if (s['shakeMode'] != null) PlayerSettings.setShakeMode(s['shakeMode'] as String);
@@ -550,6 +563,7 @@ class BackupService {
     if (s['sleepChime'] != null) PlayerSettings.setSleepChime(s['sleepChime'] as bool);
     if (s['sleepChimeVolume'] != null) PlayerSettings.setSleepChimeVolume((s['sleepChimeVolume'] as num).toDouble());
     if (s['hideEbookOnly'] != null) PlayerSettings.setHideEbookOnly(s['hideEbookOnly'] as bool);
+    if (s['homeCardsOpenDetails'] != null) PlayerSettings.setHomeCardsOpenDetails(s['homeCardsOpenDetails'] as bool);
     if (s['collapseSeries'] != null) PlayerSettings.setCollapseSeries(s['collapseSeries'] as bool);
     if (s['librarySort'] != null) PlayerSettings.setLibrarySort(s['librarySort'] as String);
     if (s['librarySortAsc'] != null) PlayerSettings.setLibrarySortAsc(s['librarySortAsc'] as bool);
@@ -582,6 +596,7 @@ class BackupService {
         s['podcastTabEnabled'] as bool,
       );
     }
+    if (s['statsTabShown'] != null) PlayerSettings.setStatsTabShown(s['statsTabShown'] as bool);
     if (s['episodeNotifIntervalMinutes'] != null) PlayerSettings.setEpisodeNotifIntervalMinutes(s['episodeNotifIntervalMinutes'] as int);
     if (s['maxConcurrentDownloads'] != null) PlayerSettings.setMaxConcurrentDownloads(s['maxConcurrentDownloads'] as int);
     if (s['colorSource'] != null) PlayerSettings.setColorSource(s['colorSource'] as String);
@@ -589,10 +604,12 @@ class BackupService {
     if (s['manualSeedColor'] != null) PlayerSettings.setManualSeedColor(s['manualSeedColor'] as int);
     if (s['gradientIntensity'] != null) PlayerSettings.setGradientIntensity((s['gradientIntensity'] as num).toDouble());
     if (s['useColorEverywhere'] != null) PlayerSettings.setUseColorEverywhere(s['useColorEverywhere'] as bool);
+    if (s['trueCoverColors'] is bool) PlayerSettings.setTrueCoverColors(s['trueCoverColors'] as bool);
     if (s['snappyTransitions'] != null) PlayerSettings.setSnappyTransitions(s['snappyTransitions'] as bool);
     if (s['bookmarkSort'] != null) PlayerSettings.setBookmarkSort(s['bookmarkSort'] as String);
     if (s['autoDownloadOnStream'] != null) PlayerSettings.setAutoDownloadOnStream(s['autoDownloadOnStream'] as bool);
     if (s['notificationChapterProgress'] != null) PlayerSettings.setNotificationChapterProgress(s['notificationChapterProgress'] as bool);
+    if (s['nowPlayingLayout'] is String) PlayerSettings.setNowPlayingLayout(s['nowPlayingLayout'] as String);
     if (s['sleepTimerMinutes'] != null) PlayerSettings.setSleepTimerMinutes(s['sleepTimerMinutes'] as int);
     if (s['sleepTimerChapters'] != null) PlayerSettings.setSleepTimerChapters(s['sleepTimerChapters'] as int);
     if (s['streamingCacheSizeMb'] != null) PlayerSettings.setStreamingCacheSizeMb(s['streamingCacheSizeMb'] as int);
@@ -610,6 +627,7 @@ class BackupService {
     if (s['cardMoreInline'] != null) PlayerSettings.setCardMoreInline(s['cardMoreInline'] as bool);
     if (s['rectangleCovers'] != null) PlayerSettings.setRectangleCovers(s['rectangleCovers'] as bool);
     if (s['coverSize'] != null) PlayerSettings.setCoverSize(s['coverSize'] as String);
+    if (s['cardButtonFill'] != null) PlayerSettings.setCardButtonFill(s['cardButtonFill'] as String);
     if (s['coverPlayButton'] != null) PlayerSettings.setCoverPlayButton(s['coverPlayButton'] as bool);
     if (s['sleepRewindSeconds'] != null) PlayerSettings.setSleepRewindSeconds(s['sleepRewindSeconds'] as int);
     if (s['sleepTimerTab'] != null) PlayerSettings.setSleepTimerTab(s['sleepTimerTab'] as int);
@@ -630,6 +648,7 @@ class BackupService {
     if (s['sectionGridView'] != null) await PlayerSettings.setSectionGridView(s['sectionGridView'] as bool);
     if (s['collapseBookSeries'] != null) await PlayerSettings.setCollapseBookSeries(s['collapseBookSeries'] as bool);
     if (s['showExplicitBadge'] != null) await PlayerSettings.setShowExplicitBadge(s['showExplicitBadge'] as bool);
+    if (s['showEbookBadge'] != null) await PlayerSettings.setShowEbookBadge(s['showEbookBadge'] as bool);
     if (s['includePreReleases'] != null) await PlayerSettings.setIncludePreReleases(s['includePreReleases'] as bool);
     if (s['language'] != null) await PlayerSettings.setLanguage(s['language'] as String);
     if (s['showUpNextLabel'] != null) await PlayerSettings.setShowUpNextLabel(s['showUpNextLabel'] as bool);
@@ -907,6 +926,7 @@ class BackupService {
         '${scopePrefix}rectangleCovers_',
         '${scopePrefix}skipOverrideForward_',
         '${scopePrefix}skipOverrideBack_',
+        '${scopePrefix}speedOverride_',
       ];
       final oldKeys = prefs
           .getKeys()
@@ -934,6 +954,8 @@ class BackupService {
             back: skipBack,
           );
         }
+        final speed = (settings['speed'] as num?)?.toDouble();
+        if (speed != null) await PlayerSettings.setSpeedOverride(libraryId, speed);
       }
     }
 
@@ -992,10 +1014,12 @@ class BackupService {
     if (er != null) {
       if (er['fontSize'] != null) await ScopedPrefs.setInt('ereader_fontSize', er['fontSize'] as int);
       if (er['lineHeight'] != null) await ScopedPrefs.setDouble('ereader_lineHeight', (er['lineHeight'] as num).toDouble());
+      if (er['alignLeft'] != null) await ScopedPrefs.setBool('ereader_alignLeft', er['alignLeft'] as bool);
       if (er['marginH'] != null) await ScopedPrefs.setInt('ereader_margin_h', er['marginH'] as int);
       if (er['marginV'] != null) await ScopedPrefs.setInt('ereader_margin_v', er['marginV'] as int);
       if (er['spread'] != null) await ScopedPrefs.setInt('ereader_spread', er['spread'] as int);
       if (er['theme'] != null) await ScopedPrefs.setString('ereader_theme', er['theme'] as String);
+      if (er['barAction'] != null) await ScopedPrefs.setString('ereader_bar_action', er['barAction'] as String);
       if (er['font'] != null) {
         final fontId = er['font'] as String;
         await ScopedPrefs.setString('ereader_font', fontId);

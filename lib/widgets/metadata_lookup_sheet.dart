@@ -1,10 +1,33 @@
 import 'dart:async';
+import 'expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/metadata_override_service.dart';
+import '../utils/desktop_workspace.dart';
 import 'overlay_toast.dart';
+
+const double metadataFieldPickerDesktopMaxWidth = 540;
+const double metadataFieldPickerDesktopMaxHeight = 720;
+const double metadataFieldPickerDesktopHeightFraction = 0.8;
+
+BoxConstraints? metadataFieldPickerDialogConstraints({
+  required bool desktop,
+  required double viewportHeight,
+}) {
+  if (!desktop) return null;
+  final availableHeight =
+      viewportHeight * metadataFieldPickerDesktopHeightFraction;
+  return BoxConstraints(
+    maxWidth: metadataFieldPickerDesktopMaxWidth,
+    maxHeight: availableHeight < metadataFieldPickerDesktopMaxHeight
+        ? availableHeight
+        : metadataFieldPickerDesktopMaxHeight,
+  );
+}
 
 /// Bottom sheet that lets users search for book metadata via the ABS server
 /// and pick a result to store as a local override, or manually edit fields.
@@ -208,6 +231,10 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
           final cs = Theme.of(ctx).colorScheme;
           final tt = Theme.of(ctx).textTheme;
           return AlertDialog(
+            constraints: metadataFieldPickerDialogConstraints(
+              desktop: isDesktopWorkspace(ctx),
+              viewportHeight: MediaQuery.sizeOf(ctx).height,
+            ),
             title: Text(l.metadataLookupChooseFields),
             content: SizedBox(
               width: double.maxFinite,
@@ -444,7 +471,7 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
               child: FilledButton.icon(
                 onPressed: _isSearching ? null : _doSearch,
                 icon: _isSearching
-                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                    ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                     : const Icon(Icons.search_rounded, size: 18),
                 label: Text(l.search),
                 style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -460,7 +487,7 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
         child: _isSearching
             ? ListView(controller: widget.scrollController, children: [
                 const SizedBox(height: 80),
-                Center(child: CircularProgressIndicator(strokeWidth: 2, color: cs.onSurfaceVariant.withValues(alpha: 0.5))),
+                Center(child: AdaptiveSpinner(strokeWidth: 2, color: cs.onSurfaceVariant.withValues(alpha: 0.5))),
               ])
             : _results.isEmpty
                 ? ListView(controller: widget.scrollController, children: [
@@ -622,7 +649,7 @@ class _MetadataLookupSheetState extends State<MetadataLookupSheet>
               child: SizedBox(
                 width: 60, height: 60,
                 child: cover.isNotEmpty
-                    ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                    ? CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: cover, fit: BoxFit.cover,
                         placeholder: (_, __) => _placeholder(cs),
                         errorWidget: (_, __, ___) => _placeholder(cs))
                     : _placeholder(cs),

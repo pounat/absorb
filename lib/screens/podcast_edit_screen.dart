@@ -1,11 +1,16 @@
 import 'dart:io';
+import '../widgets/expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart'
+    show ImageRenderMethodForWeb;
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../utils/desktop_workspace.dart';
+import '../widgets/desktop_page_body.dart';
 import '../widgets/overlay_toast.dart';
 
 /// Full-screen editor for a podcast show's info (title, author, description,
@@ -155,6 +160,7 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
     final l = AppLocalizations.of(context)!;
     final auth = context.read<AuthProvider>();
     final serverCover = '${auth.serverUrl}/api/items/${widget.itemId}/cover';
+    final isDesktop = isDesktopWorkspace(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -165,7 +171,7 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
             child: FilledButton.icon(
               onPressed: _saving ? null : _save,
               icon: _saving
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                  ? SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2, color: cs.onPrimary))
                   : const Icon(Icons.check_rounded, size: 18),
               label: Text(l.save),
               style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -173,10 +179,12 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(20, 12, 20,
-            32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
-        children: [
+      body: DesktopPageBody(
+        maxWidth: 760,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(20, 12, 20,
+              32 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom),
+          children: [
           // Cover
           Center(
             child: ClipRRect(
@@ -228,7 +236,7 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
             FilledButton.tonalIcon(
               onPressed: _coverSearching ? null : _searchCovers,
               icon: _coverSearching
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(width: 16, height: 16, child: AdaptiveSpinner(strokeWidth: 2))
                   : const Icon(Icons.search_rounded, size: 18),
               label: Text(l.search),
             ),
@@ -255,7 +263,7 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
                         border: _coverUrlCtrl.text == url ? Border.all(color: cs.primary, width: 2) : null,
                       ),
                       clipBehavior: Clip.antiAlias,
-                      child: CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
+                      child: CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: url, fit: BoxFit.cover),
                     ),
                   ),
               ],
@@ -266,7 +274,13 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
           // Text fields
           _field(l.titleLabel, _titleCtrl, tt),
           _field(l.authorLabel, _authorCtrl, tt),
-          _field(l.descriptionLabel, _descCtrl, tt, maxLines: 6),
+          _field(
+            l.descriptionLabel,
+            _descCtrl,
+            tt,
+            minLines: isDesktop ? 10 : null,
+            maxLines: isDesktop ? null : 6,
+          ),
           _field(l.genresLabel, _genresCtrl, tt, hint: l.commaSeparated),
           _field(l.tagsLabel, _tagsCtrl, tt, hint: l.commaSeparated),
           Row(children: [
@@ -276,18 +290,23 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
           ]),
           const SizedBox(height: 4),
           // Explicit
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(12)),
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(l.adminPodcastsExplicit, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
-              subtitle: Text(l.adminPodcastsExplicitSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-              value: _explicit,
-              onChanged: (v) => setState(() => _explicit = v),
+          Material(
+            color: cs.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(l.adminPodcastsExplicit, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
+                subtitle: Text(l.adminPodcastsExplicitSubtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                value: _explicit,
+                onChanged: (v) => setState(() => _explicit = v),
+              ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -299,10 +318,10 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
     final url = _coverUrlCtrl.text.trim();
     final headers = context.read<AuthProvider>().apiService?.mediaHeaders;
     if (url.isNotEmpty) {
-      return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+      return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, imageUrl: url, fit: BoxFit.cover,
         placeholder: (_, __) => _coverPlaceholder(cs), errorWidget: (_, __, ___) => _coverPlaceholder(cs));
     }
-    return CachedNetworkImage(
+    return CachedNetworkImage(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, 
       imageUrl: '$serverCover?v=$_coverVersion',
       httpHeaders: headers,
       fit: BoxFit.cover,
@@ -316,11 +335,13 @@ class _PodcastEditScreenState extends State<PodcastEditScreen> {
         child: Icon(Icons.podcasts_rounded, color: cs.onSurfaceVariant.withValues(alpha: 0.3), size: 32),
       );
 
-  Widget _field(String label, TextEditingController ctrl, TextTheme tt, {int maxLines = 1, String? hint}) {
+  Widget _field(String label, TextEditingController ctrl, TextTheme tt,
+      {int? minLines, int? maxLines = 1, String? hint}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: ctrl,
+        minLines: minLines,
         maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,

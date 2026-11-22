@@ -139,11 +139,21 @@ class ScopedPrefs {
 
   // ── Double ──
 
+  // A number saved under one type and read as the other (an older build, a
+  // restored backup, the browser store where every whole number comes back
+  // as an int) must not blow up the read: SharedPreferences hard-casts.
+  static num? _number(SharedPreferences prefs, String key) {
+    final value = prefs.get(key);
+    return value is num ? value : null;
+  }
+
   static Future<double?> getDouble(String key) async {
     final prefs = await SharedPreferences.getInstance();
     final scoped = _scope(key);
-    if (prefs.containsKey(scoped)) return prefs.getDouble(scoped);
-    if (_shouldFallback && prefs.containsKey(key)) return prefs.getDouble(key);
+    if (prefs.containsKey(scoped)) return _number(prefs, scoped)?.toDouble();
+    if (_shouldFallback && prefs.containsKey(key)) {
+      return _number(prefs, key)?.toDouble();
+    }
     return null;
   }
 
@@ -157,8 +167,10 @@ class ScopedPrefs {
   static Future<int?> getInt(String key) async {
     final prefs = await SharedPreferences.getInstance();
     final scoped = _scope(key);
-    if (prefs.containsKey(scoped)) return prefs.getInt(scoped);
-    if (_shouldFallback && prefs.containsKey(key)) return prefs.getInt(key);
+    if (prefs.containsKey(scoped)) return _number(prefs, scoped)?.round();
+    if (_shouldFallback && prefs.containsKey(key)) {
+      return _number(prefs, key)?.round();
+    }
     return null;
   }
 

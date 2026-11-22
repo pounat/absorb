@@ -2,12 +2,19 @@ part of 'library_provider.dart';
 
 mixin _StateMixin on ChangeNotifier {
   AuthProvider? _auth;
-  ApiService? get _api => _auth?.apiService;
+  // Signed out, the library makes no server calls and shows what is on the
+  // phone, like offline.
+  ApiService? get _api => _signedOut ? null : _auth?.apiService;
+  bool get _signedOut => _auth?.isSignedOut ?? false;
 
   List<dynamic> _libraries = [];
   bool _librariesFromCache = false;
   String? _selectedLibraryId;
   List<dynamic> _personalizedSections = [];
+  // Books and series just taken off the Continue shelves, kept off them
+  // until the server's own lists catch up.
+  final Map<String, DateTime> _hiddenShelfItems = {};
+  final Map<String, DateTime> _hiddenShelfSeries = {};
   List<dynamic> _series = [];
   bool _isLoading = false;
   bool _isLoadingSeries = false;
@@ -43,8 +50,13 @@ mixin _StateMixin on ChangeNotifier {
   static const _progressShelvesFetchCooldown = Duration(seconds: 20);
   static const _rssHydrationCooldown = Duration(minutes: 10);
   Timer? _progressRefreshDebounce;
+  Timer? _ebookSpotsSaveTimer;
+  // Saved ebook places are only written once they have been read back, so
+  // an early save can't replace them with a half-built list.
+  bool _ebookSpotsLoaded = false;
   static const _progressDrivenShelfIds = <String>[
     'continue-listening',
+    'continue-reading',
     'continue-series',
     'listen-again',
   ];
@@ -52,10 +64,12 @@ mixin _StateMixin on ChangeNotifier {
   List<dynamic> _playlists = [];
   bool _isLoadingPlaylists = false;
   Future<void>? _playlistsInFlight;
+  String? _playlistsInFlightFor;
 
   List<dynamic> _collections = [];
   bool _isLoadingCollections = false;
   Future<void>? _collectionsInFlight;
+  String? _collectionsInFlightFor;
 
   List<String> _sectionOrder = [];
   Set<String> _hiddenSectionIds = {};
@@ -84,6 +98,7 @@ mixin _StateMixin on ChangeNotifier {
   bool _isReconnecting = false;
   Timer? _serverPingTimer;
   Timer? _healthCheckTimer;
+  Timer? _bookOrbitPollTimer;
   Timer? _localProbeTimer;
   int _localProbeFailures = 0;
   DateTime? _localLastReachableAt;
@@ -136,7 +151,7 @@ mixin _StateMixin on ChangeNotifier {
   bool get isLoadingCollections => _isLoadingCollections;
   List<String> get sectionOrder => _sectionOrder;
   Set<String> get hiddenSectionIds => _hiddenSectionIds;
-  bool get isOffline => _manualOffline || _networkOffline;
+  bool get isOffline => _manualOffline || _networkOffline || _signedOut;
   bool get isManualOffline => _manualOffline;
   bool get isReconnecting => _isReconnecting;
   Set<String> get manualAbsorbAdds => _manualAbsorbAdds;
@@ -144,6 +159,20 @@ mixin _StateMixin on ChangeNotifier {
   List<String> get absorbingBookIds => _absorbingBookIds;
   Map<String, Map<String, dynamic>> get absorbingItemCache =>
       _absorbingItemCache;
+
+  /// The library an item belongs to, as far as this phone knows: the card
+  /// cache, then download metadata, then whatever is playing.
+  String? libraryIdOf(String itemId, {String? episodeId}) {
+    final key = episodeId != null ? '$itemId-$episodeId' : itemId;
+    final cached = _absorbingItemCache[key]?['libraryId'] as String? ??
+        _absorbingItemCache[itemId]?['libraryId'] as String?;
+    if (cached != null && cached.isNotEmpty) return cached;
+    final downloaded = DownloadService().getInfo(key).libraryId;
+    if (downloaded != null && downloaded.isNotEmpty) return downloaded;
+    final player = AudioPlayerService();
+    if (player.currentItemId == itemId) return player.currentLibraryId;
+    return null;
+  }
   String? get freshQueuedFrontKey => _freshQueuedFrontKey;
 
   Map<String, dynamic>? get selectedLibrary {
@@ -291,6 +320,18 @@ mixin _StateMixin on ChangeNotifier {
   void registerUpdatedAt(String id, int ts) {
     final cur = _itemUpdatedAt[id];
     if (cur == null || ts > cur) _itemUpdatedAt[id] = ts;
+    if (DownloadService().isDownloaded(id)) unawaited(_refreshSavedCover(id, ts));
+  }
+
+  /// A downloaded book shows its saved cover in Android Auto, on the watch
+  /// and in the playback notification; this keeps that copy current when the
+  /// cover changes on the server.
+  Future<void> _refreshSavedCover(String id, int ts) async {
+    final api = _api;
+    if (api == null || AppPlatform.lacksPhonePlugins) return;
+    if (!await DownloadService().refreshCoverIfStale(api, id, ts)) return;
+    AndroidAutoService.notifyItemUpdated(id, DateTime.now().millisecondsSinceEpoch);
+    AudioPlayerService().refreshArtwork(id);
   }
   /// Per-item "last changed on the server" tick, bumped on every socket
   /// item_updated. Widgets watch this to re-fetch when an item changes (e.g. an
@@ -398,6 +439,8 @@ mixin _StateMixin on ChangeNotifier {
     if (dl.localCoverPath != null) {
       return dl.localCoverPath;
     }
+    final kept = DownloadService().keptEbook(itemId);
+    if (kept?.localCoverPath != null) return kept!.localCoverPath;
 
     if (dl.status == DownloadStatus.none) {
       final match = DownloadService()
