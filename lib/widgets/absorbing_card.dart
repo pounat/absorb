@@ -650,7 +650,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   Color? get _backgroundCoverColor {
     if (PlayerSettings.einkMode) return null;
     if (colorSourceNotifier.value == 'manual' && useColorEverywhereNotifier.value) return null;
-    return _coverPaletteColor;
+    final c = _coverPaletteColor;
+    return c == null ? null : shownCoverColor(c);
   }
 
   void _pickCoverPaletteColor(ImageProvider provider, String coverIdentity) {

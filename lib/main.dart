@@ -46,6 +46,7 @@ import 'services/setup_link_service.dart';
 import 'services/tv_pairing.dart';
 import 'screens/sign_in_tv_screen.dart';
 import 'tv/tv_focus_ring.dart';
+import 'utils/cover_accent.dart';
 import 'tv/tv_pip.dart';
 import 'tv/tv_shell.dart';
 import 'tv/tv_pair_screen.dart';
@@ -435,19 +436,21 @@ class AbsorbApp extends StatelessWidget {
         // matches the chosen swatch. Flat mode also goes vibrant: with the
         // gradient glow gone, the accent color is the only place color shows,
         // so it needs to pop. Dynamic + non-flat keeps the softer default.
-        // True cover colors keep the cover's own color as far as contrast allows.
+        // True cover colors keeps the main color close to the cover.
         final variant = (isManual || isFlat)
             ? DynamicSchemeVariant.vibrant
             : DynamicSchemeVariant.tonalSpot;
-        final coverVariant = trueCoverColorsNotifier.value ? DynamicSchemeVariant.fidelity : variant;
+        final trueCover = !isManual && trueCoverColorsNotifier.value && coverSeedNotifier.value != null;
 
         ColorScheme darkScheme = isManual
             ? manualColorScheme(seedColor, Brightness.dark)
             : ColorScheme.fromSeed(
                 seedColor: seedColor,
                 brightness: Brightness.dark,
-                dynamicSchemeVariant: coverVariant,
+                dynamicSchemeVariant: variant,
               );
+
+        if (trueCover) darkScheme = trueCoverScheme(seedColor, darkScheme);
 
         // Keep dark surfaces neutral so cards/sheets match the scaffold and
         // app bars; the seed color shows through the gradient glow and accents,
@@ -467,8 +470,10 @@ class AbsorbApp extends StatelessWidget {
             : ColorScheme.fromSeed(
                 seedColor: seedColor,
                 brightness: Brightness.light,
-                dynamicSchemeVariant: coverVariant,
+                dynamicSchemeVariant: variant,
               );
+
+        if (trueCover) lightScheme = trueCoverScheme(seedColor, lightScheme);
 
         // Same idea in light: neutral surfaces, color from the glow + accents.
         // Flat goes clean white.
