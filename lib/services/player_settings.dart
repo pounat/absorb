@@ -1765,6 +1765,11 @@ class PlayerSettings {
   static Future<void> setUseColorEverywhere(bool v) =>
       _set('useColorEverywhere', v);
 
+  /// Cover colors kept as close to the cover as the theme allows, instead of
+  /// the softer default.
+  static Future<bool> getTrueCoverColors() => _get('trueCoverColors', false);
+  static Future<void> setTrueCoverColors(bool v) => _set('trueCoverColors', v);
+
   /// Default start screen tab index: 0=Home, 1=Library, 2=Absorbing, 3=Stats, 4=Settings
   static Future<int> getStartScreen() => _get('startScreen', 2);
   static Future<void> setStartScreen(int value) => _set('startScreen', value);

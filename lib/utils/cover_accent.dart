@@ -5,7 +5,17 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
 
+import '../main.dart' show trueCoverColorsNotifier;
 import '../services/scoped_prefs.dart';
+
+/// A book's colors from its cover color: softened, or kept as close to the
+/// cover as contrast allows when True cover colors is on.
+ColorScheme schemeFromCover(Color seed, Brightness brightness) => ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: brightness,
+      dynamicSchemeVariant:
+          trueCoverColorsNotifier.value ? DynamicSchemeVariant.fidelity : DynamicSchemeVariant.tonalSpot,
+    );
 
 /// The accent color of a cover, found once and remembered: in memory for
 /// this run and in the preferences across runs, so a sheet opening on a

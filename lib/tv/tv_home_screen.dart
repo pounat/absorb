@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
-import '../main.dart' show colorSourceNotifier, coverSchemeNotifier;
+import '../main.dart' show colorSourceNotifier, coverSeedNotifier;
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
@@ -134,10 +134,9 @@ class _TvHomeScreenState extends State<TvHomeScreen> with SingleTickerProviderSt
     final url = lib.getCoverUrl(id, width: 400);
     if (url == null || url.isEmpty) return;
     _themedFrom = id;
-    final brightness = Theme.of(context).brightness;
     CoverAccents.seed(url, CachedNetworkImageProvider(url, headers: lib.mediaHeaders)).then((seed) {
       if (seed == null || !mounted || _themedFrom != id) return;
-      coverSchemeNotifier.value = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
+      coverSeedNotifier.value = seed;
       PlayerSettings.setCoverSeedColor(seed.toARGB32());
     }).catchError((_) {
       if (_themedFrom == id) _themedFrom = null;

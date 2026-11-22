@@ -333,6 +333,7 @@ class _BackupSyncScreenState extends State<BackupSyncScreen> {
       if (settings?['manualSeedColor'] is int) applyManualSeed(settings!['manualSeedColor'] as int);
       if (settings?['gradientIntensity'] is num) applyGradientIntensity((settings!['gradientIntensity'] as num).toDouble());
       if (settings?['useColorEverywhere'] is bool) applyUseColorEverywhere(settings!['useColorEverywhere'] as bool);
+      if (settings?['trueCoverColors'] is bool) applyTrueCoverColors(settings!['trueCoverColors'] as bool);
       await applyOrientationLock();
 
       // The provider caches these lists in memory at account load, so without

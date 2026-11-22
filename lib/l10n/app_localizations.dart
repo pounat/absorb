@@ -25618,6 +25618,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tools'**
   String get settingsGroupTools;
+
+  /// No description provided for @trueCoverColorsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'True cover colors'**
+  String get trueCoverColorsLabel;
+
+  /// No description provided for @trueCoverColorsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep each book\'s color close to its cover instead of softening it'**
+  String get trueCoverColorsSubtitle;
 }
 
 class _AppLocalizationsDelegate

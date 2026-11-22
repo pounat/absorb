@@ -27,7 +27,7 @@ import 'card_playback_controls.dart';
 import 'card_buttons.dart';
 import 'expressive.dart';
 import '../services/chromecast_service.dart';
-import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme;
+import '../main.dart' show colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, manualColorScheme, trueCoverColorsNotifier;
 import '../utils/app_platform.dart';
 import '../utils/desktop_workspace.dart';
 import 'stable_cached_network_image.dart';
@@ -120,6 +120,7 @@ class AbsorbingCard extends StatefulWidget {
 class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   ColorScheme? _rawCoverScheme;
   Brightness? _coverBrightness; // brightness used to generate _coverScheme
+  bool? _coverTrue; // the True cover colors setting it was made with
 
   /// Cover-derived scheme, unless a manual app color is set to apply everywhere.
   ColorScheme? get _coverScheme {
@@ -716,10 +717,19 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     final coverIdentity = _coverProviderIdentity;
     if (provider == null || coverIdentity == null) return;
     final brightness = Theme.of(context).brightness;
-    if (_rawCoverScheme != null && _coverBrightness == brightness) return;
+    final trueColors = trueCoverColorsNotifier.value;
+    if (_rawCoverScheme != null && _coverBrightness == brightness && _coverTrue == trueColors) return;
     _coverBrightness = brightness;
-    ColorScheme.fromImageProvider(provider: provider, brightness: brightness)
+    _coverTrue = trueColors;
+    // True cover colors builds from the cover's own accent; the softer default
+    // keeps Material's read of the whole image.
+    final Future<ColorScheme?> scheme = trueColors
+        ? CoverAccents.seed(coverIdentity, provider)
+            .then((c) => c == null ? null : schemeFromCover(c, brightness))
+        : ColorScheme.fromImageProvider(provider: provider, brightness: brightness);
+    scheme
         .then((s) {
+          if (s == null) return;
           if (mounted &&
               _coverProviderIdentity == coverIdentity &&
               _coverBrightness == brightness) {

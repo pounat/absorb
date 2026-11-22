@@ -133,13 +133,13 @@ class _SeriesBooksSheetState extends State<SeriesBooksSheet> {
         : CachedNetworkImageProvider(imageRenderMethodForWeb: ImageRenderMethodForWeb.HttpGet, url, headers: context.read<LibraryProvider>().mediaHeaders);
     final known = CoverAccents.known(url);
     if (known != null) {
-      _coverScheme = ColorScheme.fromSeed(seedColor: known, brightness: brightness);
+      _coverScheme = schemeFromCover(known, brightness);
       if (mounted) setState(() {});
       return;
     }
     CoverAccents.seed(url, provider).then((seed) {
       if (seed == null || !mounted) return;
-      setState(() => _coverScheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness));
+      setState(() => _coverScheme = schemeFromCover(seed, brightness));
     }).catchError((e) {
       debugPrint('[SeriesSheet] palette failed: $e');
     });

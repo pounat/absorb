@@ -23,6 +23,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     SettingSearchEntry('Appearance', l.sectionAppearance, l.backgroundIntensityLabel, const []),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.colorSourceLabel, [l.colorSourceDynamic, l.colorSourceManual, l.colorSourceManualDescription, l.colorSourceCoverDescription, l.colorSourceCustom]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.useColorEverywhereLabel, [l.useColorEverywhereSubtitle]),
+    SettingSearchEntry('Appearance', l.sectionAppearance, l.trueCoverColorsLabel, [l.trueCoverColorsSubtitle]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.startScreenLabel, [l.startScreenSubtitle, l.startScreenHome, l.startScreenLibrary, w.startScreenAbsorb, l.startScreenStats]),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.progressTextSize, const []),
     SettingSearchEntry('Appearance', l.sectionAppearance, l.disablePageFade, [l.disablePageFadeOnSubtitle, l.disablePageFadeOffSubtitle]),

@@ -74,6 +74,7 @@ class BackupService {
       'manualSeedColor': await PlayerSettings.getManualSeedColor(),
       'gradientIntensity': await PlayerSettings.getGradientIntensity(),
       'useColorEverywhere': await PlayerSettings.getUseColorEverywhere(),
+      'trueCoverColors': await PlayerSettings.getTrueCoverColors(),
       'snappyTransitions': await PlayerSettings.getSnappyTransitions(),
       'bookmarkSort': await PlayerSettings.getBookmarkSort(),
       'autoDownloadOnStream': await PlayerSettings.getAutoDownloadOnStream(),
@@ -603,6 +604,7 @@ class BackupService {
     if (s['manualSeedColor'] != null) PlayerSettings.setManualSeedColor(s['manualSeedColor'] as int);
     if (s['gradientIntensity'] != null) PlayerSettings.setGradientIntensity((s['gradientIntensity'] as num).toDouble());
     if (s['useColorEverywhere'] != null) PlayerSettings.setUseColorEverywhere(s['useColorEverywhere'] as bool);
+    if (s['trueCoverColors'] is bool) PlayerSettings.setTrueCoverColors(s['trueCoverColors'] as bool);
     if (s['snappyTransitions'] != null) PlayerSettings.setSnappyTransitions(s['snappyTransitions'] as bool);
     if (s['bookmarkSort'] != null) PlayerSettings.setBookmarkSort(s['bookmarkSort'] as String);
     if (s['autoDownloadOnStream'] != null) PlayerSettings.setAutoDownloadOnStream(s['autoDownloadOnStream'] as bool);

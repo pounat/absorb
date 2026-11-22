@@ -122,9 +122,12 @@ final ValueNotifier<bool> snappyTransitionsNotifier = ValueNotifier(false);
 final ValueNotifier<Locale?> localeNotifier = ValueNotifier(null);
 
 
-/// Cover-art-derived ColorScheme for the currently playing item.
-/// null when nothing is playing or cover hasn't loaded yet.
-final ValueNotifier<ColorScheme?> coverSchemeNotifier = ValueNotifier(null);
+/// The color picked from the playing item's cover, which the theme is built
+/// from. null when nothing is playing or the cover hasn't loaded yet.
+final ValueNotifier<Color?> coverSeedNotifier = ValueNotifier(null);
+
+/// Cover colors kept close to the cover instead of softened.
+final ValueNotifier<bool> trueCoverColorsNotifier = ValueNotifier(false);
 
 /// Whether to trust all certificates (for self-signed / custom CA setups).
 /// Checked dynamically by [_CertOverrides] when any HttpClient is created.
@@ -201,6 +204,7 @@ void applyColorSource(String value) => colorSourceNotifier.value = value;
 void applyManualSeed(int argb) => manualSeedNotifier.value = Color(argb);
 void applyGradientIntensity(double value) => gradientIntensityNotifier.value = value;
 void applyUseColorEverywhere(bool value) => useColorEverywhereNotifier.value = value;
+void applyTrueCoverColors(bool value) => trueCoverColorsNotifier.value = value;
 
 /// E-ink mode overrides the theme (light, flat, monochrome, no animations)
 /// without touching the user's saved appearance settings. The notifier drives
@@ -228,6 +232,7 @@ Future<void> applyAppearanceFromPrefs() async {
   applyManualSeed(await PlayerSettings.getManualSeedColor());
   applyGradientIntensity(await PlayerSettings.getGradientIntensity());
   applyUseColorEverywhere(await PlayerSettings.getUseColorEverywhere());
+  applyTrueCoverColors(await PlayerSettings.getTrueCoverColors());
   await applyOrientationLock();
 }
 
@@ -312,6 +317,7 @@ void main(List<String> args) async {
     manualSeedNotifier.value = Color(await PlayerSettings.getManualSeedColor());
     gradientIntensityNotifier.value = await PlayerSettings.getGradientIntensity();
     useColorEverywhereNotifier.value = await PlayerSettings.getUseColorEverywhere();
+    trueCoverColorsNotifier.value = await PlayerSettings.getTrueCoverColors();
     final savedLang = await PlayerSettings.getLanguage();
     if (savedLang.isNotEmpty) localeNotifier.value = Locale(savedLang);
     snappyTransitionsNotifier.value = await PlayerSettings.getSnappyTransitions();
@@ -326,11 +332,7 @@ void main(List<String> args) async {
       final seedInt = await PlayerSettings.getCoverSeedColor();
       if (seedInt != null) {
         final seedColor = Color(seedInt);
-        coverSchemeNotifier.value = ColorScheme.fromSeed(
-          seedColor: seedColor,
-          brightness: parseThemeMode(await PlayerSettings.getThemeMode()) == ThemeMode.light
-              ? Brightness.light : Brightness.dark,
-        );
+        coverSeedNotifier.value = seedColor;
       }
     }
   } catch (_) {}
@@ -385,7 +387,8 @@ class AbsorbApp extends StatelessWidget {
         themeNotifier,
         flatNotifier,
         localeNotifier,
-        coverSchemeNotifier,
+        coverSeedNotifier,
+        trueCoverColorsNotifier,
         classicWordingNotifier,
         colorSourceNotifier,
         manualSeedNotifier,
@@ -407,7 +410,6 @@ class AbsorbApp extends StatelessWidget {
             (overrideLocale ?? WidgetsBinding.instance.platformDispatcher.locale)
                 .languageCode == 'ja';
         final cjkFallback = isJapanese ? const ['NotoSansJP'] : null;
-        final coverScheme = coverSchemeNotifier.value;
         final isManual = colorSourceNotifier.value == 'manual';
 
         // Set system chrome to match active theme
@@ -427,22 +429,24 @@ class AbsorbApp extends StatelessWidget {
         const defaultSeed = Color(0xFF7C6FBF); // deep muted purple
         final seedColor = isManual
             ? manualSeedNotifier.value
-            : (coverScheme?.primary ?? defaultSeed);
+            : (coverSeedNotifier.value ?? defaultSeed);
 
         // Manual presets use the vibrant variant so the app color closely
         // matches the chosen swatch. Flat mode also goes vibrant: with the
         // gradient glow gone, the accent color is the only place color shows,
         // so it needs to pop. Dynamic + non-flat keeps the softer default.
+        // True cover colors keep the cover's own color as far as contrast allows.
         final variant = (isManual || isFlat)
             ? DynamicSchemeVariant.vibrant
             : DynamicSchemeVariant.tonalSpot;
+        final coverVariant = trueCoverColorsNotifier.value ? DynamicSchemeVariant.fidelity : variant;
 
         ColorScheme darkScheme = isManual
             ? manualColorScheme(seedColor, Brightness.dark)
             : ColorScheme.fromSeed(
                 seedColor: seedColor,
                 brightness: Brightness.dark,
-                dynamicSchemeVariant: variant,
+                dynamicSchemeVariant: coverVariant,
               );
 
         // Keep dark surfaces neutral so cards/sheets match the scaffold and
@@ -463,7 +467,7 @@ class AbsorbApp extends StatelessWidget {
             : ColorScheme.fromSeed(
                 seedColor: seedColor,
                 brightness: Brightness.light,
-                dynamicSchemeVariant: variant,
+                dynamicSchemeVariant: coverVariant,
               );
 
         // Same idea in light: neutral surfaces, color from the glow + accents.
@@ -859,6 +863,7 @@ class _AuthGateState extends State<AuthGate> {
     manualSeedNotifier.value = Color(await PlayerSettings.getManualSeedColor());
     gradientIntensityNotifier.value = await PlayerSettings.getGradientIntensity();
     useColorEverywhereNotifier.value = await PlayerSettings.getUseColorEverywhere();
+    trueCoverColorsNotifier.value = await PlayerSettings.getTrueCoverColors();
     snappyTransitionsNotifier.value = await PlayerSettings.getSnappyTransitions();
     classicWordingNotifier.value = await PlayerSettings.getClassicWording();
     PlayerSettings.showExplicitBadge = await PlayerSettings.getShowExplicitBadge();
@@ -887,11 +892,7 @@ class _AuthGateState extends State<AuthGate> {
     {
       final seedInt = await PlayerSettings.getCoverSeedColor();
       if (seedInt != null) {
-        coverSchemeNotifier.value = ColorScheme.fromSeed(
-          seedColor: Color(seedInt),
-          brightness: parseThemeMode(scopedTheme) == ThemeMode.light
-              ? Brightness.light : Brightness.dark,
-        );
+        coverSeedNotifier.value = Color(seedInt);
       }
     }
 

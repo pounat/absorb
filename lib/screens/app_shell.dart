@@ -24,7 +24,7 @@ import 'package:cached_network_image_platform_interface/cached_network_image_pla
     show ImageRenderMethodForWeb;
 import '../utils/cover_accent.dart';
 import '../main.dart'
-    show snappyTransitionsNotifier, einkModeNotifier, coverSchemeNotifier, rootNavigatorKey, applyOrientationLock, applyEinkModeTheme;
+    show snappyTransitionsNotifier, einkModeNotifier, coverSeedNotifier, rootNavigatorKey, applyOrientationLock, applyEinkModeTheme;
 import '../services/scoped_prefs.dart';
 import '../services/native_tab_bar.dart';
 import '../widgets/expressive.dart';
@@ -941,18 +941,13 @@ class _AppShellState extends State<AppShell>
       );
     }
 
-    final brightness = Theme.of(context).brightness;
     CoverAccents.seed(coverUrl, provider)
         .then((seedColor) {
           if (seedColor == null) {
             _lastCoverItemId = null;
             return;
           }
-          final scheme = ColorScheme.fromSeed(
-            seedColor: seedColor,
-            brightness: brightness,
-          );
-          coverSchemeNotifier.value = scheme;
+          coverSeedNotifier.value = seedColor;
           PlayerSettings.setCoverSeedColor(seedColor.toARGB32());
         })
         .catchError((_) {

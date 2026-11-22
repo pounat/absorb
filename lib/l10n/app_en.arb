@@ -7810,5 +7810,7 @@
   "settingsGroupContact": "Get in touch",
   "settingsGroupLogs": "Logs",
   "settingsGroupConnection": "Connection",
-  "settingsGroupTools": "Tools"
+  "settingsGroupTools": "Tools",
+  "trueCoverColorsLabel": "True cover colors",
+  "trueCoverColorsSubtitle": "Keep each book's color close to its cover instead of softening it"
 }

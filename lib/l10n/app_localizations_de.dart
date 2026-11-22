@@ -15295,4 +15295,11 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsGroupTools => 'Tools';
+
+  @override
+  String get trueCoverColorsLabel => 'True cover colors';
+
+  @override
+  String get trueCoverColorsSubtitle =>
+      'Keep each book\'s color close to its cover instead of softening it';
 }

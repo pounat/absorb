@@ -45,7 +45,7 @@ import '../services/settings_sync_service.dart';
 import '../screens/change_password_screen.dart';
 import '../screens/auth_sessions_screen.dart';
 import '../screens/transcription_settings_screen.dart';
-import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
+import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyTrueCoverColors, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, gradientIntensityNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
 import '../services/native_tab_bar.dart';
 import '../widgets/expressive.dart';
@@ -349,6 +349,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   int _manualSeed = 0xFF7C6FBF;
   double _gradientIntensity = 0.06;
   bool _useColorEverywhere = false;
+  bool _trueCoverColors = false;
   String _language = '';
   int _startScreen = 2;
   final Map<String, int> _statsGoalMinutes = {
@@ -1316,6 +1317,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final manualSeed = await PlayerSettings.getManualSeedColor();
     final gradientIntensity = await PlayerSettings.getGradientIntensity();
     final useColorEverywhere = await PlayerSettings.getUseColorEverywhere();
+    final trueCoverColors = await PlayerSettings.getTrueCoverColors();
     final sleepButtonMode = await PlayerSettings.getSleepButtonMode();
     final statsGoalMinutes = <String, int>{
       for (final p in PlayerSettings.statsGoalPeriods)
@@ -1463,6 +1465,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       _manualSeed = manualSeed;
       _gradientIntensity = gradientIntensity;
       _useColorEverywhere = useColorEverywhere;
+      _trueCoverColors = trueCoverColors;
       _downloadLocationLabel = dlLabel;
       _totalDownloadSizeBytes = dlSize;
       if (deviceStorage != null) {
@@ -2949,6 +2952,17 @@ class SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          if (_colorSource != 'manual')
+            SettingsSwitchTile(
+              title: l.trueCoverColorsLabel,
+              subtitle: l.trueCoverColorsSubtitle,
+              value: _trueCoverColors,
+              onChanged: _loaded ? (v) {
+                setState(() => _trueCoverColors = v);
+                PlayerSettings.setTrueCoverColors(v);
+                applyTrueCoverColors(v);
+              } : null,
+            ),
           if (_colorSource == 'manual')
             SettingsSwitchTile(
               title: l.useColorEverywhereLabel,
