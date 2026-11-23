@@ -75,7 +75,6 @@ import '../services/app_icon_service.dart';
 import '../widgets/app_icon_picker.dart';
 import 'bookorbit_library_visibility_screen.dart';
 import '../widgets/cover_glow.dart';
-import '../widgets/appearance_preview.dart';
 import '../widgets/absorbing_card_preview.dart';
 
 class _SettingsSectionDestination {
@@ -2637,11 +2636,10 @@ class SettingsScreenState extends State<SettingsScreen> {
             SettingsPage(
               title: title,
               pinned: switch (id) {
-                'Appearance' => const AppearancePreview(),
-                'Absorbing Cards' => const AbsorbingCardPreview(),
+                'Appearance' || 'Absorbing Cards' => const AbsorbingCardPreview(),
                 _ => null,
               },
-              pinnedHeight: id == 'Absorbing Cards' ? AbsorbingCardPreview.height : AppearancePreview.height,
+              pinnedHeight: AbsorbingCardPreview.height,
               child: ListenableBuilder(
                 listenable: _rev,
                 builder: (pageContext, _) => Column(key: body, children: groups(pageContext)),

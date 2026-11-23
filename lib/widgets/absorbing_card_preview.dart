@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../main.dart' show flatNotifier;
+import '../main.dart' show einkModeNotifier, flatNotifier;
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
@@ -12,9 +12,9 @@ import 'absorbing_card.dart';
 import 'cover_glow.dart';
 
 /// The real card of the book playing (or the first one on the Absorbing
-/// page), shrunk to sit at the top of its settings. It is the card itself,
-/// so every setting under it shows as it will really look; it just can't be
-/// touched.
+/// page), shrunk to sit at the top of the Appearance and Absorbing Cards
+/// settings. It is the card itself, so every setting under it shows as it
+/// will really look; it just can't be touched.
 class AbsorbingCardPreview extends StatelessWidget {
   static const double height = 300;
 
@@ -46,9 +46,11 @@ class AbsorbingCardPreview extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            ValueListenableBuilder<bool>(
-              valueListenable: flatNotifier,
-              builder: (_, flat, __) => flat ? const SizedBox.shrink() : const CoverGlow(height: height - 18),
+            ListenableBuilder(
+              listenable: Listenable.merge([flatNotifier, einkModeNotifier]),
+              builder: (_, __) => flatNotifier.value || einkModeNotifier.value
+                  ? const SizedBox.shrink()
+                  : const CoverGlow(height: height - 18),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
