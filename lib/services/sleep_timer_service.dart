@@ -96,17 +96,22 @@ class SleepTimerService extends ChangeNotifier {
   // Singleton
   static final SleepTimerService _instance = SleepTimerService._();
   factory SleepTimerService() => _instance;
-  SleepTimerService._();
+  SleepTimerService._() : _cast = ChromecastService();
+
+  @visibleForTesting
+  SleepTimerService.forTesting(this._cast);
 
   final _player = AudioPlayerService();
-  final _cast = ChromecastService();
+  final ChromecastService _cast;
 
   // Counts a backstop cast reconnect (GH #338) as active too, so a transient
   // sender disconnect doesn't freeze the countdown - the receiver is almost
   // certainly still playing, and _triggerSleep's cast branch below knows how
   // to apply the pause once the reconnect lands.
   bool get _isPlaybackActive =>
-      _player.isPlaying || _cast.isPlaying || _cast.isReconnecting;
+      _cast.isCastEngaged
+          ? _cast.isReceiverActive || _cast.isReconnecting
+          : _player.isPlaying;
 
   // ── State ──
   SleepTimerMode _mode = SleepTimerMode.off;
@@ -115,6 +120,8 @@ class SleepTimerService extends ChangeNotifier {
   Duration _timeRemaining = Duration.zero;
   Duration _initialDuration = Duration.zero;
   Timer? _timer;
+  Timer? _castPauseCooldown;
+  int _timerGeneration = 0;
   
   // Chapter mode. We stop at the END of _targetChapterIndex, and it's
   // _targetEndSeconds that actually drives the trigger - comparing chapter
@@ -182,11 +189,13 @@ class SleepTimerService extends ChangeNotifier {
   
   void setTimeSleep(Duration duration) async {
     cancel();
+    final generation = _timerGeneration;
     _mode = SleepTimerMode.time;
     _timeRemaining = duration;
     _initialDuration = duration;
     _warningSent = false;
     final fadeSecs = await PlayerSettings.getSleepFadeDuration();
+    if (generation != _timerGeneration) return;
     _fadeThreshold = Duration(seconds: fadeSecs);
     _startTimeCountdown();
     _startShakeDetection();
@@ -200,18 +209,18 @@ class SleepTimerService extends ChangeNotifier {
     _timer?.cancel();
     _wasPlaying = _isPlaybackActive;
     _scheduleNextTick();
-    _player.removeListener(_onPlayerChanged);
-    _player.addListener(_onPlayerChanged);
+    _player.addListener(_onPlaybackChanged);
+    _cast.addListener(_onPlaybackChanged);
   }
 
   // The tick only samples playback every second, or every five in the
   // background, so a quick pause and play between two ticks never showed up
-  // as a resume and the timer did not reset (GH #415). The player's own
-  // change events catch every one.
+  // as a resume and the timer did not reset (GH #415). Listen to both player
+  // and receiver changes so a short pause is visible between ticks.
   bool _resumeResetInFlight = false;
 
-  void _onPlayerChanged() {
-    if (_mode != SleepTimerMode.time) return;
+  Future<void> _onPlaybackChanged() async {
+    if (_mode != SleepTimerMode.time || _isTriggeringSleep) return;
     final playing = _isPlaybackActive;
     if (!playing) {
       _wasPlaying = false;
@@ -220,13 +229,17 @@ class SleepTimerService extends ChangeNotifier {
     if (_wasPlaying || _resumeResetInFlight) return;
     _wasPlaying = true;
     _resumeResetInFlight = true;
-    PlayerSettings.getResetSleepOnPause().then((reset) {
-      _resumeResetInFlight = false;
-      if (!reset || _mode != SleepTimerMode.time) return;
+    final generation = _timerGeneration;
+    try {
+      final reset = await PlayerSettings.getResetSleepOnPause();
+      if (generation != _timerGeneration) return;
+      if (!reset || !_isPlaybackActive || _isTriggeringSleep) return;
       _resetToFull();
       debugPrint('[SleepTimer] Reset to ${_initialDuration.inMinutes}m on resume');
       onToast?.call('Sleep timer reset: ${_initialDuration.inMinutes}m');
-    });
+    } finally {
+      if (generation == _timerGeneration) _resumeResetInFlight = false;
+    }
   }
 
   void _scheduleNextTick() {
@@ -242,7 +255,7 @@ class SleepTimerService extends ChangeNotifier {
   }
 
   void _onTimerTick(Timer timer) async {
-    if (_tickInProgress) return;
+    if (_tickInProgress || _resumeResetInFlight) return;
     _tickInProgress = true;
     try {
       if (_mode != SleepTimerMode.time) return;
@@ -262,16 +275,12 @@ class SleepTimerService extends ChangeNotifier {
         return;
       }
 
-      // Detect pause->play transition and reset if setting is on
+      // Fallback for playback changes that did not notify either listener.
       if (!_wasPlaying) {
-        final resetOnPause = await PlayerSettings.getResetSleepOnPause();
-        if (resetOnPause) {
-          _resetToFull();
-          debugPrint('[SleepTimer] Reset to ${_initialDuration.inMinutes}m on resume');
-          onToast?.call('Sleep timer reset: ${_initialDuration.inMinutes}m');
-        }
+        final generation = _timerGeneration;
+        await _onPlaybackChanged();
+        if (generation != _timerGeneration) return;
       }
-      _wasPlaying = true;
 
       action = sleepTimerTickAction(
         timeRemaining: _timeRemaining,
@@ -561,9 +570,20 @@ class SleepTimerService extends ChangeNotifier {
     }
     _isTriggeringSleep = true;
     debugPrint('[SleepTimer] Triggering sleep — pausing playback');
+    final generation = _timerGeneration;
     try {
       if (_cast.isCastEngaged) {
-        await _cast.pauseNowOrOnReconnect();
+        if (_castPauseCooldown?.isActive == true) return;
+        final paused = await _cast.pauseNowOrOnReconnect();
+        if (generation != _timerGeneration) return;
+        if (!paused) {
+          // Ticks and position updates can both retry after expiry.
+          _castPauseCooldown = Timer(const Duration(seconds: 5), () {});
+          return;
+        }
+        if (_mode == SleepTimerMode.time && _timeRemaining > Duration.zero) {
+          return;
+        }
       } else {
         await _player.pause();
         // Restore volume so next playback starts at normal level
@@ -616,9 +636,11 @@ class SleepTimerService extends ChangeNotifier {
         : (asleepFor > _maxAsleepRewind ? _maxAsleepRewind : asleepFor);
     _isTriggeringSleep = true;
     debugPrint('[SleepTimer] Watch says asleep since $when (${asleepFor.inMinutes} min ago) - pausing playback');
+    final generation = _timerGeneration;
     try {
       if (_cast.isCastEngaged) {
-        await _cast.pauseNowOrOnReconnect();
+        final paused = await _cast.pauseNowOrOnReconnect();
+        if (!paused || generation != _timerGeneration) return;
       } else {
         await _player.pause();
         if (_isFadingOut) _player.setVolume(_fadeStartVolume);
@@ -684,11 +706,17 @@ class SleepTimerService extends ChangeNotifier {
   }
 
   void cancel() {
+    _timerGeneration++;
+    _resumeResetInFlight = false;
+    _castPauseCooldown?.cancel();
+    _castPauseCooldown = null;
+    _cast.cancelPendingSleepPause();
     final wasFading = _isFadingOut;
     _isFadingOut = false;
     _timer?.cancel();
     _timer = null;
-    _player.removeListener(_onPlayerChanged);
+    _player.removeListener(_onPlaybackChanged);
+    _cast.removeListener(_onPlaybackChanged);
     _positionSub?.cancel();
     _positionSub = null;
     if (_accelSub != null) debugPrint('[SleepTimer] Accelerometer stream stopped');

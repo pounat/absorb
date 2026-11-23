@@ -15,6 +15,7 @@ import 'api_service.dart';
 // real chromecast_button.dart, which is swapped for its stub alongside this.
 
 enum CastConnectionState { disconnected, connecting, connected }
+
 enum CastPlaybackState { idle, loading, playing, paused, buffering }
 
 class ChromecastService extends ChangeNotifier {
@@ -30,6 +31,9 @@ class ChromecastService extends ChangeNotifier {
   CastPlaybackState get playbackState => CastPlaybackState.idle;
   bool get isConnected => false;
   bool get isCasting => false;
+  bool get isCastEngaged => false;
+  bool get isReconnecting => false;
+  bool get isReceiverActive => false;
   bool get isPlaying => false;
 
   String? get castingItemId => null;
@@ -51,7 +55,9 @@ class ChromecastService extends ChangeNotifier {
   double get castSpeed => 1.0;
 
   static void setOnBookFinishedCallback(void Function(String itemId)? cb) {}
-  static void setOnPlaybackStateChangedCallback(void Function(bool isPlaying)? cb) {}
+  static void setOnPlaybackStateChangedCallback(
+    void Function(bool isPlaying)? cb,
+  ) {}
 
   Future<void> init() async {}
 
@@ -73,6 +79,8 @@ class ChromecastService extends ChangeNotifier {
 
   Future<void> play() async {}
   Future<void> pause() async {}
+  Future<bool> pauseNowOrOnReconnect() async => false;
+  void cancelPendingSleepPause() {}
   Future<void> togglePlayPause() async {}
 
   Future<void> seekTo(Duration position) async {}

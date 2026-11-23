@@ -221,10 +221,7 @@ class RemoteMediaClientMethodChannel : FlutterPlugin, MethodChannel.MethodCallHa
                 result.success(true)
             }
 
-            "pause" -> {
-                pause()
-                result.success(true)
-            }
+            "pause" -> pause(result)
             "stop" -> {
                 stop()
                 result.success(true)
@@ -318,8 +315,19 @@ class RemoteMediaClientMethodChannel : FlutterPlugin, MethodChannel.MethodCallHa
 
     }
 
-    private fun pause() {
-        currentRemoteMediaClient?.pause()
+    private fun pause(result: MethodChannel.Result) {
+        val client = currentRemoteMediaClient
+        if (client == null) {
+            result.error("CAST_NOT_CONNECTED", "No active Cast media client", null)
+            return
+        }
+        client.pause().setResultCallback { response ->
+            if (response.status.isSuccess) {
+                result.success(true)
+            } else {
+                result.error("CAST_PAUSE_FAILED", "Cast receiver did not accept pause", response.status.statusCode)
+            }
+        }
     }
 
     private fun play() {

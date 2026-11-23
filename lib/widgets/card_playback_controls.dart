@@ -174,7 +174,7 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
           child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_backSkip, false, size: skIcon))),
         )),
         if (widget.showPlayButton)
-          Flexible(child: _playPauseButton(cs, playing: cast.isPlaying, loading: false, onTap: cast.togglePlayPause)),
+          Flexible(child: _playPauseButton(cs, playing: cast.isReceiverActive, loading: false, onTap: cast.togglePlayPause)),
         Flexible(child: Pressable(focusCircle: true, 
           onTap: () => cast.skipForward(_forwardSkip),
           child: ExpressiveControlBox(soft: true, width: skBox, height: skBox, child: Center(child: _skipIcon(_forwardSkip, true, size: skIcon))),
