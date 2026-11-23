@@ -1,6 +1,7 @@
 {
   "@@locale": "it",
   "appTitle": "A B S O R B",
+  "newEpisodes": "Nuovi episodi",
   "loginTagline": "Avvia Absorbing",
   "loginServerHelper": "IP:port (ad es. 192.168.1.5:13378)",
   "loginAdvanced": "Avanzate",
