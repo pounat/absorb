@@ -486,6 +486,18 @@ class AndroidAutoService {
     return ts != null ? '$base?ts=$ts' : base;
   }
 
+  /// When a book's cover last changed, as its server says. Learning it for
+  /// the first time only stamps the cover address; a later change is passed
+  /// on like any other update.
+  static void noteCoverChangedAt(String itemId, int changedAt) {
+    final prev = _itemUpdatedAt[itemId];
+    if (prev == null) {
+      _itemUpdatedAt[itemId] = changedAt;
+    } else if (changedAt > prev) {
+      notifyItemUpdated(itemId, changedAt);
+    }
+  }
+
   static void notifyItemUpdated(String itemId, int updatedAt) {
     final prev = _itemUpdatedAt[itemId];
     if (prev == updatedAt) return;

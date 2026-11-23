@@ -29,6 +29,7 @@ import 'server_backend.dart';
 import 'socket_service.dart';
 import '../models/auth_session.dart';
 import '../utils/app_platform.dart';
+import 'android_auto_service.dart';
 import '../utils/server_url.dart';
 import '../utils/percent_escapes.dart';
 

@@ -1506,7 +1506,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   Map<String, dynamic> _cardItem(Map<String, dynamic> card, {String? libraryId}) {
     final id = '${card['id']}';
     final cv = card['coverVersion'] as String?;
-    if (cv != null) _coverVersions[_key(id)] = cv;
+    if (cv != null) _keepCoverVersion(_key(id), id, cv);
     if (libraryId != null) _bookLibrary[_key(id)] = libraryId;
     final manifest = _manifests[_key(id)];
     return BookOrbitMapper.item(
@@ -1527,11 +1527,35 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     return d;
   }
 
+  static final _coverVersionDate = RegExp(r'\d{4}-\d{2}-\d{2}T[0-9:.]+Z?');
+
+  /// Remembers a book's cover version, and tells the notification, the car
+  /// and the watch when the cover last changed: they keep their own copy of
+  /// it, which otherwise stayed the old picture after a cover was replaced.
+  void _keepCoverVersion(String k, String bookId, String version) {
+    if (_coverVersions[k] == version) return;
+    _coverVersions[k] = version;
+    if (AppPlatform.lacksPhonePlugins) return;
+    var newest = 0;
+    for (final m in _coverVersionDate.allMatches(version)) {
+      final at = DateTime.tryParse(m.group(0)!)?.millisecondsSinceEpoch ?? 0;
+      if (at > newest) newest = at;
+    }
+    if (newest > 0) AndroidAutoService.noteCoverChangedAt(bookId, newest);
+  }
+
   void _keepDetail(String k, Map<String, dynamic> d) {
     _details[k] = d;
     _detailAt[k] = DateTime.now();
     final cv = d['coverVersion'] as String?;
-    if (cv != null) _coverVersions[k] = cv;
+    final id = d['id'];
+    if (cv != null) {
+      if (id == null) {
+        _coverVersions[k] = cv;
+      } else {
+        _keepCoverVersion(k, '$id', cv);
+      }
+    }
     final lib = d['libraryId'];
     if (lib != null) _bookLibrary[k] = '$lib';
   }
