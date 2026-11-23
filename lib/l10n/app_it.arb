@@ -1,14 +1,140 @@
 {
   "@@locale": "it",
   "appTitle": "A B S O R B",
+  "online": "Online",
+  "offline": "Offline",
+  "stillOffline": "Ancora offline. Premi per riprovare",
+  "retry": "Riprova",
+  "listsNone": "Nessuna raccolta o playlist",
+  "listsNoneHint": "Le raccolte e le playlist vengono create sul tuo server Audiobookshelf e vengono visualizzate qui.",
+  "listsLoadFailed": "Impossibile caricare le tue liste",
+  "listsLoadFailedHint": "Absorb non è riuscito a connettersi al tuo server per le raccolte e le playlist.",
+  "listsNoneBookOrbit": "Nessuna raccolta o Smart Scopes",
+  "listsNoneHintBookOrbit": "Le raccolte e gli Smart Scope vengono creati sul tuo server BookOrbit e vengono visualizzati qui.",
+  "listsLoadFailedHintBookOrbit": "Absorb non è riuscito a connettersi al tuo server per le raccolte e gli Smart Scopes.",
+  "cancel": "Annulla",
+  "delete": "Elimina",
+  "remove": "Rimuovi",
+  "save": "Salva",
+  "done": "Fatto",
+  "edit": "Modifica",
+  "search": "Cerca",
+  "apply": "Applica",
+  "enable": "Abilita",
+  "clear": "Cancella",
+  "off": "Spento",
+  "disabled": "Disabilitato",
+  "later": "Più tardi",
+  "whatsNewTitle": "Absorb è stato aggiornato",
+  "whatsNewContent": "Sei alla versione {version}.",
+  "@whatsNewContent": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNewButton": "Scopri le novità",
+  "whatsNewKeepShowing": "Mostra questo messaggio dopo ogni aggiornamento",
+  "whatsNewKeepShowingHint": "Puoi riattivarlo nelle Impostazioni",
+  "settingsWhatsNew": "Mostra le novità dopo gli aggiornamenti",
+  "settingsWhatsNewSubtitle": "Dopo gli aggiornamenti di Absorb, compare una finestra pop-up con un link alle note di rilascio",
+  "gotIt": "Capito",
+  "betaLoggingTitle": "I log sono attivi",
+  "betaLoggingContent": "Trattandosi di una versione beta, Absorb ora registra i log per facilitare l'individuazione dei problemi. Questi rimangono su questo dispositivo a meno che non li condividi.\n\nPuoi inviarli o disattivarli nelle Impostazioni, nella sezione Problemi e assistenza. Se le disattivi, le versioni beta successive le manterranno disattivate.",
+  "preview": "Anteprima",
+  "or": "oppure",
+  "file": "File",
+  "more": "Altro",
+  "unknown": "Sconosciuto",
+  "untitled": "Senza Titolo",
+  "noThanks": "No, Grazie",
+  "stay": "Resta",
+  "homeTitle": "Home",
+  "continueListening": "Continua ad Ascoltare",
+  "continueReading": "Continua a Leggere",
+  "continueSeries": "Continua la Serie",
+  "recentlyAdded": "Aggiunti di Recente",
+  "listenAgain": "Ascolta di nuovo",
+  "discover": "Scopri",
   "newEpisodes": "Nuovi episodi",
+  "noDownloadedBooks": "Nessun libro scaricato",
+  "yourLibraryIsEmpty": "La tua libreria è vuota",
+  "downloadBooksWhileOnline": "Scarica libri mentre sei online per ascoltarli offline",
+  "customizeHome": "Personalizza La Home",
+  "dragToReorderTapEye": "Trascina per riordinare, tocca l'occhio per mostrare/nascondere",
   "loginTagline": "Avvia Absorbing",
+  "loginConnectToServer": "Connettiti al tuo server",
+  "loginServerAddress": "Indirizzo del server",
+  "loginServerHint": "mio.server.com",
   "loginServerHelper": "IP:port (ad es. 192.168.1.5:13378)",
+  "loginCouldNotReachServer": "Impossibile connettersi al server",
   "loginAdvanced": "Avanzate",
+  "loginCustomHttpHeaders": "HTTP Headers Personalizzate",
+  "loginCustomHeadersDescription": "Per tunnel Cloudflare o reverse proxy che richiedono headers aggiuntive. Aggiungi gli headers prima di inserire l'URL del server.",
   "loginHeaderName": "Nome intestazione",
   "loginHeaderValue": "Valore",
+  "loginAddHeader": "Aggiungi l'Header",
+  "loginSelfSignedCertificates": "Certificato auto-firmato",
   "loginTrustAllCertificates": "Fidati di tutti i certificati (per le impostazioni CA auto-firmate / personalizzate)",
+  "loginApiKey": "API Key",
+  "loginApiKeyDescription": "Usa una chiave API generata dall'amministratore invece di username/password. Utile quando l'aggiornamento del token fallisce per il tuo account.",
+  "loginWaitingForSso": "In attesa dell'SSO...",
+  "loginRedirectUri": "URI di reindirizzamento: absorb://oauth",
+  "loginOrSignInManually": "o accedi manualmente",
+  "loginUsername": "Nome utente",
+  "loginUsernameRequired": "Inserisci il tuo nome utente",
+  "loginPassword": "Password",
+  "loginSignIn": "Accedi",
+  "loginSignInAs": "Accedi come {username}?",
+  "@loginSignInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSignInToServer": "Accedere a questo server?",
+  "loginSignedInAs": "Connesso come {username}.",
+  "@loginSignedInAs": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminCreateSetupFile": "Condividi l'accesso",
+  "adminSetupFileDescription": "Crea un link di accesso privato per {username} che funziona solo nell'app Assorb.",
+  "@adminSetupFileDescription": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileServerUrl": "URL del server che il nuovo utente userà",
   "adminSetupFileNoteWithHeaders": "Una chiave API dedicata e le tue intestazioni personalizzate saranno incluse in modo che possano raggiungere il server. Trattare il link come una password.",
+  "adminSetupFileNote": "Sarà inclusa una chiave API dedicata. Tratta il link come una password.",
+  "adminSetupFileCreate": "Crea Link",
+  "adminSetupFileSaveTitle": "Salva il file di configurazione",
+  "adminSetupFileKeyError": "Impossibile creare una chiave API per questo utente",
+  "adminSetupFileSaved": "File di configurazione per {username} salvato",
+  "@adminSetupFileSaved": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSetupFileFailed": "Impossibile creare l'accesso: {error}",
+  "@adminSetupFileFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkShareTitle": "Condividi l'accesso",
   "setupLinkShareDescription": "Invia questo link privato o scansiona il codice QR per accedere come {username}.",
   "@setupLinkShareDescription": {
     "placeholders": {
@@ -17,6 +143,218 @@
       }
     }
   },
+  "setupLinkPrivateWarning": "Chiunque abbia questo link può accedere come {username}. Trattalo come una password.",
+  "@setupLinkPrivateWarning": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkShare": "Condividi il link",
+  "setupLinkCopy": "Copia il link",
+  "setupLinkCopied": "Link di Accesso Copiato",
+  "setupLinkSaveFile": "Salva il file di configurazione",
+  "setupLinkQrError": "Questo link di configurazione è troppo grande per un codice QR. Condividi invece il Link.",
+  "setupLinkShareSubject": "Absorb accedi come {username}",
+  "@setupLinkShareSubject": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkConfirmTitle": "Accedi con questo link?",
+  "setupLinkConfirmBody": "Accedi a {server} come {username}? Continuare solo se ti fidi di chi ha inviato questo link.",
+  "@setupLinkConfirmBody": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      },
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "setupLinkInvalid": "Questo link di accesso non è valido o incompleto",
+  "setupLinkSigningIn": "Controllo link di accesso...",
+  "loginPlayDownloads": "Riproduci i tuoi download",
+  "signedOutDownloadsNote": "Sei disconnesso. Tutto quello che ascolti ora sincronizzerà con {username} quando accederai di nuovo.",
+  "@signedOutDownloadsNote": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "loginPasteLink": "Incolla Link di accesso",
+  "loginPasteLinkHelp": "Incolla il link di accesso completo che hai ricevuto. Trattalo come una password.",
+  "loginSsoFailed": "Accesso SSO fallito o è stato annullato",
+  "loginSsoAuthFailed": "Autenticazione SSO non riuscita. Riprova.",
+  "loginRestoreFromBackup": "Importa",
+  "loginInvalidBackupFile": "File di backup non valido",
+  "loginRestoreBackupTitle": "Ripristinare il backup?",
+  "loginRestoreBackupWithAccounts": "Questo ripristinerà tutte le impostazioni e {count} account salvati. L'accesso avverrà automaticamente.",
+  "@loginRestoreBackupWithAccounts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loginRestoreBackupNoAccounts": "Questo ripristinerà tutte le impostazioni. Nessun account è stato incluso in questo backup.",
+  "loginRestore": "Ripristina",
+  "loginRestoredAndSignedIn": "Impostazioni ripristinate ed eseguito l'accesso come {username}",
+  "@loginRestoredAndSignedIn": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "loginSessionExpired": "Impostazioni ripristinate. Sessione scaduta - accedi per continuare.",
-  "libraryTitle": "Libreria"
+  "loginSettingsRestored": "Impostazioni ripristinate",
+  "loginRestoreFailed": "Ripristino non riuscito: {error}",
+  "@loginRestoreFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loginSavedAccounts": "account salvati",
+  "libraryTitle": "Libreria",
+  "librarySearchBooksHint": "Cerca libri, serie, autori, narratori...",
+  "librarySearchShowsHint": "Cerca spettacoli ed episodi...",
+  "libraryTabLibrary": "Libreria",
+  "libraryTabSeries": "Serie",
+  "libraryTabAuthors": "Autori",
+  "libraryTabNarrators": "Narratori",
+  "libraryNoBooks": "Nessun libro trovato",
+  "libraryNoUnfinishedBooks": "Nessun libro non completato",
+  "libraryNoBooksInProgress": "Nessun libro in lettura",
+  "libraryNoFinishedBooks": "Nessun libro terminato",
+  "libraryAllBooksStarted": "Tutti i libri sono stati cominciati",
+  "libraryNoDownloadedBooks": "Nessun libro scaricato",
+  "libraryNoSeriesFound": "Nessuna serie trovata",
+  "libraryNoBooksWithEbooks": "Nessun libro con gli eBook",
+  "libraryNoBooksMissingMetadata": "Nessun libro mancante di questo metadati",
+  "libraryNoItemsMatchingFilter": "Nessun elemento corrisponde a questo filtro",
+  "libraryNoBooksInGenre": "Nessun libro in \"{genre}\"",
+  "@libraryNoBooksInGenre": {
+    "placeholders": {
+      "genre": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryNoBooksWithTag": "Nessun libro taggato \"{tag}\"",
+  "@libraryNoBooksWithTag": {
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryClearFilter": "Rimuovi filtro",
+  "libraryNoAuthorsFound": "Nessun autore trovato",
+  "libraryNoNarratorsFound": "Nessun narratore trovato",
+  "libraryNoResults": "Nessun risultato trovato",
+  "librarySearchBooks": "Libri",
+  "librarySearchShows": "Spettacoli",
+  "librarySearchEpisodes": "Episodi",
+  "librarySearchSeries": "Serie",
+  "librarySearchAuthors": "Autori",
+  "librarySearchTags": "Tag",
+  "librarySearchGenres": "Generi",
+  "librarySeriesCount": "{count} serie",
+  "@librarySeriesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryAuthorsCount": "{count} autori",
+  "@libraryAuthorsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryNarratorsCount": "{count} narratori",
+  "@libraryNarratorsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryBooksCount": "{loaded}/{total} libri",
+  "@libraryBooksCount": {
+    "placeholders": {
+      "loaded": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sort": "Ordina",
+  "filter": "﻿Filtra",
+  "filterActive": "Filtra ●",
+  "name": "Nome",
+  "title": "Titolo",
+  "dateAdded": "Aggiunto in data",
+  "numberOfBooks": "Numero di Libri",
+  "sortTotalDuration": "Durata totale",
+  "sortLastBookAdded": "Ultimo libro aggiunto",
+  "sortLastBookUpdated": "Ultimo libro aggiornato",
+  "publishedYear": "Anno di pubblicazione",
+  "duration": "Durata",
+  "random": "Casuale",
+  "collapseSeries": "Raggruppa le serie",
+  "notFinished": "Non Finito",
+  "inProgress": "In Corso",
+  "filterFinished": "Finito",
+  "notStarted": "Non ancora iniziato",
+  "downloaded": "Scaricato",
+  "hasEbook": "Ha l'eBook",
+  "noEbook": "No eBook",
+  "hasSupplementaryEbook": "Ha un eBook supplementare",
+  "noSupplementaryEbook": "Nessun eBook supplementare",
+  "noSeries": "No Serie",
+  "publishedDecade": "Decennio Pubblicato",
+  "tracks": "Tracce",
+  "noTracks": "Nessuna Traccia",
+  "singleTrack": "Traccia Singola",
+  "multipleTracks": "Tracce Multiple",
+  "abridged": "Abbreviato",
+  "issues": "Problemi",
+  "rssFeedOpen": "Feed RSS Aperto",
+  "explicitContent": "Esplicito",
+  "missingMetadata": "Metadati mancanti",
+  "genre": "Genere",
+  "tag": "Tag",
+  "clearFilter": "Rimuovi Filtri",
+  "noGenresFound": "Nessun genere trovato",
+  "noTagsFound": "Nessun tag trovato",
+  "asc": "ASC",
+  "desc": "DISC",
+  "fileSize": "Dimensione File",
+  "lastUpdated": "Ultimo aggiornamento",
+  "fileCreated": "File Creato",
+  "lastModified": "Ultima Modifica",
+  "authorFirstLast": "Autore (Primo, Ultimo)",
+  "authorLastFirst": "Autore (Ultimo, Primo)",
+  "progressSort": "Progresso",
+  "dateStarted": "Data D'Inizio",
+  "dateFinished": "Data di Completamento",
+  "episodeCount": "Numero Di Episodi",
+  "sequence": "Sequenza Della Serie",
+  "absorbingTitle": "Assorbimento",
+  "absorbingStop": "Stop",
+  "absorbingManageQueue": "Gestisci la Coda"
 }
