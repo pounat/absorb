@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'glass_look.dart';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -1039,6 +1040,11 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
           // In landscape the card is wider than tall — switch to a two-pane
           // layout with the cover on the left and everything else on the right.
           final wide = cardConstraints.maxWidth > cardConstraints.maxHeight;
+          // Grown into the full player, the times and the chapter bar move
+          // out to the cover's edges.
+          final alignG = (wide || desktopPresentation || _rectangleCovers) ? 0.0 : g;
+          final grownInset = 4 + (cardConstraints.maxWidth - 8) * 0.025;
+          final statsInset = 24 + (grownInset - 24) * alignG;
 
           final statsRow = ValueListenableBuilder<bool>(
                 valueListenable: _edgeBarExpanded,
@@ -1048,7 +1054,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                   child: child,
                 ),
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(24, compact ? 6 : 10, 24, 0),
+                  padding: EdgeInsets.fromLTRB(statsInset, compact ? 6 : 10, statsInset, 0),
                   child: StreamBuilder<Duration>(
                     stream: _isCastingThis
                         ? cast.castPositionStream
@@ -1320,8 +1326,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
               );
 
           final scrubberBar = Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: CardDualProgressBar(player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId, compact: compact, libraryId: _resolveLibraryId()),
+                  padding: EdgeInsets.symmetric(horizontal: 20 * (1 - alignG)),
+                  child: CardDualProgressBar(grow: alignG, grownInset: grownInset, player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId, compact: compact, libraryId: _resolveLibraryId()),
                 );
 
           final controlsRow = Padding(
@@ -1521,57 +1527,67 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
             );
           }
 
+          // The thin book progress strip along the top of the times row.
+          final edgeBar = showBookBar && !desktopPresentation
+              ? CardEdgeProgressBar(
+                  player: widget.player,
+                  accent: accent,
+                  isActive: _isActive,
+                  staticProgress: progress,
+                  staticDuration: _effectiveDuration,
+                  chapters: _chapters,
+                  itemId: _itemId,
+                  expandedNotifier: _edgeBarExpanded,
+                )
+              : null;
+
           if (wide) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            return Stack(
+              fit: StackFit.expand,
               children: [
-                Expanded(child: coverArea),
-                Expanded(child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    statsRow,
-                    SizedBox(height: compact ? 6 : 10),
-                    scrubberBar,
-                    SizedBox(height: compact ? 6 : 10),
-                    controlsRow,
-                    SizedBox(height: compact ? 6 : 12),
-                    buttonGrid,
+                    Expanded(child: coverArea),
+                    Expanded(child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        statsRow,
+                        SizedBox(height: compact ? 6 : 10),
+                        scrubberBar,
+                        SizedBox(height: compact ? 6 : 10),
+                        controlsRow,
+                        SizedBox(height: compact ? 6 : 12),
+                        buttonGrid,
+                      ],
+                    )),
                   ],
-                )),
+                ),
+                if (edgeBar != null) Positioned(top: 0, left: 0, right: 0, child: edgeBar),
               ],
             );
           }
 
-          return Column(
+          final coverMaxW = (cardConstraints.maxWidth - 8) * (0.85 + 0.1 * g);
+          return CustomMultiChildLayout(
+            delegate: _CardColumnLayout(
+              grow: g,
+              coverNeed: (_rectangleCovers ? coverMaxW * 1.5 : coverMaxW) + 24,
+              gapAboveScrubber: compact ? 6 : 10,
+              gapAboveControls: compact ? 6 : 10,
+              gapAboveButtons: compact ? 6 : 12,
+              edgeInset: statsInset * alignG,
+            ),
             children: [
-              statsRow,
-              Expanded(child: coverArea),
-              SizedBox(height: compact ? 6 : 10),
-              scrubberBar,
-              SizedBox(height: compact ? 6 : 10),
-              controlsRow,
-              SizedBox(height: compact ? 6 : 12),
-              buttonGrid,
+              LayoutId(id: _CardSlot.stats, child: statsRow),
+              LayoutId(id: _CardSlot.cover, child: coverArea),
+              LayoutId(id: _CardSlot.scrubber, child: scrubberBar),
+              LayoutId(id: _CardSlot.controls, child: controlsRow),
+              LayoutId(id: _CardSlot.buttons, child: buttonGrid),
+              if (edgeBar != null) LayoutId(id: _CardSlot.edge, child: edgeBar),
             ],
           );
           })),
-          // Edge progress bar (thin strip at top of card)
-          if (!desktopPresentation && showBookBar)
-            Positioned(
-              top: liftInsets.top,
-              left: 0,
-              right: 0,
-              child: CardEdgeProgressBar(
-                player: widget.player,
-                accent: accent,
-                isActive: _isActive,
-                staticProgress: progress,
-                staticDuration: _effectiveDuration,
-                chapters: _chapters,
-                itemId: _itemId,
-                expandedNotifier: _edgeBarExpanded,
-              ),
-            ),
         ],
       ),
       ),
@@ -2040,6 +2056,74 @@ class _CardBody extends StatelessWidget {
 }
 
 /// How far the lifted card has grown, 0 at its slot to 1 at full screen.
+enum _CardSlot { stats, cover, scrubber, controls, buttons, edge }
+
+/// The card's column. As the card it is the times row on top, the cover in
+/// the middle of whatever height is left, and the controls at the bottom.
+/// Grown into the full player on a tall phone that left the cover floating
+/// between two empty gaps, so there the spare height is shared out instead:
+/// the times sit right on top of the cover and the gap above them and the
+/// three gaps under the cover each take an equal part.
+class _CardColumnLayout extends MultiChildLayoutDelegate {
+  final double grow;
+  /// The height the cover's area wants when the cover is as wide as it goes.
+  final double coverNeed;
+  final double gapAboveScrubber;
+  final double gapAboveControls;
+  final double gapAboveButtons;
+  final double edgeInset;
+
+  _CardColumnLayout({
+    required this.grow,
+    required this.coverNeed,
+    required this.gapAboveScrubber,
+    required this.gapAboveControls,
+    required this.gapAboveButtons,
+    required this.edgeInset,
+  });
+
+  @override
+  void performLayout(Size size) {
+    final row = BoxConstraints.tightFor(width: size.width);
+    final stats = layoutChild(_CardSlot.stats, row).height;
+    final scrubber = layoutChild(_CardSlot.scrubber, row).height;
+    final controls = layoutChild(_CardSlot.controls, row).height;
+    final buttons = layoutChild(_CardSlot.buttons, row).height;
+    final room = math.max(
+      0.0,
+      size.height - stats - scrubber - controls - buttons - gapAboveScrubber - gapAboveControls - gapAboveButtons,
+    );
+    final spare = math.max(0.0, room - coverNeed) * grow;
+    final share = spare / 4;
+    final cover = room - spare;
+    layoutChild(_CardSlot.cover, BoxConstraints.tightFor(width: size.width, height: cover));
+
+    var y = share;
+    positionChild(_CardSlot.stats, Offset(0, y));
+    if (hasChild(_CardSlot.edge)) {
+      layoutChild(_CardSlot.edge, BoxConstraints.tightFor(width: math.max(0.0, size.width - edgeInset * 2)));
+      positionChild(_CardSlot.edge, Offset(edgeInset, y));
+    }
+    y += stats;
+    positionChild(_CardSlot.cover, Offset(0, y));
+    y += cover + gapAboveScrubber + share;
+    positionChild(_CardSlot.scrubber, Offset(0, y));
+    y += scrubber + gapAboveControls + share;
+    positionChild(_CardSlot.controls, Offset(0, y));
+    y += controls + gapAboveButtons + share;
+    positionChild(_CardSlot.buttons, Offset(0, y));
+  }
+
+  @override
+  bool shouldRelayout(_CardColumnLayout old) =>
+      old.grow != grow ||
+      old.coverNeed != coverNeed ||
+      old.gapAboveScrubber != gapAboveScrubber ||
+      old.gapAboveControls != gapAboveControls ||
+      old.gapAboveButtons != gapAboveButtons ||
+      old.edgeInset != edgeInset;
+}
+
 class _CardLift extends InheritedWidget {
   final double t;
   const _CardLift({required this.t, required super.child});

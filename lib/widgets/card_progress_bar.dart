@@ -31,7 +31,11 @@ class CardDualProgressBar extends StatefulWidget {
   /// separate percent line above - saves a row on the full screen player.
   final bool showCenterPercent;
   final String? libraryId;
-  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showBookPercentage = false, this.showCenterPercent = false, this.libraryId});
+  /// 0 as the card, rising to 1 as it grows into the full player: the chapter
+  /// bar gets a little taller and its sides move out to [grownInset].
+  final double grow;
+  final double grownInset;
+  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showBookPercentage = false, this.showCenterPercent = false, this.libraryId, this.grow = 0, this.grownInset = 24});
   @override State<CardDualProgressBar> createState() => _CardDualProgressBarState();
 }
 
@@ -356,7 +360,7 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
         );
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: EdgeInsets.symmetric(horizontal: 24 + (widget.grownInset - 24) * widget.grow),
           child: Column(children: [
             // Book bar
             if (widget.showBookBar) ...[
@@ -425,7 +429,7 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
             // Chapter bar
             if (widget.showChapterBar) ...[
             // ── Chapter pill-scrubber ──
-            SizedBox(height: widget.compact ? 22 : 30, child: LayoutBuilder(builder: (_, cons) {
+            SizedBox(height: (widget.compact ? 22 : 30) + 8 * widget.grow, child: LayoutBuilder(builder: (_, cons) {
               final w = cons.maxWidth;
               final p = _chapterDragValue ?? chapterProgress;
               final isDragging = _chapterDragValue != null;
@@ -466,7 +470,7 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
                               style: TextStyle(
                                 color: cs.onSurface.withValues(alpha: 0.9),
                                 fontWeight: FontWeight.w600,
-                                fontSize: 12,
+                                fontSize: 12 + 1.5 * widget.grow,
                                 letterSpacing: 0.2,
                               ),
                             )
