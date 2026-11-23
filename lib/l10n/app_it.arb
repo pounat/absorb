@@ -58,6 +58,7 @@
   "listenAgain": "Ascolta di nuovo",
   "discover": "Scopri",
   "newEpisodes": "Nuovi episodi",
+  "downloads": "Scaricati",
   "noDownloadedBooks": "Nessun libro scaricato",
   "yourLibraryIsEmpty": "La tua libreria è vuota",
   "downloadBooksWhileOnline": "Scarica libri mentre sei online per ascoltarli offline",
@@ -189,6 +190,7 @@
   },
   "loginPasteLink": "Incolla Link di accesso",
   "loginPasteLinkHelp": "Incolla il link di accesso completo che hai ricevuto. Trattalo come una password.",
+  "loginFailed": "Login fallito",
   "loginSsoFailed": "Accesso SSO fallito o è stato annullato",
   "loginSsoAuthFailed": "Autenticazione SSO non riuscita. Riprova.",
   "loginRestoreFromBackup": "Importa",
@@ -307,6 +309,7 @@
   "filterActive": "Filtra ●",
   "name": "Nome",
   "title": "Titolo",
+  "author": "Autore",
   "dateAdded": "Aggiunto in data",
   "numberOfBooks": "Numero di Libri",
   "sortTotalDuration": "Durata totale",
@@ -356,5 +359,375 @@
   "sequence": "Sequenza Della Serie",
   "absorbingTitle": "Assorbimento",
   "absorbingStop": "Stop",
-  "absorbingManageQueue": "Gestisci la Coda"
+  "absorbingManageQueue": "Gestisci la Coda",
+  "desktopAbsorbingQueueHint": "Usa Aggiungi ad Assorbimento su un libro o un episodio per metterlo qui. Gli oggetti giocano in questo ordine.",
+  "absorbingDone": "Fatto",
+  "absorbingNoDownloadedEpisodes": "Nessun episodio scaricato",
+  "absorbingNoDownloadedBooks": "Nessun libro scaricato",
+  "absorbingNothingPlayingYet": "Ancora niente in riproduzione",
+  "absorbingNothingAbsorbingYet": "Ancora nulla di assorbimento",
+  "absorbingDownloadEpisodesToListen": "Scarica episodi per ascoltare offline",
+  "absorbingDownloadBooksToListen": "Scarica libri per ascoltarli offline",
+  "absorbingStartEpisodeFromShows": "Avvia un episodio dalla scheda Spettacoli",
+  "absorbingStartBookFromLibrary": "Avvia un libro dalla scheda Libreria",
+  "carModeTitle": "Modalità Auto",
+  "carModeNoBookLoaded": "Nessun libro caricato",
+  "carModeBookLabel": "Libro",
+  "carModeChapterLabel": "Capitolo",
+  "carModeBookmarkDefault": "Segnalibro",
+  "carModeBookmarkAdded": "Segnalibro aggiunto",
+  "downloadsTitle": "Downloads",
+  "downloadsCancelSelection": "Annulla selezione",
+  "downloadsSelect": "Seleziona",
+  "downloadsNoDownloads": "Nessun download",
+  "downloadsDownloading": "Download in corso",
+  "downloadsQueued": "Coda",
+  "downloadsCompleted": "Completato",
+  "downloadsEbooks": "Ebook",
+  "downloadsWaiting": "Attendere...",
+  "downloadsCancel": "Annulla",
+  "downloadsDelete": "Elimina",
+  "downloadsDeleteCount": "Eliminare {count} download?",
+  "@downloadsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsDeleteContent": "I file scaricati verranno rimossi da questo dispositivo.",
+  "downloadsDeletedCount": "Eliminati {count} download",
+  "@downloadsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsRemoveTitle": "Rimuovere il download?",
+  "downloadsRemoveContent": "Eliminare \"{title}\" da questo dispositivo?",
+  "@downloadsRemoveContent": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsRemovedTitle": "\"{title}\" rimosso",
+  "@downloadsRemovedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedMissingFile": "Impossibile scaricare \"{title}\" - uno dei suoi file non è sul server. Una scansione della libreria potrebbe risolvere.",
+  "@downloadFailedMissingFile": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedNoSpace": "Impossibile scaricare \"{title}\" - non c'è abbastanza spazio di archiviazione",
+  "@downloadFailedNoSpace": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedPermission": "Impossibile scaricare \"{title}\" - controllare la posizione di download in Impostazioni",
+  "@downloadFailedPermission": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailedGeneric": "Impossibile scaricare \"{title}\"",
+  "@downloadFailedGeneric": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsSelectedCount": "{count} selezionati",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksTitle": "Tutti i segnalibri",
+  "bookmarksTabBookmarks": "Segnalibri",
+  "bookmarksTabHighlights": "In Evidenza",
+  "highlightOpenInBook": "Apri nel libro",
+  "highlightDeleteAction": "Elimina contenuto in evidenza",
+  "highlightDeleted": "Evidenziazione eliminata",
+  "highlightsDeleteCount": "Eliminare {count} contenuti in evidenza ?",
+  "@highlightsDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "highlightsDeletedCount": "Eliminati  {count} contenuti in evidenza",
+  "@highlightsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "quoteShareTitle": "Condividi citazione",
+  "quoteShareAction": "Condividi",
+  "quoteShareFailed": "Impossibile creare l'immagine di citazione",
+  "quoteShapePortrait": "Ritratto",
+  "quoteShapeSquare": "Quadrato",
+  "quoteShapeStory": "Storia",
+  "statsFinished": "Finito",
+  "statsBooksFinished": "Libri",
+  "statsEpisodesFinished": "Episodi",
+  "statsBooksThisYear": "Libri di quest'anno",
+  "statsEpisodesThisYear": "Episodi di quest'anno",
+  "statsRemoveFromYearTitle": "Rimuovi da quest'anno",
+  "statsRemoveFromYearWithDate": "La data finale sarà ancora {date} sul server. Questo rimuove solo \"{title}\" ",
+  "@statsRemoveFromYearWithDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsRemoveFromYearNoDate": "La data finale rimane sul server. Questo rimuove solo \"{title}\" dalla tua lista dei Libri di quest'anno  Absorb.",
+  "@statsRemoveFromYearNoDate": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsRemovedFromYear": "Rimosso da quest'anno",
+  "statsAddBackToYearTitle": "Aggiungi a questo anno",
+  "statsAddBackToYearBody": "Aggiungi \"{title}\" di nuovo alla lista dei Libri di quest'anno Absorb?",
+  "@statsAddBackToYearBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "statsAddBack": "Aggiungi di nuovo",
+  "statsAddedBackToYear": "Aggiunto di nuovo a quest'anno",
+  "statsHiddenFromYear": "Nascosto da quest'anno",
+  "statsNothingHidden": "Niente di nascosto",
+  "settingsCustomizeStats": "Personalizza le statistiche",
+  "statsGoalTitle": "Obiettivo di ascolto",
+  "statsGoalOff": "Spento",
+  "statsGoalDaily": "Giornaliero",
+  "statsGoalWeekly": "Settimanale",
+  "statsGoalMonthly": "Mensile",
+  "statsGoalTarget": "Target",
+  "statsGoalEnterTitle": "Imposta target",
+  "statsGoalEnterTimeHint": "Minuti o h:mm",
+  "statsBooksShort": "{count} libri",
+  "@statsBooksShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsBookChallengeTitle": "Sfida di lettura",
+  "statsBookChallengeDesc": "Libri da finire quest'anno",
+  "statsDailyGoal": "Obiettivo giornaliero",
+  "statsWeeklyGoal": "Obiettivo settimanale",
+  "statsMonthlyGoal": "Obiettivo mensile",
+  "statsGoalProgress": "{done} / {target}",
+  "@statsGoalProgress": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "statsBookChallengeProgress": "{done} di {target} libri",
+  "@statsBookChallengeProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "statsGoalReached": "Obiettivo raggiunto",
+  "statsChartTitle": "Grafico di ascolto",
+  "statsChartBar": "Barra",
+  "statsChartLine": "Linea",
+  "statsChartHeatmap": "Heatmap",
+  "statsChartDays7": "7 giorni",
+  "statsChartDays30": "30 giorni",
+  "statsLast30Days": "Ultimi 30 giorni",
+  "statsThisYearTitle": "Quest'anno",
+  "statsSectionsTitle": "Sezioni",
+  "statsSectionTimePeriods": "Periodi di tempo",
+  "statsHeatmapLess": "Di meno",
+  "statsHeatmapMore": "Di più",
+  "statsDayOfWeek": "Media per giorno della settimana",
+  "statsTimeSavedLabel": "Risparmiato grazie alla velocità",
+  "statsTimeSavedSince": "dal {date}",
+  "@statsTimeSavedSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "statsTimeSavedReset": "Reimposta tempo risparmiato",
+  "statsTimeSavedResetConfirm": "Il tempo risparmiato inizierà il conteggio di nuovo da oggi.",
+  "statsTimeSavedResetDone": "Tempo risparmiato salvato",
+  "statsOnPaceFor": "In linea con l'obiettivo di {count} libri",
+  "@statsOnPaceFor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsDaysActive": "Giorni Attivi",
+  "statsDailyAverage": "Media giornaliera",
+  "statsLast7Days": "Ultimi 7 Giorni",
+  "statsMostListened": "Più ascoltati",
+  "statsRecentSessions": "Sessioni Recenti",
+  "appShellHomeTab": "Home",
+  "appShellLibraryTab": "Libreria",
+  "appShellAbsorbingTab": "Assorbimento",
+  "appShellStatsTab": "Statistiche",
+  "appShellSettingsTab": "Impostazioni",
+  "appShellDiscoverTab": "Scopri",
+  "appShellShowsTab": "Spettacoli",
+  "appShellPodcastsTab": "Podcast",
+  "libraryTabEpisodes": "Episodi",
+  "filterAllEpisodes": "Tutti",
+  "filterUnplayed": "Non Riprodotti",
+  "episodeFeedEmpty": "Nessun episodio corrisponde a questo filtro",
+  "podcastFilterUpNext": "Successivo",
+  "podcastFilterNew": "Nuovo ",
+  "settingsPodcastTab": "Scheda Podcast",
+  "settingsPodcastTabDesc": "Assegna a una libreria podcast la sua scheda nella barra in basso",
+  "settingsPodcastTabLibrary": "Libreria schede Podcast",
+  "settingsStatsTab": "Scheda delle statistiche",
+  "settingsStatsTabDesc": "Mantieni le statistiche nella barra inferiore. Disattivalo per avere più spazio su un schermo piccolo",
+  "settingsOpenStats": "Apri Le Statistiche",
+  "liquidGlassNavLabel": "Liquid Glass",
+  "liquidGlassNavSubtitle": "iOS glass per la barra delle schede, le pillole della libreria e i toast",
+  "materialExpressiveLabel": "Materiale 3 Espressivo",
+  "materialExpressiveSubtitle": "Forme giocose nella barra delle schede, tasto play e switch",
+  "settingsMergeImpliedByPodcastTab": "Sempre acceso mentre la scheda Podcast è abilitata",
+  "settingsEpisodeNotifs": "Impostazioni delle notifiche",
+  "settingsEpisodeNotifsDesc": "Nuovi episodi podcast, prossime uscite di libri e notifiche BookOrbit, controllati in background",
+  "notifIntervalOff": "Off",
+  "notifIntervalMinutes": "Ogni {n} minuti",
+  "@notifIntervalMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "notifIntervalHour": "Ogni ora",
+  "notifIntervalHours": "Ogni {n} ore",
+  "@notifIntervalHours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsBatteryUnrestricted": "Consenti l'uso senza restrizioni della batteria",
+  "settingsBatteryUnrestrictedDesc": "Mantiene il sistema dal mettere in pausa i controlli in background su alcuni telefoni",
+  "appShellPressBackToExit": "Premi ancora indietro per uscire",
+  "settingsTitle": "Impostazioni",
+  "sectionAppearance": "Aspetto",
+  "appIconLabel": "Icona dell'app",
+  "appIconClassic": "Classica",
+  "appIconAurora": "Aurora",
+  "appIconLight": "Light",
+  "appIconTeal": "Teal",
+  "appIconBlue": "Blu",
+  "appIconSky": "Sky",
+  "appIconPurple": "Viola",
+  "appIconPink": "Rosa",
+  "appIconRed": "Rosso",
+  "appIconOrange": "Arancione",
+  "appIconYellow": "Giallo",
+  "appIconGreen": "Verde",
+  "appIconFailed": "Impossibile cambiare l'icona dell'app",
+  "appIconAndroidNote": "Il launcher può impiegare un momento per mostrare la nuova icona, e potrebbe essere necessario aggiungere una scorciatoia Absorb sulla schermata iniziale.",
+  "languageLabel": "Lingua",
+  "languageSystemDefault": "Predefinito del sistema",
+  "languageHelpTranslateInvite": "Vuoi aiutare a tradurre Absorb nella tua lingua?",
+  "themeLabel": "Tema",
+  "themeDark": "Scuro",
+  "themeOled": "OLED",
+  "themeLight": "Chiaro",
+  "themeAuto": "Automatico",
+  "colorSourceLabel": "Sorgente colore",
+  "colorSourceCoverDescription": "I colori dell'app seguono la copertina del libro in riproduzione",
+  "colorSourceWallpaperDescription": "I colori delle app seguono lo sfondo del sistema",
+  "colorSourceWallpaper": "Sfondo",
+  "colorSourceNowPlaying": "In Riproduzione",
+  "colorSourceDynamic": "Dinamico",
+  "colorSourceManual": "Manuale",
+  "colorSourceManualDescription": "Usa un colore fisso dell'app che scegli qui sotto",
+  "colorSourceCustom": "Personalizzato",
+  "useColorEverywhereLabel": "Usa questo colore ovunque",
+  "useColorEverywhereSubtitle": "Colora anche le pagine di dettaglio del libro e la carta del player con il colore del set invece della copertina di ogni libro",
+  "flatBackgroundLabel": "Sfondo piatto",
+  "flatBackgroundSubtitle": "Nessun bagliore dietro le pagine. Nero puro in modalità scura per gli schermi OLED.",
+  "einkModeLabel": "Modalità E-ink",
+  "einkModeSubtitle": "Ad alto contrasto in bianco e nero senza animazioni, realizzato per schermi e-ink",
+  "einkModeIntroBody": "Realizzato per schermi E-ink. L'app passa a un look bianco e nero piatto con alto contrasto, le animazioni sono disattivate, la scheda riproduzione perde lo sfondo, e la connessione live server rimane spenta per risparmiare batteria. La riproduzione e i progressi continuano a sincronizzare normalmente. Le tue impostazioni di aspetto sono mantenute e tornano quando lo disattivi.",
+  "einkModeIntroConfirm": "Attiva",
+  "backgroundIntensityLabel": "Opacità dello sfondo",
+  "startScreenLabel": "Schermata iniziale",
+  "startScreenSubtitle": "Quale scheda aprire all'avvio dell'app",
+  "startScreenHome": "Home",
+  "startScreenLibrary": "Libreria",
+  "startScreenAbsorb": "Absorb",
+  "startScreenStats": "Statistiche",
+  "disablePageFade": "Disabilita dissolvenza pagina",
+  "disablePageFadeOnSubtitle": "Le pagine cambiano istantaneamente",
+  "disablePageFadeOffSubtitle": "Le pagine si dissolvono quando si cambia scheda",
+  "rectangleBookCovers": "Copertine rettangolari",
+  "progressTextSize": "Dimensione del testo in avanzamento",
+  "rectangleBookCoversOnSubtitle": "Le copertine sono visualizzate in proporzione 2:3 del libro",
+  "rectangleBookCoversOffSubtitle": "Le copertine sono quadrate",
+  "coverSize": "Dimensione copertina",
+  "coverSizeSubtitle": "Quante copertine si adattano alla griglia della libreria",
+  "coverSizeSmall": "Piccolo",
+  "coverSizeMedium": "Medio",
+  "coverSizeLarge": "Grande",
+  "sectionAbsorbingCards": "Carte Di Assorbimento",
+  "fullScreenPlayer": "Lettore a schermo intero",
+  "fullScreenPlayerOnSubtitle": "On - i libri si aprono a schermo intero quando riprodotti",
+  "fullScreenPlayerOffSubtitle": "Off - riproduci nella visualizzazione a schede",
+  "fullBookScrubber": "Scrubber completo del libro",
+  "fullBookScrubberOnSubtitle": "On - slider ricercabile su tutto il libro",
+  "fullBookScrubberOffSubtitle": "Off - solo la barra di avanzamento",
+  "cardScrubbers": "Barra di avanzamento",
+  "cardScrubbersBoth": "Entrambi",
+  "cardScrubbersChapter": "Capitolo"
 }
