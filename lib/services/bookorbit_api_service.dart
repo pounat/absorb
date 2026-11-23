@@ -1570,11 +1570,40 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final detail = await _detail(bookId, fresh: true);
     final manifest = _detailHasAudio(detail) ? await _manifest(bookId) : null;
     final item = BookOrbitMapper.item(detail: detail, manifest: manifest);
+    if (manifest == null) await _addNarrationChapters(bookId, detail, item);
     if (withProgress) {
       final p = await _itemProgress(bookId, detail: detail, manifest: manifest);
       if (p != null) item['userMediaProgress'] = p;
     }
     return item;
+  }
+
+  /// A book read aloud from its EPUB keeps no chapters of its own: they are
+  /// the narration's sections, which until now only a play worked out, so
+  /// the book showed none until it was playing.
+  Future<void> _addNarrationChapters(String bookId, Map<String, dynamic> detail, Map<String, dynamic> item) async {
+    final media = item['media'] as Map<String, dynamic>;
+    if (media['narration'] == null) return;
+    try {
+      final n = await _narration(bookId, detail: detail);
+      if (n == null) return;
+      final picked = _narrationChapters(detail, n.overlay);
+      media['chapters'] = picked.chapters;
+      if (((media['duration'] as num?) ?? 0) <= 0) media['duration'] = n.overlay.duration;
+    } catch (e) {
+      debugPrint('[BookOrbit] narration chapters for $bookId not read: $e');
+    }
+  }
+
+  /// Chapters saved with the chapter editor win over the narration's own
+  /// sections, when they fit its length.
+  ({List<Map<String, dynamic>> chapters, bool edited}) _narrationChapters(
+    Map<String, dynamic> detail,
+    MediaOverlay overlay,
+  ) {
+    final edited = BookOrbitMapper.savedChapters(detail, overlay.duration);
+    final useEdited = edited.isNotEmpty && (edited.last['start'] as double) < overlay.duration;
+    return (chapters: useEdited ? edited : overlay.chapters(), edited: useEdited);
   }
 
   Future<List<Map<String, dynamic>>> _itemsBatch(List<String> ids) async {
@@ -5812,11 +5841,9 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final item = BookOrbitMapper.item(detail: detail);
     final media = item['media'] as Map<String, dynamic>;
     final metadata = media['metadata'] as Map<String, dynamic>;
-    // Chapters saved with the chapter editor win over the narration's own
-    // sections, when they fit its length.
-    final edited = BookOrbitMapper.savedChapters(detail, overlay.duration);
-    final useEdited = edited.isNotEmpty && (edited.last['start'] as double) < overlay.duration;
-    final chapters = useEdited ? edited : overlay.chapters();
+    final picked = _narrationChapters(detail, overlay);
+    final chapters = picked.chapters;
+    final useEdited = picked.edited;
     final saved = await _narrationPosition(bookId, n.fileId);
     final current = (saved?.seconds ?? 0).clamp(0.0, overlay.duration).toDouble();
     var tracks = overlay.audioTracks((t) => _narrationTrackPath(bookId, n.fileId, t));
