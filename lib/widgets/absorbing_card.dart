@@ -128,6 +128,14 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   Brightness? _coverBrightness; // brightness used to generate _coverScheme
   bool? _coverTrue; // the True cover colors setting it was made with
 
+  // The card reads these as it draws, so it has to redraw when one changes.
+  static final Listenable _colorSettings = Listenable.merge(
+      [colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, trueCoverColorsNotifier]);
+
+  void _onColorSettings() {
+    if (mounted) setState(() {});
+  }
+
   /// Cover-derived scheme, unless a manual app color is set to apply everywhere.
   ColorScheme? get _coverScheme {
     if (colorSourceNotifier.value == 'manual' && useColorEverywhereNotifier.value) {
@@ -361,6 +369,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     ChromecastService().addListener(_onCastChanged);
     DownloadService().addListener(_onDownloadChanged);
     PlayerSettings.settingsChanged.addListener(_reloadButtonOrder);
+    _colorSettings.addListener(_onColorSettings);
     _reloadButtonOrder();
     if (AppPlatform.isTv && _fullScreen) {
       // Opened as the player on its own: the remote starts on play.
@@ -643,6 +652,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
     _liftTick.dispose();
     widget.player.removeListener(_onPlaybackMoved);
     PlayerSettings.settingsChanged.removeListener(_reloadButtonOrder);
+    _colorSettings.removeListener(_onColorSettings);
     ChromecastService().removeListener(_onCastChanged);
     DownloadService().removeListener(_onDownloadChanged);
     widget.player.removeListener(_onSpeedMaybeChanged);
