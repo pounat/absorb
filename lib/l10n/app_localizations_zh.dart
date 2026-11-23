@@ -4869,6 +4869,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get castToDevice => '投屏到设备';
 
   @override
+  String get castNarratedUnavailable =>
+      'A book narrated from its ebook can\'t be cast';
+
+  @override
   String get searchingForCastDevices => '正在搜索投屏设备...';
 
   @override

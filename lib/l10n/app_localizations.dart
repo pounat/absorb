@@ -8778,6 +8778,12 @@ abstract class AppLocalizations {
   /// **'Cast to Device'**
   String get castToDevice;
 
+  /// No description provided for @castNarratedUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'A book narrated from its ebook can\'t be cast'**
+  String get castNarratedUnavailable;
+
   /// No description provided for @searchingForCastDevices.
   ///
   /// In en, this message translates to:

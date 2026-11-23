@@ -4977,6 +4977,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get castToDevice => 'Передача на устройство';
 
   @override
+  String get castNarratedUnavailable =>
+      'A book narrated from its ebook can\'t be cast';
+
+  @override
   String get searchingForCastDevices => 'Поиск Cast устройств...';
 
   @override

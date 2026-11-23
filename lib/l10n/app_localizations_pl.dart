@@ -5017,6 +5017,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get castToDevice => 'Prześlij na urządzenie';
 
   @override
+  String get castNarratedUnavailable =>
+      'A book narrated from its ebook can\'t be cast';
+
+  @override
   String get searchingForCastDevices => 'Szukanie urządzeń Cast...';
 
   @override

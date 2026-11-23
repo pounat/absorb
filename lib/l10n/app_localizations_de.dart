@@ -5008,6 +5008,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get castToDevice => 'An Gerät casten';
 
   @override
+  String get castNarratedUnavailable =>
+      'A book narrated from its ebook can\'t be cast';
+
+  @override
   String get searchingForCastDevices => 'Suche nach Cast-Geräten...';
 
   @override

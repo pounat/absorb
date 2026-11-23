@@ -4949,6 +4949,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get castToDevice => 'Cast to Device';
 
   @override
+  String get castNarratedUnavailable =>
+      'A book narrated from its ebook can\'t be cast';
+
+  @override
   String get searchingForCastDevices => 'Searching for Cast devices...';
 
   @override

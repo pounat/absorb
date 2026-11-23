@@ -2506,6 +2506,7 @@
   "listsCollectionNeedsBook": "A collection needs at least one book, so nothing was created.",
   "listsCreateFailed": "Couldn't create it",
   "castToDevice": "Cast to Device",
+  "castNarratedUnavailable": "A book narrated from its ebook can't be cast",
   "searchingForCastDevices": "Searching for Cast devices...",
   "castDevice": "Cast Device",
   "stopCasting": "Stop Casting",
