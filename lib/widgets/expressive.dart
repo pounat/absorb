@@ -594,18 +594,12 @@ class ExpressiveGroupSlot extends InheritedWidget {
 }
 
 /// A card button's corners. Outside a connected row this is the plain
-/// [radius] all round. [round] is for a button
-/// that is switched on, which goes fully round to stand out from the row.
-BorderRadius cardButtonCorners(
-  BuildContext context,
-  double radius, {
-  bool round = false,
-}) {
+/// [radius] all round.
+BorderRadius cardButtonCorners(BuildContext context, double radius) {
   final slot = ExpressiveGroupSlot.maybeOf(context);
   if (slot == null) return BorderRadius.circular(radius);
   final outer = Radius.circular(slot.outer);
   const inner = Radius.circular(7);
-  if (round) return BorderRadius.all(outer);
   return BorderRadiusDirectional.horizontal(
     start: slot.first ? outer : inner,
     end: slot.last ? outer : inner,

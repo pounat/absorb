@@ -295,7 +295,7 @@ class CardWideButton extends StatelessWidget {
           color: highlighted
               ? _buttonFill(cs, _inkAccent(accent), 0.1, 0.12)
               : _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
-          borderRadius: cardButtonCorners(context, radius, round: highlighted),
+          borderRadius: cardButtonCorners(context, radius),
           border: Border.all(
               color: highlighted
                   ? _buttonEdge(_inkAccent(accent), 0.3, 1.0)
@@ -437,7 +437,6 @@ class CardSleepButtonInline extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: _inkAccent(accent).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(radius - 1),
                     ),
                   ),
                 ),
@@ -547,7 +546,6 @@ class CardDownloadButtonInline extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(radius - 1),
                     ),
                   ),
                 ),
