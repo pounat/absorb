@@ -705,6 +705,9 @@ class ExpressiveControlBox extends StatelessWidget {
   final double width;
   final double height;
   final bool soft;
+
+  /// The shape's color, for a page that isn't drawn in the theme's colors.
+  final Color? color;
   final Widget child;
 
   const ExpressiveControlBox({
@@ -712,6 +715,7 @@ class ExpressiveControlBox extends StatelessWidget {
     required this.width,
     required this.height,
     required this.soft,
+    this.color,
     required this.child,
   });
 
@@ -720,7 +724,7 @@ class ExpressiveControlBox extends StatelessWidget {
     if (!expressiveNotifier.value) {
       return SizedBox(width: width, height: height, child: child);
     }
-    final color = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
+    final color = this.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
     return SizedBox(
       width: width,
       height: height,

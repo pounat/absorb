@@ -8083,7 +8083,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
   Widget _buildMediaBar(Color fg, Color accent) {
     final player = AudioPlayerService();
     return ListenableBuilder(
-      listenable: player,
+      listenable: Listenable.merge([player, expressiveNotifier]),
       builder: (context, _) {
         // This book is the live session?
         final isActive = player.hasBook && player.currentItemId == widget.itemId;
@@ -8096,6 +8096,19 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
             ? Icons.replay_5_rounded
             : _backSkip == 10 ? Icons.replay_10_rounded : Icons.replay_30_rounded;
         final dim = fg.withValues(alpha: 0.3);
+        final expressive = expressiveNotifier.value;
+        final playing = isActive && player.isPlaying;
+        // The skip buttons' soft shapes are drawn in the page's own ink: the
+        // page isn't always in the theme's colors.
+        Widget skipShape(Widget button) => expressive
+            ? ExpressiveControlBox(
+                soft: true,
+                width: 46,
+                height: 46,
+                color: fg.withValues(alpha: 0.08),
+                child: Center(child: button),
+              )
+            : button;
         return Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Row(
@@ -8112,18 +8125,30 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Skips only act on the live session.
-                    IconButton(
+                    skipShape(IconButton(
                       icon: Icon(backIcon, color: isActive ? fg : dim),
-                      iconSize: 30,
+                      iconSize: expressive ? 26 : 30,
                       onPressed: isActive ? () => player.skipBackward(_backSkip) : null,
-                    ),
+                    )),
+                    if (expressive) const SizedBox(width: 6),
                     IconButton(
-                      icon: Icon(
-                        (isActive && player.isPlaying)
-                            ? Icons.pause_circle_filled_rounded
-                            : Icons.play_circle_filled_rounded,
-                        color: accent,
-                      ),
+                      icon: expressive
+                          ? ExpressivePlayShape(
+                              size: 46,
+                              playing: playing,
+                              color: accent,
+                              child: Icon(
+                                playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                size: 26,
+                                color: ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
+                              ),
+                            )
+                          : Icon(
+                              playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded,
+                              color: accent,
+                            ),
                       iconSize: 48,
                       // Active: toggle. Otherwise start this book's audiobook.
                       onPressed: _startingAudio
@@ -8138,11 +8163,12 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
                                   }
                                 : _startThisBook),
                     ),
-                    IconButton(
+                    if (expressive) const SizedBox(width: 6),
+                    skipShape(IconButton(
                       icon: Icon(fwdIcon, color: isActive ? fg : dim),
-                      iconSize: 30,
+                      iconSize: expressive ? 26 : 30,
                       onPressed: isActive ? () => player.skipForward(_forwardSkip) : null,
-                    ),
+                    )),
                   ],
                 ),
               ),
