@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'expressive.dart';
+import 'tints.dart';
 
 /// A settings section's row on the main settings list: the section's icon on
 /// a tinted tile, its name, and a line of what it's set to now. Opens the
@@ -43,10 +44,10 @@ class SettingsSectionTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.06),
+                  color: cs.primary.withValues(alpha: Tints.faint),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: cs.onSurface, size: 22),
+                child: Icon(icon, color: cs.primary, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -166,7 +167,7 @@ class SettingsGroup extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               child: Text(
                 label!,
-                style: tt.labelLarge?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w700),
+                style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w700),
               ),
             ),
           for (var i = 0; i < n; i++)
@@ -330,10 +331,10 @@ class SettingsSliderTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
+                  color: cs.primary.withValues(alpha: Tints.faint),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(value, style: tt.labelLarge?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w700)),
+                child: Text(value, style: tt.labelLarge?.copyWith(color: cs.primary, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
