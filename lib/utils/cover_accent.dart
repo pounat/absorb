@@ -70,8 +70,9 @@ ColorScheme vividInDark(ColorScheme scheme, Color seed) {
 class CoverAccents {
   CoverAccents._();
 
-  // v2: picked by how vivid and how big a color is, so v1's picks are redone.
-  static const _prefsKey = 'cover_accent_seeds_v2';
+  // v3: browns and tans are no longer thrown out before the pick, so v2's
+  // picks are redone.
+  static const _prefsKey = 'cover_accent_seeds_v3';
   static const _keep = 400;
   static final Map<String, Color?> _known = {};
   static final Map<String, Future<Color?>> _inFlight = {};
@@ -138,6 +139,7 @@ class CoverAccents {
       maximumColorCount: 16,
       size: const Size(1, 1),
       region: const Rect.fromLTWH(0, 0, 1, 0.72),
+      filters: const [_notBlackOrWhite],
     );
     final color = accentFromCoverPalette(palette);
     debugPrint('[CoverAccent] ${color == null ? 'no accent' : 'accent found'} '
@@ -153,6 +155,10 @@ class CoverAccents {
     return color;
   }
 }
+
+/// The palette's own default also drops browns and tans, which left a brown
+/// cover with nothing but its shadows to pick from.
+bool _notBlackOrWhite(HSLColor color) => color.lightness > 0.05 && color.lightness < 0.95;
 
 /// Picks an accent color from a cover's [palette].
 ///
