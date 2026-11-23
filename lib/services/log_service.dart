@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -378,8 +379,7 @@ class LogService {
       // Write sanitized copy to share instead of raw logs
       final raw = await _logFile!.readAsString();
       final sanitized = _sanitizeUrls(raw);
-      final dir = _logFile!.parent;
-      final sanitizedFile = File('${dir.path}/absorb_logs_share.txt');
+      final sanitizedFile = await _shareFile(_logFile!.parent);
       await sanitizedFile.writeAsString(sanitized);
 
       await Share.shareXFiles(
@@ -395,6 +395,34 @@ class LogService {
         sharePositionOrigin: sharePositionOrigin,
       );
     }
+  }
+
+  static const _isDevBuild = bool.fromEnvironment('DEV_BUILD');
+
+  static const _nameStarts = [
+    'Honey', 'Orange', 'Silver', 'Maple', 'Velvet', 'Copper', 'Lemon', 'Misty',
+    'Rusty', 'Amber', 'Cobalt', 'Minty', 'Dusty', 'Golden', 'Paper', 'Salty',
+    'Frosty', 'Plum', 'Sunny', 'Mossy', 'Cherry', 'Pepper', 'Cloudy', 'Tiny',
+  ];
+  static const _nameEnds = [
+    'Bucket', 'Fire', 'Lantern', 'Otter', 'Kettle', 'Harbor', 'Pickle', 'Comet',
+    'Biscuit', 'Meadow', 'Anchor', 'Walrus', 'Teapot', 'Canyon', 'Button', 'Rocket',
+    'Pebble', 'Badger', 'Waffle', 'Thunder', 'Acorn', 'Compass', 'Noodle', 'Falcon',
+  ];
+
+  /// The file a shared log is written to. A dev build gives each one its own
+  /// two word name, so logs sent one after another are easy to tell apart.
+  Future<File> _shareFile(Directory dir) async {
+    if (!_isDevBuild) return File('${dir.path}/absorb_logs_share.txt');
+    final folder = Directory('${dir.path}/log_share');
+    try {
+      if (await folder.exists()) await folder.delete(recursive: true);
+    } catch (_) {}
+    await folder.create(recursive: true);
+    final random = Random();
+    final name = '${_nameStarts[random.nextInt(_nameStarts.length)]} '
+        '${_nameEnds[random.nextInt(_nameEnds.length)]}';
+    return File('${folder.path}/$name.txt');
   }
 
   /// Open a mailto: link with device info (no logs) for general contact.
