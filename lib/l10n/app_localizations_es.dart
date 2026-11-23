@@ -8992,6 +8992,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chaptersUpdated => 'Chapters updated';
 
   @override
+  String get chapterReadAlongOnly =>
+      'This book\'s chapters come from its read along ebook and can\'t be edited';
+
+  @override
   String get ok => 'OK';
 
   @override

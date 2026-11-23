@@ -15,6 +15,17 @@ class BoChapter {
   Map<String, dynamic> toJson() => {'title': title, 'startMs': startMs};
 }
 
+/// Why a book has no chapter state to edit.
+enum BoChapterGap {
+  /// A server before 3.6.0, which takes chapters the old way.
+  oldServer,
+
+  /// The narration is the read along's own, with no audio files to cut.
+  readAlongOnly,
+
+  failed,
+}
+
 class BoChapterState {
   final List<BoChapter> chapters;
 

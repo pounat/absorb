@@ -4314,9 +4314,28 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// The chapter editor's view of [bookId]: the stored list, its revision and
   /// where else chapters can come from. Null on a server before 3.6.0, which
   /// keeps none of that, or when it couldn't be asked.
-  Future<BoChapterState?> chapterState(String bookId) async {
-    final res = await _chapterCall('state of $bookId', () => _boGet('/books/$bookId/chapters'), BoChapterState.fromJson);
-    return res.value;
+  Future<BoChapterState?> chapterState(String bookId) async => (await chapterStateOrWhy(bookId)).state;
+
+  /// [chapterState], and when there is none, why: only a server before 3.6.0
+  /// still takes chapters the old way. On a newer one the old way answers
+  /// that it saved and keeps nothing.
+  Future<({BoChapterState? state, BoChapterGap? gap})> chapterStateOrWhy(String bookId) async {
+    final Object? raw;
+    try {
+      raw = await _boGet('/books/$bookId/chapters');
+    } on _BoHttpError catch (e) {
+      debugPrint('[BookOrbit] chapters: state of $bookId failed: $e');
+      return (state: null, gap: e.status == 404 ? BoChapterGap.oldServer : BoChapterGap.failed);
+    } catch (e) {
+      debugPrint('[BookOrbit] chapters: state of $bookId failed: $e');
+      return (state: null, gap: BoChapterGap.failed);
+    }
+    final state = BoChapterState.fromJson(raw);
+    if (state != null) return (state: state, gap: null);
+    final readAlong = raw is Map && raw['readAlong'] == true;
+    debugPrint('[BookOrbit] chapters: state of $bookId has no revision '
+        '(readAlong=$readAlong, keys=${raw is Map ? raw.keys.join(',') : raw.runtimeType})');
+    return (state: null, gap: readAlong ? BoChapterGap.readAlongOnly : BoChapterGap.failed);
   }
 
   /// Saves the list over [baseRevision], kept in the history. [lock] keeps

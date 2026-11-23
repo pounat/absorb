@@ -109,6 +109,9 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
   // BookOrbit 3.6 and newer keep the list with a revision and a history, and
   // can take chapters from the files, the ebook or the read along.
   BoChapterState? _bo;
+  // Set when a BookOrbit server that keeps chapters this way couldn't give
+  // them: saving the old way there reports success and keeps nothing.
+  BoChapterGap? _boGap;
   bool _protect = true;
   String? _busyText;
   double? _busyProgress;
@@ -202,7 +205,9 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     }
     try {
       final item = await api.getLibraryItem(widget.itemId);
-      final bo = api is BookOrbitApiService ? await api.chapterState(widget.itemId) : null;
+      final boRes = api is BookOrbitApiService ? await api.chapterStateOrWhy(widget.itemId) : null;
+      final bo = boRes?.state;
+      final boGap = boRes?.gap == BoChapterGap.oldServer ? null : boRes?.gap;
       final media = item?['media'] as Map<String, dynamic>? ?? {};
       final meta = media['metadata'] as Map<String, dynamic>? ?? {};
       final dur = (media['duration'] as num?)?.toDouble() ?? 0;
@@ -222,6 +227,7 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
         _asin = (meta['asin'] as String?)?.trim();
         if ((_asin ?? '').isEmpty) _asin = bo?.audibleId;
         _bo = bo;
+        _boGap = boGap;
         _protect = true;
         _originalChapters = bo != null && bo.chapters.isNotEmpty
             ? _fromBo(bo.chapters)
@@ -1155,6 +1161,14 @@ class _ChapterEditBodyState extends State<ChapterEditBody>
     }
 
     final bo = _bo;
+    if (bo == null && _boGap != null) {
+      showOverlayToast(
+        context,
+        _boGap == BoChapterGap.readAlongOnly ? l.chapterReadAlongOnly : l.couldNotUpdate,
+        icon: Icons.error_outline_rounded,
+      );
+      return;
+    }
     if (bo != null && api is BookOrbitApiService) {
       setState(() => _saving = true);
       final res = await api.saveChapters(

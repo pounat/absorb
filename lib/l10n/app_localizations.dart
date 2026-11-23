@@ -15401,6 +15401,12 @@ abstract class AppLocalizations {
   /// **'Chapters updated'**
   String get chaptersUpdated;
 
+  /// No description provided for @chapterReadAlongOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This book\'s chapters come from its read along ebook and can\'t be edited'**
+  String get chapterReadAlongOnly;
+
   /// No description provided for @ok.
   ///
   /// In en, this message translates to:

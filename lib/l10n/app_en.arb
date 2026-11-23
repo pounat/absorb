@@ -5120,6 +5120,7 @@
   "chapterAllRemoved": "All chapters removed",
   "chapterFixHighlighted": "Fix the highlighted chapters first",
   "chaptersUpdated": "Chapters updated",
+  "chapterReadAlongOnly": "This book's chapters come from its read along ebook and can't be edited",
   "ok": "OK",
   "chapterSaveButton": "Save chapters",
   "chapterAddHint": "Add chapter (e.g. \"Chapter 01\")",
