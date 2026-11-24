@@ -3670,7 +3670,17 @@ class LibraryScreenState extends State<LibraryScreen>
         // pill row down to fit this width so it never overflows on small or
         // zoomed/large-font screens.
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: ClipRRect(
+        // Beside the floating tab pill it is drawn as the same kind of pill.
+        child: NativeTabBar.floatingPill
+            ? Material(
+                color: cs.surfaceContainerHigh.withValues(alpha: 0.94),
+                elevation: 6,
+                shadowColor: Colors.black,
+                clipBehavior: Clip.antiAlias,
+                shape: StadiumBorder(side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.35))),
+                child: Padding(padding: const EdgeInsets.all(5), child: _tabPillRow(cs, labels)),
+              )
+            : ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
             filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -3696,6 +3706,9 @@ class LibraryScreenState extends State<LibraryScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: List.generate(labels.length, (i) {
                     final active = _currentTab == i;
+                    final pill = NativeTabBar.floatingPill;
+                    final barTheme = Theme.of(context).navigationBarTheme;
+                    final ink = pill ? cs.onSecondaryContainer : cs.primary;
                     return GestureDetector(
                       onTap: () {
                         if (active) {
@@ -3712,14 +3725,18 @@ class LibraryScreenState extends State<LibraryScreen>
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
                         padding: EdgeInsets.symmetric(
-                          horizontal: active ? 14 : 12,
-                          vertical: 8,
+                          horizontal: active ? (pill ? 16 : 14) : 12,
+                          vertical: pill ? 9 : 8,
                         ),
                         decoration: BoxDecoration(
-                          color: active
-                              ? cs.primary.withValues(alpha: Tints.soft)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
+                          color: !active
+                              ? Colors.transparent
+                              // The same highlight the tab pill gives its
+                              // selected tab.
+                              : (pill
+                                  ? (barTheme.indicatorColor ?? cs.secondaryContainer)
+                                  : cs.primary.withValues(alpha: Tints.soft)),
+                          borderRadius: BorderRadius.circular(pill ? 100 : 20),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -3734,7 +3751,7 @@ class LibraryScreenState extends State<LibraryScreen>
                                     ? FontWeight.w700
                                     : FontWeight.w500,
                                 color: active
-                                    ? cs.primary
+                                    ? ink
                                     : cs.onSurfaceVariant,
                               ),
                             ),
@@ -3743,7 +3760,7 @@ class LibraryScreenState extends State<LibraryScreen>
                               Icon(
                                 Icons.sort_rounded,
                                 size: 14,
-                                color: cs.primary,
+                                color: ink,
                               ),
                             ],
                           ],
