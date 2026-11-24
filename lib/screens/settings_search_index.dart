@@ -73,6 +73,7 @@ List<SettingSearchEntry> settingsSearchEntries(BuildContext context) {
     // ── Media Controls ──
     SettingSearchEntry('Media Controls', l.sectionMediaControls, l.chapterProgressInNotification, [l.chapterProgressInNotificationIos, l.chapterProgressOnSubtitle, l.chapterProgressOnSubtitleIos, l.chapterProgressOffSubtitle]),
     SettingSearchEntry('Media Controls', l.sectionMediaControls, l.nowPlayingText, [l.nowPlayingTextSubtitle, l.nowPlayingPiecePercent, l.nowPlayingPieceTimeLeft, l.nowPlayingPieceNarrator, l.nowPlayingPieceSeries]),
+    SettingSearchEntry('Media Controls', l.sectionMediaControls, l.castThroughPhoneLabel, [l.castThroughPhoneSubtitle, l.settingsGroupCasting]),
     SettingSearchEntry('Media Controls', l.sectionMediaControls, l.lockSeekBar, [l.lockSeekBarOnSubtitle, l.lockSeekBarOffSubtitle]),
     if (AppPlatform.isAndroid) ...[
       SettingSearchEntry('Media Controls', l.sectionMediaControls, 'Duck brief interruptions', const ['Notifications and prompts lower the volume instead of pausing', 'Notifications and prompts pause playback']),

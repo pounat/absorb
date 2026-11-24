@@ -32,6 +32,7 @@ class ChromecastService extends ChangeNotifier {
   bool get isConnected => false;
   bool get isCasting => false;
   bool get isCastEngaged => false;
+  bool get holdsCast => false;
   bool get isReconnecting => false;
   bool get isReceiverActive => false;
   bool get isPlaying => false;

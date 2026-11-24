@@ -4,9 +4,7 @@ import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
 import '../l10n/app_localizations.dart';
 import '../services/chromecast_service.dart';
 import '../services/api_service.dart';
-import '../services/server_backend.dart';
 import 'adaptive_modal.dart';
-import 'overlay_toast.dart';
 
 /// Shows a device picker. If castAfter params are provided, automatically
 /// casts the book after connecting to the selected device.
@@ -21,13 +19,6 @@ void showCastDevicePicker(
   List<dynamic>? chapters,
   String? episodeId,
 }) {
-  // A Cast receiver fetches media itself and can't send the Bearer header
-  // BookOrbit needs.
-  if (ServerBackend.active.isBookOrbit) {
-    showOverlayToast(context, AppLocalizations.of(context)!.castNotAvailableBookOrbit,
-        icon: Icons.cast_rounded);
-    return;
-  }
   final cast = ChromecastService();
   showAdaptiveActionMenu(
     context: context,

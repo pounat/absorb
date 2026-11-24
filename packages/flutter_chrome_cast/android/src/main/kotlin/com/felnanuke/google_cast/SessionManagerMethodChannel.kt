@@ -171,6 +171,7 @@ class SessionManagerMethodChannel(discoveryManager: DiscoveryManagerMethodChanne
 
     //SessionManagerLister
     override fun onSessionEnded(session: Session, p1: Int) {
+        reportSessionEnd("ended", p1)
         onSessionChanged()
     }
 
@@ -179,7 +180,7 @@ class SessionManagerMethodChannel(discoveryManager: DiscoveryManagerMethodChanne
     }
 
     override fun onSessionResumeFailed(p0: Session, p1: Int) {
-
+        reportSessionEnd("resumeFailed", p1)
         onSessionChanged()
     }
 
@@ -193,6 +194,7 @@ class SessionManagerMethodChannel(discoveryManager: DiscoveryManagerMethodChanne
     }
 
     override fun onSessionStartFailed(p0: Session, p1: Int) {
+        reportSessionEnd("startFailed", p1)
         onSessionChanged()
     }
 
@@ -206,7 +208,14 @@ class SessionManagerMethodChannel(discoveryManager: DiscoveryManagerMethodChanne
     }
 
     override fun onSessionSuspended(p0: Session, p1: Int) {
+        reportSessionEnd("suspended", p1)
         onSessionChanged()
+    }
+
+    // The app can't tell a session ended on purpose from a dropped
+    // connection without the code these callbacks carry.
+    private fun reportSessionEnd(event: String, code: Int) {
+        channel.invokeMethod("onSessionEnd", mapOf("event" to event, "code" to code))
     }
 
 

@@ -8778,6 +8778,24 @@ abstract class AppLocalizations {
   /// **'Cast to Device'**
   String get castToDevice;
 
+  /// No description provided for @settingsGroupCasting.
+  ///
+  /// In en, this message translates to:
+  /// **'Casting'**
+  String get settingsGroupCasting;
+
+  /// No description provided for @castThroughPhoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cast through this phone'**
+  String get castThroughPhoneLabel;
+
+  /// No description provided for @castThroughPhoneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'For a server your cast device can\'t reach on its own. The phone has to stay on the same Wi-Fi while casting'**
+  String get castThroughPhoneSubtitle;
+
   /// No description provided for @castNarratedUnavailable.
   ///
   /// In en, this message translates to:

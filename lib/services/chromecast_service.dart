@@ -7,7 +7,13 @@ import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
 import 'api_service.dart';
 import 'audio_player_service.dart';
 import 'cast_playback_policy.dart';
+import 'cast_relay.dart';
+import 'dart:convert';
 import 'chapter_lookup.dart';
+import 'download_service.dart';
+import 'local_session_service.dart';
+import 'narrated_books.dart';
+import 'narration_stream.dart';
 import 'progress_sync_service.dart';
 
 enum CastConnectionState { disconnected, connecting, connected }
@@ -78,6 +84,16 @@ class ChromecastService extends ChangeNotifier {
   /// use this instead of [isCasting] so a transient disconnect doesn't read
   /// as "casting stopped" while a backstop reconnect is still in flight.
   bool get isCastEngaged => isCasting || _reconnecting;
+
+  bool _userEndedCast = false;
+
+  /// A cast this phone started and hasn't given up on, even while its
+  /// connection to the cast device is down for a moment. The device keeps
+  /// playing through that, so nothing should start playing on the phone:
+  /// it did, and the book played in both places at once.
+  bool get holdsCast =>
+      isCastEngaged ||
+      (_castingItemId != null && !_userEndedCast && _connectionState == CastConnectionState.connecting);
 
   String? _castingItemId, _castingEpisodeId, _castingTitle, _castingAuthor, _castingCoverUrl;
   double _castingDuration = 0;
@@ -223,7 +239,11 @@ class ChromecastService extends ChangeNotifier {
   static const MethodChannel _castServiceChannel =
       MethodChannel('com.absorb.cast_service');
 
-  Future<void> _setForegroundService(bool active) async {
+  Timer? _relayStopTimer;
+
+  Future<void> _setForegroundService(bool active, {bool keepRelay = false}) async {
+    _relayStopTimer?.cancel();
+    if (!active && !keepRelay) unawaited(CastRelay.instance.stop());
     if (!Platform.isAndroid) return;
     if (active == _foregroundServiceActive) return;
     _foregroundServiceActive = active;
@@ -285,7 +305,9 @@ class ChromecastService extends ChangeNotifier {
       (session) {
         final state = GoogleCastSessionManager.instance.connectionState;
         debugPrint('[Cast] SESSION EVENT — connectionState: $state, session: ${session?.device?.friendlyName ?? "null"}');
+        if (state == GoogleCastConnectState.disconnected) _noteSessionEnd();
         if (state == GoogleCastConnectState.connected) {
+          _connectingDevice = null;
           // Cancel any pending disconnect wipe - we're back before the grace expired.
           if (_disconnectDebounceTimer?.isActive ?? false) {
             debugPrint('[Cast] Reconnected within grace period - cancelling disconnect wipe');
@@ -314,6 +336,8 @@ class ChromecastService extends ChangeNotifier {
             _rehydrateFromRemoteMedia();
           }
           unawaited(_applyPendingSleepPause());
+        } else if (state == GoogleCastConnectState.disconnected && _retryFirstConnect()) {
+          _connectionState = CastConnectionState.connecting;
         } else if (state == GoogleCastConnectState.disconnected) {
           debugPrint('[Cast] ✗ DISCONNECTED (scheduling grace ${_disconnectGrace.inSeconds}s before deciding to reconnect or wipe)');
           // Debounce: transient wifi/session blips can emit disconnected then
@@ -429,8 +453,15 @@ class ChromecastService extends ChangeNotifier {
   void _onDisconnected() {
     _playbackCommand++;
     if (_castingItemId != null && _castPosition > Duration.zero) _saveProgressLocal();
+    unawaited(_endOwnSession());
 
-    unawaited(_setForegroundService(false));
+    // A dropped connection often comes straight back, and the cast device
+    // is still fetching audio through this phone meanwhile: keep answering
+    // it for a few minutes before giving up.
+    unawaited(_setForegroundService(false, keepRelay: true));
+    _relayStopTimer = Timer(const Duration(minutes: 3), () {
+      if (!isConnected) unawaited(CastRelay.instance.stop());
+    });
     _connectionState = CastConnectionState.disconnected;
     _playbackState = CastPlaybackState.idle;
     _connectedDeviceName = null;
@@ -500,6 +531,33 @@ class ChromecastService extends ChangeNotifier {
     }
   }
 
+  // The address each queued file was loaded from, and the cast device's id
+  // for the first of them: it numbers a queue's files in order.
+  List<String>? _queueUrls;
+  int? _queueFirstItemId;
+
+  /// Which of the book's files the cast device is on, or -1 when that can't
+  /// be told. The device's own list of queued files is only the few around
+  /// the current one once it has been playing a while, so a place in that
+  /// list says nothing: reading it that way took a book on its 20th file for
+  /// one on its 2nd, and saved that as the book's position.
+  int _queueTrackOf(GoggleCastMediaStatus status, int trackCount) {
+    final current = status.currentItemId;
+    if (current == null) return -1;
+    final at = _queueUrls?.indexOf(status.mediaInformation?.contentId ?? '') ?? -1;
+    if (at >= 0) {
+      _queueFirstItemId = current - at;
+    } else if (_queueFirstItemId == null) {
+      final items = GoogleCastRemoteMediaClient.instance.queueItems;
+      if (items.length == trackCount) {
+        final listed = items.indexWhere((it) => it.itemId == current);
+        if (listed >= 0) _queueFirstItemId = current - listed;
+      }
+    }
+    final first = _queueFirstItemId;
+    return first == null ? -1 : current - first;
+  }
+
   void _listenToMediaStatus() {
     _mediaStatusSub?.cancel();
     _mediaStatusSub = GoogleCastRemoteMediaClient.instance.mediaStatusStream.listen((status) {
@@ -509,8 +567,7 @@ class ChromecastService extends ChangeNotifier {
       // the position math below uses the right offset.
       final qOffsets = _queueOffsets;
       if (qOffsets != null && status?.currentItemId != null) {
-        final qItems = GoogleCastRemoteMediaClient.instance.queueItems;
-        final idx = qItems.indexWhere((it) => it.itemId == status!.currentItemId);
+        final idx = _queueTrackOf(status!, qOffsets.length - 1);
         if (idx >= 0 && idx != _queueTrackIdx && idx < qOffsets.length - 1) {
           debugPrint('[Cast] Queue track changed: $_queueTrackIdx -> $idx');
           _queueTrackIdx = idx;
@@ -727,7 +784,7 @@ class ChromecastService extends ChangeNotifier {
   int _consumeTimeListened(DateTime now) {
     final elapsed = now.difference(_lastSyncTime).inSeconds.clamp(0, 300);
     _lastSyncTime = now;
-    return isPlaying ? elapsed : 0;
+    return isReceiverActive ? elapsed : 0;
   }
 
   @visibleForTesting
@@ -738,7 +795,82 @@ class ChromecastService extends ChangeNotifier {
   Stream<List<GoogleCastDevice>> get devicesStream =>
       GoogleCastDiscoveryManager.instance.devicesStream;
 
+  GoogleCastSessionEnd? _notedEnd;
+
+  /// A cast stopped from its notification, or from the system's output
+  /// picker, ends the session on purpose without going through this app.
+  /// Read as a dropped connection, it was reconnected a few seconds later
+  /// and the cast came back.
+  void _noteSessionEnd() {
+    final end = GoogleCastSessionEnd.last;
+    if (end == null || identical(end, _notedEnd)) return;
+    _notedEnd = end;
+    debugPrint('[Cast] Session ${end.event}, code ${end.code}');
+    final fresh = DateTime.now().difference(end.at) < const Duration(seconds: 3);
+    // 0 is a clean end. 2160 to 2163 aren't in Cast's published list: the
+    // notification's stop button reports 2161, and the four line up with the
+    // reasons Android gives for a route being let go of, all of them
+    // something done on this phone and none of them a lost connection.
+    final onPurpose = end.code == 0 || (end.code >= 2160 && end.code <= 2163);
+    if (fresh && end.event == 'ended' && onPurpose && !_userEndedCast) {
+      debugPrint('[Cast] Ended on purpose from outside the app - not reconnecting');
+      _userEndedCast = true;
+      _lastConnectedDevice = null;
+    }
+  }
+
+  // The device a tap is connecting to, until it connects.
+  GoogleCastDevice? _connectingDevice;
+  DateTime? _connectStartedAt;
+  DateTime? _connectRetriedAt;
+
+  /// A first tap on a device sometimes connects and drops within a moment,
+  /// and the same tap again works. This makes that second try itself, once.
+  /// True when the drop belongs to such a first try and is being handled.
+  bool _retryFirstConnect() {
+    final device = _connectingDevice;
+    final started = _connectStartedAt;
+    if (device == null || started == null) return false;
+    final now = DateTime.now();
+    if (now.difference(started) > const Duration(seconds: 8)) {
+      _connectingDevice = null;
+      return false;
+    }
+    final retried = _connectRetriedAt;
+    if (retried != null) {
+      // The drop is reported more than once: the repeats are the same drop,
+      // anything after the second try began is that try failing too.
+      if (now.isBefore(retried)) return true;
+      _connectingDevice = null;
+      return false;
+    }
+    const wait = Duration(milliseconds: 700);
+    _connectRetriedAt = now.add(wait);
+    debugPrint('[Cast] The connection to ${device.friendlyName} dropped straight away - trying once more');
+    Timer(wait, () async {
+      if (!identical(_connectingDevice, device) || isConnected) return;
+      try {
+        await GoogleCastSessionManager.instance.startSessionWithDevice(device);
+      } catch (e) {
+        debugPrint('[Cast] Second try error: $e');
+      }
+      // A second try that goes nowhere must not leave the app looking like
+      // it is still connecting.
+      Timer(const Duration(seconds: 15), () {
+        if (!identical(_connectingDevice, device) || isConnected) return;
+        debugPrint('[Cast] The second try never connected - giving up');
+        _connectingDevice = null;
+        _connectionState = CastConnectionState.disconnected;
+        notifyListeners();
+      });
+    });
+    return true;
+  }
+
   Future<void> connectToDevice(GoogleCastDevice device) async {
+    _connectingDevice = device;
+    _connectStartedAt = DateTime.now();
+    _connectRetriedAt = null;
     debugPrint('[Cast] >>> connectToDevice() — ${device.friendlyName}');
     debugPrint('[Cast] Current connectionState before connect: $_connectionState');
     _connectionState = CastConnectionState.connecting;
@@ -755,10 +887,12 @@ class ChromecastService extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
+    _userEndedCast = true;
     if (_castingItemId != null && _castPosition > Duration.zero) {
       await _saveProgressLocal();
       await _syncProgressToServer();
     }
+    await _endOwnSession();
     if (_playbackSessionId != null && _api != null) {
       try { await _api!.closePlaybackSession(_playbackSessionId!); } catch (_) {}
       _playbackSessionId = null;
@@ -777,7 +911,81 @@ class ChromecastService extends ChangeNotifier {
 
   // ── Media Loading ──
 
+  Future<bool>? _castStart;
+  String? _castStartKey;
+  // Whether this cast sends everything through the phone, and the headers a
+  // server behind a login wants on each request.
+  bool _relayAll = false;
+  Map<String, String> _relayHeaders = const {};
+  // A cast with no session on the server (a download, or a book narrated
+  // from its EPUB) keeps its listening time the way offline playback does,
+  // so it counts in the stats and waits on this phone while offline.
+  bool _ownSession = false;
+
+  String get _castProgressKey =>
+      _castingEpisodeId != null ? '$_castingItemId-$_castingEpisodeId' : (_castingItemId ?? '');
+
+  Future<void> _endOwnSession() async {
+    if (!_ownSession) return;
+    _ownSession = false;
+    var pushed = false;
+    try {
+      final api = _api;
+      if (api != null) pushed = await LocalSessionService().pushActive(api: api);
+    } catch (_) {}
+    try {
+      await LocalSessionService().finalizeActive(pushed: pushed);
+    } catch (e) {
+      debugPrint('[Cast] Listening session not closed: $e');
+    }
+  }
+  String? _castingNarrator;
+  String? _castingSeries;
+
+  /// Two taps on a device that was slow to connect each waited for it and
+  /// then both started the same book, loading it twice.
   Future<bool> castItem({
+    required ApiService api, required String itemId,
+    required String title, required String author,
+    required String? coverUrl, required double totalDuration,
+    required List<dynamic> chapters, double startTime = 0,
+    String? episodeId,
+    String? libraryId,
+  }) {
+    final key = '$itemId-${episodeId ?? ''}';
+    final running = _castStart;
+    if (running != null && _castStartKey == key) {
+      debugPrint('[Cast] "$title" is already starting - not starting it twice');
+      return running;
+    }
+    _castStartKey = key;
+    return _castStart = _castItem(
+      api: api, itemId: itemId, title: title, author: author, coverUrl: coverUrl,
+      totalDuration: totalDuration, chapters: chapters, startTime: startTime,
+      episodeId: episodeId, libraryId: libraryId,
+    ).whenComplete(() {
+      if (_castStartKey == key) {
+        _castStart = null;
+        _castStartKey = null;
+      }
+    });
+  }
+
+  /// The two lines a cast device shows, in the layout picked for the media
+  /// controls. A cast device takes them once per audio file, so they read as
+  /// of where that file starts and don't follow along inside it.
+  ({String title, String subtitle}) _castLines(String title, String author, double position) =>
+      AudioPlayerService().nowPlayingLinesFor(
+        title: title,
+        author: author,
+        chapters: _castingChapters,
+        posSec: position,
+        totalDuration: _castingDuration,
+        narrator: _castingNarrator,
+        series: _castingSeries,
+      );
+
+  Future<bool> _castItem({
     required ApiService api, required String itemId,
     required String title, required String author,
     required String? coverUrl, required double totalDuration,
@@ -801,6 +1009,7 @@ class ChromecastService extends ChangeNotifier {
     }
 
     _api = api;
+    _userEndedCast = false;
     _castingItemId = itemId;
     _castingEpisodeId = episodeId;
     _castingTitle = title;
@@ -819,9 +1028,49 @@ class ChromecastService extends ChangeNotifier {
 
     try {
       debugPrint('[Cast] Starting playback session with server... (episodeId: $episodeId)');
-      final sessionData = episodeId != null
-          ? await api.startEpisodePlaybackSession(itemId, episodeId)
-          : await api.startPlaybackSession(itemId);
+      // An Audiobookshelf book narrated from its EPUB has no audio the server
+      // can hand out: its files are read out of the EPUB on this phone.
+      final narrated = episodeId == null && !api.isBookOrbit && NarratedBooks.contains(itemId);
+      _relayAll = !api.isBookOrbit && await PlayerSettings.getCastThroughPhone();
+      _relayHeaders = _relayAll ? api.customHeaders : const {};
+      // A downloaded book can play out of this phone's storage. That is used
+      // whenever the cast goes through the phone anyway, and below when the
+      // server can't be asked.
+      final download = _downloadedSession(episodeId != null ? '$itemId-$episodeId' : itemId, totalDuration);
+      var fromStorage = false;
+      Map<String, dynamic>? sessionData;
+      if (download != null && (_relayAll || api.isBookOrbit || narrated)) {
+        sessionData = download;
+        fromStorage = true;
+      } else if (narrated) {
+        final source = await NarrationStream.instance.open(api, itemId, startTime: startTime);
+        if (source != null) {
+          final tracks = [
+            for (final t in source.session['audioTracks'] as List<dynamic>) Map<String, dynamic>.from(t as Map),
+          ];
+          for (var i = 0; i < tracks.length && i < source.urls.length; i++) {
+            tracks[i]['contentUrl'] = source.urls[i];
+          }
+          sessionData = {'duration': source.duration, 'audioTracks': tracks};
+          _castingChapters = source.chapters;
+          if (totalDuration <= 0) totalDuration = source.duration;
+          debugPrint('[Cast] Narrated EPUB: ${tracks.length} file(s) read out of the EPUB');
+        }
+      } else {
+        sessionData = episodeId != null
+            ? await api.startEpisodePlaybackSession(itemId, episodeId)
+            : await api.startPlaybackSession(itemId);
+      }
+      if (sessionData == null && download != null) {
+        debugPrint('[Cast] No session from the server - casting the download from this phone');
+        sessionData = download;
+        fromStorage = true;
+      }
+      if (fromStorage) {
+        debugPrint('[Cast] Casting ${(sessionData!['audioTracks'] as List).length} downloaded file(s) from this phone');
+        final duration = (sessionData['duration'] as num?)?.toDouble() ?? 0;
+        if (totalDuration <= 0 && duration > 0) totalDuration = duration;
+      }
       if (sessionData == null) {
         debugPrint('[Cast] Server returned null session — aborting');
         _playbackState = CastPlaybackState.idle; notifyListeners(); return false;
@@ -853,8 +1102,16 @@ class ChromecastService extends ChangeNotifier {
       }
 
       _playbackSessionId = sessionData['id'] as String?;
+      final credits = AudioPlayerService.creditsFrom(sessionData);
+      _castingNarrator = credits?.narrator;
+      _castingSeries = credits?.series;
       _castPlayMethod = (sessionData['playMethod'] as num?)?.toInt();
       _lastSyncTime = DateTime.now();
+      // Audio only this phone can reach goes to the cast device through it.
+      if ((api.isBookOrbit || narrated || fromStorage || _relayAll) && !await CastRelay.instance.start()) {
+        debugPrint('[Cast] No Wi-Fi address for the cast device to reach this phone on - aborting');
+        _playbackState = CastPlaybackState.idle; notifyListeners(); return false;
+      }
       // Promote Absorb's process to foreground so Doze doesn't throttle the
       // per-15s sync timer when the user locks their screen. See GH #184.
       unawaited(_setForegroundService(true));
@@ -888,6 +1145,22 @@ class ChromecastService extends ChangeNotifier {
       if (!loaded) {
         // loadMedia failed - release the foreground promotion we took above.
         await _setForegroundService(false);
+      } else if (_playbackSessionId == null) {
+        try {
+          await LocalSessionService().beginSession(
+            progressKey: _castProgressKey,
+            libraryItemId: itemId,
+            episodeId: episodeId,
+            mediaType: episodeId != null ? 'podcast' : 'book',
+            duration: _castingDuration > 0 ? _castingDuration : totalDuration,
+            startTime: startTime,
+            displayTitle: title,
+            displayAuthor: author,
+          );
+          _ownSession = true;
+        } catch (e) {
+          debugPrint('[Cast] Listening session not started: $e');
+        }
       }
       return loaded;
     } catch (e, st) {
@@ -900,25 +1173,20 @@ class ChromecastService extends ChangeNotifier {
   Future<bool> _loadSingleTrack(ApiService api, dynamic track, String title,
       String author, String? coverUrl, double totalDuration, double startTime) async {
     final m = track as Map<String, dynamic>;
-    final fullUrl = api.buildTrackUrl(
-      m['contentUrl'] as String? ?? '',
-      sessionId: _playbackSessionId,
-      trackIndex: (m['index'] as num?)?.toInt(),
-      playMethod: _castPlayMethod,
-    );
+    final fullUrl = _trackUrl(api, m);
     debugPrint('[Cast] Loading single track URL: $fullUrl');
-    final subtitle = _buildSubtitle(author, startTime);
+    final lines = _castLines(title, author, startTime);
     try {
       await GoogleCastRemoteMediaClient.instance.loadMedia(
         GoogleCastMediaInformation(
           contentId: fullUrl,
           streamType: CastMediaStreamType.buffered,
           contentUrl: Uri.parse(fullUrl),
-          contentType: _contentType(fullUrl),
+          contentType: _trackType(m, fullUrl),
           metadata: GoogleCastGenericMediaMetadata(
-            title: title,
-            subtitle: subtitle,
-            images: coverUrl != null ? [GoogleCastImage(url: Uri.parse(coverUrl), height: 400, width: 400)] : null,
+            title: lines.title,
+            subtitle: lines.subtitle,
+            images: coverUrl != null ? [GoogleCastImage(url: Uri.parse(_coverUrl(coverUrl)), height: 400, width: 400)] : null,
           ),
           duration: Duration(seconds: totalDuration.round()),
         ),
@@ -956,25 +1224,23 @@ class ChromecastService extends ChangeNotifier {
     debugPrint('[Cast] Multi-track: startTime=$startTime, track=$startIdx, localStart=$localStart');
     try {
       final items = <GoogleCastQueueItem>[];
+      final urls = <String>[];
       for (int i = 0; i < tracks.length; i++) {
         final m = tracks[i] as Map<String, dynamic>;
-        final fullUrl = api.buildTrackUrl(
-          m['contentUrl'] as String? ?? '',
-          sessionId: _playbackSessionId,
-          trackIndex: (m['index'] as num?)?.toInt(),
-          playMethod: _castPlayMethod,
-        );
+        final fullUrl = _trackUrl(api, m);
         debugPrint('[Cast] Track $i URL: $fullUrl');
+        urls.add(fullUrl);
+        final lines = _castLines(title, author, i == startIdx ? startTime : offsets[i]);
         items.add(GoogleCastQueueItem(
           mediaInformation: GoogleCastMediaInformation(
             contentId: fullUrl,
             streamType: CastMediaStreamType.buffered,
             contentUrl: Uri.parse(fullUrl),
-            contentType: _contentType(fullUrl),
+            contentType: _trackType(m, fullUrl),
             metadata: GoogleCastGenericMediaMetadata(
-              title: title,
-              subtitle: '$author · Track ${i + 1} of ${tracks.length}',
-              images: coverUrl != null ? [GoogleCastImage(url: Uri.parse(coverUrl), height: 400, width: 400)] : null,
+              title: lines.title,
+              subtitle: lines.subtitle,
+              images: coverUrl != null ? [GoogleCastImage(url: Uri.parse(_coverUrl(coverUrl)), height: 400, width: 400)] : null,
             ),
           ),
         ));
@@ -990,6 +1256,8 @@ class ChromecastService extends ChangeNotifier {
         );
         debugPrint('[Cast] ✓ queueLoadItems completed');
         _queueOffsets = offsets;
+        _queueUrls = urls;
+        _queueFirstItemId = null;
         _queueTrackIdx = startIdx;
         _castPosition = Duration(milliseconds: (startTime * 1000).round());
         return true;
@@ -1017,24 +1285,20 @@ class ChromecastService extends ChangeNotifier {
       List<double> offsets, int trackIdx, double localStart,
       String title, String author, String? coverUrl, double totalDuration) async {
     final m = tracks[trackIdx] as Map<String, dynamic>;
-    final fallbackUrl = api.buildTrackUrl(
-      m['contentUrl'] as String? ?? '',
-      sessionId: _playbackSessionId,
-      trackIndex: (m['index'] as num?)?.toInt(),
-      playMethod: _castPlayMethod,
-    );
+    final fallbackUrl = _trackUrl(api, m);
     final trackDur = (m['duration'] as num?)?.toDouble() ?? totalDuration;
     debugPrint('[Cast] Fallback: loading track $trackIdx/${tracks.length} at ${localStart}s');
+    final lines = _castLines(title, author, offsets[trackIdx] + localStart);
     await GoogleCastRemoteMediaClient.instance.loadMedia(
       GoogleCastMediaInformation(
         contentId: fallbackUrl,
         streamType: CastMediaStreamType.buffered,
         contentUrl: Uri.parse(fallbackUrl),
-        contentType: _contentType(fallbackUrl),
+        contentType: _trackType(m, fallbackUrl),
         metadata: GoogleCastGenericMediaMetadata(
-          title: title,
-          subtitle: '$author · Track ${trackIdx + 1} of ${tracks.length}',
-          images: coverUrl != null ? [GoogleCastImage(url: Uri.parse(coverUrl), height: 400, width: 400)] : null,
+          title: lines.title,
+          subtitle: lines.subtitle,
+          images: coverUrl != null ? [GoogleCastImage(url: Uri.parse(_coverUrl(coverUrl)), height: 400, width: 400)] : null,
         ),
         duration: Duration(seconds: trackDur.round()),
       ),
@@ -1071,28 +1335,77 @@ class ChromecastService extends ChangeNotifier {
     _isAdvancingTrack = false;
   }
 
+  /// Where the cast device fetches a track from: the server, or this phone
+  /// when the address is one only it can reach.
+  String _trackUrl(ApiService api, Map<String, dynamic> m) {
+    final stored = m['localPath'] as String?;
+    if (stored != null) {
+      final address = CastRelay.instance.urlForFile(stored);
+      if (address != null) return address;
+    }
+    final raw = m['contentUrl'] as String? ?? '';
+    final built = CastRelay.isPhoneOnly(raw)
+        ? raw
+        : api.buildTrackUrl(
+            raw,
+            sessionId: _playbackSessionId,
+            trackIndex: (m['index'] as num?)?.toInt(),
+            playMethod: _castPlayMethod,
+          );
+    return CastRelay.instance.urlFor(built, always: _relayAll, headers: _relayHeaders);
+  }
+
+  /// A cover as the cast device should fetch it.
+  String _coverUrl(String url) => CastRelay.instance.urlFor(url, always: _relayAll, headers: _relayHeaders);
+
+  /// What a downloaded book's files and saved details give a cast to play
+  /// from, or null when it isn't downloaded.
+  Map<String, dynamic>? _downloadedSession(String key, double totalDuration) {
+    final downloads = DownloadService();
+    final paths = downloads.getLocalPaths(key);
+    if (paths == null || paths.isEmpty) return null;
+    if (paths.any((p) => p.startsWith('http'))) return null;
+    Map<String, dynamic> saved = const {};
+    final json = downloads.getCachedSessionData(key);
+    if (json != null) {
+      try {
+        saved = jsonDecode(json) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+    final known = (saved['audioTracks'] as List<dynamic>? ?? const []).whereType<Map>().toList();
+    final duration = (saved['duration'] as num?)?.toDouble() ?? totalDuration;
+    // Without a length for every file there is no telling where one ends and
+    // the next begins, unless there is only the one.
+    if (known.length != paths.length && paths.length != 1) return null;
+    final tracks = <Map<String, dynamic>>[
+      for (var i = 0; i < paths.length; i++)
+        {
+          if (known.length == paths.length) ...Map<String, dynamic>.from(known[i]) else 'duration': duration,
+          'localPath': paths[i],
+          'contentUrl': '',
+        },
+    ];
+    return {
+      'duration': duration,
+      'audioTracks': tracks,
+      if (saved['mediaMetadata'] != null) 'mediaMetadata': saved['mediaMetadata'],
+    };
+  }
+
+  /// An address through this phone carries no file name to tell the type by,
+  /// so the track's own type is used for those.
+  String _trackType(Map<String, dynamic> m, String url) {
+    final own = m['mimeType'] as String?;
+    if (CastRelay.instance.isRunning && own != null && own.startsWith('audio/')) return own;
+    return _contentType(url);
+  }
+
   String _contentType(String url) {
     final l = url.toLowerCase();
     if (l.contains('.m4b') || l.contains('.m4a') || l.contains('.aac')) return 'audio/mp4';
     if (l.contains('.ogg') || l.contains('.opus')) return 'audio/ogg';
     if (l.contains('.flac')) return 'audio/flac';
     return 'audio/mpeg';
-  }
-
-  /// Build a subtitle string with author + current chapter name
-  String _buildSubtitle(String author, double position) {
-    if (_castingChapters.isEmpty) return author;
-    for (final ch in _castingChapters) {
-      final m = ch as Map<String, dynamic>;
-      final s = (m['start'] as num?)?.toDouble() ?? 0;
-      final e = (m['end'] as num?)?.toDouble() ?? 0;
-      if (position >= s && position < e) {
-        final chTitle = m['title'] as String?;
-        if (chTitle != null && chTitle.isNotEmpty) return '$author · $chTitle';
-        break;
-      }
-    }
-    return author;
   }
 
   /// Get the current chapter title based on cast position
@@ -1209,7 +1522,10 @@ class ChromecastService extends ChangeNotifier {
     final local = Duration(milliseconds: ((posS - offsets[idx]) * 1000).round());
     if (idx != _queueTrackIdx) {
       final qItems = GoogleCastRemoteMediaClient.instance.queueItems;
-      final itemId = idx < qItems.length ? qItems[idx].itemId : null;
+      final first = _queueFirstItemId;
+      final itemId = first != null
+          ? first + idx
+          : (qItems.length == offsets.length - 1 ? qItems[idx].itemId : null);
       if (itemId != null) {
         debugPrint('[Cast] Queue seek: track $_queueTrackIdx -> $idx at ${local.inSeconds}s');
         await GoogleCastRemoteMediaClient.instance.queueJumpToItemWithId(itemId);
@@ -1275,9 +1591,11 @@ class ChromecastService extends ChangeNotifier {
   }
 
   Future<void> stopCasting() async {
+    _userEndedCast = true;
     if (!isConnected) return;
     await _saveProgressLocal();
     await _syncProgressToServer();
+    await _endOwnSession();
     try { await GoogleCastRemoteMediaClient.instance.stop(); } catch (_) {}
 
 
@@ -1391,6 +1709,18 @@ class ChromecastService extends ChangeNotifier {
           timeListened: elapsed,
         );
       } else {
+        if (_ownSession) {
+          try {
+            await LocalSessionService().accrue(
+              progressKey: _castProgressKey,
+              seconds: elapsed,
+              currentTime: ct,
+              api: _api,
+            );
+          } catch (e) {
+            debugPrint('[Cast] Listening time not added: $e');
+          }
+        }
         // Fallback to progress update if no session
         final progressId = _castingEpisodeId != null
             ? '$_castingItemId-$_castingEpisodeId'

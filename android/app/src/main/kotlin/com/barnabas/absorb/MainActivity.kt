@@ -248,6 +248,8 @@ class MainActivity : AudioServiceActivity() {
                         }
                     }
                     "moveBookToSaf" -> handleMoveBookToSaf(call, result)
+                    "contentLength" -> handleContentLength(call, result)
+                    "readContent" -> handleReadContent(call, result)
                     else -> result.notImplemented()
                 }
             }
@@ -389,6 +391,55 @@ class MainActivity : AudioServiceActivity() {
     // [subfolder] (e.g. "Author/Title") under the granted tree via the DocumentFile
     // chain so files nest correctly and stay readable through the original grant.
     // The byte copy runs off the main thread.
+    // A book in a download folder the user picked is reached by a content
+    // address, not a file path. Casting it from this phone means handing its
+    // bytes out a piece at a time, which these two read.
+    private fun handleContentLength(call: MethodCall, result: MethodChannel.Result) {
+        val uri = call.argument<String>("uri")
+        if (uri == null) {
+            result.error("CONTENT_ARGS", "Missing uri", null)
+            return
+        }
+        Thread {
+            try {
+                val length = contentResolver.openFileDescriptor(Uri.parse(uri), "r")?.use { it.statSize } ?: -1L
+                Handler(Looper.getMainLooper()).post { result.success(length) }
+            } catch (e: Exception) {
+                Handler(Looper.getMainLooper()).post { result.error("CONTENT_READ", e.message, null) }
+            }
+        }.start()
+    }
+
+    private fun handleReadContent(call: MethodCall, result: MethodChannel.Result) {
+        val uri = call.argument<String>("uri")
+        val offset = (call.argument<Number>("offset") ?: 0).toLong()
+        val length = (call.argument<Number>("length") ?: 0).toInt()
+        if (uri == null || offset < 0 || length <= 0 || length > 4 * 1024 * 1024) {
+            result.error("CONTENT_ARGS", "Invalid arguments", null)
+            return
+        }
+        Thread {
+            try {
+                val bytes = contentResolver.openFileDescriptor(Uri.parse(uri), "r")?.use { pfd ->
+                    FileInputStream(pfd.fileDescriptor).use { input ->
+                        input.channel.position(offset)
+                        val buffer = ByteArray(length)
+                        var filled = 0
+                        while (filled < length) {
+                            val n = input.read(buffer, filled, length - filled)
+                            if (n < 0) break
+                            filled += n
+                        }
+                        if (filled == length) buffer else buffer.copyOf(filled)
+                    }
+                } ?: ByteArray(0)
+                Handler(Looper.getMainLooper()).post { result.success(bytes) }
+            } catch (e: Exception) {
+                Handler(Looper.getMainLooper()).post { result.error("CONTENT_READ", e.message, null) }
+            }
+        }.start()
+    }
+
     private fun handleMoveBookToSaf(call: MethodCall, result: MethodChannel.Result) {
         val treeUri = call.argument<String>("treeUri")
         val subfolder = call.argument<String>("subfolder") ?: ""

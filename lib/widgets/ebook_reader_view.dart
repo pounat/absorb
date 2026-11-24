@@ -17,7 +17,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
-import '../services/narrated_books.dart';
 import '../providers/library_provider.dart';
 import '../screens/app_shell.dart';
 import '../services/api_service.dart';
@@ -7738,8 +7737,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         'bookmarks',
         // Hidden on a TV, as on the player card.
         if (!AppPlatform.isTv) 'equalizer',
-        if (!AppPlatform.isTv)
-          if (AppPlatform.isIOS) 'airplay' else if (!context.read<AuthProvider>().isBookOrbit) 'cast',
+        if (!AppPlatform.isTv) AppPlatform.isIOS ? 'airplay' : 'cast',
         'details',
         if (!AppPlatform.isTv) 'download',
       ];
@@ -8024,12 +8022,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
 
   void _castFromReader() {
     final cast = ChromecastService();
-    final auth = context.read<AuthProvider>();
-    final api = auth.apiService;
-    if (!auth.isBookOrbit && NarratedBooks.contains(widget.itemId)) {
-      showOverlayToast(context, AppLocalizations.of(context)!.castNarratedUnavailable, icon: Icons.cast_rounded);
-      return;
-    }
+    final api = context.read<AuthProvider>().apiService;
     final coverUrl = api?.getCoverUrl(widget.itemId);
     if (cast.isCasting && cast.castingItemId == widget.itemId) {
       showModalBottomSheet(

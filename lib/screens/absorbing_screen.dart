@@ -578,7 +578,9 @@ class _AbsorbingScreenState extends State<AbsorbingScreen> {
 
     // Track cast state — when casting starts, scroll to the card;
     // when it stops/disconnects, keep that card at front.
-    final nowCasting = _cast.isCasting;
+    // A cast picked up from a device that was already playing can be live
+    // before the app knows which book it is.
+    final nowCasting = _cast.isCasting && _cast.castingItemId != null;
     if (nowCasting && !_wasCasting) {
       // Casting just started — move cast card to front, same as local playback
       _lastCastItemId = _cast.castingItemId;

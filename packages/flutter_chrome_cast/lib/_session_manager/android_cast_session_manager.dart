@@ -7,6 +7,7 @@ import 'package:flutter_chrome_cast/models/android/cast_session.dart';
 import 'package:rxdart/subjects.dart';
 
 import 'cast_session_manager_platform.dart';
+import 'session_end.dart';
 
 /// Android-specific implementation of Google Cast session manager functionality.
 class GoogleCastSessionManagerAndroidMethodChannel
@@ -80,6 +81,16 @@ class GoogleCastSessionManagerAndroidMethodChannel
     switch (call.method) {
       case "onSessionChanged":
         _onSessionChanged(call.arguments);
+        return;
+      case "onSessionEnd":
+        final args = call.arguments;
+        if (args is Map) {
+          GoogleCastSessionEnd.last = GoogleCastSessionEnd(
+            '${args['event'] ?? ''}',
+            (args['code'] as num?)?.toInt() ?? -1,
+            DateTime.now(),
+          );
+        }
         return;
       default:
     }

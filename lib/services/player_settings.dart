@@ -443,6 +443,12 @@ class PlayerSettings {
 
   // Android: Material 3 Expressive shapes in the tab bar, play button and
   // switches.
+  // Audiobookshelf casts fetch their audio through this phone instead of
+  // straight from the server.
+  static Future<bool> getCastThroughPhone() => _get('castThroughPhone', false);
+  static Future<void> setCastThroughPhone(bool value) =>
+      _set('castThroughPhone', value, notify: true);
+
   static Future<bool> getMaterialExpressive() =>
       _get('materialExpressive', false);
   static Future<void> setMaterialExpressive(bool value) =>

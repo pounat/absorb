@@ -48,6 +48,7 @@ import '../screens/transcription_settings_screen.dart';
 import '../main.dart' show applyThemeMode, applyTrustAllCerts, applyFlatBackground, applyColorSource, applyManualSeed, applyGradientIntensity, applyUseColorEverywhere, applyTrueCoverColors, applyEinkModeTheme, applyOrientationLock, localeNotifier, flatNotifier, snappyTransitionsNotifier;
 import '../services/wording.dart';
 import '../services/native_tab_bar.dart';
+import '../services/chromecast_service.dart';
 import '../widgets/expressive.dart';
 import '../utils/app_platform.dart';
 import '../utils/share_origin.dart';
@@ -310,6 +311,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   bool _liquidGlassNav = false;
   bool _liquidGlassSupported = false;
   bool _materialExpressive = false;
+  bool _castThroughPhone = false;
   int _episodeNotifMinutes = 0;
   int _maxConcurrentDownloads = 1;
   bool _hideEbookOnly = false;
@@ -1396,6 +1398,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final statsTabShown = await PlayerSettings.getStatsTabShown();
     final liquidGlassNav = await PlayerSettings.getLiquidGlassNav();
     final materialExpressive = await PlayerSettings.getMaterialExpressive();
+    final castThroughPhone = await PlayerSettings.getCastThroughPhone();
     final liquidGlassSupported = await NativeTabBar.isSupported();
     final episodeNotifMinutes = await PlayerSettings.getEpisodeNotifIntervalMinutes();
     final duckBriefInterruptions = await PlayerSettings.getDuckBriefInterruptions();
@@ -1413,6 +1416,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       _statsTabShown = statsTabShown;
       _liquidGlassNav = liquidGlassNav;
       _materialExpressive = materialExpressive;
+      _castThroughPhone = castThroughPhone;
       _liquidGlassSupported = liquidGlassSupported;
       _episodeNotifMinutes = episodeNotifMinutes;
       _sleepRewindSeconds = sleepRewind;
@@ -3753,6 +3757,25 @@ class SettingsScreenState extends State<SettingsScreen> {
           ],
         ],
       ),
+      // BookOrbit always casts through the phone, so there is nothing to pick.
+      if (AppPlatform.isAndroid &&
+          !AppPlatform.isTv &&
+          ChromecastService.castSupported &&
+          !context.read<AuthProvider>().isBookOrbit)
+        SettingsGroup(
+          label: l.settingsGroupCasting,
+          children: [
+            SettingsSwitchTile(
+              title: l.castThroughPhoneLabel,
+              subtitle: l.castThroughPhoneSubtitle,
+              value: _castThroughPhone,
+              onChanged: _loaded ? (v) {
+                setState(() => _castThroughPhone = v);
+                PlayerSettings.setCastThroughPhone(v);
+              } : null,
+            ),
+          ],
+        ),
     ];
   }
 

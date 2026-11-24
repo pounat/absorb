@@ -1919,10 +1919,7 @@ class CardActionDelegate {
   /// The saved button order, less what this book has no use for.
   List<String> get _shownOrder {
     final narrated = _narratedEbook;
-    // BookOrbit has nothing a cast device can play from.
-    final noCast = context.read<AuthProvider>().isBookOrbit;
     return buttonOrder.where((id) {
-      if (noCast && id == 'cast') return false;
       if (narrated && id == 'findinebook') return false;
       // A TV can't make a transcript, so read along shows only for a book
       // whose EPUB carries its own narration timings.
@@ -2615,12 +2612,6 @@ class CardActionDelegate {
     final cast = ChromecastService();
     final auth = ctx.read<AuthProvider>();
     final api = auth.apiService;
-    // An Audiobookshelf book narrated from its EPUB plays through this phone,
-    // at an address a cast device can't reach.
-    if (!auth.isBookOrbit && episodeId == null && NarratedBooks.contains(itemId)) {
-      showOverlayToast(ctx, AppLocalizations.of(ctx)!.castNarratedUnavailable, icon: Icons.cast_rounded);
-      return;
-    }
     if (cast.isCasting && cast.castingItemId == itemId) {
       showAdaptiveActionMenu(
         context: ctx,

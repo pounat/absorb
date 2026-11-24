@@ -3897,7 +3897,7 @@ class AudioPlayerService extends ChangeNotifier {
 
     // Don't start local playback while casting
     final cast = ChromecastService();
-    if (cast.isCasting) {
+    if (cast.holdsCast) {
       debugPrint('[Player] Cast active - skipping local playback');
       return null;
     }
@@ -6128,11 +6128,53 @@ class AudioPlayerService extends ChangeNotifier {
     );
   }
 
+  /// Both lines of the media controls, in the layout the user picked, for a
+  /// book that isn't loaded in this player: one playing on a cast device.
+  ({String title, String subtitle}) nowPlayingLinesFor({
+    required String title,
+    required String author,
+    required List<dynamic> chapters,
+    required double posSec,
+    required double totalDuration,
+    String? narrator,
+    String? series,
+  }) {
+    final chapterIndex = _chapterIndexAt(chapters, posSec);
+    return _nowPlayingLines(
+      title: title,
+      author: author,
+      chapter: chapterIndex >= 0 ? (chapters[chapterIndex] as Map)['title'] as String? : null,
+      chapterIndex: chapterIndex,
+      chapterCount: chapters.length,
+      posSec: posSec,
+      totalDuration: totalDuration,
+      narrator: narrator,
+      series: series,
+    );
+  }
+
   /// Narrator and series for the media controls, from a playback session's
   /// book details. Re-sends the text when they arrive after it went out.
   void _captureNowPlayingCredits(Map<String, dynamic>? session) {
+    final credits = creditsFrom(session);
+    if (credits == null) return;
+    final narrator = credits.narrator;
+    final series = credits.series;
+    if (narrator == _currentNarrator && series == _currentSeries) return;
+    _currentNarrator = narrator;
+    _currentSeries = series;
+    if (_currentItemId != null &&
+        (_nowPlayingLayout.uses(NowPlayingPiece.narrator) ||
+            _nowPlayingLayout.uses(NowPlayingPiece.series))) {
+      _repushNotifiedMediaItem();
+    }
+  }
+
+  /// The narrator and series in a playback session's book details; null when
+  /// the session carries none.
+  static ({String? narrator, String? series})? creditsFrom(Map<String, dynamic>? session) {
     final meta = session?['mediaMetadata'];
-    if (meta is! Map) return;
+    if (meta is! Map) return null;
     String? joined(Object? names) {
       if (names is! List) return null;
       final parts = names
@@ -6154,14 +6196,7 @@ class AudioPlayerService extends ChangeNotifier {
     } else if (meta['seriesName'] is String) {
       series = meta['seriesName'] as String;
     }
-    if (narrator == _currentNarrator && series == _currentSeries) return;
-    _currentNarrator = narrator;
-    _currentSeries = series;
-    if (_currentItemId != null &&
-        (_nowPlayingLayout.uses(NowPlayingPiece.narrator) ||
-            _nowPlayingLayout.uses(NowPlayingPiece.series))) {
-      _repushNotifiedMediaItem();
-    }
+    return (narrator: narrator, series: series);
   }
 
   /// The cover file for [itemId] was replaced: hand the playback notification,

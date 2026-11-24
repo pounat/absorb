@@ -243,7 +243,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   }
   bool get _isCastingThis {
     final cast = ChromecastService();
-    return cast.isCasting && cast.castingItemId == _itemId;
+    return cast.holdsCast && cast.castingItemId == _itemId;
   }
   bool get _isPlaybackActive => _isActive || _isCastingThis;
   bool get _isPodcastEpisode => _isActive && widget.player.currentEpisodeId != null;

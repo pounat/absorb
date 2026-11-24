@@ -5017,6 +5017,16 @@ class AppLocalizationsPl extends AppLocalizations {
   String get castToDevice => 'Prześlij na urządzenie';
 
   @override
+  String get settingsGroupCasting => 'Casting';
+
+  @override
+  String get castThroughPhoneLabel => 'Cast through this phone';
+
+  @override
+  String get castThroughPhoneSubtitle =>
+      'For a server your cast device can\'t reach on its own. The phone has to stay on the same Wi-Fi while casting';
+
+  @override
   String get castNarratedUnavailable =>
       'A book narrated from its ebook can\'t be cast';
 
