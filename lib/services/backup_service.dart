@@ -140,6 +140,43 @@ class BackupService {
       'statsChartRange': await PlayerSettings.getStatsChartRange(),
       'statsSectionOrder': await PlayerSettings.getStatsSectionOrder(),
       'statsHiddenSections': await PlayerSettings.getStatsHiddenSections(),
+      'materialExpressive': await PlayerSettings.getMaterialExpressive(),
+      'liquidGlassNav': await PlayerSettings.getLiquidGlassNav(),
+      'einkMode': await PlayerSettings.getEinkMode(),
+      'cardSwipeStyle': await PlayerSettings.getCardSwipeStyle(),
+      'bookshelfCoverSize': await PlayerSettings.getBookshelfCoverSize(),
+      'showAudibleRating': await PlayerSettings.getShowAudibleRating(),
+      'showSubtitles': await PlayerSettings.getShowSubtitles(),
+      'keepPlayingWithOtherApps': await PlayerSettings.getKeepPlayingWithOtherApps(),
+      'duckBriefInterruptions': await PlayerSettings.getDuckBriefInterruptions(),
+      'autoplayOnCarConnect': await PlayerSettings.getAutoplayOnCarConnect(),
+      'castThroughPhone': await PlayerSettings.getCastThroughPhone(),
+      'mp3IndexSeeking': await PlayerSettings.getMp3IndexSeeking(),
+      'deleteFromFileSystem': await PlayerSettings.getDeleteFromFileSystem(),
+      'carBookSort': await PlayerSettings.getCarBookSort(),
+      'carBookSortReverse': await PlayerSettings.getCarBookSortReverse(),
+      'carPodcastSort': await PlayerSettings.getCarPodcastSort(),
+      'carEpisodesOldestFirst': await PlayerSettings.getCarEpisodesOldestFirst(),
+      'listsSort': await PlayerSettings.getListsSort(),
+      'listsSortAsc': await PlayerSettings.getListsSortAsc(),
+      'libraryTab': await PlayerSettings.getLibraryTab(),
+      'podcastView': await PlayerSettings.getPodcastView(),
+      'syncReadingListening': await PlayerSettings.getSyncReadingListening(),
+      'findInAudiobookAfter': await PlayerSettings.getFindInAudiobookAfter(),
+      'readAlongColor': await PlayerSettings.getReadAlongColor(),
+      'readAlongMode': await PlayerSettings.getReadAlongMode(),
+      'lyricsFontSize': await PlayerSettings.getLyricsFontSize(),
+      'lyricsMaxLines': await PlayerSettings.getLyricsMaxLines(),
+      'lyricsFullCover': await PlayerSettings.getLyricsFullCover(),
+      'transcriptionEnabled': await PlayerSettings.getTranscriptionEnabled(),
+      'transcriptionWindowSeconds': await PlayerSettings.getTranscriptionWindowSeconds(),
+      'transcriptOffset': await PlayerSettings.getTranscriptOffsetMs(bluetooth: false),
+      'transcriptOffsetBt': await PlayerSettings.getTranscriptOffsetMs(bluetooth: true),
+      'ereaderAutoScrollWpm': await PlayerSettings.getEreaderAutoScrollWpm(),
+      'ereaderAutoScrollSleepMinutes': await PlayerSettings.getEreaderAutoScrollSleepMinutes(),
+      'ereaderTranslateWith': await PlayerSettings.getEreaderTranslateWith(),
+      'statsTimeSaved': await PlayerSettings.getStatsTimeSaved(),
+      'statsTimeSavedSince': (await PlayerSettings.getStatsTimeSavedSince())?.millisecondsSinceEpoch,
     };
 
     // AutoRewind (scoped)
@@ -186,6 +223,16 @@ class BackupService {
         final itemId = key.substring(speedPrefix.length);
         final speed = prefs.getDouble(key);
         if (speed != null) bookSpeeds[itemId] = speed;
+      }
+    }
+
+    // Per-book sleep timer rewind (scoped)
+    final bookSleepRewinds = <String, int>{};
+    final sleepRewindPrefix = scope.isNotEmpty ? '$scope:sleepRewind_' : 'sleepRewind_';
+    for (final key in prefs.getKeys()) {
+      if (key.startsWith(sleepRewindPrefix)) {
+        final seconds = prefs.getInt(key);
+        if (seconds != null) bookSleepRewinds[key.substring(sleepRewindPrefix.length)] = seconds;
       }
     }
 
@@ -286,6 +333,7 @@ class BackupService {
     collectLibrarySetting('skipOverrideForward_', 'skipForward');
     collectLibrarySetting('skipOverrideBack_', 'skipBack');
     collectLibrarySetting('speedOverride_', 'speed');
+    collectLibrarySetting('showSubtitles_', 'showSubtitles');
 
     // Per-item metadata overrides (scoped, keyed by itemId)
     final metadataOverrides = <String, String>{};
@@ -372,6 +420,7 @@ class BackupService {
     collectPodcast('podcast_sort_mode_', 'sortMode', (k) => prefs.getString(k));
     collectPodcast('podcast_hide_finished_', 'hideFinished', (k) => prefs.getBool(k));
     collectPodcast('podcast_advance_dir_', 'advanceDir', (k) => prefs.getString(k));
+    collectPodcast('podcast_new_ep_pos_', 'newEpisodePosition', (k) => prefs.getString(k));
 
     // Custom download path (GLOBAL)
     final customDownloadPath = prefs.getString('custom_download_path');
@@ -419,6 +468,7 @@ class BackupService {
       'autoSleep': autoSleep,
       'equalizer': equalizer,
       'bookSpeeds': bookSpeeds,
+      if (bookSleepRewinds.isNotEmpty) 'bookSleepRewinds': bookSleepRewinds,
       'offlineMode': offlineMode,
       'notes': notes,
       'savedEbooks': savedEbooks,
@@ -664,6 +714,45 @@ class BackupService {
     if (s['mediaControlsSpeedBookmark'] != null) await PlayerSettings.setMediaControlsSpeedBookmark(s['mediaControlsSpeedBookmark'] as bool);
     if (s['progressTextScale'] != null) await PlayerSettings.setProgressTextScale((s['progressTextScale'] as num).toDouble());
     if (s['lockPortrait'] != null) await PlayerSettings.setLockPortrait(s['lockPortrait'] as bool);
+    if (s['materialExpressive'] is bool) await PlayerSettings.setMaterialExpressive(s['materialExpressive'] as bool);
+    if (s['liquidGlassNav'] is bool) await PlayerSettings.setLiquidGlassNav(s['liquidGlassNav'] as bool);
+    if (s['einkMode'] is bool) await PlayerSettings.setEinkMode(s['einkMode'] as bool);
+    if (s['cardSwipeStyle'] is String) await PlayerSettings.setCardSwipeStyle(s['cardSwipeStyle'] as String);
+    if (s['bookshelfCoverSize'] is int) await PlayerSettings.setBookshelfCoverSize(s['bookshelfCoverSize'] as int);
+    if (s['showAudibleRating'] is bool) await PlayerSettings.setShowAudibleRating(s['showAudibleRating'] as bool);
+    if (s['showSubtitles'] is bool) await PlayerSettings.setShowSubtitles(s['showSubtitles'] as bool);
+    if (s['keepPlayingWithOtherApps'] is bool) await PlayerSettings.setKeepPlayingWithOtherApps(s['keepPlayingWithOtherApps'] as bool);
+    if (s['duckBriefInterruptions'] is bool) await PlayerSettings.setDuckBriefInterruptions(s['duckBriefInterruptions'] as bool);
+    if (s['autoplayOnCarConnect'] is bool) await PlayerSettings.setAutoplayOnCarConnect(s['autoplayOnCarConnect'] as bool);
+    if (s['castThroughPhone'] is bool) await PlayerSettings.setCastThroughPhone(s['castThroughPhone'] as bool);
+    if (s['mp3IndexSeeking'] is bool) await PlayerSettings.setMp3IndexSeeking(s['mp3IndexSeeking'] as bool);
+    if (s['deleteFromFileSystem'] is bool) await PlayerSettings.setDeleteFromFileSystem(s['deleteFromFileSystem'] as bool);
+    if (s['carBookSort'] is String) await PlayerSettings.setCarBookSort(s['carBookSort'] as String);
+    if (s['carBookSortReverse'] is bool) await PlayerSettings.setCarBookSortReverse(s['carBookSortReverse'] as bool);
+    if (s['carPodcastSort'] is String) await PlayerSettings.setCarPodcastSort(s['carPodcastSort'] as String);
+    if (s['carEpisodesOldestFirst'] is bool) await PlayerSettings.setCarEpisodesOldestFirst(s['carEpisodesOldestFirst'] as bool);
+    if (s['listsSort'] is String) await PlayerSettings.setListsSort(s['listsSort'] as String);
+    if (s['listsSortAsc'] is bool) await PlayerSettings.setListsSortAsc(s['listsSortAsc'] as bool);
+    if (s['libraryTab'] is int) await PlayerSettings.setLibraryTab(s['libraryTab'] as int);
+    if (s['podcastView'] is int) await PlayerSettings.setPodcastView(s['podcastView'] as int);
+    if (s['syncReadingListening'] is bool) await PlayerSettings.setSyncReadingListening(s['syncReadingListening'] as bool);
+    if (s['findInAudiobookAfter'] is String) await PlayerSettings.setFindInAudiobookAfter(s['findInAudiobookAfter'] as String);
+    if (s['readAlongColor'] is int) await PlayerSettings.setReadAlongColor(s['readAlongColor'] as int);
+    if (s['readAlongMode'] is String) await PlayerSettings.setReadAlongMode(s['readAlongMode'] as String);
+    if (s['lyricsFontSize'] is num) await PlayerSettings.setLyricsFontSize((s['lyricsFontSize'] as num).toDouble());
+    if (s['lyricsMaxLines'] is int) await PlayerSettings.setLyricsMaxLines(s['lyricsMaxLines'] as int);
+    if (s['lyricsFullCover'] is bool) await PlayerSettings.setLyricsFullCover(s['lyricsFullCover'] as bool);
+    if (s['transcriptionEnabled'] is bool) await PlayerSettings.setTranscriptionEnabled(s['transcriptionEnabled'] as bool);
+    if (s['transcriptionWindowSeconds'] is int) await PlayerSettings.setTranscriptionWindowSeconds(s['transcriptionWindowSeconds'] as int);
+    if (s['transcriptOffset'] is int) await PlayerSettings.setTranscriptOffsetMs(s['transcriptOffset'] as int, bluetooth: false);
+    if (s['transcriptOffsetBt'] is int) await PlayerSettings.setTranscriptOffsetMs(s['transcriptOffsetBt'] as int, bluetooth: true);
+    if (s['ereaderAutoScrollWpm'] is num) await PlayerSettings.setEreaderAutoScrollWpm((s['ereaderAutoScrollWpm'] as num).toDouble());
+    if (s['ereaderAutoScrollSleepMinutes'] is int) await PlayerSettings.setEreaderAutoScrollSleepMinutes(s['ereaderAutoScrollSleepMinutes'] as int);
+    if (s['ereaderTranslateWith'] is String) await PlayerSettings.setEreaderTranslateWith(s['ereaderTranslateWith'] as String);
+    if (s['statsTimeSaved'] is num && (s['statsTimeSaved'] as num) > 0) {
+      await ScopedPrefs.setDouble('stats_time_saved', (s['statsTimeSaved'] as num).toDouble());
+    }
+    if (s['statsTimeSavedSince'] is int) await ScopedPrefs.setInt('stats_time_saved_since', s['statsTimeSavedSince'] as int);
     if (s['autoSeriesDownloadDefault'] != null) await PlayerSettings.setAutoSeriesDownloadDefault(s['autoSeriesDownloadDefault'] as bool);
     for (final p in PlayerSettings.statsGoalPeriods) {
       final key = 'statsGoal${p[0].toUpperCase()}${p.substring(1)}Minutes';
@@ -733,6 +822,14 @@ class BackupService {
     if (bookSpeeds != null) {
       for (final entry in bookSpeeds.entries) {
         await PlayerSettings.setBookSpeed(entry.key, (entry.value as num).toDouble());
+      }
+    }
+
+    // Per-book sleep timer rewind (scoped)
+    final bookSleepRewinds = data['bookSleepRewinds'] as Map<String, dynamic>?;
+    if (bookSleepRewinds != null) {
+      for (final entry in bookSleepRewinds.entries) {
+        if (entry.value is int) await PlayerSettings.setBookSleepRewindSeconds(entry.key, entry.value as int);
       }
     }
 
@@ -927,6 +1024,7 @@ class BackupService {
         '${scopePrefix}skipOverrideForward_',
         '${scopePrefix}skipOverrideBack_',
         '${scopePrefix}speedOverride_',
+        '${scopePrefix}showSubtitles_',
       ];
       final oldKeys = prefs
           .getKeys()
@@ -956,6 +1054,10 @@ class BackupService {
         }
         final speed = (settings['speed'] as num?)?.toDouble();
         if (speed != null) await PlayerSettings.setSpeedOverride(libraryId, speed);
+        final subtitles = settings['showSubtitles'];
+        if (subtitles == 'show' || subtitles == 'hide') {
+          await PlayerSettings.setShowSubtitlesOverride(libraryId, subtitles as String);
+        }
       }
     }
 
@@ -1057,6 +1159,9 @@ class BackupService {
         if (p['sortMode'] != null) await prefs.setString('podcast_sort_mode_$itemId', p['sortMode'] as String);
         if (p['hideFinished'] != null) await prefs.setBool('podcast_hide_finished_$itemId', p['hideFinished'] as bool);
         if (p['advanceDir'] != null) await prefs.setString('podcast_advance_dir_$itemId', p['advanceDir'] as String);
+        if (p['newEpisodePosition'] is String) {
+          await prefs.setString('podcast_new_ep_pos_$itemId', p['newEpisodePosition'] as String);
+        }
       }
     }
 
