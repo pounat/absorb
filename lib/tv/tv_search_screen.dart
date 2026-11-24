@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import 'tv_keyboard.dart';
 import 'tv_book_screen.dart';
 import 'tv_cover_tile.dart';
 import 'tv_focus_ring.dart';
@@ -91,7 +92,27 @@ class _TvSearchScreenState extends State<TvSearchScreen> {
     }
   }
 
-  void _startTyping() {
+  /// OK on the box opens Absorb's own keyboard. Its globe key falls back to
+  /// the TV's, which is what [_useTvKeyboard] and the typing state are for.
+  Future<void> _startTyping() async {
+    final result = await showTvKeyboard(
+      context,
+      controller: _query,
+      search: true,
+      hint: AppLocalizations.of(context)!.tvSearchHint,
+      onChanged: _changed,
+    );
+    if (!mounted) return;
+    if (result == TvKeyboardResult.system) {
+      _useTvKeyboard();
+    } else if (result == TvKeyboardResult.done) {
+      _debounce?.cancel();
+      _jumpWhenFound = true;
+      _search();
+    }
+  }
+
+  void _useTvKeyboard() {
     setState(() => _editing = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SystemChannels.textInput.invokeMethod<void>('TextInput.show');

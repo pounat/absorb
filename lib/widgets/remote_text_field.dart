@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../tv/tv_keyboard.dart';
 import '../utils/app_platform.dart';
 
 /// A TextField that a TV remote can pass through. On phones it is a plain
-/// TextField. On a TV, landing on it does nothing: OK opens the keyboard to
-/// type, up and down always move on to the next control, side to side moves
-/// the cursor only while typing, and the keyboard's action key finishes and
-/// moves on. A plain TextField keeps every arrow once focused and opens the
-/// keyboard just for being landed on.
+/// TextField. On a TV, landing on it does nothing: OK opens Absorb's own
+/// keyboard to type, up and down always move on to the next control, and the
+/// keyboard's action key finishes and moves on. A plain TextField keeps
+/// every arrow once focused and opens the keyboard just for being landed on.
+///
+/// The TV's built-in keyboard is still there behind the globe key on ours,
+/// for another language or voice typing; the handling of it below is what
+/// every TV text box used before.
 class RemoteTextField extends StatefulWidget {
   final TextEditingController? controller;
   final FocusNode? focusNode;
@@ -52,12 +56,41 @@ class RemoteTextField extends StatefulWidget {
 class _RemoteTextFieldState extends State<RemoteTextField> {
   FocusNode? _own;
   FocusNode get _focus => widget.focusNode ?? (_own ??= FocusNode(debugLabel: 'remote text'));
+  TextEditingController? _ownText;
+  TextEditingController get _text => widget.controller ?? (_ownText ??= TextEditingController());
   bool _editing = false;
+  bool _keyboardOpen = false;
 
   @override
   void dispose() {
     _own?.dispose();
+    _ownText?.dispose();
     super.dispose();
+  }
+
+  Future<void> _openKeyboard() async {
+    if (_keyboardOpen) return;
+    _keyboardOpen = true;
+    final result = await showTvKeyboard(
+      context,
+      controller: _text,
+      obscure: widget.obscureText,
+      multiline: (widget.maxLines ?? 2) != 1,
+      search: widget.textInputAction == TextInputAction.search,
+      hint: widget.decoration?.hintText,
+      onChanged: widget.onChanged,
+    );
+    _keyboardOpen = false;
+    if (!mounted) return;
+    switch (result) {
+      case TvKeyboardResult.system:
+        _type();
+      case TvKeyboardResult.done:
+        widget.onSubmitted?.call(_text.text);
+        _focus.focusInDirection(TraversalDirection.down);
+      case TvKeyboardResult.closed:
+        break;
+    }
   }
 
   void _type() {
@@ -77,7 +110,7 @@ class _RemoteTextFieldState extends State<RemoteTextField> {
     if (!_editing) {
       if (event is KeyDownEvent &&
           (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.numpadEnter)) {
-        _type();
+        _openKeyboard();
         return KeyEventResult.handled;
       }
       if (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight) return KeyEventResult.handled;
@@ -86,7 +119,7 @@ class _RemoteTextFieldState extends State<RemoteTextField> {
   }
 
   Widget _field({required bool tv}) => TextField(
-        controller: widget.controller,
+        controller: tv ? _text : widget.controller,
         focusNode: _focus,
         decoration: widget.decoration,
         style: widget.style,
