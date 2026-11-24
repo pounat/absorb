@@ -7735,8 +7735,7 @@ class EbookReaderViewState extends State<EbookReaderView> with WidgetsBindingObs
         'speed',
         'sleep',
         'bookmarks',
-        // Hidden on a TV, as on the player card.
-        if (!AppPlatform.isTv) 'equalizer',
+        'equalizer',
         if (!AppPlatform.isTv) AppPlatform.isIOS ? 'airplay' : 'cast',
         'details',
         if (!AppPlatform.isTv) 'download',

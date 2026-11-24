@@ -78,7 +78,6 @@ final Set<String> _hiddenButtons = {
     'airplay',
     'car',
     'download',
-    'equalizer',
     'notes',
     'wake',
     'findinebook',

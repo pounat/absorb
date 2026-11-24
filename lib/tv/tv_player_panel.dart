@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/audio_player_service.dart';
 import '../services/ebook_cache.dart';
+import '../services/equalizer_service.dart';
 import '../services/narrated_books.dart';
 import '../widgets/absorb_wave_icon.dart';
 import '../widgets/card_buttons.dart';
@@ -15,6 +16,7 @@ import '../widgets/card_playback_controls.dart';
 import '../widgets/card_progress_bar.dart';
 import '../widgets/card_chapters_sheet.dart';
 import '../widgets/ebook_router.dart';
+import '../widgets/equalizer_sheet.dart';
 import '../widgets/expressive.dart';
 import '../widgets/overlay_toast.dart';
 import 'tv_book_screen.dart';
@@ -199,6 +201,18 @@ class _TvPlayerPanelState extends State<TvPlayerPanel> {
       wide(Icons.bedtime_rounded, l.tvNightMode, TvNightMode.start),
       if (_epub && _narrated) wide(Icons.auto_stories_rounded, l.readAlong, () => _read(along: true)),
       if (_epub) wide(Icons.menu_book_rounded, l.tvRead, _read),
+      ListenableBuilder(
+        listenable: EqualizerService(),
+        builder: (context, _) => CardWideButton(
+          icon: Icons.equalizer_rounded,
+          label: l.equalizerLabel,
+          accent: accent,
+          isActive: true,
+          alwaysEnabled: true,
+          highlighted: EqualizerService().enabled,
+          onTap: () => showEqualizerSheet(context, accent, itemId: _itemId, itemTitle: title),
+        ),
+      ),
       // A podcast's page is the show with its episodes.
       wide(Icons.info_outline_rounded, _episodeId != null ? l.tvPodcastDetails : l.bookDetailsLabel,
           () => openTvBook(context, _full ?? widget.item)),

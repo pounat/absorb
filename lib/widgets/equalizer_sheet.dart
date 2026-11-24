@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/equalizer_service.dart';
 import 'adaptive_modal.dart';
+import 'remote_slider.dart';
+import 'remote_tap.dart';
 import 'tints.dart';
 
 /// Show the equalizer & audio enhancements bottom sheet.
@@ -353,7 +355,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
           // whether EQ is per-book or global, and flip it without scrolling.
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-            child: GestureDetector(
+            child: RemoteTap(
               onTap: () => _eq.setPerItem(!_eq.perItem),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -401,7 +403,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                   spacing: 8, runSpacing: 8,
                   children: EqualizerService.presets.keys.map((name) {
                     final isActive = _vPreset == name;
-                    return GestureDetector(
+                    return RemoteTap(
                       onTap: _vEnabled ? () => _applyPreset(name) : null,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
@@ -436,7 +438,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
                   maintainState: true,
                   child: Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: GestureDetector(
+                    child: RemoteTap(
                       onTap: _vEnabled ? () => _applyPreset('flat') : null,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -653,7 +655,12 @@ class _EQBandSlider extends StatelessWidget {
             fontSize: 10, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Expanded(
-          child: RotatedBox(
+          child: RemoteVerticalSlider(
+            value: level,
+            min: minLevel,
+            max: maxLevel,
+            onChanged: enabled ? onChanged : null,
+            child: RotatedBox(
             quarterTurns: 3,
             child: SliderTheme(
               data: SliderThemeData(
@@ -672,6 +679,7 @@ class _EQBandSlider extends StatelessWidget {
                 onChanged: enabled ? onChanged : null,
               ),
             ),
+          ),
           ),
         ),
         const SizedBox(height: 4),
@@ -737,12 +745,15 @@ class _PitchRow extends StatelessWidget {
                 thumbColor: accent,
                 overlayColor: accent.withValues(alpha: 0.15),
               ),
-              child: Slider(
-                value: value.clamp(EqualizerService.minPitch, EqualizerService.maxPitch),
-                min: EqualizerService.minPitch,
-                max: EqualizerService.maxPitch,
-                divisions: steps,
-                onChanged: onChanged,
+              child: RemoteSlider(
+                builder: (node) => Slider(
+                  focusNode: node,
+                  value: value.clamp(EqualizerService.minPitch, EqualizerService.maxPitch),
+                  min: EqualizerService.minPitch,
+                  max: EqualizerService.maxPitch,
+                  divisions: steps,
+                  onChanged: onChanged,
+                ),
               ),
             ),
           ),
@@ -807,11 +818,14 @@ class _EffectRow extends StatelessWidget {
                 thumbColor: enabled ? accent : cs.onSurface.withValues(alpha: 0.3),
                 overlayColor: accent.withValues(alpha: 0.15),
               ),
-              child: Slider(
-                value: value,
-                min: 0.0,
-                max: 1.0,
-                onChanged: enabled ? onChanged : null,
+              child: RemoteSlider(
+                builder: (node) => Slider(
+                  focusNode: node,
+                  value: value,
+                  min: 0.0,
+                  max: 1.0,
+                  onChanged: enabled ? onChanged : null,
+                ),
               ),
             ),
           ),
