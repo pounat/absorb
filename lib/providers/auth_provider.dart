@@ -19,7 +19,7 @@ import '../services/user_account_service.dart';
 import '../services/home_widget_service.dart';
 import '../services/wear_auth_service.dart';
 import '../l10n/app_localizations.dart';
-import '../main.dart' show rootNavigatorKey;
+import '../main.dart' show applyAppearanceFromPrefs, rootNavigatorKey;
 import '../widgets/overlay_toast.dart';
 import '../utils/app_platform.dart';
 import '../utils/server_url.dart';
@@ -1579,6 +1579,15 @@ class AuthProvider extends ChangeNotifier {
     PlayerSettings.mp3IndexSeeking = await PlayerSettings.getMp3IndexSeeking();
     PlayerSettings.coverSize = await PlayerSettings.getCoverSize();
     PlayerSettings.cardButtonFill = await PlayerSettings.getCardButtonFill();
+
+    // The look of the app is kept per account too, and was only read at
+    // startup: the theme, colors and Material 3 Expressive shapes stayed the
+    // previous account's until the app was restarted.
+    try {
+      await applyAppearanceFromPrefs();
+    } catch (e) {
+      debugPrint('[Auth] Appearance not reapplied after the account switch: $e');
+    }
 
     // Reload EQ settings from the new account's scope. Without this the
     // EqualizerService singleton keeps the previous account's in-memory
