@@ -126,6 +126,7 @@ class SettingsSyncService {
     'absorbingOrder',
     'navHold',
     'podcastPrefs',
+    'bookSleepRewinds',
   };
 
   /// Entries inside the settings bucket that never travel, even though
@@ -147,6 +148,13 @@ class SettingsSyncService {
   /// The local server address deliberately is NOT here: it travels with
   /// everything else, on the basis that a user's devices are usually on the
   /// same network as their server.
+  ///
+  /// The rest are not settings at all but where this device happens to be:
+  /// the color of the cover it is playing, the queue it is playing from, how
+  /// its library is filtered and sorted right now, the sleep timer it last
+  /// used. Each changes on its own as the app is used, so syncing them
+  /// uploaded when nothing had been set, and dragged the other device's
+  /// library view and colors along with this one's.
   static const _deviceLocalSettings = <String>{
     'loggingEnabled',
     'trustAllCerts',
@@ -155,6 +163,59 @@ class SettingsSyncService {
     'autoSeriesDownloadDefault',
     'rollingDownloadCount',
     'rollingDownloadDeleteFinished',
+    'coverSeedColor',
+    'queuePlaylistId',
+    'queueCollectionId',
+    'queueCollectionName',
+    'libraryFilter',
+    'libraryGenreFilter',
+    'libraryTagFilter',
+    'librarySeriesFilter',
+    'librarySort',
+    'librarySortAsc',
+    'podcastSort',
+    'podcastSortAsc',
+    'seriesSort',
+    'seriesSortAsc',
+    'authorSort',
+    'authorSortAsc',
+    'narratorSort',
+    'narratorSortAsc',
+    'bookmarkSort',
+    'upcomingReleasesSortByDate',
+    'sheetGridView',
+    'sectionGridView',
+    'sleepTimerTab',
+    'sleepTimerMinutes',
+    'sleepTimerChapters',
+    'statsChartRange',
+    'listsSort',
+    'listsSortAsc',
+    'libraryTab',
+    'podcastView',
+    // An e-ink reader and a phone are different screens, a decoder
+    // workaround and on-device transcription belong to the device they run
+    // on, and a transcript's timing offset to its speakers.
+    'einkMode',
+    'mp3IndexSeeking',
+    'transcriptionEnabled',
+    'transcriptionWindowSeconds',
+    'transcriptOffset',
+    'transcriptOffsetBt',
+    // Reader settings stay on the device, like its fonts and margins.
+    'ereaderAutoScrollWpm',
+    'ereaderAutoScrollSleepMinutes',
+    // Counted up by this device's own listening.
+    'statsTimeSaved',
+    'statsTimeSavedSince',
+  };
+
+  /// Entries that only repeat another one, kept for older versions of the
+  /// app. They travel, but one change must not be announced as three.
+  static const _echoSettings = <String>{
+    'autoPlayNextBook',
+    'autoPlayNextPodcast',
+    'showBookSlider',
   };
 
   /// Refuse to push anything bigger than this. Ebook annotations and per-item
@@ -318,6 +379,72 @@ class SettingsSyncService {
   Future<void> _setLastHash(String v) =>
       ScopedPrefs.setString('settingsSyncLastHash', v);
 
+  /// A fingerprint of every entry in the bundle as it stood at the last sync,
+  /// and the Absorbing order itself. Comparing against it says which entries
+  /// THIS device has changed since, so a newer copy from another device can
+  /// be taken for everything else instead of one whole bundle replacing the
+  /// other.
+  Future<({Map<String, String> prints, List<String>? order})?> _base() async {
+    final raw = await ScopedPrefs.getString('settingsSyncBase');
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      return (
+        prints: Map<String, String>.from(map['prints'] as Map),
+        order: (map['order'] as List?)?.map((e) => '$e').toList(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _setBase(Map<String, String> prints, List<String>? order) =>
+      ScopedPrefs.setString('settingsSyncBase', jsonEncode({'prints': prints, 'order': order}));
+
+  static const _notContent = {'syncedAt', 'version', 'appVersion'};
+
+  /// One fingerprint per setting (`s:name`) and per other bucket (`b:name`).
+  static Map<String, String> _prints(Map<String, dynamic> payload) {
+    String print(Object? v) => sha256.convert(utf8.encode(_canonical(v))).toString().substring(0, 16);
+    final out = <String, String>{};
+    payload.forEach((key, value) {
+      if (_notContent.contains(key)) return;
+      if (key == 'settings' && value is Map) {
+        value.forEach((sk, sv) => out['s:$sk'] = print(sv));
+      } else {
+        out['b:$key'] = print(value);
+      }
+    });
+    return out;
+  }
+
+  static List<String>? _orderIn(Map<String, dynamic> payload) =>
+      (payload['absorbingOrder'] as List?)?.map((e) => '$e').toList();
+
+  /// Two devices' Absorbing orders made into one. [base] is the order both
+  /// last agreed on. A book this device moved up since then (or added) keeps
+  /// its place at the front, in this device's order; everything else follows
+  /// the other device's order. A book either side took off the shelf stays
+  /// off.
+  @visibleForTesting
+  static List<String> mergeOrder(List<String> base, List<String> local, List<String> remote) {
+    final was = {for (var i = 0; i < base.length; i++) base[i]: i};
+    final moved = <String>{};
+    var earliestBehind = base.length;
+    for (final id in local.reversed) {
+      final at = was[id];
+      if (at == null || at > earliestBehind) moved.add(id);
+      if (at != null && at < earliestBehind) earliestBehind = at;
+    }
+    final gone = base.toSet().difference(local.toSet());
+    return [
+      for (final id in local)
+        if (moved.contains(id)) id,
+      for (final id in remote)
+        if (!moved.contains(id) && !gone.contains(id)) id,
+    ];
+  }
+
   /// Encode with every map's keys sorted, at every depth.
   ///
   /// Several payload buckets - book speeds, home layouts, per-library
@@ -417,15 +544,17 @@ class SettingsSyncService {
     _lastPullAt = now;
     // Coming back to the app is a natural moment to try again.
     _retryAfter = null;
-    // Send anything this device is still holding BEFORE taking the remote copy.
-    // A change made just before the app was swiped away never got its push -
-    // the process was gone - so it is sitting here unsent. Pulling first would
-    // overwrite it with the other device's older copy and then upload that,
-    // losing the change silently. Pushing first stamps our copy as the newest,
-    // and the pull below then sees its own timestamp and skips.
-    if (await _hasUnsentChanges()) {
+    // The pull keeps whatever this device changed and has not sent yet - a
+    // change made just before the app was swiped away never got its push -
+    // and takes the other device's copy for everything else. The push below
+    // then sends the two together. Pushing first, as this used to, saved the
+    // unsent change by overwriting everything the other device had changed.
+    //
+    // Until this device has synced once under that scheme there is no record
+    // of what it changed, so an unsent change is still saved the old way.
+    if (await _base() == null && await _hasUnsentChanges()) {
       debugPrint('[SettingsSync] unsent local changes - pushing before pulling');
-      await pushIfChanged();
+      await push();
     }
     final result = await pull();
     // Settings quietly rearranging themselves is unnerving, so say so - but
@@ -470,6 +599,8 @@ class SettingsSyncService {
         final b = before['settings'] as Map? ?? const {};
         final a = after['settings'] as Map? ?? const {};
         for (final sk in a.keys) {
+          // An empty value is skipped on the way in, so it changes nothing.
+          if (a[sk] == null || _echoSettings.contains(sk)) continue;
           if (_canonical(b[sk]) != _canonical(a[sk])) changed++;
         }
       } else if (_canonical(before[key]) != _canonical(after[key])) {
@@ -642,6 +773,15 @@ class SettingsSyncService {
     } catch (e) {
       debugPrint('[SettingsSync] change check failed: $e');
     }
+    // Look before sending: the other device may have uploaded since this one
+    // last looked, and sending over that would undo its changes. Only once
+    // this device has a record of what it changed, or the look would take
+    // the remote copy over the very change being sent.
+    if (await _base() != null) {
+      final pulled = await pull();
+      if (pulled.status == SyncStatus.authFailed) return pulled;
+      if (pulled.ok && pulled.message == 'applied') _toastApplied(_lastApplyCount);
+    }
     return push();
   }
 
@@ -775,6 +915,7 @@ class SettingsSyncService {
         _noteReachable();
         await _setLastSeen(stamp);
         await _setLastHash(_hash(payload));
+        await _setBase(_prints(payload), _orderIn(payload));
         debugPrint(
           '[SettingsSync] pushed ${body.length}b (HTTP ${resp.statusCode})',
         );
@@ -857,10 +998,43 @@ class SettingsSyncService {
       }
       safe['settings'] = _stripSettings(safe['settings']);
 
+      // What this device has changed since it last synced stays as it is;
+      // the remote copy is taken for the rest. [force] takes all of it.
+      final local = await buildPayload();
+      final base = await _base();
+      final Set<String> mine;
+      if (force) {
+        mine = const {};
+      } else if (base != null) {
+        final now = _prints(local);
+        mine = {
+          for (final k in {...now.keys, ...base.prints.keys})
+            if (now[k] != base.prints[k]) k,
+        };
+      } else {
+        // Nothing recorded per entry yet: a device syncing for the first
+        // time takes the remote copy as it is.
+        mine = const {};
+      }
+      if (mine.isNotEmpty) {
+        (safe['settings'] as Map).removeWhere((sk, _) => mine.contains('s:$sk'));
+        for (final key in safe.keys.toList()) {
+          if (key == 'settings' || key == 'version' || !mine.contains('b:$key')) continue;
+          final remoteOrder = _orderIn(safe);
+          final localOrder = _orderIn(local);
+          if (key == 'absorbingOrder' && base?.order != null && remoteOrder != null && localOrder != null) {
+            safe[key] = mergeOrder(base!.order!, localOrder, remoteOrder);
+          } else {
+            safe.remove(key);
+          }
+        }
+        debugPrint('[SettingsSync] keeping ${mine.length} unsent local change(s) through the pull');
+      }
+
       // Measure against what this device holds right now, before the import
       // overwrites it.
       try {
-        _lastApplyCount = _countChanges(await buildPayload(), safe);
+        _lastApplyCount = _countChanges(local, safe);
       } catch (_) {
         _lastApplyCount = 0;
       }
@@ -868,11 +1042,25 @@ class SettingsSyncService {
       await BackupService.importSettings(safe);
       await _applyToRunningApp();
       await _setLastSeen(remoteAt);
-      // Fingerprint what we just adopted, so the change check does not read the
-      // freshly-applied remote state as a local edit and bounce it straight
-      // back up.
       try {
-        await _setLastHash(_hash(await buildPayload()));
+        final adopted = await buildPayload();
+        final prints = _prints(adopted);
+        if (mine.isEmpty) {
+          // Fingerprint what we just adopted, so the change check does not
+          // read the freshly-applied remote state as a local edit and bounce
+          // it straight back up.
+          await _setLastHash(_hash(adopted));
+          await _setBase(prints, _orderIn(adopted));
+        } else if (base != null) {
+          // The entries taken from the remote copy are now in step with it.
+          // The ones kept are still unsent, so the last-upload fingerprint is
+          // left alone and the push that follows sends the merged bundle.
+          await _setBase({
+            ...base.prints,
+            for (final e in prints.entries)
+              if (!mine.contains(e.key)) e.key: e.value,
+          }, base.order);
+        }
       } catch (_) {}
       // Anything queued while the import was writing is the import's own echo,
       // not a user edit.
