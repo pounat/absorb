@@ -775,8 +775,18 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         'aaDisconnectSuspect=$aaDisconnect';
   }
 
+  // The key and arrival time of the last press counted toward a multi-press.
+  int? _countedKeyCode;
+  DateTime? _countedKeyAt;
+
+  /// Two pause keys closer together than this are one pause said twice, not
+  /// a double press. Earbuds that pause when taken out send one per bud, and
+  /// taking both out at once read as a double press and skipped forward.
+  static const _repeatedPauseGap = Duration(milliseconds: 150);
+
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
+    final arrivedAt = DateTime.now();
     debugPrint(
       '[Handler] click(button=$button) count=${_clickCount + 1} playing=${_player.playing}',
     );
@@ -863,15 +873,34 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     // skip the stash so they can't poison the keycode of a click that does
     // make it to the resolver. 500ms cap is a safety margin; typical
     // keyAgeMs from the Java side is 0-2ms.
+    int? thisKeyCode;
     if (diagSnap != null) {
       final age = diagSnap['lastKeyAgeMs'];
       final kc = diagSnap['lastKeyCode'];
       if (age is int && age >= 0 && age < 500 && kc is int && kc != 0) {
+        thisKeyCode = kc;
         _lastClickKeyCode = kc;
         final pkg = diagSnap['lastKeyPkg'];
         _lastClickKeyPkg = pkg is String ? pkg : null;
       }
     }
+
+    // A press that follows another inside the multi-press window: how far
+    // apart they came says whether it is a second press or the same key sent
+    // twice.
+    final countedAt = _countedKeyAt;
+    if (_clickCount > 0 && (_clickTimer?.isActive ?? false) && countedAt != null) {
+      final gap = arrivedAt.difference(countedAt);
+      debugPrint(
+        '[Handler] key $thisKeyCode came ${gap.inMilliseconds}ms after key $_countedKeyCode',
+      );
+      if (thisKeyCode == 127 && _countedKeyCode == 127 && gap < _repeatedPauseGap) {
+        debugPrint('[Handler] -> the same pause sent twice, counted once');
+        return;
+      }
+    }
+    _countedKeyCode = thisKeyCode;
+    _countedKeyAt = arrivedAt;
 
     // Second half of the fast path below: a press landing right after an
     // instant resume is the double-press the debounce would normally have
