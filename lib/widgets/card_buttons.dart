@@ -651,7 +651,9 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
     final active = widget.isActive || _isCasting;
     final iconSz = cp ? 13.0 : (lg ? 22.0 : 18.0);
     final fontSize = cp ? 10.0 : (lg ? 14.0 : 12.0);
-    final vPad = cp ? 6.0 : (lg ? 12.0 : 8.0);
+    // Same height as the other buttons: it came out a little shorter when it
+    // sized itself from its own icon and padding.
+    final h = cp ? 31.0 : (lg ? 50.0 : 38.0);
     final radius = cp ? 10.0 : (lg ? 14.0 : 12.0);
     final sh = widget.short;
     final label = cp ? (_count > 0 ? '$_count' : l.bookmark) : sh ? l.bookmarks : (_count > 0 ? l.bookmarksWithCount(_count) : l.bookmark);
@@ -659,7 +661,8 @@ class _CardBookmarkButtonInlineState extends State<CardBookmarkButtonInline> {
       onTap: () => _showBookmarks(context),
       onLongPress: active ? () => _quickAdd(context) : null,
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: vPad),
+        height: h,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: _buttonFill(cs, cs.onSurface, 0.06, 0.03, neutral: true),
           borderRadius: cardButtonCorners(context, radius),

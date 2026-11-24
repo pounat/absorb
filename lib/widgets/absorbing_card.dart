@@ -128,6 +128,29 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   Brightness? _coverBrightness; // brightness used to generate _coverScheme
   bool? _coverTrue; // the True cover colors setting it was made with
 
+  // How big the full player's buttons may be drawn, 1 to 1.25, worked out
+  // from the heights the last layout measured.
+  double _growCap = 1.0;
+  bool _growCapPending = false;
+
+  /// Called by the layout with what it measured: the card's [height], the
+  /// height of everything that doesn't grow ([others]), and of the two rows
+  /// of buttons as drawn [grownBy] times their normal size. Most of the
+  /// spare height goes to making them bigger, the rest stays as breathing
+  /// room between the rows.
+  void _noteGrowRoom(double height, double others, double buttons, double grownBy) {
+    final normal = buttons / grownBy;
+    if (normal <= 0) return;
+    final spare = height - others - normal;
+    final cap = (1 + 0.7 * spare / normal).clamp(1.0, 1.25);
+    if (_growCapPending || (cap - _growCap).abs() < 0.004) return;
+    _growCapPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _growCapPending = false;
+      if (mounted) setState(() => _growCap = cap);
+    });
+  }
+
   // The card reads these as it draws, so it has to redraw when one changes.
   static final Listenable _colorSettings = Listenable.merge(
       [colorSourceNotifier, useColorEverywhereNotifier, manualSeedNotifier, trueCoverColorsNotifier]);
@@ -1055,6 +1078,12 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
           final alignG = (wide || desktopPresentation || _rectangleCovers) ? 0.0 : g;
           final grownInset = 4 + (cardConstraints.maxWidth - 8) * 0.025;
           final statsInset = 24 + (grownInset - 24) * alignG;
+          // The playback buttons and the button grid get bigger in the full
+          // player, by as much as the spare height allows and no more than a
+          // quarter: on a short screen, or one with the display zoomed in,
+          // the cover would have to shrink to pay for anything more.
+          final growG = (wide || desktopPresentation) ? 0.0 : g * (_growCap - 1) / 0.25;
+          final gridScale = 1 + 0.25 * growG;
 
           final statsRow = ValueListenableBuilder<bool>(
                 valueListenable: _edgeBarExpanded,
@@ -1352,6 +1381,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                     showPlayButton: !_coverPlayButton,
                     libraryId: _resolveLibraryId(),
                     playFocusNode: _tvPlayFocus,
+                    grow: growG,
                   ),
                 );
 
@@ -1363,9 +1393,9 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: LayoutBuilder(
                     builder: (context, buttonsConstraints) => FittedBox(
-                    fit: BoxFit.scaleDown,
+                    fit: gridScale > 1.01 ? BoxFit.fitWidth : BoxFit.scaleDown,
                     child: SizedBox(
-                      width: buttonsConstraints.maxWidth,
+                      width: gridScale > 1.01 ? buttonsConstraints.maxWidth / gridScale : buttonsConstraints.maxWidth,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1586,7 +1616,10 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
               gapAboveScrubber: compact ? 6 : 10,
               gapAboveControls: compact ? 6 : 10,
               gapAboveButtons: compact ? 6 : 12,
+              gapBelowStats: 10 * g,
               edgeInset: statsInset * alignG,
+              grownBy: gridScale > 1.01 ? gridScale : 1.0,
+              onMeasured: g > 0 ? _noteGrowRoom : null,
             ),
             children: [
               LayoutId(id: _CardSlot.stats, child: statsRow),
@@ -2081,7 +2114,16 @@ class _CardColumnLayout extends MultiChildLayoutDelegate {
   final double gapAboveScrubber;
   final double gapAboveControls;
   final double gapAboveButtons;
+  /// Room between the times row and the cover's status line, which sat
+  /// right against each other in the full player.
+  final double gapBelowStats;
   final double edgeInset;
+
+  /// How much bigger the buttons were drawn this time, and where to report
+  /// the heights that came out, so the card can work out how much bigger
+  /// they are allowed to be.
+  final double grownBy;
+  final void Function(double height, double others, double buttons, double grownBy)? onMeasured;
 
   _CardColumnLayout({
     required this.grow,
@@ -2089,7 +2131,10 @@ class _CardColumnLayout extends MultiChildLayoutDelegate {
     required this.gapAboveScrubber,
     required this.gapAboveControls,
     required this.gapAboveButtons,
+    required this.gapBelowStats,
     required this.edgeInset,
+    this.grownBy = 1,
+    this.onMeasured,
   });
 
   @override
@@ -2101,7 +2146,15 @@ class _CardColumnLayout extends MultiChildLayoutDelegate {
     final buttons = layoutChild(_CardSlot.buttons, row).height;
     final room = math.max(
       0.0,
-      size.height - stats - scrubber - controls - buttons - gapAboveScrubber - gapAboveControls - gapAboveButtons,
+      size.height -
+          stats -
+          scrubber -
+          controls -
+          buttons -
+          gapBelowStats -
+          gapAboveScrubber -
+          gapAboveControls -
+          gapAboveButtons,
     );
     final spare = math.max(0.0, room - coverNeed) * grow;
     final share = spare / 4;
@@ -2114,7 +2167,7 @@ class _CardColumnLayout extends MultiChildLayoutDelegate {
       layoutChild(_CardSlot.edge, BoxConstraints.tightFor(width: math.max(0.0, size.width - edgeInset * 2)));
       positionChild(_CardSlot.edge, Offset(edgeInset, y));
     }
-    y += stats;
+    y += stats + gapBelowStats;
     positionChild(_CardSlot.cover, Offset(0, y));
     y += cover + gapAboveScrubber + share;
     positionChild(_CardSlot.scrubber, Offset(0, y));
@@ -2122,6 +2175,13 @@ class _CardColumnLayout extends MultiChildLayoutDelegate {
     positionChild(_CardSlot.controls, Offset(0, y));
     y += controls + gapAboveButtons + share;
     positionChild(_CardSlot.buttons, Offset(0, y));
+
+    onMeasured?.call(
+      size.height,
+      stats + scrubber + coverNeed + gapBelowStats + gapAboveScrubber + gapAboveControls + gapAboveButtons,
+      controls + buttons,
+      grownBy,
+    );
   }
 
   @override
@@ -2131,6 +2191,8 @@ class _CardColumnLayout extends MultiChildLayoutDelegate {
       old.gapAboveScrubber != gapAboveScrubber ||
       old.gapAboveControls != gapAboveControls ||
       old.gapAboveButtons != gapAboveButtons ||
+      old.gapBelowStats != gapBelowStats ||
+      old.grownBy != grownBy ||
       old.edgeInset != edgeInset;
 }
 
