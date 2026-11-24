@@ -15057,6 +15057,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get tvSortAuthor => 'Author';
 
   @override
+  String get tvSortListened => 'Recently listened';
+
+  @override
   String get tvNothingHere => 'Nothing here';
 
   @override

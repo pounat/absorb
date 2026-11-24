@@ -9,7 +9,7 @@ import 'tv_browse.dart';
 import 'tv_cover_tile.dart';
 import 'tv_focusable.dart';
 
-enum _TvSort { added, title, author }
+enum _TvSort { added, listened, title, author }
 
 /// The Library tab's parts, as on the phone: every book, series, authors,
 /// and lists (collections and playlists).
@@ -51,6 +51,27 @@ class _TvLibraryScreenState extends State<TvLibraryScreen> {
   void _focusTop() {
     final podcasts = context.read<LibraryProvider>().isPodcastLibrary;
     (podcasts ? _sortFocus : _sectionFocus[_section]!).requestFocus();
+  }
+
+  // Whether the remote was already on this row of pills.
+  bool _onPills = false;
+
+  /// A pill only shows its part when OK is pressed: switching as the remote
+  /// passed over them made the sort pill unreachable from Books, since the
+  /// way there crosses Series. Arriving at the row from the covers or the
+  /// tabs lands on the pill of the part showing, wherever it sits: going up
+  /// from the first series used to land on Books and switch to it.
+  void _pillFocus(bool has, _TvSection? s) {
+    if (has) {
+      final arriving = !_onPills;
+      _onPills = true;
+      if (arriving && s != null && s != _section) _sectionFocus[_section]!.requestFocus();
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _onPills = _sortFocus.hasFocus || _sectionFocus.values.any((n) => n.hasFocus);
+    });
   }
   static const _pageSize = 60;
 
@@ -102,6 +123,7 @@ class _TvLibraryScreenState extends State<TvLibraryScreen> {
     setState(() => _loading = true);
     final (sort, desc) = switch (_sort) {
       _TvSort.added => ('addedAt', 1),
+      _TvSort.listened => ('progress', 1),
       _TvSort.title => ('media.metadata.title', 0),
       _TvSort.author => ('media.metadata.authorName', 0),
     };
@@ -123,6 +145,7 @@ class _TvLibraryScreenState extends State<TvLibraryScreen> {
     final tt = Theme.of(context).textTheme;
     final sortLabel = switch (_sort) {
       _TvSort.added => l.tvSortAdded,
+      _TvSort.listened => l.tvSortListened,
       _TvSort.title => l.tvSortTitle,
       _TvSort.author => l.tvSortAuthor,
     };
@@ -136,10 +159,7 @@ class _TvLibraryScreenState extends State<TvLibraryScreen> {
             label: label,
             icon: icon,
             selected: _section == s,
-            // Switches as the remote moves along, like the tabs above.
-            onFocusChange: (v) {
-              if (v) _showSection(s);
-            },
+            onFocusChange: (v) => _pillFocus(v, s),
             onSelect: () => _showSection(s),
           ),
         );
@@ -196,6 +216,7 @@ class _TvLibraryScreenState extends State<TvLibraryScreen> {
                   focusNode: _sortFocus,
                   icon: Icons.sort_rounded,
                   label: sortLabel,
+                  onFocusChange: (v) => _pillFocus(v, null),
                   onSelect: () {
                     setState(() => _sort = _TvSort.values[(_sort.index + 1) % _TvSort.values.length]);
                     _reset();

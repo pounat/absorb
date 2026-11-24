@@ -84,6 +84,7 @@ class _TvHomeScreenState extends State<TvHomeScreen> with SingleTickerProviderSt
     super.initState();
     _player.addListener(_onPlayer);
     tvHomeFocusRow.addListener(_focusRow);
+    _homeFocus.addListener(_onRowFocus);
     tvPlayerClose.addListener(_closePlayer);
     tvPlayerRequest.addListener(_onRequest);
     PlayerSettings.getMergeAbsorbingLibraries().then((v) {
@@ -270,7 +271,11 @@ class _TvHomeScreenState extends State<TvHomeScreen> with SingleTickerProviderSt
     return KeyEventResult.ignored;
   }
 
-  Widget _rowCover(Map<String, dynamic> item, double side) {
+  void _onRowFocus() {
+    if (mounted) setState(() {});
+  }
+
+  Widget _rowCover(Map<String, dynamic> item, double side, {bool focused = false}) {
     final n = tvItemNames(item);
     return SizedBox.square(
       dimension: side,
@@ -279,10 +284,19 @@ class _TvHomeScreenState extends State<TvHomeScreen> with SingleTickerProviderSt
           borderRadius: BorderRadius.circular(20),
           boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 30, offset: Offset(0, 12))],
         ),
-        child: ClipRRect(
-          key: _keyFor(absorbingKeyOf(item)),
-          borderRadius: BorderRadius.circular(20),
-          child: TvCover(itemId: item['id'] as String?, title: n.title, author: n.author, width: 700),
+        // The row takes the remote as a whole, so nothing else says the
+        // cover in the middle is the one OK will open.
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: focused ? Border.all(color: Theme.of(context).colorScheme.onSurface, width: 4) : null,
+          ),
+          child: ClipRRect(
+            key: _keyFor(absorbingKeyOf(item)),
+            borderRadius: BorderRadius.circular(20),
+            child: TvCover(itemId: item['id'] as String?, title: n.title, author: n.author, width: 700),
+          ),
         ),
       ),
     );
@@ -362,7 +376,9 @@ class _TvHomeScreenState extends State<TvHomeScreen> with SingleTickerProviderSt
                     child: Transform.scale(scale: 1 - 0.22 * dist, child: child),
                   );
                 },
-                child: Center(child: _rowCover(books[i], side)),
+                child: Center(
+                  child: _rowCover(books[i], side, focused: i == _page && _homeFocus.hasPrimaryFocus),
+                ),
               ),
             ),
           ),

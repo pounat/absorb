@@ -25217,6 +25217,12 @@ abstract class AppLocalizations {
   /// **'Author'**
   String get tvSortAuthor;
 
+  /// No description provided for @tvSortListened.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently listened'**
+  String get tvSortListened;
+
   /// No description provided for @tvNothingHere.
   ///
   /// In en, this message translates to:
