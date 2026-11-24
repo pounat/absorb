@@ -62,6 +62,9 @@ class ChromecastService extends ChangeNotifier {
 
   Future<void> init() async {}
 
+  Future<void> onAppBackgrounded() async {}
+  Future<void> onAppForegrounded() async {}
+
   Future<void> disconnect() async {}
 
   Future<bool> castItem({
