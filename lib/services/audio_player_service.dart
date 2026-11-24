@@ -23,6 +23,7 @@ import 'sleep_timer_service.dart';
 import 'equalizer_service.dart';
 import 'external_audio_output_types.dart';
 import 'android_auto_service.dart';
+import 'notification_cover.dart';
 import 'chromecast_service.dart';
 import 'chapter_lookup.dart';
 import 'now_playing_layout.dart';
@@ -6003,6 +6004,19 @@ class AudioPlayerService extends ChangeNotifier {
         _coverRepushItem = coverId;
         _scheduleStreamedCoverRepush(itemId);
       }
+      // A BookOrbit cover the notification doesn't have saved yet is saved
+      // from here first, and the notification goes without art until it is.
+      // Sent to fetch it itself, it froze the app (see NotificationCover).
+      final api = _api;
+      if (streamed &&
+          api != null &&
+          api.isBookOrbit &&
+          !NotificationCover.ready(coverId, AndroidAutoService.coverTsFor(coverId))) {
+        effectiveCoverUrl = null;
+        unawaited(NotificationCover.save(api, coverId).then((saved) {
+          if (saved) _scheduleStreamedCoverRepush(itemId, after: Duration.zero);
+        }));
+      }
     } else {
       effectiveCoverUrl = coverUrl;
     }
@@ -6219,9 +6233,9 @@ class AudioPlayerService extends ChangeNotifier {
     );
   }
 
-  void _scheduleStreamedCoverRepush(String itemId) {
+  void _scheduleStreamedCoverRepush(String itemId, {Duration after = const Duration(seconds: 3)}) {
     _coverRepushTimer?.cancel();
-    _coverRepushTimer = Timer(const Duration(seconds: 3), () {
+    _coverRepushTimer = Timer(after, () {
       // Only re-push if we're still on the same item.
       if (_currentItemId == null) return;
       if (_currentItemId != itemId && _mediaItemKey != itemId) return;
