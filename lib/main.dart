@@ -614,7 +614,15 @@ class AbsorbApp extends StatelessWidget {
                                 : Colors.black,
                           ),
                         )
-                      : null,
+                      // The selected tab wears the app's color.
+                      : WidgetStateProperty.resolveWith(
+                          (states) => IconThemeData(
+                            size: 24,
+                            color: states.contains(WidgetState.selected)
+                                ? lightScheme.primary
+                                : lightScheme.onSurfaceVariant,
+                          ),
+                        ),
                   labelTextStyle: WidgetStatePropertyAll(
                     TextStyle(
                       fontSize: 11,
@@ -674,6 +682,14 @@ class AbsorbApp extends StatelessWidget {
                 navigationBarTheme: NavigationBarThemeData(
                   backgroundColor: isFlat ? Colors.black : const Color(0xFF0E0E0E),
                   indicatorColor: darkScheme.primary.withValues(alpha: 0.15),
+                  iconTheme: WidgetStateProperty.resolveWith(
+                    (states) => IconThemeData(
+                      size: 24,
+                      color: states.contains(WidgetState.selected)
+                          ? darkScheme.primary
+                          : darkScheme.onSurfaceVariant,
+                    ),
+                  ),
                   labelTextStyle: WidgetStatePropertyAll(
                     TextStyle(
                       fontSize: 11,

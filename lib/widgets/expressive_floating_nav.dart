@@ -119,7 +119,9 @@ class ExpressiveFloatingNav extends StatelessWidget {
     final selected = i == selectedIndex;
     final states = <WidgetState>{if (selected) WidgetState.selected};
     final iconTheme = barTheme.iconTheme?.resolve(states) ??
-        IconThemeData(size: 24, color: selected ? cs.onSecondaryContainer : cs.onSurfaceVariant);
+        // The selected tab wears the app's color, as the Absorbing tab's
+        // own icon always has.
+        IconThemeData(size: 24, color: selected ? cs.primary : cs.onSurfaceVariant);
     final labelStyle = barTheme.labelTextStyle?.resolve(states) ??
         theme.textTheme.labelMedium?.copyWith(
           color: selected ? cs.onSurface : cs.onSurfaceVariant,

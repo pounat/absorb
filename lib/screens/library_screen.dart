@@ -3708,7 +3708,6 @@ class LibraryScreenState extends State<LibraryScreen>
                     final active = _currentTab == i;
                     final pill = NativeTabBar.floatingPill;
                     final barTheme = Theme.of(context).navigationBarTheme;
-                    final ink = pill ? cs.onSecondaryContainer : cs.primary;
                     return GestureDetector(
                       onTap: () {
                         if (active) {
@@ -3751,7 +3750,7 @@ class LibraryScreenState extends State<LibraryScreen>
                                     ? FontWeight.w700
                                     : FontWeight.w500,
                                 color: active
-                                    ? ink
+                                    ? cs.primary
                                     : cs.onSurfaceVariant,
                               ),
                             ),
@@ -3760,7 +3759,7 @@ class LibraryScreenState extends State<LibraryScreen>
                               Icon(
                                 Icons.sort_rounded,
                                 size: 14,
-                                color: ink,
+                                color: cs.primary,
                               ),
                             ],
                           ],
