@@ -220,14 +220,24 @@ class SleepTimerService extends ChangeNotifier {
   bool _resumeResetInFlight = false;
 
   Future<void> _onPlaybackChanged() async {
-    if (_mode != SleepTimerMode.time || _isTriggeringSleep) return;
+    if (!isActive || _isTriggeringSleep) return;
     final playing = _isPlaybackActive;
     if (!playing) {
       _wasPlaying = false;
+      if (_isBackgrounded && _accelSub != null) {
+        debugPrint('[SleepTimer] Paused shake detection (backgrounded, playback paused)');
+        _accelSub?.cancel();
+        _accelSub = null;
+      }
       return;
     }
-    if (_wasPlaying || _resumeResetInFlight) return;
+    if (_wasPlaying) return;
     _wasPlaying = true;
+    if (_isBackgrounded && _accelSub == null) {
+      _startShakeDetection();
+      debugPrint('[SleepTimer] Resumed shake detection (backgrounded, playback resumed)');
+    }
+    if (_mode != SleepTimerMode.time || _resumeResetInFlight) return;
     _resumeResetInFlight = true;
     final generation = _timerGeneration;
     try {
@@ -404,6 +414,9 @@ class SleepTimerService extends ChangeNotifier {
     debugPrint('[SleepTimer] Set chapter sleep: current=$currentIdx '
         'target=$target end=${_targetEndSeconds.toStringAsFixed(0)}s');
 
+    _wasPlaying = _isPlaybackActive;
+    _player.addListener(_onPlaybackChanged);
+    _cast.addListener(_onPlaybackChanged);
     _startChapterMonitor();
     _startShakeDetection();
     notifyListeners();
@@ -729,6 +742,7 @@ class SleepTimerService extends ChangeNotifier {
     _targetEndSeconds = -1;
     _warningSent = false;
     _autoStarted = false;
+    _wasPlaying = false;
     // Restore volume if cancelled during fade-out
     if (wasFading) {
       _player.setVolume(_fadeStartVolume);
@@ -787,6 +801,8 @@ class SleepTimerService extends ChangeNotifier {
 
     final sensitivity = await PlayerSettings.getShakeSensitivity();
     _shakeThreshold = PlayerSettings.shakeThresholdFor(sensitivity);
+
+    if (!isActive || (_isBackgrounded && !_isPlaybackActive)) return;
 
     _accelSub?.cancel();
     debugPrint('[Battery] Accelerometer stream STARTED (shakeMode=$_shakeMode, sensitivity=$sensitivity, threshold=$_shakeThreshold)');
@@ -978,6 +994,7 @@ class SleepTimerService extends ChangeNotifier {
   void onAppBackgrounded() {
     _isBackgrounded = true;
     if (!_isPlaybackActive) {
+      _wasPlaying = false;
       _accelSub?.cancel();
       _accelSub = null;
       debugPrint('[SleepTimer] Paused shake detection (backgrounded, not playing)');
