@@ -7875,8 +7875,12 @@ class AudioPlayerService extends ChangeNotifier {
         _seekedWhilePaused = false;
       }
     }
-    // Auto-rewind on resume if enabled
-    if (_lastPauseTime != null && _player != null) {
+    // Auto-rewind on resume if enabled. Not after a seek while paused: the
+    // rewind is for finding your place again, and a jump to a chapter then
+    // started playing from the end of the chapter before it.
+    if (seekedWhilePaused) {
+      debugPrint('[Player] No auto-rewind: the position was moved while paused');
+    } else if (_lastPauseTime != null && _player != null) {
       final settings = await AutoRewindSettings.load();
       if (settings.enabled) {
         final pauseDuration = DateTime.now().difference(_lastPauseTime!);
