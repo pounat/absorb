@@ -489,6 +489,14 @@
   "quoteShapePortrait": "Ritratto",
   "quoteShapeSquare": "Quadrato",
   "quoteShapeStory": "Storia",
+  "statsDaysOfAudio": "Questi {days} giorni in audio",
+  "@statsDaysOfAudio": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
   "statsFinished": "Finito",
   "statsBooksFinished": "Libri",
   "statsEpisodesFinished": "Episodi",
