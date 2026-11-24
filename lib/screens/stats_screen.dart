@@ -462,7 +462,7 @@ class _StatsScreenState extends State<StatsScreen>
         if (!flatNotifier.value) const Positioned.fill(child: CoverGlow()),
         SafeArea(
           // Under the glass tab bar the stats scroll beneath it.
-          bottom: !NativeTabBar.active.value,
+          bottom: !NativeTabBar.overPage,
           child: _isLoading
               ? Center(
                   child: AdaptiveSpinner(
@@ -698,7 +698,7 @@ class _StatsScreenState extends State<StatsScreen>
             0,
             horizontalPadding,
             32 +
-                (NativeTabBar.active.value
+                (NativeTabBar.overPage
                     ? MediaQuery.paddingOf(context).bottom
                     : 0),
           ),

@@ -1,3 +1,4 @@
+import 'package:flutter/animation.dart' show Curves;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../utils/app_platform.dart';
@@ -35,6 +36,27 @@ class NativeTabBar {
 
   /// True while the native bar stands in for the Flutter one.
   static final ValueNotifier<bool> active = ValueNotifier(false);
+
+  /// The Material 3 Expressive tabs are showing as a pill floating over the
+  /// page. Set by the app shell.
+  static bool floatingPill = false;
+
+  /// How open the floating pill is, 1 full and 0 shrunk. A page's own
+  /// floating controls follow it, so they match the pill on every tab.
+  static final ValueNotifier<double> pillReveal = ValueNotifier(1);
+
+  /// The floating pill's width at full size and shrunk, noted when it is
+  /// laid out.
+  static double pillWide = 0;
+  static double pillNarrow = 0;
+
+  /// How wide the floating pill is when it is [reveal] of the way open.
+  static double pillWidthAt(double reveal) =>
+      pillNarrow + (pillWide - pillNarrow) * Curves.easeOut.transform(reveal.clamp(0.0, 1.0));
+
+  /// Whether a page's lists run on underneath the tabs: under the glass bar,
+  /// or under the floating pill.
+  static bool get overPage => active.value || floatingPill;
 
   /// The tab page whose native chrome is on screen right now, or null while
   /// the bar is off, covered by another page, or scrolled away.

@@ -517,7 +517,7 @@ class HomeScreenState extends State<HomeScreen>
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final desktop = isDesktopWorkspace(context);
-    final glassNav = NativeTabBar.active.value;
+    final glassNav = NativeTabBar.overPage;
     _revealDriver.setEnabled(!desktop);
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
     final lib = context.watch<LibraryProvider>();

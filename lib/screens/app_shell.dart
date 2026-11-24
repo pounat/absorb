@@ -28,6 +28,7 @@ import '../main.dart'
 import '../services/scoped_prefs.dart';
 import '../services/native_tab_bar.dart';
 import '../widgets/expressive.dart';
+import '../widgets/expressive_floating_nav.dart';
 import 'dart:convert';
 import 'admin_screen.dart';
 import 'admin_api_keys_screen.dart';
@@ -224,7 +225,7 @@ class _AppShellState extends State<AppShell>
     vsync: this,
     duration: const Duration(milliseconds: 250),
     value: 1.0,
-  );
+  )..addListener(() => NativeTabBar.pillReveal.value = _navBarAnimController.value);
   VoidCallback? _navBarListener;
 
   // iOS 26 Liquid Glass tabs: a native bar over the Flutter view stands in
@@ -484,6 +485,13 @@ class _AppShellState extends State<AppShell>
   /// Library tab, and ensure the nav bar is visible on all other tabs.
   void _syncNavBarListener(int index) {
     _detachNavBarListener();
+    // The floating pill follows scrolling on every tab by itself, and keeps
+    // its size when the tab changes. Absorbing is the exception: its cards
+    // aren't a list to scroll back up, so the pill is always full size there.
+    if (_floatingNav) {
+      if (index == 2) _navBarAnimController.forward();
+      return;
+    }
     // Snap visible immediately on every tab change so a partial-hide state
     // from another tab can never bleed into the new tab.
     _navBarAnimController.value = 1.0;
@@ -1247,8 +1255,13 @@ class _AppShellState extends State<AppShell>
                       usesExtendedDesktopSidebar(workspaceTier),
                 )
               : Scaffold(
-                  extendBody: _glassNav,
-                  body: _buildPageStack(context),
+                  extendBody: _glassNav || _floatingNav,
+                  body: _floatingNav
+                      ? NotificationListener<ScrollNotification>(
+                          onNotification: _onPageScroll,
+                          child: _buildPageStack(context),
+                        )
+                      : _buildPageStack(context),
                   bottomNavigationBar: _buildBottomNav(context),
                 ),
         );
@@ -1820,7 +1833,34 @@ class _AppShellState extends State<AppShell>
     if (page >= 0 && page <= 3) _refreshDataForTab(page);
   }
 
+  // How far a page scrolls to take the pill from full to shrunk.
+  static const _pillScrollTravel = 90.0;
+
+  /// The floating pill follows the finger: it shrinks as a page is dragged
+  /// down and grows as it is dragged back, on whichever tab is showing. When
+  /// the scroll stops partway it finishes to whichever size is nearer.
+  bool _onPageScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical || _currentIndex == 2) return false;
+    final c = _navBarAnimController;
+    if (n is OverscrollNotification) {
+      // Pulling down at the top of a page that has nothing left to scroll.
+      if (n.overscroll < 0) c.forward();
+    } else if (n is ScrollUpdateNotification) {
+      final delta = n.scrollDelta ?? 0;
+      // The bounce past the end of a list isn't a scroll back up.
+      final inside = n.metrics.pixels > n.metrics.minScrollExtent && n.metrics.pixels < n.metrics.maxScrollExtent;
+      if (delta != 0 && inside) c.value = (c.value - delta / _pillScrollTravel).clamp(0.0, 1.0);
+    } else if (n is ScrollEndNotification) {
+      if (c.value > 0 && c.value < 1) c.value >= 0.5 ? c.forward() : c.reverse();
+    }
+    return false;
+  }
+
+  /// Material 3 Expressive floats the tabs over the page as a pill.
+  bool get _floatingNav => expressiveNotifier.value && !einkModeNotifier.value && !_glassNav;
+
   Widget _buildBottomNav(BuildContext context) {
+    NativeTabBar.floatingPill = _floatingNav;
     // Determine the *correct* notifier for the active tab so we can detect
     // both "no listener" and "listener attached to the wrong tab" — the
     // second happens when LibraryProvider.notify() rebuilds AppShell mid-fade
@@ -1837,7 +1877,7 @@ class _AppShellState extends State<AppShell>
         _navBarListener != null &&
         correctNotifier != null &&
         !identical(_activeBarNotifier, correctNotifier);
-    final missingAttachment = isHomeOrLibrary && _navBarListener == null;
+    final missingAttachment = isHomeOrLibrary && _navBarListener == null && !_floatingNav;
 
     if (missingAttachment || wrongAttachment) {
       final scheduledIndex = _currentIndex;
@@ -1877,6 +1917,19 @@ class _AppShellState extends State<AppShell>
     if (_glassNav) {
       _syncGlassNav(lib, podcastsShown, destinations);
       return SizedBox(height: _glassNavHeight);
+    }
+    if (_floatingNav) {
+      return ExpressiveFloatingNav(
+        reveal: _navBarAnimController,
+        selectedIndex: _selectedDest(lib, podcastsShown),
+        destinations: destinations,
+        compact: isPhoneLandscape,
+        onSelected: (dest) => _selectDestination(dest, podcastsShown),
+        onLongPress: (slot) {
+          HapticFeedback.mediumImpact();
+          unawaited(_runNavHold(_tabForSlot(slot, destinations.length)));
+        },
+      );
     }
     return SizeTransition(
       sizeFactor: _navBarAnimController,

@@ -73,7 +73,7 @@ double libraryGridBottomPadding(BuildContext context) =>
         ? 80
         // The glass tab bar and pill row never scroll away, so the last row
         // needs extra room to clear them.
-        : (NativeTabBar.active.value ? 230 : 180);
+        : (NativeTabBar.overPage ? 230 : 180);
 
 const double kDesktopLibraryTileMaxExtent = 220;
 
@@ -2968,7 +2968,7 @@ class LibraryScreenState extends State<LibraryScreen>
     final tt = Theme.of(context).textTheme;
     final l = AppLocalizations.of(context)!;
     final desktopWorkspace = isDesktopWorkspace(context);
-    final glassNav = NativeTabBar.active.value;
+    final glassNav = NativeTabBar.overPage;
     final glassPill = _glassPillInUse;
     if (glassPill) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _syncGlassPill());
@@ -3180,17 +3180,29 @@ class LibraryScreenState extends State<LibraryScreen>
                     bottom: 12 +
                         (glassNav ? MediaQuery.paddingOf(context).bottom : 0),
                     child: ValueListenableBuilder<double>(
-                      valueListenable: _revealDriver.notifier,
+                      // With the floating pill, this row comes and goes with
+                      // it, whichever tab it was shrunk on.
+                      valueListenable: NativeTabBar.floatingPill ? NativeTabBar.pillReveal : _revealDriver.notifier,
                       // Translate only; skip the Opacity saveLayer that was
                       // forcing a per-frame re-raster of the BackdropFilter
                       // pill. Skip painting entirely once basically hidden.
                       builder: (_, reveal, child) {
                         if (reveal < 0.02) return const SizedBox.shrink();
+                        // Narrows along with the floating pill on its way
+                        // down, so it looks like it slides in behind it.
+                        final fit = NativeTabBar.floatingPill && NativeTabBar.pillWide > 0;
                         return IgnorePointer(
                           ignoring: reveal < 0.5,
                           child: Transform.translate(
                             offset: Offset(0, (1 - reveal) * 80),
-                            child: child,
+                            child: fit
+                                ? Center(
+                                    child: SizedBox(
+                                      width: NativeTabBar.pillWidthAt(reveal),
+                                      child: FittedBox(fit: BoxFit.scaleDown, child: child),
+                                    ),
+                                  )
+                                : child,
                           ),
                         );
                       },
@@ -3204,7 +3216,9 @@ class LibraryScreenState extends State<LibraryScreen>
                     bottom: 12 +
                         (glassNav ? MediaQuery.paddingOf(context).bottom : 0),
                     child: ValueListenableBuilder<double>(
-                      valueListenable: _revealDriver.notifier,
+                      // With the floating pill, this row comes and goes with
+                      // it, whichever tab it was shrunk on.
+                      valueListenable: NativeTabBar.floatingPill ? NativeTabBar.pillReveal : _revealDriver.notifier,
                       builder: (_, reveal, child) {
                         if (reveal < 0.02) return const SizedBox.shrink();
                         return IgnorePointer(

@@ -2021,7 +2021,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             ),
           SafeArea(
         // Under the glass tab bar the settings scroll beneath it.
-        bottom: !NativeTabBar.active.value,
+        bottom: !NativeTabBar.overPage,
         child: _SettingsAdaptiveFrame(
         desktopMode: isDesktopSettings,
         selectedSection: _expandedSection,
@@ -2586,7 +2586,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                 onOpen: _openSearchResult,
               ),
             ),
-        if (NativeTabBar.active.value)
+        if (NativeTabBar.overPage)
             SliverToBoxAdapter(
               child: SizedBox(height: MediaQuery.paddingOf(context).bottom),
             ),

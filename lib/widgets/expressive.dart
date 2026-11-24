@@ -65,10 +65,15 @@ class ExpressiveNavHighlight extends StatefulWidget {
   final Color shapeColor;
   final Widget child;
 
+  /// How far down the middle of the icons sits. The Material 3 nav bar puts
+  /// it 28 down, with or without labels.
+  final double centerY;
+
   const ExpressiveNavHighlight({
     super.key,
     required this.selectedIndex,
     required this.count,
+    this.centerY = 28,
     required this.background,
     required this.pillColor,
     required this.shapeColor,
@@ -134,6 +139,7 @@ class _ExpressiveNavHighlightState extends State<ExpressiveNavHighlight>
                 to: widget.selectedIndex,
                 count: widget.count,
                 shape: _shape,
+                centerY: widget.centerY,
                 pillColor: widget.pillColor,
                 shapeColor: widget.shapeColor,
                 rtl: Directionality.of(context) == TextDirection.rtl,
@@ -153,11 +159,13 @@ class _NavHighlightPainter extends CustomPainter {
   final int to;
   final int count;
   final WavyShape shape;
+  final double centerY;
   final Color pillColor;
   final Color shapeColor;
   final bool rtl;
 
   _NavHighlightPainter({
+    required this.centerY,
     required this.progress,
     required this.from,
     required this.to,
@@ -168,11 +176,9 @@ class _NavHighlightPainter extends CustomPainter {
     required this.rtl,
   }) : super(repaint: progress);
 
-  // The Material 3 nav bar's own measurements: a 64 by 32 pill whose middle
-  // sits 28 down from the top, with or without labels.
+  // The Material 3 nav bar's own measurements: a 64 by 32 pill.
   static const _pillWidth = 64.0;
   static const _pillHeight = 32.0;
-  static const _centerY = 28.0;
   static const _shapeSize = 38.0;
   static const _travel = Cubic(0.45, 0, 0.25, 1);
 
@@ -244,7 +250,7 @@ class _NavHighlightPainter extends CustomPainter {
     }
     if (opacity <= 0) return;
     canvas.save();
-    canvas.translate(x, _centerY);
+    canvas.translate(x, centerY);
     canvas.scale(scaleX * _shapeSize / 2, scaleY * _shapeSize / 2);
     canvas.rotate(turn * roll);
     canvas.drawPath(
@@ -257,7 +263,7 @@ class _NavHighlightPainter extends CustomPainter {
   void _paintPill(Canvas canvas, double centerX, double width, double opacity) {
     if (opacity <= 0) return;
     final rect = Rect.fromCenter(
-      center: Offset(centerX, _centerY),
+      center: Offset(centerX, centerY),
       width: width,
       height: _pillHeight,
     );
@@ -273,6 +279,7 @@ class _NavHighlightPainter extends CustomPainter {
       old.to != to ||
       old.count != count ||
       old.shape != shape ||
+      old.centerY != centerY ||
       old.pillColor != pillColor ||
       old.shapeColor != shapeColor ||
       old.rtl != rtl;
