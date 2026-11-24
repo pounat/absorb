@@ -137,6 +137,21 @@ class _TvPairScreenState extends State<TvPairScreen> {
   }
 
   /// Opens the library the phone is on, so the row shows the same cards.
+  /// The player card's buttons in the phone's order. Buttons a TV doesn't
+  /// have are skipped when the card is drawn, so the order can be taken whole.
+  Future<void> _matchCardButtons(Map<String, dynamic>? b) async {
+    if (b == null) return;
+    final order = b['order'];
+    if (order is List && order.isNotEmpty) {
+      await PlayerSettings.setCardButtonOrder([for (final id in order) '$id']);
+    }
+    final visible = b['visible'];
+    if (visible is int) await PlayerSettings.setCardButtonVisibleCount(visible);
+    if (b['iconsOnly'] is bool) await PlayerSettings.setCardIconsOnly(b['iconsOnly'] as bool);
+    if (b['singleRow'] is bool) await PlayerSettings.setCardSingleRow(b['singleRow'] as bool);
+    if (b['moreInline'] is bool) await PlayerSettings.setCardMoreInline(b['moreInline'] as bool);
+  }
+
   Future<void> _matchPhone(TvSignIn s) async {
     try {
       // Only after the sign-in: touching the library before it lands makes
@@ -146,6 +161,7 @@ class _TvPairScreenState extends State<TvPairScreen> {
       if (ctx == null) return;
       final lib = Provider.of<LibraryProvider>(ctx, listen: false);
       if (s.mergeLibraries) await PlayerSettings.setMergeAbsorbingLibraries(true);
+      await _matchCardButtons(s.cardButtons);
       final id = s.libraryId;
       if (id == null) return;
       // Saved first, so a library list still loading picks it up too.

@@ -58,6 +58,8 @@ class _TvPlayerPanelState extends State<TvPlayerPanel> {
     super.initState();
     _player.addListener(_changed);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) => _changed());
+    PlayerSettings.settingsChanged.addListener(_loadOrder);
+    _loadOrder();
     _loadFull();
     // The remote starts on play when the player opens.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,9 +70,20 @@ class _TvPlayerPanelState extends State<TvPlayerPanel> {
   @override
   void dispose() {
     _tick?.cancel();
+    PlayerSettings.settingsChanged.removeListener(_loadOrder);
     _player.removeListener(_changed);
     _playFocus.dispose();
     super.dispose();
+  }
+
+  // The order the buttons were put in on the phone's player card, which a
+  // sign-in from the phone brings over. Buttons a TV has that the list
+  // doesn't name follow in their usual order.
+  List<String> _order = const [];
+
+  Future<void> _loadOrder() async {
+    final order = await PlayerSettings.getCardButtonOrder();
+    if (mounted) setState(() => _order = order);
   }
 
   void _changed() {
@@ -192,16 +205,18 @@ class _TvPlayerPanelState extends State<TvPlayerPanel> {
           alwaysEnabled: true,
           onTap: onTap,
         );
-    // All of them whether the book is loaded yet or not.
-    final buttons = <Widget>[
-      CardSpeedButtonInline(player: _player, accent: accent, isActive: true, itemId: _itemId, libraryId: libraryId),
-      CardSleepButtonInline(accent: accent, isActive: true),
-      if (chapters.isNotEmpty) wide(Icons.list_rounded, l.chapters, _chapters),
-      CardBookmarkButtonInline(player: _player, accent: accent, isActive: active, itemId: _itemId, episodeId: _episodeId),
-      wide(Icons.bedtime_rounded, l.tvNightMode, TvNightMode.start),
-      if (_epub && _narrated) wide(Icons.auto_stories_rounded, l.readAlong, () => _read(along: true)),
-      if (_epub) wide(Icons.menu_book_rounded, l.tvRead, _read),
-      ListenableBuilder(
+    // All of them whether the book is loaded yet or not, under the names
+    // the phone's player card knows them by.
+    final byName = <String, Widget>{
+      'speed': CardSpeedButtonInline(player: _player, accent: accent, isActive: true, itemId: _itemId, libraryId: libraryId),
+      'sleep': CardSleepButtonInline(accent: accent, isActive: true),
+      if (chapters.isNotEmpty) 'chapters': wide(Icons.list_rounded, l.chapters, _chapters),
+      'bookmarks':
+          CardBookmarkButtonInline(player: _player, accent: accent, isActive: active, itemId: _itemId, episodeId: _episodeId),
+      'night': wide(Icons.bedtime_rounded, l.tvNightMode, TvNightMode.start),
+      if (_epub && _narrated) 'lyrics': wide(Icons.auto_stories_rounded, l.readAlong, () => _read(along: true)),
+      if (_epub) 'ebook': wide(Icons.menu_book_rounded, l.tvRead, _read),
+      'equalizer': ListenableBuilder(
         listenable: EqualizerService(),
         builder: (context, _) => CardWideButton(
           icon: Icons.equalizer_rounded,
@@ -214,8 +229,14 @@ class _TvPlayerPanelState extends State<TvPlayerPanel> {
         ),
       ),
       // A podcast's page is the show with its episodes.
-      wide(Icons.info_outline_rounded, _episodeId != null ? l.tvPodcastDetails : l.bookDetailsLabel,
+      'details': wide(Icons.info_outline_rounded, _episodeId != null ? l.tvPodcastDetails : l.bookDetailsLabel,
           () => openTvBook(context, _full ?? widget.item)),
+    };
+    final buttons = <Widget>[
+      for (final name in _order)
+        if (byName.containsKey(name)) byName[name]!,
+      for (final e in byName.entries)
+        if (!_order.contains(e.key)) e.value,
       if (active) wide(Icons.stop_rounded, l.tvStop, _stop),
     ];
 

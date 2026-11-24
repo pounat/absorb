@@ -32,6 +32,10 @@ class TvSignIn {
   final String? libraryId;
   final bool mergeLibraries;
 
+  /// How the phone's player card buttons are laid out (their order, how many
+  /// show, and the row options), so the TV's card starts out the same.
+  final Map<String, dynamic>? cardButtons;
+
   const TvSignIn({
     required this.serverUrl,
     required this.backend,
@@ -43,6 +47,7 @@ class TvSignIn {
     this.alternates = const [],
     this.libraryId,
     this.mergeLibraries = false,
+    this.cardButtons,
   });
 
   Map<String, dynamic> toJson() => {
@@ -57,6 +62,7 @@ class TvSignIn {
         if (alternates.isNotEmpty) 'alternates': alternates,
         if (libraryId != null) 'libraryId': libraryId,
         if (mergeLibraries) 'mergeLibraries': true,
+        if (cardButtons != null) 'cardButtons': cardButtons,
       };
 
   static TvSignIn? fromJson(Object? json) {
@@ -84,6 +90,7 @@ class TvSignIn {
       alternates: [for (final a in (json['alternates'] as List? ?? const [])) if (a is String && a.isNotEmpty) a],
       libraryId: libraryId is String && libraryId.isNotEmpty ? libraryId : null,
       mergeLibraries: json['mergeLibraries'] == true,
+      cardButtons: json['cardButtons'] is Map ? Map<String, dynamic>.from(json['cardButtons'] as Map) : null,
     );
   }
 }

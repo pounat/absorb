@@ -121,6 +121,13 @@ class _SignInTvScreenState extends State<SignInTvScreen> {
 
     final libraryId = context.read<LibraryProvider>().selectedLibraryId;
     final merge = await PlayerSettings.getMergeAbsorbingLibrariesRaw();
+    final cardButtons = <String, dynamic>{
+      'order': await PlayerSettings.getCardButtonOrder(),
+      'visible': await PlayerSettings.getCardButtonVisibleCount(),
+      'iconsOnly': await PlayerSettings.getCardIconsOnly(),
+      'singleRow': await PlayerSettings.getCardSingleRow(),
+      'moreInline': await PlayerSettings.getCardMoreInline(),
+    };
     if (!mounted) return;
     final result = await sendSignInToTv(
       widget.link,
@@ -135,6 +142,7 @@ class _SignInTvScreenState extends State<SignInTvScreen> {
         alternates: await _byNumber(serverUrl),
         libraryId: libraryId,
         mergeLibraries: merge,
+        cardButtons: cardButtons,
       ),
     );
     if (result.error != null && key != null) {
