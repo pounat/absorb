@@ -38,7 +38,7 @@ dependencies:
   audio_service:
     path: packages/audio_service
 
-  # Windows has no just_audio engine of its own; this plays through libmpv.
+  # Windows and Linux have no just_audio engine of its own; this plays through libmpv.
   # Vendored so a seek into another track lands at its spot, not the top.
   just_audio_media_kit:
     path: packages/just_audio_media_kit
@@ -68,6 +68,7 @@ dependencies:
   # Downloads & offline
   path_provider: ^2.1.1
   connectivity_plus: ^6.0.3
+  connectivity_plus_platform_interface: ^2.0.1
   # Native background downloads (iOS background URLSession, Android foreground service)
   background_downloader: ^9.0.0
 

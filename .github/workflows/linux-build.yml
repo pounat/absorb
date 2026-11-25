@@ -1,0 +1,107 @@
+name: Linux Desktop Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Add a prerelease suffix to the packages
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      prerelease:
+        type: boolean
+        default: false
+      release_tag:
+        description: Existing GitHub draft release to receive the packages
+        type: string
+      release_basename:
+        description: Versioned package basename for the draft release
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Linux (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build and packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang cmake ninja-build pkg-config \
+            libgtk-3-dev libwebkit2gtk-4.1-dev liblzma-dev libstdc++-12-dev rpm \
+            desktop-file-utils libgdk-pixbuf2.0-bin flatpak-builder
+
+      # The Flutter Linux release manifest lists only the x64 SDK archive.
+      # The tagged source bootstraps the Dart SDK and engine for the host CPU.
+      - name: Set up Flutter
+        run: |
+          git -c advice.detachedHead=false clone --depth 1 --branch "$(cat .flutter-version)" \
+            https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: flutter build linux --release
+
+      - name: Package
+        env:
+          PRE: ${{ inputs.prerelease }}
+        run: |
+          desktop-file-validate linux/packaging/com.barnabas.absorb.desktop
+          # Flatpak Builder uses bubblewrap on the GitHub-hosted Ubuntu VM.
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bash scripts/package-linux "$PRE" --flatpak
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: absorb-linux-${{ matrix.arch }}
+          path: |
+            build/linux-packages/*.deb
+            build/linux-packages/*.rpm
+            build/linux-packages/*.flatpak
+          if-no-files-found: error
+          retention-days: 14
+
+  upload:
+    name: Upload Linux packages
+    needs: build
+    if: inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: absorb-linux-*
+          merge-multiple: true
+          path: linux-packages
+
+      - name: Upload packages to GitHub draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION_TAG: ${{ inputs.release_tag }}
+          FNAME: ${{ inputs.release_basename }}
+        run: |
+          gh release upload "$VERSION_TAG" --clobber \
+            "linux-packages/$FNAME-amd64.deb" \
+            "linux-packages/$FNAME-arm64.deb" \
+            "linux-packages/$FNAME-aarch64.rpm" \
+            "linux-packages/$FNAME-x86_64.rpm" \
+            "linux-packages/$FNAME-aarch64.flatpak" \
+            "linux-packages/$FNAME-x86_64.flatpak"
